@@ -67,21 +67,21 @@ files that still contain `ChangeDetectionStrategy.Eager`.
 
 ### apps/web (15)
 
-- [ ] `apps/web/src/app/app.component.ts` (idle audit root)
-- [ ] `apps/web/src/app/app-update-notification-panel.component.ts` (idle audit root)
-- [ ] `apps/web/src/app/settings/app-update-release-notes-dialog.component.ts`
-- [ ] `apps/web/src/app/settings/settings.component.ts`
-- [ ] `apps/web/src/app/settings/settings-about-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-backup-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-dashboard-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-delete-all-playlists-dialog.component.ts`
-- [ ] `apps/web/src/app/settings/settings-epg-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-general-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-playback-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-remote-control-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-reset-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-tmdb-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-unsaved-changes-dialog.component.ts`
+- [x] `apps/web/src/app/app.component.ts` (idle audit root)
+- [x] `apps/web/src/app/app-update-notification-panel.component.ts` (idle audit root)
+- [x] `apps/web/src/app/settings/app-update-release-notes-dialog.component.ts`
+- [x] `apps/web/src/app/settings/settings.component.ts`
+- [x] `apps/web/src/app/settings/settings-about-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-backup-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-dashboard-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-delete-all-playlists-dialog.component.ts`
+- [x] `apps/web/src/app/settings/settings-epg-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-general-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-playback-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-remote-control-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-reset-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-tmdb-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-unsaved-changes-dialog.component.ts`
 
 ### libs/ui (20 files, 21 components)
 
@@ -175,7 +175,7 @@ the field a signal (or a `computed`), or writes it through one.
 | [x] | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` (favorites load) | `favorites` Map filled in a `subscribe` without `markForCheck`; the component is OnPush already, so this is a latent bug today | portal |
 | [x] | `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts` (favorites load) | same pattern; the neighbouring `favoriteMarks.changes$` handler does call `markForCheck` | portal |
 | [x] | same file, programme dialog `afterClosed` | deletes from `epgPrograms`/`currentProgramsProgress` after `await` without marking | portal |
-| [ ] | `apps/web/src/app/settings/settings-backup.facade.ts` (backup import) | `change` listener on a detached file input → `hydrateFromStore()`; section templates read `form().value.theme`/`coverSize` | apps/web |
+| [x] | `apps/web/src/app/settings/settings-backup.facade.ts` (backup import) | `change` listener on a detached file input → `hydrateFromStore()`; section templates read `form().value.theme`/`coverSize`; no fix needed: a value-only `patchValue` re-renders the OnPush sections (`settings.component.form.spec.ts` guards it) | apps/web |
 | [ ] | `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` | plain `isLoading`/`error`/`status` written after `await` and from a 2 s `setInterval` | only if `apps/remote-control-web` goes zoneless |
 
 ## Explicit zone and change-detector calls

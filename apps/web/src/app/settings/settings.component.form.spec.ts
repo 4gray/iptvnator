@@ -143,6 +143,22 @@ describe('SettingsComponent form', () => {
             });
         });
 
+        // The sections are OnPush and a reset or backup import patches the
+        // form outside their template events. A value-only patch changes no
+        // form status signal, so the section must track the value itself.
+        it('re-renders section selections after a value-only form patch', () => {
+            const darkTheme = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    '[data-test-id="DARK_THEME"]'
+                );
+            expect(darkTheme()?.getAttribute('aria-checked')).toBe('false');
+
+            component.settingsForm.patchValue({ theme: Theme.DarkTheme });
+            fixture.detectChanges();
+
+            expect(darkTheme()?.getAttribute('aria-checked')).toBe('true');
+        });
+
         it('hydrates a shared web controls opt-out from the settings store', () => {
             settingsStore._setSettings({
                 webPlayerSharedControls: false,
