@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { EMBEDDED_MPV_SUPPORT_RECHECK_MS } from '@iptvnator/shared/interfaces';
 import { SETTINGS_SEARCH_ENTRIES } from './settings-search-entries';
 import { SETTINGS_SECTION_DEFINITIONS } from './settings-search-sections';
 import { SettingsSearchService } from './settings-search.service';
@@ -211,6 +212,64 @@ describe('SettingsSearchService', () => {
             expect(entries()).toContain('embedded-mpv-extra-options');
             expect(service.ensureEmbeddedMpvSupportLoaded()).toBeUndefined();
             expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+        });
+
+        describe('while the settings page stays open', () => {
+            beforeEach(() => jest.useFakeTimers());
+            afterEach(() => jest.useRealTimers());
+
+            it('follows an inconclusive answer without being asked again', async () => {
+                const getEmbeddedMpvSupport = probeWith({
+                    supported: false,
+                    inconclusive: true,
+                });
+                const { service } = setup({
+                    ...DESKTOP,
+                    supportsEmbeddedMpv: true,
+                });
+                const entries = () =>
+                    service.visibleEntries().map(({ id }) => id);
+
+                // The page asks once, when it is created.
+                await service.ensureEmbeddedMpvSupportLoaded();
+                expect(entries()).not.toContain('embedded-mpv-extra-options');
+
+                getEmbeddedMpvSupport.mockResolvedValue({
+                    platform: 'linux',
+                    supported: true,
+                });
+                await jest.advanceTimersByTimeAsync(
+                    EMBEDDED_MPV_SUPPORT_RECHECK_MS
+                );
+
+                expect(entries()).toContain('embedded-mpv-extra-options');
+                expect(
+                    service.ensureEmbeddedMpvSupportLoaded()
+                ).toBeUndefined();
+                await jest.advanceTimersByTimeAsync(
+                    EMBEDDED_MPV_SUPPORT_RECHECK_MS * 20
+                );
+                expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+            });
+
+            it('stops following once the service is destroyed', async () => {
+                const getEmbeddedMpvSupport = probeWith({
+                    supported: false,
+                    inconclusive: true,
+                });
+                const { service } = setup({
+                    ...DESKTOP,
+                    supportsEmbeddedMpv: true,
+                });
+                await service.ensureEmbeddedMpvSupportLoaded();
+
+                TestBed.resetTestingModule();
+                await jest.advanceTimersByTimeAsync(
+                    EMBEDDED_MPV_SUPPORT_RECHECK_MS * 20
+                );
+
+                expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(1);
+            });
         });
 
         it('does not probe where the runtime has no embedded MPV bridge', () => {

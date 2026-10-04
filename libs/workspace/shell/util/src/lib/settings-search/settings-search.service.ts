@@ -1,9 +1,12 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { EmbeddedMpvSupport } from '@iptvnator/shared/interfaces';
+import {
+    EmbeddedMpvSupport,
+    watchEmbeddedMpvSupport,
+} from '@iptvnator/shared/interfaces';
 import { SETTINGS_SEARCH_ENTRIES } from './settings-search-entries';
 import { rankSearchMatch, tokenizeSearchQuery } from './settings-search-rank';
 import {
@@ -39,6 +42,13 @@ export class SettingsSearchService {
     );
     private embeddedMpvSupportChecked = false;
     private embeddedMpvSupportLoad: Promise<void> | undefined;
+    private stopEmbeddedMpvSupportWatch: (() => void) | undefined;
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() =>
+            this.stopEmbeddedMpvSupportWatch?.()
+        );
+    }
 
     /** Row the settings page should scroll to and highlight next. */
     readonly pendingReveal = this.revealRequest.asReadonly();
@@ -62,12 +72,13 @@ export class SettingsSearchService {
     }
 
     /**
-     * Probes embedded MPV support once so rows that need it become
-     * searchable. Returns the pending probe, or `undefined` when there is
-     * nothing to wait for. Call it lazily (palette open, settings page),
-     * never from shell bootstrap: supported desktop builds may load the
-     * native addon while answering. An inconclusive answer is used until
-     * the next call, which probes again.
+     * Probes embedded MPV support so rows that need it become searchable.
+     * Returns the pending probe, or `undefined` when there is nothing to
+     * wait for. Call it lazily (palette open, settings page), never from
+     * shell bootstrap: supported desktop builds may load the native addon
+     * while answering. A final answer is kept. An inconclusive one keeps
+     * being followed, so an open settings page updates by itself, and the
+     * next call asks again at once.
      */
     ensureEmbeddedMpvSupportLoaded(): Promise<void> | undefined {
         if (this.embeddedMpvSupportChecked) {
@@ -84,16 +95,30 @@ export class SettingsSearchService {
             return undefined;
         }
 
-        this.embeddedMpvSupportLoad ??= electron
-            .getEmbeddedMpvSupport()
-            .then((support) => this.embeddedMpvSupport.set(support))
-            .catch(() => this.embeddedMpvSupport.set(null))
-            .finally(() => {
-                this.embeddedMpvSupportChecked =
-                    !this.embeddedMpvSupport()?.inconclusive;
-                this.embeddedMpvSupportLoad = undefined;
-            });
+        this.embeddedMpvSupportLoad ??= this.followEmbeddedMpvSupport(() =>
+            electron.getEmbeddedMpvSupport()
+        );
         return this.embeddedMpvSupportLoad;
+    }
+
+    /** Follows the answer afresh; resolves with its first one. */
+    private followEmbeddedMpvSupport(
+        getSupport: () => Promise<EmbeddedMpvSupport>
+    ): Promise<void> {
+        this.stopEmbeddedMpvSupportWatch?.();
+        return new Promise<void>((answered) => {
+            const take = (support: EmbeddedMpvSupport | null) => {
+                this.embeddedMpvSupport.set(support);
+                this.embeddedMpvSupportChecked = !support?.inconclusive;
+                this.embeddedMpvSupportLoad = undefined;
+                answered();
+            };
+            this.stopEmbeddedMpvSupportWatch = watchEmbeddedMpvSupport(
+                getSupport,
+                take,
+                () => take(null)
+            );
+        });
     }
 
     /**
