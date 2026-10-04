@@ -383,15 +383,17 @@ meanwhile. The host reports busy-state back through the
 
 A series-level counterpart lives in a `⋮` menu at the end of the same
 header row (`SeasonWatchPresenter` in `libs/ui/components` owns the state
-math for both scopes; the container component sits at the max-lines cap).
+math for both scopes, which keeps the container component under the
+max-lines cap).
 `buildSeriesWatchToggleRequest` flattens every LOADED season with the same
 mark/unmark semantics, and the direction is always the one the label
 advertised (`markWatched: !seriesFullyWatched()`), never re-inferred from
 data at persist time. Hosts route the request through the same machinery
 as the season toggle — Xtream via the scope-parameterized
-`SerialDetailsSeasonWatchService.handle(..., scope)`, Stalker via the
-extracted `runWatchToggleBatch` core — sharing the busy flag, the
-ownership guards, and the catalog-badge refresh. Stalker lazy-VOD is the
+`SerialDetailsSeasonWatchService.handle(..., scope)`, Stalker via
+`StalkerSeriesWatchToggleService` and its `runStalkerWatchToggleBatch`
+core — sharing the busy flag, the ownership guards, and the catalog-badge
+refresh. Stalker lazy-VOD is the
 special case: unopened seasons have empty episode lists, so the container
 reports them through the `hasUnloadedSeasons` input (blocks the
 "fully watched" verdict and switches the label to its countless variant),
@@ -412,7 +414,8 @@ series-toggle hydration join one in-flight request instead of
 duplicating it (a second request's failure could abort a toggle whose
 original request succeeded).
 The host synchronously re-runs the position reconcile
-(`applyReconciledSeriesPositions` — the effect-fed maps only update on
+(`StalkerSeriesPositionsService.applyReconciledSeriesPositions` — the
+effect-fed maps only update on
 the next change-detection tick, and enqueuing against stale maps would
 miss the hydrated episodes' legacy rows), rebuilds the request from the
 now-complete seasons keeping the captured direction, and reports an
