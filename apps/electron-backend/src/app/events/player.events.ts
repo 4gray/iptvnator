@@ -75,13 +75,17 @@ ipcMain.handle(
             typeof paths?.vlc === 'string'
                 ? paths.vlc
                 : store.get(VLC_PLAYER_PATH);
-        const [mpvReady, vlcReady] = await Promise.all([
-            waitForPathIfBareName('mpv', mpv),
-            waitForPathIfBareName('vlc', vlc),
+        const [mpvAvailable, vlcAvailable] = await Promise.all([
+            externalPlayerAvailable('mpv', mpv, {
+                waitForSearchPath: waitForLoginShellPath,
+            }),
+            externalPlayerAvailable('vlc', vlc, {
+                waitForSearchPath: waitForLoginShellPath,
+            }),
         ]);
         return {
-            mpv: mpvReady ? externalPlayerAvailable('mpv', mpv) : null,
-            vlc: vlcReady ? externalPlayerAvailable('vlc', vlc) : null,
+            mpv: mpvAvailable,
+            vlc: vlcAvailable,
         };
     }
 );

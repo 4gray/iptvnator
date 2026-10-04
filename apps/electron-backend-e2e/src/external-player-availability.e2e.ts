@@ -15,6 +15,14 @@ test('@settings @electron unavailable players stay disabled with editable paths'
     const app = await launchElectronApp(dataDir);
     const page = app.mainWindow;
     try {
+        await expect(
+            page.evaluate(() =>
+                window.electron.getExternalPlayerAvailability?.({
+                    mpv: '/iptvnator-e2e-missing-players/mpv',
+                    vlc: '/iptvnator-e2e-missing-players/vlc',
+                })
+            )
+        ).resolves.toEqual({ mpv: false, vlc: false });
         await mockExternalPlayerAvailability(app, { mpv: false, vlc: false });
         await openSettings(page);
         await openSettingsSection(page, 'playback');

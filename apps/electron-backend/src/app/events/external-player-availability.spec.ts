@@ -1,21 +1,33 @@
+jest.mock('fs/promises', () => {
+    const actual =
+        jest.requireActual<typeof import('fs/promises')>('fs/promises');
+    return {
+        ...actual,
+        stat: jest.fn(actual.stat),
+        access: jest.fn(actual.access),
+    };
+});
+
 import { externalPlayerAvailable } from './external-player-availability';
+import * as filesystem from 'fs/promises';
 
 describe('external player availability', () => {
-    it.each(['D:\\Players\\mpv', '.\\Players\\mpv', 'D:\\Players\\mpv.portable'])(
-        'resolves a Windows executable suffix for %s',
-        (command) => {
-            expect(
-                externalPlayerAvailable('mpv', command, {
-                    platform: 'win32',
-                    isFlatpak: false,
-                    executable: (file) => file === command + '.exe',
-                })
-            ).toBe(true);
-        }
-    );
-    it('finds a bare portable Windows command in the working directory', () => {
+    it.each([
+        'D:\\Players\\mpv',
+        '.\\Players\\mpv',
+        'D:\\Players\\mpv.portable',
+    ])('resolves a Windows executable suffix for %s', async (command) => {
         expect(
-            externalPlayerAvailable('mpv', 'mpv', {
+            await externalPlayerAvailable('mpv', command, {
+                platform: 'win32',
+                isFlatpak: false,
+                executable: (file) => file === command + '.exe',
+            })
+        ).toBe(true);
+    });
+    it('finds a bare portable Windows command in the working directory', async () => {
+        expect(
+            await externalPlayerAvailable('mpv', 'mpv', {
                 platform: 'win32',
                 isFlatpak: false,
                 searchPath: '',
@@ -29,50 +41,50 @@ describe('external player availability', () => {
         isFlatpak: false,
         searchPath: 'D:\\Players;E:\\Tools',
     };
-    it('finds a Windows executable on PATH', () => {
+    it('finds a Windows executable on PATH', async () => {
         expect(
-            externalPlayerAvailable('mpv', 'mpv', {
+            await externalPlayerAvailable('mpv', 'mpv', {
                 ...options,
                 executable: (file) => file === 'E:\\Tools\\mpv.exe',
             })
         ).toBe(true);
     });
-    it('disables a missing executable', () => {
+    it('disables a missing executable', async () => {
         expect(
-            externalPlayerAvailable('mpv', 'mpv', {
+            await externalPlayerAvailable('mpv', 'mpv', {
                 ...options,
                 executable: () => false,
             })
         ).toBe(false);
     });
-    it('honours an invalid custom path instead of falling back to PATH', () => {
+    it('honours an invalid custom path instead of falling back to PATH', async () => {
         expect(
-            externalPlayerAvailable('mpv', 'D:\\Missing\\mpv.exe', {
+            await externalPlayerAvailable('mpv', 'D:\\Missing\\mpv.exe', {
                 ...options,
                 executable: (file) => file === 'E:\\Tools\\mpv.exe',
             })
         ).toBe(false);
     });
-    it('accepts an existing configured executable with spaces', () => {
+    it('accepts an existing configured executable with spaces', async () => {
         expect(
-            externalPlayerAvailable('vlc', 'D:\\Video Players\\vlc.exe', {
+            await externalPlayerAvailable('vlc', 'D:\\Video Players\\vlc.exe', {
                 ...options,
                 executable: (file) => file === 'D:\\Video Players\\vlc.exe',
             })
         ).toBe(true);
     });
-    it('does not disable Flatpak host players based on sandbox files', () => {
+    it('does not disable Flatpak host players based on sandbox files', async () => {
         expect(
-            externalPlayerAvailable('mpv', undefined, {
+            await externalPlayerAvailable('mpv', undefined, {
                 platform: 'linux',
                 isFlatpak: true,
                 executable: () => false,
             })
         ).toBeNull();
     });
-    it('checks executable commands in POSIX PATH', () => {
+    it('checks executable commands in POSIX PATH', async () => {
         expect(
-            externalPlayerAvailable('mpv', 'mpv', {
+            await externalPlayerAvailable('mpv', 'mpv', {
                 platform: 'linux',
                 isFlatpak: false,
                 searchPath: '/opt/bin:/usr/bin',
@@ -82,9 +94,9 @@ describe('external player availability', () => {
     });
     it.each(['/usr/bin:', ':/usr/bin', '/usr/bin::/opt/bin'])(
         'resolves current-directory entries in POSIX PATH %s',
-        (searchPath) => {
+        async (searchPath) => {
             expect(
-                externalPlayerAvailable('mpv', 'mpv', {
+                await externalPlayerAvailable('mpv', 'mpv', {
                     platform: 'linux',
                     isFlatpak: false,
                     searchPath,
@@ -94,4 +106,142 @@ describe('external player availability', () => {
             ).toBe(true);
         }
     );
+
+    it('uses the same default macOS VLC cask executable as playback', async () => {
+        const command =
+            '/opt/homebrew/Caskroom/vlc/3.0/VLC.app/Contents/MacOS/VLC';
+        const executable = jest.fn(async (file) => file === command);
+        await expect(
+            externalPlayerAvailable('vlc', undefined, {
+                platform: 'darwin',
+                isFlatpak: false,
+                readDirectory: async () => ['3.0'],
+                pathExists: async (file) => file === command,
+                executable,
+            })
+        ).resolves.toBe(true);
+        expect(executable).toHaveBeenCalledWith(command);
+    });
+
+    it('normalizes a custom macOS app bundle before probing', async () => {
+        await expect(
+            externalPlayerAvailable('mpv', '/Apps/mpv.app/', {
+                platform: 'darwin',
+                isFlatpak: false,
+                executable: async (file) =>
+                    file === '/Apps/mpv.app/Contents/MacOS/mpv',
+            })
+        ).resolves.toBe(true);
+    });
+
+    it.each(['executable', 'pathExists', 'readDirectory'] as const)(
+        'keeps the event loop responsive and returns unknown for stalled %s',
+        async (operation) => {
+            jest.useFakeTimers();
+            const stalled = new Promise<never>(() => undefined);
+            const executable = jest.fn(async () => false);
+            const readDirectory = jest.fn(async () => []);
+            const pathExists = jest.fn(async () => false);
+            const probes = { executable, readDirectory, pathExists };
+            probes[operation] = jest.fn(() => stalled);
+            try {
+                const probe = externalPlayerAvailable('vlc', undefined, {
+                    platform: 'darwin',
+                    isFlatpak: false,
+                    ...probes,
+                    limitMs: 100,
+                });
+                let heartbeat = false;
+                setTimeout(() => {
+                    heartbeat = true;
+                }, 1);
+                await jest.advanceTimersByTimeAsync(100);
+                expect(heartbeat).toBe(true);
+                await expect(probe).resolves.toBeNull();
+            } finally {
+                jest.useRealTimers();
+            }
+        }
+    );
+
+    it('stops discovery after a timed-out filesystem operation settles', async () => {
+        jest.useFakeTimers();
+        let settle: (found: boolean) => void = () => undefined;
+        const executable = jest.fn(
+            () =>
+                new Promise<boolean>((resolve) => {
+                    settle = resolve;
+                })
+        );
+        try {
+            const probe = externalPlayerAvailable('mpv', 'mpv', {
+                ...options,
+                executable,
+                limitMs: 100,
+            });
+            await jest.advanceTimersByTimeAsync(100);
+            await expect(probe).resolves.toBeNull();
+            settle(false);
+            await jest.advanceTimersByTimeAsync(1);
+            expect(executable).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('bounds native I/O across repeated requests to stalled network paths', async () => {
+        jest.useFakeTimers();
+        const settle: Array<
+            (value: Awaited<ReturnType<typeof filesystem.stat>>) => void
+        > = [];
+        const stat = jest.mocked(filesystem.stat).mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    settle.push(resolve);
+                })
+        );
+        const access = jest.mocked(filesystem.access).mockClear();
+        try {
+            const probes = Array.from({ length: 8 }, (_, index) =>
+                externalPlayerAvailable(
+                    'mpv',
+                    `\\\\offline\\players\\${index}.exe`,
+                    {
+                        platform: 'win32',
+                        isFlatpak: false,
+                        limitMs: 100,
+                    }
+                )
+            );
+            await jest.advanceTimersByTimeAsync(100);
+            await expect(Promise.all(probes)).resolves.toEqual(
+                Array(8).fill(null)
+            );
+            expect(stat).toHaveBeenCalledTimes(4);
+            for (const resolve of settle) {
+                resolve({ isFile: () => true } as Awaited<
+                    ReturnType<typeof filesystem.stat>
+                >);
+            }
+            await jest.advanceTimersByTimeAsync(1);
+            expect(stat).toHaveBeenCalledTimes(4);
+            expect(access).not.toHaveBeenCalled();
+            stat.mockResolvedValue({ isFile: () => false } as Awaited<
+                ReturnType<typeof filesystem.stat>
+            >);
+            await expect(
+                externalPlayerAvailable('mpv', 'D:\\missing\\mpv.exe', {
+                    platform: 'win32',
+                    isFlatpak: false,
+                })
+            ).resolves.toBe(false);
+            expect(stat).toHaveBeenCalledTimes(7);
+        } finally {
+            stat.mockImplementation(
+                jest.requireActual<typeof import('fs/promises')>('fs/promises')
+                    .stat
+            );
+            jest.useRealTimers();
+        }
+    });
 });
