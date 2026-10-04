@@ -12,8 +12,7 @@ import {
     output,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
-import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
+import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
 import { ContentHeroComponent } from '../content-hero/content-hero.component';
 import { ContentAboutComponent } from './content-about.component';
 import {
@@ -61,7 +60,6 @@ import {
 export class PortalDetailShellComponent {
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly injector = inject(Injector);
-    private readonly backNavigation = inject(WorkspaceBackNavigationService);
 
     readonly title = input<string>();
     /** "Movie · playlist name" eyebrow above the hero title. */
@@ -96,13 +94,13 @@ export class PortalDetailShellComponent {
 
     readonly isWatch = computed(() => this.playbackActive());
 
-    private readonly backTarget: WorkspaceBackTarget = {
-        label: computed(() => this.backLabel() || null),
-        escapeShortcut: computed(() => !this.isWatch()),
-        run: () => this.backClicked.emit(),
-    };
-
     constructor() {
+        registerWorkspaceBack({
+            available: this.backAvailable,
+            label: computed(() => this.backLabel() || null),
+            escapeShortcut: computed(() => !this.isWatch()),
+            run: () => this.backClicked.emit(),
+        });
         afterNextRender(() => {
             const element = this.host.nativeElement;
             const active = element.ownerDocument.activeElement;
@@ -114,10 +112,6 @@ export class PortalDetailShellComponent {
             ) {
                 element.focus({ preventScroll: true });
             }
-        });
-        effect((onCleanup) => {
-            if (!this.backAvailable()) return;
-            onCleanup(this.backNavigation.register(this.backTarget));
         });
         let wasWatch = false;
         effect(() => {

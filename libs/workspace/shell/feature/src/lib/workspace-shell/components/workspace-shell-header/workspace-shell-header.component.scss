@@ -351,6 +351,12 @@
         flex-shrink: 0;
     }
 
+    // The history fallback must not cost a list its only way into the
+    // drawer, and two navigation icons do not fit beside the switcher.
+    .header-back--yields {
+        display: none;
+    }
+
     .playlist-switcher {
         width: auto;
         // Fixed at 140px this crowded the search field off a 320px header
