@@ -92,10 +92,7 @@ test('a counter below its baseline passes and asks to tighten', () => {
         result.tightenable[0],
         /below baseline 2,750,491 by 150,491 bytes/
     );
-    assert.match(
-        result.tightenable[0],
-        new RegExp(DEFAULT_BASELINES_PATH.replace(/\//g, '\\/'))
-    );
+    assert.ok(result.tightenable[0].includes(DEFAULT_BASELINES_PATH));
 });
 
 test('a counter with slack passes up to value + slack and reports the slack used', () => {

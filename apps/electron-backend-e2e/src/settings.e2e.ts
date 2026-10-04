@@ -29,6 +29,7 @@ import {
     defaultXtreamUsername,
 } from './electron-test-fixtures';
 import { fetchXtreamVodFixture } from './portal-mock-fixtures';
+import { mockExternalPlayerAvailability } from './external-player-availability.fixture';
 
 const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 <tv>
@@ -1066,12 +1067,8 @@ async function installExternalPlayerLaunchCapture(
         ipcMain.removeHandler('OPEN_VLC_PLAYER');
         ipcMain.handle('OPEN_MPV_PLAYER', captureLaunch('mpv'));
         ipcMain.handle('OPEN_VLC_PLAYER', captureLaunch('vlc'));
-        ipcMain.removeHandler('GET_EXTERNAL_PLAYER_AVAILABILITY');
-        ipcMain.handle('GET_EXTERNAL_PLAYER_AVAILABILITY', () => ({
-            mpv: true,
-            vlc: true,
-        }));
     }, externalPlayerLaunchCaptureKey);
+    await mockExternalPlayerAvailability(app, { mpv: true, vlc: true });
 }
 
 async function getExternalPlayerLaunches(
