@@ -5,6 +5,7 @@ import {
     inject,
     linkedSignal,
     Signal,
+    untracked,
 } from '@angular/core';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { getTodayEpgDateKey, parseEpgDateKey } from '../epg-date';
@@ -154,13 +155,15 @@ export class TimelineWindowController {
                 left.ribbon === right.ribbon && left.key === right.key,
         }
     );
-    private readonly measured = linkedSignal<unknown, TimelineViewport | null>({
+    /**
+     * Estimated once per channel or ribbon mount, then moved only by the
+     * scroll and resize measurements: a live estimate would follow the 30 s
+     * now tick and the centred day away from what the ribbon shows.
+     */
+    private readonly viewport = linkedSignal<unknown, TimelineViewport>({
         source: this.identity,
-        computation: () => null,
+        computation: () => untracked(() => this.initialViewport()),
     });
-    private readonly viewport = computed(
-        () => this.measured() ?? this.initialViewport()
-    );
     private readonly range = computed(() =>
         timelineWindowRange(this.viewport(), this.ctx.axis(), this.ctx.scale())
     );
@@ -221,7 +224,7 @@ export class TimelineWindowController {
         const widthPx = this.scroller()?.clientWidth ?? 0;
         const current = this.viewport();
         if (widthPx > current.widthPx) {
-            this.measured.set({ centreMs: current.centreMs, widthPx });
+            this.viewport.set({ centreMs: current.centreMs, widthPx });
         }
     }
 
@@ -239,7 +242,7 @@ export class TimelineWindowController {
             scale
         );
         if (viewportNeedsWindow(this.viewport(), next, scale)) {
-            this.measured.set(next);
+            this.viewport.set(next);
         }
     }
 

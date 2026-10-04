@@ -331,6 +331,29 @@ describe('EpgTimelineComponent ribbon windowing', () => {
         expect(renderedTitles()).not.toContain('Slot 0');
     });
 
+    it('keeps the window where the ribbon is when a small scroll commits another day', () => {
+        // A scroll under the re-window step can still cross midnight; the
+        // committed day must not re-centre the window on its noon.
+        render(mockSchedule());
+        const tomorrow = new Date(Date.now() + 24 * 60 * TIMELINE_MINUTE_MS);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        component.viewDayKey.set(
+            `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`
+        );
+        fixture.detectChanges();
+
+        expect(renderedTitles()).toContain('Slot 96');
+    });
+
+    it('does not follow the now tick away from an unscrolled ribbon', () => {
+        render(mockSchedule());
+
+        component.nowMs.set(Date.now() + 12 * 60 * TIMELINE_MINUTE_MS);
+        fixture.detectChanges();
+
+        expect(renderedTitles()).toContain('Slot 96');
+    });
+
     it('starts over around now when another channel loads', () => {
         render(mockSchedule());
         scrollRibbonTo(blockLeftPx('Slot 230'));
