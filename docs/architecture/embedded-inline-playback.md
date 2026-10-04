@@ -473,8 +473,8 @@ interface is unavailable; exact external timestamps remain best-effort.
 The detail "…" menu's "Open in external player" sends the title to MPV/VLC
 through `PortalPlayer.openExternalPlayback(playback, player)` whatever the
 configured player is. The launch IPC cannot be cancelled, and until it
-resolves the session is at most `launching`, with no exact closer. Every
-detail host therefore keeps these rules:
+resolves the session is at most `launching` and may not have a closer yet.
+Every detail host therefore keeps these rules:
 
 - **One external player per owner.** Before launching, the host closes the
   external session the page owns: the session of the same title on the
@@ -506,10 +506,11 @@ detail host therefore keeps these rules:
   also `retire(owner)` when the selection leaves it, so a start that never
   settles does not keep the flag set on a return to the same title. A movie's
   "Reset progress" is scoped the same way.
-- **Two gates are page-wide.** The Xtream movie page refuses every start
-  while an external launch it made has not settled. A series page runs one
-  watched or reset batch at a time, whichever series is shown; the Stalker
-  page also holds episode starts until that batch settles.
+- **Two gates are page-wide.** The Xtream movie page refuses Play, Start
+  over, source switches and the menu launch while an external launch it made
+  has not settled. A series page runs one watched or reset batch at a time,
+  whichever series is shown; the Stalker page also holds episode starts until
+  that batch settles.
 
 Owner keys and queueing are provider contracts:
 
