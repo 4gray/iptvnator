@@ -208,7 +208,8 @@ window, and `evidence.idle.domMutations` the mutation records in the whole
 document. The [idle work audit](idle-work-audit-2026-09.md) found Eager
 components re-rendering on every such tick in a dev build; this counter
 measures the ticks in the optimized build, so plan item C6 can show what
-zoneless change detection removes.
+zoneless change detection removes; its checklist is the
+[zoneless migration](zoneless-migration.md).
 
 The window opens when the settle window closes, so startup data still
 landing is not idle work, and it is timed by a renderer `setTimeout`. The
