@@ -50,9 +50,9 @@ must be ticked here.
    playback (`libs/ui/playback`, `libs/playlist/m3u/feature-player`),
    `apps/web`. Each reports the tick counters before and after and runs the
    affected unit and E2E tests.
-4. [ ] `provideZonelessChangeDetection()` behind a build-time
+4. [x] `provideZonelessChangeDetection()` behind a build-time
    `fileReplacements` flag, off by default; all four journeys and the
-   Electron E2E suite run with it on.
+   Electron E2E suite run with it on (see [Zoneless flag](#zoneless-flag)).
 5. [ ] Flag on by default, `zone.js` out of `polyfills`, new tick baselines
    (`renderer.cdTicksIdle30s` and any counter that becomes deterministic once
    the zone.js race is gone).
@@ -174,6 +174,7 @@ the field a signal (or a `computed`), or writes it through one.
 | [ ] | `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts` (favorites load) | same pattern; the neighbouring `favoriteMarks.changes$` handler does call `markForCheck` | portal |
 | [ ] | same file, programme dialog `afterClosed` | deletes from `epgPrograms`/`currentProgramsProgress` after `await` without marking | portal |
 | [ ] | `apps/web/src/app/settings/settings-backup.facade.ts` (backup import) | `change` listener on a detached file input → `hydrateFromStore()`; section templates read `form().value.theme`/`coverSize` | apps/web |
+| [x] | `libs/ui/epg/src/lib/epg-guide/epg-guide.component.ts` (jump to now, keyboard focus) | `afterNextRender` registered from CDK/RxJS callbacks; zone.js followed them with a tick, zoneless schedules no render, so the guide opened at midnight. It now marks itself when it registers the hook. Found by `epg-guide.e2e.ts` on the zoneless build | flag |
 | [ ] | `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` | plain `isLoading`/`error`/`status` written after `await` and from a 2 s `setInterval` | only if `apps/remote-control-web` goes zoneless |
 
 ## Explicit zone and change-detector calls
@@ -242,6 +243,66 @@ their events arrive over IPC.
   `apps/web/src/polyfills.ts`, `apps/web/src/polyfills-test.ts`,
   `apps/web/src/setup-jest.ts` (no project, tsconfig or Jest config uses
   them).
+
+## Zoneless flag
+
+`app.config.ts` takes its change-detection providers from
+`apps/web/src/environments/change-detection.providers.ts`
+(`provideZoneChangeDetection({ eventCoalescing: true })`). The
+`electron-performance-zoneless` and `electron-e2e-zoneless` web
+configurations are their base configuration plus one `fileReplacements`
+swap to `change-detection.providers.zoneless.ts`
+(`provideZonelessChangeDetection()`); a test in
+`performance-build-config.spec.ts` pins that and refuses the swap in any
+other configuration. zone.js stays in the polyfills, so these builds log
+NG0914 in dev mode and nothing schedules through the zone. The Electron app
+loads the renderer from `dist/apps/web`, so rebuilding only the web app
+switches an existing Electron build:
+
+```bash
+pnpm nx run electron-backend:build-performance          # or build-e2e
+pnpm nx run web:build:electron-performance-zoneless     # or electron-e2e-zoneless
+cd apps/electron-backend-e2e
+../../node_modules/.bin/playwright test --config=playwright.journeys.config.ts
+../../node_modules/.bin/playwright test --grep-invert packaged
+```
+
+Do not run `pnpm run perf:journeys` or `pnpm nx run electron-backend-e2e:e2e`
+afterwards: their build dependencies restore the zone.js renderer.
+
+First measurement (macOS, 2026-10-04, the six OnPush PRs merged locally on
+the flag branch; the same integration build measured with the flag off and
+on, five iterations each):
+
+| Counter | flag off | flag on |
+| --- | --- | --- |
+| `renderer.cdTicksToFirstCard` | 22, 20, 22, 21, 21 | 7, 7, 7, 7, 7 |
+| `renderer.cdTicksIdle30s` | 4, 4, 4, 4, 4 | 3, 3, 3, 3, 3 |
+| `renderer.cdTicksToFirstPage` | 22 (all) | 8 (all) |
+| `renderer.cdTicksToPlaying` | 16, 15, 15, 17, 15 | 6, 8, 10, 10, 7 |
+| DOM mutations J1 / J2 / J3 | 553 / 1,603 / 6,182 | 553 / 1,603 / 6,182 (one J3 iteration 6,199, as on master) |
+| `spawnToFirstCardMs` p50 | 3,071 | 828 |
+| `clickToFirstPageMs` p50 | 82.8 | 80.4 |
+| `clickToLoadedMetadataMs` / `clickToPlayingMs` p50 | 94.8 / 268.7 | 158.3 / 409.3 |
+
+J1 and J2 tick counts become deterministic without the zone.js one-tick
+race, and the DOM mutations are unchanged, so nothing renders differently.
+J3's tick count still varies with player events and its wall-clock
+numbers rose locally; the machine was shared with other runs (load 26 to 58
+during these two runs, master itself read 363.8 ms `clickToPlayingMs` p50
+earlier the same day), so judge J3 on the CI runner before the flip.
+
+Electron E2E suite on `electron-e2e-zoneless` (all specs except the
+packaged frame-copy ones): 203 passed, 7 skipped, 3 failed. `epg-guide`
+failed on every run and is fixed above; `playlist-auto-refresh` passed on
+`--repeat-each=2`; `dash-clearkey` "reopens from recent and favorites" is the
+known local flake (it fails as often on master). The IPC-driven paths
+passed zoneless: external-player launch states and the MPV/VLC DASH
+fallbacks in `dash-clearkey`, the MPV double-click gate in `settings`,
+`remote-control`, `picture-in-picture` and `stream-info`. Their state reaches
+the renderer over IPC into signals and never ran in the zone. Embedded MPV
+playback itself is covered only by the packaged frame-copy E2E, which these
+runs left out; run it on a packaged zoneless build before the flip.
 
 ## Measuring a PR
 
