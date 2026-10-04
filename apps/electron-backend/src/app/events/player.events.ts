@@ -16,6 +16,7 @@ import {
     normalizePlayerPathForStore,
     resolveExternalPlayerLaunchContext as resolveLaunchContext,
 } from './external-player-launch-context';
+import { externalPlayerAvailable } from './external-player-availability';
 import {
     externalPlayerSessions,
     traceExternalPlayer,
@@ -61,6 +62,30 @@ export default class PlayerEvents {
         return ipcMain;
     }
 }
+
+ipcMain.handle(
+    'GET_EXTERNAL_PLAYER_AVAILABILITY',
+    (
+        _event,
+        paths?: {
+            mpv?: string;
+            vlc?: string;
+        }
+    ) => ({
+        mpv: externalPlayerAvailable(
+            'mpv',
+            typeof paths?.mpv === 'string'
+                ? paths.mpv
+                : store.get(MPV_PLAYER_PATH)
+        ),
+        vlc: externalPlayerAvailable(
+            'vlc',
+            typeof paths?.vlc === 'string'
+                ? paths.vlc
+                : store.get(VLC_PLAYER_PATH)
+        ),
+    })
+);
 
 ipcMain.handle(
     'OPEN_MPV_PLAYER',

@@ -334,6 +334,8 @@
         "PLAYER_ARTPLAYER": "ArtPlayer",
         "PLAYER_EMBEDDED_MPV": "Embedded MPV (Experimental)",
         "PLAYER_MPV": "MPV player",
+        "EXTERNAL_PLAYER_UNAVAILABLE": "Not found",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "Install missing players locally, then add them to PATH or set their executable path below. Reopen this selector to check again.",
         "PLAYER_VLC": "VLC",
         "VIDEO_PLAYER_PLACEHOLDER": "Select an option",
         "VERSION": "Version",

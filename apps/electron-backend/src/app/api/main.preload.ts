@@ -727,6 +727,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_CHANNEL_SEARCH', { searchTerm, limit }),
     setMpvPlayerPath: (mpvPlayerPath: string) =>
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
+    getExternalPlayerAvailability: (paths?: { mpv?: string; vlc?: string }) =>
+        ipcRenderer.invoke('GET_EXTERNAL_PLAYER_AVAILABILITY', paths),
     setVlcPlayerPath: (vlcPlayerPath: string) =>
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
     updateSettings: (settings: Partial<Settings>) =>

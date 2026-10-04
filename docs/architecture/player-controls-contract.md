@@ -7,6 +7,13 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+The Settings player selector probes external MPV/VLC using the same launch
+context as playback. A missing executable disables its option but leaves
+configuration accessible. PATH and standard install locations are checked
+without spawning a process. Flatpak host availability and older bridges remain
+unknown rather than being incorrectly disabled. Reopening the selector or
+editing settings refreshes the check; stale responses are ignored.
+
 The shared-controls preference checkbox is visible only when HTML5, Video.js
 or ArtPlayer is selected in Settings → Playback.
 
