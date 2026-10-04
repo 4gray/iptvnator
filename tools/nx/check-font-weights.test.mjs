@@ -4360,6 +4360,42 @@ test('reads a keyframe where a rule runs it, over its own', () => {
     }
 });
 
+test('follows a weight variable in either reading of a keyframe that does not hold', () => {
+    const mono = "'JetBrains Mono'";
+    const roboto = '@keyframes k { to { font-family: Roboto; } }';
+    const report = (body) =>
+        findOffScaleWeights('libs/s11/g.scss', body).findings.map(
+            ({ name, value, cap }) => `${name}: ${value} cap ${cap}`
+        );
+    for (const [source, expected] of [
+        // Mono once it has run: the variable meets the cap where it is set.
+        [
+            `$w: 700; ${roboto} .x { font-family: ${mono}; animation: k 1ms; font-weight: $w; }`,
+            ['$w: 700 cap 500'],
+        ],
+        [
+            `:root { --w: 700; } ${roboto} .x { font-family: ${mono}; animation: k 1ms; font-weight: var(--w); }`,
+            ['--w: 700 cap 500'],
+        ],
+        [
+            `$w: 700; ${roboto} .x { animation: k 1ms; font: $w 12px/1 ${mono}; }`,
+            ['$w: 700 cap 500'],
+        ],
+        // Mono only while it runs.
+        [
+            `$w: 700; .x { font-family: Roboto; animation: k 1ms; font-weight: $w; } @keyframes k { to { font-family: ${mono}; } }`,
+            ['$w: 700 cap 500'],
+        ],
+        // One that holds its frame keeps Roboto after it.
+        [
+            `$w: 700; ${roboto} .x { font-family: ${mono}; animation: k 1ms forwards; font-weight: $w; }`,
+            [],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads an `@at-root` rule where Sass writes it out', () => {
     const mono = "'JetBrains Mono'";
     const media = '@media (min-width: 1px)';

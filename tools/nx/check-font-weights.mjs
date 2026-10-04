@@ -904,6 +904,8 @@ export function scanWeights(file, written) {
     return {
         ...running,
         findings: union(running.findings, after.findings),
+        // A variable a weight reads is followed from either reading.
+        references: union(running.references, after.references),
         deferred: union(running.deferred, after.deferred),
     };
 }
