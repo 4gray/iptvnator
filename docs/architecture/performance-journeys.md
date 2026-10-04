@@ -812,6 +812,16 @@ pnpm --silent run perf:initial-bytes -- --json   # machine-readable; --silent ke
 node tools/performance/measure-initial-bytes.mjs --summary dist/performance/journey-summary.json
 ```
 
+Development-only code must stay out of the counter by construction, not by a
+runtime flag: `if (!AppConfig.production)` keeps the imported module in
+`main.js` because the optimizer does not fold the property read. The NgRx
+store devtools therefore come from
+`apps/web/src/environments/store-devtools.providers.ts`, an empty list in
+every build, which only the `development` and `electron-e2e` configurations
+replace with `store-devtools.providers.dev.ts`; a build-config test in
+`performance-build-config.spec.ts` keeps it that way. Removing the static
+import lowered the counter by 12,565 bytes.
+
 `--summary` writes the journey summary shape (`journeys.<journey>.counters`)
 that the ratchet checker consumes. `--dist <dir>` points the script at another
 build output, for example the `electron-performance` configuration.

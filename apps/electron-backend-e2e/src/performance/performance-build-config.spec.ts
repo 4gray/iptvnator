@@ -171,6 +171,45 @@ test('only the web performance build installs the tick counter the journeys read
     }
 });
 
+// @ngrx/store-devtools must not reach the production, PWA or performance
+// bundles (renderer.initialBytes): the default providers file is empty and
+// only the development configurations swap in the devtools.
+test('only development web builds provide the NgRx store devtools', () => {
+    const environments = join(workspaceRoot, 'apps/web/src/environments');
+    const devtoolsReplacement = {
+        replace: 'apps/web/src/environments/store-devtools.providers.ts',
+        with: 'apps/web/src/environments/store-devtools.providers.dev.ts',
+    };
+    const developmentConfigurations = new Set(['development', 'electron-e2e']);
+
+    assert.match(
+        readFileSync(join(environments, 'store-devtools.providers.ts'), 'utf8'),
+        /export const storeDevtoolsProviders: EnvironmentProviders\[\] = \[\];/
+    );
+    assert.doesNotMatch(
+        readFileSync(
+            join(workspaceRoot, 'apps/web/src/app/app.config.ts'),
+            'utf8'
+        ),
+        /@ngrx\/store-devtools/
+    );
+    for (const [name, configuration] of Object.entries(
+        webProject.targets['build'].configurations ?? {}
+    )) {
+        const replacements = (configuration['fileReplacements'] ??
+            []) as unknown[];
+        if (developmentConfigurations.has(name)) {
+            assert.deepEqual(replacements, [devtoolsReplacement], name);
+        } else {
+            assert.doesNotMatch(
+                JSON.stringify(replacements),
+                /store-devtools/,
+                name
+            );
+        }
+    }
+});
+
 test('the resolved web build cache output is the renderer directory', () => {
     const task = readResolvedWebBuildTask();
 
