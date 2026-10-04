@@ -142,6 +142,18 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     );
 
     readonly support = this.controller.support;
+    readonly canFloat = computed(
+        () =>
+            this.support()?.floatingWindow === true &&
+            typeof window.electron?.openEmbeddedMpvFloatingPlayer === 'function'
+    );
+
+    async openFloatingPlayer(): Promise<void> {
+        const id = this.session()?.id;
+        if (!id || !this.canFloat()) return;
+        if (document.fullscreenElement) await document.exitFullscreen();
+        await window.electron.openEmbeddedMpvFloatingPlayer?.(id);
+    }
     readonly session = this.controller.session;
     readonly stalled = this.controller.stalled;
 

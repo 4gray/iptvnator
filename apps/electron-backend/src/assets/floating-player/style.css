@@ -1,0 +1,33 @@
+:root {
+    color-scheme: dark light;
+    font-family: system-ui, sans-serif;
+}
+body {
+    margin: 0;
+    background: black;
+}
+footer {
+    position: fixed;
+    bottom: 0;
+    height: 52px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    gap: 8px;
+    background: Canvas;
+    color: CanvasText;
+}
+button {
+    padding: 8px;
+    cursor: pointer;
+}
+label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+input {
+    width: 80px;
+}

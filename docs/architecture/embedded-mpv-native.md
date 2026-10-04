@@ -35,6 +35,15 @@ The build directory contains files such as `Makefile`, `binding.Makefile`, `conf
 
 ## How It Is Embedded
 
+Windows native-view builds with `reparentSession` expose a floating-player
+button. `EmbeddedMpvFloatingPlayer` moves the existing child HWND into an
+always-on-top BrowserWindow, preserving the MPV session and provider connection.
+Inline bounds updates are retained for restoration while floating-window bounds
+use that window's display scale. Closing or returning reparents the video before
+destroying the floating window; session disposal closes it as well. The local
+sandboxed controls page has a minimal preload and accepts commands only from
+its own webContents. Frame-copy and other platforms do not advertise this mode.
+
 Embedded MPV has two rendering paths. The native-view engine renders into an
 app-owned platform video surface: macOS uses the libmpv render API in an
 `NSOpenGLView` because the mpv `wid` path produced a black video surface inside

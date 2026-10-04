@@ -2092,6 +2092,27 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+#ifdef _WIN32
+Napi::Value ReparentSession(const Napi::CallbackInfo& info)
+{
+    const auto env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsBuffer()) {
+        throw Napi::TypeError::New(env, "Expected session id and window handle.");
+    }
+    const auto buffer = info[1].As<Napi::Buffer<uint8_t>>();
+    if (buffer.Length() != sizeof(uintptr_t)) {
+        throw Napi::TypeError::New(env, "Invalid window handle size.");
+    }
+    uintptr_t handle = 0;
+    std::memcpy(&handle, buffer.Data(), sizeof(handle));
+    const auto session = getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
+    if (!session->host.reparent(handle)) {
+        throw Napi::Error::New(env, "Could not move the MPV video surface.");
+    }
+    return env.Undefined();
+}
+#endif
+
 Napi::Value SetBounds(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
@@ -2697,6 +2718,9 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("createSession", Napi::Function::New(env, CreateSession));
     exports.Set("loadPlayback", Napi::Function::New(env, LoadPlayback));
     exports.Set("setBounds", Napi::Function::New(env, SetBounds));
+#ifdef _WIN32
+    exports.Set("reparentSession", Napi::Function::New(env, ReparentSession));
+#endif
     exports.Set("setPaused", Napi::Function::New(env, SetPaused));
     exports.Set("seek", Napi::Function::New(env, Seek));
     exports.Set("seekBy", Napi::Function::New(env, SeekBy));

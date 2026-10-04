@@ -70,7 +70,10 @@ element picture-in-picture through the adapter's attached `<video>`. Shared
 ArtPlayer keeps its vendor `pip` option disabled so the shared button is the
 only PiP button. Preference-off native/vendor controls keep their own UI;
 exact-owner PiP teardown also applies in that mode.
-Embedded MPV advertises no PiP capability and its command is a no-op.
+Embedded MPV's shared frame-copy controls advertise no browser PiP capability
+and its command is a no-op. Windows native-view builds with `reparentSession`
+instead expose an app-owned floating-window action in the native controls dock;
+its lifecycle is documented in [embedded-mpv-native.md](./embedded-mpv-native.md).
 
 `Settings.webPlayerSharedControls` is default-ON: an absent stored value means
 the user never chose and gets the shared controls; only an explicit boolean

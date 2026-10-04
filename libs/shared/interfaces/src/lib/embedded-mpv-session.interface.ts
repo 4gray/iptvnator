@@ -36,6 +36,8 @@ export type EmbeddedMpvSubtitleStyle = PlayerSubtitleStyle;
 export type EmbeddedMpvEngine = 'native' | 'frame-copy';
 
 export interface EmbeddedMpvSupport {
+    /** Windows native-view surface can move to an app-owned floating window. */
+    floatingWindow?: boolean;
     supported: boolean;
     platform: string;
     reason?: string;

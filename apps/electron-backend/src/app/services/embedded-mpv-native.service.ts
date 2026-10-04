@@ -11,6 +11,7 @@ import {
 import { createRequire } from 'module';
 import path from 'path';
 import App from '../app';
+import { EmbeddedMpvFloatingPlayer } from './embedded-mpv-floating.service';
 import {
     EmbeddedMpvAudioTrack,
     EmbeddedMpvBounds,
@@ -103,6 +104,7 @@ export interface NativeEmbeddedMpvAddon {
     ): string;
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void;
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void;
+    reparentSession?(sessionId: string, handle: Buffer): void;
     setPaused(sessionId: string, paused: boolean): void;
     seek(sessionId: string, seconds: number): void;
     /**
@@ -497,6 +499,10 @@ export class EmbeddedMpvNativeService {
                     engine: this.getActiveEngine(),
                     ...this.getFrameCopySupportDetails(),
                     capabilities: this.detectCapabilities(),
+                    floatingWindow:
+                        process.platform === 'win32' &&
+                        this.getActiveEngine() === 'native' &&
+                        typeof this.addon.reparentSession === 'function',
                 };
             } catch (error) {
                 return {
@@ -563,6 +569,10 @@ export class EmbeddedMpvNativeService {
                 engine: this.getActiveEngine(),
                 ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
+                floatingWindow:
+                    process.platform === 'win32' &&
+                    this.getActiveEngine() === 'native' &&
+                    typeof addon.reparentSession === 'function',
             };
         } catch (error) {
             return {
@@ -595,6 +605,10 @@ export class EmbeddedMpvNativeService {
                 engine: this.getActiveEngine(),
                 ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
+                floatingWindow:
+                    process.platform === 'win32' &&
+                    this.getActiveEngine() === 'native' &&
+                    typeof addon.reparentSession === 'function',
             };
         } catch (error) {
             return {
@@ -710,11 +724,43 @@ export class EmbeddedMpvNativeService {
         this.refreshSession(sessionId);
     }
 
+    private readonly floatingPlayer = new EmbeddedMpvFloatingPlayer({
+        mainWindow: () => App.mainWindow,
+        reparent: (id, handle) => {
+            const addon = this.getAddon();
+            if (!addon.reparentSession)
+                throw new Error('Floating MPV is unavailable.');
+            addon.reparentSession(id, handle);
+        },
+        setBounds: (id, bounds) => this.getAddon().setBounds(id, bounds),
+        togglePaused: (id) =>
+            this.setPaused(id, this.refreshSession(id)?.status !== 'paused'),
+        setVolume: (id, volume) => this.setVolume(id, volume),
+    });
+
+    openFloatingPlayer(sessionId: string): Promise<boolean> {
+        if (
+            !this.sessions.has(sessionId) ||
+            !this.getSupport().floatingWindow
+        ) {
+            return Promise.resolve(false);
+        }
+        return this.floatingPlayer.open(sessionId);
+    }
+
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void {
         this.assertEmbeddedMpvEnabled();
         const addon = this.getAddon();
         const usesFrameCopyAddon =
             this.frameCopyAdapter !== null && addon === this.frameCopyAdapter;
+        if (
+            !usesFrameCopyAddon &&
+            this.floatingPlayer.rememberBounds(
+                sessionId,
+                this.scaleBoundsForNativeView(bounds)
+            )
+        )
+            return;
         addon.setBounds(
             sessionId,
             usesFrameCopyAddon ? bounds : this.scaleBoundsForNativeView(bounds)
@@ -1040,6 +1086,7 @@ export class EmbeddedMpvNativeService {
     }
 
     disposeSession(sessionId: string): EmbeddedMpvSession | null {
+        this.floatingPlayer.dispose(sessionId);
         const session = this.sessions.get(sessionId);
         if (!session) {
             return null;
@@ -1439,6 +1486,11 @@ export class EmbeddedMpvNativeService {
         }
 
         App.mainWindow.webContents.send(EMBEDDED_MPV_SESSION_UPDATE, session);
+        this.floatingPlayer.update(
+            session.id,
+            session.status === 'paused',
+            session.volume
+        );
     }
 
     private getRuntimeSession(sessionId: string): EmbeddedMpvRuntimeSession {

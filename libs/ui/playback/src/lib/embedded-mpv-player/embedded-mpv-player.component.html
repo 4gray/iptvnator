@@ -490,6 +490,25 @@
                         </button>
                     }
 
+                    @if (canFloat()) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="embedded-mpv-player__control-button"
+                            (click)="openFloatingPlayer()"
+                            [disabled]="!session()"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
+                                    | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
+                                    | translate
+                            "
+                        >
+                            <mat-icon>picture_in_picture_alt</mat-icon>
+                        </button>
+                    }
                     <button
                         mat-icon-button
                         type="button"

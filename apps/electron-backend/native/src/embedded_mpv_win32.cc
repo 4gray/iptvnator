@@ -102,6 +102,17 @@ public:
         return true;
     }
 
+    bool reparent(uintptr_t parentHandle)
+    {
+        const auto parent = reinterpret_cast<HWND>(parentHandle);
+        if (!window_ || !IsWindow(parent)) return false;
+        SetLastError(0);
+        const auto previous = SetParent(window_, parent);
+        if (!previous && GetLastError() != 0) return false;
+        parentWindow_ = parent;
+        return true;
+    }
+
     void setBounds(const Bounds& bounds)
     {
         if (!window_) {
