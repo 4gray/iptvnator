@@ -210,4 +210,41 @@ describe('PlayerControlsComponent timeline scrubbing', () => {
         expect(fake.commands.seekTo).not.toHaveBeenCalled();
         expect(currentTimeText()).toBe('0:30');
     });
+
+    it('keeps LIVE presentation while a moving buffered range remains seekable', () => {
+        setState({
+            canSeek: true,
+            isLive: true,
+            durationSeconds: null,
+            positionSeconds: 45,
+            seekStart: 30,
+            seekEnd: 60,
+        });
+        fixture.detectChanges();
+        expect(slider().min).toBe('30');
+        expect(slider().max).toBe('60');
+        expect(
+            fixture.nativeElement.querySelector('.player-controls__live-badge')
+                ?.textContent
+        ).toContain('LIVE');
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="player-controls-remaining-time"]'
+            )
+        ).toBeNull();
+        setState({
+            canSeek: true,
+            isLive: true,
+            durationSeconds: null,
+            positionSeconds: 46,
+            seekStart: 31,
+            seekEnd: 61,
+        });
+        fixture.detectChanges();
+        expect(slider().max).toBe('61');
+        expect(
+            fixture.nativeElement.querySelector('.player-controls__live-badge')
+                ?.textContent
+        ).toContain('LIVE');
+    });
 });

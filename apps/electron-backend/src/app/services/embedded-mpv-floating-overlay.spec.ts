@@ -2,6 +2,7 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 import { runInNewContext } from 'vm';
+import type { FloatingPlaybackState } from './floating-playback-state';
 
 describe('floating controls interaction origin', () => {
     function overlay() {
@@ -18,9 +19,18 @@ describe('floating controls interaction origin', () => {
             'volume',
             'timeline',
             'drag-handle',
+            'play-icon',
+            'pause-icon',
+            'speaker-waves',
+            'speaker-muted',
+            'time',
         ];
         document.body.innerHTML = ids
-            .map((id) => `<button id="${id}"></button>`)
+            .map((id) =>
+                id === 'timeline' || id === 'volume'
+                    ? `<input id="${id}" type="range" min="0" max="100">`
+                    : `<button id="${id}"></button>`
+            )
             .join('');
         const api = {
             controlsFocus: jest.fn(),
@@ -71,4 +81,36 @@ describe('floating controls interaction origin', () => {
         control.dispatchEvent(new Event('pointercancel', { bubbles: true }));
         expect(api.controlsFocus).toHaveBeenLastCalledWith(false);
     });
+
+    it.each(['pointerup', 'pointercancel'])(
+        'releases a seek thumb without a change event on %s',
+        (release) => {
+            const { document, api } = overlay();
+            const timeline = document.getElementById(
+                'timeline'
+            ) as HTMLInputElement;
+            const update = api.onState.mock.calls[0][0];
+            const state: FloatingPlaybackState = {
+                paused: false,
+                volume: 1,
+                isLive: false,
+                position: 40,
+                canSeek: true,
+                seekStart: 0,
+                seekEnd: 100,
+            };
+            update(state);
+            // JSDOM does not dispatch its unsupported onpointerdown property.
+            timeline.onpointerdown?.call(
+                timeline,
+                new Event('pointerdown') as PointerEvent
+            );
+            update({ ...state, position: 41 });
+            expect(timeline.value).toBe('40');
+            timeline.dispatchEvent(new Event(release, { bubbles: true }));
+            update({ ...state, position: 42 });
+            expect(timeline.value).toBe('42');
+            expect(api.seek).not.toHaveBeenCalled();
+        }
+    );
 });

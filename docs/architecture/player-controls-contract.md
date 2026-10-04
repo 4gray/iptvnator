@@ -7,6 +7,31 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+### Picture-in-picture support
+
+| Renderer | Floating implementation | Control ownership |
+| --- | --- | --- |
+| HTML5, Video.js, ArtPlayer | Chromium element PiP on the attached video | Browser window controls; the shared adapter owns entry, exit and source teardown |
+| Embedded MPV, Windows native-view | App-owned resizable, always-on-top window with the existing native session | Material icon hover controls, volume, pause, guarded seeking and return to the app |
+| Embedded MPV frame-copy | No PiP capability advertised | Shared inline controls over the canvas |
+| External VLC / MPV | Separate installed application | External application controls |
+
+The browser PiP adapter already exists in the upstream foundation. The Windows
+floating window is an additional implementation, not a replacement for it.
+Both paths use renderer capabilities and authoritative media metadata. A live
+label stays visible for buffered live media; its seek-end is a range boundary,
+not a VOD duration. A pointer release or cancellation ends floating timeline
+scrubbing even when the slider value never changed.
+
+For each browser renderer, exercise VOD entry/exit, pause/resume and source
+replacement with an active PiP window. Browser PiP requires a loaded, decodable
+video and the browser API; it cannot repair a decoder error. Native Windows
+validation additionally checks the retained session, resizing, hover/focus
+visibility, a slider-thumb click without movement, and return-to-app cleanup.
+Test live media with and without a real seekable range. Windows is the only
+platform used for this alpha contribution's feature testing; macOS and Linux
+runtime behavior is unverified.
+
 Seek decisions live in the pure shared `playback-seek-policy` functions.
 Adapters project browser ranges or MPV snapshots into that policy; native,
 frame-copy and floating MPV controls use the same metadata classification.

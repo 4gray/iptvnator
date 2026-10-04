@@ -84,6 +84,7 @@ document.addEventListener('pointerdown', () => {
     window.floatingPlayer.controlsFocus(true);
 });
 const endPointerInteraction = () => {
+    scrubbing = false;
     pointerInteraction = false;
     window.floatingPlayer.controlsFocus(keyboardInteraction);
 };

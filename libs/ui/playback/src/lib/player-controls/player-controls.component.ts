@@ -32,7 +32,6 @@ import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
 import { ControlsVolumeInteractions } from './controls-volume-interactions';
 import { ControlsSubtitleSettings } from './controls-subtitle-settings';
-import { formatRemainingTime } from './controls-format.utils';
 import type {
     PlayerController,
     PlayerMediaTitle,
@@ -173,10 +172,7 @@ export class PlayerControlsComponent implements OnDestroy {
         ),
         segments: this.timeline.segments,
     });
-    /** `−7:03` while a finite duration is known; the dock prefers it to the total. */
-    readonly remainingTimeText = computed(() =>
-        formatRemainingTime(this.timeline.value(), this.timeline.duration())
-    );
+    readonly remainingTimeText = this.timeline.remaining;
 
     readonly displayVolume = this.volume.value;
     readonly isFullscreen = this.fullscreen.isFullscreen;

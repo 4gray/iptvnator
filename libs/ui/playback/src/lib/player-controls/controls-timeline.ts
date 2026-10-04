@@ -9,6 +9,7 @@ import type {
     PlayerTimelineSegment,
 } from './player-controls.model';
 import { secondsBehindSeekEnd } from '@iptvnator/shared/interfaces';
+import { formatRemainingTime } from './controls-format.utils';
 
 /**
  * Owns the scrub state and timeline projections for the controls bar: the
@@ -27,6 +28,13 @@ export class ControlsTimeline {
 
     readonly start = computed(() =>
         this.state().canSeek ? (this.state().seekStart ?? 0) : 0
+    );
+
+    /** Remaining time is a VOD label; live seek bounds are not a duration. */
+    readonly remaining = computed(() =>
+        this.state().isLive
+            ? null
+            : formatRemainingTime(this.value(), this.duration())
     );
     readonly behind = computed(() =>
         secondsBehindSeekEnd(
