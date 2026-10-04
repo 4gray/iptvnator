@@ -12,6 +12,13 @@ import { externalPlayerAvailable } from './external-player-availability';
 import * as filesystem from 'fs/promises';
 
 describe('external player availability', () => {
+    beforeEach(() => {
+        jest.mocked(filesystem.stat)
+            .mockClear()
+            .mockImplementation(
+                jest.requireActual<typeof filesystem>('fs/promises').stat
+            );
+    });
     it.each([
         'D:\\Players\\mpv',
         '.\\Players\\mpv',
@@ -133,6 +140,50 @@ describe('external player availability', () => {
             })
         ).resolves.toBe(true);
     });
+
+    describe.each([
+        '\\\\offline\\players\\mpv.exe',
+        '//offline/players/mpv.exe',
+        '\\\\?\\UNC\\offline\\players\\mpv.exe',
+    ])('inaccessible network executable %s', (command) => {
+        it.each(['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM', 'EIO'])(
+            'returns unknown on immediate %s without probing another suffix',
+            async (code) => {
+                const stat = jest
+                    .mocked(filesystem.stat)
+                    .mockRejectedValue(
+                        Object.assign(
+                            new Error('Unavailable filesystem location'),
+                            { code }
+                        )
+                    );
+                await expect(
+                    externalPlayerAvailable('mpv', command, {
+                        platform: 'win32',
+                        isFlatpak: false,
+                    })
+                ).resolves.toBeNull();
+                expect(stat).toHaveBeenCalledTimes(1);
+            }
+        );
+    });
+
+    it.each(['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM'])(
+        'distinguishes confirmed local absence from inconclusive %s',
+        async (code) => {
+            jest.mocked(filesystem.stat).mockRejectedValue(
+                Object.assign(new Error('Local filesystem error'), { code })
+            );
+            await expect(
+                externalPlayerAvailable('mpv', 'C:\\missing\\mpv.exe', {
+                    platform: 'win32',
+                    isFlatpak: false,
+                })
+            ).resolves.toBe(
+                ['ENOENT', 'ENOTDIR'].includes(code) ? false : null
+            );
+        }
+    );
 
     it.each(['executable', 'pathExists', 'readDirectory'] as const)(
         'keeps the event loop responsive and returns unknown for stalled %s',

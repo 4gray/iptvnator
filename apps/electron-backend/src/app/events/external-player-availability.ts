@@ -35,9 +35,17 @@ async function fileCheck<T>(operation: () => Promise<T>): Promise<T> {
     }
 }
 
-function missingOrInaccessible(error: unknown): boolean {
+function confirmedMissing(error: unknown, file: string): boolean {
     const code = (error as NodeJS.ErrnoException)?.code;
-    return ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM'].includes(code ?? '');
+    const normalized = file.replace(/\//g, '\\').toLowerCase();
+    const networkPath =
+        normalized.startsWith('\\\\?\\unc\\') ||
+        (normalized.startsWith('\\\\') &&
+            !normalized.startsWith('\\\\?\\') &&
+            !normalized.startsWith('\\\\.\\'));
+    // Windows may report ENOENT for an offline UNC share. Permissions and
+    // other I/O errors also cannot establish absence, even on a local path.
+    return !networkPath && ['ENOENT', 'ENOTDIR'].includes(code ?? '');
 }
 
 async function pathExists(file: string): Promise<boolean> {
@@ -45,7 +53,7 @@ async function pathExists(file: string): Promise<boolean> {
         await fileCheck(() => access(file, constants.F_OK));
         return true;
     } catch (error) {
-        if (missingOrInaccessible(error)) return false;
+        if (confirmedMissing(error, file)) return false;
         throw error;
     }
 }
@@ -54,7 +62,7 @@ async function readDirectory(directory: string): Promise<string[]> {
     try {
         return await fileCheck(() => readdir(directory));
     } catch (error) {
-        if (missingOrInaccessible(error)) return [];
+        if (confirmedMissing(error, directory)) return [];
         throw error;
     }
 }
@@ -73,7 +81,7 @@ async function executableFile(
         );
         return true;
     } catch (error) {
-        if (missingOrInaccessible(error)) return false;
+        if (confirmedMissing(error, file)) return false;
         throw error;
     }
 }

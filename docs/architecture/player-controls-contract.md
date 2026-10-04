@@ -14,7 +14,7 @@ without spawning a process. Discovery uses asynchronous filesystem I/O with a
 1.5-second total budget and at most two outstanding filesystem operations,
 reserving at least one worker from the configured libuv pool for other work.
 With a single worker, detection returns unknown without filesystem I/O.
-An unavailable network location or a timed-out shell PATH lookup returns unknown
+An inaccessible UNC path, other inconclusive I/O error or timed-out shell PATH lookup returns unknown
 and leaves the option selectable. Flatpak host availability and older bridges remain
 unknown rather than being incorrectly disabled. Reopening the selector or
 editing settings refreshes the check; stale responses are ignored.
