@@ -393,6 +393,14 @@ Internal structure to preserve:
   `isCategoryResourceFailed()` / `isPaginatedContentFailed()` for explicit
   error handling.
 
+Category arrays belong to `categoryPlaylistKey`, not just the content type.
+Every category reader checks that owner; a portal switch clears all four
+section caches before loading the destination. Aborted or foreign-portal
+responses (including errors and radio fallbacks) cannot write into the active
+cache. Explicit category resets reload even when the playlist object remains
+unchanged. This contract applies to collection details as well as routed
+catalogs, because both use the root Stalker store.
+
 Failure-handling rule:
 
 - Failed category or content requests must degrade into empty/error UI state,

@@ -5,6 +5,7 @@ import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { StalkerCatalogFacadeService } from './stalker-catalog-facade.service';
+import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
 describe('StalkerCatalogFacadeService', () => {
     const playlist = {
@@ -101,6 +102,10 @@ describe('StalkerCatalogFacadeService', () => {
         TestBed.configureTestingModule({
             providers: [
                 StalkerCatalogFacadeService,
+                {
+                    provide: StalkerWorkspaceRouteSession,
+                    useValue: { isReady: signal(true) },
+                },
                 {
                     provide: StalkerStore,
                     useValue: stalkerStoreMock,

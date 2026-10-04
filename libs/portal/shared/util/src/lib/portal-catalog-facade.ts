@@ -38,6 +38,8 @@ export interface PortalCatalogFacade<
     TSelectedItem = unknown,
 > {
     readonly provider: PortalCatalogProvider;
+    /** Arrival state may be consumed only after the destination portal is installed. */
+    readonly routeReady?: Signal<boolean>;
     readonly contentType: Signal<string | null | undefined>;
     readonly selectedCategory: Signal<TCategory | null | undefined>;
     readonly paginatedContent: Signal<readonly TItem[] | undefined>;
