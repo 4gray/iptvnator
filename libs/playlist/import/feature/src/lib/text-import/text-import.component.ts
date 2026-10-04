@@ -17,7 +17,7 @@ import { TranslatePipe } from '@ngx-translate/core';
     selector: 'app-text-import',
     templateUrl: './text-import.component.html',
     styleUrls: ['./text-import.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatInputModule, ReactiveFormsModule, TranslatePipe],
 })
 export class TextImportComponent {

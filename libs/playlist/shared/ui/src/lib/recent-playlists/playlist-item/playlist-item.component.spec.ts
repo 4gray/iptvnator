@@ -127,9 +127,7 @@ describe('PlaylistItemComponent', () => {
         fixture.detectChanges();
 
         expect(
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.refresh-btn'
-            )
+            (fixture.nativeElement as HTMLElement).querySelector('.refresh-btn')
         ).toBeNull();
     });
 
@@ -149,9 +147,7 @@ describe('PlaylistItemComponent', () => {
         fixture.detectChanges();
 
         expect(
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.refresh-btn'
-            )
+            (fixture.nativeElement as HTMLElement).querySelector('.refresh-btn')
         ).not.toBeNull();
     });
 
@@ -173,9 +169,7 @@ describe('PlaylistItemComponent', () => {
         fixture.detectChanges();
 
         expect(
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.refresh-btn'
-            )
+            (fixture.nativeElement as HTMLElement).querySelector('.refresh-btn')
         ).not.toBeNull();
 
         fixture.destroy();
@@ -195,10 +189,36 @@ describe('PlaylistItemComponent', () => {
         fixture.detectChanges();
 
         expect(
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.refresh-btn'
-            )
+            (fixture.nativeElement as HTMLElement).querySelector('.refresh-btn')
         ).toBeNull();
+    });
+
+    // OnPush: the status arrives after an await outside any template event,
+    // so it must reach the view without a zone-triggered tick.
+    it('renders the portal status that resolves after the first render', async () => {
+        fixture.destroy();
+        fixture = TestBed.createComponent(PlaylistItemComponent);
+        component = fixture.componentInstance;
+        component.item = {
+            title: 'Xtream Source',
+            _id: 'xtream-source',
+            count: 10,
+            importDate: Date.now().toString(),
+            autoRefresh: false,
+            serverUrl: 'https://example.com',
+            username: 'demo',
+            password: 'secret',
+        };
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const statusDot = (fixture.nativeElement as HTMLElement).querySelector(
+            '.status-dot'
+        );
+        expect(statusDot?.getAttribute('aria-label')).toBe(
+            'Portal status: active'
+        );
     });
 
     it('renders cancel and progress UI for long-running playlist actions', () => {

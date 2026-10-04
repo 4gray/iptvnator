@@ -124,20 +124,20 @@ files that still contain `ChangeDetectionStrategy.Eager`.
 
 ### libs/playlist (14)
 
-- [ ] `libs/playlist/import/feature/src/lib/add-playlist-dialog/add-playlist-dialog.component.ts`
-- [ ] `libs/playlist/import/feature/src/lib/auto-import/auto-import.component.ts`
-- [ ] `libs/playlist/import/feature/src/lib/file-upload/file-upload.component.ts`
-- [ ] `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.ts`
-- [ ] `libs/playlist/import/feature/src/lib/text-import/text-import.component.ts`
-- [ ] `libs/playlist/import/feature/src/lib/url-upload/url-upload.component.ts`
-- [ ] `libs/playlist/import/feature/src/lib/xtream-code-import/xtream-code-import.component.ts`
+- [x] `libs/playlist/import/feature/src/lib/add-playlist-dialog/add-playlist-dialog.component.ts`
+- [x] `libs/playlist/import/feature/src/lib/auto-import/auto-import.component.ts`
+- [x] `libs/playlist/import/feature/src/lib/file-upload/file-upload.component.ts`
+- [x] `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.ts`
+- [x] `libs/playlist/import/feature/src/lib/text-import/text-import.component.ts`
+- [x] `libs/playlist/import/feature/src/lib/url-upload/url-upload.component.ts`
+- [x] `libs/playlist/import/feature/src/lib/xtream-code-import/xtream-code-import.component.ts`
 - [ ] `libs/playlist/m3u/feature-player/src/lib/m3u-vod-detail/m3u-vod-detail.component.ts`
 - [ ] `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts`
-- [ ] `libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.component.ts`
-- [ ] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts`
-- [ ] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts`
-- [ ] `libs/playlist/shared/ui/src/lib/source-health/source-cleanup-dialog.component.ts`
-- [ ] `libs/playlist/shared/ui/src/lib/source-health/source-health-indicator.component.ts`
+- [x] `libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.component.ts`
+- [x] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts`
+- [x] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts`
+- [x] `libs/playlist/shared/ui/src/lib/source-health/source-cleanup-dialog.component.ts`
+- [x] `libs/playlist/shared/ui/src/lib/source-health/source-health-indicator.component.ts`
 
 `libs/playlist/m3u/feature-player` (2) goes with the playback PR.
 
@@ -167,9 +167,9 @@ the field a signal (or a `computed`), or writes it through one.
 | --- | --- | --- | --- |
 | [ ] | `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts` `onChannelNumberInput`/`clearChannelNumberInput` | 2 s `window.setTimeout` hides the channel-number overlay through plain `showChannelNumberOverlay`/`channelNumberInput` | playback |
 | [ ] | same file, `applySettings` and the settings `effect()` | IndexedDB `storage.get(...).subscribe` and an effect assign plain `playerSettings`, which picks the player in the template | playback |
-| [ ] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts` `checkPortalStatus` | plain `portalStatus` assigned after `await` in `ngOnInit` (PWA only: skipped when source health is supported) | playlist |
-| [ ] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts` (EPG clear and EPG file pick handlers) | plain `playlist` reassigned after `await` | playlist |
-| [ ] | `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.ts` (device-id derivation) | `form.patchValue` after `await`; template getters read `control.value`, which is not signal-backed | playlist |
+| [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts` `checkPortalStatus` | plain `portalStatus` assigned after `await` in `ngOnInit` (PWA only: skipped when source health is supported) | playlist |
+| [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts` (EPG clear and EPG file pick handlers) | plain `playlist` reassigned after `await` | playlist |
+| [x] | `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.ts` (device-id derivation) | `form.patchValue` after `await`; no fix needed: while derivation is on `hasManualDeviceIds` is false whatever the IDs are, the controls write their own DOM values, and typing goes through value-accessor listeners that mark the view | playlist |
 | [ ] | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` (favorites load) | `favorites` Map filled in a `subscribe` without `markForCheck`; the component is OnPush already, so this is a latent bug today | portal |
 | [ ] | `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts` (favorites load) | same pattern; the neighbouring `favoriteMarks.changes$` handler does call `markForCheck` | portal |
 | [ ] | same file, programme dialog `afterClosed` | deletes from `epgPrograms`/`currentProgramsProgress` after `await` without marking | portal |

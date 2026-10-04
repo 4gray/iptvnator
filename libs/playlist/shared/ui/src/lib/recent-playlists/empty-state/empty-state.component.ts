@@ -103,7 +103,7 @@ const SOURCE_CARDS: readonly SourceCard[] = [
         './empty-state.responsive.scss',
         './empty-state.themes.scss',
     ],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatButtonModule, MatIcon, TranslatePipe],
 })
 export class EmptyStateComponent {
