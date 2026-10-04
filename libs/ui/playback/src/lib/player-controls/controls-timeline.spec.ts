@@ -1,10 +1,11 @@
 import { signal } from '@angular/core';
 import { ControlsTimeline } from './controls-timeline';
 import { createEmptyControlsState } from './player-controls-defaults';
+import type { PlayerControlsState } from './player-controls.model';
 
 describe('buffered live timeline', () => {
     it('keeps elapsed time and VOD duration visible when seeking is unavailable', () => {
-        const state = signal({
+        const state = signal<PlayerControlsState>({
             ...createEmptyControlsState(),
             canSeek: false,
             positionSeconds: 75,

@@ -215,6 +215,7 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
     it('offers the same buffered live seek window and clamps scrub commands', async () => {
         fixture.componentInstance.playback = {
             streamUrl: 'https://example.test/live.ts',
+            title: 'Buffered live fixture',
             isLive: true,
         };
         fixture.changeDetectorRef.markForCheck();
