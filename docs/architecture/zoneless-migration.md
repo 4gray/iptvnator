@@ -85,17 +85,17 @@ files that still contain `ChangeDetectionStrategy.Eager`.
 
 ### libs/ui (20 files, 21 components)
 
-- [ ] `libs/ui/components/src/lib/confirm-dialog/confirm-dialog.component.ts`
-- [ ] `libs/ui/components/src/lib/content-hero/content-hero.component.ts`
-- [ ] `libs/ui/components/src/lib/expandable-text/expandable-text.component.ts`
-- [ ] `libs/ui/components/src/lib/portal-detail-shell/content-about.component.ts`
-- [ ] `libs/ui/components/src/lib/portal-detail-shell/portal-detail-shell.component.ts`
-- [ ] `libs/ui/components/src/lib/progress-capsule/progress-capsule.component.ts`
-- [ ] `libs/ui/components/src/lib/season-container/episode-info-dialog.component.ts`
-- [ ] `libs/ui/components/src/lib/watched-badge/watched-badge.component.ts`
-- [ ] `libs/ui/epg/src/lib/epg-item-description/epg-item-description.component.ts`
-- [ ] `libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.ts` (idle audit root; also `EpgTrustConfirmDialogComponent`)
-- [ ] `libs/ui/epg/src/lib/epg-source-status/epg-source-status.component.ts`
+- [x] `libs/ui/components/src/lib/confirm-dialog/confirm-dialog.component.ts`
+- [x] `libs/ui/components/src/lib/content-hero/content-hero.component.ts`
+- [x] `libs/ui/components/src/lib/expandable-text/expandable-text.component.ts`
+- [x] `libs/ui/components/src/lib/portal-detail-shell/content-about.component.ts`
+- [x] `libs/ui/components/src/lib/portal-detail-shell/portal-detail-shell.component.ts`
+- [x] `libs/ui/components/src/lib/progress-capsule/progress-capsule.component.ts`
+- [x] `libs/ui/components/src/lib/season-container/episode-info-dialog.component.ts`
+- [x] `libs/ui/components/src/lib/watched-badge/watched-badge.component.ts`
+- [x] `libs/ui/epg/src/lib/epg-item-description/epg-item-description.component.ts`
+- [x] `libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.ts` (idle audit root; also `EpgTrustConfirmDialogComponent`)
+- [x] `libs/ui/epg/src/lib/epg-source-status/epg-source-status.component.ts`
 - [ ] `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` (`apps/remote-control-web` only)
 - [ ] `libs/ui/playback/src/lib/art-player/art-player.component.ts`
 - [ ] `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`

@@ -38,7 +38,7 @@ export type EpgItemDialogData = EpgProgram & {
     selector: 'app-epg-item-description',
     templateUrl: './epg-item-description.component.html',
     styleUrls: ['./epg-item-description.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [DatePipe, MatDialogModule, MatIcon, TranslatePipe],
 })
 export class EpgItemDescriptionComponent {
