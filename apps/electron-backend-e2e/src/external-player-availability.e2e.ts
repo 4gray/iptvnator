@@ -4,6 +4,7 @@ import {
     launchElectronApp,
     openSettings,
     openSettingsSection,
+    saveSettings,
     test,
 } from './electron-test-fixtures';
 import { mockExternalPlayerAvailability } from './external-player-availability.fixture';
@@ -28,6 +29,8 @@ test('@settings @electron unavailable players stay disabled with editable paths'
         await expect(page.locator('#mpvPlayerPath')).toHaveValue(
             'custom-mpv-path'
         );
+        await saveSettings(page);
+        await expect(page.getByTestId('unsaved-dialog-save')).toBeHidden();
     } finally {
         await closeElectronApp(app);
     }
@@ -49,6 +52,19 @@ test('@settings @electron unknown availability does not disable a player', async
         await expect(page.getByTestId('select-video-player')).toContainText(
             'MPV'
         );
+        await page
+            .locator('app-workspace-shell-rail a[href$="/workspace/dashboard"]')
+            .first()
+            .click({ noWaitAfter: true });
+        await expect(page.getByTestId('unsaved-dialog-save')).toBeVisible();
+        await saveSettings(page);
+        await page.waitForURL(/\/workspace\/dashboard$/);
+        await openSettings(page);
+        await openSettingsSection(page, 'playback');
+        await expect(page.getByTestId('select-video-player')).toContainText(
+            'MPV'
+        );
+        await expect(page.getByTestId('save-settings')).toBeHidden();
     } finally {
         await closeElectronApp(app);
     }
