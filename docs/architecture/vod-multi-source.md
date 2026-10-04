@@ -776,10 +776,12 @@ rules are in
   (`VodDetailsPlaybackService.pendingResets`, `vod-details-reset-target.ts`),
   not one flag: the reused page can show another movie and come back, and
   resets of one copy can overlap, so each reset removes only its own entry.
-- A start is refused (`startResolvedPlayback`), and Play, Start over and the
-  menu launch are disabled (`startBlocked`), while an external launch has not
-  settled or the list holds the copy the page currently acts on
-  (`resetTarget`). A reset still writing for another copy does not block it.
+- A start is refused (`startResolvedPlayback`) while a launch this page made
+  has not settled or the list holds the copy the page currently acts on
+  (`resetTarget`). `startBlocked` disables Play, Start over and the menu
+  launch on those conditions and while a matched session is still
+  `launching`; the menu rows are also held while a start is pending. A reset
+  still writing for another copy does not block it.
 
 ## Provider codec metadata
 

@@ -424,8 +424,8 @@ The series page keeps its launch state at module level in
   page left the owner closes the session it opened.
 - The duplicate guard is keyed by page token plus episode. The token
   (`pageToken()`) is owner, page instance and visit, so a launch left behind
-  by an earlier visit of the same series does not swallow the reopened page's
-  click; that click queues on the owner's chain.
+  by an earlier visit of the same series does not swallow a launch from the
+  reopened page; that launch queues on the owner's chain.
 - While a forced launch of the owner is pending (`forcedLaunchPending`), a
   start that does not force a player is queued instead of started. One choice
   is kept per owner, the latest wins, and it carries the host and `start` of
@@ -438,6 +438,7 @@ The series page keeps its launch state at module level in
 - The launch-position marker and a launch-failure message apply only while
   the page token is unchanged.
 
-Regression coverage: `serial-details-external-launch.spec.ts`,
-`serial-details-playback.service.spec.ts` and
-`serial-details-menu.service.spec.ts`.
+Regression coverage: `serial-details-external-launch.spec.ts` (chain,
+duplicate guard, queued choice), `serial-details-playback.service.spec.ts`
+(page token) and, for the menu rows,
+`libs/ui/components/src/lib/detail-ui/series-hero.state.spec.ts`.
