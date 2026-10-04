@@ -12,9 +12,15 @@ import { fileURLToPath } from 'node:url';
 const workspaceRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const checklistPath = 'docs/architecture/zoneless-migration.md';
 const sourceRoots = ['apps', 'libs'];
-const skippedDirectories = new Set(['node_modules', 'dist', 'coverage']);
-const testOnlyFile =
-    /(\.spec|\.spec-stubs|\.spec-data|\.test-helpers|test-setup)\.ts$/;
+const skippedDirectories = new Set([
+    'node_modules',
+    'dist',
+    'coverage',
+    'test-stubs',
+]);
+// Test-only files follow the repository's `.spec` / `.test` naming, with an
+// optional suffix (`.spec-stubs.ts`, `.test-helpers.ts`, `.test-stubs.ts`).
+const testOnlyFile = /(\.(spec|test)(-[\w]+)?|^test-setup)\.ts$/;
 
 function listProductionSources(directory: string): string[] {
     const files: string[] = [];
