@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import {
+    EMBEDDED_MPV_SUPPORT_RECHECK_MS,
     EmbeddedMpvEngine,
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
@@ -103,6 +104,58 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
             supported: false,
             platform: 'darwin',
             reason: 'addon load failed',
+        });
+    });
+
+    describe('an inconclusive support answer', () => {
+        // A slow login shell: mpv was looked up before its PATH arrived.
+        const inconclusive = {
+            supported: false,
+            platform: 'linux',
+            reason: 'mpv executable missing',
+            inconclusive: true,
+        };
+
+        it('is asked for again, so a mounted player recovers by itself', async () => {
+            const settled = createSupport('native');
+            electron.getEmbeddedMpvSupport
+                .mockResolvedValueOnce(inconclusive)
+                .mockResolvedValue(settled);
+            const controller = TestBed.inject(EmbeddedMpvSessionController);
+
+            await waitFor(
+                () => controller.support() !== null,
+                'the first support answer'
+            );
+            expect(controller.support()).toBe(inconclusive);
+
+            await jest.advanceTimersByTimeAsync(
+                EMBEDDED_MPV_SUPPORT_RECHECK_MS
+            );
+            expect(controller.support()).toBe(settled);
+            expect(electron.getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+
+            // A final answer is kept.
+            await jest.advanceTimersByTimeAsync(
+                EMBEDDED_MPV_SUPPORT_RECHECK_MS * 3
+            );
+            expect(electron.getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+        });
+
+        it('is no longer asked for once the player is gone', async () => {
+            electron.getEmbeddedMpvSupport.mockResolvedValue(inconclusive);
+            const controller = TestBed.inject(EmbeddedMpvSessionController);
+            await waitFor(
+                () => controller.support() !== null,
+                'the first support answer'
+            );
+
+            TestBed.resetTestingModule();
+            await jest.advanceTimersByTimeAsync(
+                EMBEDDED_MPV_SUPPORT_RECHECK_MS * 3
+            );
+
+            expect(electron.getEmbeddedMpvSupport).toHaveBeenCalledTimes(1);
         });
     });
 

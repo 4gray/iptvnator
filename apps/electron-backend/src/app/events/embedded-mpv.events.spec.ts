@@ -10,6 +10,7 @@ const mockEmbeddedMpvService = {
     getSupport: jest.fn(),
     willProbeLinuxMpvExecutable: jest.fn(() => false),
     forgetLinuxMpvExecutableProbe: jest.fn(),
+    markLinuxMpvExecutableProbeProvisional: jest.fn(),
     setPaused: jest.fn(),
 };
 const mockSessionOptions = {
@@ -26,9 +27,7 @@ jest.mock('../services/embedded-mpv-session-options', () => ({
 }));
 const mockWaitForLoginShellPath = jest.fn(() => Promise.resolve(true));
 let settleLookup: () => void = () => undefined;
-const mockLookupSettled = new Promise<void>((resolve) => {
-    settleLookup = resolve;
-});
+let mockLookupSettled = Promise.resolve();
 jest.mock('../startup/login-shell-path', () => ({
     waitForLoginShellPath: () => mockWaitForLoginShellPath(),
     whenLoginShellPathSettled: () => mockLookupSettled,
@@ -69,6 +68,16 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
     });
 
     describe('support checks and the login shell PATH', () => {
+        beforeEach(() => {
+            // A lookup of its own per test: the pending re-probe of one test
+            // must not answer for the next.
+            mockLookupSettled = new Promise<void>((resolve) => {
+                settleLookup = resolve;
+            });
+            mockEmbeddedMpvService.forgetLinuxMpvExecutableProbe.mockClear();
+            mockEmbeddedMpvService.markLinuxMpvExecutableProbeProvisional.mockClear();
+        });
+
         afterEach(() => {
             mockWaitForLoginShellPath.mockClear();
             mockEmbeddedMpvService.willProbeLinuxMpvExecutable.mockReset();
@@ -110,6 +119,10 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
                 expect(
                     mockEmbeddedMpvService.forgetLinuxMpvExecutableProbe
                 ).not.toHaveBeenCalled();
+                // The probe saw the login shell PATH: its answer is final.
+                expect(
+                    mockEmbeddedMpvService.markLinuxMpvExecutableProbeProvisional
+                ).not.toHaveBeenCalled();
             }
         );
 
@@ -125,6 +138,17 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
             await expect(
                 getIpcMainHandler(EMBEDDED_MPV_SUPPORT)({})
             ).resolves.toEqual({ supported: false });
+            // The service is told before it probes, so the answer of this
+            // very check is already marked as not final.
+            const { markLinuxMpvExecutableProbeProvisional, getSupport } =
+                mockEmbeddedMpvService;
+            expect(
+                markLinuxMpvExecutableProbeProvisional
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                markLinuxMpvExecutableProbeProvisional.mock
+                    .invocationCallOrder[0]
+            ).toBeLessThan(getSupport.mock.invocationCallOrder[0]);
             expect(
                 mockEmbeddedMpvService.forgetLinuxMpvExecutableProbe
             ).not.toHaveBeenCalled();
@@ -134,6 +158,33 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
             expect(
                 mockEmbeddedMpvService.forgetLinuxMpvExecutableProbe
             ).toHaveBeenCalledTimes(1);
+        });
+
+        it('still re-probes when the check on the inherited PATH throws', async () => {
+            const consoleErrorSpy = jest
+                .spyOn(console, 'error')
+                .mockImplementation();
+            mockEmbeddedMpvService.willProbeLinuxMpvExecutable.mockReturnValue(
+                true
+            );
+            mockWaitForLoginShellPath.mockResolvedValueOnce(false);
+            mockEmbeddedMpvService.getSupport.mockImplementation(() => {
+                throw new Error('probe failed');
+            });
+
+            try {
+                await expect(
+                    getIpcMainHandler(EMBEDDED_MPV_SUPPORT)({})
+                ).rejects.toThrow('probe failed');
+                // Otherwise the provisional state would outlive the lookup.
+                settleLookup();
+                await new Promise<void>((resolve) => setImmediate(resolve));
+                expect(
+                    mockEmbeddedMpvService.forgetLinuxMpvExecutableProbe
+                ).toHaveBeenCalledTimes(1);
+            } finally {
+                consoleErrorSpy.mockRestore();
+            }
         });
 
         it('does not wait when no probe runs, nor for session calls', async () => {
