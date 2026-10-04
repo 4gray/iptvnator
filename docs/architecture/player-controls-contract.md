@@ -11,7 +11,9 @@ The Settings player selector probes external MPV/VLC using the same launch
 context as playback. A missing executable disables its option but leaves
 configuration accessible. PATH and standard install locations are checked
 without spawning a process. Discovery uses asynchronous filesystem I/O with a
-1.5-second total budget and at most four outstanding filesystem operations.
+1.5-second total budget and at most two outstanding filesystem operations,
+reserving at least one worker from the configured libuv pool for other work.
+With a single worker, detection returns unknown without filesystem I/O.
 An unavailable network location or a timed-out shell PATH lookup returns unknown
 and leaves the option selectable. Flatpak host availability and older bridges remain
 unknown rather than being incorrectly disabled. Reopening the selector or

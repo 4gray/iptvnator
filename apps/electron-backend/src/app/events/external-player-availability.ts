@@ -12,12 +12,21 @@ import {
 
 const PROBE_LIMIT_MS = 1_500;
 const INCONCLUSIVE = Symbol('inconclusive player availability');
+const configuredPoolSize = Number.parseInt(
+    process.env.UV_THREADPOOL_SIZE ?? '4',
+    10
+);
+// Leave at least one worker for unrelated filesystem work. With a single
+// worker (or an invalid pool setting), detection remains unknown without I/O.
+const MAX_ACTIVE_FILE_CHECKS = Number.isFinite(configuredPoolSize)
+    ? Math.max(0, Math.min(2, configuredPoolSize - 1))
+    : 0;
 let activeFileChecks = 0;
 
 // Node cannot cancel an in-flight filesystem request. Bound outstanding work
 // too, so repeated edits cannot fill its thread pool with stalled network I/O.
 async function fileCheck<T>(operation: () => Promise<T>): Promise<T> {
-    if (activeFileChecks >= 4) throw INCONCLUSIVE;
+    if (activeFileChecks >= MAX_ACTIVE_FILE_CHECKS) throw INCONCLUSIVE;
     activeFileChecks++;
     try {
         return await operation();

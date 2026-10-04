@@ -217,14 +217,14 @@ describe('external player availability', () => {
             await expect(Promise.all(probes)).resolves.toEqual(
                 Array(8).fill(null)
             );
-            expect(stat).toHaveBeenCalledTimes(4);
+            expect(stat).toHaveBeenCalledTimes(2);
             for (const resolve of settle) {
                 resolve({ isFile: () => true } as Awaited<
                     ReturnType<typeof filesystem.stat>
                 >);
             }
             await jest.advanceTimersByTimeAsync(1);
-            expect(stat).toHaveBeenCalledTimes(4);
+            expect(stat).toHaveBeenCalledTimes(2);
             expect(access).not.toHaveBeenCalled();
             stat.mockResolvedValue({ isFile: () => false } as Awaited<
                 ReturnType<typeof filesystem.stat>
@@ -235,7 +235,7 @@ describe('external player availability', () => {
                     isFlatpak: false,
                 })
             ).resolves.toBe(false);
-            expect(stat).toHaveBeenCalledTimes(7);
+            expect(stat).toHaveBeenCalledTimes(5);
         } finally {
             stat.mockImplementation(
                 jest.requireActual<typeof import('fs/promises')>('fs/promises')
@@ -244,4 +244,61 @@ describe('external player availability', () => {
             jest.useRealTimers();
         }
     });
+
+    it.each([
+        ['1', 0],
+        ['2', 1],
+        ['invalid', 0],
+    ] as const)(
+        'reserves filesystem capacity with UV_THREADPOOL_SIZE=%s',
+        async (poolSize, expectedChecks) => {
+            const previous = process.env.UV_THREADPOOL_SIZE;
+            process.env.UV_THREADPOOL_SIZE = poolSize;
+            jest.useFakeTimers();
+            const settle: Array<() => void> = [];
+            let probe: typeof externalPlayerAvailable = externalPlayerAvailable;
+            let stat: jest.MockedFunction<typeof filesystem.stat> = jest.mocked(
+                filesystem.stat
+            );
+            try {
+                jest.isolateModules(() => {
+                    probe = (
+                        require('./external-player-availability') as typeof import('./external-player-availability')
+                    ).externalPlayerAvailable;
+                    stat = jest.mocked(
+                        (require('fs/promises') as typeof filesystem).stat
+                    );
+                    stat.mockClear().mockImplementation(
+                        () =>
+                            new Promise((resolve) => {
+                                settle.push(() =>
+                                    resolve({ isFile: () => false } as Awaited<
+                                        ReturnType<typeof filesystem.stat>
+                                    >)
+                                );
+                            })
+                    );
+                });
+                const requests = Array.from({ length: 4 }, () =>
+                    probe('mpv', 'D:\\missing\\mpv.exe', {
+                        platform: 'win32',
+                        isFlatpak: false,
+                        limitMs: 100,
+                    })
+                );
+                await jest.advanceTimersByTimeAsync(100);
+                await expect(Promise.all(requests)).resolves.toEqual(
+                    Array(4).fill(null)
+                );
+                expect(stat).toHaveBeenCalledTimes(expectedChecks);
+            } finally {
+                settle.forEach((resolve) => resolve());
+                await jest.advanceTimersByTimeAsync(1);
+                jest.useRealTimers();
+                if (previous === undefined)
+                    delete process.env.UV_THREADPOOL_SIZE;
+                else process.env.UV_THREADPOOL_SIZE = previous;
+            }
+        }
+    );
 });
