@@ -267,13 +267,17 @@ async function expectHeaderClearOfLights(
 ): Promise<void> {
     const layout = () => headerLayout(page);
     await expect
-        .poll(async () => (await layout()).control, label)
+        .poll(async () => (await layout()).control, { message: label })
         .toBe(control);
     await expect
-        .poll(async () => (await layout()).left, `${label}: first control`)
+        .poll(async () => (await layout()).left, {
+            message: `${label}: first control`,
+        })
         .toBeGreaterThanOrEqual(lights.x + headerControlOffset);
     await expect
-        .poll(async () => (await layout()).contentTop, `${label}: content top`)
+        .poll(async () => (await layout()).contentTop, {
+            message: `${label}: content top`,
+        })
         .toBeGreaterThanOrEqual(lights.y + lightsHeight);
 }
 
