@@ -326,7 +326,11 @@ The Electron window hides the native title bar on all desktop platforms
 (`titleBarStyle: 'hidden'` in `apps/electron-backend/src/app/app.ts`):
 
 1. macOS keeps the native traffic lights (`titleBarOverlay: true`,
-   `trafficLightPosition`); the renderer draws no window buttons.
+   `trafficLightPosition`); the renderer draws no window buttons. The lights
+   sit in the 56 px header band above the rail, so the macOS rail
+   (`.app-rail.is-macos`) starts its first link at 56 px: level with the
+   content area and the dashboard hero, with its hover surface clear of the
+   lights. `window-controls.e2e.ts` checks both on macOS.
 2. Windows and Linux use renderer-drawn window controls
    (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
    `frame` is intentionally left untouched so native resize borders and

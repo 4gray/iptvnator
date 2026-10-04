@@ -187,3 +187,42 @@ test.describe('Custom window controls', () => {
         }
     });
 });
+
+test.describe('macOS traffic lights', () => {
+    test.skip(
+        process.platform !== 'darwin',
+        'Only macOS draws the native traffic lights over the rail'
+    );
+
+    test('@electron the first rail link starts with the content area, clear of the lights', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            const page = app.mainWindow;
+            await expect(page.locator('.app-rail')).toHaveClass(/is-macos/);
+            const firstLink = page.locator('.app-rail a').first();
+            await expect(firstLink).toBeVisible();
+
+            const [linkBox, contentBox] = await Promise.all([
+                firstLink.boundingBox(),
+                page.locator('.workspace-content').boundingBox(),
+            ]);
+            // Aligned with the content area, where the dashboard hero starts.
+            expect(
+                Math.abs((linkBox?.y ?? 0) - (contentBox?.y ?? -100))
+            ).toBeLessThanOrEqual(1);
+
+            const lights = await app.electronApp.evaluate(({ BrowserWindow }) =>
+                BrowserWindow.getAllWindows()[0]?.getWindowButtonPosition()
+            );
+            // The buttons are about 14pt tall; keep a visible gap below them.
+            expect(linkBox?.y ?? 0).toBeGreaterThanOrEqual(
+                (lights?.y ?? 0) + 14 + 16
+            );
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+});

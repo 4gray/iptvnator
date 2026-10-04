@@ -29,8 +29,11 @@
     --rail-link-active-border: var(--app-selection-border);
     --rail-link-active-glow: var(--app-selection-glow);
 
+    // The traffic lights sit in the header band (56px, see the shell grid).
+    // The first link starts below that band, where the content area and the
+    // dashboard hero start, so its hover surface never touches the lights.
     &.is-macos {
-        padding-top: 36px;
+        padding-top: 56px;
     }
 
     &::-webkit-scrollbar {
