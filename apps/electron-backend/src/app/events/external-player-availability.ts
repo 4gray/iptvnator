@@ -11,6 +11,7 @@ export function externalPlayerAvailable(
         searchPath?: string;
         isFlatpak?: boolean;
         executable?: (file: string) => boolean;
+        workingDirectory?: string;
     } = {}
 ): boolean | null {
     const platform = options.platform ?? process.platform;
@@ -36,13 +37,22 @@ export function externalPlayerAvailable(
         });
     const paths = platform === 'win32' ? path.win32 : path.posix;
     const command = context.command;
-    if (paths.isAbsolute(command) || /[\\/]/.test(command)) {
-        return executable(command);
-    }
     const names =
         platform === 'win32' && !paths.extname(command)
-            ? [command + '.exe']
+            ? [command, command + '.com', command + '.exe']
             : [command];
+    if (paths.isAbsolute(command) || /[\\/]/.test(command)) {
+        return names.some(executable);
+    }
+    if (
+        platform === 'win32' &&
+        names.some((name) =>
+            executable(
+                paths.join(options.workingDirectory ?? process.cwd(), name)
+            )
+        )
+    )
+        return true;
     return (options.searchPath ?? process.env.PATH ?? '')
         .split(platform === 'win32' ? ';' : ':')
         .filter(Boolean)

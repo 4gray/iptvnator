@@ -50,11 +50,12 @@ export {
 async function waitForPathIfBareName(
     player: ExternalPlayerName,
     configuredPath: string | undefined
-): Promise<void> {
+): Promise<boolean> {
     const context = resolveLaunchContext(player, configuredPath);
     if (context.mode !== 'flatpak-host' && !/[\\/]/.test(context.playerPath)) {
-        await waitForLoginShellPath();
+        return (await waitForLoginShellPath()) !== false;
     }
+    return true;
 }
 
 export default class PlayerEvents {
@@ -74,13 +75,13 @@ ipcMain.handle(
             typeof paths?.vlc === 'string'
                 ? paths.vlc
                 : store.get(VLC_PLAYER_PATH);
-        await Promise.all([
+        const [mpvReady, vlcReady] = await Promise.all([
             waitForPathIfBareName('mpv', mpv),
             waitForPathIfBareName('vlc', vlc),
         ]);
         return {
-            mpv: externalPlayerAvailable('mpv', mpv),
-            vlc: externalPlayerAvailable('vlc', vlc),
+            mpv: mpvReady ? externalPlayerAvailable('mpv', mpv) : null,
+            vlc: vlcReady ? externalPlayerAvailable('vlc', vlc) : null,
         };
     }
 );

@@ -1,6 +1,29 @@
 import { externalPlayerAvailable } from './external-player-availability';
 
 describe('external player availability', () => {
+    it.each(['D:\\Players\\mpv', '.\\Players\\mpv'])(
+        'resolves a Windows executable suffix for %s',
+        (command) => {
+            expect(
+                externalPlayerAvailable('mpv', command, {
+                    platform: 'win32',
+                    isFlatpak: false,
+                    executable: (file) => file === command + '.exe',
+                })
+            ).toBe(true);
+        }
+    );
+    it('finds a bare portable Windows command in the working directory', () => {
+        expect(
+            externalPlayerAvailable('mpv', 'mpv', {
+                platform: 'win32',
+                isFlatpak: false,
+                searchPath: '',
+                workingDirectory: 'D:\\Portable',
+                executable: (file) => file === 'D:\\Portable\\mpv.exe',
+            })
+        ).toBe(true);
+    });
     const options = {
         platform: 'win32' as const,
         isFlatpak: false,
