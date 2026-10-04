@@ -247,6 +247,33 @@ describe('WorkspacePlayerCommandsContributor', () => {
         expect(contributor.ensureEmbeddedMpvSupportLoaded()).toBeUndefined();
     });
 
+    it('asks again after a failed request instead of giving up for the session', async () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        const contributor = bootstrap({
+            supportsManagedExternalPlayers: true,
+            supportsEmbeddedMpv: true,
+        });
+        const embedded = getRegistered(viewCommands).find(
+            (c) => c.id === 'switch-player-embedded-mpv'
+        );
+        electronStub?.getEmbeddedMpvSupport.mockRejectedValueOnce(
+            new Error('bridge failed')
+        );
+
+        try {
+            await contributor.ensureEmbeddedMpvSupportLoaded();
+            expect(resolveBoolean(embedded?.visible)).toBe(false);
+
+            await contributor.ensureEmbeddedMpvSupportLoaded();
+            expect(resolveBoolean(embedded?.visible)).toBe(true);
+            expect(electronStub?.getEmbeddedMpvSupport).toHaveBeenCalledTimes(
+                2
+            );
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
     it('switches to embedded MPV on run', () => {
         bootstrap({
             supportsManagedExternalPlayers: true,

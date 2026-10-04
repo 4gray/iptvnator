@@ -1,4 +1,4 @@
-import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
@@ -42,13 +42,6 @@ export class SettingsSearchService {
     );
     private embeddedMpvSupportChecked = false;
     private embeddedMpvSupportLoad: Promise<void> | undefined;
-    private stopEmbeddedMpvSupportWatch: (() => void) | undefined;
-
-    constructor() {
-        inject(DestroyRef).onDestroy(() =>
-            this.stopEmbeddedMpvSupportWatch?.()
-        );
-    }
 
     /** Row the settings page should scroll to and highlight next. */
     readonly pendingReveal = this.revealRequest.asReadonly();
@@ -74,13 +67,49 @@ export class SettingsSearchService {
     /**
      * Probes embedded MPV support so rows that need it become searchable.
      * Returns the pending probe, or `undefined` when there is nothing to
-     * wait for. Call it lazily (palette open, settings page), never from
-     * shell bootstrap: supported desktop builds may load the native addon
-     * while answering. A final answer is kept. An inconclusive one keeps
-     * being followed, so an open settings page updates by itself, and the
-     * next call asks again at once.
+     * wait for. Call it lazily (palette open), never from shell bootstrap:
+     * supported desktop builds may load the native addon while answering.
+     * Only a final answer is kept; after an inconclusive one, or a failed
+     * request, the next call asks again.
      */
     ensureEmbeddedMpvSupportLoaded(): Promise<void> | undefined {
+        const getSupport = this.embeddedMpvSupportProbe();
+        if (!getSupport) {
+            return undefined;
+        }
+
+        this.embeddedMpvSupportLoad ??= getSupport()
+            .then((support) => this.takeEmbeddedMpvSupport(support))
+            .catch(() => this.takeEmbeddedMpvSupport(null))
+            .finally(() => {
+                this.embeddedMpvSupportLoad = undefined;
+            });
+        return this.embeddedMpvSupportLoad;
+    }
+
+    /**
+     * For a surface that keeps showing these rows (the settings page): probes
+     * like `ensureEmbeddedMpvSupportLoaded()` and follows an inconclusive
+     * answer until it is final, so the rows appear by themselves. Returns
+     * the function that ends it; call it when the surface goes away, so
+     * nothing keeps asking for an answer no one shows.
+     */
+    followEmbeddedMpvSupport(): () => void {
+        const getSupport = this.embeddedMpvSupportProbe();
+        if (!getSupport) {
+            return () => undefined;
+        }
+
+        return watchEmbeddedMpvSupport(
+            getSupport,
+            (support) => this.takeEmbeddedMpvSupport(support),
+            () => this.takeEmbeddedMpvSupport(null)
+        );
+    }
+
+    /** The support request, or `undefined` when there is nothing to ask. */
+    private embeddedMpvSupportProbe():
+        (() => Promise<EmbeddedMpvSupport>) | undefined {
         if (this.embeddedMpvSupportChecked) {
             return undefined;
         }
@@ -95,30 +124,13 @@ export class SettingsSearchService {
             return undefined;
         }
 
-        this.embeddedMpvSupportLoad ??= this.followEmbeddedMpvSupport(() =>
-            electron.getEmbeddedMpvSupport()
-        );
-        return this.embeddedMpvSupportLoad;
+        return () => electron.getEmbeddedMpvSupport();
     }
 
-    /** Follows the answer afresh; resolves with its first one. */
-    private followEmbeddedMpvSupport(
-        getSupport: () => Promise<EmbeddedMpvSupport>
-    ): Promise<void> {
-        this.stopEmbeddedMpvSupportWatch?.();
-        return new Promise<void>((answered) => {
-            const take = (support: EmbeddedMpvSupport | null) => {
-                this.embeddedMpvSupport.set(support);
-                this.embeddedMpvSupportChecked = !support?.inconclusive;
-                this.embeddedMpvSupportLoad = undefined;
-                answered();
-            };
-            this.stopEmbeddedMpvSupportWatch = watchEmbeddedMpvSupport(
-                getSupport,
-                take,
-                () => take(null)
-            );
-        });
+    private takeEmbeddedMpvSupport(support: EmbeddedMpvSupport | null): void {
+        this.embeddedMpvSupport.set(support);
+        this.embeddedMpvSupportChecked =
+            support !== null && !support.inconclusive;
     }
 
     /**

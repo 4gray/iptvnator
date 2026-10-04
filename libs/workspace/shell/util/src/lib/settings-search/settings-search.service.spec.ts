@@ -214,24 +214,42 @@ describe('SettingsSearchService', () => {
             expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
         });
 
+        it('asks again after a failed request instead of giving up for the session', async () => {
+            const getEmbeddedMpvSupport = probeWith({ supported: true });
+            getEmbeddedMpvSupport.mockRejectedValueOnce(
+                new Error('bridge failed')
+            );
+            const { service } = setup({
+                ...DESKTOP,
+                supportsEmbeddedMpv: true,
+            });
+            const entries = () => service.visibleEntries().map(({ id }) => id);
+
+            await service.ensureEmbeddedMpvSupportLoaded();
+            expect(entries()).not.toContain('embedded-mpv-extra-options');
+
+            await service.ensureEmbeddedMpvSupportLoaded();
+            expect(entries()).toContain('embedded-mpv-extra-options');
+            expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+        });
+
         describe('while the settings page stays open', () => {
+            const inconclusive = { supported: false, inconclusive: true };
+            const mountedSetup = () =>
+                setup({ ...DESKTOP, supportsEmbeddedMpv: true });
+
             beforeEach(() => jest.useFakeTimers());
             afterEach(() => jest.useRealTimers());
 
             it('follows an inconclusive answer without being asked again', async () => {
-                const getEmbeddedMpvSupport = probeWith({
-                    supported: false,
-                    inconclusive: true,
-                });
-                const { service } = setup({
-                    ...DESKTOP,
-                    supportsEmbeddedMpv: true,
-                });
+                const getEmbeddedMpvSupport = probeWith(inconclusive);
+                const { service } = mountedSetup();
                 const entries = () =>
                     service.visibleEntries().map(({ id }) => id);
 
-                // The page asks once, when it is created.
-                await service.ensureEmbeddedMpvSupportLoaded();
+                // The page starts following once, when it is created.
+                service.followEmbeddedMpvSupport();
+                await jest.advanceTimersByTimeAsync(0);
                 expect(entries()).not.toContain('embedded-mpv-extra-options');
 
                 getEmbeddedMpvSupport.mockResolvedValue({
@@ -252,18 +270,54 @@ describe('SettingsSearchService', () => {
                 expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
             });
 
-            it('stops following once the service is destroyed', async () => {
-                const getEmbeddedMpvSupport = probeWith({
-                    supported: false,
-                    inconclusive: true,
-                });
-                const { service } = setup({
-                    ...DESKTOP,
-                    supportsEmbeddedMpv: true,
+            it('stops asking once the page is closed, and asks again on the next use', async () => {
+                const getEmbeddedMpvSupport = probeWith(inconclusive);
+                const { service } = mountedSetup();
+                const stopFollowing = service.followEmbeddedMpvSupport();
+                await jest.advanceTimersByTimeAsync(0);
+
+                // Nothing shows these rows any more: no polling is left.
+                stopFollowing();
+                await jest.advanceTimersByTimeAsync(
+                    EMBEDDED_MPV_SUPPORT_RECHECK_MS * 20
+                );
+                expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(1);
+
+                await service.ensureEmbeddedMpvSupportLoaded();
+                expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+            });
+
+            it('ends on a failed recheck, and the next use asks again', async () => {
+                const getEmbeddedMpvSupport = probeWith(inconclusive);
+                const { service } = mountedSetup();
+                service.followEmbeddedMpvSupport();
+                await jest.advanceTimersByTimeAsync(0);
+
+                getEmbeddedMpvSupport.mockRejectedValueOnce(
+                    new Error('bridge failed')
+                );
+                await jest.advanceTimersByTimeAsync(
+                    EMBEDDED_MPV_SUPPORT_RECHECK_MS * 20
+                );
+                expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+
+                getEmbeddedMpvSupport.mockResolvedValue({
+                    platform: 'linux',
+                    supported: true,
                 });
                 await service.ensureEmbeddedMpvSupportLoaded();
+                expect(service.visibleEntries().map(({ id }) => id)).toContain(
+                    'embedded-mpv-extra-options'
+                );
+                expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(3);
+            });
 
-                TestBed.resetTestingModule();
+            it('has nothing to follow once a final answer is in hand', async () => {
+                const getEmbeddedMpvSupport = probeWith({ supported: true });
+                const { service } = mountedSetup();
+                await service.ensureEmbeddedMpvSupportLoaded();
+
+                service.followEmbeddedMpvSupport();
                 await jest.advanceTimersByTimeAsync(
                     EMBEDDED_MPV_SUPPORT_RECHECK_MS * 20
                 );

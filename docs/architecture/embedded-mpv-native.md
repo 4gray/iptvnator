@@ -206,14 +206,17 @@ Whatever holds on to one answer follows it through `watchEmbeddedMpvSupport()`
   mounted on one answer: a player mounted in that window starts playback by
   itself once `mpv` is found, and the option appears without reopening the
   page.
-- The settings search (`SettingsSearchService`) serves both the open settings
-  page and the command palette, so it follows the answer as well: the Embedded
-  MPV rows become searchable while the page stays open, and a call made while
-  the answer is still inconclusive asks again at once.
+- The settings page also follows the answer for its search
+  (`SettingsSearchService.followEmbeddedMpvSupport()`) and ends that when it
+  closes: the Embedded MPV rows become searchable while the page stays open,
+  and nothing keeps asking once no surface shows them.
 
-The command palette's player commands ask on demand, on every palette open;
-they keep a final answer for the session, but probe again on the next open
-after an inconclusive one.
+The command palette asks on demand, on every open, for its player commands and
+its settings rows (`ensureEmbeddedMpvSupportLoaded()`). Only a final answer is
+kept for the session; after an inconclusive one, or a failed request, the next
+open asks again. An open palette is a snapshot of that moment: it does not wait
+for a final answer, because a login shell that never answers would then keep
+it from opening.
 
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 

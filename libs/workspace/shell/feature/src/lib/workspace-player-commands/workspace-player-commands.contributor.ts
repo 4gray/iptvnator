@@ -120,9 +120,9 @@ export class WorkspacePlayerCommandsContributor {
     }
 
     private async loadEmbeddedMpvSupport(): Promise<void> {
-        // An inconclusive answer hides the command for now, but is not kept:
-        // the next palette open asks again.
-        let final = true;
+        // Only a final answer is kept. An inconclusive one, or a failed
+        // request, hides the command for now: the next palette open asks again.
+        let final = false;
         try {
             const support = await window.electron?.getEmbeddedMpvSupport?.();
             this.embeddedMpvSupported.set(!!support?.supported);
