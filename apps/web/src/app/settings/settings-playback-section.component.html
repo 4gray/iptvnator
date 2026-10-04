@@ -481,7 +481,9 @@
 
     @if (
         supportsExternalPlayerPathSettings() &&
-        (form().value.player === 'mpv' || externalAvailability().mpv === false)
+        (form().value.player === 'mpv' ||
+            externalAvailability().mpv === false ||
+            form().controls.mpvPlayerPath.dirty)
     ) {
         <div class="setting-item" data-setting-id="mpv-player-path">
             <div class="setting-item__meta">
@@ -557,7 +559,9 @@
 
     @if (
         supportsExternalPlayerPathSettings() &&
-        (form().value.player === 'vlc' || externalAvailability().vlc === false)
+        (form().value.player === 'vlc' ||
+            externalAvailability().vlc === false ||
+            form().controls.vlcPlayerPath.dirty)
     ) {
         <div class="setting-item" data-setting-id="vlc-player-path">
             <div class="setting-item__meta">

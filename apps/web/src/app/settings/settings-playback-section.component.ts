@@ -90,6 +90,7 @@ export class SettingsPlaybackSectionComponent {
             void this.refreshExternalAvailability();
             let timer: ReturnType<typeof setTimeout>;
             const subscription = form.valueChanges.subscribe(() => {
+                this.availabilityRequest++;
                 clearTimeout(timer);
                 timer = setTimeout(
                     () => void this.refreshExternalAvailability(),
