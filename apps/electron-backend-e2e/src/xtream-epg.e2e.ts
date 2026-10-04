@@ -285,7 +285,7 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
             // The timeline lays out the full multi-day window sorted by start
             // time (no per-day filtering — it scrolls) and renders the blocks
             // near the visible range: an ordered run around the current
-            // programme, and the last programme once scrolled to the end.
+            // programme, and every programme once the ribbon is swept.
             const allTitles = [...fixture.fullEpg]
                 .sort((a, b) => a.startTimestamp - b.startTimestamp)
                 .map((listing) => listing.title);
@@ -298,14 +298,9 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
                     );
                 })
                 .toBe(true);
-            await app.mainWindow
-                .locator('app-epg-timeline .epg-timeline__ribbon')
-                .evaluate((ribbon) => {
-                    ribbon.scrollLeft = ribbon.scrollWidth;
-                });
-            await expect
-                .poll(() => timelineBlockTitles(app.mainWindow))
-                .toContain(allTitles[allTitles.length - 1]);
+            expect(await sweepTimelineTitles(app.mainWindow)).toEqual(
+                new Set(allTitles)
+            );
             await app.mainWindow
                 .locator('app-epg-timeline .epg-timeline__jump')
                 .click();
@@ -884,6 +879,43 @@ async function timelineBlockTitles(
         .locator('app-epg-timeline .epg-timeline__block-title')
         .allInnerTexts()
         .then((titles) => titles.map((title) => title.trim()).filter(Boolean));
+}
+
+/**
+ * Scroll the ribbon from its start to its end in half-viewport steps and
+ * collect every programme title rendered on the way.
+ */
+async function sweepTimelineTitles(
+    page: Parameters<typeof channelItemByTitle>[0]
+): Promise<Set<string>> {
+    const ribbon = page.locator('app-epg-timeline .epg-timeline__ribbon');
+    const seen = new Set<string>();
+    let left = 0;
+    for (;;) {
+        const { scrollLeft, maxLeft, step } = await ribbon.evaluate(
+            (element, target) => {
+                element.scrollLeft = target;
+                return {
+                    scrollLeft: element.scrollLeft,
+                    maxLeft: element.scrollWidth - element.clientWidth,
+                    step: Math.max(1, element.clientWidth / 2),
+                };
+            },
+            left
+        );
+        // Two frames: the scroll's measure, then the re-rendered blocks.
+        await page.evaluate(
+            () =>
+                new Promise((resolve) =>
+                    requestAnimationFrame(() => requestAnimationFrame(resolve))
+                )
+        );
+        (await timelineBlockTitles(page)).forEach((title) => seen.add(title));
+        if (scrollLeft >= maxLeft) {
+            return seen;
+        }
+        left = scrollLeft + step;
+    }
 }
 
 /** Whether `run` is a non-empty, in-order slice of `all`. */
