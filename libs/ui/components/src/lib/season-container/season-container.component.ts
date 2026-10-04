@@ -4,12 +4,10 @@ import {
     ElementRef,
     OnInit,
     computed,
-    effect,
     inject,
     input,
     output,
     signal,
-    untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -21,8 +19,6 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { type SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
     createLogger,
-    formatDurationLabel,
-    formatRemainingLabel,
     getPortalPlaybackProgressPercent,
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
@@ -38,11 +34,13 @@ import {
     EpisodeInfoDialogComponent,
     buildEpisodeInfoDialogData,
 } from './episode-info-dialog.component';
+import { formatEpisodePositionText } from './episode-progress.util';
+import { buildEpisodeSubline } from './episode-subline.util';
 import {
-    formatEpisodePositionText,
-    episodeRuntimeSeconds,
-} from './episode-progress.util';
-import { resolveAutoSelectedSeason } from './season-auto-select.util';
+    type SeasonAutoSelectState,
+    createSeasonAutoSelectState,
+    findSeasonOfEpisode,
+} from './season-auto-select.state';
 import { SeasonDownloadPresenter } from './season-download-presenter';
 import { SeasonTabsComponent } from './season-tabs.component';
 import { SeasonWatchPresenter } from './season-watch-presenter';
@@ -80,7 +78,8 @@ export class SeasonContainerComponent implements OnInit {
     private readonly translate = inject(TranslateService);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly logger = createLogger('SeasonContainer');
-    private lastEmittedSeason: string | undefined;
+    /** Auto-select + `seasonSelected` emission; wired in the constructor. */
+    private readonly autoSelect: SeasonAutoSelectState;
     readonly downloadPresenter = inject(SeasonDownloadPresenter);
     readonly watchPresenter = inject(SeasonWatchPresenter);
 
@@ -148,9 +147,12 @@ export class SeasonContainerComponent implements OnInit {
     });
 
     /** Season key of the inline-playing episode, if it is in the loaded set. */
-    readonly playingSeasonKey = computed(() =>
-        this.findSeasonOfEpisode(this.playingEpisodeId())
-    );
+    readonly playingSeasonKey = computed(() => {
+        const episodeId = this.playingEpisodeId();
+        return episodeId === null
+            ? null
+            : findSeasonOfEpisode(this.seasons(), episodeId);
+    });
 
     /**
      * Selected season. Auto-resolves when the season key set changes or when
@@ -170,22 +172,6 @@ export class SeasonContainerComponent implements OnInit {
         const selected = this.selectedSeason();
         return selected ? (this.seasons()[selected] ?? []) : [];
     });
-
-    private readonly autoSelectKey = computed(
-        () =>
-            `${this.sortedSeasonKeys().join('|')}::${
-                this.playbackPositions().size > 0 ? '1' : '0'
-            }`
-    );
-    private lastAutoSelectKey: string | null = null;
-    private lastAutoSelectSeasonSet: string | null = null;
-    /**
-     * True once this session toggled watched state itself. From then on an
-     * empty↔loaded flip of the positions map is the echo of that action, not
-     * an async initial load — re-resolving on it would yank the user off the
-     * season they just marked (e.g. all-watched season 1 → jump to season 2).
-     */
-    private hasLocalWatchedMutation = false;
 
     /**
      * Show thumbnails in the list view only when episodes have genuinely
@@ -254,44 +240,29 @@ export class SeasonContainerComponent implements OnInit {
             openingEpisodeId: this.openingEpisodeId,
             isEpisodeWatched: (episode) => this.isEpisodeWatched(episode),
             emitSeasonToggle: (request) => {
-                this.hasLocalWatchedMutation = true;
+                this.autoSelect.markLocalWatchedMutation();
                 this.seasonPlaybackToggleRequested.emit(request);
             },
             emitSeriesToggle: (request) => {
-                this.hasLocalWatchedMutation = true;
+                this.autoSelect.markLocalWatchedMutation();
                 this.seriesPlaybackToggleRequested.emit(request);
             },
         });
 
-        effect(() => {
-            const key = this.autoSelectKey();
-            if (key === this.lastAutoSelectKey) {
-                return;
-            }
-            const seasonSet = untracked(() =>
-                this.sortedSeasonKeys().join('|')
-            );
-            const seasonSetUnchanged =
-                seasonSet === this.lastAutoSelectSeasonSet;
-            this.lastAutoSelectKey = key;
-            this.lastAutoSelectSeasonSet = seasonSet;
-            // A positions-emptiness flip after a local watched toggle keeps
-            // the current selection; only the async initial positions load
-            // (or a season-set change) re-resolves the season.
-            if (seasonSetUnchanged && this.hasLocalWatchedMutation) {
-                return;
-            }
-            this.selectedSeason.set(untracked(() => this.resolveAutoSeason()));
-        });
-
-        // Fire the lazy-load/enrichment hooks for auto-selected seasons too —
-        // with tabs there is no initial "pick a season" click anymore.
-        effect(() => {
-            const selected = this.selectedSeason();
-            if (selected && selected !== this.lastEmittedSeason) {
-                this.lastEmittedSeason = selected;
-                this.seasonSelected.emit(selected);
-            }
+        // Auto-select rules and the effects driving them live in
+        // season-auto-select.state.ts / season-auto-select.util.ts.
+        this.autoSelect = createSeasonAutoSelectState({
+            selectedSeason: this.selectedSeason,
+            seasons: this.seasons,
+            sortedSeasonKeys: this.sortedSeasonKeys,
+            playingSeasonKey: this.playingSeasonKey,
+            playbackPositions: this.playbackPositions,
+            positionOf: (episode) => this.getEpisodePosition(episode),
+            hasUnloadedSeasons: this.hasUnloadedSeasons,
+            episodeCounts: this.episodeCounts,
+            watchedCounts: this.watchedCounts,
+            emitSeasonSelected: (seasonKey) =>
+                this.seasonSelected.emit(seasonKey),
         });
     }
 
@@ -376,7 +347,7 @@ export class SeasonContainerComponent implements OnInit {
             this.logger.warn('Cannot toggle watched: no playlist ID');
             return;
         }
-        this.hasLocalWatchedMutation = true;
+        this.autoSelect.markLocalWatchedMutation();
 
         const contentXtreamId = this.getEpisodeContentId(episode);
         const currentPosition = this.getEpisodePosition(episode);
@@ -434,21 +405,11 @@ export class SeasonContainerComponent implements OnInit {
 
     /** "42 min · 18m left", "42 min · watched", "42 min" — or null. */
     getEpisodeSubline(episode: XtreamSerieEpisode): string | null {
-        const info = this.getEpisodeInfo(episode);
-        const duration = formatDurationLabel(episodeRuntimeSeconds(info));
-        const position = this.playbackPositions().get(Number(episode.id));
-        const remaining = formatRemainingLabel(position);
-        const parts = [
-            duration
-                ? this.translate.instant(duration.key, duration.params)
-                : null,
-            this.isEpisodeWatched(episode)
-                ? this.translate.instant('PORTALS.DETAIL.WATCHED')
-                : remaining
-                  ? this.translate.instant(remaining.key, remaining.params)
-                  : this.getEpisodePositionText(episode),
-        ].filter((part): part is string => !!part);
-        return parts.length ? parts.join(' · ') : null;
+        return buildEpisodeSubline(
+            this.getEpisodeInfo(episode),
+            this.getEpisodePosition(episode),
+            this.translate
+        );
     }
 
     getEpisodePositionText(episode: XtreamSerieEpisode): string | null {
@@ -463,34 +424,5 @@ export class SeasonContainerComponent implements OnInit {
         episode: XtreamSerieEpisode
     ): PlaybackPositionData | undefined {
         return this.playbackPositions().get(this.getEpisodeContentId(episode));
-    }
-
-    private findSeasonOfEpisode(episodeId: number | null): string | null {
-        if (episodeId === null) {
-            return null;
-        }
-        for (const [key, episodes] of Object.entries(this.seasons())) {
-            if (
-                episodes?.some(
-                    (episode) => this.getEpisodeContentId(episode) === episodeId
-                )
-            ) {
-                return key;
-            }
-        }
-        return null;
-    }
-
-    /** Auto-select rules live in season-auto-select.util.ts. */
-    private resolveAutoSeason(): string | undefined {
-        return resolveAutoSelectedSeason({
-            keys: this.sortedSeasonKeys(),
-            playingSeasonKey: this.playingSeasonKey(),
-            seasons: this.seasons(),
-            positionOf: (episode) => this.getEpisodePosition(episode),
-            hasUnloadedSeasons: this.hasUnloadedSeasons(),
-            episodeCounts: this.episodeCounts(),
-            watchedCounts: this.watchedCounts(),
-        });
     }
 }

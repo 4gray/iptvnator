@@ -484,7 +484,8 @@ the format at all, so a large share of working installations use a non-Infomir
 MAC. Refusing one would stop those users adding or editing a portal that works
 for them. The mock encodes the same split (`enforceMacFormat` is set only on
 the strict endpoint; `/portal.php` ignores it), and `AUTH_REJECTED_MAC` in
-`stalker.e2e.ts` depends on it — a non-Infomir MAC that must reach the strict
+`stalker-portal.fixture.ts` (used by `stalker.e2e.ts`) depends on it — a
+non-Infomir MAC that must reach the strict
 endpoint and be refused _there_, not in the form.
 
 In the edit dialog **both** passes — blur and submit — normalize only a MAC the
