@@ -679,6 +679,8 @@ export class StalkerLiveStreamLayoutComponent
                             );
                         }
                     });
+                    // OnPush: the Map changed outside any template event.
+                    this.cdr.markForCheck();
                 });
         }
 

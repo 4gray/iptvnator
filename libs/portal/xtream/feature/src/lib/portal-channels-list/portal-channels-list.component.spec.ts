@@ -900,6 +900,52 @@ describe('PortalChannelsListComponent', () => {
         ).toBe('live:290');
     });
 
+    // OnPush: favorites resolve asynchronously (IPC or IndexedDB), outside
+    // any template event, so the heart must follow without a zone tick.
+    it('renders favorites that load after the first render', async () => {
+        const favorites$ = new Subject<FavoriteItem[]>();
+        favoritesService.getFavorites.mockReturnValue(favorites$);
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([{ title: 'Cartoon Network', xtream_id: 50 }]);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const viewport = fixture.componentInstance.viewport();
+        Object.defineProperty(
+            viewport?.elementRef.nativeElement,
+            'clientHeight',
+            { configurable: true, value: 520 }
+        );
+        viewport?.checkViewportSize();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const row = () =>
+            fixture.debugElement.query(By.directive(ChannelListItemComponent))
+                .componentInstance as ChannelListItemComponent;
+        expect(row().isFavorite()).toBe(false);
+
+        favorites$.next([
+            {
+                content_id: 1,
+                playlist_id: 'playlist-1',
+                type: 'live',
+                title: 'Cartoon Network',
+                category_id: 7,
+                xtream_id: 50,
+            },
+        ] satisfies FavoriteItem[]);
+        fixture.detectChanges();
+
+        expect(row().isFavorite()).toBe(true);
+    });
+
     it('scrolls the virtual list to the selected live channel', () => {
         const channels = Array.from({ length: 20 }, (_, index) => ({
             title: `Channel ${index + 1}`,

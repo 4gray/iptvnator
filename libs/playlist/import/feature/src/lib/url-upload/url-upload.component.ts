@@ -19,7 +19,7 @@ import { RuntimeCapabilitiesService } from '@iptvnator/services';
 @Component({
     selector: 'app-url-upload',
     templateUrl: './url-upload.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         MatFormFieldModule,
         MatInputModule,
