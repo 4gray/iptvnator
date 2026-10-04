@@ -468,6 +468,51 @@ position telemetry overwrites this launch marker when available. This keeps the
 last-watched season and episode correct even when an external player's progress
 interface is unavailable; exact external timestamps remain best-effort.
 
+## Forced External Launches From Detail Pages
+
+The detail "…" menu's "Open in external player" sends the title to MPV/VLC
+through `PortalPlayer.openExternalPlayback(playback, player)` whatever the
+configured player is. The launch IPC cannot be cancelled, and Electron
+publishes the session only once it resolves, so every detail host keeps these
+rules:
+
+- **One external player per title.** Before launching, the host closes the
+  external session it owns for that title. The `owns` predicate names only the
+  page's own content; any other session is left alone. With instance reuse
+  off, a second detached player would otherwise start beside the first.
+  Stalker hosts use `replaceOwnedExternalSession` from
+  `@iptvnator/portal/shared/util`; the Xtream pages use the equivalent
+  `closeRunningExternalSession`.
+- **Unconfirmed teardown cancels the launch.** A live session without a
+  closer, or a close that rejects, leaves the running player in place and
+  nothing new launches.
+- **Ownership is rechecked after every await.** Stream resolution, the close
+  and the launch IPC can each outlive the page or be superseded by a newer
+  start. A stale step stops without reporting, and a launch that resolves
+  stale closes the session it just opened.
+- **No second player while a launch settles.** A repeat of the same launch is
+  ignored, or its control stays disabled. Movie pages refuse or disable every
+  other start of that title until the launch settles. Series pages hold the
+  latest episode choice and, once the launch settled, replace the player it
+  opened, only while that series is still on screen.
+- **Pending state is owner-scoped.** A start still resolving, or a progress
+  reset still writing, holds the actions of its own title only: another title
+  shown by the reused page is not blocked by it. Movie hosts track starts with
+  `createPendingPlaybackStart` (`@iptvnator/portal/shared/util`): only the
+  latest start may clear the flag, and `isPendingFor(owner)` answers for one
+  owner. Stalker hosts, whose starts wait on a portal round trip, also
+  `retire(owner)` when the selection leaves it, so a request that never
+  settles cannot hold a return to the same title. The one page-wide gate is
+  the Xtream movie page's external launch that has not settled yet.
+
+Owner keys and queueing are provider contracts:
+
+| Host | Contract |
+| --- | --- |
+| Xtream series | [Forced external launches from detail pages](./xtream-portal-compatibility.md#forced-external-launches-from-detail-pages) |
+| Xtream movie | [Menu launch and reset follow the primary button](./vod-multi-source.md#menu-launch-and-reset-follow-the-primary-button) |
+| Stalker series and movies | [Forced External Launches](./stalker-portal.md#forced-external-launches) |
+
 ## Series Quick Start CTA
 
 Xtream and Stalker series detail views share the quick-start decision helper in
