@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "Ouderlijk toezicht uitgeschakeld",
             "PIN_CHANGED_TOAST": "Pincode gewijzigd",
             "LOCKED_TOAST": "Vergrendeld"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "Niet gevonden",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "Installeer ontbrekende spelers lokaal en voeg ze toe aan PATH of stel hieronder het uitvoerbare pad in. Open deze keuzelijst opnieuw om nogmaals te controleren."
     },
     "THEMES": {
         "DARK_THEME": "Donker",

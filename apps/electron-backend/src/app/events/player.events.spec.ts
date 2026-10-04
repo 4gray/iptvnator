@@ -473,6 +473,28 @@ describe('openVlcPlayer', () => {
 });
 
 describe('external player launch handlers', () => {
+    it('waits for shell PATH before reporting bare-name availability', async () => {
+        let settle: () => void = () => undefined;
+        const wait = new Promise<void>((resolve) => {
+            settle = resolve;
+        });
+        (waitForLoginShellPath as jest.Mock).mockReturnValue(wait);
+        let complete = false;
+        const probe = Promise.resolve(
+            getIpcMainHandler('GET_EXTERNAL_PLAYER_AVAILABILITY')(
+                {},
+                { mpv: 'missing-mpv-on-path', vlc: 'missing-vlc-on-path' }
+            )
+        ).then((result) => {
+            complete = true;
+            return result;
+        });
+        await Promise.resolve();
+        expect(complete).toBe(false);
+        settle();
+        await expect(probe).resolves.toEqual({ mpv: false, vlc: false });
+        (waitForLoginShellPath as jest.Mock).mockResolvedValue(undefined);
+    });
     const pathKeys: Record<string, string> = {
         OPEN_MPV_PLAYER: MPV_PLAYER_PATH,
         OPEN_VLC_PLAYER: VLC_PLAYER_PATH,

@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "자녀 보호가 꺼졌습니다",
             "PIN_CHANGED_TOAST": "PIN이 변경되었습니다",
             "LOCKED_TOAST": "잠겼습니다"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "찾을 수 없음",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "없는 플레이어를 이 컴퓨터에 설치한 뒤 PATH에 추가하거나 아래에서 실행 파일 경로를 설정하세요. 다시 확인하려면 이 선택 목록을 다시 여세요."
     },
     "THEMES": {
         "DARK_THEME": "어둡게",

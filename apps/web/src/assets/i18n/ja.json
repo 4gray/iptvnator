@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "ペアレンタルロックを無効にしました",
             "PIN_CHANGED_TOAST": "PIN を変更しました",
             "LOCKED_TOAST": "ロックしました"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "見つかりません",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "不足しているプレーヤーをこの端末にインストールし、PATHに追加するか、下で実行ファイルのパスを指定してください。この選択欄を再度開くと確認できます。"
     },
     "THEMES": {
         "DARK_THEME": "ダーク",

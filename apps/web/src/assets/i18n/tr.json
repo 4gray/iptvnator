@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "Ebeveyn kilidi devre dışı bırakıldı",
             "PIN_CHANGED_TOAST": "PIN değiştirildi",
             "LOCKED_TOAST": "Kilitlendi"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "Bulunamadı",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "Eksik oynatıcıları bu bilgisayara yükleyin, ardından PATH içine ekleyin veya aşağıda çalıştırılabilir dosya yolunu ayarlayın. Yeniden kontrol etmek için bu seçiciyi tekrar açın."
     },
     "THEMES": {
         "DARK_THEME": "Koyu",

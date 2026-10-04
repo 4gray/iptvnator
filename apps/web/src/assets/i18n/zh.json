@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "家长控制已禁用",
             "PIN_CHANGED_TOAST": "PIN 码已更改",
             "LOCKED_TOAST": "已锁定"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "未找到",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "请在本机安装缺少的播放器，然后将其添加到 PATH，或在下方设置可执行文件路径。重新打开此选择框即可再次检查。"
     },
     "THEMES": {
         "DARK_THEME": "深色",

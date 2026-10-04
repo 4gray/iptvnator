@@ -65,26 +65,24 @@ export default class PlayerEvents {
 
 ipcMain.handle(
     'GET_EXTERNAL_PLAYER_AVAILABILITY',
-    (
-        _event,
-        paths?: {
-            mpv?: string;
-            vlc?: string;
-        }
-    ) => ({
-        mpv: externalPlayerAvailable(
-            'mpv',
+    async (_event, paths?: { mpv?: string; vlc?: string }) => {
+        const mpv =
             typeof paths?.mpv === 'string'
                 ? paths.mpv
-                : store.get(MPV_PLAYER_PATH)
-        ),
-        vlc: externalPlayerAvailable(
-            'vlc',
+                : store.get(MPV_PLAYER_PATH);
+        const vlc =
             typeof paths?.vlc === 'string'
                 ? paths.vlc
-                : store.get(VLC_PLAYER_PATH)
-        ),
-    })
+                : store.get(VLC_PLAYER_PATH);
+        await Promise.all([
+            waitForPathIfBareName('mpv', mpv),
+            waitForPathIfBareName('vlc', vlc),
+        ]);
+        return {
+            mpv: externalPlayerAvailable('mpv', mpv),
+            vlc: externalPlayerAvailable('vlc', vlc),
+        };
+    }
 );
 
 ipcMain.handle(
