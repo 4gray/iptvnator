@@ -166,7 +166,11 @@ export class SerialDetailsComponent implements OnDestroy {
     readonly similarItems = this.similar.similarItems;
     readonly similarInPortals = this.similar.similarInPortals;
 
-    /** Season descriptions and posters, and the selected season's enrichment. */
+    /**
+     * Season descriptions and posters, and the selected season's enrichment.
+     * Injected after the other services that register effects: its enrichment
+     * effect then runs after theirs and before the constructor's.
+     */
     private readonly seasons = inject(SerialDetailsSeasonsService);
     readonly seasonDescriptions = this.seasons.descriptions;
     readonly seasonPosters = this.seasons.posters;
