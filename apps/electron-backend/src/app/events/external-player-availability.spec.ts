@@ -1,7 +1,7 @@
 import { externalPlayerAvailable } from './external-player-availability';
 
 describe('external player availability', () => {
-    it.each(['D:\\Players\\mpv', '.\\Players\\mpv'])(
+    it.each(['D:\\Players\\mpv', '.\\Players\\mpv', 'D:\\Players\\mpv.portable'])(
         'resolves a Windows executable suffix for %s',
         (command) => {
             expect(
@@ -80,4 +80,18 @@ describe('external player availability', () => {
             })
         ).toBe(true);
     });
+    it.each(['/usr/bin:', ':/usr/bin', '/usr/bin::/opt/bin'])(
+        'resolves current-directory entries in POSIX PATH %s',
+        (searchPath) => {
+            expect(
+                externalPlayerAvailable('mpv', 'mpv', {
+                    platform: 'linux',
+                    isFlatpak: false,
+                    searchPath,
+                    workingDirectory: '/portable',
+                    executable: (file) => file === '/portable/mpv',
+                })
+            ).toBe(true);
+        }
+    );
 });

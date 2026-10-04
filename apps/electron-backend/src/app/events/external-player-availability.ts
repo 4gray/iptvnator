@@ -38,7 +38,7 @@ export function externalPlayerAvailable(
     const paths = platform === 'win32' ? path.win32 : path.posix;
     const command = context.command;
     const names =
-        platform === 'win32' && !paths.extname(command)
+        platform === 'win32'
             ? [command, command + '.com', command + '.exe']
             : [command];
     if (paths.isAbsolute(command) || /[\\/]/.test(command)) {
@@ -55,10 +55,15 @@ export function externalPlayerAvailable(
         return true;
     return (options.searchPath ?? process.env.PATH ?? '')
         .split(platform === 'win32' ? ';' : ':')
-        .filter(Boolean)
         .some((directory) =>
             names.some((name) =>
-                executable(paths.join(directory.replace(/^"|"$/g, ''), name))
+                executable(
+                    paths.join(
+                        directory.replace(/^"|"$/g, '') ||
+                            (options.workingDirectory ?? process.cwd()),
+                        name
+                    )
+                )
             )
         );
 }
