@@ -75,6 +75,24 @@ describe('Windows floating MPV host', () => {
     });
     afterEach(() => player.restore());
 
+    it.each(['reparent', 'setBounds'] as const)(
+        'destroys floating hosts even if native %s restoration fails',
+        async (operation) => {
+            await player.open('one');
+            const windows = (
+                BrowserWindow as unknown as jest.Mock
+            ).mock.results.map((entry) => entry.value);
+            callbacks[operation].mockImplementationOnce(() => {
+                throw new Error('Native restore failed');
+            });
+            expect(() => player.dispose('one')).not.toThrow();
+            expect(windows.every((window) => window.destroyed)).toBe(true);
+            expect(ipcMain.listenerCount('EMBEDDED_MPV_FLOATING_COMMAND')).toBe(
+                0
+            );
+        }
+    );
+
     it('keeps a reopened window when an older pending load rejects', async () => {
         const construct = (
             BrowserWindow as unknown as jest.Mock

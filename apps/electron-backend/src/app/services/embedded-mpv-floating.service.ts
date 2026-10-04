@@ -264,10 +264,14 @@ export class EmbeddedMpvFloatingPlayer {
         if (!window || !id) return;
         const main = this.dependencies.mainWindow();
         // Move the child before destroying its floating parent.
-        if (main && !main.isDestroyed()) {
-            this.dependencies.reparent(id, main.getNativeWindowHandle());
-            const bounds = this.inlineBounds.get(id);
-            if (bounds) this.dependencies.setBounds(id, bounds);
+        try {
+            if (main && !main.isDestroyed()) {
+                this.dependencies.reparent(id, main.getNativeWindowHandle());
+                const bounds = this.inlineBounds.get(id);
+                if (bounds) this.dependencies.setBounds(id, bounds);
+            }
+        } catch {
+            console.warn('[Embedded MPV] Could not restore the floating view.');
         }
         this.window = null;
         this.sessionId = null;

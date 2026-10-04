@@ -1266,6 +1266,9 @@ export class EmbeddedMpvNativeService {
             });
         };
 
+        App.mainWindow.webContents.on('destroyed', () =>
+            disposeAll('main window closed')
+        );
         App.mainWindow.webContents.on(
             'render-process-gone',
             (_event, details) => disposeAll(`process gone (${details.reason})`)

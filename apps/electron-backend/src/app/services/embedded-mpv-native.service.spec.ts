@@ -76,6 +76,8 @@ jest.mock('../app', () => ({
 }));
 
 interface MockSnapshot {
+    seekable?: boolean;
+    seekableRanges?: Array<{ start: number; end: number }>;
     status: EmbeddedMpvSessionStatus;
     positionSeconds: number;
     durationSeconds: number | null;
@@ -732,6 +734,17 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         expect(service.setVolume('s1', 1)).not.toHaveProperty('stats');
     });
 
+    it('disposes sessions when the main renderer is destroyed', () => {
+        startSession('s1', snapshot('playing'));
+        const close = mainWindowWebContentsOnMock.mock.calls.find(
+            ([name]) => name === 'destroyed'
+        )?.[1];
+        expect(close).toBeDefined();
+        close();
+        expect(addon.disposeSession).toHaveBeenCalledWith('s1');
+        expect(service.disposeSession('s1')).toBeNull();
+    });
+
     it('keeps fractional buffered-live positions seekable and accumulates rapid skips', () => {
         startSession('s1', snapshot('playing', { positionSeconds: 75.6 }));
         addon.getSessionSnapshot.mockReturnValue(
@@ -743,6 +756,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         );
         service.loadPlayback('s1', {
             streamUrl: 'https://example.com/live.ts',
+            title: 'Buffered live fixture',
             isLive: true,
         });
         service.seekBy('s1', -10);
