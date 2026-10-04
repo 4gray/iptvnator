@@ -748,7 +748,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     it('keeps fractional buffered-live positions seekable and accumulates rapid skips', () => {
         startSession('s1', snapshot('playing', { positionSeconds: 75.6 }));
         addon.getSessionSnapshot.mockReturnValue(
-            snapshot('paused', {
+            snapshot('playing', {
                 positionSeconds: 75.6,
                 seekable: true,
                 seekableRanges: [{ start: 25.5, end: 100 }],
@@ -760,6 +760,13 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             isLive: true,
         });
         service.seekBy('s1', -10);
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('playing', {
+                positionSeconds: 75.7,
+                seekable: true,
+                seekableRanges: [{ start: 25.5, end: 100 }],
+            })
+        );
         service.seekBy('s1', -10);
         expect(addon.seek.mock.calls.at(-2)?.[1]).toBeCloseTo(65.6);
         expect(addon.seek.mock.calls.at(-1)?.[1]).toBeCloseTo(55.6);

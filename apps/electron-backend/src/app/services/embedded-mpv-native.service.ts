@@ -14,6 +14,10 @@ import App from '../app';
 import { EmbeddedMpvFloatingPlayer } from './embedded-mpv-floating.service';
 import { floatingPlaybackState } from './floating-playback-state';
 import {
+    pendingLiveSeekBase,
+    type PendingLiveSeek,
+} from './embedded-mpv-pending-seek';
+import {
     EmbeddedMpvAudioTrack,
     playbackIsLive,
     embeddedMpvSeekWindow,
@@ -143,7 +147,7 @@ interface EmbeddedMpvRuntimeSession {
     startedAt: string;
     updatedAt: string;
     lastPayloadKey: string;
-    pendingLiveSeek?: { observed: number; target: number };
+    pendingLiveSeek?: PendingLiveSeek;
     lastStatus: EmbeddedMpvSessionStatus | null;
     reconnect: EmbeddedMpvReconnectState;
     /** Linux native-view only: the `--include` file carrying the options. */
@@ -844,11 +848,22 @@ export class EmbeddedMpvNativeService {
                 const runtime = this.sessions.get(sessionId);
                 const observed = session?.positionSeconds ?? 0;
                 const pending = runtime?.pendingLiveSeek;
-                const base =
-                    pending?.observed === observed ? pending.target : observed;
+                const observedAt = performance.now();
+                const base = pendingLiveSeekBase(
+                    pending,
+                    observed,
+                    observedAt,
+                    session?.status === 'playing',
+                    session?.playbackSpeed ?? 1
+                );
                 const target = clampPlaybackSeek(window, base + deltaSeconds);
                 if (target !== null) {
-                    if (runtime) runtime.pendingLiveSeek = { observed, target };
+                    if (runtime)
+                        runtime.pendingLiveSeek = {
+                            observed,
+                            observedAt,
+                            target,
+                        };
                     addon.seek(sessionId, target);
                 }
                 return this.refreshSession(sessionId);

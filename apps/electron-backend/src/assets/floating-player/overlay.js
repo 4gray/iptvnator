@@ -76,8 +76,23 @@ element('timeline').onchange = (event) => {
 element('timeline').onpointercancel = () => {
     scrubbing = false;
 };
+let keyboardInteraction = false;
+let pointerInteraction = false;
+document.addEventListener('pointerdown', () => {
+    keyboardInteraction = false;
+    pointerInteraction = true;
+    window.floatingPlayer.controlsFocus(true);
+});
+const endPointerInteraction = () => {
+    pointerInteraction = false;
+    window.floatingPlayer.controlsFocus(keyboardInteraction);
+};
+document.addEventListener('pointerup', endPointerInteraction);
+document.addEventListener('pointercancel', endPointerInteraction);
 document.addEventListener('focusin', () =>
-    window.floatingPlayer.controlsFocus(true)
+    window.floatingPlayer.controlsFocus(
+        keyboardInteraction || pointerInteraction
+    )
 );
 document.addEventListener('focusout', () =>
     window.floatingPlayer.controlsFocus(false)
@@ -98,6 +113,9 @@ handle.onpointerup = handle.onpointercancel = (event) => {
     window.floatingPlayer.drag('end');
 };
 document.addEventListener('keydown', (event) => {
+    keyboardInteraction = true;
+    if (document.activeElement?.matches('button, input'))
+        window.floatingPlayer.controlsFocus(true);
     if (event.key === 'Escape') window.floatingPlayer.restore();
     if (event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON')
         return;
