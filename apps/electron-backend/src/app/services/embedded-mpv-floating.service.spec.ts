@@ -44,6 +44,14 @@ jest.mock('electron', () => {
 describe('Windows floating MPV host', () => {
     const inline = { x: 12, y: 20, width: 640, height: 360 };
     let player: EmbeddedMpvFloatingPlayer;
+    let mainWindow: {
+        isDestroyed: jest.Mock;
+        getNativeWindowHandle: jest.Mock;
+        isMinimized: jest.Mock;
+        restore: jest.Mock;
+        show: jest.Mock;
+        focus: jest.Mock;
+    };
     let callbacks: Parameters<typeof Object.assign>[0] & {
         mainWindow: jest.Mock;
         reparent: jest.Mock;
@@ -58,11 +66,16 @@ describe('Windows floating MPV host', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         ipcMain.removeAllListeners();
+        mainWindow = {
+            isDestroyed: jest.fn(() => false),
+            getNativeWindowHandle: jest.fn(() => Buffer.from('main')),
+            isMinimized: jest.fn(() => false),
+            restore: jest.fn(),
+            show: jest.fn(),
+            focus: jest.fn(),
+        };
         callbacks = {
-            mainWindow: jest.fn(() => ({
-                isDestroyed: () => false,
-                getNativeWindowHandle: () => Buffer.from('main'),
-            })),
+            mainWindow: jest.fn(() => mainWindow),
             reparent: jest.fn(),
             setBounds: jest.fn(),
             togglePaused: jest.fn(),
@@ -289,6 +302,60 @@ describe('Windows floating MPV host', () => {
             Buffer.from('main')
         );
         expect(ipcMain.listenerCount('EMBEDDED_MPV_FLOATING_COMMAND')).toBe(0);
+        expect(mainWindow.focus).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([true, false])(
+        'shows and focuses the main window on Return to app (minimized: %s)',
+        async (minimized) => {
+            await player.open('one');
+            mainWindow.isMinimized.mockReturnValue(minimized);
+            const overlay = latestWindow();
+            ipcMain.emit(
+                'EMBEDDED_MPV_FLOATING_COMMAND',
+                { sender: overlay.webContents },
+                'restore'
+            );
+            expect(callbacks.reparent).toHaveBeenLastCalledWith(
+                'one',
+                Buffer.from('main')
+            );
+            expect(overlay.destroy).toHaveBeenCalledTimes(1);
+            expect(mainWindow.restore).toHaveBeenCalledTimes(minimized ? 1 : 0);
+            expect(mainWindow.show).toHaveBeenCalledTimes(1);
+            expect(mainWindow.focus).toHaveBeenCalledTimes(1);
+            expect(overlay.destroy.mock.invocationCallOrder[0]).toBeLessThan(
+                mainWindow.focus.mock.invocationCallOrder[0]
+            );
+        }
+    );
+
+    it.each(['dispose', 'replace', 'restore'] as const)(
+        'does not activate the main window during automatic %s',
+        async (operation) => {
+            await player.open('one');
+            mainWindow.isMinimized.mockReturnValue(true);
+            if (operation === 'dispose') player.dispose('one');
+            else if (operation === 'replace') await player.open('two');
+            else player.restore();
+            expect(mainWindow.restore).not.toHaveBeenCalled();
+            expect(mainWindow.show).not.toHaveBeenCalled();
+            expect(mainWindow.focus).not.toHaveBeenCalled();
+        }
+    );
+
+    it('ignores a main window destroyed before Return to app', async () => {
+        await player.open('one');
+        const overlay = latestWindow();
+        mainWindow.isDestroyed.mockReturnValue(true);
+        ipcMain.emit(
+            'EMBEDDED_MPV_FLOATING_COMMAND',
+            { sender: overlay.webContents },
+            'restore'
+        );
+        expect(overlay.destroy).toHaveBeenCalledTimes(1);
+        expect(mainWindow.show).not.toHaveBeenCalled();
+        expect(mainWindow.focus).not.toHaveBeenCalled();
     });
 
     it('does not attach a session disposed during window loading', async () => {

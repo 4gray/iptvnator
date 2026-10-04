@@ -119,7 +119,7 @@ export class EmbeddedMpvFloatingPlayer {
         ) => {
             if (_event.sender !== overlay.webContents || this.sessionId !== id)
                 return;
-            if (action === 'restore') this.restore();
+            if (action === 'restore') this.returnToApp();
             else if (action === 'minimize') window.minimize();
             else if (action === 'pause') this.dependencies.togglePaused(id);
             else if (action === 'drag-start') {
@@ -186,13 +186,13 @@ export class EmbeddedMpvFloatingPlayer {
         overlay.on('close', (event) => {
             if (this.overlay === overlay) {
                 event.preventDefault();
-                this.restore();
+                this.returnToApp();
             }
         });
         window.on('close', (event) => {
             if (this.window === window) {
                 event.preventDefault();
-                this.restore();
+                this.returnToApp();
             }
         });
         try {
@@ -256,6 +256,15 @@ export class EmbeddedMpvFloatingPlayer {
             width: width * scale,
             height: Math.max(1, height) * scale,
         });
+    }
+
+    private returnToApp(): void {
+        const main = this.dependencies.mainWindow();
+        this.restore();
+        if (!main || main.isDestroyed()) return;
+        if (main.isMinimized()) main.restore();
+        main.show();
+        main.focus();
     }
 
     restore(): void {

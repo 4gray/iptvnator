@@ -57,7 +57,9 @@ button. `EmbeddedMpvFloatingPlayer` moves the existing child HWND into an
 always-on-top BrowserWindow, preserving the MPV session and provider connection.
 Inline bounds updates are retained for restoration while floating-window bounds
 use that window's display scale. Closing or returning reparents the video before
-destroying the floating window; session disposal closes it as well. The local
+destroying the floating window. These user actions also restore a minimized main
+window, show it and focus it. Automatic session disposal, replacement and load
+failure close the floating hosts without activating the main window. The local
 sandboxed controls page has a minimal preload and accepts commands only from
 its own webContents. A transparent owned window overlays the native video,
 following its bounds and appearing on hover or control focus. The video window
