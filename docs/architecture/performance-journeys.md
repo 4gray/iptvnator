@@ -627,10 +627,10 @@ runs before 2738bc28a had 30 of 36 iterations on the slow path (18 calls,
 numbers so `tools/performance/check-journey-ratchet.mjs` can compare them with
 `tools/performance/journey-baselines.json`. The summary writer checks only
 that every measured iteration reports the same counter names with finite
-values, so a new counter needs no schema change. A J1 runtime baseline is added
-once its counter is deterministic on the CI runner. Two are enforced
-(`renderer.ipcCallsToFirstCard` and `renderer.domMutationsToFirstCard`, see
-[Ratchet](#ratchet)); the other runtime counters are evidence only.
+values, so a new counter needs no schema change. A runtime baseline is added
+once its counter is deterministic on the CI runner; the enforced ones and the
+reasons for the others are under
+[Enforced journey counters](#enforced-journey-counters).
 
 J3 adds the `journeys.playback` entry with the same shape and no schema
 version change: `counters` and `wallClock` hold only plain numbers, and its
@@ -864,8 +864,9 @@ mutations come from the EPG timeline rendering about 240 programme blocks
 from the `get_simple_data_table` response before the first frame. Whether
 that response and its render land before `playing` is a race on a slower
 machine, so check the runner's `counterStability` before trusting the
-mutation and request counts. No J3 baseline exists yet; J3 counters join the
-ratchet once three runner runs agree.
+mutation and request counts. On the runner `renderer.httpRequestsToPlaying`
+and `renderer.layoutShiftScore` are enforced as guards; see
+[Enforced journey counters](#enforced-journey-counters).
 
 ## `renderer.initialBytes`
 
@@ -943,7 +944,10 @@ that file:
 - a measurement below its baseline passes and prints a "tighten" hint;
 - a measured counter without a baseline is noted, not failed;
 - checking nothing fails: an empty baselines file, or `--only` naming an
-  entry that does not exist, cannot exit 0.
+  entry that does not exist, cannot exit 0;
+- an optional `note` (a string) is printed with the entry's failure; journey
+  entries use it to mark a guard that is not validated against wall-clock
+  (see [Enforced journey counters](#enforced-journey-counters)).
 
 `--only <journey>/<counter>` (repeatable) restricts the check to the named
 baselines. A script that measures one counter writes its own summary file
@@ -1041,46 +1045,85 @@ Pushes to `master` and manual dispatches always run it. The job is warn-only (`c
 weeks (plan item B3): a regression marks the job failed without failing the
 workflow. Making it required is a maintainer decision.
 
-The job enforces two J1 runtime counters: `renderer.ipcCallsToFirstCard`
-(15 calls) and `renderer.domMutationsToFirstCard` (558 mutations). After the
-`Run the performance journeys` step it runs
-`check-journey-ratchet.mjs --only launch/renderer.ipcCallsToFirstCard --only launch/renderer.domMutationsToFirstCard`
-on the summary that step wrote. Both entries have `slack` 0 and
-`evidenceRun` 37192092882, and were identical and `stable: true` in all
-three dispatched runs of the fix that removed the launch race on `master`
-(see
-[When the window is shown](#when-the-window-is-shown)). The step is in the
-job, not in the composite action, so the weekly tightening still measures a
-run that would fail it. While the job is warn-only, a regression fails the
-job and not the workflow. The two summaries of #1782 before that fix (18
-and 1,018) fail the check.
+After the `Run the performance journeys` step, the job runs
+`check-journey-ratchet.mjs --only …` on the summary that step wrote, for the
+journey entries of `journey-baselines.json` (every entry except
+`renderer.initialBytes`, which the `Initial bytes ratchet` job checks). A
+`performance-tools` test keeps that `--only` list equal to those entries, so
+a baseline cannot be added without being enforced. The step is in the job,
+not in the composite action, so the weekly tightening still measures a run
+that would fail it. While the job is warn-only, a regression fails the job
+and not the workflow.
 
-Until that fix, J1 had two paths on the runner and no runtime counter could
-be enforced. Three dispatched runs on 2026-09-27 (36271875209, 36271879955
-and 36271884616) already showed both paths (16 calls / 939 mutations against
-13 / 576 at the time), and later `master` runs mixed them more often.
+#### Enforced journey counters
 
-The other J1 counters in the same three runs:
+Two J1 entries are validated (Principle 3) and carry no note:
+`launch/renderer.ipcCallsToFirstCard` 15 and
+`launch/renderer.domMutationsToFirstCard` 558 (#1828, `evidenceRun`
+37192092882). #1828 removed the launch race (the window shown at
+`did-finish-load`, see [When the window is shown](#when-the-window-is-shown)):
+three dispatched runs on `master` read 15 / 558 in all 18 iterations, and
+load to the first card went from about 940 ms to 466-528 ms. Slow-path
+summaries (18 / 1,018 or more) fail the check.
 
-| Counter                               | Value | `stable` in all three runs                                                |
-| ------------------------------------- | ----- | ------------------------------------------------------------------------- |
-| `main.modulesRegisteredBeforeWindow`  | 2     | yes                                                                       |
-| `renderer.ipcSerialDepthToFirstCard`  | 6     | yes (was unstable through the race)                                       |
-| `renderer.cdTicksIdle30s`             | 4     | yes (was unstable through the race)                                       |
-| `renderer.layoutShiftScore`           | 0     | yes                                                                       |
-| `renderer.layoutShiftScoreSettled`    | 0     | yes (#1782's hero fix plus this one)                                      |
-| `renderer.longTasks`                  | 2     | yes                                                                       |
-| `renderer.cdTicksToFirstCard`         | 21    | no: one iteration of 36928725392 read 22 (and one of 36930457538 read 20) |
-| `main.sqlStatementsBeforeReadyToShow` | 95    | no: 93 or 95 in every run                                                 |
+A counter is enforced once it was identical in every measured iteration of
+every recent `master` run. The other entries were identical in all 55
+measured iterations of the 11 `master` runs from 2026-10-03 08:25 to
+2026-10-04 06:55 (CI runs 37109621784 to 37184230956), with `slack` 0:
 
-`renderer.cdTicksToFirstCard` keeps the one-tick race described under
-[change detection](#change-detection-ticks), which the Mac shows too (20 or
-21). `main.sqlStatementsBeforeReadyToShow` keeps the download and recording
-recovery racing `ready-to-show` (plan item A2). The six stable counters are
-candidates for further baselines once more runs agree. Wall-clock entries
-stay evidence. Runner counters still differ from a Mac (14 calls and 554
-mutations there; the missing call is the Linux-only `getWindowState`), so
-take J1 baseline values from the runner only.
+| Entry                                        | Value | Week (69 runs since 2026-09-27)                                           |
+| -------------------------------------------- | ----- | ------------------------------------------------------------------------- |
+| `launch/main.modulesRegisteredBeforeWindow`  | 2     | identical                                                                 |
+| `launch/renderer.layoutShiftScore`           | 0     | identical                                                                 |
+| `launch/renderer.layoutShiftScoreSettled`    | 0     | 0.235 in some iterations of 8 runs up to 2026-10-02 (hero flicker, #1782) |
+| `open-source/main.mockHttpRequestsToSettled` | 1     | identical                                                                 |
+| `open-source/renderer.ipcCallsToFirstPage`   | 17    | identical                                                                 |
+| `open-source/renderer.layoutShiftScore`      | 0.233 | 0.221, then 0.222; 0.233 since #1814, never mixed within a run            |
+| `playback/renderer.httpRequestsToPlaying`    | 2     | identical                                                                 |
+| `playback/renderer.layoutShiftScore`         | 0.001 | identical                                                                 |
+
+`open-source/renderer.layoutShiftScore` read 0.222 in that window and 0.233
+in every iteration of every `master` run from 84aef83a6 (#1814, page Back
+buttons moved into the header) on, so its value is 0.233 with `evidenceRun`
+37372780064 (b78224376). The 0.011 that #1814 added is not explained yet;
+lowering it back is a separate change.
+
+Being deterministic is not the same as being validated. Principle 3 of the
+plan promotes a counter to a guardrail once a PR has shown that lowering it
+lowered the journey's wall-clock. None of these counters has that evidence
+yet: `main.modulesRegisteredBeforeWindow` waits for the deferred IPC
+registration (plan item C4), the layout-shift scores measure visual
+stability rather than time, and no PR has moved a J2 or J3 counter. Each
+entry therefore carries
+`"note": "guard only, not validated: …"`. A guard stops a regression of a
+deterministic number, and the checker prints the note with a failure; it
+says nothing about whether lowering that number makes the journey faster.
+When a PR shows that link, it drops the note and names the evidence in
+`evidencePr`. `renderer.initialBytes` predates the note and carries none;
+this document records no wall-clock change for it either.
+
+Not enforced, with the reason:
+
+- J1 `renderer.ipcSerialDepthToFirstCard` (6): bimodal on `master` until
+  #1828 (9 or 6) and identical in its three dispatched runs; a candidate
+  once `master` runs agree.
+- J1 `main.sqlStatementsBeforeReadyToShow`: 93 or 95 even without the launch
+  race, because the download and recording recovery races `ready-to-show`
+  (plan item A2).
+- Every `renderer.longTasks` (J1 2 or 1, J2 0 with one 1 earlier in the
+  week, J3 1 or 2): a long task is a task over 50 ms, so the count follows
+  runner speed, not work.
+- Every `cdTicks` counter: the zoneless migration (plan item C6) changes
+  them.
+- J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
+  recent commits.
+- J3 `renderer.ipcCallsToPlaying` (4 or 5) and
+  `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199): not identical,
+  and the EPG rendering work changes the mutation count.
+- J4: not measured yet.
+
+Runner counters differ from a Mac (the Linux-only `getWindowState` call, for
+one), so take every journey baseline value from the runner only.
 
 ### Weekly tightening
 
@@ -1105,7 +1148,11 @@ its job; its entries are then unmeasured in that run. A final job runs
   `check-baseline-direction.mjs` without `--allow-increase`, which both the
   script and the job check;
 - a lowered entry gets `updatedAt`, `measuredWith` and `evidenceRun` (the
-  workflow run URL); `evidencePr` is set to the tightening PR once it exists.
+  workflow run URL); `evidencePr` is set to the tightening PR once it exists;
+  every other field, including a `note`, is kept, so a guard stays marked as
+  not validated after it is lowered;
+- a counter already at 0 is never lowered; a layout-shift score is lowered
+  to the three-decimal value the summary reports.
 
 When the file changed and the run is on `master`, the job pushes
 `automation/performance-ratchet` and opens (or updates) a pull request with
@@ -1124,8 +1171,10 @@ dispatches workflows that exist on the default branch, so before the first
 merge of a new or renamed workflow add a temporary `push` trigger for the
 branch and drop it before review, as #1760 did. Review the pull request like a manual
 tightening: if `master` moved since the measured commit, the
-`Initial bytes ratchet` job on the pull request is what shows that the new
-value still holds (the concurrent-merge effect above).
+`Initial bytes ratchet` job (for `renderer.initialBytes`) and the
+`Performance journeys` job (for the journey counters) on the pull request
+are what show that the new values still hold (the concurrent-merge effect
+above).
 
 ## Charset parse benchmark
 
@@ -1172,7 +1221,13 @@ reports slow imports of non-Latin playlists.
 3. Cover the extraction and the failure modes with `node --test` and register
    the test file in `tools/performance/project.json`.
 4. Validate the counter before it becomes a guardrail: one PR must show that
-   lowering it moved wall-clock in the same journey.
+   lowering it moved wall-clock in the same journey. A counter that is
+   deterministic but not validated may be enforced as a guard: its baseline
+   entry carries a `note` saying so (see
+   [Enforced journey counters](#enforced-journey-counters)).
+5. A journey counter's baseline is enforced only when it is also in the
+   `--only` list of the `Performance journeys` job in `ci.yml`; the
+   `performance-tools` tests fail when the two differ.
 
 ## Adding a journey
 

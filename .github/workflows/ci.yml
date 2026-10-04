@@ -327,12 +327,14 @@ jobs:
               id: journeys
               uses: ./.github/actions/performance-journeys
 
-            # Only the J1 counters shown deterministic on this runner; the
-            # other journey measurements stay evidence (see Ratchet in
-            # docs/architecture/performance-journeys.md). Here and not in
-            # the composite action, so the weekly tightening still measures
-            # a run that would fail it.
-            - name: Check the J1 runtime counters against the baselines
+            # Only the counters identical in every measured iteration of
+            # recent master runs; their entries say whether a counter is
+            # validated against wall-clock or a guard only (see Ratchet in
+            # docs/architecture/performance-journeys.md). Here and not in the
+            # composite action, so the weekly tightening still measures a run
+            # that would fail it. tools/performance tests keep this list equal
+            # to the journey entries of journey-baselines.json.
+            - name: Check the journey counters against the baselines
               env:
                   SUMMARY: ${{ steps.journeys.outputs.summary }}
               run: >-
@@ -340,6 +342,14 @@ jobs:
                   --summary "$SUMMARY"
                   --only launch/renderer.ipcCallsToFirstCard
                   --only launch/renderer.domMutationsToFirstCard
+                  --only launch/main.modulesRegisteredBeforeWindow
+                  --only launch/renderer.layoutShiftScore
+                  --only launch/renderer.layoutShiftScoreSettled
+                  --only open-source/main.mockHttpRequestsToSettled
+                  --only open-source/renderer.ipcCallsToFirstPage
+                  --only open-source/renderer.layoutShiftScore
+                  --only playback/renderer.httpRequestsToPlaying
+                  --only playback/renderer.layoutShiftScore
 
             - name: Upload journey summaries
               if: always()
