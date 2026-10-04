@@ -72,7 +72,7 @@ const METHOD_BY_CANDIDATE_KIND: Record<
     selector: 'app-add-playlist',
     templateUrl: './add-playlist-dialog.component.html',
     styleUrl: './add-playlist-dialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
 })
 export class AddPlaylistDialogComponent {
