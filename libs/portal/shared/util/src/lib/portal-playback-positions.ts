@@ -48,6 +48,14 @@ export interface PortalPlaybackPositions {
 export const PORTAL_PLAYBACK_POSITIONS =
     new InjectionToken<PortalPlaybackPositions>('PORTAL_PLAYBACK_POSITIONS');
 
+/**
+ * Progress at or above which a movie or episode counts as watched. The last
+ * tenth is mostly end credits, so stopping there finishes the title. Plex
+ * ("video played threshold"), Jellyfin and Emby ("max resume percentage")
+ * and Kodi ("playcountminimumpercent") all default to the same 90%.
+ */
+export const PORTAL_WATCHED_PROGRESS_PERCENT = 90;
+
 export function getPortalPlaybackProgressPercent(
     position: PlaybackPositionData | null | undefined
 ): number {
@@ -67,7 +75,10 @@ export function getPortalPlaybackProgressPercent(
 export function isPortalPlaybackWatched(
     position: PlaybackPositionData | null | undefined
 ): boolean {
-    return getPortalPlaybackProgressPercent(position) >= 90;
+    return (
+        getPortalPlaybackProgressPercent(position) >=
+        PORTAL_WATCHED_PROGRESS_PERCENT
+    );
 }
 
 export function isPortalPlaybackInProgress(
@@ -78,5 +89,21 @@ export function isPortalPlaybackInProgress(
     }
 
     const percent = getPortalPlaybackProgressPercent(position);
-    return position.positionSeconds > 10 && percent < 90;
+    return (
+        position.positionSeconds > 10 &&
+        percent < PORTAL_WATCHED_PROGRESS_PERCENT
+    );
+}
+
+/** The most recently updated row, e.g. a series' latest episode. */
+export function newestPortalPlaybackPosition(
+    positions: Iterable<PlaybackPositionData>
+): PlaybackPositionData | null {
+    let newest: PlaybackPositionData | null = null;
+    for (const position of positions) {
+        if (!newest || (position.updatedAt ?? '') > (newest.updatedAt ?? '')) {
+            newest = position;
+        }
+    }
+    return newest;
 }

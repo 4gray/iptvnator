@@ -4,6 +4,7 @@ import {
     computed,
     effect,
     inject,
+    linkedSignal,
     signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -48,6 +49,7 @@ import {
     toTimestamp,
 } from './dashboard-mappers';
 import {
+    isPortalPlaybackWatched,
     PORTAL_PLAYBACK_POSITIONS,
     WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
@@ -290,6 +292,48 @@ export class DashboardDataService {
 
     readonly playbackPositions$ = this.playbackPositionsMap.asReadonly();
 
+    /** Playlists whose rows the position maps hold; null before any load. */
+    private readonly playbackPositionPlaylistIds =
+        signal<ReadonlySet<string> | null>(null);
+    private playbackPositionsLoadGeneration = 0;
+
+    /**
+     * Continue Watching tells unfinished titles from finished ones by their
+     * playback positions, so it waits until the history and the positions of
+     * every playlist in it have loaded once: rendering every title first and
+     * dropping the finished ones a moment later would shift the page. Stays
+     * true afterwards; later reloads update the rail in place.
+     */
+    readonly continueWatchingSettled = linkedSignal<boolean, boolean>({
+        source: () => {
+            const loaded = this.playbackPositionPlaylistIds();
+            return (
+                this.globalRecentLoaded() &&
+                this.globalRecentVodItems().every(
+                    (item) => loaded?.has(item.playlist_id) ?? false
+                )
+            );
+        },
+        computation: (settled, previous) => previous?.value === true || settled,
+    }).asReadonly();
+
+    /**
+     * Recent movies and series the user has not finished, newest first. A
+     * title leaves once its position reaches the watched threshold (for a
+     * series: its latest episode's), whether playback got there or the user
+     * marked it; the full history stays on the global recent page.
+     */
+    readonly continueWatchingItems = computed<GlobalRecentItem[]>(() =>
+        this.continueWatchingSettled()
+            ? this.globalRecentVodItems().filter(
+                  (item) =>
+                      !isPortalPlaybackWatched(
+                          this.getPlaybackPositionForItem(item)
+                      )
+              )
+            : []
+    );
+
     getPlaybackPositionForItem(
         item: PortalActivityItem
     ): PlaybackPositionData | null {
@@ -339,6 +383,9 @@ export class DashboardDataService {
      * on heavy libraries.
      */
     async reloadPlaybackPositions(): Promise<void> {
+        // Latest reload wins: an older one finishing last would put back the
+        // positions of a smaller history and leave newer titles unsettled.
+        const generation = ++this.playbackPositionsLoadGeneration;
         const playlistIds = new Set<string>();
         for (const item of this.globalRecentItems()) {
             if (item.type === 'movie' || item.type === 'series') {
@@ -348,6 +395,7 @@ export class DashboardDataService {
         if (playlistIds.size === 0) {
             this.playbackPositionsMap.set(new Map());
             this.playbackPositionsBySeriesMap.set(new Map());
+            this.playbackPositionPlaylistIds.set(playlistIds);
             return;
         }
 
@@ -394,9 +442,15 @@ export class DashboardDataService {
             }
         }
 
+        if (generation !== this.playbackPositionsLoadGeneration) {
+            return;
+        }
         this.ngZone.run(() => {
             this.playbackPositionsMap.set(next);
             this.playbackPositionsBySeriesMap.set(nextBySeries);
+            // A playlist whose load failed counts as loaded: its titles
+            // show without progress rather than holding the rail back.
+            this.playbackPositionPlaylistIds.set(playlistIds);
         });
     }
 

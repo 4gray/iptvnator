@@ -351,7 +351,8 @@ Both hosts delegate to `createVodWatchedToggle()` in
 Catalog cards derive their corner badge from one shared `PortalWatchState`
 (`unwatched` / `in-progress` / `watched`, `portal-watch-state.ts`): both
 facades map a movie's position through `watchStateFromProgressPercent` /
-`resolvePortalWatchState` (90% threshold, shared with the Resume rule),
+`resolvePortalWatchState` (`PORTAL_WATCHED_PROGRESS_PERCENT`, 90%, shared
+with the Resume rule and the dashboard's Continue Watching rail),
 and a series through `resolvePortalSeriesWatchState`, which reports at
 most `in-progress` — the list payload never carries the episode total, so
 "every episode watched" is not decidable there.

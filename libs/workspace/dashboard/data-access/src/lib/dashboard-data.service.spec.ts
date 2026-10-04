@@ -159,6 +159,7 @@ describe('DashboardDataService', () => {
 
     const playbackPositionsMock = {
         savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
+        savePlaybackPositionOrThrow: jest.fn().mockResolvedValue(undefined),
         getPlaybackPosition: jest.fn().mockResolvedValue(null),
         getSeriesPlaybackPositions: jest.fn().mockResolvedValue([]),
         getAllPlaybackPositions: jest
@@ -1386,6 +1387,290 @@ describe('DashboardDataService', () => {
             },
         });
         expect(failOnLinearScan).not.toHaveBeenCalled();
+    });
+
+    describe('Continue Watching', () => {
+        const PLAYLIST = 'xtream-cw';
+
+        const recentRow = (
+            id: number,
+            title: string,
+            type: 'movie' | 'series',
+            xtreamId: number,
+            viewedAt: string,
+            playlistId = PLAYLIST
+        ) => ({
+            id,
+            category_id: 1,
+            title,
+            rating: '7.0',
+            viewed_at: viewedAt,
+            poster_url: `https://example.com/${xtreamId}.png`,
+            xtream_id: xtreamId,
+            type,
+            playlist_id: playlistId,
+            playlist_name: 'Xtream CW',
+        });
+        const vodPosition = (
+            contentXtreamId: number,
+            positionSeconds: number,
+            durationSeconds: number
+        ): PlaybackPositionData => ({
+            contentXtreamId,
+            contentType: 'vod',
+            positionSeconds,
+            durationSeconds,
+            playlistId: PLAYLIST,
+        });
+        const episodePosition = (
+            contentXtreamId: number,
+            seriesXtreamId: number,
+            positionSeconds: number,
+            durationSeconds: number,
+            updatedAt: string
+        ): PlaybackPositionData => ({
+            contentXtreamId,
+            contentType: 'episode',
+            seriesXtreamId,
+            seasonNumber: 1,
+            episodeNumber: contentXtreamId % 100,
+            positionSeconds,
+            durationSeconds,
+            playlistId: PLAYLIST,
+            updatedAt,
+        });
+        const titles = () =>
+            service.continueWatchingItems().map((item) => item.title);
+
+        beforeEach(() => {
+            playbackPositionsMock.savePlaybackPositionOrThrow.mockResolvedValue(
+                undefined
+            );
+            playlistsSignal.set([
+                ...playlistsSignal(),
+                {
+                    _id: PLAYLIST,
+                    title: 'Xtream CW',
+                    count: 1,
+                    importDate: '2026-01-01T00:00:00.000Z',
+                    autoRefresh: false,
+                    serverUrl: 'https://cw.example.com',
+                },
+            ]);
+        });
+
+        it('lists only the movies and series the user has not finished', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    1,
+                    'Credits Movie',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+                recentRow(
+                    2,
+                    'Halfway Movie',
+                    'movie',
+                    102,
+                    '2026-10-04T09:00:00Z'
+                ),
+                recentRow(
+                    3,
+                    'Finished Series',
+                    'series',
+                    200,
+                    '2026-10-04T08:00:00Z'
+                ),
+                recentRow(
+                    4,
+                    'Ongoing Series',
+                    'series',
+                    300,
+                    '2026-10-04T07:00:00Z'
+                ),
+                recentRow(
+                    5,
+                    'Threshold Movie',
+                    'movie',
+                    103,
+                    '2026-10-04T06:00:00Z'
+                ),
+                recentRow(
+                    6,
+                    'Almost Movie',
+                    'movie',
+                    104,
+                    '2026-10-04T05:00:00Z'
+                ),
+            ]);
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                // Stopped while the credits rolled: 61 s of 59 min left.
+                vodPosition(101, 3491, 3552),
+                vodPosition(102, 2700, 5400),
+                // Latest episode finished; an older one was left halfway.
+                episodePosition(201, 200, 900, 1800, '2026-10-03T08:00:00Z'),
+                episodePosition(202, 200, 1887, 1942, '2026-10-04T08:00:00Z'),
+                // Latest episode started after an earlier one was finished.
+                episodePosition(301, 300, 1887, 1942, '2026-10-02T08:00:00Z'),
+                episodePosition(302, 300, 600, 1942, '2026-10-04T07:00:00Z'),
+                vodPosition(103, 4860, 5400), // 90%
+                vodPosition(104, 4800, 5400), // 89%
+            ]);
+
+            await service.reloadGlobalRecentItems();
+            await service.reloadPlaybackPositions();
+
+            expect(titles()).toEqual([
+                'Halfway Movie',
+                'Ongoing Series',
+                'Almost Movie',
+            ]);
+            // Finished titles stay in the watch history.
+            expect(service.globalRecentVodItems()).toHaveLength(6);
+        });
+
+        it('lists nothing until the positions of every recent playlist have loaded', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    1,
+                    'Credits Movie',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+                recentRow(
+                    2,
+                    'Halfway Movie',
+                    'movie',
+                    102,
+                    '2026-10-04T09:00:00Z'
+                ),
+            ]);
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                vodPosition(101, 3491, 3552),
+                vodPosition(102, 2700, 5400),
+            ]);
+
+            await service.reloadGlobalRecentItems();
+
+            // Without positions a finished title looks like an unfinished one.
+            expect(service.continueWatchingSettled()).toBe(false);
+            expect(titles()).toEqual([]);
+
+            await service.reloadPlaybackPositions();
+
+            expect(service.continueWatchingSettled()).toBe(true);
+            expect(titles()).toEqual(['Halfway Movie']);
+
+            // Once settled, a title from a not yet loaded playlist shows at
+            // once instead of holding the whole rail back again.
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    3,
+                    'Other Source Movie',
+                    'movie',
+                    501,
+                    '2026-10-04T11:00:00Z',
+                    'xtream-1'
+                ),
+                recentRow(
+                    1,
+                    'Credits Movie',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+                recentRow(
+                    2,
+                    'Halfway Movie',
+                    'movie',
+                    102,
+                    '2026-10-04T09:00:00Z'
+                ),
+            ]);
+            await service.reloadGlobalRecentItems();
+
+            expect(service.continueWatchingSettled()).toBe(true);
+            expect(titles()).toEqual(['Other Source Movie', 'Halfway Movie']);
+        });
+
+        it('settles at once when the history holds no movies or series', async () => {
+            await service.reloadGlobalRecentItems();
+
+            expect(service.continueWatchingSettled()).toBe(true);
+            expect(titles()).toEqual([]);
+        });
+
+        it('keeps the newest positions when an older reload finishes last', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    1,
+                    'Credits Movie',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+            ]);
+            await service.reloadGlobalRecentItems();
+            let resolveStale: (rows: PlaybackPositionData[]) => void = () =>
+                undefined;
+            playbackPositionsMock.getAllPlaybackPositions
+                .mockImplementationOnce(
+                    () =>
+                        new Promise<PlaybackPositionData[]>((resolve) => {
+                            resolveStale = resolve;
+                        })
+                )
+                .mockResolvedValueOnce([vodPosition(101, 3491, 3552)]);
+
+            const staleReload = service.reloadPlaybackPositions();
+            await service.reloadPlaybackPositions();
+            expect(titles()).toEqual([]);
+
+            // The older read answers last, from before the movie finished.
+            resolveStale([vodPosition(101, 1800, 3552)]);
+            await staleReload;
+
+            const [movie] = service.globalRecentVodItems();
+            expect(
+                service.getPlaybackPositionForItem(movie)?.positionSeconds
+            ).toBe(3491);
+            expect(titles()).toEqual([]);
+        });
+
+        it('drops a title the user marks as watched', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    2,
+                    'Halfway Movie',
+                    'movie',
+                    102,
+                    '2026-10-04T09:00:00Z'
+                ),
+            ]);
+            let stored = vodPosition(102, 2700, 5400);
+            playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
+                () => Promise.resolve([stored])
+            );
+            playbackPositionsMock.savePlaybackPositionOrThrow.mockImplementation(
+                (_playlistId: string, data: PlaybackPositionData) => {
+                    stored = data;
+                    return Promise.resolve();
+                }
+            );
+            await service.reloadGlobalRecentItems();
+            await service.reloadPlaybackPositions();
+            expect(titles()).toEqual(['Halfway Movie']);
+
+            await expect(
+                service.markRecentItemWatched(
+                    service.continueWatchingItems()[0]
+                )
+            ).resolves.toBe(true);
+
+            expect(titles()).toEqual([]);
+        });
     });
 
     it('exposes a live-only slice of global favorites so the dashboard can promote favorited channels into the Live rail', async () => {

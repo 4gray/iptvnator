@@ -75,8 +75,9 @@ Render rules:
    full-bleed. All rails and the hero are skipped.
 3. The hero (`lib-dashboard-hero`) renders when it has at least one slide;
    see [Cinematic Hero](#cinematic-hero). It shows its own skeleton while
-   it has no slide and any of its sources (history, favorites, Xtream
-   recently added) is still on its first load, or a live candidate still
+   it has no slide and any of its sources (history and its playback
+   positions, favorites, Xtream recently added) is still on its first load,
+   or a live candidate still
    waits for its first programme answer (portal or XMLTV, for at most
    `DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS`, 2 s, from the hero's creation).
    Dropping it earlier removed the hero and inserted it again when a later
@@ -111,14 +112,17 @@ Render rules:
 Slides (`pickDashboardHeroSources`, at most four, stable order, each title
 once):
 
-1. the newest unfinished movie/series (`isPortalPlaybackWatched` rows skip);
+1. the newest unfinished movie/series (`continueWatchingItems()`, the rail's
+   list, so `isPortalPlaybackWatched` rows skip);
 2. a live channel with a programme on air — the first of
    `selectDashboardHeroLiveCandidates` (up to three favourites, then two
    recently watched channels) whose EPG answer has a title;
 3. one favourite movie/series and one Xtream recently-added title;
 4. remaining places round-robin over the next items of those lists;
 5. only when nothing qualifies, the newest history row of any kind (a
-   detail action: it can be a finished title).
+   detail action: it can be a finished title). It waits for
+   `continueWatchingSettled()`: before the positions load, that row may be
+   the title the resume slide is about to feature.
 
 While live candidates exist but none has answered yet, one place stays
 reserved for the live slide, so its late arrival never evicts a slide the
@@ -192,8 +196,22 @@ and that pause holds the slide.
 2. It derives the dashboard surface via `computed()`:
     1. The hero slides — built by `DashboardHeroSlidesPresenter`, see
        [Cinematic Hero](#cinematic-hero).
-    2. `continueWatchingCards` — maps `globalRecentVodItems()` to movie/series
-       cover cards. Portal playback positions are bulk-loaded per playlist so
+    2. `continueWatchingCards` — maps `continueWatchingItems()` to movie/series
+       cover cards: the recent movies and series whose position has not
+       reached `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`;
+       for a series, its latest episode's position). The threshold is 90%,
+       the Plex/Jellyfin/Emby/Kodi default, so stopping during the end
+       credits finishes a title, as does "Mark watched". Finished titles stay
+       in `globalRecentVodItems()` and on the Global Recent page ("See all");
+       the rail's count badge counts only the unfinished ones. The list stays
+       empty until `continueWatchingSettled()`: the history has loaded and
+       `reloadPlaybackPositions()` has covered every playlist in it once, so
+       the rail inserts once instead of listing finished titles and dropping
+       them a moment later. A playlist whose positions failed to load counts
+       as covered, and later reloads update the rail in place;
+       `reloadPlaybackPositions()` applies only its latest call's result, so
+       an older read finishing last cannot bring finished titles back.
+       Portal playback positions are bulk-loaded per playlist so
        hero and cards can show progress, remaining time, and series season/
        episode badges. Whether an item is looked up as a movie (one `vod`
        row) or a series (episode rows under the parent id) is its WATCH

@@ -11,10 +11,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
-import {
-    isPortalPlaybackWatched,
-    splitSeasonSuffix,
-} from '@iptvnator/portal/shared/util';
+import { splitSeasonSuffix } from '@iptvnator/portal/shared/util';
 import {
     playlistDisplayLabel,
     resolvePortalActivityWatchKind,
@@ -107,6 +104,7 @@ export class DashboardHeroSlidesPresenter {
         source: () =>
             this.slides().length === 0 &&
             (this.data.globalRecentLoading() ||
+                !this.data.continueWatchingSettled() ||
                 this.data.globalFavoritesLoading() ||
                 this.data.xtreamRecentlyAddedLoading() ||
                 (!this.liveAnswerWaitOver() &&
@@ -128,14 +126,7 @@ export class DashboardHeroSlidesPresenter {
 
     private readonly sources = computed(() =>
         pickDashboardHeroSources({
-            continueItems: this.data
-                .globalRecentVodItems()
-                .filter(
-                    (item) =>
-                        !isPortalPlaybackWatched(
-                            this.data.getPlaybackPositionForItem(item)
-                        )
-                ),
+            continueItems: this.data.continueWatchingItems(),
             live: this.liveSlide()?.candidate ?? null,
             reserveLive: this.liveEpg.heroLiveCandidates().length > 0,
             favorites: this.data
@@ -144,7 +135,11 @@ export class DashboardHeroSlidesPresenter {
                     (item) => item.type === 'movie' || item.type === 'series'
                 ),
             recentlyAdded: this.data.xtreamRecentlyAddedItems(),
-            mostRecent: this.data.globalRecentItems()[0] ?? null,
+            // Until the resume candidates are known the newest row may be one
+            // of them; featuring it as the fallback would swap the slide.
+            mostRecent: this.data.continueWatchingSettled()
+                ? (this.data.globalRecentItems()[0] ?? null)
+                : null,
         })
     );
 

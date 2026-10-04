@@ -7,6 +7,7 @@ import {
     withState,
 } from '@ngrx/signals';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import { PORTAL_WATCHED_PROGRESS_PERCENT } from '@iptvnator/portal/shared/util';
 import {
     PlaybackPositionData,
     XTREAM_DATA_SOURCE,
@@ -64,7 +65,8 @@ export function withPlaybackPositions() {
                 },
 
                 /**
-                 * Check if content is considered "watched" (>90% complete)
+                 * Check if content is considered "watched" (see
+                 * PORTAL_WATCHED_PROGRESS_PERCENT)
                  */
                 isWatched(
                     contentXtreamId: number,
@@ -72,7 +74,7 @@ export function withPlaybackPositions() {
                 ): boolean {
                     return (
                         this.getProgressPercent(contentXtreamId, contentType) >=
-                        90
+                        PORTAL_WATCHED_PROGRESS_PERCENT
                     );
                 },
 
@@ -92,7 +94,8 @@ export function withPlaybackPositions() {
                         contentType
                     );
                     const inProgress =
-                        position.positionSeconds > 10 && percent < 90;
+                        position.positionSeconds > 10 &&
+                        percent < PORTAL_WATCHED_PROGRESS_PERCENT;
                     return inProgress;
                 },
 

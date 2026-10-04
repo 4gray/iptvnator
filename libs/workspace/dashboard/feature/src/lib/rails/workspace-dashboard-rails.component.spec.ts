@@ -609,6 +609,7 @@ describe('recent content skeleton helper', () => {
                 },
                 {
                     continueWatchingCount: 0,
+                    continueWatchingLoading: true,
                     recentLiveCount: 0,
                     globalRecentLoading: true,
                 }
@@ -625,11 +626,38 @@ describe('recent content skeleton helper', () => {
                 },
                 {
                     continueWatchingCount: 0,
+                    continueWatchingLoading: true,
                     recentLiveCount: 0,
                     globalRecentLoading: true,
                 }
             )
         ).toBe(true);
+    });
+
+    it('keeps the Continue Watching skeleton while playback positions load after the history', () => {
+        const waitingForPositions = {
+            continueWatchingCount: 0,
+            continueWatchingLoading: true,
+            recentLiveCount: 0,
+            globalRecentLoading: false,
+        };
+
+        expect(
+            shouldShowRecentContentSkeleton(
+                DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                waitingForPositions
+            )
+        ).toBe(true);
+        // The live rail only waits for the history itself.
+        expect(
+            shouldShowRecentContentSkeleton(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    continueWatching: false,
+                },
+                waitingForPositions
+            )
+        ).toBe(false);
     });
 
     it('hides the loading skeleton when no enabled recent rail is waiting for data', () => {
@@ -642,6 +670,7 @@ describe('recent content skeleton helper', () => {
                 },
                 {
                     continueWatchingCount: 0,
+                    continueWatchingLoading: true,
                     recentLiveCount: 0,
                     globalRecentLoading: true,
                 }
@@ -651,8 +680,18 @@ describe('recent content skeleton helper', () => {
         expect(
             shouldShowRecentContentSkeleton(DEFAULT_DASHBOARD_RAILS_SETTINGS, {
                 continueWatchingCount: 1,
+                continueWatchingLoading: true,
                 recentLiveCount: 1,
                 globalRecentLoading: true,
+            })
+        ).toBe(false);
+
+        expect(
+            shouldShowRecentContentSkeleton(DEFAULT_DASHBOARD_RAILS_SETTINGS, {
+                continueWatchingCount: 0,
+                continueWatchingLoading: false,
+                recentLiveCount: 0,
+                globalRecentLoading: false,
             })
         ).toBe(false);
     });
