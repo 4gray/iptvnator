@@ -346,17 +346,24 @@ test.describe('macOS traffic lights', () => {
 
         try {
             const page = app.mainWindow;
-            await addXtreamPortal(page);
-            await waitForXtreamWorkspaceReady(page);
             const lights = await trafficLights(app);
             const switcher = 'app-playlist-switcher';
             const back = 'workspace-header-back';
 
-            await expectHeaderClearOfLights(page, lights, switcher, '100 %');
+            // The first page has no history to go back to: the switcher leads.
+            await expectHeaderClearOfLights(page, lights, switcher, 'start');
             await zoomOutFully(page);
-            await expectHeaderClearOfLights(page, lights, switcher, 'min zoom');
+            await expectHeaderClearOfLights(
+                page,
+                lights,
+                switcher,
+                'start at min zoom'
+            );
+            await resetZoom(page);
 
             // A detail page puts its Back first, pulled 8px toward the edge.
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
             await page
                 .getByRole('link', { name: 'Series', exact: true })
                 .click();
@@ -364,6 +371,8 @@ test.describe('macOS traffic lights', () => {
             await expect(page.getByTestId(back)).toBeVisible({
                 timeout: 20_000,
             });
+            await expectHeaderClearOfLights(page, lights, back, 'detail');
+            await zoomOutFully(page);
             await expectHeaderClearOfLights(
                 page,
                 lights,
@@ -371,12 +380,6 @@ test.describe('macOS traffic lights', () => {
                 'detail at min zoom'
             );
             await resetZoom(page);
-            await expectHeaderClearOfLights(
-                page,
-                lights,
-                back,
-                'detail at 100 %'
-            );
         } finally {
             await closeElectronApp(app);
         }

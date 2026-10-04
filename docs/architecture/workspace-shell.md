@@ -413,8 +413,9 @@ The Electron window hides the native title bar on all desktop platforms
    layout. Off macOS nothing is published and the defaults apply. The phone
    layout, which puts the rail in a row above the header, ignores the
    inset. `window-controls.e2e.ts` ("macOS traffic lights") checks the rail
-   alignment, the first header control (switcher, then a detail page's Back)
-   and the content top at default and minimum zoom.
+   alignment, the first header control (the switcher on the first page,
+   which has no history fallback yet, then a detail page's Back) and the
+   content top at default and minimum zoom.
 2. Windows and Linux use renderer-drawn window controls
    (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
    `frame` is intentionally left untouched so native resize borders and
