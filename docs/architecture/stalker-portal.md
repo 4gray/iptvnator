@@ -1599,8 +1599,10 @@ collection detail and search):
   earlier start, is dropped once a later one begins, and keeps Play, Start
   over, the watched toggle and the menu rows disabled until it settles.
 - The resolved stream is discarded when the movie is no longer selected or a
-  newer start took over. The selection check includes the content type,
-  because movie and series ids collide. Otherwise the movie's own external
+  newer start took over. Movie and series ids collide, so the catalog and
+  collection details include the content type in the selection check; in
+  search, a switch to a series changes the playback owner instead, which
+  supersedes the launch. Otherwise the movie's own external
   session is replaced, the host's `beforeExternalLaunch` hook runs (the
   catalog and collection details close their inline player there), and the
   launch is sent. A launch that resolves after either condition changed
