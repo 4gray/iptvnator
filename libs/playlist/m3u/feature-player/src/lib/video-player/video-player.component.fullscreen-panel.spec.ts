@@ -231,8 +231,12 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
             .overrideComponent(VideoPlayerComponent, {
                 set: {
                     imports: [],
-                    template:
-                        '<ng-template #fullscreenChannelPanel></ng-template>',
+                    // The real template's channel-number overlay, so the
+                    // OnPush timer test below can read the rendered state.
+                    template: `<ng-template #fullscreenChannelPanel></ng-template>
+                        @if (showChannelNumberOverlay()) {
+                            <div class="channel-number-overlay">{{ channelNumberInput() }}</div>
+                        }`,
                 },
             })
             .compileComponents();
@@ -245,6 +249,31 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
 
     afterEach(() => {
         fixture.destroy();
+    });
+
+    // OnPush: the overlay hides from a 2 s timer, outside any template
+    // event, so it must leave the DOM without a zone-triggered tick.
+    it('hides the channel-number overlay when its debounce fires', () => {
+        jest.useFakeTimers();
+        try {
+            const overlay = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    '.channel-number-overlay'
+                );
+            component.handleChannelNumberInput('2');
+            fixture.detectChanges();
+            expect(overlay()?.textContent).toBe('2');
+
+            jest.advanceTimersByTime(2000);
+            fixture.detectChanges();
+
+            expect(overlay()).toBeNull();
+            expect(storeMock.dispatch).toHaveBeenCalledWith(
+                setActiveChannelDispatch(nextChannel)
+            );
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     describe('FULLSCREEN_CHANNEL_PANEL host', () => {
@@ -260,7 +289,7 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                     url: 'http://localhost/next.mpd',
                 };
                 player.set(externalPlayer);
-                component.playerSettings.player = externalPlayer;
+                component.playerSettings.set({ player: externalPlayer });
                 setActive(dashChannel);
                 channels.set([dashChannel, sampleChannel, nextDashChannel]);
 
