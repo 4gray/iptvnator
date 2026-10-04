@@ -276,6 +276,43 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         }
     });
 
+    it('preserves unknown seekability from an older native snapshot', () => {
+        startSession('older', snapshot('paused', { durationSeconds: 120 }));
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('paused', { durationSeconds: 120 })
+        );
+        expect(service.setVolume('older', 0.5)?.seekable).toBeUndefined();
+    });
+
+    it('initializes floating controls even when a paused snapshot has not changed', async () => {
+        startSession(
+            'paused',
+            snapshot('paused', { durationSeconds: 120, positionSeconds: 40 })
+        );
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('paused', { durationSeconds: 120, positionSeconds: 40 })
+        );
+        jest.spyOn(service, 'getSupport').mockReturnValue({
+            ...service.getSupport(),
+            floatingWindow: true,
+        });
+        const floating = (
+            service as unknown as {
+                floatingPlayer: {
+                    open: (id: string) => Promise<boolean>;
+                    update: (id: string, state: unknown) => void;
+                };
+            }
+        ).floatingPlayer;
+        jest.spyOn(floating, 'open').mockResolvedValue(true);
+        const update = jest.spyOn(floating, 'update');
+        await service.openFloatingPlayer('paused');
+        expect(update).toHaveBeenCalledWith(
+            'paused',
+            expect.objectContaining({ paused: true, position: 40 })
+        );
+    });
+
     it('requires the base embedded-MPV opt-in for unpackaged runs', () => {
         appMock.isPackaged = false;
         delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT;
@@ -698,8 +735,13 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     it('seekBy forwards the delta to the addon as a relative seek and refreshes the snapshot', () => {
         startSession('s1', snapshot('playing', { positionSeconds: 10 }));
         addon.getSessionSnapshot.mockReturnValue(
-            snapshot('playing', { positionSeconds: 15.4 })
+            snapshot('playing', { positionSeconds: 15.4, durationSeconds: 120 })
         );
+        service.loadPlayback('s1', {
+            streamUrl: 'https://example.test/movie.mp4',
+            title: 'VOD',
+            isLive: false,
+        });
 
         const updated = service.seekBy('s1', 5);
 
@@ -712,8 +754,13 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         delete addon.seekBy;
         startSession('s1', snapshot('playing', { positionSeconds: 10 }));
         addon.getSessionSnapshot.mockReturnValue(
-            snapshot('playing', { positionSeconds: 12.5 })
+            snapshot('playing', { positionSeconds: 12.5, durationSeconds: 120 })
         );
+        service.loadPlayback('s1', {
+            streamUrl: 'https://example.test/movie.mp4',
+            title: 'VOD',
+            isLive: false,
+        });
 
         service.seekBy('s1', -30);
         expect(addon.seek).toHaveBeenCalledWith('s1', 0);

@@ -750,14 +750,20 @@ export class EmbeddedMpvNativeService {
         seekBy: (id, delta) => this.seekBy(id, delta),
     });
 
-    openFloatingPlayer(sessionId: string): Promise<boolean> {
+    async openFloatingPlayer(sessionId: string): Promise<boolean> {
         if (
             !this.sessions.has(sessionId) ||
             !this.getSupport().floatingWindow
         ) {
-            return Promise.resolve(false);
+            return false;
         }
-        return this.floatingPlayer.open(sessionId);
+        const opened = await this.floatingPlayer.open(sessionId);
+        const session = this.sessions.get(sessionId);
+        if (opened && session) {
+            session.lastPayloadKey = '';
+            this.refreshSession(sessionId);
+        }
+        return opened;
     }
 
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void {
@@ -1341,7 +1347,10 @@ export class EmbeddedMpvNativeService {
         this.reportRejectedOptions(session, snapshot);
 
         const payload: EmbeddedMpvSession = {
-            seekable: snapshot.seekable === true,
+            seekable:
+                typeof snapshot.seekable === 'boolean'
+                    ? snapshot.seekable
+                    : undefined,
             seekableRanges: snapshot.seekableRanges ?? [],
             id: session.id,
             title: session.title,

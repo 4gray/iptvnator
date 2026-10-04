@@ -11,6 +11,7 @@ const CONTROLS_DIR = resolve(LIB_DIR, 'player-controls');
 
 function stripComments(source: string): string {
     return source
+        .replace(/\r\n/g, '\n')
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/(^|\s)\/\/[^\n]*/g, '$1');
 }
@@ -115,7 +116,11 @@ describe('player watch-progress colour', () => {
                 !file.startsWith(CONTROLS_DIR + sep) &&
                 read(file).includes('var(--pc-progress')
         );
-        expect(readers.map((file) => relative(LIB_DIR, file)).sort()).toEqual([
+        expect(
+            readers
+                .map((file) => relative(LIB_DIR, file).split(sep).join('/'))
+                .sort()
+        ).toEqual([
             'fullscreen-episode-panel/fullscreen-episode-panel.component.scss',
             'portal-inline-player/up-next-rail.component.scss',
         ]);

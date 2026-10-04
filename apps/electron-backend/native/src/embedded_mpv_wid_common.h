@@ -2650,7 +2650,9 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
     auto result = Napi::Object::New(env);
     result.Set("status", toStatusString(snapshot.status));
     result.Set("positionSeconds", Napi::Number::New(env, snapshot.positionSeconds));
+#ifdef _WIN32
     result.Set("seekable", Napi::Boolean::New(env, snapshot.seekable));
+#endif
     auto seekRanges = Napi::Array::New(env, snapshot.seekableRanges.size());
     for (size_t index = 0; index < snapshot.seekableRanges.size(); ++index) {
         auto range = Napi::Object::New(env);

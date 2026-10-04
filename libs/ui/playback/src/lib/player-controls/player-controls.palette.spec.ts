@@ -14,6 +14,7 @@ const CONTROLS_DIR = resolve(
 // the `://` of a URL intact.
 function stripComments(source: string): string {
     return source
+        .replace(/\r\n/g, '\n')
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/(^|\s)\/\/[^\n]*/g, '$1');
 }

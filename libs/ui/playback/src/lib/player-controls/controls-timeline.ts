@@ -25,7 +25,9 @@ export class ControlsTimeline {
         > = signal(null)
     ) {}
 
-    readonly start = computed(() => this.state().seekStart ?? 0);
+    readonly start = computed(() =>
+        this.state().canSeek ? (this.state().seekStart ?? 0) : 0
+    );
     readonly behind = computed(() =>
         secondsBehindSeekEnd(
             {
@@ -38,7 +40,9 @@ export class ControlsTimeline {
     );
 
     readonly duration = computed(() => {
-        const duration = this.state().seekEnd ?? this.state().durationSeconds;
+        const duration = this.state().canSeek
+            ? (this.state().seekEnd ?? this.state().durationSeconds)
+            : this.state().durationSeconds;
         return typeof duration === 'number' && Number.isFinite(duration)
             ? Math.max(0, duration)
             : 0;
@@ -91,6 +95,7 @@ export class ControlsTimeline {
         if (!Number.isFinite(value)) {
             return null;
         }
+        if (!this.state().canSeek) return Math.max(0, value);
 
         const duration = this.state().seekEnd ?? this.state().durationSeconds;
         const upperBound =

@@ -3,6 +3,23 @@ import { ControlsTimeline } from './controls-timeline';
 import { createEmptyControlsState } from './player-controls-defaults';
 
 describe('buffered live timeline', () => {
+    it('keeps elapsed time and VOD duration visible when seeking is unavailable', () => {
+        const state = signal({
+            ...createEmptyControlsState(),
+            canSeek: false,
+            positionSeconds: 75,
+            durationSeconds: 120,
+            seekStart: 0,
+            seekEnd: 0,
+        });
+        const timeline = new ControlsTimeline(state);
+        expect(timeline.value()).toBe(75);
+        expect(timeline.duration()).toBe(120);
+        expect(timeline.progress()).toBe(0);
+        state.update((s) => ({ ...s, isLive: true, durationSeconds: null }));
+        expect(timeline.value()).toBe(75);
+        expect(timeline.duration()).toBe(0);
+    });
     it('uses absolute range bounds and relative progress, including a moving buffer', () => {
         const state = signal({
             ...createEmptyControlsState(),

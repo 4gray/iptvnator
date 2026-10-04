@@ -3,18 +3,26 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "apps/electron-backend/src",
     "projectType": "application",
-    "tags": ["scope:electron", "domain:electron-main", "type:app"],
+    "tags": [
+        "scope:electron",
+        "domain:electron-main",
+        "type:app"
+    ],
     "targets": {
         "build-worker": {
             "executor": "nx:run-commands",
-            "outputs": ["{workspaceRoot}/dist/apps/electron-backend/workers"],
+            "outputs": [
+                "{workspaceRoot}/dist/apps/electron-backend/workers"
+            ],
             "options": {
                 "command": "node apps/electron-backend/build-worker.js"
             }
         },
         "build-worker-performance": {
             "executor": "nx:run-commands",
-            "outputs": ["{workspaceRoot}/dist/apps/electron-backend/workers"],
+            "outputs": [
+                "{workspaceRoot}/dist/apps/electron-backend/workers"
+            ],
             "options": {
                 "command": "node apps/electron-backend/build-worker.js --performance"
             }
@@ -34,12 +42,17 @@
                 "electron-backend:build-worker",
                 "electron-backend:build-embedded-mpv",
                 {
-                    "projects": ["web", "remote-control-web"],
+                    "projects": [
+                        "web",
+                        "remote-control-web"
+                    ],
                     "target": "build"
                 }
             ],
             "executor": "nx-electron:build",
-            "outputs": ["{options.outputPath}"],
+            "outputs": [
+                "{options.outputPath}"
+            ],
             "inputs": [
                 "production",
                 "^production",
@@ -125,7 +138,10 @@
                 "electron-backend:build-worker-performance",
                 "electron-backend:build-embedded-mpv",
                 {
-                    "projects": ["web", "remote-control-web"],
+                    "projects": [
+                        "web",
+                        "remote-control-web"
+                    ],
                     "target": "build-performance"
                 }
             ],
@@ -139,16 +155,22 @@
                 "electron-backend:build-worker",
                 "electron-backend:build-embedded-mpv",
                 {
-                    "projects": ["web"],
+                    "projects": [
+                        "web"
+                    ],
                     "target": "build-e2e"
                 },
                 {
-                    "projects": ["remote-control-web"],
+                    "projects": [
+                        "remote-control-web"
+                    ],
                     "target": "build-e2e"
                 }
             ],
             "executor": "nx-electron:build",
-            "outputs": ["{options.outputPath}"],
+            "outputs": [
+                "{options.outputPath}"
+            ],
             "inputs": [
                 "production",
                 "^production",
@@ -171,6 +193,16 @@
                 "webpackConfig": "apps/electron-backend/webpack.config.cjs",
                 "assets": [
                     "apps/electron-backend/src/assets",
+                    {
+                        "glob": "material-design-icons.css",
+                        "input": "node_modules/material-design-icons-iconfont/dist",
+                        "output": "assets/floating-player/material-icons"
+                    },
+                    {
+                        "glob": "MaterialIcons-Regular.woff2",
+                        "input": "node_modules/material-design-icons-iconfont/dist/fonts",
+                        "output": "assets/floating-player/material-icons/fonts"
+                    },
                     {
                         "glob": "**/*",
                         "input": "apps/electron-backend/native/build/Release",
@@ -208,7 +240,9 @@
             "executor": "nx-electron:execute",
             "options": {
                 "buildTarget": "electron-backend:build",
-                "waitUntilTargets": ["web:serve"],
+                "waitUntilTargets": [
+                    "web:serve"
+                ],
                 "remoteDebuggingPort": 9222
             }
         },
@@ -225,7 +259,10 @@
                     {
                         "from": "electron-backend",
                         "to": "electron-backend",
-                        "filter": ["main.app.js", "deferred-events.js"]
+                        "filter": [
+                            "main.app.js",
+                            "deferred-events.js"
+                        ]
                     }
                 ],
                 "sourcePath": "dist/apps",
@@ -246,7 +283,10 @@
                     {
                         "from": "electron-backend",
                         "to": "electron-backend",
-                        "filter": ["main.app.js", "deferred-events.js"]
+                        "filter": [
+                            "main.app.js",
+                            "deferred-events.js"
+                        ]
                     }
                 ],
                 "sourcePath": "dist/apps",
@@ -254,7 +294,9 @@
             }
         },
         "generate-builder-metadata": {
-            "dependsOn": ["electron-backend:build"],
+            "dependsOn": [
+                "electron-backend:build"
+            ],
             "executor": "nx:run-commands",
             "cache": true,
             "inputs": [
@@ -283,7 +325,9 @@
         },
         "test": {
             "executor": "@nx/jest:jest",
-            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+            ],
             "inputs": [
                 "default",
                 "^production",
@@ -297,6 +341,5 @@
                 "jestConfig": "apps/electron-backend/jest.config.ts"
             }
         }
-    },
-    "tags": ["scope:electron", "domain:electron-main", "type:app"]
+    }
 }
