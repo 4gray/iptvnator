@@ -30,6 +30,7 @@ import {
     SEARCH_JOURNEY_QUERY_METHOD,
     type SearchJourneyActivitySample,
     type SearchJourneyMeasurement,
+    type SearchJourneyQueryTraceEntry,
     type SearchJourneySettle,
 } from '../performance/search-journey-record';
 import { JOURNEY_RENDERER_GATE_KEY } from './journey-renderer-gate-client';
@@ -177,22 +178,36 @@ function sleepUntil(epochMs: number): Promise<void> {
 const QUERY_TRACE_KEY = '__iptvnatorJourneySearchQueryTrace';
 
 /**
- * Keeps the trace events of the query method (summarized arguments and
- * result, as the preload traces them) for the message of a failed settle.
+ * Records every trace event of the query method in the main process, with
+ * the term and result length the preload's summaries carry and the main
+ * process's arrival epoch (the clock the IPC capture stamps its sentinels
+ * with). The record uses it to prove the final term's query completed
+ * before the settle, so results of an earlier term cannot end the journey.
+ * The summaries hold the search term and counts only.
  */
 async function traceQueryCalls(
     electronApp: ElectronApplication
 ): Promise<void> {
     await electronApp.evaluate(
         ({ ipcMain }, input) => {
-            const entries: string[] = [];
+            const entries: unknown[] = [];
             (globalThis as unknown as Record<string, unknown>)[input.key] =
                 entries;
             ipcMain.on(input.channel, (_event, payload: unknown) => {
                 const record = payload as Record<string, unknown> | null;
-                if (record?.['method'] === input.method && entries.length < 6) {
-                    entries.push(JSON.stringify(record).slice(0, 600));
-                }
+                if (record?.['method'] !== input.method) return;
+                const args = record['args'] as { items?: unknown[] } | null;
+                const result = record['result'] as { length?: unknown } | null;
+                const term = args?.items?.[0];
+                entries.push({
+                    epochMs: Date.now(),
+                    phase: String(record['phase']),
+                    resultLength:
+                        typeof result?.length === 'number'
+                            ? result.length
+                            : null,
+                    term: typeof term === 'string' ? term : null,
+                });
             });
         },
         {
@@ -203,11 +218,25 @@ async function traceQueryCalls(
     );
 }
 
+async function readQueryTrace(
+    electronApp: ElectronApplication
+): Promise<SearchJourneyQueryTraceEntry[]> {
+    return electronApp.evaluate(
+        (_electron, key) =>
+            JSON.parse(
+                JSON.stringify(
+                    (globalThis as unknown as Record<string, unknown>)[key]
+                )
+            ) as SearchJourneyQueryTraceEntry[],
+        QUERY_TRACE_KEY
+    );
+}
+
 /**
  * What a failed settle saw: the bridge calls of the search, renderer errors
  * (a search that threw shows the same empty view as one that found
  * nothing), SQL statements before each key and now, and the traced query
- * calls with their summarized arguments and results.
+ * calls with their terms and result lengths.
  */
 async function describeSettleFailure(
     electronApp: ElectronApplication,
@@ -218,11 +247,7 @@ async function describeSettleFailure(
         SEARCH_JOURNEY_MAIN_IPC_STATE_KEY,
     ]);
     const now = await sampleActivity(electronApp);
-    const queryTrace = await electronApp.evaluate(
-        (_electron, key) =>
-            (globalThis as unknown as Record<string, unknown>)[key],
-        QUERY_TRACE_KEY
-    );
+    const queryTrace = await readQueryTrace(electronApp);
     return JSON.stringify({
         bridgeCalls: capture.callsByMethod,
         consoleErrors,
@@ -328,6 +353,7 @@ export async function measureSearchJourney(
         keyDelayMs: SEARCH_JOURNEY_KEY_DELAY_MS,
         pid: session.launch.pid,
         query,
+        queryTrace: await readQueryTrace(electronApp),
         renderer,
         samples,
         settle,

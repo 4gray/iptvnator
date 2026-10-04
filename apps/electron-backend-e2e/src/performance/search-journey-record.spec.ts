@@ -96,6 +96,20 @@ function measurement(
         keyDelayMs: 100,
         pid: 4242,
         query: QUERY,
+        queryTrace: [
+            {
+                epochMs: 11_150,
+                phase: 'start',
+                resultLength: null,
+                term: QUERY,
+            },
+            {
+                epochMs: 11_170,
+                phase: 'success',
+                resultLength: 101,
+                term: null,
+            },
+        ],
         renderer,
         samples: [
             sample(0, 0, 119),
@@ -202,6 +216,22 @@ test('a query per keystroke shows up per key, not only in the total', () => {
                 callsBeforeSentinel: 5,
                 callsByMethod: { dbGlobalSearch: 5 },
             },
+            queryTrace: ['sy', 'sys', 'syst', 'syste', QUERY].flatMap(
+                (term, position) => [
+                    {
+                        epochMs: 10_150 + position * 100,
+                        phase: 'start',
+                        resultLength: null,
+                        term,
+                    },
+                    {
+                        epochMs: 10_170 + position * 100,
+                        phase: 'success',
+                        resultLength: 101,
+                        term: null,
+                    },
+                ]
+            ),
         })
     );
     assert.equal(record.counters[SEARCH_JOURNEY_COUNTER.IPC_CALLS], 5);
@@ -325,4 +355,70 @@ test('summarizes with the shared summary and nothing unavailable', () => {
         692.5
     );
     assert.deepEqual(entry.unavailable, {});
+});
+
+test('rejects a settle that did not wait for the final query', () => {
+    const start = (epochMs: number, term: string) => ({
+        epochMs,
+        phase: 'start',
+        resultLength: null,
+        term,
+    });
+    const success = (epochMs: number) => ({
+        epochMs,
+        phase: 'success',
+        resultLength: 101,
+        term: null,
+    });
+    // Results of an earlier term were shown; the final query never ran
+    // before the end sentinel.
+    assert.throws(
+        () =>
+            toSearchIterationRecord(
+                1,
+                false,
+                measurement({
+                    queryTrace: [
+                        start(10_500, 'syste'),
+                        success(10_520),
+                        start(11_500, QUERY),
+                        success(11_520),
+                    ],
+                })
+            ),
+        /final-query-not-run/
+    );
+    // The final query started but had not completed at the end sentinel.
+    assert.throws(
+        () =>
+            toSearchIterationRecord(
+                1,
+                false,
+                measurement({ queryTrace: [start(11_390, QUERY)] })
+            ),
+        /final-query-incomplete/
+    );
+    const record = toSearchIterationRecord(1, false, measurement());
+    assert.deepEqual(record.evidence['finalQuery'], {
+        durationMs: 20,
+        resultLength: 101,
+        term: QUERY,
+    });
+});
+
+test('rejects typing slower than the accepted cadence', () => {
+    const base = measurement();
+    const keystrokes = base.renderer.keystrokes.map((key, position) => ({
+        ...key,
+        epochMs: key.epochMs + (position >= 3 ? 200 : 0),
+    }));
+    assert.throws(
+        () =>
+            toSearchIterationRecord(1, false, measurement({}, { keystrokes })),
+        /typing-cadence: 100, 100, 300, 100, 100/
+    );
+    assert.deepEqual(
+        toSearchIterationRecord(1, false, base).evidence['keyIntervalsMs'],
+        [100, 100, 100, 100, 100]
+    );
 });

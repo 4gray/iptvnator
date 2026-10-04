@@ -856,11 +856,25 @@ the confirmation, and the probe sends
 within 15 s of the last key the probe marks the iteration invalid
 (`settle-timeout`).
 
+The DOM alone cannot tell the final term's results from an earlier term's
+that are still shown while the final term debounces, so the main process
+also checks. A listener on the renderer-API trace channel stamps every
+`dbGlobalSearch` event on arrival, with the term and result length that the
+preload's summaries carry. The record requires that the last query started
+between the start and end sentinels is for the final term and completed
+before the end sentinel (`final-query-not-run`, `final-query-incomplete`).
+The final query's start shows the loading state, which keeps the quiet
+window closed until its results replace the old ones.
+`evidence.finalQuery` keeps its term, result length and duration. The
+record also rejects an iteration in which two keydowns were more than
+250 ms apart (`typing-cadence`; the gaps are `evidence.keyIntervalsMs`).
+At that point a late key on a busy machine could let the 350 ms debounce
+apply an intermediate term, which steady typing does not.
+
 A settle that times out fails the iteration with what the probe and the
 main process saw: the URL `q`, the input's value, the results view, the
 bridge calls, renderer console errors, the SQL totals before each key, and
-the traced `dbGlobalSearch` calls with their summarized arguments and
-results.
+the traced `dbGlobalSearch` calls with their terms and result lengths.
 
 ### Counters
 

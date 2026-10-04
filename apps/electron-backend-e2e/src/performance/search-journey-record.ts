@@ -34,6 +34,22 @@ export const SEARCH_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
 export const SEARCH_JOURNEY_QUERY_METHOD = 'dbGlobalSearch';
 
 /**
+ * Longest accepted gap between two keydowns. Below the shell's 350 ms input
+ * debounce, so a late key on a busy machine cannot let an intermediate term
+ * run a query that steady typing would not.
+ */
+export const SEARCH_JOURNEY_MAX_KEY_INTERVAL_MS = 250;
+
+/** One traced query event, stamped in the main process on arrival. */
+export interface SearchJourneyQueryTraceEntry {
+    readonly epochMs: number;
+    readonly phase: string;
+    /** Length of the returned array, on `success`. */
+    readonly resultLength: number | null;
+    readonly term: string | null;
+}
+
+/**
  * Main-process activity read in one synchronous pass: the journey capture's
  * call counts and the running `main.sqlStatements` total.
  */
@@ -67,6 +83,8 @@ export interface SearchJourneyMeasurement {
     readonly afterSettled: SearchJourneyActivitySample;
     readonly afterSettledWindowMs: number;
     readonly settle: SearchJourneySettle;
+    /** Every traced query event of the process, in arrival order. */
+    readonly queryTrace: readonly SearchJourneyQueryTraceEntry[];
 }
 
 function roundTenth(value: number): number {
@@ -83,6 +101,42 @@ function difference(
     key: keyof SearchJourneyActivitySample
 ): number {
     return samples[index + 1][key] - samples[index][key];
+}
+
+/**
+ * The query the settle waited for: the last one started between the start
+ * and end sentinels. It must be for the final term and must have completed
+ * before the end sentinel, otherwise the probe settled on results of an
+ * earlier term (still shown while the final term debounced).
+ */
+function finalQuery(
+    trace: readonly SearchJourneyQueryTraceEntry[],
+    fromEpochMs: number,
+    untilEpochMs: number,
+    query: string
+) {
+    const inWindow = trace.filter(
+        (entry) => entry.epochMs >= fromEpochMs && entry.epochMs <= untilEpochMs
+    );
+    const starts = inWindow.filter((entry) => entry.phase === 'start');
+    const completions = inWindow.filter(
+        (entry) => entry.phase === 'success' || entry.phase === 'error'
+    );
+    const last = starts.at(-1);
+    if (last === undefined || last.term !== query) {
+        throw new Error('search-journey-record-final-query-not-run');
+    }
+    const completion = completions.find(
+        (entry) => entry.epochMs >= last.epochMs && entry.phase === 'success'
+    );
+    if (completion === undefined || completions.length < starts.length) {
+        throw new Error('search-journey-record-final-query-incomplete');
+    }
+    return Object.freeze({
+        durationMs: completion.epochMs - last.epochMs,
+        resultLength: completion.resultLength,
+        term: last.term,
+    });
 }
 
 export function toSearchIterationRecord(
@@ -136,6 +190,29 @@ export function toSearchIterationRecord(
             `search-journey-record-activity-before-first-key-${moved.join('-')}`
         );
     }
+    const keyIntervalsMs = keystrokes
+        .slice(1)
+        .map((key, position) =>
+            roundTenth(key.epochMs - keystrokes[position].epochMs)
+        );
+    if (
+        keyIntervalsMs.some(
+            (interval) => interval > SEARCH_JOURNEY_MAX_KEY_INTERVAL_MS
+        )
+    ) {
+        throw new Error(
+            `search-journey-record-typing-cadence: ${keyIntervalsMs.join(', ')}`
+        );
+    }
+    if (ipc.sentinel.receivedEpochMs === null) {
+        throw new Error('search-journey-record-ipc-without-end');
+    }
+    const lastQuery = finalQuery(
+        measurement.queryTrace,
+        ipc.start.receivedEpochMs ?? Number.POSITIVE_INFINITY,
+        ipc.sentinel.receivedEpochMs,
+        measurement.query
+    );
     const finalSample = samples[keys];
     if (finalSample.ipcCalls !== ipc.callsBeforeSentinel) {
         throw new Error('search-journey-record-ipc-sample-mismatch');
@@ -205,7 +282,9 @@ export function toSearchIterationRecord(
                 (event) =>
                     `${event.phase === 'start' ? '+' : '-'}${event.method}`
             ),
+            finalQuery: lastQuery,
             keyDelayMs: measurement.keyDelayMs,
+            keyIntervalsMs,
             layoutShift: Object.freeze({
                 recentInput: roundThousandth(
                     renderer.counters.recentInputLayoutShiftScore
