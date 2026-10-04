@@ -330,7 +330,11 @@ The Electron window hides the native title bar on all desktop platforms
    sit in the 56 px header band above the rail, so the macOS rail
    (`.app-rail.is-macos`) starts its first link at 56 px: level with the
    content area and the dashboard hero, with its hover surface clear of the
-   lights. `window-controls.e2e.ts` checks both on macOS.
+   lights. App zoom scales CSS pixels but not the lights, so the rail
+   publishes the page zoom factor (`outerWidth / innerWidth`, refreshed on
+   `resize`) as `--rail-zoom-factor` and keeps at least 48 window pixels when
+   zoomed out. `window-controls.e2e.ts` checks the alignment and the gap at
+   default and minimum zoom on macOS.
 2. Windows and Linux use renderer-drawn window controls
    (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
    `frame` is intentionally left untouched so native resize borders and

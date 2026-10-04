@@ -217,10 +217,37 @@ test.describe('macOS traffic lights', () => {
             const lights = await app.electronApp.evaluate(({ BrowserWindow }) =>
                 BrowserWindow.getAllWindows()[0]?.getWindowButtonPosition()
             );
-            // The buttons are about 14pt tall; keep a visible gap below them.
-            expect(linkBox?.y ?? 0).toBeGreaterThanOrEqual(
-                (lights?.y ?? 0) + 14 + 16
+            expect(lights, 'native window button position').toBeTruthy();
+            const lightsY = lights?.y ?? Number.NaN;
+            // The buttons are about 14pt tall; keep a visible gap below them,
+            // measured in window pixels (CSS pixels times the zoom factor).
+            const linkTopInWindowPixels = async (): Promise<number> => {
+                const [box, zoom] = await Promise.all([
+                    firstLink.boundingBox(),
+                    page.evaluate(() => window.outerWidth / window.innerWidth),
+                ]);
+                return (box?.y ?? Number.NaN) * zoom;
+            };
+            expect(await linkTopInWindowPixels()).toBeGreaterThanOrEqual(
+                lightsY + 14 + 16
             );
+
+            // App zoom scales CSS pixels but not the native buttons: at the
+            // smallest zoom the inset must still clear them.
+            for (let step = 0; step < 8; step++) {
+                await page.evaluate(() =>
+                    window.electron.adjustZoomLevel('out')
+                );
+            }
+            await expect
+                .poll(() =>
+                    page.evaluate(() => window.outerWidth / window.innerWidth)
+                )
+                .toBeLessThan(0.6);
+            await expect
+                .poll(linkTopInWindowPixels)
+                .toBeGreaterThanOrEqual(lightsY + 14 + 8);
+            await page.evaluate(() => window.electron.adjustZoomLevel('reset'));
         } finally {
             await closeElectronApp(app);
         }

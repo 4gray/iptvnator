@@ -32,8 +32,10 @@
     // The traffic lights sit in the header band (56px, see the shell grid).
     // The first link starts below that band, where the content area and the
     // dashboard hero start, so its hover surface never touches the lights.
+    // App zoom scales CSS pixels but not the lights: zoomed out, the inset
+    // keeps 48 window pixels (lights' bottom plus a gap) instead.
     &.is-macos {
-        padding-top: 56px;
+        padding-top: max(56px, calc(48px / var(--rail-zoom-factor, 1)));
     }
 
     &::-webkit-scrollbar {
