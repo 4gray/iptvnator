@@ -120,6 +120,13 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         fixture.destroy();
     });
 
+    it('persists volume changed by a native session update', () => {
+        localStorage.setItem('volume', '0.8');
+        configureReadyController({ volume: 0.8 });
+        configureReadyController({ volume: 0, status: 'paused' });
+        expect(localStorage.getItem('volume')).toBe('0');
+    });
+
     it('renders previous and next episode controls with season boundary disabled state', () => {
         const previousButton = fixture.debugElement.query(
             By.css('[data-test-id="embedded-mpv-previous-episode"]')

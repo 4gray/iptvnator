@@ -732,6 +732,34 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         expect(service.setVolume('s1', 1)).not.toHaveProperty('stats');
     });
 
+    it('keeps fractional buffered-live positions seekable and accumulates rapid skips', () => {
+        startSession('s1', snapshot('playing', { positionSeconds: 75.6 }));
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('paused', {
+                positionSeconds: 75.6,
+                seekable: true,
+                seekableRanges: [{ start: 25.5, end: 100 }],
+            })
+        );
+        service.loadPlayback('s1', {
+            streamUrl: 'https://example.com/live.ts',
+            isLive: true,
+        });
+        service.seekBy('s1', -10);
+        service.seekBy('s1', -10);
+        expect(addon.seek.mock.calls.at(-2)?.[1]).toBeCloseTo(65.6);
+        expect(addon.seek.mock.calls.at(-1)?.[1]).toBeCloseTo(55.6);
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('paused', {
+                positionSeconds: 25.6,
+                seekable: true,
+                seekableRanges: [{ start: 25.5, end: 100 }],
+            })
+        );
+        service.seekBy('s1', 10);
+        expect(addon.seek).toHaveBeenLastCalledWith('s1', 35.6);
+    });
+
     it('seekBy forwards the delta to the addon as a relative seek and refreshes the snapshot', () => {
         startSession('s1', snapshot('playing', { positionSeconds: 10 }));
         addon.getSessionSnapshot.mockReturnValue(

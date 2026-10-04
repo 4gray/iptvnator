@@ -143,6 +143,7 @@ interface EmbeddedMpvRuntimeSession {
     startedAt: string;
     updatedAt: string;
     lastPayloadKey: string;
+    pendingLiveSeek?: { observed: number; target: number };
     lastStatus: EmbeddedMpvSessionStatus | null;
     reconnect: EmbeddedMpvReconnectState;
     /** Linux native-view only: the `--include` file carrying the options. */
@@ -718,6 +719,7 @@ export class EmbeddedMpvNativeService {
         this.assertEmbeddedMpvEnabled();
         const addon = this.getAddon();
         const session = this.getRuntimeSession(sessionId);
+        session.pendingLiveSeek = undefined;
         session.title = playback.title ?? session.title;
         session.streamUrl = playback.streamUrl ?? session.streamUrl;
         session.updatedAt = new Date().toISOString();
@@ -802,6 +804,8 @@ export class EmbeddedMpvNativeService {
 
     seek(sessionId: string, seconds: number): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
+        const runtime = this.sessions.get(sessionId);
+        if (runtime) runtime.pendingLiveSeek = undefined;
         const session = this.refreshSession(sessionId);
         const playback = this.sessions.get(sessionId)?.reconnect.playback;
         const target = playback
@@ -837,11 +841,16 @@ export class EmbeddedMpvNativeService {
             const window = embeddedMpvSeekWindow(session, playback);
             if (!window.canSeek) return session;
             if (playbackIsLive(playback)) {
-                const target = clampPlaybackSeek(
-                    window,
-                    (session?.positionSeconds ?? 0) + deltaSeconds
-                );
-                if (target !== null) addon.seek(sessionId, target);
+                const runtime = this.sessions.get(sessionId);
+                const observed = session?.positionSeconds ?? 0;
+                const pending = runtime?.pendingLiveSeek;
+                const base =
+                    pending?.observed === observed ? pending.target : observed;
+                const target = clampPlaybackSeek(window, base + deltaSeconds);
+                if (target !== null) {
+                    if (runtime) runtime.pendingLiveSeek = { observed, target };
+                    addon.seek(sessionId, target);
+                }
                 return this.refreshSession(sessionId);
             }
         }
@@ -1356,7 +1365,13 @@ export class EmbeddedMpvNativeService {
             title: session.title,
             streamUrl: snapshot.streamUrl || session.streamUrl,
             status: snapshot.status,
-            positionSeconds: Math.max(0, Math.floor(snapshot.positionSeconds)),
+            positionSeconds: Math.max(
+                0,
+                session.reconnect.playback &&
+                    playbackIsLive(session.reconnect.playback)
+                    ? snapshot.positionSeconds
+                    : Math.floor(snapshot.positionSeconds)
+            ),
             durationSeconds:
                 typeof snapshot.durationSeconds === 'number'
                     ? Math.max(0, Math.floor(snapshot.durationSeconds))

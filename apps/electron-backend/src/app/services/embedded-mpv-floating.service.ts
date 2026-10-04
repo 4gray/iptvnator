@@ -147,13 +147,11 @@ export class EmbeddedMpvFloatingPlayer {
             ) {
                 if (action === 'seek-by' && value !== -10 && value !== 10)
                     return;
-                if (action === 'seek-by' && !this.state.isLive) {
+                if (action === 'seek-by') {
                     this.dependencies.seekBy(id, value);
                     return;
                 }
-                const target =
-                    action === 'seek-by' ? this.state.position + value : value;
-                const clamped = clampPlaybackSeek(this.state, target);
+                const clamped = clampPlaybackSeek(this.state, value);
                 if (clamped !== null) this.dependencies.seek(id, clamped);
             } else if (
                 action === 'volume' &&
@@ -232,7 +230,7 @@ export class EmbeddedMpvFloatingPlayer {
             this.hoverTimer.unref();
             return true;
         } catch {
-            this.restore();
+            if (this.window === window) this.restore();
             return false;
         }
     }

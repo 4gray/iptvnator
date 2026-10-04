@@ -384,6 +384,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private mutedVolume = 0;
     private recordingMessageTimer: number | null = null;
     private lastEndedSessionId: string | null = null;
+    private lastObservedVolume: number | null = null;
     private readonly recordingTick = signal(Date.now());
     private readonly recordingMessage = signal<string | null>(null);
     private readonly legacyInteractions: EmbeddedMpvLegacyInteractions;
@@ -614,6 +615,14 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             // hovering would re-run this body and re-emit timeUpdate (which
             // could feed back into playback inputs and restart the stream).
             untracked(() => {
+                if (
+                    this.lastObservedVolume !== null &&
+                    session.volume !== this.lastObservedVolume &&
+                    (session.status === 'playing' ||
+                        session.status === 'paused')
+                )
+                    localStorage.setItem('volume', String(session.volume));
+                this.lastObservedVolume = session.volume;
                 this.volume.set(session.volume);
                 this.timeUpdate.emit({
                     currentTime: session.positionSeconds,

@@ -75,6 +75,29 @@ describe('Windows floating MPV host', () => {
     });
     afterEach(() => player.restore());
 
+    it('keeps a reopened window when an older pending load rejects', async () => {
+        const construct = (
+            BrowserWindow as unknown as jest.Mock
+        ).getMockImplementation();
+        let rejectLoad!: (error: Error) => void;
+        (BrowserWindow as unknown as jest.Mock).mockImplementationOnce(() => {
+            const window = construct();
+            window.loadFile.mockReturnValueOnce(
+                new Promise((_resolve, reject) => {
+                    rejectLoad = reject;
+                })
+            );
+            return window;
+        });
+        const first = player.open('one');
+        player.restore();
+        expect(await player.open('one')).toBe(true);
+        const current = latestWindow();
+        rejectLoad(new Error('Old window closed'));
+        expect(await first).toBe(false);
+        expect(current.destroy).not.toHaveBeenCalled();
+    });
+
     it('moves the existing session and sizes video using the floating display scale', async () => {
         expect(await player.open('one')).toBe(true);
         expect(callbacks.reparent).toHaveBeenCalledWith(
@@ -185,7 +208,7 @@ describe('Windows floating MPV host', () => {
             'seek-by',
             10
         );
-        expect(callbacks.seek).toHaveBeenLastCalledWith('one', 35);
+        expect(callbacks.seekBy).toHaveBeenLastCalledWith('one', 10);
         ipcMain.emit('EMBEDDED_MPV_FLOATING_COMMAND', { sender }, 'seek', -100);
         expect(callbacks.seek).toHaveBeenLastCalledWith('one', 25);
         ipcMain.emit(
@@ -195,7 +218,7 @@ describe('Windows floating MPV host', () => {
             999
         );
         ipcMain.emit('EMBEDDED_MPV_FLOATING_COMMAND', { sender }, 'seek', NaN);
-        expect(callbacks.seek).toHaveBeenCalledTimes(2);
+        expect(callbacks.seek).toHaveBeenCalledTimes(1);
     });
 
     it('hides the overlay outside the window without changing video bounds', async () => {
