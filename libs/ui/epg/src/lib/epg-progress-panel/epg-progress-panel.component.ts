@@ -32,7 +32,7 @@ interface EpgTrustConfirmDialogData {
 @Component({
     selector: 'app-epg-trust-confirm-dialog',
     imports: [MatButtonModule, MatDialogModule, TranslatePipe],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <h2 mat-dialog-title>{{ data.title }}</h2>
         <mat-dialog-content class="mat-typography">
@@ -64,7 +64,7 @@ class EpgTrustConfirmDialogComponent {
         TranslatePipe,
     ],
     templateUrl: './epg-progress-panel.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './epg-progress-panel.component.scss',
 })
 export class EpgProgressPanelComponent {
