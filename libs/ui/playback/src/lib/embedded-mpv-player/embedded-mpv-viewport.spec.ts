@@ -71,13 +71,22 @@ describe('native video scroll clipping', () => {
         Object.defineProperty(scroller, 'clientWidth', { value: 800 });
         Object.defineProperty(scroller, 'clientHeight', { value: 500 });
         expect(measureNativeViewport(host).clipInsetTop).toBe(64);
-        const previous = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
-        Object.defineProperty(document, 'fullscreenElement', { configurable: true, value: host });
+        const previous = Object.getOwnPropertyDescriptor(
+            document,
+            'fullscreenElement'
+        );
+        Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            value: host,
+        });
         try {
             expect(measureNativeViewport(host).clipInsetTop).toBe(0);
         } finally {
-            if (previous) Object.defineProperty(document, 'fullscreenElement', previous);
-            else delete (document as unknown as { fullscreenElement?: Element }).fullscreenElement;
+            if (previous)
+                Object.defineProperty(document, 'fullscreenElement', previous);
+            else
+                delete (document as unknown as { fullscreenElement?: Element })
+                    .fullscreenElement;
             scroller.remove();
         }
     });

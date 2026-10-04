@@ -167,6 +167,7 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly scrubPosition = this.timeline.scrubPosition;
     readonly timelineHover = new ControlsTimelineHover({
         duration: this.timeline.duration,
+        start: this.timeline.start,
         interactive: computed(
             () => this.capabilities().seek && this.state().canSeek
         ),
@@ -176,11 +177,6 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly remainingTimeText = computed(() =>
         formatRemainingTime(this.timeline.value(), this.timeline.duration())
     );
-    readonly timelineDuration = this.timeline.duration;
-    readonly timelineStart = this.timeline.start;
-    readonly timelineBehind = this.timeline.behind;
-    readonly timelineValue = this.timeline.value;
-    readonly timelineProgress = this.timeline.progress;
 
     readonly displayVolume = this.volume.value;
     readonly isFullscreen = this.fullscreen.isFullscreen;

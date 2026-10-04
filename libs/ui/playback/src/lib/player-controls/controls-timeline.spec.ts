@@ -16,6 +16,9 @@ describe('buffered live timeline', () => {
         expect(timeline.start()).toBe(60);
         expect(timeline.duration()).toBe(90);
         expect(timeline.progress()).toBe(50);
+        expect(timeline.segments()[0].startSeconds).toBe(60);
+        expect(timeline.segments()[0].endSeconds).toBe(90);
+        expect(timeline.fillPercent(timeline.segments()[0])).toBe(50);
         timeline.scrubPosition.set(65);
         state.update((s) => ({ ...s, seekStart: 70, seekEnd: 100 }));
         expect(timeline.value()).toBe(70);

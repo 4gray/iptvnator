@@ -59,9 +59,21 @@ export class ControlsTimeline {
     });
 
     /** The drawn track: host segments over the duration, else one segment. */
-    readonly segments = computed<TimelineSegmentView[]>(() =>
-        normalizeTimelineSegments(this.hostSegments(), this.duration())
-    );
+    readonly segments = computed<TimelineSegmentView[]>(() => {
+        const start = this.start();
+        const relative = this.hostSegments()?.map((segment) => ({
+            ...segment,
+            startSeconds: segment.startSeconds - start,
+            endSeconds: segment.endSeconds - start,
+        }));
+        return normalizeTimelineSegments(relative, this.duration() - start).map(
+            (segment) => ({
+                ...segment,
+                startSeconds: segment.startSeconds + start,
+                endSeconds: segment.endSeconds + start,
+            })
+        );
+    });
 
     /** Played share of one segment for the current (scrub or playback) value. */
     fillPercent(segment: TimelineSegmentView): number {

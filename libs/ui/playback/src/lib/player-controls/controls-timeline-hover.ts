@@ -33,6 +33,7 @@ export function projectPointerToSeconds(
 
 export interface ControlsTimelineHoverDeps {
     duration: Signal<number>;
+    start?: Signal<number>;
     /** Whether the timeline accepts pointer interaction at all. */
     interactive: Signal<boolean>;
     /** Drawn segments, for the title in the label; none means time only. */
@@ -51,11 +52,12 @@ export class ControlsTimelineHover {
 
     readonly percent = computed(() => {
         const seconds = this.seconds();
-        const duration = this.deps.duration();
+        const start = this.deps.start?.() ?? 0;
+        const duration = this.deps.duration() - start;
         if (seconds === null || duration <= 0) {
             return null;
         }
-        return Math.min(100, Math.max(0, (seconds / duration) * 100));
+        return Math.min(100, Math.max(0, ((seconds - start) / duration) * 100));
     });
 
     /** The titled segment under the pointer, if any. */
@@ -90,13 +92,13 @@ export class ControlsTimelineHover {
             this.clear();
             return;
         }
-        this.seconds.set(
-            projectPointerToSeconds(
-                event.clientX,
-                target.getBoundingClientRect(),
-                this.deps.duration()
-            )
+        const start = this.deps.start?.() ?? 0;
+        const projected = projectPointerToSeconds(
+            event.clientX,
+            target.getBoundingClientRect(),
+            this.deps.duration() - start
         );
+        this.seconds.set(projected === null ? null : projected + start);
     }
 
     clear(): void {

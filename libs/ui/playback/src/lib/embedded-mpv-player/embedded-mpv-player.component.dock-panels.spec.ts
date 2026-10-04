@@ -31,7 +31,16 @@ class DockPanelsHostComponent {
 }
 
 const HOST_RECT = { left: 4, top: 8, width: 1280, height: 720 };
-const FULL_BOUNDS = { x: 4, y: 8, width: 1280, height: 720 };
+const FULL_BOUNDS = {
+    x: 4,
+    y: 8,
+    width: 1280,
+    height: 720,
+    clipInsetTop: 0,
+    clipInsetLeft: 0,
+    clipInsetRight: 260,
+    clipInsetBottom: 0,
+};
 const HOST_STUB = {
     getBoundingClientRect: () => HOST_RECT,
 } as unknown as HTMLElement;

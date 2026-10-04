@@ -197,7 +197,10 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
     it('shows floating playback only with the native capability and bridge, and uses the current session', async () => {
         const descriptor = Object.getOwnPropertyDescriptor(window, 'electron');
         const open = jest.fn().mockResolvedValue(true);
-        jest.spyOn(EmbeddedMpvSessionController.prototype, 'startSession').mockReturnValue(() => undefined);
+        jest.spyOn(
+            EmbeddedMpvSessionController.prototype,
+            'startSession'
+        ).mockReturnValue(() => undefined);
         Object.defineProperty(window, 'electron', {
             configurable: true,
             value: { openEmbeddedMpvFloatingPlayer: open },

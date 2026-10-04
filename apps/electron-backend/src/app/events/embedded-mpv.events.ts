@@ -108,7 +108,6 @@ ipcMain.handle('EMBEDDED_MPV_FLOATING_OPEN', (event, sessionId: unknown) => {
     return getService().openFloatingPlayer(sessionId);
 });
 
-
 handleEmbeddedMpv(
     EMBEDDED_MPV_CREATE_SESSION,
     (bounds: EmbeddedMpvBounds, title?: string, initialVolume?: number) =>
