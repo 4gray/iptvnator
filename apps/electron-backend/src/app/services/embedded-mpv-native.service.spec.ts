@@ -746,36 +746,33 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     });
 
     it('keeps fractional buffered-live positions seekable and accumulates rapid skips', () => {
-        startSession('s1', snapshot('playing', { positionSeconds: 75.6 }));
-        addon.getSessionSnapshot.mockReturnValue(
-            snapshot('playing', {
-                positionSeconds: 75.6,
+        const bufferedSnapshot = (
+            positionSeconds: number,
+            status: 'playing' | 'paused' = 'playing'
+        ) =>
+            snapshot(status, {
+                positionSeconds,
                 seekable: true,
                 seekableRanges: [{ start: 25.5, end: 100 }],
-            })
-        );
+            });
+        startSession('s1', snapshot('playing', { positionSeconds: 75.6 }));
+        addon.getSessionSnapshot.mockReturnValue(bufferedSnapshot(75.6));
         service.loadPlayback('s1', {
             streamUrl: 'https://example.com/live.ts',
             title: 'Buffered live fixture',
             isLive: true,
         });
         service.seekBy('s1', -10);
-        addon.getSessionSnapshot.mockReturnValue(
-            snapshot('playing', {
-                positionSeconds: 75.7,
-                seekable: true,
-                seekableRanges: [{ start: 25.5, end: 100 }],
-            })
-        );
+        addon.getSessionSnapshot.mockReturnValue(bufferedSnapshot(75.7));
         service.seekBy('s1', -10);
         expect(addon.seek.mock.calls.at(-2)?.[1]).toBeCloseTo(65.6);
         expect(addon.seek.mock.calls.at(-1)?.[1]).toBeCloseTo(55.6);
+        addon.getSessionSnapshot.mockReturnValue(bufferedSnapshot(65.7));
+        service.seekBy('s1', -10);
+        // The first seek's acknowledgement must not lose the second skip.
+        expect(addon.seek.mock.calls.at(-1)?.[1]).toBeCloseTo(45.6);
         addon.getSessionSnapshot.mockReturnValue(
-            snapshot('paused', {
-                positionSeconds: 25.6,
-                seekable: true,
-                seekableRanges: [{ start: 25.5, end: 100 }],
-            })
+            bufferedSnapshot(25.6, 'paused')
         );
         service.seekBy('s1', 10);
         expect(addon.seek).toHaveBeenLastCalledWith('s1', 35.6);

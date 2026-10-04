@@ -14,7 +14,7 @@ import App from '../app';
 import { EmbeddedMpvFloatingPlayer } from './embedded-mpv-floating.service';
 import { floatingPlaybackState } from './floating-playback-state';
 import {
-    pendingLiveSeekBase,
+    reconcilePendingLiveSeek,
     type PendingLiveSeek,
 } from './embedded-mpv-pending-seek';
 import {
@@ -849,20 +849,27 @@ export class EmbeddedMpvNativeService {
                 const observed = session?.positionSeconds ?? 0;
                 const pending = runtime?.pendingLiveSeek;
                 const observedAt = performance.now();
-                const base = pendingLiveSeekBase(
+                const reconciled = reconcilePendingLiveSeek(
                     pending,
                     observed,
                     observedAt,
                     session?.status === 'playing',
                     session?.playbackSpeed ?? 1
                 );
-                const target = clampPlaybackSeek(window, base + deltaSeconds);
+                const target = clampPlaybackSeek(
+                    window,
+                    reconciled.base + deltaSeconds
+                );
                 if (target !== null) {
                     if (runtime)
                         runtime.pendingLiveSeek = {
                             observed,
                             observedAt,
-                            target,
+                            // Bound retained request history during a long key repeat.
+                            targets: [
+                                ...reconciled.outstandingTargets,
+                                { seconds: target, requestedAt: observedAt },
+                            ].slice(-128),
                         };
                     addon.seek(sessionId, target);
                 }

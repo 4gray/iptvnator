@@ -42,6 +42,13 @@ and clamp absolute targets; MPV VOD skips retain native relative command queuing
 Older MPV snapshots without a seekability field retain duration-based VOD
 compatibility, while an explicit false disables seeking.
 
+Buffered-live skip requests retain their outstanding absolute targets. An
+intermediate acknowledgement retires earlier requests while preserving the latest
+intent, so rapid skips accumulate. The history is bounded to 128 targets and
+expires after two seconds without another request. Absolute timeline seeks and
+source replacement clear it; unrelated playback discontinuities use the new
+observed position. VOD keeps MPV's native relative-seek command queuing.
+
 `supportsNativeFloatingPlayer` is the shared pure gate for native Windows MPV
 window reparenting. Browser element PiP keeps its separate API and lifecycle
 adapter; neither renderer advertises the other's window implementation.
