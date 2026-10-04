@@ -155,7 +155,7 @@ interface StalkerSeriesPlaybackRequestContext {
         TranslatePipe,
         SeasonContainerComponent,
     ],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
         StalkerSeriesTmdbSeasonsService,
         StalkerSeriesHeroPresenter,

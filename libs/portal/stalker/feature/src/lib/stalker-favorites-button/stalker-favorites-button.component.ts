@@ -27,7 +27,7 @@ type FavoriteButtonItem = StalkerSelectedVodItem & {
     selector: 'app-favorites-button',
     templateUrl: './stalker-favorites-button.component.html',
     styleUrls: ['./stalker-favorites-button.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [AsyncPipe, DetailIconButtonComponent, MatIconModule, TranslateModule],
 })
 export class FavoritesButtonComponent {
