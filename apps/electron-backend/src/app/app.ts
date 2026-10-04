@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, screen, session, shell } from 'electron';
 import {
     ElectronBridgeWindowState,
+    MACOS_TRAFFIC_LIGHTS_POSITION,
     WINDOW_STATE_CHANGED,
 } from '@iptvnator/shared/interfaces';
 import { join, resolve } from 'path';
@@ -397,7 +398,7 @@ export default class App {
             return {
                 titleBarStyle: 'hidden',
                 titleBarOverlay: true,
-                trafficLightPosition: { x: 16, y: 20 },
+                trafficLightPosition: { ...MACOS_TRAFFIC_LIGHTS_POSITION },
             };
         }
 
