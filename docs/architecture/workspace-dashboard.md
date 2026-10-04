@@ -137,7 +137,33 @@ edges (no second, sharp copy); a live channel's logo sits on the right as key
 art over its own wash. Series titles drop their season marker
 (`splitSeasonSuffix`) — the `S1·E1` chip names the season. Chips are
 `app-meta-chip`; the primary is the details pages' light primary
-(`light-primary-button` from `libs/ui/styles`).
+(`light-primary-button` from `libs/ui/styles`). With no artwork at all the
+stage is a gradient in the title's hue (`--hero-hue`), light in the light
+theme and near-black in the dark one; a dark gradient under the light
+theme's page-coloured scrim read as a grey slab behind dark text.
+
+Legibility: slide text stays at 4.5:1 or more over any artwork. The side
+scrim holds 88% of the page colour up to the slide's right edge
+(`--hero-text-edge`: the inset plus `min(560px, 55%)`, the slide's own
+`max-width`) before it opens onto the art. In the narrow layout (`dashboard`
+container ≤ 720px) the slide spans the width, so a full-bleed scrim sits
+behind the text block (90%, fading in just above the eyebrow), the copy gets
+a scrim-coloured text shadow, and the slide enters without a fade so that
+scrim never flashes the art on a rotation. Body text is 85% of the heading
+colour; the rating chip uses `--app-rating-color`, set per theme in
+`m3-theme.scss`. Buttons end long labels in an ellipsis.
+`dashboard-hero-legibility.e2e.ts` replaces every image with a black-and-white
+checkerboard and measures each piece of slide text from the screen in both
+themes, at a wide and a narrow width, for a backdrop, a blurred-poster, a
+no-artwork and a live slide.
+
+Semantics: the page has one stable, visually hidden `h1` ("Dashboard",
+`dashboard-page-heading`); each slide title is an `h2`, like the rail titles.
+Slide changes are announced by one polite live region
+(`dashboard-hero-announcement`, position and title) that lives outside the
+re-created slide and is silent while the slides rotate on their own. A
+slide's progress bar is named after its title (a live slide: the programme)
+and a title's reads "N% watched". The dots are 24px targets (WCAG 2.5.8).
 
 Rotation is the active dot's CSS fill animation (8 s); its `animationend`
 advances. The fill animates `transform` only (a bar sliding in under the
