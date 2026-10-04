@@ -208,11 +208,11 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
         speedAdapter.detach();
     });
 
-    it('does not clamp seekTo when the duration is not finite', () => {
+    it('rejects unbounded live seeks without a reported range', () => {
         const video = createVideo({ duration: Infinity });
         adapter.attach(video);
         adapter.commands.seekTo(1234);
-        expect(video.currentTime).toBe(1234);
+        expect(video.currentTime).toBe(0);
     });
 
     it('clamps setVolume into [0, 1] and mutes only at zero', () => {

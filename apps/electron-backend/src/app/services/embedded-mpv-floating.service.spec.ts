@@ -51,6 +51,7 @@ describe('Windows floating MPV host', () => {
         togglePaused: jest.Mock;
         setVolume: jest.Mock;
         seek: jest.Mock;
+        seekBy: jest.Mock;
     };
     const latestWindow = () =>
         (BrowserWindow as unknown as jest.Mock).mock.results.at(-1).value;
@@ -67,6 +68,7 @@ describe('Windows floating MPV host', () => {
             togglePaused: jest.fn(),
             setVolume: jest.fn(),
             seek: jest.fn(),
+            seekBy: jest.fn(),
         };
         player = new EmbeddedMpvFloatingPlayer(callbacks);
         player.rememberBounds('one', inline);
@@ -208,6 +210,32 @@ describe('Windows floating MPV host', () => {
             player.restore();
             jest.useRealTimers();
         }
+    });
+
+    it('routes VOD skip commands through relative MPV seeking', async () => {
+        await player.open('one');
+        player.update(
+            'one',
+            floatingPlaybackState(false, 1, false, 30, 120, true)
+        );
+        const sender = latestWindow().webContents;
+        ipcMain.emit(
+            'EMBEDDED_MPV_FLOATING_COMMAND',
+            { sender },
+            'seek-by',
+            10
+        );
+        ipcMain.emit(
+            'EMBEDDED_MPV_FLOATING_COMMAND',
+            { sender },
+            'seek-by',
+            10
+        );
+        expect(callbacks.seekBy.mock.calls).toEqual([
+            ['one', 10],
+            ['one', 10],
+        ]);
+        expect(callbacks.seek).not.toHaveBeenCalled();
     });
 
     it('returns video when closed and removes its command listener', async () => {

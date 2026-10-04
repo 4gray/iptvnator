@@ -1,6 +1,9 @@
 import { BrowserWindow, ipcMain, screen } from 'electron';
 import path from 'path';
-import type { EmbeddedMpvBounds } from '@iptvnator/shared/interfaces';
+import {
+    clampPlaybackSeek,
+    type EmbeddedMpvBounds,
+} from '@iptvnator/shared/interfaces';
 import type { FloatingPlaybackState } from './floating-playback-state';
 
 interface FloatingPlayerDependencies {
@@ -10,6 +13,7 @@ interface FloatingPlayerDependencies {
     togglePaused: (id: string) => void;
     setVolume: (id: string, volume: number) => void;
     seek: (id: string, seconds: number) => void;
+    seekBy: (id: string, delta: number) => void;
 }
 
 /** Windows native-view only. Reparents the video host without reloading MPV. */
@@ -143,15 +147,14 @@ export class EmbeddedMpvFloatingPlayer {
             ) {
                 if (action === 'seek-by' && value !== -10 && value !== 10)
                     return;
+                if (action === 'seek-by' && !this.state.isLive) {
+                    this.dependencies.seekBy(id, value);
+                    return;
+                }
                 const target =
                     action === 'seek-by' ? this.state.position + value : value;
-                this.dependencies.seek(
-                    id,
-                    Math.max(
-                        this.state.seekStart,
-                        Math.min(this.state.seekEnd, target)
-                    )
-                );
+                const clamped = clampPlaybackSeek(this.state, target);
+                if (clamped !== null) this.dependencies.seek(id, clamped);
             } else if (
                 action === 'volume' &&
                 typeof value === 'number' &&

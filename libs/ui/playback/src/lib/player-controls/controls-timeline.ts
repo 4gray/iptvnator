@@ -8,6 +8,7 @@ import type {
     PlayerControlsState,
     PlayerTimelineSegment,
 } from './player-controls.model';
+import { secondsBehindSeekEnd } from '@iptvnator/shared/interfaces';
 
 /**
  * Owns the scrub state and timeline projections for the controls bar: the
@@ -24,8 +25,20 @@ export class ControlsTimeline {
         > = signal(null)
     ) {}
 
+    readonly start = computed(() => this.state().seekStart ?? 0);
+    readonly behind = computed(() =>
+        secondsBehindSeekEnd(
+            {
+                canSeek: this.state().canSeek,
+                seekStart: this.start(),
+                seekEnd: this.duration(),
+            },
+            this.value()
+        )
+    );
+
     readonly duration = computed(() => {
-        const duration = this.state().durationSeconds;
+        const duration = this.state().seekEnd ?? this.state().durationSeconds;
         return typeof duration === 'number' && Number.isFinite(duration)
             ? Math.max(0, duration)
             : 0;
@@ -39,9 +52,9 @@ export class ControlsTimeline {
     );
 
     readonly progress = computed(() => {
-        const duration = this.duration();
+        const duration = this.duration() - this.start();
         return this.state().canSeek && duration > 0
-            ? (this.value() / duration) * 100
+            ? ((this.value() - this.start()) / duration) * 100
             : 0;
     });
 
@@ -67,11 +80,11 @@ export class ControlsTimeline {
             return null;
         }
 
-        const duration = this.state().durationSeconds;
+        const duration = this.state().seekEnd ?? this.state().durationSeconds;
         const upperBound =
             typeof duration === 'number' && Number.isFinite(duration)
                 ? Math.max(0, duration)
                 : Number.POSITIVE_INFINITY;
-        return Math.min(Math.max(0, value), upperBound);
+        return Math.min(Math.max(this.start(), value), upperBound);
     }
 }

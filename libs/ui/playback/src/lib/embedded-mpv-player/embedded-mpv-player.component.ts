@@ -24,6 +24,11 @@ import {
     RecordingStartMetadata,
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
+    embeddedMpvSeekWindow,
+    playbackIsLive,
+    clampPlaybackSeek,
+    supportsNativeFloatingPlayer,
+    secondsBehindSeekEnd,
 } from '@iptvnator/shared/interfaces';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type {
@@ -144,7 +149,11 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly support = this.controller.support;
     readonly canFloat = computed(
         () =>
-            this.support()?.floatingWindow === true &&
+            supportsNativeFloatingPlayer(
+                this.support()?.platform,
+                this.support()?.engine,
+                this.support()?.floatingWindow === true
+            ) &&
             typeof window.electron?.openEmbeddedMpvFloatingPlayer === 'function'
     );
 
@@ -202,14 +211,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      */
     readonly reconnectInfo = computed(() => this.session()?.reconnect ?? null);
     readonly isReconnecting = computed(() => this.reconnectInfo() !== null);
-    readonly isLivePlayback = computed(() => {
-        const playback = this.playback();
-        if (typeof playback.isLive === 'boolean') {
-            return playback.isLive;
-        }
-
-        return !playback.contentInfo;
-    });
+    readonly isLivePlayback = computed(() => playbackIsLive(this.playback()));
     /**
      * A live stream that ended and is not being reconnected: a broadcast
      * never ends on its own, so this is a loss the viewer must be able to
@@ -218,10 +220,19 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly isLiveEnded = computed(
         () => this.isLivePlayback() && this.session()?.status === 'ended'
     );
-    readonly canSeek = computed(
-        () =>
-            !this.isLivePlayback() && (this.session()?.durationSeconds ?? 0) > 0
+    readonly seekWindow = computed(() =>
+        embeddedMpvSeekWindow(this.session(), this.playback())
     );
+    readonly canSeek = computed(() => this.seekWindow().canSeek);
+    readonly timelineBehind = computed(() =>
+        secondsBehindSeekEnd(this.seekWindow(), this.timelineValue())
+    );
+    readonly timelineProgress = computed(() => {
+        const { seekStart, seekEnd } = this.seekWindow();
+        return seekEnd > seekStart
+            ? ((this.timelineValue() - seekStart) / (seekEnd - seekStart)) * 100
+            : 0;
+    });
     readonly canFullscreen = computed(
         () =>
             typeof document !== 'undefined' &&
@@ -305,11 +316,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      * the release (`change`) event instead of firing per drag pixel.
      */
     readonly scrubPosition = signal<number | null>(null);
-    readonly timelineValue = computed(
-        () =>
+    readonly timelineValue = computed(() => {
+        const position =
             this.scrubPosition() ??
-            Math.max(0, this.session()?.positionSeconds ?? 0)
-    );
+            Math.max(0, this.session()?.positionSeconds ?? 0);
+        return clampPlaybackSeek(this.seekWindow(), position) ?? position;
+    });
     readonly controlsAreVisible = computed(
         () =>
             this.showControls() &&
@@ -699,6 +711,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     async seekBy(deltaSeconds: number): Promise<void> {
         this.legacyInteractions.revealControls();
+        if (!this.canSeek() || !Number.isFinite(deltaSeconds)) return;
         const ok = await this.controller.seekBy(deltaSeconds);
         if (ok) {
             this.feedback.flash(
@@ -732,8 +745,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     async onTimelineCommit(event: Event): Promise<void> {
-        const target = Number((event.target as HTMLInputElement).value);
+        const target = clampPlaybackSeek(
+            this.seekWindow(),
+            Number((event.target as HTMLInputElement).value)
+        );
         this.scrubPosition.set(null);
+        if (target === null) return;
         await this.controller.seekTo(target);
     }
 

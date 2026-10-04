@@ -15,6 +15,10 @@ import { EmbeddedMpvFloatingPlayer } from './embedded-mpv-floating.service';
 import { floatingPlaybackState } from './floating-playback-state';
 import {
     EmbeddedMpvAudioTrack,
+    playbackIsLive,
+    embeddedMpvSeekWindow,
+    clampPlaybackSeek,
+    supportsNativeFloatingPlayer,
     EmbeddedMpvBounds,
     EmbeddedMpvCapabilities,
     EmbeddedMpvRecordingStartOptions,
@@ -502,10 +506,11 @@ export class EmbeddedMpvNativeService {
                     engine: this.getActiveEngine(),
                     ...this.getFrameCopySupportDetails(),
                     capabilities: this.detectCapabilities(),
-                    floatingWindow:
-                        process.platform === 'win32' &&
-                        this.getActiveEngine() === 'native' &&
-                        typeof this.addon.reparentSession === 'function',
+                    floatingWindow: supportsNativeFloatingPlayer(
+                        process.platform,
+                        this.getActiveEngine(),
+                        typeof this.addon.reparentSession === 'function'
+                    ),
                 };
             } catch (error) {
                 return {
@@ -572,10 +577,11 @@ export class EmbeddedMpvNativeService {
                 engine: this.getActiveEngine(),
                 ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
-                floatingWindow:
-                    process.platform === 'win32' &&
-                    this.getActiveEngine() === 'native' &&
-                    typeof addon.reparentSession === 'function',
+                floatingWindow: supportsNativeFloatingPlayer(
+                    process.platform,
+                    this.getActiveEngine(),
+                    typeof addon.reparentSession === 'function'
+                ),
             };
         } catch (error) {
             return {
@@ -608,10 +614,11 @@ export class EmbeddedMpvNativeService {
                 engine: this.getActiveEngine(),
                 ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
-                floatingWindow:
-                    process.platform === 'win32' &&
-                    this.getActiveEngine() === 'native' &&
-                    typeof addon.reparentSession === 'function',
+                floatingWindow: supportsNativeFloatingPlayer(
+                    process.platform,
+                    this.getActiveEngine(),
+                    typeof addon.reparentSession === 'function'
+                ),
             };
         } catch (error) {
             return {
@@ -740,6 +747,7 @@ export class EmbeddedMpvNativeService {
             this.setPaused(id, this.refreshSession(id)?.status !== 'paused'),
         setVolume: (id, volume) => this.setVolume(id, volume),
         seek: (id, seconds) => this.seek(id, seconds),
+        seekBy: (id, delta) => this.seekBy(id, delta),
     });
 
     openFloatingPlayer(sessionId: string): Promise<boolean> {
@@ -788,7 +796,17 @@ export class EmbeddedMpvNativeService {
 
     seek(sessionId: string, seconds: number): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
-        this.getAddon().seek(sessionId, seconds);
+        const session = this.refreshSession(sessionId);
+        const playback = this.sessions.get(sessionId)?.reconnect.playback;
+        const target = playback
+            ? clampPlaybackSeek(
+                  embeddedMpvSeekWindow(session, playback),
+                  seconds
+              )
+            : Number.isFinite(seconds)
+              ? seconds
+              : null;
+        if (target !== null) this.getAddon().seek(sessionId, target);
         return this.refreshSession(sessionId);
     }
 
@@ -806,6 +824,20 @@ export class EmbeddedMpvNativeService {
         const addon = this.getAddon();
         if (!Number.isFinite(deltaSeconds)) {
             return this.refreshSession(sessionId);
+        }
+        const playback = this.sessions.get(sessionId)?.reconnect.playback;
+        if (playback) {
+            const session = this.refreshSession(sessionId);
+            const window = embeddedMpvSeekWindow(session, playback);
+            if (!window.canSeek) return session;
+            if (playbackIsLive(playback)) {
+                const target = clampPlaybackSeek(
+                    window,
+                    (session?.positionSeconds ?? 0) + deltaSeconds
+                );
+                if (target !== null) addon.seek(sessionId, target);
+                return this.refreshSession(sessionId);
+            }
         }
         if (typeof addon.seekBy === 'function') {
             addon.seekBy(sessionId, deltaSeconds);
@@ -1497,11 +1529,14 @@ export class EmbeddedMpvNativeService {
             floatingPlaybackState(
                 session.status === 'paused',
                 session.volume,
-                this.sessions.get(session.id)?.reconnect.playback?.isLive !==
-                    false,
+                playbackIsLive(
+                    this.sessions.get(session.id)?.reconnect.playback ?? {
+                        isLive: true,
+                    }
+                ),
                 session.positionSeconds,
                 session.durationSeconds,
-                session.seekable === true,
+                session.seekable,
                 session.seekableRanges
             )
         );

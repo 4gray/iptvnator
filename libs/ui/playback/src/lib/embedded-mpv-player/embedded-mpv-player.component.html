@@ -235,17 +235,10 @@
                 <div class="embedded-mpv-player__timeline">
                     <input
                         class="embedded-mpv-player__slider"
-                        [style.--slider-progress.%]="
-                            canSeek()
-                                ? (timelineValue() /
-                                      ((session()?.durationSeconds ?? 0) ||
-                                          1)) *
-                                  100
-                                : 0
-                        "
+                        [style.--slider-progress.%]="timelineProgress()"
                         type="range"
-                        min="0"
-                        [max]="session()?.durationSeconds ?? 0"
+                        [min]="seekWindow().seekStart"
+                        [max]="seekWindow().seekEnd"
                         [value]="timelineValue()"
                         [disabled]="!canSeek()"
                         [attr.aria-valuetext]="formatTime(timelineValue())"
@@ -253,15 +246,13 @@
                         (change)="onTimelineCommit($event)"
                     />
                     <div class="embedded-mpv-player__time">
-                        <span>{{ formatTime(timelineValue()) }}</span>
-                        @if (canSeek()) {
-                            <span>{{
-                                formatTime(
-                                    $safeNavigationMigration(
-                                        session()?.durationSeconds
-                                    )
-                                )
-                            }}</span>
+                        <span>{{
+                            isLivePlayback() && canSeek()
+                                ? '−' + formatTime(timelineBehind())
+                                : formatTime(timelineValue())
+                        }}</span>
+                        @if (canSeek() && !isLivePlayback()) {
+                            <span>{{ formatTime(seekWindow().seekEnd) }}</span>
                         } @else if (isLivePlayback()) {
                             <span
                                 class="embedded-mpv-player__live-badge"

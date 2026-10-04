@@ -7,6 +7,33 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+Seek decisions live in the pure shared `playback-seek-policy` functions.
+Adapters project browser ranges or MPV snapshots into that policy; native,
+frame-copy and floating MPV controls use the same metadata classification.
+Live seeking requires an actual contiguous range containing the playhead,
+never an estimated buffer or finite duration. Timelines use absolute range
+bounds and progress relative to the range start. Commands recheck availability
+and clamp absolute targets; MPV VOD skips retain native relative command queuing.
+Older MPV snapshots without a seekability field retain duration-based VOD
+compatibility, while an explicit false disables seeking.
+
+`supportsNativeFloatingPlayer` is the shared pure gate for native Windows MPV
+window reparenting. Browser element PiP keeps its separate API and lifecycle
+adapter; neither renderer advertises the other's window implementation.
+
+The policy layer imports no Angular, Electron or DOM runtime. Adapters read
+renderer state and execute commands; presentation components consume capability
+and state projections. Native HWND ownership and browser PiP lifecycle remain
+separate responsibilities rather than being forced into a common window API.
+
+Regression coverage combines the pure seek/floating policy matrix, browser
+adapter command guards, moving-buffer timeline tests, native dock integration,
+and floating-window command tests. Electron smoke checks should exercise a
+local HEVC clip in native MPV (pause, repeated skips, return with the same
+session) and browser element PiP (actual entry/exit). Provider testing then
+covers live without cache ranges, buffered live, and VOD; verify both offered
+controls and actual results. Frame-copy advertises no native floating window.
+
 The shared-controls preference checkbox is visible only when HTML5, Video.js
 or ArtPlayer is selected in Settings → Playback.
 

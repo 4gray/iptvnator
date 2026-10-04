@@ -203,6 +203,44 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         expect(chips[1].nativeElement.getAttribute('title')).toContain('deu');
     });
 
+    it('offers the same buffered live seek window and clamps scrub commands', async () => {
+        fixture.componentInstance.playback = {
+            streamUrl: 'https://example.test/live.ts',
+            isLive: true,
+        };
+        fixture.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        configureReadyController();
+        controller.session.update((session) =>
+            session
+                ? {
+                      ...session,
+                      positionSeconds: 75,
+                      durationSeconds: null,
+                      seekableRanges: [{ start: 60, end: 90 }],
+                  }
+                : null
+        );
+        fixture.detectChanges();
+        expect(player.seekWindow()).toEqual({
+            canSeek: true,
+            seekStart: 60,
+            seekEnd: 90,
+        });
+        expect(player.timelineBehind()).toBe(15);
+        const seek = jest
+            .spyOn(controller, 'seekTo')
+            .mockResolvedValue(undefined);
+        await player.onTimelineCommit({
+            target: { value: '0' },
+        } as unknown as Event);
+        expect(seek).toHaveBeenCalledWith(60);
+        controller.session.update((session) =>
+            session ? { ...session, seekableRanges: [] } : null
+        );
+        expect(player.canSeek()).toBe(false);
+    });
+
     it('selects an audio chip, closes the panel, and restores the row', async () => {
         const setAudioTrack = jest
             .spyOn(controller, 'setAudioTrack')

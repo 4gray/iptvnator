@@ -1,4 +1,5 @@
 import { Injectable, type Signal, computed, signal } from '@angular/core';
+import { clampPlaybackSeek } from '@iptvnator/shared/interfaces';
 import {
     createEmptyControlsState,
     DEFAULT_ASPECT_PRESETS,
@@ -20,7 +21,7 @@ import {
     applyVideoCurrentTime,
     applyVideoSpeed,
     applyVideoVolume,
-    hasSeekableRange,
+    readVideoSeekWindow,
     isVideoStalled,
     mapVideoStatus,
     normalizeVideoDuration,
@@ -129,7 +130,7 @@ export class WebVideoControlsAdapter implements PlayerController {
         const pictureInPicture = this.pictureInPicture.snapshot();
         return {
             ...DEFAULT_PLAYER_CAPABILITIES,
-            seek: !isLive,
+            seek: !isLive || readVideoSeekWindow(this.video, this.opts).canSeek,
             volume: true,
             playbackSpeed: true,
             fullscreen: true,
@@ -178,7 +179,7 @@ export class WebVideoControlsAdapter implements PlayerController {
             positionSeconds: Math.max(0, video?.currentTime ?? 0),
             durationSeconds: duration,
             isLive,
-            canSeek: !isLive && (duration ?? 0) > 0 && hasSeekableRange(video),
+            ...readVideoSeekWindow(video, this.opts),
             volume: readVideoVolume(video),
             audioTracks,
             subtitleTracks,
@@ -203,16 +204,8 @@ export class WebVideoControlsAdapter implements PlayerController {
 
     readonly commands: PlayerControlsCommands = {
         togglePlay: () => toggleVideoPlay(this.video),
-        seekTo: (seconds) =>
-            applyVideoCurrentTime(this.video, seconds, () =>
-                readVideoDuration(this.video, this.opts)
-            ),
-        seekBy: (delta) =>
-            applyVideoCurrentTime(
-                this.video,
-                (this.video?.currentTime ?? 0) + delta,
-                () => readVideoDuration(this.video, this.opts)
-            ),
+        seekTo: (seconds) => this.seekTo(seconds),
+        seekBy: (delta) => this.seekTo((this.video?.currentTime ?? 0) + delta),
         setVolume: (value) => applyVideoVolume(this.video, value),
         setAudioTrack: (id) =>
             applyTrackSelection(this.opts.setAudioTrack, id, () =>
@@ -250,6 +243,18 @@ export class WebVideoControlsAdapter implements PlayerController {
     };
 
     /** Binds to a `<video>` element and starts maintaining the state signal. */
+    private seekTo(seconds: number): void {
+        if (!Number.isFinite(seconds)) return;
+        const target = clampPlaybackSeek(
+            readVideoSeekWindow(this.video, this.opts),
+            seconds
+        );
+        if (target !== null)
+            applyVideoCurrentTime(this.video, target, () =>
+                readVideoDuration(this.video, this.opts)
+            );
+    }
+
     attach(video: HTMLVideoElement, opts: WebVideoControlsOptions = {}): void {
         this.detach();
         const generation = this.bindingGeneration;
