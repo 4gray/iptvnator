@@ -2,6 +2,16 @@
 
 This document explains how IPTVnator embeds MPV inside the Electron app, which files are source versus generated build output, and what must be true before the feature is safe to expose to users.
 
+Windows native-view bounds include drawing-only clip insets measured against the
+renderer viewport and overflow-clipping ancestors. `SetWindowRgn` intersects these
+with the controls dock cutout without changing MPV's render dimensions. Fullscreen
+measurement stops at the promoted fullscreen root, ignoring its old page ancestors.
+Scroll and position-drift sync include clipping changes; frame-copy remains DOM-owned.
+Material picker/menu/autocomplete panels activate the existing native-overlay guard
+even without a backdrop. Native video is temporarily hidden while those panels are
+open and restored afterward. Other native platforms currently retain their existing
+viewport behavior; the new drawing-region implementation is Windows-specific.
+
 ## What To Commit
 
 Source files for the embedded MPV integration:

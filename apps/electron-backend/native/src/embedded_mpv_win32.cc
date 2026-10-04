@@ -140,8 +140,16 @@ public:
             ? static_cast<int>(std::lround(std::clamp(
                 bounds.controlsInsetBottom, 0.0, static_cast<double>(height))))
             : 0;
-        HRGN region = inset > 0
-            ? CreateRectRgn(0, 0, width, height - inset)
+        const auto clippedInset = [](double value, int extent) {
+            return std::isfinite(value)
+                ? static_cast<int>(std::lround(std::clamp(value, 0.0, static_cast<double>(extent)))) : 0;
+        };
+        const int left = clippedInset(bounds.clipInsetLeft, width);
+        const int top = clippedInset(bounds.clipInsetTop, height);
+        const int right = std::max(left, width - clippedInset(bounds.clipInsetRight, width));
+        const int bottom = std::max(top, height - std::max(inset, clippedInset(bounds.clipInsetBottom, height)));
+        HRGN region = inset > 0 || left > 0 || top > 0 || right < width || bottom < height
+            ? CreateRectRgn(left, top, right, bottom)
             : nullptr;
         if (!SetWindowRgn(window_, region, TRUE) && region) {
             DeleteObject(region);

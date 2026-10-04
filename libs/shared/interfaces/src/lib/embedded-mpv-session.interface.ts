@@ -11,6 +11,11 @@ export interface EmbeddedMpvBounds {
     height: number;
     /** Windows native drawing cutout for an overlaid controls dock, in CSS pixels. */
     controlsInsetBottom?: number;
+    /** Drawing-only clipping to the DOM scroll viewport; never changes render size. */
+    clipInsetTop?: number;
+    clipInsetRight?: number;
+    clipInsetBottom?: number;
+    clipInsetLeft?: number;
 }
 
 export interface EmbeddedMpvCapabilities {

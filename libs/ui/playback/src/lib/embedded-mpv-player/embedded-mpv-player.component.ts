@@ -1,3 +1,4 @@
+import { measureNativeViewport } from './embedded-mpv-viewport';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -527,7 +528,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             // Control menus render as horizontal panels inside the
             // fixed-height dock strip below the video host, so open menus
             // never require shrinking the native MPV view.
-            const bounds = measureBounds(host);
+            const bounds = measureNativeViewport(host);
             if (this.usesNativeOverlayDock()) {
                 const root = this.playerRoot()?.nativeElement;
                 const dockHeight = root

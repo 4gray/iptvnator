@@ -154,4 +154,27 @@ describe('toNativeViewBounds', () => {
             ).height
         );
     });
+
+    it('scales scroll clipping insets without changing the viewport geometry', () => {
+        const result = toNativeViewBounds(
+            {
+                ...CSS_BOUNDS,
+                clipInsetTop: 30,
+                clipInsetLeft: 10,
+                clipInsetRight: 5,
+                clipInsetBottom: 20,
+            },
+            context({ zoomFactor: 1.25, displayScaleFactor: 1.6 })
+        );
+        expect(result).toEqual({
+            ...toNativeViewBounds(
+                CSS_BOUNDS,
+                context({ zoomFactor: 1.25, displayScaleFactor: 1.6 })
+            ),
+            clipInsetTop: 60,
+            clipInsetLeft: 20,
+            clipInsetRight: 10,
+            clipInsetBottom: 40,
+        });
+    });
 });

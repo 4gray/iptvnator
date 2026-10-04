@@ -444,6 +444,10 @@ Bounds readBounds(const Napi::Object& object)
         readOptionalNumber(object, "width", 1),
         readOptionalNumber(object, "height", 1),
         readOptionalNumber(object, "controlsInsetBottom", 0),
+        readOptionalNumber(object, "clipInsetTop", 0),
+        readOptionalNumber(object, "clipInsetRight", 0),
+        readOptionalNumber(object, "clipInsetBottom", 0),
+        readOptionalNumber(object, "clipInsetLeft", 0),
     };
 }
 
