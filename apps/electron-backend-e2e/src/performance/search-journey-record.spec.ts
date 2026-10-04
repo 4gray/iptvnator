@@ -96,6 +96,7 @@ function measurement(
         keyDelayMs: 100,
         pid: 4242,
         query: QUERY,
+        sqlAtSentinels: { end: 121, start: 119 },
         queryTrace: [
             {
                 epochMs: 11_150,
@@ -211,6 +212,7 @@ test('a query per keystroke shows up per key, not only in the total', () => {
                 sqlStatements: 100,
                 waitedMs: 1_000,
             },
+            sqlAtSentinels: { end: 110, start: 100 },
             ipc: {
                 ...measurement().ipc,
                 callsBeforeSentinel: 5,
@@ -312,9 +314,7 @@ test('rejects work that moved between the quiet snapshot and the first key', () 
             toSearchIterationRecord(
                 1,
                 false,
-                measurement({
-                    samples: [sample(0, 0, 120), ...base.samples.slice(1)],
-                })
+                measurement({ sqlAtSentinels: { end: 122, start: 120 } })
             ),
         /activity-before-first-key-sql/
     );
@@ -420,5 +420,32 @@ test('rejects typing slower than the accepted cadence', () => {
     assert.deepEqual(
         toSearchIterationRecord(1, false, base).evidence['keyIntervalsMs'],
         [100, 100, 100, 100, 100]
+    );
+});
+
+test('counts SQL between the sentinels only', () => {
+    // Background statements after the end sentinel reach the final sample
+    // but not the counter; they show up after the settle instead.
+    const record = toSearchIterationRecord(
+        1,
+        false,
+        measurement({
+            afterSettled: sample(1, 1, 126),
+            samples: [...measurement().samples.slice(0, 6), sample(1, 1, 125)],
+        })
+    );
+    assert.equal(record.counters[SEARCH_JOURNEY_COUNTER.SQL_STATEMENTS], 2);
+    assert.deepEqual(record.evidence['sqlStatementsAfterSettled'], {
+        count: 5,
+        windowMs: 500,
+    });
+    assert.throws(
+        () =>
+            toSearchIterationRecord(
+                1,
+                false,
+                measurement({ sqlAtSentinels: { end: null, start: 119 } })
+            ),
+        /sql-at-sentinels-missing/
     );
 });

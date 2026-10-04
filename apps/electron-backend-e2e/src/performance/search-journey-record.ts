@@ -83,6 +83,14 @@ export interface SearchJourneyMeasurement {
     readonly afterSettled: SearchJourneyActivitySample;
     readonly afterSettledWindowMs: number;
     readonly settle: SearchJourneySettle;
+    /**
+     * `main.sqlStatements` read in the main process when the start and the
+     * end sentinel arrived; null when it was not read.
+     */
+    readonly sqlAtSentinels: {
+        readonly end: number | null;
+        readonly start: number | null;
+    };
     /** Every traced query event of the process, in arrival order. */
     readonly queryTrace: readonly SearchJourneyQueryTraceEntry[];
 }
@@ -175,15 +183,20 @@ export function toSearchIterationRecord(
     ) {
         throw new Error('search-journey-record-clock-order');
     }
+    const { end: sqlAtEnd, start: sqlAtStart } = measurement.sqlAtSentinels;
+    if (sqlAtStart === null || sqlAtEnd === null || sqlAtEnd < sqlAtStart) {
+        throw new Error('search-journey-record-sql-at-sentinels-missing');
+    }
     // Activity between the quiet snapshot and the first key could finish
-    // after it and be counted as the search's. The probe and the capture
-    // keep counting until the first keydown, so they must still match it.
+    // after it and be counted as the search's. The probe, the capture and
+    // the SQL total read at the start sentinel all reflect the first
+    // keydown, so they must still match the snapshot.
     const moved = [
         renderer.preStart.domMutations !== settle.preStartDomMutations
             ? 'dom'
             : null,
         ipc.callsBeforeStart !== settle.preStartIpcCalls ? 'ipc' : null,
-        samples[0].sqlStatements !== settle.sqlStatements ? 'sql' : null,
+        sqlAtStart !== settle.sqlStatements ? 'sql' : null,
     ].filter((kind): kind is string => kind !== null);
     if (moved.length > 0) {
         throw new Error(
@@ -256,8 +269,7 @@ export function toSearchIterationRecord(
                     renderer.counters.recentInputLayoutShiftScore
             ),
             [SEARCH_JOURNEY_COUNTER.LONG_TASKS]: renderer.counters.longTasks,
-            [SEARCH_JOURNEY_COUNTER.SQL_STATEMENTS]:
-                finalSample.sqlStatements - samples[0].sqlStatements,
+            [SEARCH_JOURNEY_COUNTER.SQL_STATEMENTS]: sqlAtEnd - sqlAtStart,
         }),
         evidence: Object.freeze({
             capabilities: renderer.capabilities,
@@ -298,10 +310,9 @@ export function toSearchIterationRecord(
             query: measurement.query,
             results: Object.freeze({ cardCount: renderer.settle.cardCount }),
             settle,
+            sqlAtSentinels: measurement.sqlAtSentinels,
             sqlStatementsAfterSettled: Object.freeze({
-                count:
-                    measurement.afterSettled.sqlStatements -
-                    finalSample.sqlStatements,
+                count: measurement.afterSettled.sqlStatements - sqlAtEnd,
                 windowMs: measurement.afterSettledWindowMs,
             }),
         }),

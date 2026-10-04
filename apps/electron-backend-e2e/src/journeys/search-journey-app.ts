@@ -22,6 +22,7 @@ import {
     armSearchJourneyProbe,
     createSearchJourneyProbeOptions,
     readSearchJourneyPreStartMutations,
+    type SearchJourneyProbeOptions,
     SEARCH_JOURNEY_INPUT_SELECTOR,
     SEARCH_JOURNEY_ROUTE_PATH,
     waitForSearchJourneyProbe,
@@ -218,6 +219,69 @@ async function traceQueryCalls(
     );
 }
 
+const SENTINEL_SQL_KEY = '__iptvnatorJourneySearchSentinelSql';
+
+/**
+ * Reads `main.sqlStatements` in the main process when the start and the end
+ * sentinel arrive, so the SQL counter covers exactly the IPC capture's
+ * window: database work just before the first key or after the settle is
+ * not counted. The gate's `invokeHandler` runs the counters handler
+ * synchronously, so the value is the total at the sentinel's arrival even
+ * though it is stored when the promise settles.
+ */
+async function stampSqlAtSentinels(
+    electronApp: ElectronApplication,
+    probeOptions: SearchJourneyProbeOptions
+): Promise<void> {
+    await electronApp.evaluate(
+        ({ ipcMain }, input) => {
+            const target = globalThis as unknown as Record<string, unknown>;
+            const gate = target[input.gateKey] as {
+                invokeHandler: (channel: string) => Promise<unknown>;
+            };
+            const state: Record<'end' | 'start', number | null> = {
+                end: null,
+                start: null,
+            };
+            target[input.key] = state;
+            ipcMain.on(input.channel, (_event, payload: unknown) => {
+                const record = payload as Record<string, unknown> | null;
+                if (
+                    record?.['method'] !== input.sentinelMethod ||
+                    record['phase'] !== 'start'
+                ) {
+                    return;
+                }
+                const args = JSON.stringify(record['args'] ?? null);
+                const which = args.includes(input.startId)
+                    ? 'start'
+                    : args.includes(input.endId)
+                      ? 'end'
+                      : null;
+                if (which === null || state[which] !== null) return;
+                void gate
+                    .invokeHandler(input.countersChannel)
+                    .then((snapshot) => {
+                        const value = (
+                            snapshot as { counters?: Record<string, number> }
+                        )?.counters?.[input.sqlCounter];
+                        state[which] = typeof value === 'number' ? value : null;
+                    });
+            });
+        },
+        {
+            channel: JOURNEY_RENDERER_API_TRACE_CHANNEL,
+            countersChannel: JOURNEY_PERFORMANCE_COUNTERS_CHANNEL,
+            endId: probeOptions.endSentinelId,
+            gateKey: JOURNEY_RENDERER_GATE_KEY,
+            key: SENTINEL_SQL_KEY,
+            sentinelMethod: probeOptions.sentinelMethod,
+            sqlCounter: JOURNEY_MAIN_COUNTER.SQL_STATEMENTS,
+            startId: probeOptions.startSentinelId,
+        }
+    );
+}
+
 async function readQueryTrace(
     electronApp: ElectronApplication
 ): Promise<SearchJourneyQueryTraceEntry[]> {
@@ -296,6 +360,7 @@ export async function measureSearchJourney(
     });
     await blockJourneyExternalArtwork(electronApp);
     await traceQueryCalls(electronApp);
+    await stampSqlAtSentinels(electronApp, probeOptions);
     await openGlobalSearch(mainWindow, timeoutMs);
     await installJourneyMainIpcCapture(electronApp, {
         channel: JOURNEY_RENDERER_API_TRACE_CHANNEL,
@@ -354,6 +419,15 @@ export async function measureSearchJourney(
         pid: session.launch.pid,
         query,
         queryTrace: await readQueryTrace(electronApp),
+        sqlAtSentinels: await electronApp.evaluate(
+            (_electron, key) =>
+                JSON.parse(
+                    JSON.stringify(
+                        (globalThis as unknown as Record<string, unknown>)[key]
+                    )
+                ) as SearchJourneyMeasurement['sqlAtSentinels'],
+            SENTINEL_SQL_KEY
+        ),
         renderer,
         samples,
         settle,
