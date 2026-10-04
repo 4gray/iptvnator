@@ -1602,6 +1602,77 @@ describe('DashboardDataService', () => {
             expect(titles()).toEqual([]);
         });
 
+        describe('in the PWA', () => {
+            const pwaRow = (id: number, title: string, xtreamId: number) => ({
+                id,
+                category_id: 1,
+                title,
+                viewed_at: '2026-10-04T09:00:00.000Z',
+                poster_url: `https://example.com/${xtreamId}.png`,
+                xtream_id: xtreamId,
+                type: 'movie',
+            });
+
+            beforeEach(() => {
+                // Constructed without the Electron bridge: the history comes
+                // from the Xtream data source, after the playlists are in.
+                Object.defineProperty(window, 'electron', {
+                    value: undefined,
+                    configurable: true,
+                });
+                TestBed.resetTestingModule();
+                TestBed.configureTestingModule(createTestingModuleProviders());
+                service = TestBed.inject(DashboardDataService);
+                TestBed.tick();
+            });
+
+            it('waits for the history read before listing anything', async () => {
+                const pending = createPendingItems<ReturnType<typeof pwaRow>>();
+                xtreamDataSourceMock.getRecentItems.mockImplementation(
+                    (playlistId: string) =>
+                        playlistId === PLAYLIST
+                            ? pending.promise
+                            : Promise.resolve([])
+                );
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    [vodPosition(101, 3491, 3552), vodPosition(102, 2700, 5400)]
+                );
+
+                const reload = service.reloadGlobalRecentItems();
+                TestBed.tick();
+                // The playlists alone used to count as the loaded history:
+                // with no movie known yet the rail settled empty, then listed
+                // the finished one until its position arrived.
+                expect(service.globalRecentLoaded()).toBe(false);
+                expect(service.continueWatchingSettled()).toBe(false);
+
+                pending.resolve([
+                    pwaRow(1, 'Credits Movie', 101),
+                    pwaRow(2, 'Halfway Movie', 102),
+                ]);
+                await reload;
+                expect(service.globalRecentLoaded()).toBe(true);
+                expect(titles()).toEqual([]);
+
+                await service.reloadPlaybackPositions();
+                expect(titles()).toEqual(['Halfway Movie']);
+            });
+
+            it('settles when the history read fails', async () => {
+                xtreamDataSourceMock.getRecentItems.mockRejectedValue(
+                    new Error('IndexedDB unavailable')
+                );
+
+                await expect(
+                    service.reloadGlobalRecentItems()
+                ).resolves.toBeUndefined();
+
+                expect(service.globalRecentLoaded()).toBe(true);
+                expect(service.globalRecentLoading()).toBe(false);
+                expect(service.continueWatchingSettled()).toBe(true);
+            });
+        });
+
         it('keeps the newest positions when an older reload finishes last', async () => {
             dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
                 recentRow(

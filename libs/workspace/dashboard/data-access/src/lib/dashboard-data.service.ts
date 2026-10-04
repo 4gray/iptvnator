@@ -171,9 +171,9 @@ export class DashboardDataService {
     );
     private readonly globalRecentLoadingState = signal(true);
     private readonly globalRecentLoadedState = signal(false);
-    private readonly globalRecentDbLoadedState = signal(
-        !this.hasPortalActivityStorage
-    );
+    // The portal history read, from SQLite or (PWA) the Xtream data source;
+    // the history is loaded once it and the playlist inventory are in.
+    private readonly globalRecentDbLoadedState = signal(false);
     private readonly globalFavoritesLoadingState = signal(true);
     private readonly globalFavoritesLoadedState = signal(false);
     private readonly xtreamGlobalFavoritesLoadedState = signal(false);
@@ -561,12 +561,20 @@ export class DashboardDataService {
         }
 
         if (!this.hasPortalActivityStorage) {
-            const recentItems = await this.loadPwaXtreamGlobalRecentItems();
-            this.ngZone.run(() =>
-                this.xtreamGlobalRecentItems.set(recentItems)
-            );
-            this.globalRecentDbLoadedState.set(true);
-            this.finishInitialGlobalRecentLoadIfReady();
+            try {
+                const recentItems = await this.loadPwaXtreamGlobalRecentItems();
+                this.ngZone.run(() =>
+                    this.xtreamGlobalRecentItems.set(recentItems)
+                );
+            } catch (err) {
+                console.warn(
+                    '[DashboardData] Failed to reload PWA recent items',
+                    err
+                );
+            } finally {
+                this.globalRecentDbLoadedState.set(true);
+                this.finishInitialGlobalRecentLoadIfReady();
+            }
             return;
         }
 

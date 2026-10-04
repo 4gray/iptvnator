@@ -204,11 +204,15 @@ and that pause holds the slide.
        credits finishes a title, as does "Mark watched". Finished titles stay
        in `globalRecentVodItems()` and on the Global Recent page ("See all");
        the rail's count badge counts only the unfinished ones. The list stays
-       empty until `continueWatchingSettled()`: the history has loaded and
-       `reloadPlaybackPositions()` has covered every playlist in it once, so
-       the rail inserts once instead of listing finished titles and dropping
-       them a moment later. A playlist whose positions failed to load counts
-       as covered, and later reloads update the rail in place;
+       empty until `continueWatchingSettled()`: the history has loaded (on
+       the PWA that includes its Xtream data-source read, not only the
+       playlist inventory) and `reloadPlaybackPositions()` has covered every
+       playlist in it once, so on first open the rail inserts once instead of
+       listing finished titles and dropping them a moment later. A playlist
+       whose positions failed to load counts as covered. The gate stays open
+       afterwards: like the history, a dashboard opened again first renders
+       the positions it already holds and refreshes them on entry, so a title
+       finished since the last visit leaves the rail when that refresh lands.
        `reloadPlaybackPositions()` applies only its latest call's result, so
        an older read finishing last cannot bring finished titles back.
        Portal playback positions are bulk-loaded per playlist so
