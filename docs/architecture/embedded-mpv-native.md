@@ -48,6 +48,9 @@ is frameless; the overlay supplies drag, minimize, return and close controls.
 Both windows are disposed together. Native video always uses the full content
 area, including while controls are visible. Edge hit testing passes through the
 overlay for resizing. Frame-copy and other platforms do not advertise this mode.
+The standalone overlay uses the same `material-design-icons-iconfont` package
+as the Angular app. The Electron build copies its stylesheet and WOFF2 font
+locally; the overlay CSP permits only local fonts, with no remote font request.
 
 MPV reports `seekable` and actual `demuxer-cache-state.seekable-ranges` in its
 snapshot. Floating VOD seeking requires seekability plus a finite duration;

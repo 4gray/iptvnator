@@ -5,36 +5,67 @@ const formatTime = (seconds) => {
 };
 let canSeek = false;
 let scrubbing = false;
+let lastAudibleVolume = 1;
+let currentVolume = 1;
+const paintRange = (input) => {
+    const span = Number(input.max) - Number(input.min);
+    const percent =
+        span > 0 ? (100 * (Number(input.value) - Number(input.min))) / span : 0;
+    input.style.setProperty(
+        '--progress',
+        `${Math.max(0, Math.min(100, percent))}%`
+    );
+};
 window.floatingPlayer.onState((state) => {
     canSeek = state.canSeek;
-    element('pause').textContent = state.paused ? '▶' : 'Ⅱ';
+    element('play-icon').hidden = !state.paused;
+    element('pause-icon').hidden = state.paused;
     element('pause').setAttribute(
         'aria-label',
         state.paused ? 'Play' : 'Pause'
     );
     element('pause').title = state.paused ? 'Play' : 'Pause';
     element('volume').value = Math.round(state.volume * 100);
+    currentVolume = state.volume;
+    if (currentVolume > 0) lastAudibleVolume = currentVolume;
+    element('speaker-waves').hidden = currentVolume === 0;
+    element('speaker-muted').hidden = currentVolume !== 0;
+    element('mute').title = currentVolume === 0 ? 'Unmute' : 'Mute';
+    element('mute').setAttribute('aria-label', element('mute').title);
     for (const id of ['back', 'forward', 'timeline'])
         element(id).hidden = !canSeek;
     element('timeline').min = state.seekStart;
     element('timeline').max = state.seekEnd || 1;
     if (!scrubbing) element('timeline').value = state.position;
+    paintRange(element('timeline'));
+    paintRange(element('volume'));
     element('back').disabled = state.position <= state.seekStart;
     element('forward').disabled = state.position >= state.seekEnd - 0.1;
     element('time').textContent = state.isLive
         ? canSeek
-            ? `LIVE · buffered ${formatTime(state.position - state.seekStart)} / ${formatTime(state.seekEnd - state.seekStart)}`
+            ? state.seekEnd - state.position <= 2
+                ? 'LIVE'
+                : `LIVE · −${formatTime(state.seekEnd - state.position)}`
             : 'LIVE'
         : `${formatTime(state.position)} / ${formatTime(state.seekEnd)}`;
+    element('time').title =
+        state.isLive && canSeek
+            ? 'Time behind the latest seekable buffered position'
+            : element('time').textContent;
 });
+element('mute').onclick = () =>
+    window.floatingPlayer.volume(currentVolume > 0 ? 0 : lastAudibleVolume);
 element('pause').onclick = () => window.floatingPlayer.pause();
 element('restore').onclick = element('close').onclick = () =>
     window.floatingPlayer.restore();
 element('minimize').onclick = () => window.floatingPlayer.minimize();
 element('back').onclick = () => window.floatingPlayer.seekBy(-10);
 element('forward').onclick = () => window.floatingPlayer.seekBy(10);
-element('volume').oninput = (event) =>
+element('volume').oninput = (event) => {
+    paintRange(event.target);
     window.floatingPlayer.volume(Number(event.target.value) / 100);
+};
+element('timeline').oninput = (event) => paintRange(event.target);
 element('timeline').onpointerdown = () => {
     scrubbing = true;
 };

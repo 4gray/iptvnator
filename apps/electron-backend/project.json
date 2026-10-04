@@ -63,6 +63,16 @@
                 "assets": [
                     "apps/electron-backend/src/assets",
                     {
+                        "glob": "material-design-icons.css",
+                        "input": "node_modules/material-design-icons-iconfont/dist",
+                        "output": "assets/floating-player/material-icons"
+                    },
+                    {
+                        "glob": "MaterialIcons-Regular.woff2",
+                        "input": "node_modules/material-design-icons-iconfont/dist/fonts",
+                        "output": "assets/floating-player/material-icons/fonts"
+                    },
+                    {
                         "glob": "**/*",
                         "input": "apps/electron-backend/native/build/Release",
                         "output": "native",

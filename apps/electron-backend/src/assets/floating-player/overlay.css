@@ -22,19 +22,19 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 8px 12px;
+    padding: 6px 10px;
     box-sizing: border-box;
     background: linear-gradient(#0009, transparent);
     user-select: none;
     cursor: move;
 }
-header span {
+header > span {
     padding-top: 5px;
     font-size: 13px;
 }
 nav {
     display: flex;
-    gap: 2px;
+    gap: 0;
 }
 button {
     border: 0;
@@ -44,7 +44,10 @@ button {
     min-width: 32px;
     min-height: 32px;
     border-radius: 50%;
-    font-size: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
 }
 button:hover,
 button:focus-visible {
@@ -80,22 +83,24 @@ main {
     height: 38px;
     text-shadow: 0 1px 6px black;
 }
-.skip small {
-    position: absolute;
-    left: 12px;
-    top: 15px;
-    font-size: 10px;
+button .material-icons {
+    font-size: 20px;
+}
+#pause .material-icons {
+    font-size: 28px;
+}
+.skip .material-icons {
+    font-size: 28px;
 }
 footer {
     position: absolute;
     inset: auto 0 0;
-    padding: 28px 14px 10px;
+    padding: 28px 16px 8px;
     background: linear-gradient(transparent, #000a);
 }
 #timeline {
     width: 100%;
-    margin: 0 0 8px;
-    accent-color: white;
+    margin: 0 0 4px;
 }
 .bottom-row {
     display: flex;
@@ -104,14 +109,55 @@ footer {
     gap: 8px;
     font-size: 12px;
 }
-label {
+.volume-controls {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
 }
 #volume {
-    width: 66px;
-    accent-color: white;
+    width: 52px;
+}
+input[type='range'] {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 20px;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+}
+input[type='range']::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(
+        to right,
+        #ddd var(--progress, 0%),
+        #ffffff55 var(--progress, 0%)
+    );
+}
+input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 8px;
+    height: 8px;
+    margin-top: -2.5px;
+    border-radius: 50%;
+    background: white;
+    border: 0;
+}
+input[type='range']:hover::-webkit-slider-thumb,
+input[type='range']:focus-visible::-webkit-slider-thumb {
+    width: 12px;
+    height: 12px;
+    margin-top: -4.5px;
+}
+#time {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+}
+.volume-controls {
+    flex-shrink: 0;
 }
 [hidden] {
     display: none !important;
