@@ -406,17 +406,21 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
             )
         )
         .toBe(0.25);
-    // M3U has no browse Back target, so the header shows no arrow in either
-    // state; the now-playing bar's own Close button returns to browse.
+    // M3U registers no Back target in either state: the header's only arrow
+    // is the history fallback to the dashboard the import started from,
+    // which claims no Escape. The now-playing bar's own Close button
+    // returns to browse.
     const shell = detail(page).locator('app-portal-detail-shell');
     const headerBack = page.locator('[data-test-id="workspace-header-back"]');
-    await expect(headerBack).toHaveCount(0);
+    await expect(headerBack).toHaveCount(1);
+    await expect(headerBack).not.toHaveAttribute('aria-keyshortcuts');
     await shell
         .locator('app-portal-inline-player')
         .getByRole('button', { name: 'Close player', exact: true })
         .click();
     await expect(inlineVideo(page)).toHaveCount(0);
-    await expect(headerBack).toHaveCount(0);
+    await expect(headerBack).toHaveCount(1);
+    await expect(headerBack).not.toHaveAttribute('aria-keyshortcuts');
     // The hero keeps its own inset (32px, or 20px in a pane narrower than
     // 760px) in both states.
     expect(

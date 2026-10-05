@@ -157,8 +157,9 @@ html {
     --app-cta-fg: #f5f6f8;
     --app-cta-hover-bg: #2a2f3a;
     --app-cta-meta-fg: rgba(245, 246, 248, 0.68);
-    // Star rating chip: amber on white needs a deeper tone than gold on dark.
-    --app-rating-color: #a16207;
+    // Star rating chip: a deep amber, since the chip's 12px text needs
+    // 4.5:1 over hero artwork under the light scrim (#a16207 measured 3.4:1).
+    --app-rating-color: #7a4a00;
 
     .dark-theme {
         @include mat.all-component-colors($dark-theme);

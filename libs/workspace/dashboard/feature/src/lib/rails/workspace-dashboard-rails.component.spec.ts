@@ -146,7 +146,6 @@ describe('buildDashboardContinueWatchingActions', () => {
 
 describe('resolveDashboardHeroArtwork', () => {
     const item = {
-        title: 'Broken Hero',
         posterUrl: 'https://images.example.test/poster.jpg',
         backdropUrl: 'https://images.example.test/backdrop.jpg',
     };
@@ -173,7 +172,8 @@ describe('resolveDashboardHeroArtwork', () => {
         });
     });
 
-    it('uses generated fallback artwork when backdrop and poster both fail', () => {
+    // The stylesheet paints the no-artwork gradient from the slide's hue.
+    it('reports no artwork when backdrop and poster both fail', () => {
         const artwork = resolveDashboardHeroArtwork(item, {
             [item.backdropUrl]: true,
             [item.posterUrl]: true,
@@ -185,8 +185,6 @@ describe('resolveDashboardHeroArtwork', () => {
             posterUrl: undefined,
             backdropUrl: undefined,
         });
-        expect(artwork.fallbackBackdropBackground).toContain('linear-gradient');
-        expect(artwork.fallbackPosterBackground).toContain('linear-gradient');
     });
 });
 

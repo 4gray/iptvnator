@@ -1,6 +1,10 @@
 <!-- No brand mark: it linked to the page the first workspace link opens.
      The page's Back lives in the header's leading slot. -->
-<aside class="app-rail" [class.is-macos]="isMacOS()">
+<aside
+    class="app-rail"
+    [class.is-macos]="isMacOS()"
+    [style.--rail-zoom-factor]="isMacOS() ? zoomFactor() : null"
+>
     <app-workspace-shell-rail-links [links]="workspaceLinks()" />
 
     @if (primaryContextLinks().length > 0) {

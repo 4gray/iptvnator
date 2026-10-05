@@ -93,10 +93,9 @@ The shell is intentionally split into four persistent regions:
     4. No brand mark: it only repeated the first workspace link (Dashboard,
        or Sources when the dashboard is off).
 2. Top header:
-    1. Leading Back slot, shown while the current page registers a target
-       with `WorkspaceBackNavigationService` (detail pages today). At
-       ≤640 px it takes the context drawer toggle's place. See
-       [Portal Detail Navigation](./portal-detail-navigation.md).
+    1. Leading Back slot: the current page's registered Back, else browser
+       history while an in-app previous page exists, else nothing. See
+       [Header Back](#header-back).
     2. Playlist switcher.
     3. Route-aware search input and command palette trigger.
     4. Add source action.
@@ -129,6 +128,71 @@ services:
 When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
 for the template unless the template contract itself intentionally changes.
+
+## Header Back
+
+The header's leading slot is the workspace's one page-level Back. Pages do not
+render an arrow of their own: they register a `WorkspaceBackTarget`
+(`@iptvnator/portal/shared/util`) with `WorkspaceBackNavigationService`
+(`@iptvnator/portal/shared/data-access`), normally through
+`registerWorkspaceBack()`, which registers for the calling component's
+lifetime while its optional `available` predicate holds. The newest
+registration wins, and each release removes only its own target. The button
+(`data-test-id="workspace-header-back"`) sits beside the macOS traffic lights,
+never scrolls, and has Electron `no-drag` hit testing. A target supplies its
+label (else the translated "Back"), whether Escape on the page runs it, and
+`run()`.
+
+| Page | Registered by | Back runs | ≤640 px |
+| --- | --- | --- | --- |
+| Portal, collection, offline and recording details | `PortalDetailShellComponent` while `backAvailable()` | the host's `backClicked` | replaces the drawer toggle |
+| Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's `Location.back()` | (no drawer) |
+| In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | `Location.back()` | (no drawer) |
+| Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | `Location.back()` | beside the drawer toggle |
+
+Detail-page semantics (Escape, browse and watch) are in
+[Portal Detail Navigation](./portal-detail-navigation.md#detail-scroll-and-focus).
+
+**History fallback.** Without a registration, the header shows Back while the
+previous history entry is an in-app one, and runs `Location.back()`. The
+service reads that from the Navigation API: the previous entry must be
+same-document (`NavigationHistoryEntry.sameDocument`), so the router pushed it
+after this document loaded. Entries from before a reload or from another page
+of the origin never count, and the fallback can neither leave nor reload the
+app. `currententrychange` keeps it current through pushes, replacements,
+traversals and guard-cancelled Back navigations that the router rewrites.
+Without the Navigation API (older Safari and Firefox, jsdom) there is no
+fallback; registered pages are unaffected. The fallback reads "Back" and
+advertises no Escape, because no page handles one for it. Pages that set
+`backAvailable=false`, such as M3U details, therefore show it too when they
+were reached by navigation.
+
+When there is nowhere to go, the slot is empty rather than a disabled arrow.
+Sessions often start on a page that never navigates (an M3U playlist or live
+TV), where a disabled arrow would stay for the whole session. The cost is one
+shift of the switcher and search when Back first appears or leaves, which
+happens only at the start of the history and together with a route change.
+There is no Forward button: Stalker inline details are store state, not
+history entries, so Forward would skip them.
+
+**Phone width.** `phoneDrawerToggle` sets how Back shares the leading slot with
+the context drawer toggle. `replace` (the default) takes the toggle's slot: a
+detail page's drawer belongs to the list that Back returns to. `beside` keeps
+both: the settings drawer holds the page's own sections. `yield` hides Back
+while the toggle shows: the history fallback must not cost a category list its
+only way into the drawer, and two navigation icons do not fit beside the
+switcher. System and browser Back still work there.
+
+**Left in place.** These controls stay inside their surface on purpose:
+
+1. Downloads offline and recording detail error states keep their labelled
+   "Back to Downloads" button beside Retry or Remove. It is the error state's
+   recovery action, not page chrome; the header shows the same Back.
+2. Back controls internal to a surface, which leave a panel rather than the
+   page: the Embedded MPV dock panel and the alternative-sources panel inside
+   the VOD "…" menu.
+3. The M3U player sidebar's Home button, which renders only outside the
+   workspace shell.
 
 ## Context Panel Rules
 
@@ -326,7 +390,15 @@ The Electron window hides the native title bar on all desktop platforms
 (`titleBarStyle: 'hidden'` in `apps/electron-backend/src/app/app.ts`):
 
 1. macOS keeps the native traffic lights (`titleBarOverlay: true`,
-   `trafficLightPosition`); the renderer draws no window buttons.
+   `trafficLightPosition`); the renderer draws no window buttons. The lights
+   sit in the 56 px header band above the rail, so the macOS rail
+   (`.app-rail.is-macos`) starts its first link at 56 px: level with the
+   content area and the dashboard hero, with its hover surface clear of the
+   lights. App zoom scales CSS pixels but not the lights, so the rail
+   publishes the page zoom factor (`outerWidth / innerWidth`, refreshed on
+   `resize`) as `--rail-zoom-factor` and keeps at least 48 window pixels when
+   zoomed out. `window-controls.e2e.ts` checks the alignment and the gap at
+   default and minimum zoom on macOS.
 2. Windows and Linux use renderer-drawn window controls
    (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
    `frame` is intentionally left untouched so native resize borders and

@@ -3,6 +3,11 @@
     [class.rails-page--empty]="ready() && !hasPlaylists()"
     data-test-id="dashboard-page"
 >
+    <!-- The page's one stable h1: the rail already names the page, and the
+         hero's rotating title is only the current slide (an h2). -->
+    <h1 class="visually-hidden" data-test-id="dashboard-page-heading">
+        {{ 'WORKSPACE.SHELL.RAIL_DASHBOARD' | translate }}
+    </h1>
     @if (data.playlistsLoaded() && !hasPlaylists()) {
         <app-empty-state
             [type]="'welcome-dashboard'"

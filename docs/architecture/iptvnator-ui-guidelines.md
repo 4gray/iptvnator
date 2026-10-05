@@ -189,6 +189,18 @@ scrim after three idle seconds, with a 32px mute toggle in the corner. It
 never starts under `prefers-reduced-motion` or with `saveData`, and stops
 while the hero is off screen or the window is unfocused.
 
+## Back Navigation
+
+Page-level Back lives only in the workspace header's leading slot (see
+[Header Back](./workspace-shell.md#header-back)). A routed page, or the shell
+it renders in, registers it with `registerWorkspaceBack()` instead of drawing
+an arrow, so Back keeps one position and one look on every page and never
+floats over a scroll owner. Without a registration the header falls back to
+browser history while an in-app previous page exists, and shows nothing
+otherwise. An arrow that returns within a menu, dialog or player panel is not
+page navigation and stays in that surface; an error state may repeat the
+header's Back as a labelled recovery button beside its other actions.
+
 ## Electron Drag Regions
 
 Every interactive descendant of a drag region—including buttons, links,
@@ -890,7 +902,10 @@ Prefer removing a control over shrinking everything around it:
 - Counts and subtitles that a neighbouring control already states.
 
 Never drop the only way back to a hidden surface. A collapse toggle that is
-reachable by touch needs its restore affordance to be reachable too.
+reachable by touch needs its restore affordance to be reachable too. For the
+same reason the header's history Back yields to the context drawer toggle,
+and Settings keeps the toggle beside its Back; only a detail page's Back,
+whose list shows the toggle again, takes the toggle's slot.
 
 ## Typography
 
@@ -908,8 +923,10 @@ heavier faces would exceed the initial-bytes ratchet).
 - JetBrains Mono text stays at 500 or lighter, also where it is a fallback
   behind `ui-monospace` (only macOS resolves that). The check enforces this in
   any rule that sets the family, directly or through a variable, or inherits
-  it from an enclosing rule. It cannot see what a mono modifier class inherits
-  from its base rule; set `font-weight: 500` there.
+  it from an enclosing rule. A mixin's family and weights count where it is
+  included, from its own stylesheet module or another one. It cannot see what
+  a mono modifier class inherits from its base rule; set `font-weight: 500`
+  there.
 - Import whole `@fontsource/<family>/<weight>.css` files. The single-script
   files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
   face wins the weight match for Latin text in `Roboto, …` stacks and sends it

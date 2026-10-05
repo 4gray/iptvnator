@@ -24,13 +24,22 @@
         var(--dashboard-gutter, 28px) +
             max(0px, (100cqw - var(--dashboard-max-width, 1440px)) / 2)
     );
+    // The slide's widest extent, and its right edge measured from the
+    // hero's left edge: the scrim holds its text-safe opacity up to there.
+    --hero-text-width: min(560px, 55%);
+    --hero-text-edge: calc(var(--hero-inset) + var(--hero-text-width));
     --hero-scrim: var(--app-content-bg, #161a22);
     --hero-heading: var(--app-heading-color, #d8dce8);
     --hero-body: color-mix(
         in srgb,
-        var(--app-heading-color, #d8dce8) 72%,
+        var(--app-heading-color, #d8dce8) 85%,
         var(--hero-scrim)
     );
+    // Saturation and lightness of the no-artwork gradient. Light by
+    // default: a near-black gradient under the light theme's page-coloured
+    // scrim turned into a grey slab behind dark text.
+    --hero-fallback-from: 55% 90%;
+    --hero-fallback-to: 60% 78%;
     --hero-pill-bg: color-mix(
         in srgb,
         var(--app-on-surface, #e6e1e5) 12%,
@@ -61,6 +70,11 @@
     }
 }
 
+:host-context(.dark-theme) .hero {
+    --hero-fallback-from: 50% 15%;
+    --hero-fallback-to: 80% 5%;
+}
+
 // ── Backdrops ──────────────────────────────────────────────────────────────
 .hero__stage {
     position: absolute;
@@ -86,6 +100,15 @@
     inset: 0;
     width: 100%;
     height: 100%;
+}
+
+// No artwork at all: a gradient tinted by the title's hue (`--hero-hue`).
+.hero__backdrop-fallback {
+    background: linear-gradient(
+        135deg,
+        hsl(var(--hero-hue) var(--hero-fallback-from)) 0%,
+        hsl(calc(var(--hero-hue) + 60) var(--hero-fallback-to)) 100%
+    );
 }
 
 .hero__backdrop-image {
@@ -173,6 +196,9 @@
     }
 }
 
+// Text never sits on less than 88% of the page colour: the side gradient
+// holds that up to the slide's right edge and only then opens onto the art.
+// Fixed stops at 30% / 60% left the end of a full-width slide on ~45%.
 .hero__scrim {
     position: absolute;
     inset: 0;
@@ -180,8 +206,10 @@
         linear-gradient(
             90deg,
             color-mix(in srgb, var(--hero-scrim) 96%, transparent) 0%,
-            color-mix(in srgb, var(--hero-scrim) 85%, transparent) 30%,
-            color-mix(in srgb, var(--hero-scrim) 35%, transparent) 60%,
+            color-mix(in srgb, var(--hero-scrim) 88%, transparent)
+                var(--hero-text-edge),
+            color-mix(in srgb, var(--hero-scrim) 35%, transparent)
+                calc(var(--hero-text-edge) + 18%),
             transparent 100%
         ),
         linear-gradient(
@@ -205,7 +233,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
-    max-width: min(560px, 55%);
+    max-width: var(--hero-text-width);
     animation: hero-content-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
@@ -216,6 +244,17 @@
     }
     to {
         opacity: 1;
+        transform: none;
+    }
+}
+
+// The narrow layout's entrance: no fade, because the slide carries its own
+// scrim there and a fading scrim would flash the art on every rotation.
+@keyframes hero-content-rise {
+    from {
+        transform: translateY(8px);
+    }
+    to {
         transform: none;
     }
 }
@@ -356,6 +395,10 @@
     padding: 0 18px 0 14px;
     box-sizing: border-box;
     border-radius: 10px;
+    // A long label (or translation) ends in an ellipsis instead of pushing
+    // the button past a narrow slide; the icon keeps its size.
+    max-width: 100%;
+    min-width: 0;
     font-size: 13px;
     font-weight: 600;
     line-height: 1;
@@ -366,7 +409,14 @@
         box-shadow 0.15s ease,
         transform 0.15s ease;
 
+    > span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     mat-icon {
+        flex: 0 0 auto;
         width: 20px;
         height: 20px;
         font-size: 20px;
@@ -471,15 +521,16 @@
 .hero__dots {
     display: flex;
     align-items: center;
+    gap: 2px;
 }
 
-// 6px dots inside a 20px hit area; the active one stretches into a pill
-// whose fill runs for one rotation interval.
+// 6px dots inside a 24px hit area (WCAG 2.5.8 target size), 2px apart; the
+// active one stretches into a pill whose fill runs for one rotation interval.
 .hero__dot {
     display: grid;
     place-items: center;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -516,7 +567,7 @@
     }
 
     &--active {
-        width: 30px;
+        width: 32px;
 
         &::before {
             width: 18px;
@@ -527,8 +578,8 @@
 .hero__dot-fill {
     grid-area: 1 / 1;
     justify-self: start;
-    // Aligns with the 18px pill centred in the 30px button.
-    margin-left: 6px;
+    // Aligns with the 18px pill centred in the 32px button.
+    margin-left: 7px;
     width: 0;
     height: 6px;
     border-radius: 3px;
@@ -632,6 +683,29 @@
         // Clears the rotation controls, which move to the top here.
         padding: 64px 0 28px;
         max-width: none;
+        animation-name: hero-content-rise;
+        text-shadow: 0 1px 2px
+            color-mix(in srgb, var(--hero-scrim) 80%, transparent);
+    }
+
+    // The slide spans the whole width here, over the art: the full-bleed
+    // scrim behind the text block keeps it on at least 90% of the page
+    // colour, fading in just above the eyebrow.
+    .hero__content::before {
+        content: '';
+        position: absolute;
+        z-index: -1;
+        inset: 24px calc(-1 * var(--hero-inset)) 0;
+        background: linear-gradient(
+            180deg,
+            transparent,
+            color-mix(in srgb, var(--hero-scrim) 90%, transparent) 40px
+        );
+        pointer-events: none;
+    }
+
+    .hero__button {
+        text-shadow: none;
     }
 
     .hero__controls {
