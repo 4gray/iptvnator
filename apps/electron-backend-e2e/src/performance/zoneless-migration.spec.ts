@@ -12,9 +12,16 @@ import { fileURLToPath } from 'node:url';
 const workspaceRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const checklistPath = 'docs/architecture/zoneless-migration.md';
 const sourceRoots = ['apps', 'libs'];
-const skippedDirectories = new Set(['node_modules', 'dist', 'coverage']);
-const testOnlyFile =
-    /(\.spec|\.spec-stubs|\.spec-data|\.test-helpers|test-setup)\.ts$/;
+const skippedDirectories = new Set([
+    'node_modules',
+    'dist',
+    'coverage',
+    'test-stubs',
+]);
+// Test-only files follow the repository's `.spec` / `.test` naming, with an
+// optional suffix of one or more segments (`.spec-stubs.ts`,
+// `.test-helpers.ts`, `.test-data-stubs.ts`).
+const testOnlyFile = /(\.(spec|test)(-\w+)*|^test-setup)\.ts$/;
 
 function listProductionSources(directory: string): string[] {
     const files: string[] = [];
@@ -76,6 +83,27 @@ test('the zoneless checklist lists exactly the components that are still Eager',
         `Production files with ChangeDetectionStrategy.Eager must match the unticked entries in ${checklistPath}. ` +
             'Do not add Eager components; tick an entry when its component is converted.'
     );
+});
+
+test('the guard skips test-only file names and keeps production ones', () => {
+    for (const name of [
+        'player.component.spec.ts',
+        'serial-details.test-stubs.ts',
+        'dashboard.spec-stubs.ts',
+        'rail.test-data-stubs.ts',
+        'test-setup.ts',
+    ]) {
+        assert.ok(testOnlyFile.test(name), `${name} is test-only`);
+    }
+    for (const name of [
+        'player.component.ts',
+        'spec-utils.ts',
+        'contest.ts',
+        'latest-setup.ts',
+        'testing.service.ts',
+    ]) {
+        assert.ok(!testOnlyFile.test(name), `${name} ships`);
+    }
 });
 
 test('ticked checklist entries name files that exist', () => {
