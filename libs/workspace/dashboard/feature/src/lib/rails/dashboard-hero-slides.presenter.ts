@@ -221,7 +221,6 @@ export class DashboardHeroSlidesPresenter {
             {
                 backdropUrl: item.backdrop_url || extras?.backdropUrl || null,
                 posterUrl: item.poster_url,
-                title: item.title,
             },
             this.failedImages()
         );

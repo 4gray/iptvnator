@@ -1,7 +1,9 @@
+import { Location } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { WorkspaceSettingsContextPanelComponent } from './workspace-settings-context-panel.component';
 
@@ -45,6 +47,29 @@ describe('WorkspaceSettingsContextPanelComponent', () => {
             ) as HTMLElement;
         return { ctx, fixture, link };
     }
+
+    it('offers Back in the header, beside the phone drawer toggle', () => {
+        const { fixture } = setup();
+        const back = jest
+            .spyOn(TestBed.inject(Location), 'back')
+            .mockImplementation(() => undefined);
+        const backNavigation = TestBed.inject(WorkspaceBackNavigationService);
+
+        // The panel carries no footer arrow of its own.
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector('button')
+        ).toBeNull();
+        const target = backNavigation.target();
+        // The drawer holds the sections, so its toggle must stay reachable.
+        expect(target?.phoneDrawerToggle).toBe('beside');
+        expect(target?.label()).toBeNull();
+
+        backNavigation.goBack();
+        expect(back).toHaveBeenCalledTimes(1);
+
+        fixture.destroy();
+        expect(backNavigation.target()).toBeNull();
+    });
 
     it('shows no counts while settings search is idle', () => {
         const { link } = setup();

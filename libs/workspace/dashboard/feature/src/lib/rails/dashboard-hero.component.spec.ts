@@ -27,8 +27,6 @@ const slide = (id: string, title: string): DashboardHeroSlide => ({
     progress: null,
     accentHue: 200,
     backdropSource: 'fallback',
-    fallbackBackdropBackground: 'none',
-    fallbackPosterBackground: 'none',
     hasBackdrop: false,
     primaryAction: {
         labelKey: 'WORKSPACE.DASHBOARD.HERO_CONTINUE',
@@ -46,7 +44,7 @@ describe('DashboardHeroComponent', () => {
 
     const host = () => fixture.nativeElement as HTMLElement;
     const activeTitle = () =>
-        host().querySelector('[data-test-id=dashboard-hero-slide] h1')
+        host().querySelector('[data-test-id=dashboard-hero-slide] h2')
             ?.textContent;
     const dots = () =>
         Array.from(
@@ -254,6 +252,78 @@ describe('DashboardHeroComponent', () => {
                 .querySelector('[data-test-id=dashboard-hero-primary-action]')
                 ?.getAttribute('href')
         ).toBe('/workspace/a');
+    });
+
+    it('titles each slide with an h2 and leaves the h1 to the page', () => {
+        render();
+
+        expect(host().querySelector('h1')).toBeNull();
+        expect(activeTitle()).toBe('First');
+    });
+
+    it('announces slide changes through one live region that outlives the slides', () => {
+        // A live region inserted together with its text is not announced,
+        // so it must not belong to the slide that the @for re-creates.
+        render();
+        const announcement = () =>
+            host().querySelector<HTMLElement>(
+                '[data-test-id=dashboard-hero-announcement]'
+            );
+        const region = announcement();
+        expect(region).not.toBeNull();
+        expect(
+            region?.closest('[data-test-id=dashboard-hero-slide]')
+        ).toBeNull();
+        expect(
+            host()
+                .querySelector('[data-test-id=dashboard-hero-slide]')
+                ?.hasAttribute('aria-live')
+        ).toBe(false);
+        // Rotating on its own: silent.
+        expect(region?.getAttribute('aria-live')).toBe('off');
+        expect(region?.textContent).toContain('First');
+
+        const section = host().querySelector(
+            '[data-test-id=dashboard-hero]'
+        ) as HTMLElement;
+        section.dispatchEvent(new Event('focusin'));
+        dots()[1].click();
+        fixture.detectChanges();
+
+        expect(announcement()).toBe(region);
+        expect(region?.getAttribute('aria-live')).toBe('polite');
+        expect(region?.getAttribute('aria-atomic')).toBe('true');
+        expect(region?.textContent).toContain('Second');
+    });
+
+    it('names the progress bar after what is progressing', () => {
+        slides.set([
+            { ...slide('a', 'Movie'), progress: 42 },
+            {
+                ...slide('b', 'Channel'),
+                contentType: 'live',
+                programmeTitle: 'Evening programme',
+                progress: 10,
+            },
+        ]);
+        render();
+        const bar = () =>
+            host().querySelector(
+                '[data-test-id=dashboard-hero-slide] [role=progressbar]'
+            );
+
+        expect(bar()?.getAttribute('aria-label')).toBe('Movie');
+        // The translate pipe echoes the key in this test bed.
+        expect(bar()?.getAttribute('aria-valuetext')).toBe(
+            'WORKSPACE.DASHBOARD.PERCENT_WATCHED'
+        );
+
+        dots()[1].click();
+        fixture.detectChanges();
+        expect(bar()?.getAttribute('aria-label')).toBe('Evening programme');
+        // Elapsed share of a live programme: the plain percentage.
+        expect(bar()?.hasAttribute('aria-valuetext')).toBe(false);
+        expect(bar()?.getAttribute('aria-valuenow')).toBe('10');
     });
 
     it('positions the progress fill through a custom property, never its width', () => {

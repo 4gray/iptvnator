@@ -23,27 +23,29 @@ do not reach global player shortcuts. Descendant controls retain their native
 keys and Tab order. Entering watch still scrolls to the top; Back and saved
 catalog scroll positions retain the existing navigation contract below.
 
-The shell owns the page's Back action, but the workspace header renders it.
-While `backAvailable()` is true, the shell registers a target with
-`WorkspaceBackNavigationService` (`@iptvnator/portal/shared/data-access`). The
-target, the `WorkspaceBackTarget` contract in `@iptvnator/portal/shared/util`,
-carries a label (the host's `backLabel`, else the translated "Back"), whether
-Escape currently runs it, and `run()`, which emits `backClicked`. The service
-keeps a stack in which the newest registration wins, and each release removes
-only its own target. A loading shell replaced by the loaded one therefore
-cannot clear its successor, whichever is destroyed first. The header shows the target as an `arrow_back`
-icon button in its leading slot (`data-test-id="workspace-header-back"`), to
-the right of the macOS traffic lights. That is where desktop apps and Material's
-top app bar keep navigation. The header never scrolls, so the control stays
-visible over long episode lists, and nothing floats over the scroll owner:
-detail columns keep symmetric insets and their full width. The button has
-Electron `no-drag` hit testing. In browse its tooltip and `aria-keyshortcuts`
+The shell owns the page's Back action, but the workspace header renders it
+(the general contract, other pages and the history fallback are in
+[Header Back](./workspace-shell.md#header-back)). While `backAvailable()` is
+true, the shell registers a target through `registerWorkspaceBack()`
+(`@iptvnator/portal/shared/data-access`). It carries the host's `backLabel`
+(else the translated "Back"), whether Escape currently runs it, and `run()`,
+which emits `backClicked`. The newest registration wins and each release
+removes only its own target, so a loading shell replaced by the loaded one
+cannot clear its successor, whichever is destroyed first. The header shows the
+target as an `arrow_back` icon button in its leading slot
+(`data-test-id="workspace-header-back"`), to the right of the macOS traffic
+lights. That is where desktop apps and Material's top app bar keep navigation.
+The header never scrolls, so the control stays visible over long episode
+lists, and nothing floats over the scroll owner: detail columns keep symmetric
+insets and their full width. In browse its tooltip and `aria-keyshortcuts`
 advertise Escape, and an Escape pressed on the focused button runs Back
 itself, because the shell's browse Escape requires focus inside the page. At
 ≤640 px Back takes the context drawer toggle's slot (one navigation icon); the
-list it returns to shows the toggle again. This replaced #1763's 72 px lane
-reserved beside a sticky in-page arrow, along with its phone bar. Electron E2E
-`detail-header-back.e2e.ts` covers 1280, 780 and 375 px in browse and watch.
+list it returns to shows the toggle again, and there the history fallback
+yields to it. This replaced #1763's 72 px lane reserved beside a sticky
+in-page arrow, along with its phone bar. Electron E2E
+`detail-header-back.e2e.ts` covers 1280, 780 and 375 px in browse and watch,
+and the history fallback on the list Back returns to.
 
 The header Back is route-level in both states: it emits `backClicked`
 whether or not inline playback is active, so the arrow keeps one meaning and
@@ -67,8 +69,13 @@ keep working on the page.
 Hosts without browse navigation set `backAvailable=false`: M3U uses its channel
 sidebar, and collection bootstrap placeholders have no return handler. They
 register no header Back in either state and have no browse Escape action; their
-watch exits are the bar's Close player button and Escape. Loading/error shells
-with a return handler keep Back available.
+watch exits are the bar's Close player button and Escape. The header may still
+show the history fallback there (a generic Back to the previous page, without
+Escape) when the page was reached by in-app navigation. Loading/error shells
+with a return handler keep Back available. The downloads offline and recording
+error states additionally keep a labelled "Back to Downloads" button beside
+Retry or Remove: it is the error state's recovery action and runs the same
+handler as the header Back.
 
 ## Summary
 

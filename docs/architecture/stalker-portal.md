@@ -484,7 +484,8 @@ the format at all, so a large share of working installations use a non-Infomir
 MAC. Refusing one would stop those users adding or editing a portal that works
 for them. The mock encodes the same split (`enforceMacFormat` is set only on
 the strict endpoint; `/portal.php` ignores it), and `AUTH_REJECTED_MAC` in
-`stalker.e2e.ts` depends on it — a non-Infomir MAC that must reach the strict
+`stalker-portal.fixture.ts` (used by `stalker.e2e.ts`) depends on it — a
+non-Infomir MAC that must reach the strict
 endpoint and be refused _there_, not in the form.
 
 In the edit dialog **both** passes — blur and submit — normalize only a MAC the
@@ -1557,6 +1558,69 @@ Core decision logic and normalization are centralized in:
 
 - `libs/portal/stalker/data-access/src/lib/stalker-vod.utils.ts`
 - `libs/portal/stalker/data-access/src/lib/models/*.ts`
+
+## Forced External Launches
+
+"Open in external player" needs a `create_link` round trip before it reaches
+MPV/VLC. The shared rules are in
+[Forced External Launches From Detail Pages](./embedded-inline-playback.md#forced-external-launches-from-detail-pages);
+the Stalker keys and queues are:
+
+Series (`StalkerSeriesViewComponent`, `stalker-series-launch-queue.ts`):
+
+- Pending starts and the launch queue's held choices are keyed by
+  `playlist:series` (`currentSeriesKey`). The view is reused across series
+  and provider ids collide across playlists, so one series settling never
+  drops what another holds.
+- A start is pending for its series from the click until it settles. A forced
+  launch stays pending through the close of the previous player, the launch
+  and the release of a held choice. The pending flag disables the hero button
+  and the menu's external-player and watched rows.
+- Before launching, an episode of the same series still running externally is
+  closed (`replaceOwnedExternalSession`). The request is rechecked after that
+  close and after the launch IPC; a superseded launch closes the session it
+  opened.
+- An episode chosen while a forced launch of its series is mid-flight is held
+  (`StalkerSeriesLaunchQueue.hold`); the latest choice per series wins. On
+  release it is dropped when the series is no longer shown. Otherwise
+  `replacePlayer` closes what the launch opened before the choice starts, and
+  an unconfirmed close drops the choice.
+- An episode chosen while a watched or reset batch runs is held in one slot
+  tagged with its series; the last choice wins. When the batch settles it
+  goes through the usual gates only if that series is still shown: episode
+  identities overlap across series.
+
+Movies (`createStalkerVodDetailActions`, used by the catalog detail, the
+collection detail and search):
+
+- A repeat for the same `playlist:movie` while its launch is in flight is
+  ignored, also after leaving the movie and returning to it. Launches of
+  other movies are not held back.
+- The launch joins the host's starts (`beginPendingStart`): it supersedes an
+  earlier start, is dropped once a later one begins, and keeps Play, Start
+  over, the watched toggle and the menu rows disabled until it settles.
+- The resolved stream is discarded when the movie is no longer selected or a
+  newer start took over. Movie and series ids collide, so the catalog and
+  collection details include the content type in the selection check; in
+  search, a switch to a series changes the playback owner instead, which
+  supersedes the launch. Otherwise the movie's own external
+  session is replaced, the host's `beforeExternalLaunch` hook runs (the
+  catalog and collection details close their inline player there), and the
+  launch is sent. A launch that resolves after either condition changed
+  closes the session it opened; one that fails by then is not reported.
+- "Reset progress" counts as a pending start of the movie until the write
+  lands, so a start made meanwhile cannot resume from the row being cleared.
+- The pending start is owner-scoped (`createPendingPlaybackStart`). Each host
+  retires it when the selection leaves the owner; that clears the pending
+  flag, not the repeat guard of a launch still in flight.
+
+Regression coverage: `stalker-series-launch-queue.spec.ts`,
+`stalker-series-view.component.spec.ts`,
+`stalker-series-view.season-watch.spec.ts`,
+`stalker-vod-detail-actions.spec.ts`,
+`stalker-vod-playback-controller.spec.ts` and, in
+`libs/portal/shared/util/src/lib/`, `pending-playback-start.spec.ts` and
+`replace-owned-external-session.spec.ts`.
 
 ## Favorites and Recently Viewed
 

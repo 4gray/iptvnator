@@ -174,6 +174,12 @@ export class EmbeddedMpvNativeService {
     private powerBlockerId: number | null = null;
     private readonly loadAddonModule = createRequire(__filename);
     private cachedLinuxMpvExecutableReason: string | null | undefined;
+    /**
+     * True while `mpv --version` runs, or was cached, on the inherited PATH
+     * because the login shell had not answered: a missing mpv is then no
+     * verdict yet.
+     */
+    private linuxMpvExecutableProbeIsProvisional = false;
     private frameCopyAdapter: EmbeddedMpvFrameCopyAdapter | null = null;
     private sessionOptionsDirectory: string | null = null;
     /**
@@ -401,6 +407,16 @@ export class EmbeddedMpvNativeService {
      */
     forgetLinuxMpvExecutableProbe(): void {
         this.cachedLinuxMpvExecutableReason = undefined;
+        this.linuxMpvExecutableProbeIsProvisional = false;
+    }
+
+    /**
+     * Declares that the probe sees the inherited PATH, the login shell one
+     * not having arrived. Until `forgetLinuxMpvExecutableProbe()`, a missing
+     * mpv is reported as `inconclusive`, so no caller settles on it.
+     */
+    markLinuxMpvExecutableProbeProvisional(): void {
+        this.linuxMpvExecutableProbeIsProvisional = true;
     }
 
     getSupport(): EmbeddedMpvSupport {
@@ -458,6 +474,9 @@ export class EmbeddedMpvNativeService {
                 supported: false,
                 platform: process.platform,
                 reason: missingLinuxMpvExecutableReason,
+                ...(this.linuxMpvExecutableProbeIsProvisional
+                    ? { inconclusive: true }
+                    : {}),
                 ...this.getFrameCopySupportDetails(),
             };
         }

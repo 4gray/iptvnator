@@ -14,11 +14,11 @@ faq:
 - q: Which portal URL should I enter?
   a: Whatever your provider gave you, as long as it starts with http or https. A bare host, an address ending in /c, portal.php, or server/load.php all work. IPTVnator probes the usual endpoints behind that address and keeps the one that answers, so you rarely need to guess the exact path.
 - q: The provider's MAC address is written with dashes or in lowercase. Does it matter?
-  a: No. IPTVnator normalizes hyphens, dots, spaces and lowercase letters into the canonical 00:1A:79:XX:XX:XX form when you leave the field, and again when you click Add. The bytes stay the same, so the portal sees the address it registered.
+  a: No. IPTVnator normalizes hyphens, dots, spaces and lowercase letters into the canonical 00:1A:79:XX:XX:XX form when you leave the field, and again when you click Add playlist. The bytes stay the same, so the portal sees the address it registered.
 - q: Should I turn on "Generate device IDs from the MAC address"?
   a: Only for a MAC the portal has never seen, or one you already use in StbEmu with generated IDs. A portal pins the first device ID it receives to the MAC and refuses any other one afterwards, so enabling it for an existing box with a different ID locks the account out. If your provider did not mention device IDs, leave the option off.
 - q: Why does IPTVnator ask for a username and password on some portals?
-  a: A few Ministra portals require a login on top of the MAC address. IPTVnator reports "This portal requires a login and password" when it sees that; fill in the two optional fields and click Add again. Portals that never ask for it ignore the fields.
+  a: A few Ministra portals require a login on top of the MAC address. IPTVnator reports "This portal requires a login and password" under the portal URL when it sees that; fill in the two optional fields and click Add playlist again. Portals that never ask for it ignore the fields.
 - q: Does IPTVnator show a program guide and catch-up for portal channels?
   a: Yes. It loads the portal's seven-day schedule once per session and shows the current program in the channel list and a timeline under the player. Channels the portal marks as archived can be played from the timeline. On the desktop app, XMLTV sources configured in the settings act as a fallback.
 - q: Where can I see when my portal subscription expires?
@@ -65,8 +65,8 @@ it, because some reseller panels are configured differently.
   steps={[
     'Open the Add playlist dialog from the dashboard, the header playlist switcher, or the command palette entry "Add Stalker portal".',
     'Choose the "Stalker portal" method.',
-    'Fill in a title of your choice, the portal URL and the MAC address. Leave the optional fields empty unless your provider gave you values for them.',
-    'Click "Add". IPTVnator probes the portal, authenticates with your MAC address, and opens the new source. "Validating portal..." can take a few seconds on slow servers.',
+    'Fill in a playlist title of your choice, the portal URL in the "Server URL" field and the MAC address. Leave the optional fields empty unless your provider gave you values for them.',
+    'Click "Add playlist". IPTVnator probes the portal, authenticates with your MAC address, and opens the new source. "Validating portal…" can take a few seconds on slow servers.',
   ]}
 />
 
@@ -75,10 +75,10 @@ it, because some reseller panels are configured differently.
 <Alert type="success" title="Paste the provider message instead">
   The Auto-detect method in the same dialog reads a pasted email or chat message. A MAC
   address is its strongest signal, so a message with a portal link and a MAC address
-  pre-fills the Stalker form for you. You still click Add yourself.
+  pre-fills the Stalker form for you. You still click Add playlist yourself.
 </Alert>
 
-## What happens when you click Add
+## What happens when you click Add playlist
 
 Providers write portal addresses in a dozen shapes, and the same host can run a strict
 Ministra middleware or a tolerant reseller panel. Guessing from the URL used to break real
@@ -94,10 +94,11 @@ setups, so IPTVnator no longer guesses:
    that address, and if a provider migrates the portal, IPTVnator re-probes once on the
    first failure and repairs the stored connection.
 
-On a full portal the profile also carries your subscription facts, and the dialog confirms
-the import with the expiry date. A portal that cannot be reached during the import is still
-added when the address looks like a panel, so a temporarily offline provider does not block
-you; the next successful request completes the setup.
+On a full portal the profile also carries your subscription facts, and IPTVnator confirms
+the import with "Portal validated" and the expiry date. A portal that cannot be reached
+during the import is still added when the address looks like a panel, with a notice that it
+was added without validation, so a temporarily offline provider does not block you; the next
+successful request completes the setup.
 
 ## After the import
 
@@ -146,7 +147,8 @@ behind your back, and that matters because of how portals treat device IDs:
   later one. A later empty value locks the MAC out for good.
 - **Generate device IDs from the MAC address** produces the same pair StbEmu generates, so a
   MAC you already use there keeps working. It is offered at import only, writes the values
-  into the visible fields, and re-derives them if you correct the MAC before clicking Add.
+  into the visible fields, and re-derives them if you correct the MAC before clicking Add
+  playlist.
 - Once a device ID is stored, the playlist details dialog warns before you change or clear
   it, because the portal will not accept the new value.
 
@@ -155,10 +157,13 @@ exactly those values.
 
 ## Troubleshooting
 
+When the portal refuses the import, the dialog stays open and shows the reason under the
+portal URL, followed by the portal's own words when it sent any. Editing a field clears it.
+
 - **The portal requires a login and password**: fill in the optional username and password
-  fields and click Add again. Some Ministra portals demand a login on top of the MAC address.
+  fields and click Add playlist again. Some Ministra portals demand a login on top of the MAC address.
 - **The portal rejected the login and password**: the credentials are wrong or the
-  subscription lapsed; the portal's own message is shown below the headline.
+  subscription lapsed; the portal's own message follows the headline.
 - **The portal has a different device ID registered for this MAC address**: another box or
   emulator authenticated first. Restore the device ID you used there, or ask the provider to
   reset the device for this MAC.

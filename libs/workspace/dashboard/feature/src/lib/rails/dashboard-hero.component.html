@@ -26,14 +26,7 @@
                     [class.hero__backdrop--live]="slide.contentType === 'live'"
                     [style.--hero-hue]="slide.accentHue"
                 >
-                    <span
-                        class="hero__backdrop-fallback"
-                        [style.background]="
-                            slide.contentType === 'live'
-                                ? null
-                                : slide.fallbackBackdropBackground
-                        "
-                    ></span>
+                    <span class="hero__backdrop-fallback"></span>
                     @if (slide.backdropUrl; as backdropUrl) {
                         <img
                             class="hero__backdrop-image"
@@ -80,7 +73,6 @@
                                   count: slides().length,
                               }
                 "
-                [attr.aria-live]="canRotate() && !paused() ? 'off' : 'polite'"
             >
                 <p class="hero__eyebrow">
                     <span
@@ -92,7 +84,7 @@
                     <span>{{ slide.reasonLabelKey | translate }}</span>
                 </p>
 
-                <h1 class="hero__title">{{ slide.title }}</h1>
+                <h2 class="hero__title">{{ slide.title }}</h2>
 
                 <p class="hero__meta" data-test-id="dashboard-hero-badges">
                     @if (slide.episodeBadge) {
@@ -154,6 +146,13 @@
                         aria-valuemin="0"
                         aria-valuemax="100"
                         [attr.aria-valuenow]="slide.progress"
+                        [attr.aria-label]="slide.programmeTitle ?? slide.title"
+                        [attr.aria-valuetext]="
+                            slide.contentType === 'live'
+                                ? null
+                                : ('WORKSPACE.DASHBOARD.PERCENT_WATCHED'
+                                  | translate: { value: slide.progress })
+                        "
                     >
                         <i [style.--hero-progress]="slide.progress"></i>
                     </span>
@@ -196,6 +195,22 @@
                 </div>
             </div>
         }
+        <!-- Outside the @for: a live region has to be in the page before
+             its text changes, or the change is not announced. Silent while
+             the slides rotate on their own. -->
+        <p
+            class="visually-hidden"
+            data-test-id="dashboard-hero-announcement"
+            aria-atomic="true"
+            [attr.aria-live]="canRotate() && !paused() ? 'off' : 'polite'"
+        >
+            {{
+                'WORKSPACE.DASHBOARD.HERO_SLIDE_POSITION'
+                    | translate
+                        : { index: activeIndex() + 1, count: slides().length }
+            }}
+            {{ active.title }}
+        </p>
 
         @if (slides().length > 1) {
             <div class="hero__controls">

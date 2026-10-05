@@ -24,6 +24,11 @@ import {
 // The "Episodes" heading must also stay on one line: the detail pane is far
 // narrower than the window beside the rail and category panel, and the
 // heading used to wrap beside its actions.
+//
+// Pages without a Back of their own (the list a detail returns to) get the
+// header's history fallback while an in-app previous page exists; on a
+// phone it yields to the drawer toggle, and with nowhere to go the slot is
+// empty rather than a disabled arrow.
 // ---------------------------------------------------------------------------
 
 const widths = [1280, 780, 375];
@@ -43,6 +48,16 @@ const detailUrlPattern = /\/workspace\/xtreams\/[^/]+\/series\/[^/]+\/[^/]+$/;
 
 function headerBack(page: Page): Locator {
     return page.getByTestId('workspace-header-back');
+}
+
+/**
+ * The generic history Back. A detail's own Back advertises Escape in browse;
+ * the fallback runs no page handler, so it advertises none.
+ */
+async function expectHistoryBack(page: Page): Promise<void> {
+    await expect(headerBack(page)).toBeVisible();
+    await expect(headerBack(page)).toHaveAccessibleName('Back');
+    await expect(headerBack(page)).not.toHaveAttribute('aria-keyshortcuts');
 }
 
 /** Line boxes of the heading's text; 1 means it did not wrap. */
@@ -228,12 +243,15 @@ async function startFirstEpisode(page: Page): Promise<void> {
     ).toBeVisible({ timeout: 20_000 });
 }
 
-/** The header Back leaves the detail and is gone from the list it opens. */
+/**
+ * The header Back leaves the detail; the list it opens keeps only the
+ * history fallback (it was itself reached by navigation).
+ */
 async function expectHeaderBackReturnsToList(page: Page): Promise<void> {
     await headerBack(page).click();
     await expect(page).not.toHaveURL(detailUrlPattern);
     await expect(page.locator('app-portal-detail-shell')).toHaveCount(0);
-    await expect(headerBack(page)).toHaveCount(0);
+    await expectHistoryBack(page);
 }
 
 test.describe('Portal detail header Back', () => {
@@ -248,7 +266,7 @@ test.describe('Portal detail header Back', () => {
             const page = app.mainWindow;
             await addXtreamPortal(page);
             await waitForXtreamWorkspaceReady(page);
-            await expect(headerBack(page)).toHaveCount(0);
+            await expectHistoryBack(page);
 
             const detailUrl = await openFirstSeries(page);
             await expectBackInHeader(page, 'browse');
@@ -283,6 +301,47 @@ test.describe('Portal detail header Back', () => {
             await startFirstEpisode(page);
             // Route-level in watch too: it leaves the page, not just the player.
             await expectHeaderBackReturnsToList(page);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@xtream @electron falls back to history where no page offers Back', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            const page = app.mainWindow;
+            await page.waitForURL(/\/workspace\//);
+            const startUrl = page.url();
+            // The first page of the session has nowhere to go back to: the
+            // slot is empty, not a disabled arrow.
+            await expect(headerBack(page)).toHaveCount(0);
+
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            const listUrl = page.url();
+            await expectHistoryBack(page);
+
+            // On a phone the list's drawer toggle keeps the slot: it is the
+            // only way into the categories.
+            await page.setViewportSize({ width: 375, height: 800 });
+            await expect(page.getByTestId('context-drawer-toggle')).toBeVisible();
+            await expect(headerBack(page)).toBeHidden();
+
+            await page.setViewportSize({ width: widths[0], height: 800 });
+            await headerBack(page).click();
+            await expect(page).toHaveURL(startUrl);
+            await expect(headerBack(page)).toHaveCount(0);
+
+            // Forward history is not offered; browser Forward still works and
+            // brings the fallback back.
+            await page.goForward();
+            await expect(page).toHaveURL(listUrl);
+            await expectHistoryBack(page);
         } finally {
             await closeElectronApp(app);
         }

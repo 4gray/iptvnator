@@ -95,6 +95,21 @@ describe('SettingsComponent search', () => {
         expect(query('app-settings-general-section')).not.toBeNull();
     });
 
+    it('follows Embedded MPV support only while the page is open', () => {
+        const stopFollowing = jest.fn();
+        const follow = jest
+            .spyOn(settingsSearch, 'followEmbeddedMpvSupport')
+            .mockReturnValue(stopFollowing);
+
+        const page = TestBed.createComponent(SettingsComponent);
+        expect(follow).toHaveBeenCalledTimes(1);
+        expect(stopFollowing).not.toHaveBeenCalled();
+
+        // Closing the page ends it: nothing shows these rows any more.
+        page.destroy();
+        expect(stopFollowing).toHaveBeenCalledTimes(1);
+    });
+
     it('shows an empty state when nothing matches', () => {
         setSettingsSearchQuery('zzzz-no-such-setting');
         fixture.detectChanges();

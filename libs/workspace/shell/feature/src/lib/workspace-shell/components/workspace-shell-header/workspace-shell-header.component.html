@@ -1,12 +1,14 @@
 <header class="workspace-header" [class.is-settings-route]="isSettingsRoute()">
-    <!-- The page's Back, at the leading edge where desktop apps and Material's
-         top app bar keep navigation (beside the macOS traffic lights). The
+    <!-- The page's Back, or browser history while an in-app previous page
+         exists, at the leading edge where desktop apps and Material's top
+         app bar keep navigation (beside the macOS traffic lights). The
          header never scrolls, so the control stays put over long pages. -->
     @if (backTarget(); as back) {
         @let backLabel = back.label() || ('BACK' | translate);
         <button
             type="button"
             class="header-back"
+            [class.header-back--yields]="backYieldsToDrawerToggle()"
             mat-icon-button
             data-test-id="workspace-header-back"
             (click)="backRequested.emit()"
@@ -23,9 +25,10 @@
 
     <!-- Phone-only (≤640px, CSS-hidden above): on phones the context panel
          is an off-canvas drawer, and this button is the only way to open
-         it. A page with Back takes its slot (one navigation icon, as in
-         Material's top app bar); the list Back returns to shows it again. -->
-    @if (showContextDrawerToggle() && !backTarget()) {
+         it. A detail page's Back takes its slot (one navigation icon, as in
+         Material's top app bar); the list Back returns to shows it again.
+         Settings keeps both, and the history fallback yields to it. -->
+    @if (showDrawerToggle()) {
         <button
             #contextDrawerToggle
             type="button"
