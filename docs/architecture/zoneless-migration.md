@@ -154,8 +154,9 @@ files that still contain `ChangeDetectionStrategy.Eager`.
 - [ ] `libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.ts`
 
 Test-only files that set Eager are not listed; they do not ship. The guard
-skips every `*.spec.ts` / `*.test.ts` file with or without a suffix
-(`*.spec-stubs.ts`, `*.test-helpers.ts`, `*.test-stubs.ts`, …),
+skips every `*.spec.ts` / `*.test.ts` file with or without a suffix of one
+or more segments (`*.spec-stubs.ts`, `*.test-helpers.ts`,
+`*.test-data-stubs.ts`, …),
 `test-setup.ts` and `test-stubs/` directories.
 
 ## Zone-dependent sites
