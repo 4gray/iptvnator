@@ -108,11 +108,27 @@ function getQuickStartLazyVodSeriesSeason(
     if (!action) {
         return firstUnloadedSeason;
     }
+    if (!firstUnloadedSeason) {
+        return null;
+    }
 
+    const actionSeasonIndex = findVodSeriesSeasonIndexForEpisode(
+        action.episode,
+        seasons,
+        mappedSeasons
+    );
+    // Only extras loaded while a regular season is pending: they stand in
+    // for the run until it loads, never decide what plays.
+    const actionSeason = seasons[actionSeasonIndex];
     if (
-        !firstUnloadedSeason ||
-        action.kind === SERIES_QUICK_START_ACTION_KIND.Resume
+        actionSeason &&
+        isExtrasVodSeason(actionSeason, mappedSeasons) &&
+        !isExtrasVodSeason(firstUnloadedSeason, mappedSeasons)
     ) {
+        return firstUnloadedSeason;
+    }
+
+    if (action.kind === SERIES_QUICK_START_ACTION_KIND.Resume) {
         return null;
     }
 
@@ -122,11 +138,6 @@ function getQuickStartLazyVodSeriesSeason(
 
     const unloadedSeasonIndex = seasons.findIndex(
         (season) => season.id === firstUnloadedSeason.id
-    );
-    const actionSeasonIndex = findVodSeriesSeasonIndexForEpisode(
-        action.episode,
-        seasons,
-        mappedSeasons
     );
 
     return unloadedSeasonIndex !== -1 &&
@@ -146,22 +157,26 @@ function getFirstUnloadedVodSeriesSeason(
     seasons: ReadonlyArray<VodSeriesSeasonVm>,
     mappedSeasons: Record<string, XtreamSerieEpisode[]>
 ): VodSeriesSeasonVm | null {
-    const isExtras = (season: VodSeriesSeasonVm) => {
-        const key = getVodSeriesSeasonKey(season);
-        return isExtrasSeason(key, mappedSeasons[key]);
-    };
     const hasRun = seasons.some(
         (season) =>
-            !isExtras(season) &&
+            !isExtrasVodSeason(season, mappedSeasons) &&
             (season.episodes.length > 0 || isVodSeasonHydrationPending(season))
     );
     return (
         seasons.find(
             (season) =>
                 isVodSeasonHydrationPending(season) &&
-                !(hasRun && isExtras(season))
+                !(hasRun && isExtrasVodSeason(season, mappedSeasons))
         ) ?? null
     );
+}
+
+function isExtrasVodSeason(
+    season: VodSeriesSeasonVm,
+    mappedSeasons: Record<string, XtreamSerieEpisode[]>
+): boolean {
+    const key = getVodSeriesSeasonKey(season);
+    return isExtrasSeason(key, mappedSeasons[key]);
 }
 
 function findVodSeriesSeasonIndexForEpisode(

@@ -115,6 +115,40 @@ describe('getStalkerSeriesQuickStartButton with extras (season 0)', () => {
         expect(button?.lazySeason?.season_number).toBe('2');
     });
 
+    it('loads a pending regular season before playing or resuming an extra', () => {
+        // The pinned season 1 failed or is in flight; Specials was opened.
+        const onlyExtrasLoaded = {
+            isVodSeries: true,
+            mappedSeasons: { '0': mapped(0, 2), '1': [], '2': [] },
+            vodSeriesSeasons: [season('0', 2), season('1', 0), season('2', 0)],
+        };
+
+        const play = getStalkerSeriesQuickStartButton({
+            ...onlyExtrasLoaded,
+            playbackPositions: new Map(),
+        });
+        const resume = getStalkerSeriesQuickStartButton({
+            ...onlyExtrasLoaded,
+            playbackPositions: new Map([
+                [
+                    1,
+                    {
+                        contentXtreamId: 1,
+                        contentType: 'episode',
+                        seriesXtreamId: 1,
+                        positionSeconds: 40,
+                        durationSeconds: 100,
+                    },
+                ],
+            ]),
+        });
+
+        for (const button of [play, resume]) {
+            expect(button?.lazySeason?.season_number).toBe('1');
+            expect(button?.episodeLabel).toBe('S01E01');
+        }
+    });
+
     it('still loads Specials when every regular season came back empty', () => {
         const button = getStalkerSeriesQuickStartButton({
             isVodSeries: true,
