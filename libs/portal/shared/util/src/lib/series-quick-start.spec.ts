@@ -295,6 +295,35 @@ describe('getSeriesQuickStartAction', () => {
             expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.Completed);
             expect(action?.disabled).toBe(true);
         });
+
+        it('starts a series with its first regular episode, not an extra', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '0': [episode(1, 0, 1)],
+                    '1': [episode(101, 1, 1), episode(102, 1, 2)],
+                },
+                playbackPositions: new Map(),
+            });
+
+            expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayFirst);
+            expect(action?.episode.id).toBe('101');
+        });
+
+        it('goes back to the run after an extra', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '0': [episode(1, 0, 1), episode(2, 0, 2)],
+                    '1': [episode(101, 1, 1), episode(102, 1, 2)],
+                },
+                playbackPositions: new Map([
+                    watchedAt(101, 10),
+                    watchedAt(1, 11),
+                ]),
+            });
+
+            expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayNext);
+            expect(action?.episode.id).toBe('102');
+        });
     });
 
     it('returns a disabled completed action when every episode is watched', () => {

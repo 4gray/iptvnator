@@ -1805,6 +1805,64 @@ describe('DashboardDataService', () => {
                 expect(service.globalRecentVodItems()).toHaveLength(1);
             });
 
+            it('keeps to the run when an extra left unfinished is the newest activity', async () => {
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    [
+                        episodePosition(
+                            201,
+                            200,
+                            3491,
+                            3552,
+                            '2026-10-01T08:00:00Z'
+                        ),
+                        {
+                            ...episodePosition(
+                                290,
+                                200,
+                                600,
+                                1800,
+                                '2026-10-02T08:00:00Z'
+                            ),
+                            seasonNumber: 0,
+                            episodeNumber: 1,
+                        },
+                    ]
+                );
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    {
+                        status: 'loaded',
+                        seasons: {
+                            '0': [
+                                {
+                                    id: '290',
+                                    season: 0,
+                                    episode_num: 1,
+                                    title: 'Behind the scenes',
+                                },
+                            ],
+                            '1': [201, 202].map((id, index) => ({
+                                id: String(id),
+                                season: 1,
+                                episode_num: index + 1,
+                                title: `Episode ${index + 1}`,
+                            })),
+                        } as never,
+                    }
+                );
+
+                await loadDashboard();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledWith([
+                    expect.objectContaining({ seriesId: 200 }),
+                ]);
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({ contentXtreamId: 202, positionSeconds: 0 });
+            });
+
             it('takes the later episode as the newest when two were saved in the same second', async () => {
                 // Episode 5 left early, then episode 6 finished within the
                 // same second (the database keeps whole seconds).

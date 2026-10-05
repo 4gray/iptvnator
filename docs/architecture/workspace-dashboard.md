@@ -203,26 +203,30 @@ and that pause holds the slide.
        threshold is 90%, the Plex/Jellyfin/Emby/Kodi default, so stopping
        during the end credits finishes a title, as does "Mark watched". A
        series stays while it has something to continue: once its newest
-       episode is watched, `DashboardSeriesEpisodesService` fetches its
-       episode list (`get_series_info`, once per session, two lookups at a
-       time, for the `CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT` (20) newest such
-       Xtream series) and `resolveDashboardSeriesContinuation` applies
+       episode is watched, or is an extra (season 0),
+       `DashboardSeriesEpisodesService` fetches its episode list
+       (`get_series_info`, once per session, two lookups at a time, for the
+       `CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT` (20) newest such Xtream
+       series) and `resolveDashboardSeriesContinuation` applies
        `getSeriesNextUp`, the rule the series page's quick start follows
        too. Like Plex's On Deck and Jellyfin's Next Up it goes on from the
        episode watched last, not from the first gap in the list: the first
        episode after it that is not watched, so a series started at season
        2 or with an episode skipped (or left unfinished) goes on after the
        episode actually watched. A started next episode resumes where it was
-       left; specials (season 0) come next only after a special. The card
-       then shows and resumes that episode; a next episode not started yet
-       is a synthesized row at 0:00 without duration, so it carries the S·E
+       left. Extras (season 0) stand apart when the series has other
+       seasons: they never come next, never keep the series on the rail and
+       never take its card, not even one left unfinished; a series filed
+       under season 0 alone has them as its run. The card then shows and
+       resumes that episode; a next episode not started yet is a
+       synthesized row at 0:00 without duration, so it carries the S·E
        badge but no progress, remaining time or "Mark watched". The series
        leaves once no unwatched episode follows the one watched last, even
-       if an earlier one was skipped, or when it is older than the lookup
-       limit. Until its list is in (loading, failed, empty, or not holding
-       the episodes played), and for series that cannot be looked up
-       (Stalker), a series keeps its newest episode rather than vanish on a
-       guess. Lookups are background requests (`suppressErrorLog`: a failure
+       if an earlier one was skipped or extras are left, or when it is older
+       than the lookup limit. Until its list is in (loading, failed, empty,
+       or not holding the episodes played), and for series that cannot be
+       looked up (Stalker), a series keeps its newest episode rather than
+       vanish on a guess. Lookups are background requests (`suppressErrorLog`: a failure
        is logged, never a toast). A failed one is tried again only on the
        next `reloadPlaybackPositions()` (dashboard entry, a changed history,
        "Mark watched") or when the set of series to look up or their

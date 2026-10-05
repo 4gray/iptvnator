@@ -488,14 +488,18 @@ Current contract:
   falling back to the first episode
 - otherwise play the first unwatched episode after the episode watched last,
   as Plex's On Deck and Jellyfin's Next Up do: an earlier episode skipped or
-  left unfinished is passed over, a next episode started before resumes, and
-  specials (season 0) come next only after a special
+  left unfinished is passed over, and a next episode started before resumes
+- extras (season 0) stand apart when the series has other seasons: they never
+  come next, are never resumed from here (not even one left unfinished) and
+  never keep the series from completing; after only extras were played the
+  CTA plays the first episode of the run. A series filed under season 0 alone
+  has them as its run
 - if watched episodes end at a season boundary, play the first episode of the
   next loaded season
 - when no unwatched episode follows the one watched last, offer the first one
-  skipped before it (specials only after a special); with none left, render a
-  disabled completed state
-- with nothing played yet, play the first episode in season order
+  skipped before it (never an extra); with none left, render a disabled
+  completed state
+- with nothing played yet, play the first episode of the run in season order
 
 The click path must continue through each detail host's normal episode playback
 method so recent-item updates, inline/external player selection, resume offsets,

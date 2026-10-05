@@ -186,7 +186,7 @@ describe('getSeriesNextUp', () => {
         });
     });
 
-    describe('specials (season 0)', () => {
+    describe('extras (season 0)', () => {
         const seasons = { '0': season(0, 2), '1': season(1, 3) };
 
         it('do not come next after an episode of the run', () => {
@@ -199,28 +199,71 @@ describe('getSeriesNextUp', () => {
             ).toEqual(['caught-up', 0]);
         });
 
-        it('come next after a special', () => {
-            expect(summary(nextUp(seasons, watchedInOrder(1)))).toEqual([
+        it('do not change what comes next when one is watched mid-run', () => {
+            expect(summary(nextUp(seasons, watchedInOrder(101, 1)))).toEqual([
                 'next',
-                2,
-            ]);
-            expect(summary(nextUp(seasons, watchedInOrder(1, 2)))).toEqual([
-                'next',
-                101,
+                102,
             ]);
         });
 
+        it('do not take over when one is left unfinished', () => {
+            expect(
+                summary(
+                    nextUp(seasons, [
+                        ...watchedInOrder(101),
+                        position(1, STARTED, '2026-10-05T10:00:00.000Z'),
+                    ])
+                )
+            ).toEqual(['next', 102]);
+        });
+
+        it('lead into the first episode of the run when only extras were played', () => {
+            expect(summary(nextUp(seasons, watchedInOrder(1)))).toEqual([
+                'next',
+                101,
+            ]);
+            expect(
+                summary(
+                    nextUp(seasons, [
+                        position(2, STARTED, '2026-10-05T10:00:00.000Z'),
+                    ])
+                )
+            ).toEqual(['next', 101]);
+        });
+
+        it('are not where a series starts', () => {
+            expect(summary(nextUp(seasons, []))).toEqual(['start', 101]);
+        });
+
         it('are recognised by the episode season when the key is not a number', () => {
-            // "Specials" sorts after "1": the special follows the finale.
             const result = nextUp(
                 { '1': season(1, 2), Specials: season(0, 1) },
                 watchedInOrder(101, 102)
             );
 
+            // Caught up with the run; the unwatched extra is not "skipped".
             expect(summary(result)).toEqual(['caught-up', 0]);
-            expect(result?.kind === 'caught-up' && result.last.special).toBe(
-                true
+            expect(result?.kind === 'caught-up' && result.last.episode.id).toBe(
+                '102'
             );
+        });
+
+        it('are the run of a series filed under season 0 alone', () => {
+            const only = { '0': season(0, 3) };
+
+            expect(summary(nextUp(only, []))).toEqual(['start', 1]);
+            expect(summary(nextUp(only, watchedInOrder(1)))).toEqual([
+                'next',
+                2,
+            ]);
+            expect(
+                summary(
+                    nextUp(only, [
+                        ...watchedInOrder(1, 2),
+                        position(3, STARTED, '2026-10-05T10:00:00.000Z'),
+                    ])
+                )
+            ).toEqual(['resume', 3]);
         });
     });
 

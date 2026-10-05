@@ -21,13 +21,13 @@ export const CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT = 20;
 export const CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS = 2000;
 
 /**
- * Where a series stands once its newest episode is watched:
+ * Where a series stands once its newest episode is watched, or is an extra:
  * - `continue`: the episode it goes on with (`getSeriesNextUp`): the first
  *   one not watched after the episode watched last, resumed where it was
- *   left if it was started;
+ *   left if it was started. Extras (season 0) never change it;
  * - `finished`: no unwatched episode follows the one watched last, even if
- *   an earlier one was skipped, or the series is older than the lookup
- *   limit;
+ *   an earlier one was skipped or extras are left, or the series is older
+ *   than the lookup limit;
  * - `unknown`: its episode list is missing (loading, failed, empty) or does
  *   not hold the episodes played. The series then keeps its newest episode
  *   rather than vanish on a guess.
@@ -40,7 +40,7 @@ export type DashboardSeriesContinuation =
 export interface DashboardSeriesCandidate {
     readonly item: PortalRecentItem;
     readonly seriesXtreamId: number;
-    /** The series' newest episode row; it is watched. */
+    /** The series' newest episode row: watched, or an extra. */
     readonly newest: PlaybackPositionData;
 }
 
@@ -51,9 +51,11 @@ export function dashboardRecentItemKey(
 }
 
 /**
- * Xtream series in the history whose newest episode is watched: whether they
- * stay on Continue Watching depends on what comes next. Series from other
- * providers cannot be looked up and keep their place.
+ * Xtream series in the history whose newest episode is watched, or is an
+ * extra (season 0), which never takes a series' place even left unfinished:
+ * whether they stay on Continue Watching, and with which episode, depends
+ * on the episode list. Series from other providers cannot be looked up and
+ * keep their place.
  */
 export function selectSeriesContinuationCandidates(
     items: readonly PortalRecentItem[],
@@ -71,7 +73,7 @@ export function selectSeriesContinuationCandidates(
         const seriesXtreamId = Number(newest?.seriesXtreamId);
         if (
             newest?.contentType === 'episode' &&
-            isPortalPlaybackWatched(newest) &&
+            (isPortalPlaybackWatched(newest) || newest.seasonNumber === 0) &&
             Number.isInteger(seriesXtreamId) &&
             seriesXtreamId > 0
         ) {

@@ -21,7 +21,7 @@ rails also require the underlying data slice to have at least one item.
   so the end credits count as watched). A series whose newest episode is
   watched stays with the episode it continues with (the first one not
   watched after the one watched last, from the portal's episode list) and
-  leaves once none follows it. Finished
+  leaves once none follows it. Extras (season 0) never change that. Finished
   titles stay in Global Recent. Contract:
   `docs/architecture/workspace-dashboard.md#data-flow`.
 - `liveFavorites` shows favorited live TV channels from

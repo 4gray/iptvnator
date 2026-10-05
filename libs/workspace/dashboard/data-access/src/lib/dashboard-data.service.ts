@@ -338,7 +338,7 @@ export class DashboardDataService {
     private readonly seriesLookupWaitOver = signal(false);
     private seriesLookupWaitStarted = false;
 
-    /** Xtream series whose newest episode is watched, newest first. */
+    /** Xtream series whose newest episode is watched or an extra. */
     private readonly seriesContinuationCandidates = computed(() =>
         selectSeriesContinuationCandidates(
             this.globalRecentVodItems(),
@@ -434,7 +434,7 @@ export class DashboardDataService {
      * Continue Watching tells unfinished titles from finished ones by their
      * playback positions, so it waits until the history and the positions of
      * every playlist in it have loaded once, and until the episode lists of
-     * series with a watched newest episode are in (for at most
+     * series whose newest episode is watched or an extra are in (for at most
      * CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS): rendering every title first
      * and dropping the finished ones a moment later would shift the page.
      * Stays true afterwards; later reloads update the rail in place.
@@ -457,9 +457,10 @@ export class DashboardDataService {
      * Recent movies and series the user has not finished, newest first. A
      * movie leaves once its position reaches the watched threshold, whether
      * playback got there or the user marked it. A series whose newest
-     * episode is watched stays with the episode it continues with and leaves
-     * only once every episode is watched; one that cannot be looked up keeps
-     * its place. The full history stays on the global recent page.
+     * episode is watched, or is an extra, stays with the episode it
+     * continues with and leaves once none follows the one watched last
+     * (extras aside); one that cannot be looked up keeps its place. The full
+     * history stays on the global recent page.
      */
     readonly continueWatchingItems = computed<GlobalRecentItem[]>(() => {
         if (!this.continueWatchingSettled()) {
@@ -484,8 +485,8 @@ export class DashboardDataService {
 
     /**
      * The position a dashboard card shows and resumes: the stored one, or
-     * for a series whose newest episode is watched, the episode it
-     * continues with (a not-started next episode begins at 0:00).
+     * for a series whose newest episode is watched or an extra, the episode
+     * it continues with (a not-started next episode begins at 0:00).
      */
     getPlaybackPositionForItem(
         item: PortalActivityItem
@@ -681,8 +682,8 @@ export class DashboardDataService {
             this.finishInitialGlobalFavoritesLoadIfReady();
         });
 
-        // A series whose newest episode is watched continues with the next
-        // one, which only the portal's episode list names. Runs when the
+        // A series whose newest episode is watched, or is an extra, goes on
+        // with an episode only the portal's episode list names. Runs when the
         // list of series to look up changes, and on each positions reload:
         // the deliberate moments a failed lookup is tried again.
         effect(() => {

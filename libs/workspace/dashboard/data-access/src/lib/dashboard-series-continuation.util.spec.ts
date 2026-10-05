@@ -220,6 +220,69 @@ describe('resolveDashboardSeriesContinuation', () => {
         ).toEqual({ kind: 'finished' });
     });
 
+    describe('with extras (season 0)', () => {
+        const seasons = loaded({
+            '0': [episode(91, 0, 1), episode(92, 0, 2)],
+            '1': season1,
+        });
+        const extra = (positionSeconds: number): PlaybackPositionData => ({
+            ...row(91, positionSeconds, '2026-10-02 08:00:00'),
+            seasonNumber: 0,
+            episodeNumber: 1,
+        });
+
+        it('goes back to the run after an extra, watched or left unfinished', () => {
+            const watchedRun = row(1, WATCHED, '2026-10-01 08:00:00');
+
+            for (const newest of [extra(WATCHED), extra(1200)]) {
+                expect(
+                    resolveDashboardSeriesContinuation(
+                        candidate(newest),
+                        [watchedRun, newest],
+                        seasons
+                    )
+                ).toMatchObject({
+                    kind: 'continue',
+                    position: {
+                        contentXtreamId: 2,
+                        seasonNumber: 1,
+                        episodeNumber: 2,
+                        positionSeconds: 0,
+                    },
+                });
+            }
+        });
+
+        it('starts the run when only an extra was played', () => {
+            const newest = extra(WATCHED);
+
+            expect(
+                resolveDashboardSeriesContinuation(
+                    candidate(newest),
+                    [newest],
+                    seasons
+                )
+            ).toMatchObject({
+                kind: 'continue',
+                position: { contentXtreamId: 1, seasonNumber: 1 },
+            });
+        });
+
+        it('is finished after the finale, extras left or not', () => {
+            const rows = [1, 2, 3, 4, 5].map((id) =>
+                row(id, WATCHED, `2026-10-0${id} 08:00:00`)
+            );
+
+            expect(
+                resolveDashboardSeriesContinuation(
+                    candidate(rows[4]),
+                    rows,
+                    seasons
+                )
+            ).toEqual({ kind: 'finished' });
+        });
+    });
+
     it('takes the season from the episode list when an episode lacks one', () => {
         const rows = [row(1, WATCHED)];
 
@@ -288,7 +351,7 @@ describe('selectSeriesContinuationCandidates', () => {
             ...overrides,
         }) as PortalRecentItem;
 
-    it('keeps Xtream series whose newest episode is watched, newest first', () => {
+    it('keeps Xtream series whose newest episode is watched or an extra, newest first', () => {
         const positions = new Map<number, PlaybackPositionData | null>([
             [1, row(11, WATCHED)],
             // In progress: it simply continues.
@@ -301,6 +364,8 @@ describe('selectSeriesContinuationCandidates', () => {
             // Without its series id there is nothing to look up.
             [6, { ...row(16, WATCHED), seriesXtreamId: undefined }],
             [7, null],
+            // An extra, even unfinished: it never takes the series' place.
+            [8, { ...row(18, 600), seasonNumber: 0 }],
         ]);
         const items = [
             item(1),
@@ -310,6 +375,7 @@ describe('selectSeriesContinuationCandidates', () => {
             item(5, { source: 'stalker' }),
             item(6),
             item(7),
+            item(8),
         ];
 
         const candidates = selectSeriesContinuationCandidates(
@@ -320,6 +386,7 @@ describe('selectSeriesContinuationCandidates', () => {
         expect(candidates.map((c) => [c.item.id, c.seriesXtreamId])).toEqual([
             [1, SERIES],
             [3, SERIES],
+            [8, SERIES],
         ]);
     });
 });

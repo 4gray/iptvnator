@@ -17,7 +17,7 @@ export interface SeriesEpisodeEntry {
     readonly order: number;
     /** The episode's own season number, else its season key's. */
     readonly seasonNumber: number | null;
-    /** Filed under season 0, where providers keep specials. */
+    /** Filed under season 0, where providers keep extras (specials). */
     readonly special: boolean;
 }
 
@@ -26,13 +26,18 @@ export interface SeriesEpisodeEntry {
  * Jellyfin's Next Up, it goes from the episode watched last, not from the
  * first gap in the list: a series started at season 2, or with an episode
  * skipped, goes on after the episode the user actually watched.
- * - `resume`: the newest activity is an episode left unfinished;
+ *
+ * Extras (season 0) stand apart from a series that has other seasons: they
+ * never come next, never keep the series pending and never take its place,
+ * not even one left unfinished. A series filed under season 0 alone has
+ * nothing else, so there season 0 is the run.
+ * - `resume`: the newest activity in the run is an episode left unfinished;
  * - `next`: the first unwatched episode after the one watched last, in
- *   series order; it may have been started before. Specials come next only
- *   after a special;
+ *   series order; it may have been started before. When only extras were
+ *   played, the first episode of the run;
  * - `caught-up`: no unwatched episode follows the one watched last.
  *   `skipped` is the first one left unwatched before it, `last` the final
- *   episode of the list;
+ *   episode of the run;
  * - `start`: no episode of the list has been played.
  */
 export type SeriesNextUp =
@@ -58,14 +63,32 @@ export function getSeriesNextUp(
     request: SeriesProgressRequest
 ): SeriesNextUp | null {
     const entries = getOrderedSeriesEpisodes(request);
-    if (entries.length === 0) {
+    const run = entries.some((entry) => !entry.special)
+        ? entries.filter((entry) => !entry.special)
+        : entries;
+    if (run.length === 0) {
         return null;
     }
+    const nextUp = getNextUpWithin(run);
+    // Only extras were played: the run begins now.
+    if (
+        nextUp.kind === 'start' &&
+        entries.some(({ position }) => position !== null)
+    ) {
+        return { kind: 'next', entry: nextUp.entry };
+    }
+    return nextUp;
+}
+
+/** The rule within one sequence of episodes, in series order. */
+function getNextUpWithin(
+    sequence: readonly SeriesEpisodeEntry[]
+): SeriesNextUp {
     const lastWatched = newestEntry(
-        entries.filter(({ position }) => isPortalPlaybackWatched(position))
+        sequence.filter(({ position }) => isPortalPlaybackWatched(position))
     );
     const lastStarted = newestEntry(
-        entries.filter(
+        sequence.filter(
             ({ position }) =>
                 position !== null && !isPortalPlaybackWatched(position)
         )
@@ -77,14 +100,10 @@ export function getSeriesNextUp(
         return { kind: 'resume', entry: lastStarted };
     }
     if (!lastWatched) {
-        return { kind: 'start', entry: entries[0] };
+        return { kind: 'start', entry: sequence[0] };
     }
-    // Specials are extras: finishing an episode of the run does not lead
-    // into one.
-    const unwatched = entries.filter(
-        (entry) =>
-            !isPortalPlaybackWatched(entry.position) &&
-            (lastWatched.special || !entry.special)
+    const unwatched = sequence.filter(
+        (entry) => !isPortalPlaybackWatched(entry.position)
     );
     const next = unwatched.find((entry) => entry.order > lastWatched.order);
     if (next) {
@@ -93,7 +112,7 @@ export function getSeriesNextUp(
     return {
         kind: 'caught-up',
         skipped: unwatched[0] ?? null,
-        last: entries[entries.length - 1],
+        last: sequence[sequence.length - 1],
     };
 }
 

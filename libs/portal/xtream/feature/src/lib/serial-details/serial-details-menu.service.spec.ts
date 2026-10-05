@@ -182,6 +182,29 @@ describe('SerialDetailsMenuService', () => {
             );
         });
 
+        it('is not offered once the run is watched, even with an extra watched after it', () => {
+            const extra = (id: number, episodeNum: number) => ({
+                ...episode(id, episodeNum),
+                season: 0,
+            });
+            episodesSignal.set({
+                '0': [extra(1090, 1), extra(1091, 2)],
+                '1': [episode(1001, 1), episode(1002, 2), episode(1003, 3)],
+            });
+            episodePositionsSignal.set(
+                new Map([
+                    watched(1001),
+                    watched(1002),
+                    watched(1003),
+                    watched(1090, '2026-10-05T08:00:00Z'),
+                ])
+            );
+
+            expect(rowIds()).not.toContain(
+                SERIES_MENU_ACTION.HideFromContinueWatching
+            );
+        });
+
         it('is not offered once the last episode is watched, though the page still offers one skipped before it', () => {
             episodePositionsSignal.set(
                 new Map([

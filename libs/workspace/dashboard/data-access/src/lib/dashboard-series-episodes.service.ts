@@ -53,10 +53,10 @@ export function sameDashboardSeriesEpisodesRequests(
 
 /**
  * Episode lists for the series Continue Watching has to look past: a series
- * whose newest episode is watched continues with its next episode, which only
- * the portal's `get_series_info` names. Each list is fetched once per session;
- * a failed lookup is retried the next time it is requested. Lookups run in
- * the background, so a failure is logged, never shown.
+ * whose newest episode is watched, or is an extra, goes on with an episode
+ * only the portal's `get_series_info` names. Each list is fetched once per
+ * session; a failed lookup is retried the next time it is requested.
+ * Lookups run in the background, so a failure is logged, never shown.
  */
 @Injectable({ providedIn: 'root' })
 export class DashboardSeriesEpisodesService {
