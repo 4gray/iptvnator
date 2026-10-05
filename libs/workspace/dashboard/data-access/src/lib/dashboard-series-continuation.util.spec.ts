@@ -134,9 +134,12 @@ describe('resolveDashboardSeriesContinuation', () => {
         ).toEqual({ kind: 'finished' });
     });
 
-    it('goes back to an episode left unfinished, as the series page does', () => {
-        const unfinished = row(2, 1200, '2026-10-01 08:00:00');
-        const rows = [row(1, WATCHED), unfinished, row(3, WATCHED)];
+    it('moves past an episode left unfinished before the newest watched one', () => {
+        const rows = [
+            row(1, WATCHED, '2026-10-01 08:00:00'),
+            row(2, 1200, '2026-10-02 08:00:00'),
+            row(3, WATCHED, '2026-10-03 08:00:00'),
+        ];
 
         expect(
             resolveDashboardSeriesContinuation(
@@ -144,7 +147,77 @@ describe('resolveDashboardSeriesContinuation', () => {
                 rows,
                 loaded({ '1': season1 })
             )
+        ).toMatchObject({
+            kind: 'continue',
+            position: { contentXtreamId: 4, positionSeconds: 0 },
+        });
+    });
+
+    it('resumes the next episode where it was left', () => {
+        const unfinished = row(2, 1200, '2026-10-01 08:00:00');
+        // Episode 1 watched again after episode 2 was left.
+        const rows = [row(1, WATCHED, '2026-10-03 08:00:00'), unfinished];
+
+        expect(
+            resolveDashboardSeriesContinuation(
+                candidate(rows[0]),
+                rows,
+                loaded({ '1': season1 })
+            )
         ).toEqual({ kind: 'continue', position: unfinished });
+    });
+
+    it('goes on from a later season the user started with', () => {
+        const rows = [row(21, WATCHED)];
+
+        expect(
+            resolveDashboardSeriesContinuation(
+                candidate(rows[0]),
+                rows,
+                loaded({
+                    '1': [episode(1, 1, 1), episode(2, 1, 2)],
+                    '2': [episode(21, 2, 1), episode(22, 2, 2)],
+                })
+            )
+        ).toMatchObject({
+            kind: 'continue',
+            position: { contentXtreamId: 22, seasonNumber: 2 },
+        });
+    });
+
+    it('goes on past a skipped episode and is finished after the finale', () => {
+        const rows = [1, 2, 4].map((id) =>
+            row(id, WATCHED, `2026-10-0${id} 08:00:00`)
+        );
+        const resolve = (watched: PlaybackPositionData[]) =>
+            resolveDashboardSeriesContinuation(
+                candidate(watched[watched.length - 1]),
+                watched,
+                loaded({ '1': season1 })
+            );
+
+        expect(resolve(rows)).toMatchObject({
+            kind: 'continue',
+            position: { contentXtreamId: 5 },
+        });
+        expect(
+            resolve([...rows, row(5, WATCHED, '2026-10-05 08:00:00')])
+        ).toEqual({ kind: 'finished' });
+    });
+
+    it('does not lead into the specials of season 0', () => {
+        const rows = [row(2, WATCHED)];
+
+        expect(
+            resolveDashboardSeriesContinuation(
+                candidate(rows[0]),
+                rows,
+                loaded({
+                    '0': [episode(91, 0, 1)],
+                    '1': [episode(1, 1, 1), episode(2, 1, 2)],
+                })
+            )
+        ).toEqual({ kind: 'finished' });
     });
 
     it('takes the season from the episode list when an episode lacks one', () => {
@@ -177,6 +250,10 @@ describe('resolveDashboardSeriesContinuation', () => {
         expect(resolve({ status: 'loading' })).toEqual({ kind: 'unknown' });
         expect(resolve({ status: 'failed' })).toEqual({ kind: 'unknown' });
         expect(resolve(loaded({}))).toEqual({ kind: 'unknown' });
+        // The list does not hold the episode played (renumbered ids).
+        expect(
+            resolve(loaded({ '1': [episode(7, 1, 1), episode(8, 1, 2)] }))
+        ).toEqual({ kind: 'unknown' });
         expect(
             resolve(
                 loaded({ '1': 'not a list' } as unknown as Record<

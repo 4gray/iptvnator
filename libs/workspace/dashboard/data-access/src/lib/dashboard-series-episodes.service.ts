@@ -31,11 +31,32 @@ export function dashboardSeriesEpisodesKey(
     return `${playlistId}::${seriesId}`;
 }
 
+/** Same series, same credentials, same order. */
+export function sameDashboardSeriesEpisodesRequests(
+    requestsA: readonly DashboardSeriesEpisodesRequest[],
+    requestsB: readonly DashboardSeriesEpisodesRequest[]
+): boolean {
+    return (
+        requestsA.length === requestsB.length &&
+        requestsA.every((a, index) => {
+            const b = requestsB[index];
+            return (
+                a.playlistId === b.playlistId &&
+                a.seriesId === b.seriesId &&
+                a.credentials.serverUrl === b.credentials.serverUrl &&
+                a.credentials.username === b.credentials.username &&
+                a.credentials.password === b.credentials.password
+            );
+        })
+    );
+}
+
 /**
  * Episode lists for the series Continue Watching has to look past: a series
  * whose newest episode is watched continues with its next episode, which only
  * the portal's `get_series_info` names. Each list is fetched once per session;
- * a failed lookup is retried the next time it is requested.
+ * a failed lookup is retried the next time it is requested. Lookups run in
+ * the background, so a failure is logged, never shown.
  */
 @Injectable({ providedIn: 'root' })
 export class DashboardSeriesEpisodesService {
@@ -91,7 +112,8 @@ export class DashboardSeriesEpisodesService {
         try {
             const details = await this.api.getSeriesInfo(
                 request.credentials,
-                request.seriesId
+                request.seriesId,
+                { suppressErrorLog: true }
             );
             entry = { status: 'loaded', seasons: details?.episodes ?? {} };
         } catch (error) {

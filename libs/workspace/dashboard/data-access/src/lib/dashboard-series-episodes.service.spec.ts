@@ -4,6 +4,7 @@ import type { XtreamSerieDetails } from '@iptvnator/shared/interfaces';
 import {
     DashboardSeriesEpisodesService,
     dashboardSeriesEpisodesKey,
+    sameDashboardSeriesEpisodesRequests,
     type DashboardSeriesEpisodesRequest,
 } from './dashboard-series-episodes.service';
 
@@ -61,7 +62,10 @@ describe('DashboardSeriesEpisodesService', () => {
         await Promise.resolve();
 
         expect(getSeriesInfo).toHaveBeenCalledTimes(1);
-        expect(getSeriesInfo).toHaveBeenCalledWith(credentials, 900);
+        // A background lookup: a failure must not raise an error toast.
+        expect(getSeriesInfo).toHaveBeenCalledWith(credentials, 900, {
+            suppressErrorLog: true,
+        });
         expect(
             service.episodes().get(dashboardSeriesEpisodesKey('xtream-1', 900))
         ).toEqual({ status: 'loaded', seasons });
@@ -85,7 +89,9 @@ describe('DashboardSeriesEpisodesService', () => {
         await new Promise((resolve) => setTimeout(resolve));
 
         expect(getSeriesInfo).toHaveBeenCalledTimes(3);
-        expect(getSeriesInfo).toHaveBeenLastCalledWith(credentials, 3);
+        expect(getSeriesInfo).toHaveBeenLastCalledWith(credentials, 3, {
+            suppressErrorLog: true,
+        });
     });
 
     it('reports a failed lookup and retries it when asked again', async () => {
@@ -103,5 +109,35 @@ describe('DashboardSeriesEpisodesService', () => {
         expect(getSeriesInfo).toHaveBeenCalledTimes(2);
         await new Promise((resolve) => setTimeout(resolve));
         expect(status(900)).toBe('loaded');
+    });
+});
+
+describe('sameDashboardSeriesEpisodesRequests', () => {
+    it('tells request lists apart by series, order and credentials only', () => {
+        const same = sameDashboardSeriesEpisodesRequests;
+
+        expect(same([request(1), request(2)], [request(1), request(2)])).toBe(
+            true
+        );
+        expect(same([request(1), request(2)], [request(2), request(1)])).toBe(
+            false
+        );
+        expect(same([request(1)], [request(1), request(2)])).toBe(false);
+        expect(
+            same([request(1)], [{ ...request(1), playlistId: 'xtream-2' }])
+        ).toBe(false);
+        for (const field of ['serverUrl', 'username', 'password'] as const) {
+            expect(
+                same(
+                    [request(1)],
+                    [
+                        {
+                            ...request(1),
+                            credentials: { ...credentials, [field]: 'changed' },
+                        },
+                    ]
+                )
+            ).toBe(false);
+        }
     });
 });

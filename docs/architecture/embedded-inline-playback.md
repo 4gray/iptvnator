@@ -472,23 +472,30 @@ interface is unavailable; exact external timestamps remain best-effort.
 ## Series Quick Start CTA
 
 Xtream and Stalker series detail views share the quick-start decision helper in
-`libs/portal/shared/util/src/lib/series-quick-start.ts`.
-The helper flattens the loaded season/episode map, sorts seasons and episodes in
-natural order, and returns the hero CTA state.
+`libs/portal/shared/util/src/lib/series-quick-start.ts`, built on
+`getSeriesNextUp` (`series-next-up.ts`), which the dashboard's Continue
+Watching rail also follows. The helper flattens the loaded season/episode map,
+sorts seasons and episodes in natural order, and returns the hero CTA state.
 
 Current contract:
 
 - the CTA shows the action label plus a compact episode target such as
   `S01E02 · Episode title`
-- if an episode is in progress, resume the latest updated in-progress episode
-  with its saved offset
+- if the newest activity is an episode left unfinished, resume it with its
+  saved offset (recency reads SQLite `updated_at`, UTC without a zone, as UTC)
 - if the newest episode entry is a successful external-player launch marker
   with no meaningful progress yet, target it with `Play episode N` instead of
   falling back to the first episode
-- if no episode is in progress, play the first unwatched episode in season order
+- otherwise play the first unwatched episode after the episode watched last,
+  as Plex's On Deck and Jellyfin's Next Up do: an earlier episode skipped or
+  left unfinished is passed over, a next episode started before resumes, and
+  specials (season 0) come next only after a special
 - if watched episodes end at a season boundary, play the first episode of the
   next loaded season
-- if every loaded episode is watched, render a disabled completed state
+- when no unwatched episode follows the one watched last, offer the first one
+  skipped before it (specials only after a special); with none left, render a
+  disabled completed state
+- with nothing played yet, play the first episode in season order
 
 The click path must continue through each detail host's normal episode playback
 method so recent-item updates, inline/external player selection, resume offsets,

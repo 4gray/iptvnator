@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 import {
     addXtreamPortal,
     clickCategoryByNameExact,
@@ -11,9 +11,11 @@ import {
     goToDashboard,
     launchElectronApp,
     openGlobalRecent,
+    openSources,
     resetMockServers,
     test,
     waitForXtreamWorkspaceReady,
+    xtreamMockServer,
 } from './electron-test-fixtures';
 import {
     fetchXtreamSeriesFixture,
@@ -94,6 +96,29 @@ function railCard(page: Page, title: string) {
     return page
         .locator(`[data-test-id="${RAIL}-card"]`)
         .filter({ hasText: title });
+}
+
+/** The ids of a mock series' season 1 episodes, in episode order. */
+async function fetchSeasonOneEpisodeIds(
+    request: APIRequestContext,
+    seriesId: number
+): Promise<number[]> {
+    const params = new URLSearchParams({
+        action: 'get_series_info',
+        username: defaultXtreamUsername,
+        password: defaultXtreamPassword,
+        series_id: String(seriesId),
+    });
+    const response = await request.get(
+        `${xtreamMockServer}/player_api.php?${params}`
+    );
+    expect(response.ok()).toBeTruthy();
+    const info = (await response.json()) as {
+        episodes?: Record<string, { id: string; episode_num: number }[]>;
+    };
+    return [...(info.episodes?.['1'] ?? [])]
+        .sort((a, b) => a.episode_num - b.episode_num)
+        .map((episode) => Number(episode.id));
 }
 
 async function playFirstEpisode(page: Page): Promise<void> {
@@ -198,11 +223,11 @@ test.describe('Dashboard Continue Watching', () => {
         }
     });
 
-    test('@dashboard @xtream @electron keeps a series on Continue Watching with its next episode once one is finished', async ({
+    test('@dashboard @xtream @electron keeps a series on Continue Watching with the episode after the one watched last', async ({
         dataDir,
         request,
     }) => {
-        test.setTimeout(120_000);
+        test.setTimeout(180_000);
         await resetMockServers(request, ['xtream']);
         const seriesFixture = await fetchXtreamSeriesFixture(request, {
             username: defaultXtreamUsername,
@@ -274,6 +299,50 @@ test.describe('Dashboard Continue Watching', () => {
             await expect(
                 page.locator('.player-shell__episode-meta')
             ).toContainText('S01E02', { timeout: 30_000 });
+
+            // Skipping ahead: episode 3 is finished after episode 2 was
+            // left. The series goes on after the episode watched last, not
+            // back to the one left behind.
+            await backButton.click();
+            await expect(page.locator('app-web-player-view')).toHaveCount(0, {
+                timeout: 20_000,
+            });
+            const seasonOne = await fetchSeasonOneEpisodeIds(
+                request,
+                Number(played.seriesXtreamId)
+            );
+            expect(seasonOne.length).toBeGreaterThanOrEqual(4);
+            expect(seasonOne[0]).toBe(played.contentXtreamId);
+            await page.evaluate(
+                ({ id, row, episodeId }) =>
+                    window.electron.dbSavePlaybackPosition(id, {
+                        contentXtreamId: episodeId,
+                        contentType: 'episode',
+                        seriesXtreamId: row.seriesXtreamId,
+                        seasonNumber: 1,
+                        episodeNumber: 3,
+                        positionSeconds: 3491,
+                        durationSeconds: 3552,
+                    }),
+                {
+                    id: playlistId as string,
+                    row: played,
+                    episodeId: seasonOne[2],
+                }
+            );
+
+            // Back from the player returned to the dashboard, which read the
+            // positions before episode 3 was saved: open it anew.
+            await openSources(page);
+            await goToDashboard(page);
+            await expect(card).toContainText('S1·E4', { timeout: 20_000 });
+            await card.locator(`[data-test-id="${RAIL}-card-actions"]`).click();
+            await page
+                .getByRole('menuitem', { name: /resume episode/i })
+                .click();
+            await expect(
+                page.locator('.player-shell__episode-meta')
+            ).toContainText('S01E04', { timeout: 30_000 });
         } finally {
             await closeElectronApp(app);
         }

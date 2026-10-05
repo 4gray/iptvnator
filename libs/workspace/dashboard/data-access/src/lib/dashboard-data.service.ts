@@ -79,6 +79,7 @@ import {
 import {
     DashboardSeriesEpisodesService,
     dashboardSeriesEpisodesKey,
+    sameDashboardSeriesEpisodesRequests,
     type DashboardSeriesEpisodesRequest,
 } from './dashboard-series-episodes.service';
 
@@ -112,9 +113,22 @@ function newestPlaybackPosition(
     if (!candidate) {
         return current;
     }
-    return (candidate.updatedAt ?? '') > (current.updatedAt ?? '')
+    const candidateAt = candidate.updatedAt ?? '';
+    const currentAt = current.updatedAt ?? '';
+    if (candidateAt !== currentAt) {
+        return candidateAt > currentAt ? candidate : current;
+    }
+    // Saved in the same second (a season marked watched, a quick skip):
+    // the later episode, as `getSeriesNextUp` breaks the tie.
+    return episodeOrder(candidate) > episodeOrder(current)
         ? candidate
         : current;
+}
+
+function episodeOrder(position: PlaybackPositionData): number {
+    return (
+        (position.seasonNumber ?? 0) * 100_000 + (position.episodeNumber ?? 0)
+    );
 }
 
 /** @deprecated Use {@link PortalRecentItem} from `@iptvnator/shared/interfaces` instead. */
@@ -314,6 +328,11 @@ export class DashboardDataService {
     private readonly playbackPositionPlaylistIds =
         signal<ReadonlySet<string> | null>(null);
     private playbackPositionsLoadGeneration = 0;
+    /**
+     * Counts the position reloads that landed (dashboard entry, a changed
+     * history, "Mark watched"): each retries the episode lookups that failed.
+     */
+    private readonly playbackPositionsReloads = signal(0);
 
     private readonly seriesEpisodes = inject(DashboardSeriesEpisodesService);
     private readonly seriesLookupWaitOver = signal(false);
@@ -327,34 +346,46 @@ export class DashboardDataService {
         )
     );
 
-    /** The episode lists to fetch: candidates within the limit, with credentials. */
+    /**
+     * The episode lists to fetch: candidates within the limit, with
+     * credentials. Equal lists keep the previous value, so playlist store
+     * churn (favourites, refreshes, M3U playback) does not run the lookup
+     * effect again and retry failed lookups behind the user's back.
+     */
     private readonly seriesEpisodeRequests = computed<
         DashboardSeriesEpisodesRequest[]
-    >(() => {
-        const playlists = new Map(this.playlists().map((p) => [p._id, p]));
-        const requests: DashboardSeriesEpisodesRequest[] = [];
-        for (const {
-            item,
-            seriesXtreamId,
-        } of this.seriesContinuationCandidates().slice(
-            0,
-            CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
-        )) {
-            const playlist = playlists.get(item.playlist_id);
-            if (playlist?.serverUrl && playlist.username && playlist.password) {
-                requests.push({
-                    playlistId: item.playlist_id,
-                    seriesId: seriesXtreamId,
-                    credentials: {
-                        serverUrl: playlist.serverUrl,
-                        username: playlist.username,
-                        password: playlist.password,
-                    },
-                });
+    >(
+        () => {
+            const playlists = new Map(this.playlists().map((p) => [p._id, p]));
+            const requests: DashboardSeriesEpisodesRequest[] = [];
+            for (const {
+                item,
+                seriesXtreamId,
+            } of this.seriesContinuationCandidates().slice(
+                0,
+                CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
+            )) {
+                const playlist = playlists.get(item.playlist_id);
+                if (
+                    playlist?.serverUrl &&
+                    playlist.username &&
+                    playlist.password
+                ) {
+                    requests.push({
+                        playlistId: item.playlist_id,
+                        seriesId: seriesXtreamId,
+                        credentials: {
+                            serverUrl: playlist.serverUrl,
+                            username: playlist.username,
+                            password: playlist.password,
+                        },
+                    });
+                }
             }
-        }
-        return requests;
-    });
+            return requests;
+        },
+        { equal: sameDashboardSeriesEpisodesRequests }
+    );
 
     private readonly seriesLookupsSettled = computed(() => {
         const episodes = this.seriesEpisodes.episodes();
@@ -530,6 +561,7 @@ export class DashboardDataService {
             this.playbackPositionsBySeriesMap.set(new Map());
             this.seriesEpisodePositionsMap.set(new Map());
             this.playbackPositionPlaylistIds.set(playlistIds);
+            this.playbackPositionsReloads.update((count) => count + 1);
             return;
         }
 
@@ -593,6 +625,7 @@ export class DashboardDataService {
             // A playlist whose load failed counts as loaded: its titles
             // show without progress rather than holding the rail back.
             this.playbackPositionPlaylistIds.set(playlistIds);
+            this.playbackPositionsReloads.update((count) => count + 1);
         });
     }
 
@@ -649,9 +682,12 @@ export class DashboardDataService {
         });
 
         // A series whose newest episode is watched continues with the next
-        // one, which only the portal's episode list names.
+        // one, which only the portal's episode list names. Runs when the
+        // list of series to look up changes, and on each positions reload:
+        // the deliberate moments a failed lookup is tried again.
         effect(() => {
             const requests = this.seriesEpisodeRequests();
+            this.playbackPositionsReloads();
             if (requests.length === 0) {
                 return;
             }

@@ -1736,6 +1736,66 @@ describe('DashboardDataService', () => {
                 expect(titles()).toEqual(['The Penguin']);
             });
 
+            it('looks a failed list up again only when positions reload', async () => {
+                const key = dashboardSeriesEpisodesKey(PLAYLIST, 200);
+                seriesEpisodeAnswers.set(key, { status: 'failed' });
+                await loadDashboard();
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(1);
+
+                // Playlist store churn elsewhere in the app: an M3U
+                // playlist added, every playlist object replaced.
+                playlistsSignal.set([
+                    ...playlistsSignal().map((playlist) => ({ ...playlist })),
+                    {
+                        _id: 'm3u-new',
+                        title: 'New M3U',
+                        count: 1,
+                        importDate: '2026-10-04T00:00:00.000Z',
+                        autoRefresh: false,
+                    } as never,
+                ]);
+                TestBed.tick();
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(1);
+
+                // The dashboard is opened again: the portal answers now.
+                answerEpisodes(200, [201, 202, 203, 204, 205]);
+                await service.reloadPlaybackPositions();
+                TestBed.tick();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(2);
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({ contentXtreamId: 205 });
+            });
+
+            it('looks the list up again with the credentials of an edited playlist', async () => {
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    { status: 'failed' }
+                );
+                await loadDashboard();
+
+                playlistsSignal.set(
+                    playlistsSignal().map((playlist) =>
+                        playlist._id === PLAYLIST
+                            ? { ...playlist, password: 'new-pass' }
+                            : playlist
+                    )
+                );
+                TestBed.tick();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(2);
+                expect(seriesEpisodesMock.request).toHaveBeenLastCalledWith([
+                    expect.objectContaining({
+                        credentials: expect.objectContaining({
+                            password: 'new-pass',
+                        }),
+                    }),
+                ]);
+            });
+
             it('leaves once its last episode is watched', async () => {
                 answerEpisodes(200, [201, 202, 203, 204]);
 
@@ -1743,6 +1803,38 @@ describe('DashboardDataService', () => {
 
                 expect(titles()).toEqual([]);
                 expect(service.globalRecentVodItems()).toHaveLength(1);
+            });
+
+            it('takes the later episode as the newest when two were saved in the same second', async () => {
+                // Episode 5 left early, then episode 6 finished within the
+                // same second (the database keeps whole seconds).
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    [
+                        episodePosition(
+                            205,
+                            200,
+                            30,
+                            3552,
+                            '2026-10-05 08:00:00'
+                        ),
+                        episodePosition(
+                            206,
+                            200,
+                            3491,
+                            3552,
+                            '2026-10-05 08:00:00'
+                        ),
+                    ]
+                );
+                answerEpisodes(200, [201, 202, 203, 204, 205, 206, 207]);
+
+                await loadDashboard();
+
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({ contentXtreamId: 207 });
             });
         });
 

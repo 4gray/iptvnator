@@ -1,14 +1,13 @@
 import {
-    getSeriesQuickStartAction,
+    getSeriesNextUp,
     isPortalPlaybackWatched,
-    SERIES_QUICK_START_ACTION_KIND,
-    type SeriesQuickStartAction,
+    type SeriesEpisodeEntry,
+    type SeriesNextUp,
 } from '@iptvnator/portal/shared/util';
 import {
     resolvePortalActivityWatchKind,
     type PlaybackPositionData,
     type PortalRecentItem,
-    type XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
 import type { DashboardSeriesEpisodes } from './dashboard-series-episodes.service';
 
@@ -23,12 +22,15 @@ export const CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS = 2000;
 
 /**
  * Where a series stands once its newest episode is watched:
- * - `continue`: the episode it goes on with, chosen like the series page's
- *   quick start (an episode left unfinished, else the next unwatched one);
- * - `finished`: every episode is watched, or the series is older than the
- *   lookup limit;
- * - `unknown`: its episode list is missing (loading, failed or empty). The
- *   series then keeps its newest episode rather than vanish on a guess.
+ * - `continue`: the episode it goes on with (`getSeriesNextUp`): the first
+ *   one not watched after the episode watched last, resumed where it was
+ *   left if it was started;
+ * - `finished`: no unwatched episode follows the one watched last, even if
+ *   an earlier one was skipped, or the series is older than the lookup
+ *   limit;
+ * - `unknown`: its episode list is missing (loading, failed, empty) or does
+ *   not hold the episodes played. The series then keeps its newest episode
+ *   rather than vanish on a guess.
  */
 export type DashboardSeriesContinuation =
     | { readonly kind: 'unknown' }
@@ -87,10 +89,10 @@ export function resolveDashboardSeriesContinuation(
     if (episodes?.status !== 'loaded') {
         return { kind: 'unknown' };
     }
-    let action: SeriesQuickStartAction | null;
+    let nextUp: SeriesNextUp | null;
     try {
-        action = getSeriesQuickStartAction({
-            seasons: episodes.seasons as Record<string, XtreamSerieEpisode[]>,
+        nextUp = getSeriesNextUp({
+            seasons: episodes.seasons,
             playbackPositions: new Map(
                 seriesPositions.map((row) => [row.contentXtreamId, row])
             ),
@@ -99,27 +101,24 @@ export function resolveDashboardSeriesContinuation(
         // A malformed episode list says nothing about what comes next.
         return { kind: 'unknown' };
     }
-    if (!action) {
+    // `start`: none of the episodes played is in the list.
+    if (!nextUp || nextUp.kind === 'start') {
         return { kind: 'unknown' };
     }
-    if (action.kind === SERIES_QUICK_START_ACTION_KIND.Completed) {
+    if (nextUp.kind === 'caught-up') {
         return { kind: 'finished' };
     }
-    if (action.position && !isPortalPlaybackWatched(action.position)) {
-        return { kind: 'continue', position: action.position };
+    const { entry } = nextUp;
+    if (entry.position && !isPortalPlaybackWatched(entry.position)) {
+        return { kind: 'continue', position: entry.position };
     }
-    const episodeId = Number(action.episode?.id);
+    const episodeId = Number(entry.episode?.id);
     if (!Number.isInteger(episodeId) || episodeId <= 0) {
         return { kind: 'unknown' };
     }
     return {
         kind: 'continue',
-        position: nextEpisodeRow(
-            candidate,
-            episodeId,
-            action.episode,
-            episodes.seasons
-        ),
+        position: nextEpisodeRow(candidate, episodeId, entry),
     };
 }
 
@@ -127,17 +126,10 @@ export function resolveDashboardSeriesContinuation(
 function nextEpisodeRow(
     candidate: DashboardSeriesCandidate,
     episodeId: number,
-    episode: XtreamSerieEpisode,
-    seasons: Readonly<Record<string, XtreamSerieEpisode[]>>
+    entry: SeriesEpisodeEntry
 ): PlaybackPositionData {
-    const seasonNumber =
-        toEpisodeNumber(episode.season) ??
-        toEpisodeNumber(
-            Object.entries(seasons).find(([, list]) =>
-                list.includes(episode)
-            )?.[0]
-        );
-    const episodeNumber = toEpisodeNumber(episode.episode_num);
+    const seasonNumber = toEpisodeNumber(entry.seasonNumber);
+    const episodeNumber = toEpisodeNumber(entry.episode.episode_num);
     return {
         contentXtreamId: episodeId,
         contentType: 'episode',

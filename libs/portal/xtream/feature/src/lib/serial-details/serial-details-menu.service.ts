@@ -5,7 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import {
     createLogger,
     formatSeriesEpisodeCode,
-    SERIES_QUICK_START_ACTION_KIND,
+    getSeriesNextUp,
     type SeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -132,16 +132,20 @@ export class SerialDetailsMenuService {
         if (!seriesId || !this.dataSource) {
             return false;
         }
-        // The rail keeps a series until every episode is watched: it goes
-        // on with the episode this page's quick start names.
-        const completed =
-            this.bindings()?.quickStart()?.kind ===
-            SERIES_QUICK_START_ACTION_KIND.Completed;
+        // The rail keeps a series while an unwatched episode follows the
+        // one watched last; this page's quick start may still offer an
+        // episode skipped before it.
+        const caughtUp =
+            getSeriesNextUp({
+                seasons: this.bindings()?.selectedItem()?.episodes ?? {},
+                playbackPositions:
+                    this.bindings()?.episodePositions() ?? new Map(),
+            })?.kind === 'caught-up';
         // Xtream ids collide across live, movies and series: the row has to
         // be the series' own.
         return (
             this.hasProgress() &&
-            !completed &&
+            !caughtUp &&
             this.xtreamStore
                 .recentItems()
                 .some(

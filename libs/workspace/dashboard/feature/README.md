@@ -19,8 +19,9 @@ rails also require the underlying data slice to have at least one item.
   playback progress when a saved resume position is available. A movie leaves
   the rail once its position reaches `PORTAL_WATCHED_PROGRESS_PERCENT` (90%,
   so the end credits count as watched). A series whose newest episode is
-  watched stays with the episode it continues with (the next one, from the
-  portal's episode list) and leaves once every episode is watched. Finished
+  watched stays with the episode it continues with (the first one not
+  watched after the one watched last, from the portal's episode list) and
+  leaves once none follows it. Finished
   titles stay in Global Recent. Contract:
   `docs/architecture/workspace-dashboard.md#data-flow`.
 - `liveFavorites` shows favorited live TV channels from

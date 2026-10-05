@@ -206,17 +206,30 @@ and that pause holds the slide.
        episode is watched, `DashboardSeriesEpisodesService` fetches its
        episode list (`get_series_info`, once per session, two lookups at a
        time, for the `CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT` (20) newest such
-       Xtream series) and `resolveDashboardSeriesContinuation` applies the
-       series page's quick start (`getSeriesQuickStartAction`): an episode
-       left unfinished, else the next unwatched one. The card then shows and
-       resumes that episode; a next episode not started yet is a synthesized
-       row at 0:00 without duration, so it carries the S·E badge but no
-       progress, remaining time or "Mark watched". The series leaves only
-       when every episode is watched, or when it is older than the lookup
-       limit. Until its list is in (loading, failed, empty), and for series
-       that cannot be looked up (Stalker), a series keeps its newest episode
-       rather than vanish on a guess. Finished titles stay in
-       `globalRecentVodItems()` and on the Global Recent page ("See all");
+       Xtream series) and `resolveDashboardSeriesContinuation` applies
+       `getSeriesNextUp`, the rule the series page's quick start follows
+       too. Like Plex's On Deck and Jellyfin's Next Up it goes on from the
+       episode watched last, not from the first gap in the list: the first
+       episode after it that is not watched, so a series started at season
+       2 or with an episode skipped (or left unfinished) goes on after the
+       episode actually watched. A started next episode resumes where it was
+       left; specials (season 0) come next only after a special. The card
+       then shows and resumes that episode; a next episode not started yet
+       is a synthesized row at 0:00 without duration, so it carries the S·E
+       badge but no progress, remaining time or "Mark watched". The series
+       leaves once no unwatched episode follows the one watched last, even
+       if an earlier one was skipped, or when it is older than the lookup
+       limit. Until its list is in (loading, failed, empty, or not holding
+       the episodes played), and for series that cannot be looked up
+       (Stalker), a series keeps its newest episode rather than vanish on a
+       guess. Lookups are background requests (`suppressErrorLog`: a failure
+       is logged, never a toast). A failed one is tried again only on the
+       next `reloadPlaybackPositions()` (dashboard entry, a changed history,
+       "Mark watched") or when the set of series to look up or their
+       credentials change: the request list compares by value, so playlist
+       store churn elsewhere in the app does not retry it. Finished titles
+       stay in `globalRecentVodItems()` and on the Global Recent page ("See
+       all");
        the rail's count badge counts only the listed ones. The list stays
        empty until `continueWatchingSettled()`: the history has loaded (on
        the PWA that includes its Xtream data-source read, not only the
@@ -245,7 +258,11 @@ and that pause holds the slide.
        rows. The mappers give both it and a lazy Ministra `is_series` row
        (already typed `series`) `watch_kind: 'series'`. Series lookup uses
        keyed maps for both direct episode ids and parent series ids; card
-       renders must not scan the full playback-position map. The badge uses saved `seasonNumber` /
+       renders must not scan the full playback-position map. A series'
+       newest row is the latest `updatedAt`; rows saved in the same second
+       (SQLite keeps whole seconds, and "Mark season watched" stamps a
+       season at once) go to the later episode, as `getSeriesNextUp` breaks
+       the tie. The badge uses saved `seasonNumber` /
        `episodeNumber` metadata and does not infer it from provider payloads;
        legacy rows without that metadata remain badge-less until replay.
        Dashboard-originated Xtream and Stalker series clicks also carry that
