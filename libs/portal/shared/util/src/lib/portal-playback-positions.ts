@@ -94,16 +94,3 @@ export function isPortalPlaybackInProgress(
         percent < PORTAL_WATCHED_PROGRESS_PERCENT
     );
 }
-
-/** The most recently updated row, e.g. a series' latest episode. */
-export function newestPortalPlaybackPosition(
-    positions: Iterable<PlaybackPositionData>
-): PlaybackPositionData | null {
-    let newest: PlaybackPositionData | null = null;
-    for (const position of positions) {
-        if (!newest || (position.updatedAt ?? '') > (newest.updatedAt ?? '')) {
-            newest = position;
-        }
-    }
-    return newest;
-}

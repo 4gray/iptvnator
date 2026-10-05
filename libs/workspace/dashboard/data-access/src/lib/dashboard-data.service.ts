@@ -6,6 +6,7 @@ import {
     inject,
     linkedSignal,
     signal,
+    untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
@@ -67,6 +68,19 @@ import {
     isTypeInKind as isTypeInKindUtil,
     type DashboardContentKind,
 } from './dashboard-navigation.util';
+import {
+    CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT,
+    CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS,
+    dashboardRecentItemKey,
+    resolveDashboardSeriesContinuation,
+    selectSeriesContinuationCandidates,
+    type DashboardSeriesContinuation,
+} from './dashboard-series-continuation.util';
+import {
+    DashboardSeriesEpisodesService,
+    dashboardSeriesEpisodesKey,
+    type DashboardSeriesEpisodesRequest,
+} from './dashboard-series-episodes.service';
 
 export type { DashboardContentKind };
 
@@ -289,6 +303,10 @@ export class DashboardDataService {
     private readonly playbackPositionsBySeriesMap = signal<
         Map<string, PlaybackPositionData>
     >(new Map());
+    /** Every episode row per series: what comes next depends on all of them. */
+    private readonly seriesEpisodePositionsMap = signal<
+        Map<string, PlaybackPositionData[]>
+    >(new Map());
 
     readonly playbackPositions$ = this.playbackPositionsMap.asReadonly();
 
@@ -297,12 +315,98 @@ export class DashboardDataService {
         signal<ReadonlySet<string> | null>(null);
     private playbackPositionsLoadGeneration = 0;
 
+    private readonly seriesEpisodes = inject(DashboardSeriesEpisodesService);
+    private readonly seriesLookupWaitOver = signal(false);
+    private seriesLookupWaitStarted = false;
+
+    /** Xtream series whose newest episode is watched, newest first. */
+    private readonly seriesContinuationCandidates = computed(() =>
+        selectSeriesContinuationCandidates(
+            this.globalRecentVodItems(),
+            (item) => this.storedPlaybackPositionForItem(item)
+        )
+    );
+
+    /** The episode lists to fetch: candidates within the limit, with credentials. */
+    private readonly seriesEpisodeRequests = computed<
+        DashboardSeriesEpisodesRequest[]
+    >(() => {
+        const playlists = new Map(this.playlists().map((p) => [p._id, p]));
+        const requests: DashboardSeriesEpisodesRequest[] = [];
+        for (const {
+            item,
+            seriesXtreamId,
+        } of this.seriesContinuationCandidates().slice(
+            0,
+            CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
+        )) {
+            const playlist = playlists.get(item.playlist_id);
+            if (playlist?.serverUrl && playlist.username && playlist.password) {
+                requests.push({
+                    playlistId: item.playlist_id,
+                    seriesId: seriesXtreamId,
+                    credentials: {
+                        serverUrl: playlist.serverUrl,
+                        username: playlist.username,
+                        password: playlist.password,
+                    },
+                });
+            }
+        }
+        return requests;
+    });
+
+    private readonly seriesLookupsSettled = computed(() => {
+        const episodes = this.seriesEpisodes.episodes();
+        return this.seriesEpisodeRequests().every(
+            ({ playlistId, seriesId }) => {
+                const status = episodes.get(
+                    dashboardSeriesEpisodesKey(playlistId, seriesId)
+                )?.status;
+                return status === 'loaded' || status === 'failed';
+            }
+        );
+    });
+
+    /** What each candidate series continues with, by recent item key. */
+    private readonly seriesContinuations = computed(() => {
+        const continuations = new Map<string, DashboardSeriesContinuation>();
+        const episodes = this.seriesEpisodes.episodes();
+        const rowsBySeries = this.seriesEpisodePositionsMap();
+        this.seriesContinuationCandidates().forEach((candidate, index) => {
+            const { item, seriesXtreamId, newest } = candidate;
+            continuations.set(
+                dashboardRecentItemKey(item),
+                index < CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
+                    ? resolveDashboardSeriesContinuation(
+                          candidate,
+                          rowsBySeries.get(
+                              seriesPlaybackPositionMapKey(
+                                  item.playlist_id,
+                                  seriesXtreamId
+                              )
+                          ) ?? [newest],
+                          episodes.get(
+                              dashboardSeriesEpisodesKey(
+                                  item.playlist_id,
+                                  seriesXtreamId
+                              )
+                          )
+                      )
+                    : { kind: 'finished' }
+            );
+        });
+        return continuations;
+    });
+
     /**
      * Continue Watching tells unfinished titles from finished ones by their
      * playback positions, so it waits until the history and the positions of
-     * every playlist in it have loaded once: rendering every title first and
-     * dropping the finished ones a moment later would shift the page. Stays
-     * true afterwards; later reloads update the rail in place.
+     * every playlist in it have loaded once, and until the episode lists of
+     * series with a watched newest episode are in (for at most
+     * CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS): rendering every title first
+     * and dropping the finished ones a moment later would shift the page.
+     * Stays true afterwards; later reloads update the rail in place.
      */
     readonly continueWatchingSettled = linkedSignal<boolean, boolean>({
         source: () => {
@@ -311,7 +415,8 @@ export class DashboardDataService {
                 this.globalRecentLoaded() &&
                 this.globalRecentVodItems().every(
                     (item) => loaded?.has(item.playlist_id) ?? false
-                )
+                ) &&
+                (this.seriesLookupsSettled() || this.seriesLookupWaitOver())
             );
         },
         computation: (settled, previous) => previous?.value === true || settled,
@@ -319,22 +424,50 @@ export class DashboardDataService {
 
     /**
      * Recent movies and series the user has not finished, newest first. A
-     * title leaves once its position reaches the watched threshold (for a
-     * series: its latest episode's), whether playback got there or the user
-     * marked it; the full history stays on the global recent page.
+     * movie leaves once its position reaches the watched threshold, whether
+     * playback got there or the user marked it. A series whose newest
+     * episode is watched stays with the episode it continues with and leaves
+     * only once every episode is watched; one that cannot be looked up keeps
+     * its place. The full history stays on the global recent page.
      */
-    readonly continueWatchingItems = computed<GlobalRecentItem[]>(() =>
-        this.continueWatchingSettled()
-            ? this.globalRecentVodItems().filter(
-                  (item) =>
-                      !isPortalPlaybackWatched(
-                          this.getPlaybackPositionForItem(item)
-                      )
-              )
-            : []
-    );
+    readonly continueWatchingItems = computed<GlobalRecentItem[]>(() => {
+        if (!this.continueWatchingSettled()) {
+            return [];
+        }
+        const continuations = this.seriesContinuations();
+        return this.globalRecentVodItems().filter((item) => {
+            const continuation = continuations.get(
+                dashboardRecentItemKey(item)
+            );
+            if (continuation) {
+                return continuation.kind !== 'finished';
+            }
+            return (
+                resolvePortalActivityWatchKind(item) === 'series' ||
+                !isPortalPlaybackWatched(
+                    this.storedPlaybackPositionForItem(item)
+                )
+            );
+        });
+    });
 
+    /**
+     * The position a dashboard card shows and resumes: the stored one, or
+     * for a series whose newest episode is watched, the episode it
+     * continues with (a not-started next episode begins at 0:00).
+     */
     getPlaybackPositionForItem(
+        item: PortalActivityItem
+    ): PlaybackPositionData | null {
+        const continuation = this.seriesContinuations().get(
+            dashboardRecentItemKey(item)
+        );
+        return continuation?.kind === 'continue'
+            ? continuation.position
+            : this.storedPlaybackPositionForItem(item);
+    }
+
+    private storedPlaybackPositionForItem(
         item: PortalActivityItem
     ): PlaybackPositionData | null {
         // The progress model, not the routing type: a Stalker embedded-VOD
@@ -395,12 +528,14 @@ export class DashboardDataService {
         if (playlistIds.size === 0) {
             this.playbackPositionsMap.set(new Map());
             this.playbackPositionsBySeriesMap.set(new Map());
+            this.seriesEpisodePositionsMap.set(new Map());
             this.playbackPositionPlaylistIds.set(playlistIds);
             return;
         }
 
         const next = new Map<string, PlaybackPositionData>();
         const nextBySeries = new Map<string, PlaybackPositionData>();
+        const nextEpisodesBySeries = new Map<string, PlaybackPositionData[]>();
         for (const playlistId of playlistIds) {
             try {
                 const positions =
@@ -431,6 +566,12 @@ export class DashboardDataService {
                                 position
                             ) as PlaybackPositionData
                         );
+                        const seriesRows = nextEpisodesBySeries.get(seriesKey);
+                        if (seriesRows) {
+                            seriesRows.push(position);
+                        } else {
+                            nextEpisodesBySeries.set(seriesKey, [position]);
+                        }
                     }
                 }
             } catch (err) {
@@ -448,6 +589,7 @@ export class DashboardDataService {
         this.ngZone.run(() => {
             this.playbackPositionsMap.set(next);
             this.playbackPositionsBySeriesMap.set(nextBySeries);
+            this.seriesEpisodePositionsMap.set(nextEpisodesBySeries);
             // A playlist whose load failed counts as loaded: its titles
             // show without progress rather than holding the rail back.
             this.playbackPositionPlaylistIds.set(playlistIds);
@@ -504,6 +646,25 @@ export class DashboardDataService {
             this.playlistsLoaded();
             this.finishInitialGlobalRecentLoadIfReady();
             this.finishInitialGlobalFavoritesLoadIfReady();
+        });
+
+        // A series whose newest episode is watched continues with the next
+        // one, which only the portal's episode list names.
+        effect(() => {
+            const requests = this.seriesEpisodeRequests();
+            if (requests.length === 0) {
+                return;
+            }
+            untracked(() => {
+                this.seriesEpisodes.request(requests);
+                if (!this.seriesLookupWaitStarted) {
+                    this.seriesLookupWaitStarted = true;
+                    setTimeout(
+                        () => this.seriesLookupWaitOver.set(true),
+                        CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS
+                    );
+                }
+            });
         });
 
         // Before the inventory has loaded "no Xtream playlists" is not known

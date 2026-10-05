@@ -3,7 +3,7 @@ import type {
     PlaybackPositionData,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { newestPortalPlaybackPosition } from '@iptvnator/portal/shared/util';
+import { getSeriesQuickStartAction } from '@iptvnator/portal/shared/util';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
 import type { XtreamSerieDetailsView } from './serial-details-playback.service';
 
@@ -118,24 +118,32 @@ describe('SerialDetailsPlaybackPositionState', () => {
                 // Stored rows carry the store's time; a player tick, an
                 // external-player update and a toggle do not.
                 await loadPositions([
-                    position(1001, { updatedAt: '2026-10-03 08:00:00' }),
+                    position(1001, {
+                        positionSeconds: 600,
+                        updatedAt: '2026-10-03 08:00:00',
+                    }),
                 ]);
                 const tick = position(1002, { positionSeconds: 600 });
                 delete tick.updatedAt;
 
                 state.update(tick);
-                state.updateMany([{ ...tick, contentXtreamId: 2001 }]);
 
                 expect(state.positions().get(1002)?.updatedAt).toBe(
                     '2026-10-04T09:00:00.000Z'
                 );
+                // The series page resumes the episode just played, not the
+                // one stored yesterday.
+                expect(
+                    getSeriesQuickStartAction({
+                        seasons: seriesView().episodes,
+                        playbackPositions: state.positions(),
+                    })
+                ).toMatchObject({ kind: 'resume', episode: { id: '1002' } });
+
+                state.updateMany([{ ...tick, contentXtreamId: 2001 }]);
                 expect(state.positions().get(2001)?.updatedAt).toBe(
                     '2026-10-04T09:00:00.000Z'
                 );
-                expect(
-                    newestPortalPlaybackPosition(state.positions().values())
-                        ?.contentXtreamId
-                ).toBe(1002);
                 // The caller's row is not modified, and a dated row keeps its date.
                 expect(tick.updatedAt).toBeUndefined();
                 state.update(

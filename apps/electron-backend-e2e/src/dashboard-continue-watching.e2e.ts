@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import {
     addXtreamPortal,
     clickCategoryByNameExact,
+    clickFirstGridListCard,
     closeElectronApp,
     defaultXtreamPassword,
     defaultXtreamUsername,
@@ -14,7 +15,10 @@ import {
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
-import { fetchXtreamVodFixture } from './portal-mock-fixtures';
+import {
+    fetchXtreamSeriesFixture,
+    fetchXtreamVodFixture,
+} from './portal-mock-fixtures';
 import {
     routePlayableStreams,
     startAndConfirmPlayback,
@@ -90,6 +94,24 @@ function railCard(page: Page, title: string) {
     return page
         .locator(`[data-test-id="${RAIL}-card"]`)
         .filter({ hasText: title });
+}
+
+async function playFirstEpisode(page: Page): Promise<void> {
+    const seasonCard = page.locator('.season-card').first();
+    const episodeCard = page
+        .locator('.episode-card, .episode-list-item')
+        .first();
+    await expect
+        .poll(
+            async () =>
+                (await seasonCard.count()) + (await episodeCard.count()),
+            { timeout: 20_000 }
+        )
+        .toBeGreaterThan(0);
+    if ((await seasonCard.count()) > 0) {
+        await seasonCard.click();
+    }
+    await episodeCard.click();
 }
 
 test.describe('Dashboard Continue Watching', () => {
@@ -171,6 +193,87 @@ test.describe('Dashboard Continue Watching', () => {
             await openGlobalRecent(app.mainWindow);
             await expectVisibleContentCardTitle(app.mainWindow, finished.title);
             await expectVisibleContentCardTitle(app.mainWindow, halfway.title);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@dashboard @xtream @electron keeps a series on Continue Watching with its next episode once one is finished', async ({
+        dataDir,
+        request,
+    }) => {
+        test.setTimeout(120_000);
+        await resetMockServers(request, ['xtream']);
+        const seriesFixture = await fetchXtreamSeriesFixture(request, {
+            username: defaultXtreamUsername,
+            password: defaultXtreamPassword,
+        });
+        const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
+        const page = app.mainWindow;
+
+        try {
+            await addXtreamPortal(page, { name: 'Continue Watching Series' });
+            await waitForXtreamWorkspaceReady(page);
+            await page
+                .getByRole('link', { name: 'Series', exact: true })
+                .click();
+            await clickCategoryByNameExact(page, seriesFixture.categoryName);
+            const seriesTitle = await clickFirstGridListCard(page);
+            const playlistId = new URL(page.url()).pathname.match(
+                /\/workspace\/xtreams\/([^/]+)\//
+            )?.[1];
+            expect(playlistId).toBeTruthy();
+            await startAndConfirmPlayback(page, () => playFirstEpisode(page));
+
+            const episodeRow = () =>
+                page.evaluate(
+                    async (id) =>
+                        (
+                            await window.electron.dbGetAllPlaybackPositions(id)
+                        ).find((row) => row.contentType === 'episode') ?? null,
+                    playlistId as string
+                );
+            await expect.poll(episodeRow).not.toBeNull();
+            const played = await episodeRow();
+            if (!played) {
+                throw new Error('expected the played episode to be saved');
+            }
+            expect(played).toMatchObject({ seasonNumber: 1, episodeNumber: 1 });
+
+            const backButton = page.getByTestId('workspace-header-back');
+            await expect(backButton).toBeVisible({ timeout: 20_000 });
+            await backButton.click();
+            await expect(page.locator('app-web-player-view')).toHaveCount(0, {
+                timeout: 20_000,
+            });
+            // Stopped during the end credits.
+            await page.evaluate(
+                ({ id, row }) =>
+                    window.electron.dbSavePlaybackPosition(id, {
+                        contentXtreamId: row.contentXtreamId,
+                        contentType: 'episode',
+                        seriesXtreamId: row.seriesXtreamId,
+                        seasonNumber: row.seasonNumber,
+                        episodeNumber: row.episodeNumber,
+                        positionSeconds: 3491,
+                        durationSeconds: 3552,
+                    }),
+                { id: playlistId as string, row: played }
+            );
+
+            await goToDashboard(page);
+            const card = railCard(page, seriesTitle);
+            await expect(card).toHaveCount(1, { timeout: 20_000 });
+            await expect(card).toContainText('S1·E2');
+
+            await card.locator(`[data-test-id="${RAIL}-card-actions"]`).click();
+            await page
+                .getByRole('menuitem', { name: /resume episode/i })
+                .click();
+            await expect(
+                page.locator('.player-shell__episode-meta')
+            ).toContainText('S01E02', { timeout: 30_000 });
         } finally {
             await closeElectronApp(app);
         }

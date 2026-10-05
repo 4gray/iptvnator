@@ -113,7 +113,8 @@ Slides (`pickDashboardHeroSources`, at most four, stable order, each title
 once):
 
 1. the newest unfinished movie/series (`continueWatchingItems()`, the rail's
-   list, so `isPortalPlaybackWatched` rows skip);
+   list: a finished movie skips, a series features the episode it continues
+   with);
 2. a live channel with a programme on air — the first of
    `selectDashboardHeroLiveCandidates` (up to three favourites, then two
    recently watched channels) whose EPG answer has a title;
@@ -197,22 +198,39 @@ and that pause holds the slide.
     1. The hero slides — built by `DashboardHeroSlidesPresenter`, see
        [Cinematic Hero](#cinematic-hero).
     2. `continueWatchingCards` — maps `continueWatchingItems()` to movie/series
-       cover cards: the recent movies and series whose position has not
-       reached `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`;
-       for a series, its latest episode's position). The threshold is 90%,
-       the Plex/Jellyfin/Emby/Kodi default, so stopping during the end
-       credits finishes a title, as does "Mark watched". Finished titles stay
-       in `globalRecentVodItems()` and on the Global Recent page ("See all");
-       the rail's count badge counts only the unfinished ones. The list stays
+       cover cards. A movie stays until its position reaches
+       `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`). The
+       threshold is 90%, the Plex/Jellyfin/Emby/Kodi default, so stopping
+       during the end credits finishes a title, as does "Mark watched". A
+       series stays while it has something to continue: once its newest
+       episode is watched, `DashboardSeriesEpisodesService` fetches its
+       episode list (`get_series_info`, once per session, two lookups at a
+       time, for the `CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT` (20) newest such
+       Xtream series) and `resolveDashboardSeriesContinuation` applies the
+       series page's quick start (`getSeriesQuickStartAction`): an episode
+       left unfinished, else the next unwatched one. The card then shows and
+       resumes that episode; a next episode not started yet is a synthesized
+       row at 0:00 without duration, so it carries the S·E badge but no
+       progress, remaining time or "Mark watched". The series leaves only
+       when every episode is watched, or when it is older than the lookup
+       limit. Until its list is in (loading, failed, empty), and for series
+       that cannot be looked up (Stalker), a series keeps its newest episode
+       rather than vanish on a guess. Finished titles stay in
+       `globalRecentVodItems()` and on the Global Recent page ("See all");
+       the rail's count badge counts only the listed ones. The list stays
        empty until `continueWatchingSettled()`: the history has loaded (on
        the PWA that includes its Xtream data-source read, not only the
-       playlist inventory) and `reloadPlaybackPositions()` has covered every
-       playlist in it once, so on first open the rail inserts once instead of
-       listing finished titles and dropping them a moment later. A playlist
-       whose positions failed to load counts as covered. The gate stays open
+       playlist inventory), `reloadPlaybackPositions()` has covered every
+       playlist in it once, and the episode lists the first open asked for
+       have answered or `CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS` (2 s) has
+       passed, so on first open the rail inserts once instead of listing
+       finished titles and dropping them a moment later. A playlist whose
+       positions failed to load counts as covered. The gate stays open
        afterwards: like the history, a dashboard opened again first renders
        the positions it already holds and refreshes them on entry, so a title
-       finished since the last visit leaves the rail when that refresh lands.
+       finished since the last visit leaves the rail, or a series moves on to
+       its next episode, when that refresh (and, for a series not looked up
+       yet this session, its episode list) lands.
        `reloadPlaybackPositions()` applies only its latest call's result, so
        an older read finishing last cannot bring finished titles back.
        Portal playback positions are bulk-loaded per playlist so

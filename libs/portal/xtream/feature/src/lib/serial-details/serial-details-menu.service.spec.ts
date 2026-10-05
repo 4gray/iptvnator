@@ -127,46 +127,37 @@ describe('SerialDetailsMenuService', () => {
     });
 
     describe('Hide from Continue Watching', () => {
-        const episode = (
-            contentXtreamId: number,
-            positionSeconds: number,
-            updatedAt: string
+        const watched = (
+            contentXtreamId: number
         ): [number, PlaybackPositionData] => [
             contentXtreamId,
             {
                 contentXtreamId,
                 contentType: 'episode',
                 seriesXtreamId: 103,
-                positionSeconds,
+                // Stopped during the credits: 55 s left.
+                positionSeconds: 1887,
                 durationSeconds: 1942,
-                updatedAt,
+                updatedAt: '2026-10-04T08:00:00Z',
             },
         ];
 
         beforeEach(() => {
             recentItemsSignal.set([{ type: 'series', xtream_id: 103 }]);
+            episodePositionsSignal.set(new Map([watched(1001)]));
         });
 
-        it('is offered while the latest episode is unfinished', () => {
-            episodePositionsSignal.set(
-                new Map([
-                    episode(1001, 1887, '2026-10-03T08:00:00Z'),
-                    episode(1002, 600, '2026-10-04T08:00:00Z'),
-                ])
-            );
+        it('is offered once an episode is finished while the next one remains, as the rail lists the series with it', () => {
+            quickStartSignal.set(quickStart({ kind: 'play-next' }));
 
             expect(rowIds()).toContain(
                 SERIES_MENU_ACTION.HideFromContinueWatching
             );
         });
 
-        it('is not offered once the latest episode is watched, as the rail no longer lists the series', () => {
-            episodePositionsSignal.set(
-                new Map([
-                    episode(1001, 600, '2026-10-03T08:00:00Z'),
-                    // Stopped during the credits: 55 s left.
-                    episode(1002, 1887, '2026-10-04T08:00:00Z'),
-                ])
+        it('is not offered once every episode is watched, as the rail no longer lists the series', () => {
+            quickStartSignal.set(
+                quickStart({ kind: 'completed', disabled: true })
             );
 
             expect(rowIds()).not.toContain(

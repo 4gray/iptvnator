@@ -20,6 +20,16 @@ import {
     DashboardFavoriteItem,
     GlobalRecentItem,
 } from './dashboard-data.service';
+import {
+    CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT,
+    CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS,
+} from './dashboard-series-continuation.util';
+import {
+    DashboardSeriesEpisodesService,
+    dashboardSeriesEpisodesKey,
+    type DashboardSeriesEpisodes,
+    type DashboardSeriesEpisodesRequest,
+} from './dashboard-series-episodes.service';
 
 describe('DashboardDataService', () => {
     let service: DashboardDataService;
@@ -168,6 +178,32 @@ describe('DashboardDataService', () => {
         clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Episode lists answer from `seriesEpisodeAnswers`; a series with no
+    // answer stays loading, as a slow portal would.
+    const seriesEpisodeEntries = signal<
+        ReadonlyMap<string, DashboardSeriesEpisodes>
+    >(new Map());
+    const seriesEpisodeAnswers = new Map<string, DashboardSeriesEpisodes>();
+    const seriesEpisodesMock = {
+        episodes: seriesEpisodeEntries.asReadonly(),
+        request: jest.fn((requests: DashboardSeriesEpisodesRequest[]) => {
+            seriesEpisodeEntries.update((entries) => {
+                const next = new Map(entries);
+                for (const { playlistId, seriesId } of requests) {
+                    const key = dashboardSeriesEpisodesKey(
+                        playlistId,
+                        seriesId
+                    );
+                    next.set(
+                        key,
+                        seriesEpisodeAnswers.get(key) ?? { status: 'loading' }
+                    );
+                }
+                return next;
+            });
+        }),
+    };
+
     const createTestingModuleProviders = () => ({
         providers: [
             DashboardDataService,
@@ -193,6 +229,10 @@ describe('DashboardDataService', () => {
             {
                 provide: PORTAL_PLAYBACK_POSITIONS,
                 useValue: playbackPositionsMock,
+            },
+            {
+                provide: DashboardSeriesEpisodesService,
+                useValue: seriesEpisodesMock,
             },
         ],
     });
@@ -254,6 +294,9 @@ describe('DashboardDataService', () => {
 
         playbackPositionsMock.getAllPlaybackPositions.mockClear();
         playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([]);
+        seriesEpisodeEntries.set(new Map());
+        seriesEpisodeAnswers.clear();
+        seriesEpisodesMock.request.mockClear();
 
         TestBed.configureTestingModule(createTestingModuleProviders());
         service = TestBed.inject(DashboardDataService);
@@ -1441,6 +1484,28 @@ describe('DashboardDataService', () => {
         });
         const titles = () =>
             service.continueWatchingItems().map((item) => item.title);
+        /** The portal's episode list for a series: season 1, these ids. */
+        const answerEpisodes = (seriesId: number, ids: number[]) =>
+            seriesEpisodeAnswers.set(
+                dashboardSeriesEpisodesKey(PLAYLIST, seriesId),
+                {
+                    status: 'loaded',
+                    seasons: {
+                        '1': ids.map((id, index) => ({
+                            id: String(id),
+                            season: 1,
+                            episode_num: index + 1,
+                            title: `Episode ${index + 1}`,
+                        })) as never,
+                    },
+                }
+            );
+        /** History, then positions, then the episode lookups they trigger. */
+        const loadDashboard = async () => {
+            await service.reloadGlobalRecentItems();
+            await service.reloadPlaybackPositions();
+            TestBed.tick();
+        };
 
         beforeEach(() => {
             playbackPositionsMock.savePlaybackPositionOrThrow.mockResolvedValue(
@@ -1455,11 +1520,13 @@ describe('DashboardDataService', () => {
                     importDate: '2026-01-01T00:00:00.000Z',
                     autoRefresh: false,
                     serverUrl: 'https://cw.example.com',
+                    username: 'cw-user',
+                    password: 'cw-pass',
                 },
             ]);
         });
 
-        it('lists only the movies and series the user has not finished', async () => {
+        it('lists only the titles the user has not finished', async () => {
             dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
                 recentRow(
                     1,
@@ -1477,27 +1544,34 @@ describe('DashboardDataService', () => {
                 ),
                 recentRow(
                     3,
-                    'Finished Series',
+                    'Next Episode Series',
                     'series',
                     200,
-                    '2026-10-04T08:00:00Z'
+                    '2026-10-04T08:30:00Z'
                 ),
                 recentRow(
                     4,
                     'Ongoing Series',
                     'series',
                     300,
-                    '2026-10-04T07:00:00Z'
+                    '2026-10-04T08:00:00Z'
                 ),
                 recentRow(
                     5,
+                    'Finished Series',
+                    'series',
+                    400,
+                    '2026-10-04T07:30:00Z'
+                ),
+                recentRow(
+                    6,
                     'Threshold Movie',
                     'movie',
                     103,
                     '2026-10-04T06:00:00Z'
                 ),
                 recentRow(
-                    6,
+                    7,
                     'Almost Movie',
                     'movie',
                     104,
@@ -1508,26 +1582,212 @@ describe('DashboardDataService', () => {
                 // Stopped while the credits rolled: 61 s of 59 min left.
                 vodPosition(101, 3491, 3552),
                 vodPosition(102, 2700, 5400),
-                // Latest episode finished; an older one was left halfway.
-                episodePosition(201, 200, 900, 1800, '2026-10-03T08:00:00Z'),
+                // Episodes 1 and 2 watched; episode 3 is next.
+                episodePosition(201, 200, 1887, 1942, '2026-10-03T08:00:00Z'),
                 episodePosition(202, 200, 1887, 1942, '2026-10-04T08:00:00Z'),
                 // Latest episode started after an earlier one was finished.
                 episodePosition(301, 300, 1887, 1942, '2026-10-02T08:00:00Z'),
                 episodePosition(302, 300, 600, 1942, '2026-10-04T07:00:00Z'),
+                // Every episode watched.
+                episodePosition(401, 400, 1887, 1942, '2026-10-03T07:00:00Z'),
+                episodePosition(402, 400, 1887, 1942, '2026-10-04T07:00:00Z'),
                 vodPosition(103, 4860, 5400), // 90%
                 vodPosition(104, 4800, 5400), // 89%
             ]);
+            answerEpisodes(200, [201, 202, 203]);
+            answerEpisodes(400, [401, 402]);
 
-            await service.reloadGlobalRecentItems();
-            await service.reloadPlaybackPositions();
+            await loadDashboard();
 
             expect(titles()).toEqual([
                 'Halfway Movie',
+                'Next Episode Series',
                 'Ongoing Series',
                 'Almost Movie',
             ]);
             // Finished titles stay in the watch history.
-            expect(service.globalRecentVodItems()).toHaveLength(6);
+            expect(service.globalRecentVodItems()).toHaveLength(7);
+            // Only series whose newest episode is watched are looked up.
+            expect(seriesEpisodesMock.request).toHaveBeenCalledWith([
+                expect.objectContaining({ seriesId: 200 }),
+                expect.objectContaining({ seriesId: 400 }),
+            ]);
+
+            // The series goes on with episode 3, from the beginning.
+            const nextEpisode = service
+                .continueWatchingItems()
+                .find((item) => item.title === 'Next Episode Series');
+            if (!nextEpisode) {
+                throw new Error('expected the series with a next episode');
+            }
+            const position = service.getPlaybackPositionForItem(nextEpisode);
+            expect(position).toMatchObject({
+                contentXtreamId: 203,
+                contentType: 'episode',
+                seriesXtreamId: 200,
+                seasonNumber: 1,
+                episodeNumber: 3,
+                positionSeconds: 0,
+            });
+            expect(position?.durationSeconds).toBeUndefined();
+            expect(
+                service.getRecentItemResumeNavigation(nextEpisode)?.state
+            ).toMatchObject({
+                openCollectionDetailItem: {
+                    seriesResume: {
+                        seriesXtreamId: 200,
+                        contentXtreamId: 203,
+                        seasonNumber: 1,
+                        episodeNumber: 3,
+                    },
+                },
+            });
+        });
+
+        describe('a series whose newest episode is watched', () => {
+            beforeEach(() => {
+                dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                    recentRow(
+                        3,
+                        'The Penguin',
+                        'series',
+                        200,
+                        '2026-10-04T08:30:00Z'
+                    ),
+                ]);
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    // Episodes 1-4 watched, the newest last night.
+                    [201, 202, 203, 204].map((id) =>
+                        episodePosition(
+                            id,
+                            200,
+                            3491,
+                            3552,
+                            `2026-10-0${id - 200}T08:00:00Z`
+                        )
+                    )
+                );
+            });
+
+            it('asks the portal for its episodes with the playlist credentials', async () => {
+                answerEpisodes(200, [201, 202, 203, 204, 205]);
+
+                await loadDashboard();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledWith([
+                    {
+                        playlistId: PLAYLIST,
+                        seriesId: 200,
+                        credentials: {
+                            serverUrl: 'https://cw.example.com',
+                            username: 'cw-user',
+                            password: 'cw-pass',
+                        },
+                    },
+                ]);
+                expect(titles()).toEqual(['The Penguin']);
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({
+                    contentXtreamId: 205,
+                    seasonNumber: 1,
+                    episodeNumber: 5,
+                });
+            });
+
+            it('waits for the episode list on first open, for a bounded time', async () => {
+                jest.useFakeTimers();
+                try {
+                    await loadDashboard();
+
+                    // The answer decides between "next episode" and "gone".
+                    expect(service.continueWatchingSettled()).toBe(false);
+                    expect(titles()).toEqual([]);
+
+                    jest.advanceTimersByTime(
+                        CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS
+                    );
+
+                    // Still unknown: the series keeps its place and its
+                    // newest episode.
+                    expect(service.continueWatchingSettled()).toBe(true);
+                    expect(titles()).toEqual(['The Penguin']);
+                    expect(
+                        service.getPlaybackPositionForItem(
+                            service.continueWatchingItems()[0]
+                        )
+                    ).toMatchObject({ contentXtreamId: 204 });
+                } finally {
+                    jest.useRealTimers();
+                }
+            });
+
+            it('keeps its place when the episode list cannot be loaded', async () => {
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    { status: 'failed' }
+                );
+
+                await loadDashboard();
+
+                expect(service.continueWatchingSettled()).toBe(true);
+                expect(titles()).toEqual(['The Penguin']);
+            });
+
+            it('leaves once its last episode is watched', async () => {
+                answerEpisodes(200, [201, 202, 203, 204]);
+
+                await loadDashboard();
+
+                expect(titles()).toEqual([]);
+                expect(service.globalRecentVodItems()).toHaveLength(1);
+            });
+        });
+
+        it(`looks up only the ${CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT} newest such series and leaves older ones off`, async () => {
+            const count = CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT + 1;
+            const seriesIds = Array.from({ length: count }, (_, i) => 500 + i);
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue(
+                seriesIds.map((seriesId, i) =>
+                    recentRow(
+                        seriesId,
+                        `Series ${i}`,
+                        'series',
+                        seriesId,
+                        new Date(
+                            Date.UTC(2026, 9, 4, 12) - i * 60_000
+                        ).toISOString()
+                    )
+                )
+            );
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                seriesIds.map((seriesId) =>
+                    episodePosition(
+                        seriesId * 10 + 1,
+                        seriesId,
+                        3491,
+                        3552,
+                        '2026-10-04T08:00:00Z'
+                    )
+                )
+            );
+            seriesIds.forEach((seriesId) =>
+                answerEpisodes(seriesId, [seriesId * 10 + 1, seriesId * 10 + 2])
+            );
+
+            await loadDashboard();
+
+            expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(1);
+            expect(seriesEpisodesMock.request.mock.calls[0][0]).toHaveLength(
+                CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
+            );
+            expect(titles()).toEqual(
+                seriesIds
+                    .slice(0, CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT)
+                    .map((_, i) => `Series ${i}`)
+            );
         });
 
         it('lists nothing until the positions of every recent playlist have loaded', async () => {

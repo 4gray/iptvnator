@@ -5,8 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import {
     createLogger,
     formatSeriesEpisodeCode,
-    isPortalPlaybackWatched,
-    newestPortalPlaybackPosition,
+    SERIES_QUICK_START_ACTION_KIND,
     type SeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -133,15 +132,16 @@ export class SerialDetailsMenuService {
         if (!seriesId || !this.dataSource) {
             return false;
         }
-        // The rail drops a series once its latest episode is watched.
-        const latest = newestPortalPlaybackPosition(
-            this.bindings()?.episodePositions().values() ?? []
-        );
+        // The rail keeps a series until every episode is watched: it goes
+        // on with the episode this page's quick start names.
+        const completed =
+            this.bindings()?.quickStart()?.kind ===
+            SERIES_QUICK_START_ACTION_KIND.Completed;
         // Xtream ids collide across live, movies and series: the row has to
         // be the series' own.
         return (
-            latest !== null &&
-            !isPortalPlaybackWatched(latest) &&
+            this.hasProgress() &&
+            !completed &&
             this.xtreamStore
                 .recentItems()
                 .some(

@@ -2,21 +2,18 @@ import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import {
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
-    newestPortalPlaybackPosition,
     PORTAL_WATCHED_PROGRESS_PERCENT,
 } from './portal-playback-positions';
 
 function row(
     positionSeconds: number,
-    durationSeconds = 6000,
-    updatedAt?: string
+    durationSeconds = 6000
 ): PlaybackPositionData {
     return {
         contentXtreamId: positionSeconds,
         contentType: 'episode',
         positionSeconds,
         durationSeconds,
-        updatedAt,
     };
 }
 
@@ -36,17 +33,5 @@ describe('portal playback positions', () => {
         expect(isPortalPlaybackInProgress(row(5400))).toBe(false);
         // A few seconds in is not worth resuming.
         expect(isPortalPlaybackInProgress(row(5))).toBe(false);
-    });
-
-    it('picks the most recently updated row', () => {
-        const older = row(100, 6000, '2026-10-03T08:00:00Z');
-        const newer = row(200, 6000, '2026-10-04T08:00:00Z');
-        const undated = row(300);
-
-        expect(newestPortalPlaybackPosition([older, newer, undated])).toBe(
-            newer
-        );
-        expect(newestPortalPlaybackPosition([undated, older])).toBe(older);
-        expect(newestPortalPlaybackPosition([])).toBeNull();
     });
 });
