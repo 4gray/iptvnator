@@ -271,7 +271,11 @@ episode's season → earliest season with unwatched episodes → latest
 non-empty season; Stalker lazy-VOD series with unhydrated seasons pin
 the fallback to the first season because their watched state is unknown,
 and the empty→loaded positions flip caused by the session's own watched
-toggles never re-resolves the selection) and the
+toggles never re-resolves the selection). Extras (season 0, by the
+episodes' season or, unloaded, the key: `isExtrasSeason`) steer none of
+the last three while the series has other seasons, as with its next
+episode, so the page does not open on Specials; only a playing extra
+opens its season. The
 auto-selection emits `seasonSelected`,
 so host lazy-load/enrichment hooks (Stalker VOD-series episode fetch,
 TMDB season fetch, Xtream `enrichSelectedSerialSeason`) fire on open

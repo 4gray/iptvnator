@@ -1,4 +1,7 @@
-import { isPortalPlaybackInProgress } from '@iptvnator/portal/shared/util';
+import {
+    isExtrasSeason,
+    isPortalPlaybackInProgress,
+} from '@iptvnator/portal/shared/util';
 import {
     PlaybackPositionData,
     XtreamSerieEpisode,
@@ -23,8 +26,10 @@ export interface AutoSeasonContext {
  * The season the container opens on when the season set or the initial
  * playback positions change: the inline-playing episode's season, else the
  * most recently updated in-progress episode's season, else the default
- * fallback below. Pure, so the container's auto-select effect stays a thin
- * wrapper (see `SeasonContainerComponent.selectedSeason`).
+ * fallback below. Extras (season 0) steer neither of the last two while the
+ * series has other seasons, as with the series' next episode
+ * (`getSeriesNextUp`). Pure, so the container's auto-select effect stays a
+ * thin wrapper (see `SeasonContainerComponent.selectedSeason`).
  */
 export function resolveAutoSelectedSeason(
     context: AutoSeasonContext
@@ -36,8 +41,13 @@ export function resolveAutoSelectedSeason(
     if (context.playingSeasonKey) {
         return context.playingSeasonKey;
     }
+    const runKeys = keys.filter(
+        (key) => !isExtrasSeason(key, context.seasons[key])
+    );
+    const steering = runKeys.length > 0 ? runKeys : keys;
     return (
-        findMostRecentInProgressSeason(context) ?? resolveDefaultSeason(context)
+        findMostRecentInProgressSeason(context, steering) ??
+        resolveDefaultSeason(context, steering)
     );
 }
 
@@ -50,12 +60,10 @@ export function resolveAutoSelectedSeason(
  * season: their watched state is unknown, so skipping past them would be a
  * guess.
  */
-function resolveDefaultSeason({
-    keys,
-    hasUnloadedSeasons,
-    episodeCounts,
-    watchedCounts,
-}: AutoSeasonContext): string {
+function resolveDefaultSeason(
+    { hasUnloadedSeasons, episodeCounts, watchedCounts }: AutoSeasonContext,
+    keys: readonly string[]
+): string {
     if (hasUnloadedSeasons) {
         return keys[0];
     }
@@ -72,13 +80,16 @@ function resolveDefaultSeason({
     return latestWithEpisodes ?? keys[0];
 }
 
-function findMostRecentInProgressSeason({
-    seasons,
-    positionOf,
-}: AutoSeasonContext): string | null {
+function findMostRecentInProgressSeason(
+    { seasons, positionOf }: AutoSeasonContext,
+    keys: readonly string[]
+): string | null {
     let bestSeason: string | null = null;
     let bestUpdatedAt = '';
     for (const [key, episodes] of Object.entries(seasons)) {
+        if (!keys.includes(key)) {
+            continue;
+        }
         for (const episode of episodes ?? []) {
             const position = positionOf(episode);
             if (!isPortalPlaybackInProgress(position)) {

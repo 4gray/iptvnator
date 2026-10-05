@@ -127,8 +127,7 @@ function getOrderedSeriesEpisodes(
         )
         .forEach(([seasonKey, episodes]) => {
             [...episodes].sort(compareEpisodes).forEach((episode) => {
-                const seasonNumber =
-                    toSeasonNumber(episode.season) ?? toSeasonNumber(seasonKey);
+                const seasonNumber = episodeSeasonNumber(episode, seasonKey);
                 entries.push({
                     episode,
                     position:
@@ -141,6 +140,29 @@ function getOrderedSeriesEpisodes(
             });
         });
     return entries;
+}
+
+/**
+ * Whether a season holds extras (season 0), judged like the episodes in
+ * `getSeriesNextUp`: by its episodes' own season, else by its key, which is
+ * all an unloaded season has.
+ */
+export function isExtrasSeason(
+    seasonKey: string,
+    episodes: readonly XtreamSerieEpisode[] | null | undefined
+): boolean {
+    return episodes && episodes.length > 0
+        ? episodes.every(
+              (episode) => episodeSeasonNumber(episode, seasonKey) === 0
+          )
+        : toSeasonNumber(seasonKey) === 0;
+}
+
+function episodeSeasonNumber(
+    episode: XtreamSerieEpisode,
+    seasonKey: string
+): number | null {
+    return toSeasonNumber(episode.season) ?? toSeasonNumber(seasonKey);
 }
 
 function compareEpisodes(

@@ -2,7 +2,11 @@ import type {
     PlaybackPositionData,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
-import { getSeriesNextUp, type SeriesNextUp } from './series-next-up';
+import {
+    getSeriesNextUp,
+    isExtrasSeason,
+    type SeriesNextUp,
+} from './series-next-up';
 
 function episode(
     id: number,
@@ -298,5 +302,16 @@ describe('getSeriesNextUp', () => {
 
     it('has nothing to go on with when no season lists an episode', () => {
         expect(nextUp({ '1': [] }, [])).toBeNull();
+    });
+});
+
+describe('isExtrasSeason', () => {
+    it('goes by the episodes, else by the key of an unloaded season', () => {
+        expect(isExtrasSeason('0', season(0, 2))).toBe(true);
+        expect(isExtrasSeason('Specials', season(0, 2))).toBe(true);
+        expect(isExtrasSeason('1', season(1, 2))).toBe(false);
+        expect(isExtrasSeason('0', [])).toBe(true);
+        expect(isExtrasSeason('Specials', [])).toBe(false);
+        expect(isExtrasSeason('2', undefined)).toBe(false);
     });
 });
