@@ -1463,9 +1463,10 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   recomputed from the mapped episodes before playback so provider episode
   ordering cannot start the wrong episode.
 - Extras (season 0) follow the shared next-episode rule (`getSeriesNextUp`):
-  while the series has other seasons they never become the quick-start target.
-  Unloaded seasons still load in season order, so an unloaded Specials season
-  may load first and is then passed over.
+  while the series has other seasons they never become the quick-start target,
+  and the lazy load before playback picks the first unloaded regular season,
+  never an unloaded Specials season. Only when every regular season came back
+  empty do extras count as the run.
 - For unloaded VOD-series seasons, the CTA target label is derived from season
   metadata and rendered as `SxxE01` until episode details are loaded.
 - Lazy VOD-series episodes use scoped tracking IDs derived from the parent

@@ -2,6 +2,7 @@ import {
     SERIES_QUICK_START_ACTION_KIND,
     formatSeriesEpisodeCode,
     getSeriesQuickStartAction,
+    isExtrasSeason,
     type SeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -99,7 +100,10 @@ function getQuickStartLazyVodSeriesSeason(
     mappedSeasons: Record<string, XtreamSerieEpisode[]>,
     seasons: ReadonlyArray<VodSeriesSeasonVm>
 ): VodSeriesSeasonVm | null {
-    const firstUnloadedSeason = getFirstUnloadedVodSeriesSeason(seasons);
+    const firstUnloadedSeason = getFirstUnloadedVodSeriesSeason(
+        seasons,
+        mappedSeasons
+    );
     if (!action) {
         return firstUnloadedSeason;
     }
@@ -131,10 +135,31 @@ function getQuickStartLazyVodSeriesSeason(
         : null;
 }
 
+/**
+ * The first season whose episodes are not loaded yet. Extras (season 0) are
+ * passed over while the series has other seasons that hold, or may still
+ * hold, episodes: as with its next episode (`getSeriesNextUp`), they never
+ * decide what plays.
+ */
 function getFirstUnloadedVodSeriesSeason(
-    seasons: ReadonlyArray<VodSeriesSeasonVm>
+    seasons: ReadonlyArray<VodSeriesSeasonVm>,
+    mappedSeasons: Record<string, XtreamSerieEpisode[]>
 ): VodSeriesSeasonVm | null {
-    return seasons.find((season) => season.episodes.length === 0) ?? null;
+    const isExtras = (season: VodSeriesSeasonVm) => {
+        const key = getVodSeriesSeasonKey(season);
+        return isExtrasSeason(key, mappedSeasons[key]);
+    };
+    const hasRun = seasons.some(
+        (season) =>
+            !isExtras(season) &&
+            (season.episodes.length > 0 || season.episodesLoaded !== true)
+    );
+    return (
+        seasons.find(
+            (season) =>
+                season.episodes.length === 0 && !(hasRun && isExtras(season))
+        ) ?? null
+    );
 }
 
 function findVodSeriesSeasonIndexForEpisode(

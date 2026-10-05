@@ -256,6 +256,14 @@ describe('resolveAutoSelectedSeason', () => {
             ).toBe('0');
         });
 
+        it('open when every regular season came back empty', () => {
+            expect(
+                resolveAutoSelectedSeason(
+                    context({ '0': ['1'], '1': [], '2': [] })
+                )
+            ).toBe('0');
+        });
+
         it('still open while one is playing', () => {
             expect(
                 resolveAutoSelectedSeason(

@@ -27,8 +27,8 @@ export interface AutoSeasonContext {
  * playback positions change: the inline-playing episode's season, else the
  * most recently updated in-progress episode's season, else the default
  * fallback below. Extras (season 0) steer neither of the last two while the
- * series has other seasons, as with the series' next episode
- * (`getSeriesNextUp`). Pure, so the container's auto-select effect stays a
+ * series' other seasons hold, or may still hold, episodes, as with the
+ * series' next episode (`getSeriesNextUp`). Pure, so the container's auto-select effect stays a
  * thin wrapper (see `SeasonContainerComponent.selectedSeason`).
  */
 export function resolveAutoSelectedSeason(
@@ -44,7 +44,11 @@ export function resolveAutoSelectedSeason(
     const runKeys = keys.filter(
         (key) => !isExtrasSeason(key, context.seasons[key])
     );
-    const steering = runKeys.length > 0 ? runKeys : keys;
+    // A run that came back empty does not hide the extras.
+    const runMayHaveEpisodes =
+        context.hasUnloadedSeasons ||
+        runKeys.some((key) => (context.episodeCounts[key] ?? 0) > 0);
+    const steering = runKeys.length > 0 && runMayHaveEpisodes ? runKeys : keys;
     return (
         findMostRecentInProgressSeason(context, steering) ??
         resolveDefaultSeason(context, steering)
