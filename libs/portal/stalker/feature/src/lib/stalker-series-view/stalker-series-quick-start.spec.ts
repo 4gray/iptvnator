@@ -100,6 +100,21 @@ describe('getStalkerSeriesQuickStartButton with extras (season 0)', () => {
         expect(button?.lazySeason?.season_number).toBe('1');
     });
 
+    it('loads a season the portal has not answered for, not one that came back empty', () => {
+        const button = getStalkerSeriesQuickStartButton({
+            isVodSeries: true,
+            mappedSeasons: { '0': [], '1': [], '2': [] },
+            playbackPositions: new Map(),
+            vodSeriesSeasons: [
+                season('0', 0),
+                season('1', 0, true),
+                season('2', 0),
+            ],
+        });
+
+        expect(button?.lazySeason?.season_number).toBe('2');
+    });
+
     it('still loads Specials when every regular season came back empty', () => {
         const button = getStalkerSeriesQuickStartButton({
             isVodSeries: true,

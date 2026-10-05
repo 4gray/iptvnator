@@ -8,6 +8,7 @@ import {
 import {
     getVodSeriesSeasonKey,
     getVodSeriesSeasonNumber,
+    isVodSeasonHydrationPending,
     type VodSeriesSeasonVm,
 } from '@iptvnator/portal/stalker/data-access';
 import type {
@@ -136,10 +137,10 @@ function getQuickStartLazyVodSeriesSeason(
 }
 
 /**
- * The first season whose episodes are not loaded yet. Extras (season 0) are
- * passed over while the series has other seasons that hold, or may still
- * hold, episodes: as with its next episode (`getSeriesNextUp`), they never
- * decide what plays.
+ * The first season the portal has not answered for yet (an empty answer is
+ * loaded, not pending). Extras (season 0) are passed over while the series
+ * has other seasons that hold, or may still hold, episodes: as with its next
+ * episode (`getSeriesNextUp`), they never decide what plays.
  */
 function getFirstUnloadedVodSeriesSeason(
     seasons: ReadonlyArray<VodSeriesSeasonVm>,
@@ -152,12 +153,13 @@ function getFirstUnloadedVodSeriesSeason(
     const hasRun = seasons.some(
         (season) =>
             !isExtras(season) &&
-            (season.episodes.length > 0 || season.episodesLoaded !== true)
+            (season.episodes.length > 0 || isVodSeasonHydrationPending(season))
     );
     return (
         seasons.find(
             (season) =>
-                season.episodes.length === 0 && !(hasRun && isExtras(season))
+                isVodSeasonHydrationPending(season) &&
+                !(hasRun && isExtras(season))
         ) ?? null
     );
 }
