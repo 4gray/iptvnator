@@ -205,9 +205,8 @@ and that pause holds the slide.
        series stays while it has something to continue: once its newest
        episode is watched, or is an extra (season 0),
        `DashboardSeriesEpisodesService` fetches its episode list
-       (`get_series_info`, once per session, two lookups at a time, for the
-       `CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT` (20) newest such Xtream
-       series) and `resolveDashboardSeriesContinuation` applies
+       (`get_series_info`, two lookups at a time) and
+       `resolveDashboardSeriesContinuation` applies
        `getSeriesNextUp`, the rule the series page's quick start follows
        too. Like Plex's On Deck and Jellyfin's Next Up it goes on from the
        episode watched last, not from the first gap in the list: the first
@@ -222,16 +221,29 @@ and that pause holds the slide.
        synthesized row at 0:00 without duration, so it carries the S·E
        badge but no progress, remaining time or "Mark watched". The series
        leaves once no unwatched episode follows the one watched last, even
-       if an earlier one was skipped or extras are left, or when it is older
-       than the lookup limit. Until its list is in (loading, failed, empty,
-       or not holding the episodes played), and for series that cannot be
-       looked up (Stalker), a series keeps its newest episode rather than
-       vanish on a guess. Lookups are background requests (`suppressErrorLog`: a failure
-       is logged, never a toast). A failed one is tried again only on the
-       next `reloadPlaybackPositions()` (dashboard entry, a changed history,
-       "Mark watched") or when the set of series to look up or their
-       credentials change: the request list compares by value, so playlist
-       store churn elsewhere in the app does not retry it. Finished titles
+       if an earlier one was skipped or extras are left. Until its list is
+       in (loading, failed, empty, or not holding the episodes played), for
+       series that cannot be looked up (Stalker), and for series never
+       looked up, a series keeps its newest episode rather than vanish on a
+       guess. `planDashboardSeriesLookups` picks the series to look up:
+       newest first until `CONTINUE_WATCHING_VISIBLE_ITEMS` (20, the rail's
+       `RAIL_ITEM_LIMIT`) titles are known to stay listed, counting movies
+       and series that need no lookup; a finished series frees its slot, so
+       an older one is looked up next, up to
+       `CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT` (40) lookups. Lists are kept
+       per session and per source (server and username: an edited playlist
+       is looked up again, and a late answer for the old source is
+       dropped). Lookups are background requests (`suppressErrorLog`: a
+       failure is logged, never a toast). Each `reloadPlaybackPositions()`
+       that lands (dashboard entry, a changed history, "Mark watched") is a
+       lookup round: a failed lookup is tried again (at once, too, when the
+       playlist's password is corrected), and a list older than
+       `DASHBOARD_SERIES_EPISODES_MAX_AGE_MS` (1 h) is fetched again so
+       newly added episodes show up, the old list standing until the new
+       one arrives (a failed refresh keeps it). Within one round, more
+       series to look past never repeat a request, and the request list
+       compares by value, so playlist store churn elsewhere in the app does
+       not trigger lookups. Finished titles
        stay in `globalRecentVodItems()` and on the Global Recent page ("See
        all");
        the rail's count badge counts only the listed ones. The list stays

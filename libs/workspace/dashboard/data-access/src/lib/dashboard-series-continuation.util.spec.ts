@@ -4,6 +4,9 @@ import type {
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
 import {
+    CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT,
+    CONTINUE_WATCHING_VISIBLE_ITEMS,
+    planDashboardSeriesLookups,
     resolveDashboardSeriesContinuation,
     selectSeriesContinuationCandidates,
     type DashboardSeriesCandidate,
@@ -388,5 +391,86 @@ describe('selectSeriesContinuationCandidates', () => {
             [3, SERIES],
             [8, SERIES],
         ]);
+    });
+});
+
+describe('planDashboardSeriesLookups', () => {
+    const recent = (id: number, type: 'movie' | 'series'): PortalRecentItem =>
+        ({
+            id,
+            title: `Title ${id}`,
+            type,
+            source: 'xtream',
+            playlist_id: PLAYLIST,
+            xtream_id: id,
+            viewed_at: '2026-10-04',
+        }) as PortalRecentItem;
+    const asCandidate = (item: PortalRecentItem): DashboardSeriesCandidate => ({
+        item,
+        seriesXtreamId: item.xtream_id as number,
+        newest: row(1, WATCHED),
+    });
+    const plan = (
+        items: PortalRecentItem[],
+        finished: (candidate: DashboardSeriesCandidate) => boolean
+    ) =>
+        planDashboardSeriesLookups({
+            items,
+            candidates: items
+                .filter((item) => item.type === 'series')
+                .map(asCandidate),
+            listedWithoutLookup: () => true,
+            resolve: (candidate) =>
+                finished(candidate)
+                    ? { kind: 'finished' }
+                    : { kind: 'unknown' },
+        });
+    const ids = (list: readonly DashboardSeriesCandidate[]) =>
+        list.map((candidate) => candidate.item.id);
+
+    it("stops once the rail's titles are listed, counting titles that need no lookup", () => {
+        const movies = Array.from(
+            { length: CONTINUE_WATCHING_VISIBLE_ITEMS - 2 },
+            (_, i) => recent(i + 1, 'movie')
+        );
+        const series = [101, 102, 103].map((id) => recent(id, 'series'));
+
+        const result = plan([...movies, ...series], () => false);
+
+        expect(ids(result.window)).toEqual([101, 102]);
+        expect(result.continuations.has(`${PLAYLIST}::series::103`)).toBe(
+            false
+        );
+    });
+
+    it('looks past finished series for the next one', () => {
+        const series = Array.from(
+            { length: CONTINUE_WATCHING_VISIBLE_ITEMS + 1 },
+            (_, i) => recent(i + 1, 'series')
+        );
+
+        const result = plan(
+            series,
+            (candidate) =>
+                (candidate.item.id as number) <= CONTINUE_WATCHING_VISIBLE_ITEMS
+        );
+
+        expect(result.window).toHaveLength(series.length);
+    });
+
+    it(`looks up ${CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT} series at most`, () => {
+        const series = Array.from(
+            { length: CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT + 1 },
+            (_, i) => recent(i + 1, 'series')
+        );
+
+        const result = plan(series, () => true);
+
+        expect(result.window).toHaveLength(
+            CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
+        );
+        expect(result.continuations.size).toBe(
+            CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
+        );
     });
 });

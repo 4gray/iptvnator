@@ -22,6 +22,7 @@ import {
 } from './dashboard-data.service';
 import {
     CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT,
+    CONTINUE_WATCHING_VISIBLE_ITEMS,
     CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS,
 } from './dashboard-series-continuation.util';
 import {
@@ -1608,10 +1609,13 @@ describe('DashboardDataService', () => {
             // Finished titles stay in the watch history.
             expect(service.globalRecentVodItems()).toHaveLength(7);
             // Only series whose newest episode is watched are looked up.
-            expect(seriesEpisodesMock.request).toHaveBeenCalledWith([
-                expect.objectContaining({ seriesId: 200 }),
-                expect.objectContaining({ seriesId: 400 }),
-            ]);
+            expect(seriesEpisodesMock.request).toHaveBeenCalledWith(
+                [
+                    expect.objectContaining({ seriesId: 200 }),
+                    expect.objectContaining({ seriesId: 400 }),
+                ],
+                expect.any(Number)
+            );
 
             // The series goes on with episode 3, from the beginning.
             const nextEpisode = service
@@ -1674,17 +1678,20 @@ describe('DashboardDataService', () => {
 
                 await loadDashboard();
 
-                expect(seriesEpisodesMock.request).toHaveBeenCalledWith([
-                    {
-                        playlistId: PLAYLIST,
-                        seriesId: 200,
-                        credentials: {
-                            serverUrl: 'https://cw.example.com',
-                            username: 'cw-user',
-                            password: 'cw-pass',
+                expect(seriesEpisodesMock.request).toHaveBeenCalledWith(
+                    [
+                        {
+                            playlistId: PLAYLIST,
+                            seriesId: 200,
+                            credentials: {
+                                serverUrl: 'https://cw.example.com',
+                                username: 'cw-user',
+                                password: 'cw-pass',
+                            },
                         },
-                    },
-                ]);
+                    ],
+                    expect.any(Number)
+                );
                 expect(titles()).toEqual(['The Penguin']);
                 expect(
                     service.getPlaybackPositionForItem(
@@ -1787,13 +1794,16 @@ describe('DashboardDataService', () => {
                 TestBed.tick();
 
                 expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(2);
-                expect(seriesEpisodesMock.request).toHaveBeenLastCalledWith([
-                    expect.objectContaining({
-                        credentials: expect.objectContaining({
-                            password: 'new-pass',
+                expect(seriesEpisodesMock.request).toHaveBeenLastCalledWith(
+                    [
+                        expect.objectContaining({
+                            credentials: expect.objectContaining({
+                                password: 'new-pass',
+                            }),
                         }),
-                    }),
-                ]);
+                    ],
+                    expect.any(Number)
+                );
             });
 
             it('leaves once its last episode is watched', async () => {
@@ -1853,9 +1863,10 @@ describe('DashboardDataService', () => {
 
                 await loadDashboard();
 
-                expect(seriesEpisodesMock.request).toHaveBeenCalledWith([
-                    expect.objectContaining({ seriesId: 200 }),
-                ]);
+                expect(seriesEpisodesMock.request).toHaveBeenCalledWith(
+                    [expect.objectContaining({ seriesId: 200 })],
+                    expect.any(Number)
+                );
                 expect(
                     service.getPlaybackPositionForItem(
                         service.continueWatchingItems()[0]
@@ -1896,48 +1907,116 @@ describe('DashboardDataService', () => {
             });
         });
 
-        it(`looks up only the ${CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT} newest such series and leaves older ones off`, async () => {
-            const count = CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT + 1;
-            const seriesIds = Array.from({ length: count }, (_, i) => 500 + i);
-            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue(
-                seriesIds.map((seriesId, i) =>
-                    recentRow(
-                        seriesId,
-                        `Series ${i}`,
-                        'series',
-                        seriesId,
-                        new Date(
-                            Date.UTC(2026, 9, 4, 12) - i * 60_000
-                        ).toISOString()
+        describe('with more series to look up than the rail shows', () => {
+            /** `count` series, newest first, each with episode x1 watched. */
+            const historyOfSeries = (count: number) => {
+                const seriesIds = Array.from(
+                    { length: count },
+                    (_, i) => 500 + i
+                );
+                dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue(
+                    seriesIds.map((seriesId, i) =>
+                        recentRow(
+                            seriesId,
+                            `Series ${i}`,
+                            'series',
+                            seriesId,
+                            new Date(
+                                Date.UTC(2026, 9, 4, 12) - i * 60_000
+                            ).toISOString()
+                        )
                     )
-                )
-            );
-            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
-                seriesIds.map((seriesId) =>
-                    episodePosition(
-                        seriesId * 10 + 1,
-                        seriesId,
-                        3491,
-                        3552,
-                        '2026-10-04T08:00:00Z'
+                );
+                playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                    seriesIds.map((seriesId) =>
+                        episodePosition(
+                            seriesId * 10 + 1,
+                            seriesId,
+                            3491,
+                            3552,
+                            '2026-10-04T08:00:00Z'
+                        )
                     )
-                )
-            );
-            seriesIds.forEach((seriesId) =>
-                answerEpisodes(seriesId, [seriesId * 10 + 1, seriesId * 10 + 2])
-            );
+                );
+                return seriesIds;
+            };
+            /** Lookups answer at once here: let the window grow. */
+            const settleLookups = () => {
+                for (let i = 0; i < 5; i++) {
+                    TestBed.tick();
+                }
+            };
+            const finished = (seriesId: number) =>
+                answerEpisodes(seriesId, [seriesId * 10 + 1]);
+            const continuing = (seriesId: number) =>
+                answerEpisodes(seriesId, [
+                    seriesId * 10 + 1,
+                    seriesId * 10 + 2,
+                ]);
 
-            await loadDashboard();
+            it('looks up series until the rail is filled, and keeps older ones in place', async () => {
+                const seriesIds = historyOfSeries(
+                    CONTINUE_WATCHING_VISIBLE_ITEMS + 1
+                );
+                seriesIds.forEach(continuing);
 
-            expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(1);
-            expect(seriesEpisodesMock.request.mock.calls[0][0]).toHaveLength(
-                CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
-            );
-            expect(titles()).toEqual(
-                seriesIds
-                    .slice(0, CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT)
-                    .map((_, i) => `Series ${i}`)
-            );
+                await loadDashboard();
+                settleLookups();
+
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(1);
+                expect(
+                    seriesEpisodesMock.request.mock.calls[0][0]
+                ).toHaveLength(CONTINUE_WATCHING_VISIBLE_ITEMS);
+                // Not looked up: it keeps its place, never hidden on a guess.
+                expect(titles()).toEqual(
+                    seriesIds.map((_, i) => `Series ${i}`)
+                );
+            });
+
+            it('looks past finished series for one that goes on, in the same round', async () => {
+                const seriesIds = historyOfSeries(
+                    CONTINUE_WATCHING_VISIBLE_ITEMS + 1
+                );
+                seriesIds.slice(0, -1).forEach(finished);
+                continuing(seriesIds[seriesIds.length - 1]);
+
+                await loadDashboard();
+                settleLookups();
+
+                expect(titles()).toEqual([
+                    `Series ${CONTINUE_WATCHING_VISIBLE_ITEMS}`,
+                ]);
+                const calls = seriesEpisodesMock.request.mock.calls;
+                expect(calls[calls.length - 1][0]).toHaveLength(
+                    seriesIds.length
+                );
+                // Growing the window is no new round: nothing is retried.
+                const rounds = calls.map((call) => (call as unknown[])[1]);
+                expect(new Set(rounds).size).toBe(1);
+            });
+
+            it(`looks up ${CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT} series at most and keeps the rest in place`, async () => {
+                const seriesIds = historyOfSeries(
+                    CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT + 5
+                );
+                seriesIds.forEach(finished);
+
+                await loadDashboard();
+                settleLookups();
+
+                const calls = seriesEpisodesMock.request.mock.calls;
+                expect(calls[calls.length - 1][0]).toHaveLength(
+                    CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
+                );
+                expect(titles()).toEqual(
+                    seriesIds
+                        .slice(CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT)
+                        .map(
+                            (_, i) =>
+                                `Series ${CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT + i}`
+                        )
+                );
+            });
         });
 
         it('lists nothing until the positions of every recent playlist have loaded', async () => {

@@ -69,12 +69,11 @@ import {
     type DashboardContentKind,
 } from './dashboard-navigation.util';
 import {
-    CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT,
     CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS,
     dashboardRecentItemKey,
+    planDashboardSeriesLookups,
     resolveDashboardSeriesContinuation,
     selectSeriesContinuationCandidates,
-    type DashboardSeriesContinuation,
 } from './dashboard-series-continuation.util';
 import {
     DashboardSeriesEpisodesService,
@@ -330,7 +329,8 @@ export class DashboardDataService {
     private playbackPositionsLoadGeneration = 0;
     /**
      * Counts the position reloads that landed (dashboard entry, a changed
-     * history, "Mark watched"): each retries the episode lookups that failed.
+     * history, "Mark watched"): each is a lookup round, which retries failed
+     * episode lookups and refreshes lists past their age.
      */
     private readonly playbackPositionsReloads = signal(0);
 
@@ -347,10 +347,41 @@ export class DashboardDataService {
     );
 
     /**
-     * The episode lists to fetch: candidates within the limit, with
-     * credentials. Equal lists keep the previous value, so playlist store
-     * churn (favourites, refreshes, M3U playback) does not run the lookup
-     * effect again and retry failed lookups behind the user's back.
+     * Which candidates to look up, and what each continues with
+     * (`planDashboardSeriesLookups`): newest first until the rail's titles
+     * are known, so a finished series frees its slot for an older one.
+     */
+    private readonly seriesLookupPlan = computed(() => {
+        const episodes = this.seriesEpisodes.episodes();
+        const rowsBySeries = this.seriesEpisodePositionsMap();
+        return planDashboardSeriesLookups({
+            items: this.globalRecentVodItems(),
+            candidates: this.seriesContinuationCandidates(),
+            listedWithoutLookup: (item) => this.isListedWithoutLookup(item),
+            resolve: (candidate) =>
+                resolveDashboardSeriesContinuation(
+                    candidate,
+                    rowsBySeries.get(
+                        seriesPlaybackPositionMapKey(
+                            candidate.item.playlist_id,
+                            candidate.seriesXtreamId
+                        )
+                    ) ?? [candidate.newest],
+                    episodes.get(
+                        dashboardSeriesEpisodesKey(
+                            candidate.item.playlist_id,
+                            candidate.seriesXtreamId
+                        )
+                    )
+                ),
+        });
+    });
+
+    /**
+     * The episode lists to fetch: the plan's candidates, with credentials.
+     * Equal lists keep the previous value, so playlist store churn
+     * (favourites, refreshes, M3U playback) does not run the lookup effect
+     * again.
      */
     private readonly seriesEpisodeRequests = computed<
         DashboardSeriesEpisodesRequest[]
@@ -358,13 +389,8 @@ export class DashboardDataService {
         () => {
             const playlists = new Map(this.playlists().map((p) => [p._id, p]));
             const requests: DashboardSeriesEpisodesRequest[] = [];
-            for (const {
-                item,
-                seriesXtreamId,
-            } of this.seriesContinuationCandidates().slice(
-                0,
-                CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
-            )) {
+            for (const { item, seriesXtreamId } of this.seriesLookupPlan()
+                .window) {
                 const playlist = playlists.get(item.playlist_id);
                 if (
                     playlist?.serverUrl &&
@@ -399,36 +425,10 @@ export class DashboardDataService {
         );
     });
 
-    /** What each candidate series continues with, by recent item key. */
-    private readonly seriesContinuations = computed(() => {
-        const continuations = new Map<string, DashboardSeriesContinuation>();
-        const episodes = this.seriesEpisodes.episodes();
-        const rowsBySeries = this.seriesEpisodePositionsMap();
-        this.seriesContinuationCandidates().forEach((candidate, index) => {
-            const { item, seriesXtreamId, newest } = candidate;
-            continuations.set(
-                dashboardRecentItemKey(item),
-                index < CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
-                    ? resolveDashboardSeriesContinuation(
-                          candidate,
-                          rowsBySeries.get(
-                              seriesPlaybackPositionMapKey(
-                                  item.playlist_id,
-                                  seriesXtreamId
-                              )
-                          ) ?? [newest],
-                          episodes.get(
-                              dashboardSeriesEpisodesKey(
-                                  item.playlist_id,
-                                  seriesXtreamId
-                              )
-                          )
-                      )
-                    : { kind: 'finished' }
-            );
-        });
-        return continuations;
-    });
+    /** What each looked-up series continues with, by recent item key. */
+    private readonly seriesContinuations = computed(
+        () => this.seriesLookupPlan().continuations
+    );
 
     /**
      * Continue Watching tells unfinished titles from finished ones by their
@@ -471,17 +471,23 @@ export class DashboardDataService {
             const continuation = continuations.get(
                 dashboardRecentItemKey(item)
             );
-            if (continuation) {
-                return continuation.kind !== 'finished';
-            }
-            return (
-                resolvePortalActivityWatchKind(item) === 'series' ||
-                !isPortalPlaybackWatched(
-                    this.storedPlaybackPositionForItem(item)
-                )
-            );
+            return continuation
+                ? continuation.kind !== 'finished'
+                : this.isListedWithoutLookup(item);
         });
     });
+
+    /**
+     * A title Continue Watching lists without an episode lookup: a movie
+     * not watched yet, or a series, which keeps its place until a lookup
+     * says it is finished.
+     */
+    private isListedWithoutLookup(item: GlobalRecentItem): boolean {
+        return (
+            resolvePortalActivityWatchKind(item) === 'series' ||
+            !isPortalPlaybackWatched(this.storedPlaybackPositionForItem(item))
+        );
+    }
 
     /**
      * The position a dashboard card shows and resumes: the stored one, or
@@ -688,12 +694,12 @@ export class DashboardDataService {
         // the deliberate moments a failed lookup is tried again.
         effect(() => {
             const requests = this.seriesEpisodeRequests();
-            this.playbackPositionsReloads();
+            const round = this.playbackPositionsReloads();
             if (requests.length === 0) {
                 return;
             }
             untracked(() => {
-                this.seriesEpisodes.request(requests);
+                this.seriesEpisodes.request(requests, round);
                 if (!this.seriesLookupWaitStarted) {
                     this.seriesLookupWaitStarted = true;
                     setTimeout(

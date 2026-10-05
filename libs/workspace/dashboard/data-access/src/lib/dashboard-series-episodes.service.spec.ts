@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { XtreamApiService } from '@iptvnator/portal/xtream/data-access';
 import type { XtreamSerieDetails } from '@iptvnator/shared/interfaces';
 import {
+    DASHBOARD_SERIES_EPISODES_MAX_AGE_MS,
     DashboardSeriesEpisodesService,
     dashboardSeriesEpisodesKey,
     sameDashboardSeriesEpisodesRequests,
@@ -94,21 +95,164 @@ describe('DashboardSeriesEpisodesService', () => {
         });
     });
 
-    it('reports a failed lookup and retries it when asked again', async () => {
-        const failure = deferred<XtreamSerieDetails>();
-        getSeriesInfo.mockReturnValueOnce(failure.promise);
+    describe('in lookup rounds', () => {
+        const flush = () => new Promise((resolve) => setTimeout(resolve));
+        const entry = (seriesId: number) =>
+            service
+                .episodes()
+                .get(dashboardSeriesEpisodesKey('xtream-1', seriesId));
+        const seasons = (...ids: number[]) => ({
+            '1': ids.map((id, index) => ({
+                id: String(id),
+                episode_num: index + 1,
+            })),
+        });
+        let now: number;
 
-        service.request([request(900)]);
-        failure.reject(new Error('Portal is not responding'));
-        await failure.promise.catch(() => undefined);
-        await new Promise((resolve) => setTimeout(resolve));
-        expect(status(900)).toBe('failed');
+        beforeEach(() => {
+            now = Date.UTC(2026, 9, 5, 8);
+            jest.spyOn(Date, 'now').mockImplementation(() => now);
+        });
 
-        getSeriesInfo.mockResolvedValueOnce({ episodes: {} });
-        service.request([request(900)]);
-        expect(getSeriesInfo).toHaveBeenCalledTimes(2);
-        await new Promise((resolve) => setTimeout(resolve));
-        expect(status(900)).toBe('loaded');
+        it('retries a failed lookup only in a later round', async () => {
+            getSeriesInfo.mockRejectedValueOnce(
+                new Error('Portal is not responding')
+            );
+            service.request([request(900)], 1);
+            await flush();
+            expect(status(900)).toBe('failed');
+
+            // More series to look past in the same round: no retry.
+            service.request([request(900), request(901)], 1);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(getSeriesInfo).toHaveBeenLastCalledWith(credentials, 901, {
+                suppressErrorLog: true,
+            });
+
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            service.request([request(900)], 2);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(3);
+            await flush();
+            expect(status(900)).toBe('loaded');
+        });
+
+        it('retries a failed lookup at once with a corrected password, without refetching loaded lists', async () => {
+            const corrected = (seriesId: number) => ({
+                ...request(seriesId),
+                credentials: { ...credentials, password: 'corrected' },
+            });
+            getSeriesInfo
+                .mockRejectedValueOnce(new Error('Wrong password'))
+                .mockResolvedValueOnce({ episodes: seasons(911) });
+            service.request([request(900), request(910)], 1);
+            await flush();
+            expect(status(900)).toBe('failed');
+            expect(status(910)).toBe('loaded');
+
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            service.request([corrected(900), corrected(910)], 1);
+
+            expect(getSeriesInfo).toHaveBeenCalledTimes(3);
+            expect(getSeriesInfo).toHaveBeenLastCalledWith(
+                corrected(900).credentials,
+                900,
+                { suppressErrorLog: true }
+            );
+            await flush();
+            expect(status(900)).toBe('loaded');
+        });
+
+        it('refreshes a list past its age in a later round, the old one standing meanwhile', async () => {
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            service.request([request(900)], 1);
+            await flush();
+
+            // Still current, even in a later round.
+            service.request([request(900)], 2);
+            now += DASHBOARD_SERIES_EPISODES_MAX_AGE_MS;
+            // Past its age, but the same round.
+            service.request([request(900)], 2);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(1);
+
+            const refresh = deferred<XtreamSerieDetails>();
+            getSeriesInfo.mockReturnValueOnce(refresh.promise);
+            service.request([request(900)], 3);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901),
+            });
+
+            refresh.resolve({
+                episodes: seasons(901, 902),
+            } as unknown as XtreamSerieDetails);
+            await flush();
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901, 902),
+            });
+        });
+
+        it('keeps the list when its refresh fails', async () => {
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            service.request([request(900)], 1);
+            await flush();
+
+            now += DASHBOARD_SERIES_EPISODES_MAX_AGE_MS;
+            getSeriesInfo.mockRejectedValueOnce(new Error('Too many requests'));
+            service.request([request(900)], 2);
+            await flush();
+
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901),
+            });
+        });
+
+        it('looks a series up again for another source, and ignores the old answer', async () => {
+            const moved = {
+                ...request(900),
+                credentials: {
+                    ...credentials,
+                    serverUrl: 'http://moved.example',
+                },
+            };
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            service.request([request(900)], 1);
+            await flush();
+
+            // Another server: the old provider's list must not stand.
+            const movedAnswer = deferred<XtreamSerieDetails>();
+            const backAnswer = deferred<XtreamSerieDetails>();
+            getSeriesInfo
+                .mockReturnValueOnce(movedAnswer.promise)
+                .mockReturnValueOnce(backAnswer.promise);
+            service.request([moved], 1);
+            expect(entry(900)).toEqual({ status: 'loading' });
+            expect(getSeriesInfo).toHaveBeenLastCalledWith(
+                moved.credentials,
+                900,
+                { suppressErrorLog: true }
+            );
+            // And back, with the answer for the moved source still out.
+            service.request([request(900)], 1);
+
+            movedAnswer.resolve({
+                episodes: seasons(7),
+            } as unknown as XtreamSerieDetails);
+            await flush();
+            expect(entry(900)).toEqual({ status: 'loading' });
+
+            backAnswer.resolve({
+                episodes: seasons(901, 902),
+            } as unknown as XtreamSerieDetails);
+            await flush();
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901, 902),
+            });
+        });
     });
 });
 

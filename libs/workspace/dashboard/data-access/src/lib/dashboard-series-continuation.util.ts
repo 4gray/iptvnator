@@ -11,8 +11,14 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { DashboardSeriesEpisodes } from './dashboard-series-episodes.service';
 
-/** Finished-episode series looked up per visit, newest first. */
-export const CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT = 20;
+/**
+ * Titles the rail can show (its RAIL_ITEM_LIMIT): series are looked up, newest
+ * first, until this many titles are known to stay listed.
+ */
+export const CONTINUE_WATCHING_VISIBLE_ITEMS = 20;
+
+/** Series looked up at most, so a long history cannot flood the portal. */
+export const CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT = 40;
 
 /**
  * How long, from the first lookup, Continue Watching waits for episode lists
@@ -26,8 +32,7 @@ export const CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS = 2000;
  *   one not watched after the episode watched last, resumed where it was
  *   left if it was started. Extras (season 0) never change it;
  * - `finished`: no unwatched episode follows the one watched last, even if
- *   an earlier one was skipped or extras are left, or the series is older
- *   than the lookup limit;
+ *   an earlier one was skipped or extras are left;
  * - `unknown`: its episode list is missing (loading, failed, empty) or does
  *   not hold the episodes played. The series then keeps its newest episode
  *   rather than vanish on a guess.
@@ -81,6 +86,71 @@ export function selectSeriesContinuationCandidates(
         }
     }
     return candidates;
+}
+
+export interface DashboardSeriesLookupPlan {
+    /** The candidates to look up, newest first. */
+    readonly window: readonly DashboardSeriesCandidate[];
+    /** What each looked-up candidate continues with, by recent item key. */
+    readonly continuations: ReadonlyMap<string, DashboardSeriesContinuation>;
+}
+
+/**
+ * Which series to look up: candidates in history order until
+ * CONTINUE_WATCHING_VISIBLE_ITEMS titles stay listed, counting movies and
+ * series that need no lookup, and candidates not known to be finished. Past
+ * those the rail has no slot left; a finished candidate frees its slot, so
+ * the window grows as answers arrive. At most
+ * CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT are looked up. A candidate never
+ * looked up gets no continuation and keeps its place: limiting lookups must
+ * not hide a series with episodes left.
+ */
+export function planDashboardSeriesLookups(input: {
+    readonly items: readonly PortalRecentItem[];
+    readonly candidates: readonly DashboardSeriesCandidate[];
+    readonly listedWithoutLookup: (item: PortalRecentItem) => boolean;
+    readonly resolve: (
+        candidate: DashboardSeriesCandidate
+    ) => DashboardSeriesContinuation;
+}): DashboardSeriesLookupPlan {
+    const candidates = new Map(
+        input.candidates.map((candidate) => [
+            dashboardRecentItemKey(candidate.item),
+            candidate,
+        ])
+    );
+    const window: DashboardSeriesCandidate[] = [];
+    const continuations = new Map<string, DashboardSeriesContinuation>();
+    let listed = 0;
+    for (const item of input.items) {
+        if (listed >= CONTINUE_WATCHING_VISIBLE_ITEMS) {
+            break;
+        }
+        const key = dashboardRecentItemKey(item);
+        const candidate = candidates.get(key);
+        if (
+            !candidate ||
+            continuations.has(key) ||
+            window.length >= CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT
+        ) {
+            const known = continuations.get(key);
+            if (
+                known
+                    ? known.kind !== 'finished'
+                    : input.listedWithoutLookup(item)
+            ) {
+                listed++;
+            }
+            continue;
+        }
+        window.push(candidate);
+        const continuation = input.resolve(candidate);
+        continuations.set(key, continuation);
+        if (continuation.kind !== 'finished') {
+            listed++;
+        }
+    }
+    return { window, continuations };
 }
 
 export function resolveDashboardSeriesContinuation(
