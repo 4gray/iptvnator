@@ -1,6 +1,11 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { NavigationEnd, Router } from '@angular/router';
+import {
+    NavigationCancel,
+    NavigationEnd,
+    NavigationStart,
+    Router,
+} from '@angular/router';
 import { EMPTY, Observable, Subject, of } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
@@ -49,8 +54,11 @@ function getStalkerSectionFromUrl(url: string): string | null {
 }
 
 describe('StalkerWorkspaceRouteSession', () => {
-    const routerEvents = new Subject<NavigationEnd>();
+    const routerEvents = new Subject<
+        NavigationStart | NavigationEnd | NavigationCancel
+    >();
     const activePlaylist = signal<PlaylistMeta | null>(ACTIVE_PLAYLIST);
+    const currentPlaylist = signal<PlaylistMeta | undefined>(undefined);
     const selectedContentType = signal<'vod' | 'itv' | 'series' | 'radio'>(
         'vod'
     );
@@ -61,10 +69,16 @@ describe('StalkerWorkspaceRouteSession', () => {
     };
 
     const stalkerStore = {
+        currentPlaylist,
         resetCategories: jest.fn(),
+        reloadCategories: jest.fn(),
         setSelectedCategory: jest.fn(),
         clearSelectedItem: jest.fn(),
-        setCurrentPlaylist: jest.fn().mockResolvedValue(undefined),
+        setCurrentPlaylist: jest.fn(
+            async (playlist: PlaylistMeta | undefined) => {
+                currentPlaylist.set(playlist);
+            }
+        ),
         setSelectedContentType: jest.fn(
             (type: 'vod' | 'itv' | 'series' | 'radio') => {
                 selectedContentType.set(type);
@@ -85,6 +99,7 @@ describe('StalkerWorkspaceRouteSession', () => {
     beforeEach(async () => {
         router.url = `/workspace/stalker/${PLAYLIST_ID}/vod`;
         activePlaylist.set(ACTIVE_PLAYLIST);
+        currentPlaylist.set(undefined);
         selectedContentType.set('vod');
 
         playlistContext.syncFromUrl.mockImplementation((url: string) => ({
@@ -103,6 +118,7 @@ describe('StalkerWorkspaceRouteSession', () => {
         }));
 
         stalkerStore.resetCategories.mockClear();
+        stalkerStore.reloadCategories.mockClear();
         stalkerStore.setSelectedCategory.mockClear();
         stalkerStore.clearSelectedItem.mockClear();
         stalkerStore.setCurrentPlaylist.mockClear();
@@ -153,6 +169,96 @@ describe('StalkerWorkspaceRouteSession', () => {
         ).toBeGreaterThan(
             stalkerStore.setCurrentPlaylist.mock.invocationCallOrder[0]
         );
+    });
+
+    // A switch must not ask the portal being left for categories: the new
+    // owner's params make the resource load on their own.
+    it('does not reload categories when the store switches portals', async () => {
+        currentPlaylist.set(OTHER_PLAYLIST);
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(stalkerStore.resetCategories).toHaveBeenCalled();
+        expect(currentPlaylist()?._id).toBe(PLAYLIST_ID);
+        expect(stalkerStore.reloadCategories).not.toHaveBeenCalled();
+    });
+
+    // A handoff installed the destination in the store first: the reset
+    // keeps the owner, so only an explicit reload brings the categories back.
+    it('reloads the cleared categories once a held destination is installed', async () => {
+        currentPlaylist.set(ACTIVE_PLAYLIST);
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(stalkerStore.reloadCategories).toHaveBeenCalledTimes(1);
+        expect(
+            stalkerStore.reloadCategories.mock.invocationCallOrder[0]
+        ).toBeGreaterThan(
+            stalkerStore.setCurrentPlaylist.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('does not reload categories when the route is torn down', async () => {
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        stalkerStore.reloadCategories.mockClear();
+
+        TestBed.resetTestingModule();
+
+        expect(stalkerStore.resetCategories).toHaveBeenCalled();
+        expect(stalkerStore.reloadCategories).not.toHaveBeenCalled();
+    });
+
+    it('reconciles a revisited route when collection detail changed the shared store', async () => {
+        const session = TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        currentPlaylist.set(OTHER_PLAYLIST);
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        await flushEffects();
+        expect(currentPlaylist()?._id).toBe(PLAYLIST_ID);
+        expect(session.isReady()).toBe(true);
+    });
+
+    it('withholds readiness during navigation and restores it after cancellation', async () => {
+        const session = TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        expect(session.isReady()).toBe(true);
+        routerEvents.next(
+            new NavigationStart(1, '/workspace/stalker/stalker-2/vod')
+        );
+        expect(session.isReady()).toBe(false);
+        routerEvents.next(
+            new NavigationCancel(
+                1,
+                '/workspace/stalker/stalker-2/vod',
+                'cancelled'
+            )
+        );
+        await flushEffects();
+        expect(session.isReady()).toBe(true);
+        expect(currentPlaylist()?._id).toBe(PLAYLIST_ID);
+    });
+
+    it('does not install a pending playlist after navigation leaves Stalker', async () => {
+        const pending = new Subject<PlaylistMeta>();
+        playlistsService.getPlaylistById.mockReturnValue(pending);
+        const session = TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        router.url = '/workspace/global-recent';
+        playlistContext.syncFromUrl.mockReturnValue({
+            provider: null,
+            playlistId: null,
+            section: null,
+        });
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        currentPlaylist.set(OTHER_PLAYLIST);
+        pending.next(FULL_STALKER_PLAYLIST);
+        pending.complete();
+        await flushEffects();
+        expect(currentPlaylist()).toBe(OTHER_PLAYLIST);
+        expect(session.isReady()).toBe(false);
     });
 
     it('keeps the radio route selection after playlist bootstrap', async () => {

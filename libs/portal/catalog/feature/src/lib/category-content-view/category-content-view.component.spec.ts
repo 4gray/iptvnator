@@ -76,7 +76,10 @@ describe('CategoryContentViewComponent', () => {
     const hasMore = signal(false);
     const isAppending = signal(false);
     const appendError = signal(false);
+    const routeReady = signal(true);
+    const playlist = signal<{ id: string } | null>(null);
     const catalog = {
+        routeReady,
         provider: 'xtream' as 'xtream' | 'stalker',
         contentType: signal('vod'),
         selectedCategory: signal({ id: 1 }),
@@ -90,7 +93,7 @@ describe('CategoryContentViewComponent', () => {
         contentSortMode,
         supportsRatingSort: true,
         minRating,
-        playlist: signal(null),
+        playlist,
         isPaginatedContentLoading,
         initialize: jest.fn(),
         setSearchQuery: jest.fn(),
@@ -107,6 +110,8 @@ describe('CategoryContentViewComponent', () => {
     };
 
     beforeEach(async () => {
+        routeReady.set(true);
+        playlist.set(null);
         window.history.replaceState({}, '', window.location.href);
         catalog.provider = 'xtream';
         selectedItem.set(null);
@@ -239,6 +244,20 @@ describe('CategoryContentViewComponent', () => {
         expect(catalog.setSearchQuery).toHaveBeenCalledWith('matrix');
     });
 
+    it('preserves route search after category initialization resets the store filter', () => {
+        let search = '';
+        catalog.initialize.mockImplementation(() => {
+            search = '';
+        });
+        catalog.setSearchQuery.mockImplementation((query: string) => {
+            search = query;
+        });
+        queryParamMap$.next(convertToParamMap({ q: 'matrix' }));
+        paramMap$.next(convertToParamMap({ categoryId: '5' }));
+        fixture.detectChanges();
+        expect(search).toBe('matrix');
+    });
+
     it('groups catalog sort and rating filters behind one refine menu trigger', () => {
         contentSortMode.set('date-desc');
         categoryItemCount.set(12);
@@ -351,6 +370,56 @@ describe('CategoryContentViewComponent', () => {
             relativeTo: expect.any(Object),
             queryParamsHandling: 'preserve',
         });
+    });
+
+    it('waits for the destination portal before initializing and consuming a Stalker handoff', () => {
+        catalog.provider = 'stalker';
+        routeReady.set(false);
+        const item = { id: '42', name: 'Destination movie' };
+        window.history.replaceState(
+            { openStalkerItem: item },
+            '',
+            window.location.href
+        );
+        paramMap$.next(convertToParamMap({ categoryId: '5' }));
+        fixture.detectChanges();
+        expect(catalog.initialize).not.toHaveBeenCalled();
+        expect(catalog.selectItem).not.toHaveBeenCalled();
+        expect(window.history.state.openStalkerItem).toEqual(item);
+
+        routeReady.set(true);
+        fixture.detectChanges();
+        expect(catalog.initialize).toHaveBeenCalledWith('5');
+        expect(catalog.selectItem).toHaveBeenCalledWith(item);
+        expect(window.history.state.openStalkerItem).toBeUndefined();
+
+        routeReady.set(false);
+        fixture.detectChanges();
+        routeReady.set(true);
+        fixture.detectChanges();
+        expect(catalog.initialize).toHaveBeenCalledTimes(1);
+    });
+
+    it('reinitializes a reused category route when the ready playlist changes', () => {
+        catalog.provider = 'stalker';
+        playlist.set({ id: 'a' });
+        paramMap$.next(convertToParamMap({ categoryId: '5' }));
+        fixture.detectChanges();
+        routeReady.set(false);
+        fixture.detectChanges();
+        const item = { id: '42', name: 'Movie from B' };
+        window.history.replaceState(
+            { openStalkerItem: item },
+            '',
+            window.location.href
+        );
+        playlist.set({ id: 'b' });
+        fixture.detectChanges();
+        expect(catalog.initialize).toHaveBeenCalledTimes(1);
+        routeReady.set(true);
+        fixture.detectChanges();
+        expect(catalog.initialize).toHaveBeenCalledTimes(2);
+        expect(catalog.selectItem).toHaveBeenCalledWith(item);
     });
 
     it('hands provider-only presentation to the exact Stalker item after consuming navigation state', async () => {

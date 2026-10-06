@@ -371,7 +371,7 @@ test.describe('Electron Recently Viewed', () => {
         }
     });
 
-    test('opens Xtream recent movies and series inline from recent without switching the playlist or showing the sidebar', async ({
+    test('opens Xtream recent movies and series inline and preserves history through the movie portal handoff', async ({
         dataDir,
         request,
     }) => {
@@ -405,6 +405,7 @@ test.describe('Electron Recently Viewed', () => {
             await startAndConfirmPlayback(app.mainWindow, () =>
                 playCurrentDetail(app.mainWindow)
             );
+            const moviePath = new URL(app.mainWindow.url()).pathname;
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow
@@ -429,6 +430,42 @@ test.describe('Electron Recently Viewed', () => {
             await contentCardByTitle(app.mainWindow, movieTitle)
                 .first()
                 .click();
+            await expectInlineCollectionDetail(app.mainWindow, {
+                pathname: /\/workspace\/global-recent$/,
+                title: movieTitle,
+                playlistTitle: portalTitle,
+            });
+
+            const viewInPortal = app.mainWindow.getByRole('button', {
+                name: 'View in portal',
+                exact: true,
+            });
+            await viewInPortal.click();
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toBe(moviePath);
+            await expect(
+                app.mainWindow.locator('app-content-hero')
+            ).toContainText(movieTitle);
+            await expect(viewInPortal).toHaveCount(0);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playCurrentDetail(app.mainWindow)
+            );
+
+            await goBackFromDetail(app.mainWindow);
+            await expectInlineCollectionDetail(app.mainWindow, {
+                pathname: /\/workspace\/global-recent$/,
+                title: movieTitle,
+                playlistTitle: portalTitle,
+            });
+            await app.mainWindow.goForward();
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toBe(moviePath);
+            await expect(
+                app.mainWindow.locator('app-content-hero')
+            ).toContainText(movieTitle);
+            await app.mainWindow.goBack();
             await expectInlineCollectionDetail(app.mainWindow, {
                 pathname: /\/workspace\/global-recent$/,
                 title: movieTitle,
