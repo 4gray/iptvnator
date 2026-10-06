@@ -87,7 +87,7 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         SerialDetailsMenuService,
         SerialDetailsDownloadAdapterService,
     ],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CastCrewRowComponent,
         DetailActionButtonComponent,

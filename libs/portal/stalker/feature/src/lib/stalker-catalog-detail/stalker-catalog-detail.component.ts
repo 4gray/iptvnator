@@ -60,7 +60,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
     selector: 'app-stalker-catalog-detail',
     imports: [StalkerSeriesViewComponent, VodDetailsComponent],
     templateUrl: './stalker-catalog-detail.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {
