@@ -1,3 +1,4 @@
+import { FormArray, FormControl } from '@angular/forms';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -143,6 +144,25 @@ describe('SettingsComponent form', () => {
             });
         });
 
+        // The sections are OnPush and a Discard or backup import patches the
+        // form outside their template events, so the section must mark
+        // itself on the form's events. The fixture renders on its own here:
+        // a forced detectChanges() would hide a section that is not marked.
+        it('re-renders section selections after a value-only form patch', async () => {
+            const darkTheme = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    '[data-test-id="DARK_THEME"]'
+                );
+            fixture.autoDetectChanges();
+            await fixture.whenStable();
+            expect(darkTheme()?.getAttribute('aria-checked')).toBe('false');
+
+            component.settingsForm.patchValue({ theme: Theme.DarkTheme });
+            await fixture.whenStable();
+
+            expect(darkTheme()?.getAttribute('aria-checked')).toBe('true');
+        });
+
         it('hydrates a shared web controls opt-out from the settings store', () => {
             settingsStore._setSettings({
                 webPlayerSharedControls: false,
@@ -183,6 +203,26 @@ describe('SettingsComponent form', () => {
             expect(component.settingsForm.dirty).toBe(true);
             // An eager write here would make Discard unable to revert it
             expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+        });
+
+        // The native file picker sets the EPG control after an await, with
+        // no template event in the OnPush section; its status must follow.
+        it('shows the source status after a control is set outside the section', async () => {
+            setSettingsSection('epg');
+            fixture.autoDetectChanges();
+            const epgUrls = component.settingsForm.get('epgUrl') as FormArray;
+            epgUrls.push(new FormControl(''));
+            await fixture.whenStable();
+            const status = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    'app-epg-source-status'
+                );
+            expect(status()).toBeNull();
+
+            epgUrls.at(epgUrls.length - 1).setValue('/tmp/guide.xml');
+            await fixture.whenStable();
+
+            expect(status()).not.toBeNull();
         });
 
         it('stages the EPG view mode without writing to the store until Save', () => {
@@ -309,6 +349,29 @@ describe('SettingsComponent form', () => {
             component.onSubmit();
             await fixture.whenStable();
             fixture.detectChanges();
+
+            expect(component.settingsForm.pristine).toBe(true);
+            expect(unsavedBar()).toBeNull();
+        });
+
+        // The page owns the bar and is OnPush, and Save marks the form
+        // pristine after an async store write, also on a page without a form
+        // section. `pristine` and `valid` read the form's state signals, so
+        // the page re-renders without a form subscription; no forced render
+        // here, so a regression shows.
+        it('hides after a save on a page without a form section', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            setSettingsSection('backup');
+            fixture.autoDetectChanges();
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            await fixture.whenStable();
+            expect(unsavedBar()).not.toBeNull();
+
+            component.onSubmit();
+            await fixture.whenStable();
+            // The render the form event scheduled runs in the next macrotask.
+            await new Promise((resolve) => setTimeout(resolve));
 
             expect(component.settingsForm.pristine).toBe(true);
             expect(unsavedBar()).toBeNull();

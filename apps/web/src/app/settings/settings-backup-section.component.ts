@@ -20,8 +20,7 @@ import { TranslateModule } from '@ngx-translate/core';
     ],
     templateUrl: './settings-backup-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [':host { display: contents; }'],
 })
 export class SettingsBackupSectionComponent {

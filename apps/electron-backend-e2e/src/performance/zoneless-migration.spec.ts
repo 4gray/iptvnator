@@ -70,9 +70,21 @@ function readEagerChecklist(): { open: string[]; done: string[] } {
 
 const sources = readSources();
 
+// Component metadata only: a comment or string that names the strategy is
+// not an Eager component.
+const eagerMetadata = /changeDetection\s*:\s*ChangeDetectionStrategy\.Eager\b/;
+
+function withoutComments(text: string): string {
+    return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
+function isEagerComponent(text: string): boolean {
+    return eagerMetadata.test(withoutComments(text));
+}
+
 test('the zoneless checklist lists exactly the components that are still Eager', () => {
     const eager = [...sources]
-        .filter(([, text]) => text.includes('ChangeDetectionStrategy.Eager'))
+        .filter(([, text]) => isEagerComponent(text))
         .map(([file]) => file)
         .sort();
     const { open } = readEagerChecklist();
@@ -104,6 +116,23 @@ test('the guard skips test-only file names and keeps production ones', () => {
     ]) {
         assert.ok(!testOnlyFile.test(name), `${name} ships`);
     }
+});
+
+test('a comment that names the Eager strategy is not an Eager component', () => {
+    assert.equal(
+        isEagerComponent(
+            '// was ChangeDetectionStrategy.Eager before C6\n' +
+                '/* changeDetection: ChangeDetectionStrategy.Eager */\n' +
+                '@Component({ changeDetection: ChangeDetectionStrategy.OnPush })'
+        ),
+        false
+    );
+    assert.equal(
+        isEagerComponent(
+            '@Component({\n    changeDetection: ChangeDetectionStrategy.Eager,\n})'
+        ),
+        true
+    );
 });
 
 test('ticked checklist entries name files that exist', () => {

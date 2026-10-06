@@ -57,7 +57,7 @@ import { TranslateModule } from '@ngx-translate/core';
             }
         `,
     ],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         MatButtonModule,
         MatCheckboxModule,

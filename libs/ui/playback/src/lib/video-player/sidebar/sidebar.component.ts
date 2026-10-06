@@ -20,7 +20,7 @@ import { ChannelListContainerComponent } from '@iptvnator/ui/components';
     selector: 'app-sidebar',
     templateUrl: './sidebar.component.html',
     styleUrls: ['./sidebar.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         ChannelListContainerComponent,
         MatIcon,
