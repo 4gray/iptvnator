@@ -390,15 +390,32 @@ The Electron window hides the native title bar on all desktop platforms
 (`titleBarStyle: 'hidden'` in `apps/electron-backend/src/app/app.ts`):
 
 1. macOS keeps the native traffic lights (`titleBarOverlay: true`,
-   `trafficLightPosition`); the renderer draws no window buttons. The lights
-   sit in the 56 px header band above the rail, so the macOS rail
-   (`.app-rail.is-macos`) starts its first link at 56 px: level with the
-   content area and the dashboard hero, with its hover surface clear of the
-   lights. App zoom scales CSS pixels but not the lights, so the rail
-   publishes the page zoom factor (`outerWidth / innerWidth`, refreshed on
-   `resize`) as `--rail-zoom-factor` and keeps at least 48 window pixels when
-   zoomed out. `window-controls.e2e.ts` checks the alignment and the gap at
-   default and minimum zoom on macOS.
+   `trafficLightPosition` from `MACOS_TRAFFIC_LIGHTS_POSITION` in
+   `@iptvnator/shared/interfaces`); the renderer draws no window buttons.
+   The lights sit in the header band (`--workspace-header-band`, 56 px) over
+   the rail and the header's leading padding. The macOS rail
+   (`.app-rail.is-macos`) starts its first link below the band: level with
+   the content area and the dashboard hero, with its hover surface clear of
+   the lights. The header's content starts 84 window pixels from the
+   window's left edge (60 px rail plus 24 px padding). macOS 26 ends the
+   lights at 76 (earlier releases at 68), which is where Back's left edge
+   sits at 100 % because of its 8 px pull-in.
+
+   App zoom (see "Zoom level") scales CSS pixels but not the lights. On
+   macOS, `TrafficLightsClearanceDirective` on `.workspace-shell` reads the
+   page zoom factor (`outerWidth / innerWidth`, refreshed on `resize`) and
+   publishes the clearance in CSS pixels as `--traffic-lights-clear-x` (84
+   window pixels) and `--traffic-lights-clear-y` (48: the lights' bottom
+   plus a gap). Zoomed out, the band grows to the vertical clearance, so the
+   lights never overlap the content area. The header's leading padding grows
+   to the horizontal clearance, less the rail column
+   (`--workspace-header-lights-inset`). At 100 % both match the default
+   layout. Off macOS nothing is published and the defaults apply. The phone
+   layout, which puts the rail in a row above the header, ignores the
+   inset. `window-controls.e2e.ts` ("macOS traffic lights") checks the rail
+   alignment, the first header control (the switcher on the first page,
+   which has no history fallback yet, then a detail page's Back) and the
+   content top at default and minimum zoom.
 2. Windows and Linux use renderer-drawn window controls
    (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
    `frame` is intentionally left untouched so native resize borders and
@@ -510,15 +527,24 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
 3. `fullscreen` is the `BrowserWindow` constructor option: on Windows/Linux
    the window is created hidden and enters fullscreen before its first
    paint. macOS ignores the option while the window is hidden (an NSWindow
-   only toggles fullscreen once it is on screen), so `ready-to-show` repeats
+   only toggles fullscreen once it is on screen), so the first show repeats
    the request with `setFullScreen(true)` right after `show()` wherever
    `isFullScreen()` is still false — never unconditionally, or the
    platforms that honoured the option would animate a second toggle. The
    saved bounds stay spread into the options — they are the normal bounds
    the window returns to, and the close handler keeps persisting
-   `getNormalBounds()`. `maximized` calls `maximize()` inside
-   `ready-to-show` right before `show()`, never earlier: `maximize()` on a
-   hidden window shows it, and a blank window would flash.
+   `getNormalBounds()`. `maximized` calls `maximize()` right before the
+   first `show()`, never earlier: `maximize()` on a hidden window shows it,
+   and a blank window would flash. That first show happens at
+   `ready-to-show` or the main frame's `did-finish-load`, whichever comes
+   first (`services/main-window-first-show.ts`): on Linux a hidden window
+   whose startup scripts ran before its first frame gets the next one about
+   a second later, so `ready-to-show` alone left the window off screen and
+   the splash's animation frame waiting. At `did-finish-load` the inline
+   splash is parsed, and the window's `backgroundColor` is the splash colour
+   (`MAIN_WINDOW_BACKGROUND_COLOR`, keep it in sync with `#initial-splash`
+   in `apps/web/src/index.html`), so showing before the first paint does
+   not flash.
 4. `iptvnator --fullscreen` (read via `app.commandLine.hasSwitch`, so it can
    sit anywhere in argv; the playlist-path extractor already skips every
    `-`-prefixed argument) forces `fullscreen` for that launch only and is

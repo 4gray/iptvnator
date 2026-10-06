@@ -6,9 +6,14 @@
 }
 
 .workspace-shell {
+    // The header band. On macOS it also holds the traffic lights, which app
+    // zoom does not scale: zoomed out, it stays tall enough to contain them
+    // (`TrafficLightsClearanceDirective` publishes the clearance), so no
+    // content starts beside them. The macOS rail starts its first link here.
+    --workspace-header-band: max(56px, var(--traffic-lights-clear-y, 0px));
     display: grid;
     grid-template-columns: 60px 1fr;
-    grid-template-rows: 56px minmax(0, 1fr) auto;
+    grid-template-rows: var(--workspace-header-band) minmax(0, 1fr) auto;
     width: 100%;
     height: 100%;
     min-height: 0;
@@ -27,6 +32,12 @@ app-workspace-shell-header {
     grid-column: 2;
     grid-row: 1;
     min-width: 0;
+    // The leading inset that keeps the header's controls clear of the macOS
+    // traffic lights: their clearance minus the rail column. It equals the
+    // header's 24px padding at 100 % zoom and is negative off macOS.
+    --workspace-header-lights-inset: calc(
+        var(--traffic-lights-clear-x, 0px) - 60px
+    );
 }
 
 .workspace-body {
@@ -72,11 +83,16 @@ app-workspace-shell-context-sidebar {
     box-shadow: -4px 8px 20px var(--app-content-shadow, rgba(0, 0, 0, 0.18));
 }
 
-
 @media (max-width: 780px) {
     .workspace-shell {
         grid-template-columns: 56px 1fr;
-        grid-template-rows: 56px 1fr auto;
+        grid-template-rows: var(--workspace-header-band) 1fr auto;
+    }
+
+    app-workspace-shell-header {
+        --workspace-header-lights-inset: calc(
+            var(--traffic-lights-clear-x, 0px) - 56px
+        );
     }
 }
 
@@ -91,9 +107,11 @@ app-workspace-shell-context-sidebar {
         grid-row: 1;
     }
 
+    // Below the rail's row, the header never meets the traffic lights.
     app-workspace-shell-header {
         grid-column: 1;
         grid-row: 2;
+        --workspace-header-lights-inset: 0px;
     }
 
     .workspace-body {

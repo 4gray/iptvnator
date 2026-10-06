@@ -54,7 +54,7 @@ import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/u
             />
         </div>
     `,
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-context-panel.component.scss',
 })
 export class WorkspaceCollectionContextPanelComponent {

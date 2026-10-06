@@ -17,6 +17,7 @@ import { EpgViewMode } from '@iptvnator/shared/interfaces';
 import { EpgSourceStatusComponent } from '@iptvnator/ui/epg';
 import { TranslateModule } from '@ngx-translate/core';
 import { EpgViewModeOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
 @Component({
     selector: 'app-settings-epg-section',
@@ -34,12 +35,18 @@ import { EpgViewModeOption } from './settings.models';
     ],
     templateUrl: './settings-epg-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [':host { display: contents; }'],
 })
 export class SettingsEpgSectionComponent {
     readonly form = input.required<FormGroup>();
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly epgUrl = input.required<FormArray>();
     readonly isClearingEpgData = input(false);
     readonly canBrowseFiles = input(false);

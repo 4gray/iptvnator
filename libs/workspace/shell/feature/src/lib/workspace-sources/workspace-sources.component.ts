@@ -61,7 +61,7 @@ interface SortOption {
         TranslatePipe,
     ],
     templateUrl: './workspace-sources.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-sources.component.scss',
 })
 export class WorkspaceSourcesComponent {

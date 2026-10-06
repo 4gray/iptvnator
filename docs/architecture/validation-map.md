@@ -276,7 +276,7 @@ pnpm nx build web
 pnpm run perf:initial-bytes         # breakdown only
 pnpm run perf:initial-bytes:check   # measure, then compare with the committed baseline
 pnpm nx test performance-tools
-pnpm run perf:journeys              # J1 launch + J2 open-source journeys, one dist/performance/journeys/<timestamp>/summary.json
+pnpm run perf:journeys              # J1 launch, J2 open-source and J3 playback journeys, one dist/performance/journeys/<timestamp>/summary.json
 ```
 
 `perf:initial-bytes` reads the built `dist/apps/web/index.html` and sums the
@@ -285,7 +285,12 @@ bytes on the initial path (the J1 counter `renderer.initialBytes`).
 `tools/performance/journey-baselines.json`; baselines only move down. CI runs
 the same check in the `Initial bytes ratchet` job of `ci.yml` for PRs that
 target `master` and for `master` pushes (dispatch it with
-`gh workflow run ci.yml --ref <branch>` for a stacked branch). The weekly
+`gh workflow run ci.yml --ref <branch>` for a stacked branch). The
+`Performance journeys` job checks the journey counters listed with `--only`
+in its `Check the journey counters against the baselines` step against the
+same file (warn-only); a new journey baseline
+must be added to that list too, which `pnpm nx test performance-tools`
+checks. The weekly
 `performance-ratchet.yml` workflow lowers baselines through a bot PR; validate
 a change to it with `gh workflow run performance-ratchet.yml --ref <branch>`,
 which measures but opens no PR off `master`. Dispatch needs the workflow file
