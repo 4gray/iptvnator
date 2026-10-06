@@ -252,20 +252,22 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
     });
 
     // OnPush: the overlay hides from a 2 s timer, outside any template
-    // event, so it must leave the DOM without a zone-triggered tick.
-    it('hides the channel-number overlay when its debounce fires', () => {
+    // event, so the signal write itself must schedule the render. The test
+    // never forces one after the timer: a plain-field write would leave the
+    // overlay in the DOM.
+    it('hides the channel-number overlay when its debounce fires', async () => {
         jest.useFakeTimers();
         try {
             const overlay = () =>
                 (fixture.nativeElement as HTMLElement).querySelector(
                     '.channel-number-overlay'
                 );
+            fixture.autoDetectChanges();
             component.handleChannelNumberInput('2');
-            fixture.detectChanges();
+            await jest.advanceTimersByTimeAsync(50);
             expect(overlay()?.textContent).toBe('2');
 
-            jest.advanceTimersByTime(2000);
-            fixture.detectChanges();
+            await jest.advanceTimersByTimeAsync(2000);
 
             expect(overlay()).toBeNull();
             expect(storeMock.dispatch).toHaveBeenCalledWith(
