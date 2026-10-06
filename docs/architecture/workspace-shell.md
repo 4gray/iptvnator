@@ -527,15 +527,24 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
 3. `fullscreen` is the `BrowserWindow` constructor option: on Windows/Linux
    the window is created hidden and enters fullscreen before its first
    paint. macOS ignores the option while the window is hidden (an NSWindow
-   only toggles fullscreen once it is on screen), so `ready-to-show` repeats
+   only toggles fullscreen once it is on screen), so the first show repeats
    the request with `setFullScreen(true)` right after `show()` wherever
    `isFullScreen()` is still false — never unconditionally, or the
    platforms that honoured the option would animate a second toggle. The
    saved bounds stay spread into the options — they are the normal bounds
    the window returns to, and the close handler keeps persisting
-   `getNormalBounds()`. `maximized` calls `maximize()` inside
-   `ready-to-show` right before `show()`, never earlier: `maximize()` on a
-   hidden window shows it, and a blank window would flash.
+   `getNormalBounds()`. `maximized` calls `maximize()` right before the
+   first `show()`, never earlier: `maximize()` on a hidden window shows it,
+   and a blank window would flash. That first show happens at
+   `ready-to-show` or the main frame's `did-finish-load`, whichever comes
+   first (`services/main-window-first-show.ts`): on Linux a hidden window
+   whose startup scripts ran before its first frame gets the next one about
+   a second later, so `ready-to-show` alone left the window off screen and
+   the splash's animation frame waiting. At `did-finish-load` the inline
+   splash is parsed, and the window's `backgroundColor` is the splash colour
+   (`MAIN_WINDOW_BACKGROUND_COLOR`, keep it in sync with `#initial-splash`
+   in `apps/web/src/index.html`), so showing before the first paint does
+   not flash.
 4. `iptvnator --fullscreen` (read via `app.commandLine.hasSwitch`, so it can
    sit anywhere in argv; the playlist-path extractor already skips every
    `-`-prefixed argument) forces `fullscreen` for that launch only and is
