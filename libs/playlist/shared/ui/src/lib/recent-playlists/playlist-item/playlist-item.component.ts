@@ -17,6 +17,7 @@ import {
     inject,
     input,
     output,
+    signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -39,7 +40,7 @@ import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
     selector: 'app-playlist-item',
     templateUrl: './playlist-item.component.html',
     styleUrls: ['./playlist-item.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         SourceHealthIndicatorComponent,
         DatePipe,
@@ -70,7 +71,7 @@ export class PlaylistItemComponent implements OnInit {
     readonly removeClicked = output<string>();
     readonly cancelBusyActionClicked = output<void>();
 
-    portalStatus: PortalStatus = 'unavailable';
+    readonly portalStatus = signal<PortalStatus>('unavailable');
     private readonly portalStatusService = inject(PortalStatusService);
     readonly runtime = inject(RuntimeCapabilitiesService);
     readonly sourceIcons = SOURCE_TYPE_ICONS;
@@ -125,21 +126,22 @@ export class PlaylistItemComponent implements OnInit {
 
     private async checkPortalStatus() {
         if (this.item.serverUrl && this.item.username && this.item.password) {
-            this.portalStatus =
+            this.portalStatus.set(
                 await this.portalStatusService.checkPortalStatus(
                     this.item.serverUrl,
                     this.item.username,
                     this.item.password
-                );
+                )
+            );
         }
     }
 
     getStatusClass(): string {
-        return this.portalStatusService.getStatusClass(this.portalStatus);
+        return this.portalStatusService.getStatusClass(this.portalStatus());
     }
 
     getStatusIcon(): string {
-        return this.portalStatusService.getStatusIcon(this.portalStatus);
+        return this.portalStatusService.getStatusIcon(this.portalStatus());
     }
 
     onPlaylistClick(): void {

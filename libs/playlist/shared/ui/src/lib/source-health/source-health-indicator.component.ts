@@ -29,7 +29,7 @@ import { PlaylistMeta, sourceHealthType } from '@iptvnator/shared/interfaces';
             role="img"
         ></span>
     }`,
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {

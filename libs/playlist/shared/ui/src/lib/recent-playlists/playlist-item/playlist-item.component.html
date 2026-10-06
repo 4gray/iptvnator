@@ -64,8 +64,8 @@
                 <span
                     class="status-dot"
                     [class]="getStatusClass()"
-                    [matTooltip]="'Portal status: ' + portalStatus"
-                    [attr.aria-label]="'Portal status: ' + portalStatus"
+                    [matTooltip]="'Portal status: ' + portalStatus()"
+                    [attr.aria-label]="'Portal status: ' + portalStatus()"
                 ></span>
             } @else if (showsAutoRefresh) {
                 <mat-icon
