@@ -29,13 +29,12 @@
     --rail-link-active-border: var(--app-selection-border);
     --rail-link-active-glow: var(--app-selection-glow);
 
-    // The traffic lights sit in the header band (56px, see the shell grid).
-    // The first link starts below that band, where the content area and the
+    // The traffic lights sit in the header band (see the shell grid). The
+    // first link starts below that band, where the content area and the
     // dashboard hero start, so its hover surface never touches the lights.
-    // App zoom scales CSS pixels but not the lights: zoomed out, the inset
-    // keeps 48 window pixels (lights' bottom plus a gap) instead.
+    // Zoomed out, the band grows to keep the lights inside it.
     &.is-macos {
-        padding-top: max(56px, calc(48px / var(--rail-zoom-factor, 1)));
+        padding-top: var(--workspace-header-band, 56px);
     }
 
     &::-webkit-scrollbar {
