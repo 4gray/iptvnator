@@ -185,6 +185,8 @@ export function toLaunchIterationRecord(
             mainCountersAtRead: mainCounters.counters,
             rendererGateReadyToShowHeldOnBlank:
                 measurement.gate.readyToShowHeldOnBlank,
+            rendererGateDidFinishLoadHeldOnBlank:
+                measurement.gate.didFinishLoadHeldOnBlank,
             ipcCallsByMethod: ipc.callsByMethod,
             ipcSerialDepth: serialDepth,
             ipcTimelineAmbiguousCompletions: ipc.ambiguousTimelineCompletions,
