@@ -19,9 +19,9 @@ live in `tools/performance/`.
 | J4 `search`      | six-character query typed into global search | results list settled                                                          |
 
 J1 is instrumented: `renderer.initialBytes` from the built output, and the
-runtime counters of the launch benchmark below. J2 and J3 are instrumented by
-their own specs (below). J4 follows the plan in `.plans/` and is added in its
-own thread; each thread names its journey and counter in the PR description.
+runtime counters of the launch benchmark below. J2, J3 and J4 are
+instrumented by their own specs (below). Each thread names its journey and
+counter in the PR description.
 
 ## Running the journeys
 
@@ -305,10 +305,12 @@ registers the `performance:read-counters` IPC handler. Without the flag
 nothing is counted, no listener is attached and the handler does not exist;
 the preload never exposes the channel. SQL statements are counted only with
 `IPTVNATOR_PERF_COUNT_SQL=1` as well, because the hook wraps every statement
-execution: the launch journey sets both (the flags are built in
-`journey-launch-environment.ts`), while J2's launches and the M3U, refresh
-and Xtream benchmarks do not set the SQL flag and keep measuring unwrapped
-statements. A harness test fails if any other source sets the SQL flag. After the renderer probe completes,
+execution: the launch journey and J4, which reports
+`renderer.sqlStatementsPerSearch`, set both (the flags are built in
+`journey-launch-environment.ts`), while J2's and J3's launches and the M3U,
+refresh and Xtream benchmarks do not set the SQL flag and keep measuring
+unwrapped statements. A harness test fails if any other source sets the SQL
+flag. After the renderer probe completes,
 `journey-main-counters.ts` calls the handler through `electronApp.evaluate`
 and the gate's tap.
 
@@ -639,6 +641,13 @@ iterations carry `evidence.media` (the video element at `playing`) and
 a `media` field (`null` for J1 and J2), which the probe's
 `schemaVersion` 1 readers ignore.
 
+J4 adds the `journeys.search` entry, again with the same shape. Its
+iterations carry `evidence.perKeystroke` (one entry per typed key, see
+[J4](#j4-search-type-a-query-until-the-results-settle)), which the CI job
+summary prints as a table for the first measured iteration. J4 has its own
+renderer probe (`search-journey-probe.ts`, `schemaVersion` 1); the shared
+probe is unchanged.
+
 ## J2 `open-source`: open a source to a browsable list
 
 `open-source.journey.ts` reuses the J1 profile and process pattern: the
@@ -867,6 +876,165 @@ machine, so check the runner's `counterStability` before trusting the
 mutation and request counts. On the runner `renderer.httpRequestsToPlaying`
 and `renderer.layoutShiftScore` are enforced as guards; see
 [Enforced journey counters](#enforced-journey-counters).
+
+## J4 `search`: type a query until the results settle
+
+`search.journey.ts` follows J3: the profile is seeded once through the "Add
+playlist" dialogs (`seedLaunchJourneyProfile` with `SEARCH_JOURNEY_SEED`),
+every iteration copies it, spawns a fresh process through `runLaunchJourney`
+and hands the running app to `measureSearchJourney` in
+`src/journeys/search-journey-app.ts`. One warm-up and five measured
+iterations. Unlike J2 and J3 the launch runs with the main-process counters
+(`mainCounters: true`, so `IPTVNATOR_PERF_CAPTURE` and
+`IPTVNATOR_PERF_COUNT_SQL`), because SQL statements are a J4 counter; every
+statement then runs through the counting hook.
+
+**Profile.** J1's M3U source plus an Xtream portal ("Journey search portal")
+on the mock's existing `large:large` scenario: 60 categories of 200 items,
+so 4,000 live channels, 4,000 movies and 4,000 series. No fixture was added
+for the journey. The query is `system`, which matches 170 series titles of
+that deterministic catalog: more than global search's first page of 100, so
+the page is full and more results are available. Six characters take the
+title FTS path of `globalSearch`
+(`apps/electron-backend/src/app/database/operations/content.operations.ts`);
+the M3U arm runs as well, because live content is included, but none of the
+four fixture channels matches. Poster artwork points at `picsum.photos` and
+is cancelled in the main process as in J3
+(`src/performance/journey-external-artwork.ts`, shared by both journeys);
+the count is kept as `evidence.externalArtworkCancelled`. The mock is not
+put behind the request ledger: global search reads only the local database.
+
+**What typing does.** The header search box
+(`app-workspace-shell-header .search-field input[type="search"]`) applies
+its term after `SEARCH_INPUT_DEBOUNCE_MS` (350 ms,
+`WorkspaceShellSearchSyncService`) and writes it to the URL as `q`. On
+`/workspace/search` (`app.routes.ts`, Electron only) `SearchResultsComponent`
+adopts `q` and runs `executeSearch` after its own 300 ms debounce, which
+calls the `dbGlobalSearch` bridge method once with a limit of 101.
+
+**Start.** After J1 has ended, the test clicks the rail's **Global search**
+link and focuses the header search box (not measured), installs the IPC
+capture with a start sentinel, arms the probe
+(`src/performance/search-journey-probe.ts`) and waits until the app has
+been quiet for 1 s: no DOM mutation, no new or pending bridge call, and an
+unchanged `main.sqlStatements` total (30 s timeout, which fails the
+iteration). J1's capture is detached. The test then types the query with one
+`keyboard.type` call per character on a fixed schedule, 100 ms apart from
+the first key (well below the 350 ms debounce, as steady typing would be),
+and samples the main process just before each key. The probe's
+capture-phase `keydown` listener on `window` stamps every key in the search
+box before the app sees it; the first one starts the journey and sends
+`cancelSourceProbe('__iptvnator-journey-search-start__')`. The record
+rejects an iteration whose DOM mutations, bridge calls or SQL statements
+moved between the quiet snapshot and the first key.
+
+**End.** "No DOM mutation for 200 ms after the last keystroke" alone would
+end inside the 650 ms of debounce, before any query ran: nothing in the DOM
+changes while the term waits. So after the sixth key the probe waits for
+the results of the final term to be shown (the path ends with
+`/workspace/search`, the URL `q` is the query, no `.loading-state` is
+rendered and an `app-content-card` in the results container is visible). The
+mutation batch that first meets that condition opens a 200 ms quiet window,
+and every later batch restarts it. When the window elapses the journey has
+settled: the settled moment is the last mutation batch, the counters stop at
+the confirmation, and the probe sends
+`cancelSourceProbe('__iptvnator-journey-search-end__')`. Without a settle
+within 15 s of the last key the probe marks the iteration invalid
+(`settle-timeout`).
+
+The DOM alone cannot tell the final term's results from an earlier term's
+that are still shown while the final term debounces, so the main process
+also checks. A listener on the renderer-API trace channel stamps every
+`dbGlobalSearch` event on arrival, with the term and result length that the
+preload's summaries carry. The record requires that the last query started
+between the start and end sentinels is for the final term and completed
+before the end sentinel (`final-query-not-run`, `final-query-incomplete`).
+The final query's start shows the loading state, which keeps the quiet
+window closed until its results replace the old ones.
+`evidence.finalQuery` keeps its term, result length and duration. The
+record also rejects an iteration in which two keydowns were more than
+250 ms apart (`typing-cadence`; the gaps are `evidence.keyIntervalsMs`).
+At that point a late key on a busy machine could let the 350 ms debounce
+apply an intermediate term, which steady typing does not.
+
+A settle that times out fails the iteration with what the probe and the
+main process saw: the URL `q`, the input's value, the results view, the
+bridge calls, renderer console errors, the SQL totals before each key, and
+the traced `dbGlobalSearch` calls with their terms and result lengths.
+
+### Counters
+
+| Counter                            | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderer.ipcCallsPerSearch`       | Bridge `start` trace events between the start and end sentinels, as `renderer.ipcCallsToFirstPage` in J2. `evidence.ipcCallsByMethod` names them.                                                                                                                                                                                                                                                                                                                                              |
+| `renderer.sqlStatementsPerSearch`  | `main.sqlStatements` (main thread and database worker, see [Main-process counters](#main-process-counters)) read in the main process when the start sentinel and the end sentinel arrive (a listener on the trace channel calls the counters handler through the gate, which reads the registry synchronously), so the count covers exactly the IPC capture's window and never work just before the first key or after the settle. The worker reports its count before the response it belongs to, so the statements of a query are counted before its results reach the renderer. The two values are `evidence.sqlAtSentinels`; statements from the end sentinel until 500 ms after the test read the summary are kept as `evidence.sqlStatementsAfterSettled`. |
+| `renderer.ipcSerialDepthToResults` | `computeJourneyIpcSerialDepth` over the capture's timeline between the sentinels (see [Serial IPC depth](#serial-ipc-depth)); `evidence.ipcSerialDepth.chain` and `evidence.ipcTimeline` show the calls.                                                                                                                                                                                                                                                                                       |
+| `renderer.domMutationsToResults`   | `MutationRecord`s from the first keydown until the quiet window was confirmed (by definition none arrive inside it).                                                                                                                                                                                                                                                                                                                                                                           |
+| `renderer.cdTicksToResults`        | `ApplicationRef` ticks from the first keydown (read in the capture-phase listener, before the app handles the key) until the confirmation (see [Change-detection ticks](#change-detection-ticks)).                                                                                                                                                                                                                                                                                             |
+| `renderer.layoutShiftScore`        | All `layout-shift` entries from the first keydown until the confirmation, including `hadRecentInput` ones (typing is input, as in J2 and J3), rounded to three decimals; the split is under `evidence.layoutShift`.                                                                                                                                                                                                                                                                            |
+| `renderer.longTasks`               | `longtask` entries over 50 ms whose time range overlaps the window from the first keydown to the confirmation. Evidence until shown to be stable on the runner.                                                                                                                                                                                                                                                                                                                                |
+
+`evidence.perKeystroke` breaks the journey down by key: for each typed
+character, what happened from that key until the next one (the last entry:
+until the settle). `domMutations` and `cdTicks` are split at the renderer's
+keydown stamps. `ipcCalls`, `queryCalls` (`dbGlobalSearch` calls) and
+`sqlStatements` are differences of the main-process samples taken just
+before each key, so their boundaries sit a few milliseconds before the
+renderer's. A search with working debounce shows zeros for the first five
+keys and one query after the last; a search that queried on every key from
+the second character on would show a `dbGlobalSearch` call and its
+statements in each of those entries, even when a later key superseded the
+result.
+
+No counter is listed under `unavailable`. HTTP requests are not a J4
+counter: global search does not touch the network.
+
+### Wall-clock
+
+| Entry                                    | Derivation                                                                                                                               |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `firstKeystrokeToFirstResultMs.p50/.p90` | First mutation batch with a visible result card (for any term) minus the first keydown.                                                  |
+| `lastKeystrokeToSettledMs.p50/.p90`      | Settled moment (the last mutation batch before the 200 ms quiet window) minus the last keydown. The quiet window itself is not included. |
+
+Both are taken in the renderer. With the current debounces both include
+the 650 ms the term waits (350 ms in the shell, then 300 ms in the results
+component); the first also includes the 500 ms of typing.
+
+### First measurement
+
+Local, macOS, 2026-10-04, three full `perf:journeys` runs plus repeated J4
+runs. In the runs where J4 completed (the first and third full runs), every
+counter was identical in all ten measured iterations except one:
+`renderer.ipcCallsPerSearch` 1 (`dbGlobalSearch`),
+`renderer.sqlStatementsPerSearch` 2, `renderer.ipcSerialDepthToResults` 1,
+`renderer.domMutationsToResults` 402 (100 cards on the first page),
+`renderer.layoutShiftScore` 0 and `renderer.longTasks` 0.
+`renderer.cdTicksToResults` read 14 in all five iterations of the third run
+and 13, 18, 13, 15, 13 in the first, so check the runner's
+`counterStability` before trusting it. P50/P90
+`lastKeystrokeToSettledMs` 686/692 ms and `firstKeystrokeToFirstResultMs`
+1,178/1,184 ms in the third run (699/720 and 1,193/1,210 in the first).
+
+Per keystroke, the first five keys caused one change-detection tick each
+and nothing else: no bridge call, no SQL statement and no DOM mutation.
+All of the work followed the sixth key. Search therefore does not run a
+query per keystroke. The debounce does dominate the wall clock: about
+650 ms of the 686 ms from the last key to settled is the two stacked
+debounces (350 ms in the shell, then 300 ms in the results component). The
+query itself, from the bridge call to the rendered first page, takes the
+remaining 30-40 ms.
+
+About one launch in sixty showed the empty-results view: the single
+`dbGlobalSearch` call went out with the same arguments (`system`, all three
+types, hidden categories included, limit 101) and the main process answered
+with an empty array in about 20 ms, with no renderer error. The database
+was unchanged from passing launches (the same 119 statements before the
+first key, the usual 2 for the query, none afterwards), and every failure
+traced was the first launch after seeding. The journey fails such an
+iteration instead of measuring it, so a full run occasionally fails J4.
+The cause is in the app, not the harness, and is not fixed here. No J4
+baseline exists yet; J4 counters join the ratchet once three runner runs
+agree.
 
 ## `renderer.initialBytes`
 
@@ -1240,8 +1408,10 @@ reports slow imports of non-Latin playlists.
 2. Give the journey its own probe options (`cardSelector`,
    `companionSelectors`, `routeFragment`, `startClick` for a click start,
    `media` for a media-event end such as J3's `playing`) or extend
-   `journey-renderer-probe.ts` when the end condition is neither. Use a state
-   key and sentinel ids of its own. Keep the probe self-contained: Playwright
+   `journey-renderer-probe.ts` when the end condition is neither. A journey
+   whose start or end does not fit that probe gets a probe of its own, as
+   J4's typed start and quiet-window end do (`search-journey-probe.ts`). Use
+   a state key and sentinel ids of its own. Keep the probe self-contained: Playwright
    serializes it with `toString()`. A click-started journey settles with
    `waitForJourneyClickQuiet` from `journey-click-settle.ts`.
 3. Map the measurement to a `JourneyIterationRecord` in a
