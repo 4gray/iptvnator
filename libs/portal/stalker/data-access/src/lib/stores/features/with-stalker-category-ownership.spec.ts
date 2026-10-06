@@ -97,7 +97,21 @@ describe('Stalker category ownership', () => {
         void store.isCategoryResourceLoading();
     });
 
-    it('reloads categories when the active portal cache is explicitly reset', async () => {
+    it('sends no request on a reset alone', async () => {
+        request.mockResolvedValueOnce({
+            js: [{ id: '1', title: 'Before reset' }],
+        });
+        store.selectPlaylist('a');
+        await settle();
+        request.mockClear();
+
+        store.resetCategories();
+        await settle();
+
+        expect(request).not.toHaveBeenCalled();
+    });
+
+    it('reloads categories when the active portal cache is explicitly reloaded after a reset', async () => {
         request.mockResolvedValueOnce({
             js: [{ id: '1', title: 'Before reset' }],
         });
@@ -107,6 +121,7 @@ describe('Stalker category ownership', () => {
             js: [{ id: '1', title: 'After reset' }],
         });
         store.resetCategories();
+        store.reloadCategories();
         await settle();
         expect(
             store.getCategoryResource().map((c) => c.category_name)

@@ -1214,6 +1214,8 @@ export function withStalkerContent() {
                         ...buildCategoryPatch(type, categories),
                     });
                 },
+                // Clears only: called on portal switches and route teardown,
+                // where a reload would ask the portal being left.
                 resetCategories() {
                     patchState(store, {
                         vodCategories: [],
@@ -1222,6 +1224,13 @@ export function withStalkerContent() {
                         radioCategories: [],
                         categoryError: null,
                     });
+                },
+                /**
+                 * Refetches the current portal's categories. For a reset that
+                 * keeps the owner: the resource's params do not change then,
+                 * so it would not load on its own.
+                 */
+                reloadCategories() {
                     storeContext.categoryResource.reload();
                 },
                 setItvChannels(channels: StalkerItvChannel[]) {

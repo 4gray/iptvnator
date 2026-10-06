@@ -71,6 +71,7 @@ describe('StalkerWorkspaceRouteSession', () => {
     const stalkerStore = {
         currentPlaylist,
         resetCategories: jest.fn(),
+        reloadCategories: jest.fn(),
         setSelectedCategory: jest.fn(),
         clearSelectedItem: jest.fn(),
         setCurrentPlaylist: jest.fn(
@@ -117,6 +118,7 @@ describe('StalkerWorkspaceRouteSession', () => {
         }));
 
         stalkerStore.resetCategories.mockClear();
+        stalkerStore.reloadCategories.mockClear();
         stalkerStore.setSelectedCategory.mockClear();
         stalkerStore.clearSelectedItem.mockClear();
         stalkerStore.setCurrentPlaylist.mockClear();
@@ -167,6 +169,46 @@ describe('StalkerWorkspaceRouteSession', () => {
         ).toBeGreaterThan(
             stalkerStore.setCurrentPlaylist.mock.invocationCallOrder[0]
         );
+    });
+
+    // A switch must not ask the portal being left for categories: the new
+    // owner's params make the resource load on their own.
+    it('does not reload categories when the store switches portals', async () => {
+        currentPlaylist.set(OTHER_PLAYLIST);
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(stalkerStore.resetCategories).toHaveBeenCalled();
+        expect(currentPlaylist()?._id).toBe(PLAYLIST_ID);
+        expect(stalkerStore.reloadCategories).not.toHaveBeenCalled();
+    });
+
+    // A handoff installed the destination in the store first: the reset
+    // keeps the owner, so only an explicit reload brings the categories back.
+    it('reloads the cleared categories once a held destination is installed', async () => {
+        currentPlaylist.set(ACTIVE_PLAYLIST);
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(stalkerStore.reloadCategories).toHaveBeenCalledTimes(1);
+        expect(
+            stalkerStore.reloadCategories.mock.invocationCallOrder[0]
+        ).toBeGreaterThan(
+            stalkerStore.setCurrentPlaylist.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('does not reload categories when the route is torn down', async () => {
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        stalkerStore.reloadCategories.mockClear();
+
+        TestBed.resetTestingModule();
+
+        expect(stalkerStore.resetCategories).toHaveBeenCalled();
+        expect(stalkerStore.reloadCategories).not.toHaveBeenCalled();
     });
 
     it('reconciles a revisited route when collection detail changed the shared store', async () => {

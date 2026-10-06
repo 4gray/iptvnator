@@ -139,6 +139,7 @@ describe('StalkerStore API compatibility smoke', () => {
             'clearSelectedItem',
             'setCategories',
             'resetCategories',
+            'reloadCategories',
             'setItvChannels',
             'setSearchPhrase',
             'fetchVodSeriesEpisodes',

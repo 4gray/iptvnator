@@ -140,6 +140,10 @@ export class StalkerWorkspaceRouteSession {
             this.currentPlaylistId !== playlistId ||
             this.stalkerStore.currentPlaylist()?._id !== playlistId
         ) {
+            // A handoff can install the destination in the store before this
+            // session does; the categories it held are cleared all the same.
+            const storeHeldDestination =
+                this.stalkerStore.currentPlaylist()?._id === playlistId;
             this.stalkerStore.resetCategories();
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
@@ -154,6 +158,9 @@ export class StalkerWorkspaceRouteSession {
             }
             await this.stalkerStore.setCurrentPlaylist(playlist);
             this.currentPlaylistId = playlistId;
+            // The owner did not change, so the category resource keeps its
+            // params and would not reload the cleared categories by itself.
+            if (storeHeldDestination) this.stalkerStore.reloadCategories();
         }
 
         if (generation !== this.syncGeneration || this.destroyRef.destroyed) {
