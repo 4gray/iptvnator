@@ -324,7 +324,22 @@ jobs:
             # Electron dependency check, the xvfb run, the summary lookup and
             # the job-summary report; shared with performance-ratchet.yml.
             - name: Run the performance journeys
+              id: journeys
               uses: ./.github/actions/performance-journeys
+
+            # Only the J1 counters shown deterministic on this runner; the
+            # other journey measurements stay evidence (see Ratchet in
+            # docs/architecture/performance-journeys.md). Here and not in
+            # the composite action, so the weekly tightening still measures
+            # a run that would fail it.
+            - name: Check the J1 runtime counters against the baselines
+              env:
+                  SUMMARY: ${{ steps.journeys.outputs.summary }}
+              run: >-
+                  node tools/performance/check-journey-ratchet.mjs
+                  --summary "$SUMMARY"
+                  --only launch/renderer.ipcCallsToFirstCard
+                  --only launch/renderer.domMutationsToFirstCard
 
             - name: Upload journey summaries
               if: always()

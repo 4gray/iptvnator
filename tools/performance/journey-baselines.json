@@ -9,6 +9,24 @@
                 "updatedAt": "2026-10-01",
                 "evidencePr": 1775,
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
+            },
+            "renderer.ipcCallsToFirstCard": {
+                "value": 15,
+                "unit": "calls",
+                "slack": 0,
+                "updatedAt": "2026-10-04",
+                "evidencePr": 1828,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37192092882",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
+            },
+            "renderer.domMutationsToFirstCard": {
+                "value": 558,
+                "unit": "mutations",
+                "slack": 0,
+                "updatedAt": "2026-10-04",
+                "evidencePr": 1828,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37192092882",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
             }
         }
     }
