@@ -119,13 +119,13 @@ picker), so each marks itself on the form's `events` through
 
 ### libs/workspace (7)
 
-- [ ] `libs/workspace/shell/feature/src/lib/workspace-command-palette/workspace-command-palette.component.ts`
-- [ ] `libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-collection-context-panel.component.ts`
-- [ ] `libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.ts`
-- [ ] `libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-settings-context-panel.component.ts`
-- [ ] `libs/workspace/shell/feature/src/lib/workspace-keyboard-shortcuts/workspace-keyboard-shortcuts-dialog.component.ts`
-- [ ] `libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts` (idle audit root)
-- [ ] `libs/workspace/shell/feature/src/lib/workspace-sources/workspace-sources.component.ts`
+- [x] `libs/workspace/shell/feature/src/lib/workspace-command-palette/workspace-command-palette.component.ts`
+- [x] `libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-collection-context-panel.component.ts`
+- [x] `libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.ts`
+- [x] `libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-settings-context-panel.component.ts`
+- [x] `libs/workspace/shell/feature/src/lib/workspace-keyboard-shortcuts/workspace-keyboard-shortcuts-dialog.component.ts`
+- [x] `libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts` (idle audit root)
+- [x] `libs/workspace/shell/feature/src/lib/workspace-sources/workspace-sources.component.ts`
 
 ### libs/playlist (14)
 
