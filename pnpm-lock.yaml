@@ -155,8 +155,8 @@ importers:
         specifier: 18.0.11
         version: 18.0.11
       mpegts.js:
-        specifier: 1.8.1
-        version: 1.8.1
+        specifier: 1.8.2
+        version: 1.8.2
       ms:
         specifier: 2.1.3
         version: 2.1.3
@@ -7701,8 +7701,8 @@ packages:
     resolution: {integrity: sha512-blbA7XpAaOdC/PR0Tu8GiUxlx6CpBuRowQPYV7lhi9Yr9G9+dkPXIUjqjzc/NCn/uZZPopluaJlIYntIEI/VLw==}
     hasBin: true
 
-  mpegts.js@1.8.1:
-    resolution: {integrity: sha512-mQ2daxqBaS+QmBYTmJMDUGwAOw08534b08KSyqUGkjkhuBODNod15j8pnRfVEIQVWulKNe201/6UqILe4m4YRQ==}
+  mpegts.js@1.8.2:
+    resolution: {integrity: sha512-cZYMa5muASH55wrS6JK5IGkUqnCA96c0f+WdnW91jIK9s/N6NzjmTQDJNYg9A5u/G2Q5nj2b3w1Zwzze/9guxA==}
     engines: {node: '>=20.9.0'}
 
   mrmime@2.0.1:
@@ -8854,7 +8854,6 @@ packages:
 
   shaka-player@5.2.12:
     resolution: {integrity: sha512-vEsuVDI3+oLh+yqpjXexQZlg2XMUBI0VrqatDuKWacPaxAud6Uph5uCowUPLhUgNG5XKWCpoM4l1r8qYzWH+zg==}
-    engines: {node: '>=18'}
 
   shallow-clone@3.0.1:
     resolution: {integrity: sha512-/6KqX+GVUdqPuPPd2LxDDxzX6CAbjJehAAOKlNpqqUpAqPM6HeL8f+o3a+JsyGjn2lv0WY8UsTgUJjU9Ok55NA==}
@@ -18064,7 +18063,7 @@ snapshots:
       '@xmldom/xmldom': 0.8.15
       global: 4.4.0
 
-  mpegts.js@1.8.1:
+  mpegts.js@1.8.2:
     dependencies:
       es6-promise: 4.2.8
       events: 3.3.0

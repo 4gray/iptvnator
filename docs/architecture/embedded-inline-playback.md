@@ -749,7 +749,7 @@ allowlisted display name.
 
 `network-error` is reserved for provider/network loading failures. Engines that expose concrete browser security evidence, such as CORS, mixed content, Content Security Policy, or private-network-access blocks, use `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
 
-mpegts.js `1.8.1` errors cross one shared structured boundary before the HTML5,
+mpegts.js `1.8.2` errors cross one shared structured boundary before the HTML5,
 Video.js, or ArtPlayer owner emits a diagnostic. Version-locked tests compare
 the installed public `ErrorTypes` and `ErrorDetails` exports with the accepted
 contract. Evidence retains only an exact type/detail pair, terminal
