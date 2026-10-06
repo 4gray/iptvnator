@@ -1,7 +1,13 @@
 import { Location } from '@angular/common';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import {
+    Event as RouterEvent,
+    NavigationEnd,
+    NavigationStart,
+    Router,
+} from '@angular/router';
+import { Subject } from 'rxjs';
 import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
 import {
     WORKSPACE_HISTORY_NAVIGATION,
@@ -45,6 +51,35 @@ describe('WorkspaceBackNavigationService', () => {
     const back = jest.fn();
     const navigate = jest.fn().mockResolvedValue(true);
     const navigateByUrl = jest.fn().mockResolvedValue(true);
+    let routerEvents = new Subject<RouterEvent>();
+    const currentNavigation = signal<{
+        extras: { replaceUrl?: boolean };
+    } | null>(null);
+    let navigationId = 0;
+
+    /** A router navigation as the history depth tracker sees it. */
+    function routerNavigation(
+        options: {
+            popstateTo?: number;
+            replaceUrl?: boolean;
+        } = {}
+    ): number {
+        const id = ++navigationId;
+        currentNavigation.set({ extras: { replaceUrl: options.replaceUrl } });
+        routerEvents.next(
+            new NavigationStart(
+                id,
+                `/page-${id}`,
+                options.popstateTo === undefined ? 'imperative' : 'popstate',
+                options.popstateTo === undefined
+                    ? null
+                    : { navigationId: options.popstateTo }
+            )
+        );
+        routerEvents.next(new NavigationEnd(id, `/page-${id}`, `/page-${id}`));
+        currentNavigation.set(null);
+        return id;
+    }
 
     function createService(
         history: FakeHistory | null = null
@@ -52,11 +87,21 @@ describe('WorkspaceBackNavigationService', () => {
         back.mockReset();
         navigate.mockClear();
         navigateByUrl.mockClear();
+        routerEvents = new Subject<RouterEvent>();
+        navigationId = 0;
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({
             providers: [
                 { provide: Location, useValue: { back } },
-                { provide: Router, useValue: { navigate, navigateByUrl } },
+                {
+                    provide: Router,
+                    useValue: {
+                        navigate,
+                        navigateByUrl,
+                        events: routerEvents,
+                        currentNavigation,
+                    },
+                },
                 {
                     provide: WORKSPACE_HISTORY_NAVIGATION,
                     useValue: history as unknown as WorkspaceHistoryNavigation,
@@ -272,16 +317,75 @@ describe('WorkspaceBackNavigationService', () => {
             expect(navigateByUrl).not.toHaveBeenCalled();
         });
 
-        it('keeps browser history without the Navigation API', () => {
-            // The history is unknown there, so a reached page must not
-            // jump to its parent.
-            const service = createService(null);
-            const parent = jest.fn(() => '/workspace/dashboard');
+        describe('without the Navigation API', () => {
+            // The router's history depth decides there (older Safari and
+            // Firefox): a page that opened the session must not leave the app.
+            it('opens the parent of the page that opened the session', async () => {
+                const service = createService(null);
+                routerNavigation();
 
-            service.back(parent);
+                service.back(() => '/workspace/dashboard');
+                await Promise.resolve();
 
-            expect(back).toHaveBeenCalledTimes(1);
-            expect(parent).not.toHaveBeenCalled();
+                expect(back).not.toHaveBeenCalled();
+                expect(navigateByUrl).toHaveBeenCalledWith(
+                    '/workspace/dashboard',
+                    { replaceUrl: true }
+                );
+            });
+
+            it('goes back in history after the router pushed a page', () => {
+                const service = createService(null);
+                routerNavigation();
+                routerNavigation();
+                const parent = jest.fn(() => '/workspace/dashboard');
+
+                service.back(parent);
+
+                expect(back).toHaveBeenCalledTimes(1);
+                expect(parent).not.toHaveBeenCalled();
+            });
+
+            it('treats a replacement as the same entry', async () => {
+                const service = createService(null);
+                routerNavigation();
+                routerNavigation({ replaceUrl: true });
+
+                service.back(() => ['/workspace', 'sources']);
+                await Promise.resolve();
+
+                expect(back).not.toHaveBeenCalled();
+                expect(navigate).toHaveBeenCalledWith(
+                    ['/workspace', 'sources'],
+                    { replaceUrl: true }
+                );
+            });
+
+            it('opens the parent again after Back returned to the first page', async () => {
+                const service = createService(null);
+                const first = routerNavigation();
+                routerNavigation();
+                routerNavigation({ popstateTo: first });
+
+                service.back(() => '/workspace/dashboard');
+                await Promise.resolve();
+
+                expect(back).not.toHaveBeenCalled();
+                expect(navigateByUrl).toHaveBeenCalledTimes(1);
+            });
+
+            it('keeps browser history on an entry from before a reload', () => {
+                const service = createService(null);
+                routerNavigation();
+                // Restores an entry recorded by the previous document.
+                routerNavigation({ popstateTo: 42 });
+                const parent = jest.fn(() => '/workspace/dashboard');
+
+                service.back(parent);
+
+                expect(back).toHaveBeenCalledTimes(1);
+                expect(parent).not.toHaveBeenCalled();
+            });
         });
     });
 });

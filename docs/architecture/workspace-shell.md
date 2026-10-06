@@ -171,8 +171,12 @@ were reached by navigation.
 Back is history Back calls `WorkspaceBackNavigationService.back(resolveParent)`
 instead of `Location.back()`. It runs `Location.back()` while the previous
 entry is an in-app one, by the same Navigation API test as the history
-fallback, and also when that is unknown because the API is missing: there a
-page reached in the app must not jump to its parent. Otherwise the page opened
+fallback. Without the API (older Safari and Firefox) the router's history
+depth decides (`trackRouterHistoryDepth`): the document's first navigation is
+depth 0, a push adds one, a replacement keeps it and a traversal restores the
+depth recorded for its entry. A traversal to an entry from before a reload
+leaves the depth unknown and keeps `Location.back()`, which then has a
+previous entry. Otherwise the page opened
 the session (a deep link, a reload or a restored view), where
 `Location.back()` does nothing in Electron and leaves the app in a browser.
 The service then navigates to the page's parent with `replaceUrl`, so history

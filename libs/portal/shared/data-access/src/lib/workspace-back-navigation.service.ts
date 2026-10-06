@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
+import { trackRouterHistoryDepth } from './router-history-depth';
 
 /** The parts of the browser's Navigation API the history fallback reads. */
 export type WorkspaceHistoryNavigation = Pick<
@@ -60,6 +61,10 @@ export class WorkspaceBackNavigationService {
     private readonly history = inject(WORKSPACE_HISTORY_NAVIGATION);
     private readonly targets = signal<readonly WorkspaceBackTarget[]>([]);
     private readonly canGoBackInApp = signal(false);
+    /** In-app history depth where the Navigation API is missing. */
+    private readonly routerDepth = this.history
+        ? () => null
+        : trackRouterHistoryDepth(this.router, inject(DestroyRef));
 
     /**
      * Generic Back to the previous page. It advertises no Escape (no page
@@ -97,16 +102,21 @@ export class WorkspaceBackNavigationService {
 
     /**
      * Back for a page with a parent route. Browser history while the previous
-     * entry is an in-app one, and while that is unknown (no Navigation API).
-     * Otherwise the page opened the session (deep link, reload, restored
-     * view), where `Location.back()` would do nothing in Electron or leave
-     * the app in a browser: the parent replaces the current entry, so
-     * history Back cannot return to the page just left.
+     * entry is an in-app one. Otherwise the page opened the session (deep
+     * link, reload, restored view), where `Location.back()` would do nothing
+     * in Electron or leave the app in a browser: the parent replaces the
+     * current entry, so history Back cannot return to the page just left.
+     * Without the Navigation API the router's history depth decides, and an
+     * unknown depth (a traversal to an entry from before a reload) keeps
+     * browser history, which then has a previous entry.
      */
     back(
         resolveParent: () => WorkspaceBackParent | Promise<WorkspaceBackParent>
     ): void {
-        if (!this.history || this.canGoBackInApp()) {
+        const inApp = this.history
+            ? this.canGoBackInApp()
+            : (this.routerDepth() ?? 1) > 0;
+        if (inApp) {
             this.location.back();
             return;
         }
