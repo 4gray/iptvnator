@@ -63,25 +63,30 @@ must be ticked here.
 two). Tick an entry by deleting `changeDetection: ChangeDetectionStrategy.Eager`
 (or setting OnPush) once its template state is signals, signal inputs or
 explicitly marked. The guard spec compares the unticked entries with the
-files that still contain `ChangeDetectionStrategy.Eager`.
+files whose component metadata still sets
+`changeDetection: ChangeDetectionStrategy.Eager` (comments do not count).
+The settings sections read form values in their templates and the parent
+patches the form outside their events (Discard, backup import, the EPG file
+picker), so each marks itself on the form's `events` through
+`markSectionForCheckOnFormEvents` (`apps/web/src/app/settings`).
 
 ### apps/web (15)
 
-- [ ] `apps/web/src/app/app.component.ts` (idle audit root)
-- [ ] `apps/web/src/app/app-update-notification-panel.component.ts` (idle audit root)
-- [ ] `apps/web/src/app/settings/app-update-release-notes-dialog.component.ts`
-- [ ] `apps/web/src/app/settings/settings.component.ts`
-- [ ] `apps/web/src/app/settings/settings-about-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-backup-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-dashboard-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-delete-all-playlists-dialog.component.ts`
-- [ ] `apps/web/src/app/settings/settings-epg-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-general-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-playback-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-remote-control-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-reset-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-tmdb-section.component.ts`
-- [ ] `apps/web/src/app/settings/settings-unsaved-changes-dialog.component.ts`
+- [x] `apps/web/src/app/app.component.ts` (idle audit root)
+- [x] `apps/web/src/app/app-update-notification-panel.component.ts` (idle audit root)
+- [x] `apps/web/src/app/settings/app-update-release-notes-dialog.component.ts`
+- [x] `apps/web/src/app/settings/settings.component.ts`
+- [x] `apps/web/src/app/settings/settings-about-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-backup-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-dashboard-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-delete-all-playlists-dialog.component.ts`
+- [x] `apps/web/src/app/settings/settings-epg-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-general-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-playback-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-remote-control-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-reset-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-tmdb-section.component.ts`
+- [x] `apps/web/src/app/settings/settings-unsaved-changes-dialog.component.ts`
 
 ### libs/ui (20 files, 21 components)
 
@@ -176,7 +181,7 @@ the field a signal (or a `computed`), or writes it through one.
 | [ ] | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` (favorites load) | `favorites` Map filled in a `subscribe` without `markForCheck`; the component is OnPush already, so this is a latent bug today | portal |
 | [ ] | `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts` (favorites load) | same pattern; the neighbouring `favoriteMarks.changes$` handler does call `markForCheck` | portal |
 | [ ] | same file, programme dialog `afterClosed` | deletes from `epgPrograms`/`currentProgramsProgress` after `await` without marking | portal |
-| [ ] | `apps/web/src/app/settings/settings-backup.facade.ts` (backup import) | `change` listener on a detached file input → `hydrateFromStore()`; section templates read `form().value.theme`/`coverSize` | apps/web |
+| [x] | `apps/web/src/app/settings/settings-backup.facade.ts` (backup import) | `change` listener on a detached file input → `hydrateFromStore()`; section templates read `form().value.theme`/`coverSize`; no fix needed: a value-only `patchValue` re-renders the OnPush sections (`settings.component.form.spec.ts` guards it) | apps/web |
 | [ ] | `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` | plain `isLoading`/`error`/`status` written after `await` and from a 2 s `setInterval` | only if `apps/remote-control-web` goes zoneless |
 
 ## Explicit zone and change-detector calls
@@ -185,7 +190,7 @@ They keep working under zoneless (`NgZone` becomes `NoopNgZone`, so `run`
 and `runOutsideAngular` just call through). Remove them in the flip PR, not
 before: with zone.js on they still matter.
 
-- [ ] `apps/web/src/app/settings/settings-unload-guard.service.ts`: two
+- [x] `apps/web/src/app/settings/settings-unload-guard.service.ts`: two
   `zone.run` calls around the window-close dialog (IPC
   `onWindowCloseRequested` and `beforeunload`).
 - [x] `libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-session-controller.ts`:
