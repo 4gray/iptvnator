@@ -167,7 +167,7 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
         </div>
     `,
     styleUrls: ['./audio-player.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         FormsModule,
         MatButtonModule,
