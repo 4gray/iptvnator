@@ -941,27 +941,32 @@ describe('VideoPlayerComponent', () => {
         );
     });
 
-    it('keeps ArtPlayer for DASH channels and forwards the ClearKey DRM config', () => {
-        const drm = {
-            licenseType: 'clearkey',
-            supported: true,
-            clearKeys: { '11223344556677889900aabbccddeeff': 'f'.repeat(32) },
-        };
-        syncStoreState({
-            ...sampleChannel,
-            url: 'http://localhost/live.mpd',
-            drm,
-        } as Channel);
-        player.set(VideoPlayer.ArtPlayer);
+    it.each([VideoPlayer.ArtPlayer, VideoPlayer.Vidstack])(
+        'keeps %s for DASH channels and forwards the ClearKey DRM config',
+        (configuredPlayer) => {
+            const drm = {
+                licenseType: 'clearkey',
+                supported: true,
+                clearKeys: {
+                    '11223344556677889900aabbccddeeff': 'f'.repeat(32),
+                },
+            };
+            syncStoreState({
+                ...sampleChannel,
+                url: 'http://localhost/live.mpd',
+                drm,
+            } as Channel);
+            player.set(configuredPlayer);
 
-        fixture.detectChanges();
+            fixture.detectChanges();
 
-        const stub = fixture.debugElement.query(
-            By.directive(StubWebPlayerViewComponent)
-        ).componentInstance as StubWebPlayerViewComponent;
-        expect(stub.playerOverride()).toBe(VideoPlayer.ArtPlayer);
-        expect(stub.playback()).toEqual(expect.objectContaining({ drm }));
-    });
+            const stub = fixture.debugElement.query(
+                By.directive(StubWebPlayerViewComponent)
+            ).componentInstance as StubWebPlayerViewComponent;
+            expect(stub.playerOverride()).toBe(configuredPlayer);
+            expect(stub.playback()).toEqual(expect.objectContaining({ drm }));
+        }
+    );
 
     it('routes Video.js users to the HTML5 player only for DASH channels', () => {
         syncStoreState({

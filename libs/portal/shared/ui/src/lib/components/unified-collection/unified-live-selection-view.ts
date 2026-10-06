@@ -15,6 +15,7 @@ import {
     playlistDisplayLabel,
     ResolvedPortalPlayback,
     VideoPlayer,
+    playsDashInline,
 } from '@iptvnator/shared/interfaces';
 import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-session-key';
 import { UnifiedLiveTimeshift } from './unified-live-catchup';
@@ -157,7 +158,7 @@ export function createUnifiedLiveSelectionView(options: {
             createUnifiedLivePlaybackSessionKey(options.activeItem())
         ),
         inlinePlayer: computed(() =>
-            isM3uDashSelection() && player() !== VideoPlayer.ArtPlayer
+            isM3uDashSelection() && !playsDashInline(player())
                 ? VideoPlayer.Html5Player
                 : player()
         ),

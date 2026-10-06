@@ -190,7 +190,7 @@ async function seekUsingControls(page: Page): Promise<void> {
             )
         )
         .toBe(true);
-    // ArtPlayer has an interaction layer above <video>; hover the surface.
+    // ArtPlayer and Vidstack sit layers above <video>; hover the surface.
     await view.hover();
     const controls = view.locator('app-player-controls');
     await controls.getByRole('button', { name: 'Pause', exact: true }).click();
@@ -233,6 +233,7 @@ for (const [player, selector] of [
     ['HTML5 video player', 'app-html-video-player'],
     ['Video.js player', 'app-vjs-player'],
     ['ArtPlayer', 'app-art-player'],
+    ['Vidstack', 'app-vidstack-player'],
 ]) {
     for (const metadata of [
         'disabled',

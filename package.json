@@ -154,6 +154,7 @@
         "video.js": "8.24.0",
         "videojs-contrib-quality-levels": "4.1.0",
         "videojs-quality-selector-hls": "1.1.1",
+        "vidstack": "1.15.6",
         "zone.js": "0.16.3"
     },
     "devDependencies": {

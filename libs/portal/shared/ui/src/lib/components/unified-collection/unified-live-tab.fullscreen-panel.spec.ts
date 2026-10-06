@@ -165,8 +165,9 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
                 By.directive(StubWebPlayerViewComponent)
             ).componentInstance as StubWebPlayerViewComponent;
             expect(webPlayer.playerOverride()).toBe(
-                configuredPlayer === VideoPlayer.ArtPlayer
-                    ? VideoPlayer.ArtPlayer
+                configuredPlayer === VideoPlayer.ArtPlayer ||
+                    configuredPlayer === VideoPlayer.Vidstack
+                    ? configuredPlayer
                     : VideoPlayer.Html5Player
             );
             expect(webPlayer.playback()?.drm).toEqual(drm);

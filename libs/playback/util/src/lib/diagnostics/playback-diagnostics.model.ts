@@ -46,6 +46,7 @@ export const InlinePlaybackPlayer = {
     VideoJs: 'videojs',
     Html5: 'html5',
     ArtPlayer: 'artplayer',
+    Vidstack: 'vidstack',
 } as const;
 
 export type InlinePlaybackPlayer =
