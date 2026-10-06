@@ -52,9 +52,14 @@ describe('WorkspaceBackNavigationService', () => {
     const navigate = jest.fn().mockResolvedValue(true);
     const navigateByUrl = jest.fn().mockResolvedValue(true);
     let routerEvents = new Subject<RouterEvent>();
-    const currentNavigation = signal<{
+    /** The parts of a router Navigation the depth tracker reads. */
+    type NavigationLike = {
+        id?: number;
+        previousNavigation?: unknown;
         extras: { replaceUrl?: boolean };
-    } | null>(null);
+    };
+    const currentNavigation = signal<NavigationLike | null>(null);
+    const lastSuccessfulNavigation = signal<NavigationLike | null>(null);
     let navigationId = 0;
 
     /** A router navigation as the history depth tracker sees it. */
@@ -100,6 +105,7 @@ describe('WorkspaceBackNavigationService', () => {
                         navigateByUrl,
                         events: routerEvents,
                         currentNavigation,
+                        lastSuccessfulNavigation,
                     },
                 },
                 {
@@ -110,6 +116,11 @@ describe('WorkspaceBackNavigationService', () => {
         });
         return TestBed.inject(WorkspaceBackNavigationService);
     }
+
+    afterEach(() => {
+        currentNavigation.set(null);
+        lastSuccessfulNavigation.set(null);
+    });
 
     function createTarget(run = jest.fn()): WorkspaceBackTarget {
         return {
@@ -372,6 +383,80 @@ describe('WorkspaceBackNavigationService', () => {
 
                 expect(back).not.toHaveBeenCalled();
                 expect(navigateByUrl).toHaveBeenCalledTimes(1);
+            });
+
+            // The lazy workspace shell creates the service after the first
+            // navigation started, so the tracker adopts the router's state.
+            it('adopts a first navigation that ended before the service existed', async () => {
+                lastSuccessfulNavigation.set({
+                    id: 1,
+                    previousNavigation: null,
+                    extras: {},
+                });
+                const service = createService(null);
+
+                service.back(() => '/workspace/dashboard');
+                await Promise.resolve();
+
+                expect(back).not.toHaveBeenCalled();
+                expect(navigateByUrl).toHaveBeenCalledTimes(1);
+            });
+
+            it('adopts a first navigation whose start fired before the service existed', async () => {
+                currentNavigation.set({
+                    id: 1,
+                    previousNavigation: null,
+                    extras: {},
+                });
+                const service = createService(null);
+                navigationId = 1;
+                // Only the end reaches the tracker.
+                routerEvents.next(new NavigationEnd(1, '/page-1', '/page-1'));
+                currentNavigation.set(null);
+
+                service.back(() => '/workspace/dashboard');
+                await Promise.resolve();
+
+                expect(back).not.toHaveBeenCalled();
+                expect(navigateByUrl).toHaveBeenCalledTimes(1);
+            });
+
+            it('adopts a first navigation still in flight and counts the next push', async () => {
+                currentNavigation.set({
+                    id: 1,
+                    previousNavigation: null,
+                    extras: {},
+                });
+                const service = createService(null);
+                navigationId = 1;
+                // Its start arrives late; the end commits depth 0.
+                routerEvents.next(new NavigationStart(1, '/page-1'));
+                routerEvents.next(new NavigationEnd(1, '/page-1', '/page-1'));
+                currentNavigation.set(null);
+
+                service.back(() => '/workspace/dashboard');
+                await Promise.resolve();
+                expect(back).not.toHaveBeenCalled();
+                expect(navigateByUrl).toHaveBeenCalledTimes(1);
+
+                routerNavigation();
+                service.back(() => '/workspace/dashboard');
+                expect(back).toHaveBeenCalledTimes(1);
+            });
+
+            it('keeps browser history when created after several navigations', () => {
+                lastSuccessfulNavigation.set({
+                    id: 3,
+                    previousNavigation: { id: 2 },
+                    extras: {},
+                });
+                const service = createService(null);
+                const parent = jest.fn(() => '/workspace/dashboard');
+
+                service.back(parent);
+
+                expect(back).toHaveBeenCalledTimes(1);
+                expect(parent).not.toHaveBeenCalled();
             });
 
             it('keeps browser history on an entry from before a reload', () => {

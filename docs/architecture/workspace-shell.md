@@ -174,7 +174,10 @@ entry is an in-app one, by the same Navigation API test as the history
 fallback. Without the API (older Safari and Firefox) the router's history
 depth decides (`trackRouterHistoryDepth`): the document's first navigation is
 depth 0, a push adds one, a replacement keeps it and a traversal restores the
-depth recorded for its entry. A traversal to an entry from before a reload
+depth recorded for its entry. The lazy workspace shell creates the service
+after the first navigation began, so the tracker adopts the router's current
+or last navigation: a first one is depth 0, a later one leaves the depth
+unknown. A traversal to an entry from before a reload
 leaves the depth unknown and keeps `Location.back()`, which then has a
 previous entry. Otherwise the page opened
 the session (a deep link, a reload or a restored view), where
