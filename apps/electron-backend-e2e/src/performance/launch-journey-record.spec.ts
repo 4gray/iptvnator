@@ -54,6 +54,7 @@ function measurement(
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: 2_601, status: 'sent' },
+        shifts: [],
         settle: {
             domMutations: 37,
             epochMs: 3_180.06,

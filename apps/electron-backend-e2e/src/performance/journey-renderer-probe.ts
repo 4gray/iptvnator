@@ -166,6 +166,16 @@ export interface JourneyRendererProbeCounters {
     recentInputLayoutShiftScore: number;
 }
 
+/** A shift counted in `layoutShiftScore` or `recentInputLayoutShiftScore`. */
+export interface JourneyRendererProbeShift {
+    readonly hadRecentInput: boolean;
+    /** Entry start minus the journey start (navigation start for J1). */
+    readonly sinceStartMs: number;
+    /** `tag.class[data-test-id]` and the vertical move of each source. */
+    readonly sources: JourneyRendererProbeLateShift['sources'];
+    readonly value: number;
+}
+
 export interface JourneyRendererProbeLateShift {
     /** Entry start minus the first-card terminal epoch. */
     readonly afterFirstCardMs: number;
@@ -237,6 +247,11 @@ export interface JourneyRendererProbeState {
         readonly epochMs: number | null;
         readonly status: 'bridge-missing' | 'failed' | 'not-sent' | 'sent';
     };
+    /**
+     * The first 20 shifts counted until the cutoff, with the nodes that
+     * moved, so a layout-shift score can be traced to its components.
+     */
+    shifts: JourneyRendererProbeShift[];
     /** `final` freezes the first-card counters; the settle window ends later. */
     settle: {
         /** Mutation records under the settle root after the cutoff. */
@@ -329,6 +344,7 @@ export function journeyRendererProbeScript(
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: null, status: 'not-sent' },
+        shifts: [],
         settle: {
             domMutations: 0,
             epochMs: null,
@@ -389,6 +405,7 @@ export function journeyRendererProbeScript(
         for (const entry of entries) {
             const shift = entry as PerformanceEntry & {
                 hadRecentInput?: boolean;
+                sources?: readonly LateShiftSource[];
                 value?: number;
             };
             if (
@@ -396,6 +413,17 @@ export function journeyRendererProbeScript(
                 !inWindow(entry, untilEpochMs)
             ) {
                 continue;
+            }
+            if (state.shifts.length < 20) {
+                state.shifts.push({
+                    hadRecentInput: shift.hadRecentInput === true,
+                    sinceStartMs:
+                        performance.timeOrigin +
+                        entry.startTime -
+                        (state.start?.epochMs ?? performance.timeOrigin),
+                    sources: (shift.sources ?? []).map(describeSource),
+                    value: shift.value,
+                });
             }
             if (shift.hadRecentInput === true) {
                 state.counters.recentInputLayoutShiftScore += shift.value;

@@ -59,6 +59,20 @@ function measurement(
         preStart: { domMutations: 4, lastMutationEpochMs: 9_100 },
         schemaVersion: 1,
         sentinel: { epochMs: 10_080.5, status: 'sent' },
+        shifts: [
+            {
+                hadRecentInput: true,
+                sinceStartMs: 41.26,
+                sources: [
+                    {
+                        deltaHeight: 0,
+                        deltaY: 52,
+                        node: 'div.content[data-test-id="category-list"]',
+                    },
+                ],
+                value: 0.22106,
+            },
+        ],
         settle: {
             domMutations: 0,
             epochMs: null,
@@ -147,6 +161,20 @@ test('maps the click-started probe, IPC window and mock ledger to exact counters
     });
     assert.deepEqual(record.evidence['layoutShift'], {
         recentInput: 0.221,
+        shifts: [
+            {
+                hadRecentInput: true,
+                sinceStartMs: 41.3,
+                sources: [
+                    {
+                        deltaHeight: 0,
+                        deltaY: 52,
+                        node: 'div.content[data-test-id="category-list"]',
+                    },
+                ],
+                value: 0.2211,
+            },
+        ],
         withoutRecentInput: 0,
     });
     assert.deepEqual(record.evidence['httpRequestsByRoute'], {

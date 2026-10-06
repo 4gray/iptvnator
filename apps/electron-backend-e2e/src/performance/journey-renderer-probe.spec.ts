@@ -798,6 +798,13 @@ test('drops performance entries from before the click and keeps recent-input shi
         {
             entryType: 'layout-shift',
             hadRecentInput: true,
+            sources: [
+                {
+                    currentRect: { height: 40, y: 152 },
+                    node: fixture.card,
+                    previousRect: { height: 40, y: 100 },
+                },
+            ],
             startTime: now(),
             value: 0.25,
         },
@@ -823,6 +830,20 @@ test('drops performance entries from before the click and keeps recent-input shi
     assert.equal(state.final, true);
     assert.equal(state.counters.layoutShiftScore, 0.125);
     assert.equal(state.counters.recentInputLayoutShiftScore, 0.25);
+    // Each counted shift keeps its nodes; the pre-click ones are not listed.
+    assert.deepEqual(
+        state.shifts.map((shift) => [
+            shift.hadRecentInput,
+            shift.value,
+            shift.sources.map((source) => source.deltaY),
+        ]),
+        [
+            [true, 0.25, [52]],
+            [false, 0.125, []],
+        ]
+    );
+    assert.ok(state.shifts.every((shift) => shift.sinceStartMs >= 0));
+    assert.match(state.shifts[0]?.sources[0]?.node ?? '', /^[a-z-]+/);
     // J2 has no settle window: the observers close at the cutoff.
     assert.equal(state.settle.status, 'disabled');
     assert.equal(state.counters.layoutShiftScoreSettled, 0);
@@ -869,6 +890,7 @@ test('rejects a click start whose sentinel could not be sent', async () => {
     const started = {
         ...state,
         sentinel: { epochMs: 1, status: 'sent' as const },
+        shifts: [],
     };
     assert.throws(
         () => assertJourneyRendererProbeState(started),
