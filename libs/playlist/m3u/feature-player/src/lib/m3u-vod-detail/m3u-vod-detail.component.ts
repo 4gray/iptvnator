@@ -71,7 +71,7 @@ import {
         TranslatePipe,
     ],
     templateUrl: './m3u-vod-detail.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./m3u-vod-detail.component.scss'],
 })
 export class M3uVodDetailComponent {

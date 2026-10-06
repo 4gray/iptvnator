@@ -21,6 +21,10 @@ const committedBaselinesPath = fileURLToPath(
     new URL('./journey-baselines.json', import.meta.url)
 );
 
+const ciWorkflowPath = fileURLToPath(
+    new URL('../../.github/workflows/ci.yml', import.meta.url)
+);
+
 const baselines = {
     version: 1,
     journeys: {
@@ -357,6 +361,49 @@ test('rejects malformed baseline files', () => {
             }),
         /sets both "slack" and "toleranceRatio"/
     );
+    assert.throws(
+        () =>
+            validateBaselines({
+                journeys: { launch: { x: { value: 1, note: true } } },
+            }),
+        /non-string "note"/
+    );
+});
+
+test('a failing entry prints its note; a fractional score is exact', () => {
+    const guarded = {
+        journeys: {
+            'open-source': {
+                'renderer.layoutShiftScore': {
+                    value: 0.222,
+                    unit: 'score',
+                    slack: 0,
+                    note: 'guard only, not validated',
+                },
+            },
+        },
+    };
+    const check = (score) =>
+        compareToBaselines({
+            baselines: guarded,
+            summary: {
+                journeys: {
+                    'open-source': {
+                        counters: { 'renderer.layoutShiftScore': score },
+                    },
+                },
+            },
+        });
+
+    assert.deepEqual(check(0.222).failures, []);
+    const above = check(0.223);
+    assert.equal(above.failures.length, 1);
+    assert.match(
+        above.failures[0],
+        /0\.223 score exceeds baseline 0\.222 by 0\.001 score/
+    );
+    assert.match(above.failures[0], /Note: guard only, not validated$/);
+    assert.equal(check(0.221).tightenable.length, 1);
 });
 
 test('formats a summary line for both outcomes', () => {
@@ -442,6 +489,27 @@ test('the committed baselines file is valid and every entry names its evidence f
             assert.equal(typeof entry.measuredWith, 'string');
         }
     }
+});
+
+test('the Performance journeys job checks every journey-run baseline', async () => {
+    const committed = JSON.parse(
+        await readFile(committedBaselinesPath, 'utf8')
+    );
+    const workflow = await readFile(ciWorkflowPath, 'utf8');
+    const step = workflow.match(
+        /- name: Check the journey counters against the baselines\n([\s\S]*?)(?=\n\s*- name: )/
+    );
+    assert.ok(step, 'ci.yml must keep the journey counter check step');
+    const only = [...step[1].matchAll(/--only (\S+)/g)].map((m) => m[1]);
+    // renderer.initialBytes is measured from the web build by the Initial
+    // bytes ratchet job (perf:initial-bytes:check); every other baseline comes
+    // from the journeys and must be enforced by this step, or it guards nothing.
+    const expected = Object.entries(committed.journeys)
+        .flatMap(([journey, entries]) =>
+            Object.keys(entries).map((name) => `${journey}/${name}`)
+        )
+        .filter((label) => label !== 'launch/renderer.initialBytes');
+    assert.deepEqual([...only].sort(), [...expected].sort());
 });
 
 async function runCli(summary, extraBaselines = baselines) {

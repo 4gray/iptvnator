@@ -82,7 +82,7 @@ import { createVodSimilarInPortals } from './vod-similar-in-portals.state';
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
     styleUrls: ['../styles/detail-view.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CastCrewRowComponent,
         DetailActionButtonComponent,
