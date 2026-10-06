@@ -848,6 +848,7 @@ test('drops performance entries from before the click and keeps recent-input shi
             [false, 0.125, []],
         ]
     );
+    assert.equal(state.shiftCount, 2);
     assert.ok(state.shifts.every((shift) => shift.sinceStartMs >= 0));
     assert.match(state.shifts[0]?.sources[0]?.node ?? '', /^[a-z-]+/);
     // J2 has no settle window: the observers close at the cutoff.
@@ -896,6 +897,7 @@ test('rejects a click start whose sentinel could not be sent', async () => {
     const started = {
         ...state,
         sentinel: { epochMs: 1, status: 'sent' as const },
+        shiftCount: 0,
         shifts: [],
     };
     assert.throws(

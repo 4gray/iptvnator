@@ -249,6 +249,8 @@ export interface JourneyRendererProbeState {
         readonly epochMs: number | null;
         readonly status: 'bridge-missing' | 'failed' | 'not-sent' | 'sent';
     };
+    /** Every shift counted until the cutoff; `shifts` keeps the first 20. */
+    shiftCount: number;
     /**
      * The first 20 shifts counted until the cutoff, with the nodes that
      * moved, so a layout-shift score can be traced to its components.
@@ -346,6 +348,7 @@ export function journeyRendererProbeScript(
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: null, status: 'not-sent' },
+        shiftCount: 0,
         shifts: [],
         settle: {
             domMutations: 0,
@@ -416,6 +419,7 @@ export function journeyRendererProbeScript(
             ) {
                 continue;
             }
+            state.shiftCount += 1;
             if (state.shifts.length < 20) {
                 state.shifts.push({
                     hadRecentInput: shift.hadRecentInput === true,

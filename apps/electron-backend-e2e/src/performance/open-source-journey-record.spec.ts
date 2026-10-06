@@ -59,6 +59,7 @@ function measurement(
         preStart: { domMutations: 4, lastMutationEpochMs: 9_100 },
         schemaVersion: 1,
         sentinel: { epochMs: 10_080.5, status: 'sent' },
+        shiftCount: 23,
         shifts: [
             {
                 hadRecentInput: true,
@@ -163,6 +164,8 @@ test('maps the click-started probe, IPC window and mock ledger to exact counters
     });
     assert.deepEqual(record.evidence['layoutShift'], {
         recentInput: 0.221,
+        // More shifts were counted than listed.
+        shiftCount: 23,
         shifts: [
             {
                 hadRecentInput: true,

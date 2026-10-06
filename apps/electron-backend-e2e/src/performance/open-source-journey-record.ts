@@ -184,6 +184,8 @@ export function toOpenSourceIterationRecord(
                 recentInput: roundThousandth(
                     renderer.counters.recentInputLayoutShiftScore
                 ),
+                // Every counted shift; `shifts` lists the first 20.
+                shiftCount: renderer.shiftCount,
                 // The first 20 counted shifts and the nodes that moved.
                 shifts: renderer.shifts.map((shift) =>
                     Object.freeze({
