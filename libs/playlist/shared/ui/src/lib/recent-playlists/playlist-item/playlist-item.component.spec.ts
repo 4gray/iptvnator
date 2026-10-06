@@ -209,9 +209,11 @@ describe('PlaylistItemComponent', () => {
             username: 'demo',
             password: 'secret',
         };
-        fixture.detectChanges();
+        // The fixture renders on its own: a forced detectChanges() after the
+        // await would hide a status that does not schedule a render.
+        fixture.autoDetectChanges();
         await fixture.whenStable();
-        fixture.detectChanges();
+        await new Promise((resolve) => setTimeout(resolve));
 
         const statusDot = (fixture.nativeElement as HTMLElement).querySelector(
             '.status-dot'

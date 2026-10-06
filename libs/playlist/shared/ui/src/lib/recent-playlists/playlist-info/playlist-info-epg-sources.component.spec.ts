@@ -49,6 +49,10 @@ describe('PlaylistInfoComponent playlist EPG source rows', () => {
                     provide: EpgRuntimeBridgeService,
                     useValue: {
                         supportsDataManagement: true,
+                        supportsFilePicker: true,
+                        pickEpgFile: jest
+                            .fn()
+                            .mockResolvedValue('/home/user/epg/guide.xml.gz'),
                         clearEpgDataForSource: jest
                             .fn()
                             .mockResolvedValue({ success: true }),
@@ -87,9 +91,36 @@ describe('PlaylistInfoComponent playlist EPG source rows', () => {
             );
         expect(renderedSources()).toEqual([keepUrl, removeUrl]);
 
+        // From here the fixture renders on its own: a forced detectChanges()
+        // after the cleanup would hide a row update that schedules no render.
+        fixture.autoDetectChanges();
         await fixture.componentInstance.removePlaylistEpgSource(removeUrl);
-        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(renderedSources()).toEqual([keepUrl]);
+    });
+
+    // The native file pick resolves after an await, with no template event.
+    // The main Save button and the field must follow without a forced render.
+    it('enables Save after a native EPG file pick without a forced render', async () => {
+        const fixture = render();
+        fixture.autoDetectChanges();
+        await fixture.whenStable();
+        const host = fixture.nativeElement as HTMLElement;
+        const save = () =>
+            host.querySelector<HTMLButtonElement>('button[type="submit"]');
+        const field = () =>
+            host.querySelector<HTMLInputElement>(
+                '.playlist-epg-source-form .playlist-epg-source-row input'
+            );
+        expect(save()?.disabled).toBe(true);
+
+        await fixture.componentInstance.browsePlaylistEpgSourceInput(0);
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(field()?.value).toBe('/home/user/epg/guide.xml.gz');
+        expect(save()?.disabled).toBe(false);
     });
 });
