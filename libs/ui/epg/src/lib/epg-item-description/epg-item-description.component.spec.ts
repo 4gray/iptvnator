@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { ChangeDetectorRef, signal } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { By } from '@angular/platform-browser';
@@ -72,8 +72,12 @@ describe('EpgItemDescriptionComponent', () => {
     });
 
     it('offers archive URL copying only with explicit capability and explains credentials', () => {
+        // The component is OnPush and dialog data is fixed once the dialog
+        // opens, so the test marks the component's own view after mutating it.
+        const componentView =
+            fixture.debugElement.injector.get(ChangeDetectorRef);
         Object.assign(component.dialogData, { archiveUrlAvailable: true });
-        fixture.changeDetectorRef.markForCheck();
+        componentView.markForCheck();
         fixture.detectChanges();
         expect(
             fixture.nativeElement.querySelector(
@@ -84,7 +88,7 @@ describe('EpgItemDescriptionComponent', () => {
             'EPG.PROGRAM_DIALOG.ARCHIVE_URL_NOTICE'
         );
         Object.assign(component.dialogData, { archiveUrlAvailable: false });
-        fixture.changeDetectorRef.markForCheck();
+        componentView.markForCheck();
         fixture.detectChanges();
         expect(
             fixture.nativeElement.querySelector(

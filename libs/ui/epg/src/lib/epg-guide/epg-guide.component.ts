@@ -6,6 +6,7 @@ import { DatePipe } from '@angular/common';
 import {
     afterNextRender,
     ChangeDetectionStrategy,
+    ChangeDetectorRef,
     Component,
     computed,
     DestroyRef,
@@ -83,6 +84,7 @@ export class EpgGuideComponent implements OnDestroy {
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly injector = inject(Injector);
+    private readonly changeDetector = inject(ChangeDetectorRef);
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
 
     readonly close = output<void>();
@@ -185,8 +187,7 @@ export class EpgGuideComponent implements OnDestroy {
         activeRow: () => this.activeRowIndex(),
         ensureLoaded: (channels) => this.programsService.ensureLoaded(channels),
         setScrollLeft: (left) => this.view.scrollLeft.set(left),
-        afterRender: (callback) =>
-            afterNextRender(callback, { injector: this.injector }),
+        afterRender: (callback) => this.afterNextGuideRender(callback),
     });
 
     private readonly dialogs = new EpgGuideDialogController(
@@ -237,13 +238,21 @@ export class EpgGuideComponent implements OnDestroy {
                 this.viewportController.whenRowsRendered(
                     viewport,
                     this.destroyRef,
-                    () =>
-                        afterNextRender(() => this.jumpNow(false), {
-                            injector: this.injector,
-                        })
+                    () => this.afterNextGuideRender(() => this.jumpNow(false))
                 );
             });
         });
+    }
+
+    /**
+     * Run `callback` after the next render. The callers register from CDK
+     * and RxJS callbacks, outside any template event: zone.js used to follow
+     * those with a tick, but without it registering a render hook schedules
+     * no render, so the guide also marks itself for one.
+     */
+    private afterNextGuideRender(callback: () => void): void {
+        afterNextRender(callback, { injector: this.injector });
+        this.changeDetector.markForCheck();
     }
 
     ngOnDestroy(): void {

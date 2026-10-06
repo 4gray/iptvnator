@@ -14,6 +14,7 @@ function gate(
         blankLoadedEpochMs: 1_050,
         errors: [],
         gatedEpochMs: 1_020,
+        didFinishLoadHeldOnBlank: 1,
         gatedMethod: 'loadFile',
         passThroughLoads: 0,
         readyToShowHeldOnBlank: 1,

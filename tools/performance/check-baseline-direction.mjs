@@ -49,8 +49,9 @@ function entries(baselines) {
     return flat;
 }
 
+// Three decimals: journey summaries round layout-shift scores to three.
 function formatNumber(value) {
-    return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    return value.toLocaleString('en-US', { maximumFractionDigits: 3 });
 }
 
 /**
