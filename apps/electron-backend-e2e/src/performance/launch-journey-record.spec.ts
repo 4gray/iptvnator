@@ -112,6 +112,7 @@ function measurement(
             blankLoadedEpochMs: 1_050,
             errors: [],
             gatedEpochMs: 1_020,
+            didFinishLoadHeldOnBlank: 1,
             gatedMethod: 'loadFile',
             passThroughLoads: 0,
             readyToShowHeldOnBlank: 1,
@@ -185,6 +186,7 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
         'main.startupPhases': 9,
     });
     assert.equal(record.evidence['rendererGateReadyToShowHeldOnBlank'], 1);
+    assert.equal(record.evidence['rendererGateDidFinishLoadHeldOnBlank'], 1);
     assert.deepEqual(record.evidence['epochs'], {
         firstCard: 2_600.04,
         firstCardPaint: 2_650,
