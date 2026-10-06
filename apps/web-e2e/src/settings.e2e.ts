@@ -49,6 +49,24 @@ test.describe('Settings', () => {
         await page.waitForURL(/\/workspace\/dashboard$/);
     });
 
+    test('@settings @web settings opening the session lead to the dashboard', async ({
+        page,
+    }) => {
+        // The only entry of a new tab's history, as in Electron after a
+        // deep link: browser Back has nowhere to go.
+        const firstEntryPage = await page.context().newPage();
+        await firstEntryPage.goto('/workspace/settings/general');
+        // A cold start in a new tab passes the startup splash first.
+        await expect(firstEntryPage.locator('.settings-container')).toBeVisible(
+            { timeout: 15_000 }
+        );
+
+        await settingsBack(firstEntryPage).click();
+        await firstEntryPage.waitForURL(/\/workspace\/dashboard$/);
+        // The dashboard replaced the settings entry: no Back leads to it.
+        await expect(settingsBack(firstEntryPage)).toHaveCount(0);
+    });
+
     test('@settings @web Change video player', async ({ page }) => {
         await openSettings(page);
         await openSettingsSection(page, 'playback');

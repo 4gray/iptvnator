@@ -13,6 +13,10 @@ import {
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
+import {
+    expectRendererReloadedOnRoute,
+    reloadFromMainProcess,
+} from './renderer-reload.support';
 
 // ---------------------------------------------------------------------------
 // A detail page's Back lives in the workspace header's leading slot, not in
@@ -29,6 +33,10 @@ import {
 // header's history fallback while an in-app previous page exists; on a
 // phone it yields to the drawer toggle, and with nowhere to go the slot is
 // empty rather than a disabled arrow.
+//
+// A page with a parent route (settings here) that opened the session, as
+// after a reload, has no in-app entry for history Back: its Back leads to
+// the parent instead and replaces the page's entry.
 // ---------------------------------------------------------------------------
 
 const widths = [1280, 780, 375];
@@ -342,6 +350,35 @@ test.describe('Portal detail header Back', () => {
             await page.goForward();
             await expect(page).toHaveURL(listUrl);
             await expectHistoryBack(page);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@electron @settings settings Back after a reload leads to the dashboard', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            const page = app.mainWindow;
+            await page.waitForURL(/\/workspace\/dashboard$/);
+            await openSettings(page);
+
+            // The reloaded document re-boots on the settings route; the
+            // dashboard entry before it belongs to the old document.
+            await reloadFromMainProcess(app);
+            await expectRendererReloadedOnRoute(
+                page,
+                /\/workspace\/settings\/general$/
+            );
+            await expect(page.getByTestId('settings-container')).toBeVisible();
+
+            await headerBack(page).click();
+            await expect(page).toHaveURL(/\/workspace\/dashboard$/);
+            // The dashboard replaced the settings entry: nothing in this
+            // document precedes it, so the header offers no Back.
+            await expect(headerBack(page)).toHaveCount(0);
         } finally {
             await closeElectronApp(app);
         }
