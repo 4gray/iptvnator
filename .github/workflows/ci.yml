@@ -333,8 +333,11 @@ jobs:
             # docs/architecture/performance-journeys.md). Here and not in the
             # composite action, so the weekly tightening still measures a run
             # that would fail it. tools/performance tests keep this list equal
-            # to the journey entries of journey-baselines.json.
+            # to the journey entries of journey-baselines.json. It also runs
+            # when a later step of the action (the job-summary report) failed
+            # after the summary was written, so the counters are still checked.
             - name: Check the journey counters against the baselines
+              if: ${{ !cancelled() && steps.journeys.outputs.summary != '' }}
               env:
                   SUMMARY: ${{ steps.journeys.outputs.summary }}
               run: >-
