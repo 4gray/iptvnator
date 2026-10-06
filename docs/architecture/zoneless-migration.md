@@ -149,15 +149,15 @@ picker), so each marks itself on the form's `events` through
 
 ### libs/portal (9)
 
-- [ ] `libs/portal/shared/ui/src/lib/components/favorites-layout/favorites-layout.component.ts`
-- [ ] `libs/portal/shared/ui/src/lib/components/playlist-error-view/playlist-error-view.component.ts`
-- [ ] `libs/portal/shared/ui/src/lib/components/search-form/search-form.component.ts`
-- [ ] `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
-- [ ] `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
-- [ ] `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
-- [ ] `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
-- [ ] `libs/portal/xtream/feature/src/lib/global-search-results/global-search-results.component.ts`
-- [ ] `libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.ts`
+- [x] `libs/portal/shared/ui/src/lib/components/favorites-layout/favorites-layout.component.ts`
+- [x] `libs/portal/shared/ui/src/lib/components/playlist-error-view/playlist-error-view.component.ts`
+- [x] `libs/portal/shared/ui/src/lib/components/search-form/search-form.component.ts`
+- [x] `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
+- [x] `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
+- [x] `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
+- [x] `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
+- [x] `libs/portal/xtream/feature/src/lib/global-search-results/global-search-results.component.ts`
+- [x] `libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.ts`
 
 Test-only files that set Eager are not listed; they do not ship. The guard
 skips every `*.spec.ts` / `*.test.ts` file with or without a suffix of one
@@ -179,9 +179,9 @@ the field a signal (or a `computed`), or writes it through one.
 | [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts` `checkPortalStatus` | plain `portalStatus` assigned after `await` in `ngOnInit` (PWA only: skipped when source health is supported) | playlist |
 | [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts` (EPG clear and EPG file pick handlers) | plain `playlist` reassigned after `await` | playlist |
 | [x] | `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.ts` (device-id derivation) | `form.patchValue` after `await`; no fix needed: while derivation is on `hasManualDeviceIds` is false whatever the IDs are, the controls write their own DOM values, and typing goes through value-accessor listeners that mark the view | playlist |
-| [ ] | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` (favorites load) | `favorites` Map filled in a `subscribe` without `markForCheck`; the component is OnPush already, so this is a latent bug today | portal |
-| [ ] | `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts` (favorites load) | same pattern; the neighbouring `favoriteMarks.changes$` handler does call `markForCheck` | portal |
-| [ ] | same file, programme dialog `afterClosed` | deletes from `epgPrograms`/`currentProgramsProgress` after `await` without marking | portal |
+| [x] | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` (favorites load) | `favorites` Map filled in a `subscribe` without `markForCheck`; the component is OnPush already, so this is a latent bug today | portal |
+| [x] | `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts` (favorites load) | same pattern; the neighbouring `favoriteMarks.changes$` handler does call `markForCheck` | portal |
+| [x] | same file, programme dialog `afterClosed` | deletes from `epgPrograms`/`currentProgramsProgress` after `await` without marking | portal |
 | [x] | `apps/web/src/app/settings/settings-backup.facade.ts` (backup import) | `change` listener on a detached file input → `hydrateFromStore()`; section templates read `form().value.theme`/`coverSize`; each section now marks itself on its form's `events` (`markSectionForCheckOnFormEvents`), which `settings.component.form.spec.ts` guards without a forced render | apps/web |
 | [x] | `libs/ui/epg/src/lib/epg-guide/epg-guide.component.ts` (jump to now, keyboard focus) | `afterNextRender` registered from CDK/RxJS callbacks; zone.js followed them with a tick, zoneless schedules no render, so the guide opened at midnight. It now marks itself when it registers the hook. Found by `epg-guide.e2e.ts` on the zoneless build | flag |
 | [ ] | `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` | plain `isLoading`/`error`/`status` written after `await` and from a 2 s `setInterval` | only if `apps/remote-control-web` goes zoneless |
