@@ -51,8 +51,9 @@ must be ticked here.
    `apps/web`. Each reports the tick counters before and after and runs the
    affected unit and E2E tests.
 4. [x] `provideZonelessChangeDetection()` behind a build-time
-   `fileReplacements` flag, off by default; all four journeys and the
-   Electron E2E suite run with it on (see [Zoneless flag](#zoneless-flag)).
+   `fileReplacements` flag, off by default; the three implemented journeys
+   (J1-J3; J4 is still planned) and the Electron E2E suite run with it on
+   (see [Zoneless flag](#zoneless-flag)).
 5. [ ] Flag on by default, `zone.js` out of `polyfills`, new tick baselines
    (`renderer.cdTicksIdle30s` and any counter that becomes deterministic once
    the zone.js race is gone).
