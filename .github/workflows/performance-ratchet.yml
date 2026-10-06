@@ -240,7 +240,7 @@ jobs:
                       git diff "$HEAD_SHA" HEAD -- "$baselines"
                       echo '```'
                       echo
-                      echo "If \`master\` moved since \`$HEAD_SHA\`, make sure the Initial bytes ratchet job passes on this PR before merging."
+                      echo "If \`master\` moved since \`$HEAD_SHA\`, make sure the Initial bytes ratchet and Performance journeys jobs pass on this PR before merging."
                   } > "$BODY"
                   gh api -X PATCH "repos/$REPOSITORY/pulls/$pr" -F "body=@$BODY" --silent
                   echo "Pull request: ${GITHUB_SERVER_URL}/$REPOSITORY/pull/$pr"
