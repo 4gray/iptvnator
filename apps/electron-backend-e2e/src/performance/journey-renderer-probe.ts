@@ -171,7 +171,7 @@ export interface JourneyRendererProbeShift {
     readonly hadRecentInput: boolean;
     /** Entry start minus the journey start (navigation start for J1). */
     readonly sinceStartMs: number;
-    /** `tag.class[data-test-id]` and the vertical move of each source. */
+    /** `tag.class[data-test-id]` and the move of each source. */
     readonly sources: JourneyRendererProbeLateShift['sources'];
     readonly value: number;
 }
@@ -179,9 +179,11 @@ export interface JourneyRendererProbeShift {
 export interface JourneyRendererProbeLateShift {
     /** Entry start minus the first-card terminal epoch. */
     readonly afterFirstCardMs: number;
-    /** `tag.class[data-test-id]` and the vertical move of each source. */
+    /** `tag.class[data-test-id]` and the move of each source. */
     readonly sources: readonly {
         readonly deltaHeight: number;
+        readonly deltaWidth: number;
+        readonly deltaX: number;
         readonly deltaY: number;
         readonly node: string;
     }[];
@@ -558,10 +560,11 @@ export function journeyRendererProbeScript(
             state.idle.status = 'done';
         }, idle.durationMs);
     };
+    type ShiftRect = { height: number; width?: number; x?: number; y: number };
     type LateShiftSource = {
-        currentRect?: { height: number; y: number };
+        currentRect?: ShiftRect;
         node?: Node | null;
-        previousRect?: { height: number; y: number };
+        previousRect?: ShiftRect;
     };
     const describeSource = (source: LateShiftSource) => {
         const node = source.node;
@@ -578,9 +581,13 @@ export function journeyRendererProbeScript(
         }
         const before = source.previousRect;
         const after = source.currentRect;
+        const delta = (key: keyof ShiftRect) =>
+            before && after ? (after[key] ?? 0) - (before[key] ?? 0) : 0;
         return {
-            deltaHeight: before && after ? after.height - before.height : 0,
-            deltaY: before && after ? after.y - before.y : 0,
+            deltaHeight: delta('height'),
+            deltaWidth: delta('width'),
+            deltaX: delta('x'),
+            deltaY: delta('y'),
             node: label,
         };
     };

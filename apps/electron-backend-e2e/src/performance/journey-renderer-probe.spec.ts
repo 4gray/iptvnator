@@ -341,6 +341,8 @@ test('keeps summing shifts without recent input after the first-card cutoff unti
                 [
                     {
                         deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
                         deltaY: -240,
                         node: 'lib-dashboard-rail[data-test-id="dashboard-favorites-rail"]',
                     },
@@ -800,9 +802,9 @@ test('drops performance entries from before the click and keeps recent-input shi
             hadRecentInput: true,
             sources: [
                 {
-                    currentRect: { height: 40, y: 152 },
+                    currentRect: { height: 40, width: 300, x: 48, y: 152 },
                     node: fixture.card,
-                    previousRect: { height: 40, y: 100 },
+                    previousRect: { height: 40, width: 320, x: 0, y: 100 },
                 },
             ],
             startTime: now(),
@@ -835,10 +837,14 @@ test('drops performance entries from before the click and keeps recent-input shi
         state.shifts.map((shift) => [
             shift.hadRecentInput,
             shift.value,
-            shift.sources.map((source) => source.deltaY),
+            shift.sources.map((source) => [
+                source.deltaX,
+                source.deltaY,
+                source.deltaWidth,
+            ]),
         ]),
         [
-            [true, 0.25, [52]],
+            [true, 0.25, [[48, 52, -20]]],
             [false, 0.125, []],
         ]
     );

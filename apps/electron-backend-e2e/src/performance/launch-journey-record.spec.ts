@@ -65,6 +65,8 @@ function measurement(
                     sources: [
                         {
                             deltaHeight: 0,
+                            deltaWidth: 0,
+                            deltaX: 0,
                             deltaY: -240,
                             node: 'section.dashboard-rail',
                         },
@@ -211,6 +213,8 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
                 sources: [
                     {
                         deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
                         deltaY: -240,
                         node: 'section.dashboard-rail',
                     },

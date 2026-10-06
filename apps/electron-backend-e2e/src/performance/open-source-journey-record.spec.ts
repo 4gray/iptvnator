@@ -66,6 +66,8 @@ function measurement(
                 sources: [
                     {
                         deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
                         deltaY: 52,
                         node: 'div.content[data-test-id="category-list"]',
                     },
@@ -168,6 +170,8 @@ test('maps the click-started probe, IPC window and mock ledger to exact counters
                 sources: [
                     {
                         deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
                         deltaY: 52,
                         node: 'div.content[data-test-id="category-list"]',
                     },
