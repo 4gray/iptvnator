@@ -931,6 +931,9 @@ describe('PortalChannelsListComponent', () => {
                 .componentInstance as ChannelListItemComponent;
         expect(row().isFavorite()).toBe(false);
 
+        // From here the fixture renders on its own: a forced detectChanges()
+        // would hide a favorites handler that does not mark the view.
+        fixture.autoDetectChanges();
         favorites$.next([
             {
                 content_id: 1,
@@ -941,7 +944,8 @@ describe('PortalChannelsListComponent', () => {
                 xtream_id: 50,
             },
         ] satisfies FavoriteItem[]);
-        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(row().isFavorite()).toBe(true);
     });
