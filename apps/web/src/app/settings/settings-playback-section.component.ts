@@ -20,6 +20,7 @@ import {
     reportsPlaybackFailures,
 } from '@iptvnator/shared/interfaces';
 import { SettingsPlayerOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
 @Component({
     selector: 'app-settings-playback-section',
@@ -52,6 +53,13 @@ export class SettingsPlaybackSectionComponent {
     ].join('\n');
 
     readonly form = input.required<FormGroup>();
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly players = input.required<SettingsPlayerOption[]>();
     readonly streamFormatEnum = input.required<typeof StreamFormat>();
     readonly isDesktop = input(false);

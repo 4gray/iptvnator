@@ -19,6 +19,7 @@ import {
     StartupWindowModeOption,
     ThemeOption,
 } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
 @Component({
     selector: 'app-settings-general-section',
@@ -38,6 +39,13 @@ import {
 })
 export class SettingsGeneralSectionComponent {
     readonly form = input.required<FormGroup>();
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly languageEnum = input.required<typeof Language>();
     readonly themeOptions = input.required<ThemeOption[]>();
     readonly coverSizeOptions = input.required<CoverSizeOption[]>();

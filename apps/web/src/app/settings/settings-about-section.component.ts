@@ -19,6 +19,7 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { UpdateChannelOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
 @Component({
     selector: 'app-settings-about-section',
@@ -57,6 +58,13 @@ export class SettingsAboutSectionComponent {
      * setting. Absent in hosts that only render the version block.
      */
     readonly form = input<FormGroup | null>(null);
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly updateChannelOptions = input<UpdateChannelOption[]>([]);
 
     readonly buildCommitShort = computed(() => {

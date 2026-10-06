@@ -14,6 +14,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
 @Component({
     selector: 'app-settings-remote-control-section',
@@ -35,6 +36,13 @@ import { QRCodeComponent } from 'angularx-qrcode';
 })
 export class SettingsRemoteControlSectionComponent {
     readonly form = input.required<FormGroup>();
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly localIpAddresses = input.required<string[]>();
     readonly visibleQrCodeIp = input<string | null>(null);
 

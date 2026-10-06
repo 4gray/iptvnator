@@ -63,7 +63,12 @@ must be ticked here.
 two). Tick an entry by deleting `changeDetection: ChangeDetectionStrategy.Eager`
 (or setting OnPush) once its template state is signals, signal inputs or
 explicitly marked. The guard spec compares the unticked entries with the
-files that still contain `ChangeDetectionStrategy.Eager`.
+files whose component metadata still sets
+`changeDetection: ChangeDetectionStrategy.Eager` (comments do not count).
+The settings sections read form values in their templates and the parent
+patches the form outside their events (Discard, backup import, the EPG file
+picker), so each marks itself on the form's `events` through
+`markSectionForCheckOnFormEvents` (`apps/web/src/app/settings`).
 
 ### apps/web (15)
 

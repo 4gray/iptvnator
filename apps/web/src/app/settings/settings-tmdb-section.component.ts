@@ -16,6 +16,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule } from '@ngx-translate/core';
 import { TmdbApiService, TmdbCacheService } from '@iptvnator/services';
 import type { TmdbCacheStats } from '@iptvnator/shared/interfaces';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
 type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
 
@@ -91,6 +92,7 @@ export class SettingsTmdbSectionComponent {
     readonly isClearing = signal(false);
 
     constructor() {
+        markSectionForCheckOnFormEvents(this.form);
         // Sizing the cache is a full table scan, but this component only
         // exists while its section page is open, so loading on construction
         // preserves the old "wait until the user is actually looking"
