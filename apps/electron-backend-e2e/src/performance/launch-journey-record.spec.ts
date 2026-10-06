@@ -54,6 +54,8 @@ function measurement(
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: 2_601, status: 'sent' },
+        shiftCount: 0,
+        shifts: [],
         settle: {
             domMutations: 37,
             epochMs: 3_180.06,
@@ -64,6 +66,8 @@ function measurement(
                     sources: [
                         {
                             deltaHeight: 0,
+                            deltaWidth: 0,
+                            deltaX: 0,
                             deltaY: -240,
                             node: 'section.dashboard-rail',
                         },
@@ -210,6 +214,8 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
                 sources: [
                     {
                         deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
                         deltaY: -240,
                         node: 'section.dashboard-rail',
                     },
