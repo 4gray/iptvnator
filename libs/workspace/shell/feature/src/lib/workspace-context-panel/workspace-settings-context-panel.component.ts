@@ -16,7 +16,7 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings
     selector: 'app-workspace-settings-context-panel',
     imports: [MatIconModule, RouterLink, RouterLinkActive, TranslateModule],
     styleUrls: ['./workspace-settings-context-panel.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <h2 class="panel-title">{{ 'SETTINGS.TITLE' | translate }}</h2>
         <div class="settings-panel-body">

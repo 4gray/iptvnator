@@ -18,6 +18,7 @@ import {
     WorkspacePortalContext,
     WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
+import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
 import { WorkspaceShellComponent } from './workspace-shell.component';
 import {
     WorkspaceHeaderBulkAction,
@@ -270,6 +271,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {
@@ -307,6 +309,14 @@ describe('WorkspaceShellComponent', () => {
             By.directive(MockWorkspaceShellHeaderComponent)
         ).componentInstance as MockWorkspaceShellHeaderComponent;
         expect(header.activeDownloadsCount()).toBe(3);
+        // macOS: the rail and header read the traffic-light clearance.
+        expect(
+            (
+                fixture.nativeElement.querySelector(
+                    '.workspace-shell'
+                ) as HTMLElement
+            ).style.getPropertyValue('--traffic-lights-clear-x')
+        ).toMatch(/px$/);
         expect(
             fixture.nativeElement.querySelector(
                 'app-workspace-shell-context-sidebar'
@@ -357,6 +367,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {
@@ -434,6 +445,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {
@@ -507,6 +519,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {
@@ -606,6 +619,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {

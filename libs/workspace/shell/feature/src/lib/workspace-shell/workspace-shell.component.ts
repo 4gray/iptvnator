@@ -21,6 +21,7 @@ import { WorkspaceShellContextSidebarComponent } from './components/workspace-sh
 import { WorkspaceShellHeaderComponent } from './components/workspace-shell-header/workspace-shell-header.component';
 import { WorkspaceShellImportOverlayComponent } from './components/workspace-shell-import-overlay/workspace-shell-import-overlay.component';
 import { WorkspaceShellRailComponent } from './components/workspace-shell-rail/workspace-shell-rail.component';
+import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
 import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './services/workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-command-palette.service';
@@ -42,6 +43,7 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
         PlaylistDropOverlayComponent,
         PlaylistDropZoneDirective,
         RouterOutlet,
+        TrafficLightsClearanceDirective,
         WorkspaceShellContextSidebarComponent,
         WorkspaceShellHeaderComponent,
         WorkspaceShellImportOverlayComponent,
@@ -49,7 +51,7 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
     ],
     templateUrl: './workspace-shell.component.html',
     styleUrl: './workspace-shell.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
         WorkspaceShellFacade,
         WorkspaceShellRouteStateService,
