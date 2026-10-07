@@ -177,6 +177,59 @@ test('only the web performance build installs the tick counter the journeys read
     }
 });
 
+// @ngrx/store-devtools must not reach the production, PWA or performance
+// bundles (renderer.initialBytes): the default providers file is empty and
+// only the development configurations swap in the devtools.
+test('only development web builds provide the NgRx store devtools', () => {
+    const environments = join(workspaceRoot, 'apps/web/src/environments');
+    const devtoolsReplacement = {
+        replace: 'apps/web/src/environments/store-devtools.providers.ts',
+        with: 'apps/web/src/environments/store-devtools.providers.dev.ts',
+    };
+    // electron-e2e-zoneless is electron-e2e plus the zoneless swap.
+    const developmentConfigurations = new Set([
+        'development',
+        'electron-e2e',
+        'electron-e2e-zoneless',
+    ]);
+
+    assert.match(
+        readFileSync(join(environments, 'store-devtools.providers.ts'), 'utf8'),
+        /export const storeDevtoolsProviders: EnvironmentProviders\[\] = \[\];/
+    );
+    // The replacement must still provide them, or development builds would
+    // lose the devtools while this test passed.
+    assert.match(
+        readFileSync(
+            join(environments, 'store-devtools.providers.dev.ts'),
+            'utf8'
+        ),
+        /storeDevtoolsProviders: EnvironmentProviders\[\] = \[\s*provideStoreDevtools\(/
+    );
+    assert.doesNotMatch(
+        readFileSync(
+            join(workspaceRoot, 'apps/web/src/app/app.config.ts'),
+            'utf8'
+        ),
+        /@ngrx\/store-devtools/
+    );
+    for (const [name, configuration] of Object.entries(
+        webProject.targets['build'].configurations ?? {}
+    )) {
+        const replacements = (configuration['fileReplacements'] ??
+            []) as unknown[];
+        if (developmentConfigurations.has(name)) {
+            assert.deepEqual(replacements[0], devtoolsReplacement, name);
+        } else {
+            assert.doesNotMatch(
+                JSON.stringify(replacements),
+                /store-devtools/,
+                name
+            );
+        }
+    }
+});
+
 // Plan item C6 measures zoneless change detection behind a build-time flag:
 // each *-zoneless configuration is its base configuration plus one swap of
 // the change-detection providers, and nothing else selects that swap.
