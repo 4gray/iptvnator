@@ -3,12 +3,114 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 1596045,
+                "value": 1595777,
                 "unit": "bytes",
                 "slack": 4096,
-                "updatedAt": "2026-10-04",
+                "updatedAt": "2026-10-07",
                 "evidencePr": 1810,
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
+            },
+            "renderer.ipcCallsToFirstCard": {
+                "value": 15,
+                "unit": "calls",
+                "slack": 0,
+                "updatedAt": "2026-10-04",
+                "evidencePr": 1828,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37192092882",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
+            },
+            "renderer.domMutationsToFirstCard": {
+                "value": 558,
+                "unit": "mutations",
+                "slack": 0,
+                "updatedAt": "2026-10-04",
+                "evidencePr": 1828,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37192092882",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
+            },
+            "main.modulesRegisteredBeforeWindow": {
+                "value": 2,
+                "unit": "phases",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-04",
+                "evidencePr": null,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
+            },
+            "renderer.layoutShiftScore": {
+                "value": 0,
+                "unit": "score",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-04",
+                "evidencePr": null,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
+            },
+            "renderer.layoutShiftScoreSettled": {
+                "value": 0,
+                "unit": "score",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-04",
+                "evidencePr": null,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
+            }
+        },
+        "open-source": {
+            "main.mockHttpRequestsToSettled": {
+                "value": 1,
+                "unit": "requests",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-04",
+                "evidencePr": null,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
+            },
+            "renderer.ipcCallsToFirstPage": {
+                "value": 17,
+                "unit": "calls",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-04",
+                "evidencePr": null,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
+            },
+            "renderer.layoutShiftScore": {
+                "value": 0.233,
+                "unit": "score",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-06",
+                "evidencePr": null,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37372780064",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in every measured iteration of the 7 master runs from 84aef83a6 (#1814, which moved it from 0.222) to b78224376"
+            }
+        },
+        "playback": {
+            "renderer.httpRequestsToPlaying": {
+                "value": 2,
+                "unit": "requests",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-04",
+                "evidencePr": null,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
+            },
+            "renderer.layoutShiftScore": {
+                "value": 0.001,
+                "unit": "score",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-04",
+                "evidencePr": null,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
             }
         }
     }

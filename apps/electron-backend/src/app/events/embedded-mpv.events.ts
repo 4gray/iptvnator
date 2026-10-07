@@ -80,13 +80,14 @@ async function afterLoginShellPathIfProbing<T>(check: () => T): Promise<T> {
     ) {
         return check();
     }
-    // The lookup ran out of budget, so this probe sees the inherited PATH.
-    // Once the shell does answer, the result is probed again.
-    const result = check();
+    // The lookup ran out of budget, so this probe sees the inherited PATH: a
+    // missing mpv is answered as inconclusive, never as a verdict the
+    // renderer may persist. Once the shell does answer, it is probed again.
+    getService().markLinuxMpvExecutableProbeProvisional();
     void whenLoginShellPathSettled().then(() =>
         getService().forgetLinuxMpvExecutableProbe()
     );
-    return result;
+    return check();
 }
 
 handleEmbeddedMpv(EMBEDDED_MPV_SUPPORT, () =>

@@ -149,6 +149,31 @@
                         }
                     ]
                 },
+                "electron-performance-zoneless": {
+                    "baseHref": "./",
+                    "serviceWorker": false,
+                    "optimization": {
+                        "scripts": true,
+                        "styles": {
+                            "minify": true,
+                            "inlineCritical": false,
+                            "removeSpecialComments": true
+                        },
+                        "fonts": true
+                    },
+                    "outputHashing": "all",
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/environment.ts",
+                            "with": "apps/web/src/environments/environment.performance.ts"
+                        },
+                        {
+                            "replace": "apps/web/src/environments/change-detection.providers.ts",
+                            "with": "apps/web/src/environments/change-detection.providers.zoneless.ts"
+                        }
+                    ]
+                },
                 "electron-e2e": {
                     "baseHref": "./",
                     "serviceWorker": false,
@@ -159,6 +184,23 @@
                         {
                             "replace": "apps/web/src/environments/store-devtools.providers.ts",
                             "with": "apps/web/src/environments/store-devtools.providers.dev.ts"
+                        }
+                    ]
+                },
+                "electron-e2e-zoneless": {
+                    "baseHref": "./",
+                    "serviceWorker": false,
+                    "optimization": false,
+                    "extractLicenses": false,
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/store-devtools.providers.ts",
+                            "with": "apps/web/src/environments/store-devtools.providers.dev.ts"
+                        },
+                        {
+                            "replace": "apps/web/src/environments/change-detection.providers.ts",
+                            "with": "apps/web/src/environments/change-detection.providers.zoneless.ts"
                         }
                     ]
                 }

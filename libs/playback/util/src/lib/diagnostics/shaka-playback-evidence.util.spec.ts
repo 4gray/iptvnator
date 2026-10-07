@@ -65,7 +65,7 @@ describe('Shaka playback evidence', () => {
         }
     );
 
-    it('matches the installed public Shaka 5.2.4 error contract', () => {
+    it('matches the installed public Shaka 5.2.12 error contract', () => {
         const installed = getInstalledShakaContract();
         expect(installed.requestTypes).toEqual(
             expect.objectContaining(SHAKA_REQUEST_TYPE)

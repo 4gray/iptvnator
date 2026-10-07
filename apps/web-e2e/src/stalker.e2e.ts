@@ -1,4 +1,4 @@
-import { type APIRequestContext, type Page } from '@playwright/test';
+import { type APIRequestContext } from '@playwright/test';
 import {
     closeSeriesMenu,
     expectSeriesSurfacesInBothThemes,
@@ -10,14 +10,33 @@ import {
     verifyStalkerPlaybackCategoryReturn,
     verifyUncachedStalkerSearch,
 } from './stalker-category-search.fixture';
+import {
+    findEmbeddedSeriesItem,
+    openEmbeddedSeriesItem,
+    releaseExtraEpisodeInSearchResponses,
+} from './stalker-embedded-series.fixture';
 import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
 import { verifyStalkerOpenInPlaylist } from './stalker-open-in-playlist.fixture';
 import { playFirstItvChannel } from './stalker-itv-playback.fixture';
-import { expect, test } from './fixtures';
 import {
-    getRegisteredProviderUrl,
-    interceptProviderTargetRegistration,
-} from './provider-target-route';
+    AUTH_REJECTED_MAC,
+    BACKEND_PROXY,
+    CONTENT_ACTIONS,
+    DEFAULT_MAC,
+    EMBEDDED_SERIES_MAC,
+    FULL_PORTAL_URL,
+    LEGACY_PAGINATION_MAC,
+    MINIMAL_MAC,
+    MOCK_SERVER,
+    STATIC_CMD_MAC,
+    type StatefulAuthMacs,
+    addFullStalkerPortal,
+    addStalkerPortal,
+    getStatefulAuthMacs,
+    interceptStalkerRequests,
+    recordPortalRequests,
+} from './stalker-portal.fixture';
+import { expect, test } from './fixtures';
 
 /**
  * Stalker Portal E2E Tests
@@ -58,120 +77,9 @@ import {
 
 test.describe.configure({ mode: 'serial' });
 
-const MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
-const MOCK_SERVER = `http://localhost:${MOCK_PORT}`;
-const PORTAL_URL = `${MOCK_SERVER}/portal.php`;
-/**
- * Canonical Ministra path. `PORTAL_URL` above is classified by the app as a
- * "simple" portal (no handshake, no token, no watchdog); this shape is the
- * authenticated branch, which the mock guards like the real middleware.
- */
-const FULL_PORTAL_URL = `${MOCK_SERVER}/stalker_portal/server/load.php`;
-const BACKEND_PROXY = `${MOCK_SERVER}/stalker`;
-
-/** Default scenario MAC — balanced catalog, 8 categories, 40 items */
-const DEFAULT_MAC = '00:1A:79:00:00:01';
-
-/** Minimal scenario MAC — 2 categories, 5 items (edge case testing) */
-const MINIMAL_MAC = '00:1A:79:00:00:03';
-
-/** Embedded-series MAC — 50% of VOD items carry an embedded series[] array */
-const EMBEDDED_SERIES_MAC = '00:1A:79:00:00:05';
-
-/** Legacy pagination MAC — portal without get_all_channels support */
-const LEGACY_PAGINATION_MAC = '00:1A:79:00:00:06';
-
-/**
- * Static-cmd MAC — ITV rows carrying a directly playable `cmd` with
- * `use_http_tmp_link` and `use_load_balancing` both `'0'`, i.e. a portal that
- * expects no `create_link` call at all.
- */
-const STATIC_CMD_MAC = '00:1A:79:00:00:0A';
-
-/**
- * These tests assert state transitions within one portal session, so a reset
- * from a concurrent browser project or repeat worker would invalidate the
- * assertion itself. Giving every concurrent worker slot its own MAC range
- * preserves browser parallelism and also keeps `--repeat-each` runs isolated.
- */
-interface StatefulAuthMacs {
-    authenticatedFlow: string;
-    loginRequired: string;
-    tokenReuse: string;
-    deviceConflict: string;
-    reauthentication: string;
-}
-
-function getStatefulAuthMacs({
-    parallelIndex,
-}: {
-    parallelIndex: number;
-}): StatefulAuthMacs {
-    if (
-        !Number.isSafeInteger(parallelIndex) ||
-        parallelIndex < 0 ||
-        parallelIndex > 255
-    ) {
-        throw new Error(
-            `Unsupported Playwright parallel index: ${parallelIndex}`
-        );
-    }
-
-    const workerOctet = parallelIndex
-        .toString(16)
-        .padStart(2, '0')
-        .toUpperCase();
-    const workerPrefix = `00:1A:79:AE:${workerOctet}`;
-
-    return {
-        authenticatedFlow: `${workerPrefix}:01`,
-        loginRequired: `${workerPrefix}:02`,
-        tokenReuse: `${workerPrefix}:03`,
-        deviceConflict: `${workerPrefix}:04`,
-        reauthentication: `${workerPrefix}:05`,
-    };
-}
-
-/**
- * Deliberately NOT an Infomir MAC: the strict endpoint rejects get_profile for
- * it, so no token is ever adopted and content requests fail permanently.
- */
-const AUTH_REJECTED_MAC = 'AA:BB:CC:DD:EE:01';
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Intercept calls to the Angular dev backend (/stalker proxy) and redirect
- * them to the mock server. This avoids needing a real backend or changing
- * any app environment configuration.
- */
-async function interceptStalkerRequests(page: Page): Promise<void> {
-    const providerTargets = await interceptProviderTargetRegistration(page);
-
-    await page.route('**/localhost:3000/stalker**', async (route) => {
-        const originalUrl = new URL(route.request().url());
-        const mockUrl = new URL(BACKEND_PROXY);
-        const providerUrl = getRegisteredProviderUrl(
-            originalUrl,
-            providerTargets
-        );
-
-        if (providerUrl) {
-            mockUrl.searchParams.set('url', providerUrl);
-        }
-
-        originalUrl.searchParams.forEach((value, key) => {
-            if (key === 'targetId') {
-                return;
-            }
-
-            mockUrl.searchParams.set(key, value);
-        });
-        await route.continue({ url: mockUrl.toString() });
-    });
-}
 
 /** Every MAC this file owns; all are cleared in one batched reset request. */
 const OWNED_MACS = [
@@ -221,116 +129,6 @@ async function resetMockServer(
     }
 
     throw lastError;
-}
-
-/**
- * Add a Stalker portal via the UI:
- * 1. Click the "add playlist" button to open the unified dialog
- * 2. Select "Stalker" toggle
- * 3. Fill in the form and submit
- */
-async function addStalkerPortal(
-    page: Page,
-    options: { name?: string; mac?: string } = {}
-): Promise<void> {
-    const { name = 'Mock Stalker Portal', mac = DEFAULT_MAC } = options;
-
-    await page.getByRole('button', { name: 'Add playlist' }).click();
-    const dialog = page.locator('mat-dialog-container');
-    await expect(dialog).toBeVisible();
-    // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
-    await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
-
-    await setInputValue(dialog.locator('input#title'), name);
-    await setInputValue(dialog.locator('input#portalUrl'), PORTAL_URL);
-    await setInputValue(dialog.locator('input#macAddress'), mac);
-
-    const addButton = dialog.getByRole('button', {
-        name: 'Add playlist',
-        exact: true,
-    });
-    await expect(addButton).toBeEnabled({ timeout: 10_000 });
-    await addButton.click();
-    await expect(dialog).toBeHidden();
-    await page.waitForURL(/stalker.*vod/);
-}
-
-/**
- * Add a Stalker portal through the canonical Ministra URL, which the app
- * imports as a FULL portal: handshake, Bearer token and watchdog.
- */
-async function addFullStalkerPortal(
-    page: Page,
-    options: {
-        name?: string;
-        mac: string;
-        expectContent?: boolean;
-        username?: string;
-        password?: string;
-    }
-): Promise<void> {
-    const {
-        name = 'Full Stalker Portal',
-        mac,
-        expectContent = true,
-        username,
-        password,
-    } = options;
-
-    await page.getByRole('button', { name: 'Add playlist' }).click();
-    const dialog = page.locator('mat-dialog-container');
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
-
-    await setInputValue(dialog.locator('input#title'), name);
-    await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
-    await setInputValue(dialog.locator('input#macAddress'), mac);
-    if (username !== undefined) {
-        await setInputValue(dialog.locator('input#username'), username);
-    }
-    if (password !== undefined) {
-        await setInputValue(dialog.locator('input#password'), password);
-    }
-
-    const addButton = dialog.getByRole('button', {
-        name: 'Add playlist',
-        exact: true,
-    });
-    await expect(addButton).toBeEnabled({ timeout: 10_000 });
-    await addButton.click();
-    await expect(dialog).toBeHidden();
-
-    if (expectContent) {
-        await page.waitForURL(/stalker.*vod/, { timeout: 30_000 });
-    }
-}
-
-const CONTENT_ACTIONS = [
-    'get_categories',
-    'get_genres',
-    'get_ordered_list',
-    'get_all_channels',
-];
-
-/** Every portal request in order, with the token it carried. */
-function recordPortalRequests(
-    page: Page
-): Array<{ action: string; token: string | null }> {
-    const requests: Array<{ action: string; token: string | null }> = [];
-
-    page.on('request', (request) => {
-        const url = new URL(request.url());
-        if (!url.pathname.endsWith('/stalker')) {
-            return;
-        }
-        const action = url.searchParams.get('action');
-        if (!action) {
-            return;
-        }
-        requests.push({ action, token: url.searchParams.get('token') });
-    });
-
-    return requests;
 }
 
 // ---------------------------------------------------------------------------
@@ -967,16 +765,8 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
     request,
 }) => {
     // Find an embedded-series VOD item in the mock catalog first
-    const listResponse = await request.get(
-        `${MOCK_SERVER}/stalker?action=get_ordered_list&type=vod&category=2001&p=1&macAddress=${EMBEDDED_SERIES_MAC}&JsHttpRequest=1-xml`
-    );
-    const listBody = await listResponse.json();
-    const embeddedItem = listBody.payload.js.data.find(
-        (item: { series?: unknown[] }) =>
-            Array.isArray(item.series) && item.series.length > 0
-    );
-    expect(embeddedItem).toBeDefined();
-    const episodeCount: number = embeddedItem.series.length;
+    const { embeddedItem, episodeCount } =
+        await findEmbeddedSeriesItem(request);
 
     await addStalkerPortal(page, {
         name: 'Embedded Series Portal',
@@ -985,19 +775,7 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
 
     // Open the embedded-series item from its category and favorite it —
     // this persists a snapshot with the current episode list
-    const categories = page.locator('.category-item');
-    await expect(categories.first()).toBeVisible({ timeout: 10_000 });
-    await categories.nth(1).click();
-    const card = page.getByText(embeddedItem.name).first();
-    await expect(card).toBeVisible({ timeout: 10_000 });
-    await card.click();
-
-    await expect(
-        page.getByRole('heading', {
-            name: `${episodeCount}. Episode ${episodeCount}`,
-            exact: true,
-        })
-    ).toBeVisible({ timeout: 10_000 });
+    await openEmbeddedSeriesItem(page, embeddedItem.name, episodeCount);
     await page.getByRole('button', { name: 'Add to favorites' }).click();
     // Wait for the async favorite persistence before navigating away
     await expect(
@@ -1007,39 +785,7 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
     // From now on the portal has "released" one more episode: extend
     // series[] in every search response (the background snapshot refresh
     // re-fetches the item via a title search)
-    await page.route('**/localhost:3000/stalker**', async (route) => {
-        const originalUrl = new URL(route.request().url());
-        if (!originalUrl.searchParams.get('search')) {
-            await route.fallback();
-            return;
-        }
-
-        const mockUrl = new URL(BACKEND_PROXY);
-        const targetId = originalUrl.searchParams.get('targetId');
-        const providerUrl = targetId
-            ? Buffer.from(targetId, 'base64url').toString()
-            : originalUrl.searchParams.get('url');
-        if (providerUrl) {
-            mockUrl.searchParams.set('url', providerUrl);
-        }
-        originalUrl.searchParams.forEach((value, key) => {
-            if (key === 'targetId') {
-                return;
-            }
-            mockUrl.searchParams.set(key, value);
-        });
-
-        const response = await route.fetch({ url: mockUrl.toString() });
-        const body = await response.json();
-        const rows: { series?: string[] }[] =
-            body?.payload?.js?.data ?? body?.js?.data ?? [];
-        for (const row of rows) {
-            if (Array.isArray(row.series) && row.series.length > 0) {
-                row.series = [...row.series, String(row.series.length + 1)];
-            }
-        }
-        await route.fulfill({ response, body: JSON.stringify(body) });
-    });
+    await releaseExtraEpisodeInSearchResponses(page);
 
     // Open the item from the Favorites view: the stored snapshot renders
     // first, then the background refresh patches in the new episode
@@ -1083,35 +829,15 @@ test('@stalker season watched toggle — embedded series marks and clears every 
     // Reuse the modeled embedded-series flow: find a VOD item carrying an
     // embedded series[] array, open it from its category, and land on the
     // series detail with its episode list.
-    const listResponse = await request.get(
-        `${MOCK_SERVER}/stalker?action=get_ordered_list&type=vod&category=2001&p=1&macAddress=${EMBEDDED_SERIES_MAC}&JsHttpRequest=1-xml`
-    );
-    const listBody = await listResponse.json();
-    const embeddedItem = listBody.payload.js.data.find(
-        (item: { series?: unknown[] }) =>
-            Array.isArray(item.series) && item.series.length > 0
-    );
-    expect(embeddedItem).toBeDefined();
-    const episodeCount: number = embeddedItem.series.length;
+    const { embeddedItem, episodeCount } =
+        await findEmbeddedSeriesItem(request);
 
     await addStalkerPortal(page, {
         name: 'Embedded Series Watch Portal',
         mac: EMBEDDED_SERIES_MAC,
     });
 
-    const categories = page.locator('.category-item');
-    await expect(categories.first()).toBeVisible({ timeout: 10_000 });
-    await categories.nth(1).click();
-    const card = page.getByText(embeddedItem.name).first();
-    await expect(card).toBeVisible({ timeout: 10_000 });
-    await card.click();
-
-    await expect(
-        page.getByRole('heading', {
-            name: `${episodeCount}. Episode ${episodeCount}`,
-            exact: true,
-        })
-    ).toBeVisible({ timeout: 10_000 });
+    await openEmbeddedSeriesItem(page, embeddedItem.name, episodeCount);
 
     await expectSeriesSurfacesInBothThemes(page, testInfo);
 
@@ -1153,35 +879,19 @@ test('@stalker series watched toggle — embedded series marks and clears from t
 }) => {
     // Same modeled embedded-series flow as the season test above, driven
     // through the series-level ⋮ menu instead of the season button.
-    const listResponse = await request.get(
-        `${MOCK_SERVER}/stalker?action=get_ordered_list&type=vod&category=2001&p=1&macAddress=${EMBEDDED_SERIES_MAC}&JsHttpRequest=1-xml`
-    );
-    const listBody = await listResponse.json();
-    const embeddedItem = listBody.payload.js.data.find(
-        (item: { series?: unknown[] }) =>
-            Array.isArray(item.series) && item.series.length > 0
-    );
-    expect(embeddedItem).toBeDefined();
-    const episodeCount: number = embeddedItem.series.length;
+    const { embeddedItem, episodeCount } =
+        await findEmbeddedSeriesItem(request);
 
     await addStalkerPortal(page, {
         name: 'Embedded Series Watch Menu Portal',
         mac: EMBEDDED_SERIES_MAC,
     });
 
-    const categories = page.locator('.category-item');
-    await expect(categories.first()).toBeVisible({ timeout: 10_000 });
-    await categories.nth(1).click();
-    const card = page.getByText(embeddedItem.name).first();
-    await expect(card).toBeVisible({ timeout: 10_000 });
-    await card.click();
-
-    await expect(
-        page.getByRole('heading', {
-            name: `${episodeCount}. Episode ${episodeCount}`,
-            exact: true,
-        })
-    ).toBeVisible({ timeout: 10_000 });
+    const card = await openEmbeddedSeriesItem(
+        page,
+        embeddedItem.name,
+        episodeCount
+    );
 
     // The series row sits in the hero's "…" menu (data-test-id with a dash —
     // getByTestId only matches data-testid in this suite; the row renders

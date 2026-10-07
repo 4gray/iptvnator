@@ -7,7 +7,12 @@ async function openSettings(page: Page) {
     // The bare settings URL redirects to the default section page.
     await page.waitForURL(/\/workspace\/settings\/general$/);
     await expect(page.locator('.settings-container')).toBeVisible();
-    await expect(page.locator('.settings-back-button')).toBeVisible();
+    await expect(settingsBack(page)).toBeVisible();
+}
+
+/** Settings' Back is the workspace header's leading button. */
+function settingsBack(page: Page) {
+    return page.locator('[data-test-id="workspace-header-back"]');
 }
 
 /** Settings render one section page at a time — open it via the rail. */
@@ -36,7 +41,30 @@ test.describe('Settings', () => {
 
     test('@settings @web Check settings page', async ({ page }) => {
         await openSettings(page);
-        await page.locator('.settings-back-button').click();
+        // The context panel no longer carries a Back of its own.
+        await expect(
+            page.locator('app-workspace-settings-context-panel button')
+        ).toHaveCount(0);
+        await settingsBack(page).click();
+        await page.waitForURL(/\/workspace\/dashboard$/);
+    });
+
+    test('@settings @web settings opening the session lead to the dashboard', async ({
+        page,
+    }) => {
+        // The only entry of a new tab's history, as in Electron after a
+        // deep link: browser Back has nowhere to go.
+        const firstEntryPage = await page.context().newPage();
+        await firstEntryPage.goto('/workspace/settings/general');
+        // A cold start in a new tab passes the startup splash first.
+        await expect(firstEntryPage.locator('.settings-container')).toBeVisible(
+            { timeout: 15_000 }
+        );
+
+        await settingsBack(firstEntryPage).click();
+        await firstEntryPage.waitForURL(/\/workspace\/dashboard$/);
+        // The dashboard replaced the settings entry: no Back leads to it.
+        await expect(settingsBack(firstEntryPage)).toHaveCount(0);
     });
 
     test('@settings @web Change video player', async ({ page }) => {

@@ -82,7 +82,7 @@ interface WorkspaceCategoryLike {
         WorkspaceContextErrorViewComponent,
     ],
     templateUrl: './workspace-context-panel.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-context-panel.component.scss',
 })
 export class WorkspaceContextPanelComponent {

@@ -8,12 +8,7 @@ import {
     FullscreenOverlayContainer,
     OverlayContainer,
 } from '@angular/cdk/overlay';
-import {
-    ApplicationConfig,
-    inject,
-    importProvidersFrom,
-    provideZoneChangeDetection,
-} from '@angular/core';
+import { ApplicationConfig, inject, importProvidersFrom } from '@angular/core';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
@@ -37,6 +32,7 @@ import {
     DataService,
 } from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
+import { changeDetectionProviders } from '../environments/change-detection.providers';
 import { storeDevtoolsProviders } from '../environments/store-devtools.providers';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
@@ -109,7 +105,7 @@ export function DataFactory() {
 
 export const appConfig: ApplicationConfig = {
     providers: [
-        provideZoneChangeDetection({ eventCoalescing: true }),
+        ...changeDetectionProviders,
         provideRouter(routes, withComponentInputBinding()),
         provideAnimations(),
         // CDK overlays (menus, tooltips, dialogs) live in a container under

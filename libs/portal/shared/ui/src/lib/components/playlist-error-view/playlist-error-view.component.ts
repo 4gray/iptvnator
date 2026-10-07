@@ -25,7 +25,7 @@ import { DialogService } from '@iptvnator/ui/components';
     selector: 'app-playlist-error-view',
     templateUrl: './playlist-error-view.component.html',
     styleUrls: ['./playlist-error-view.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule],
 })
 export class PlaylistErrorViewComponent {

@@ -317,7 +317,30 @@ export function sassScopes(scans) {
             .filter((edge) => edge.rule === 'import')
             .map(({ loaded, index }) => ({ loaded, index }));
 
-    return { qualified, unqualified, imports, loadsOf };
+    /**
+     * Whether a call written in `caller` reaches `callable`, defined in
+     * `file`: `ns.name` must load `file` (or a module forwarding it) as
+     * `ns`, under the name it exposes `callable` by; a bare `name` is
+     * defined in the caller itself or in what it brings in.
+     */
+    const reaches = ({ callee, file: caller }, file, callable) => {
+        if (!callee || !callable) return false;
+        if (!callee.namespace && caller === file) {
+            return callee.name === callable;
+        }
+        const scope = callee.namespace
+            ? qualified(caller, callee.namespace)
+            : unqualified(caller);
+        const access = scope.get(file);
+        return (
+            Boolean(access?.declarations) &&
+            access.exposures.some(
+                (exposure) => exposedName(exposure, callable) === callee.name
+            )
+        );
+    };
+
+    return { qualified, unqualified, imports, loadsOf, reaches };
 }
 
 /**

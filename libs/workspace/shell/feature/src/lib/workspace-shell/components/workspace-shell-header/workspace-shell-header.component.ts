@@ -49,7 +49,7 @@ export class WorkspaceShellHeaderComponent {
         /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
     readonly commandShortcutLabel = this.isMac ? '⌘K' : 'Ctrl+K';
 
-    /** The current page's Back action; null when the page has none. */
+    /** The page's Back or the history fallback; null when there is neither. */
     readonly backTarget = input<WorkspaceBackTarget | null>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
@@ -108,6 +108,20 @@ export class WorkspaceShellHeaderComponent {
     );
     readonly contextDrawerTooltipKey = input(
         'WORKSPACE.SHELL.CONTEXT_DRAWER_CATEGORIES_TOOLTIP'
+    );
+
+    private readonly backPhoneSlot = computed(() => {
+        const back = this.backTarget();
+        return back ? (back.phoneDrawerToggle ?? 'replace') : null;
+    });
+    /** The drawer toggle renders unless Back takes its phone slot. */
+    readonly showDrawerToggle = computed(
+        () =>
+            this.showContextDrawerToggle() && this.backPhoneSlot() !== 'replace'
+    );
+    /** At phone width, Back hides behind a shown drawer toggle. */
+    readonly backYieldsToDrawerToggle = computed(
+        () => this.showDrawerToggle() && this.backPhoneSlot() === 'yield'
     );
 
     readonly backRequested = output<void>();

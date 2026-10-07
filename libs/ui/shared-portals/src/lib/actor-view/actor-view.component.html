@@ -1,13 +1,4 @@
 <div class="actor-view">
-    <button
-        class="actor-view__back"
-        type="button"
-        (click)="backClicked.emit()"
-        [attr.aria-label]="'BACK' | translate"
-    >
-        <mat-icon>arrow_back</mat-icon>
-    </button>
-
     @if (isLoading()) {
         <div class="actor-view__loading">
             <mat-spinner diameter="48" />

@@ -10,6 +10,7 @@ import {
     OnDestroy,
     OnInit,
     signal,
+    untracked,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
@@ -193,8 +194,36 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     });
     private previousGridResetKey: string | null = null;
     private hasAttemptedScrollRestore = false;
+    private readonly routeCategory = signal<{ id: string | null } | null>(null);
+    private initializedRoute: {
+        category: { id: string | null };
+        playlistId: string | null;
+    } | null = null;
 
     constructor() {
+        effect(() => {
+            const category = this.routeCategory();
+            if (!category || this.catalog.routeReady?.() === false) {
+                return;
+            }
+            const playlistId = this.catalog.playlist()?.id ?? null;
+            // Query-only navigation toggles readiness too; only a new
+            // category arrival or playlist should reset the open detail.
+            if (
+                this.initializedRoute?.category === category &&
+                this.initializedRoute.playlistId === playlistId
+            ) {
+                return;
+            }
+            this.initializedRoute = { category, playlistId };
+            untracked(() => {
+                this.providerOnlyStalkerItemId.set(null);
+                this.catalog.initialize(category.id);
+                this.catalog.setSearchQuery?.(this.searchTerm());
+                this.openStalkerItemFromNavigationState();
+            });
+        });
+
         effect(() => {
             const resetKey = this.gridResetKey();
             if (
@@ -253,9 +282,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         this.activatedRoute.paramMap
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((params) => {
-                this.providerOnlyStalkerItemId.set(null);
-                this.catalog.initialize(params.get('categoryId'));
-                this.openStalkerItemFromNavigationState();
+                this.routeCategory.set({ id: params.get('categoryId') });
             });
 
         this.activatedRoute.queryParamMap
