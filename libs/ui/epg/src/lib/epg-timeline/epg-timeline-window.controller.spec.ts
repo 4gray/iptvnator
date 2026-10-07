@@ -44,6 +44,17 @@ function mockSchedule(): EpgProgram[] {
     );
 }
 
+/** Half-hour slots from local midnight two days back: the axis start. */
+function midnightSchedule(): EpgProgram[] {
+    const midnight = new Date(Date.now() - 2 * 24 * 60 * TIMELINE_MINUTE_MS);
+    midnight.setHours(0, 0, 0, 0);
+    const startOffsetMin =
+        (midnight.getTime() - Date.now()) / TIMELINE_MINUTE_MS;
+    return Array.from({ length: 240 }, (_, index) =>
+        programAt(startOffsetMin + index * SLOT_MIN, `Slot ${index}`)
+    );
+}
+
 function item(key: string, leftPx: number, widthPx: number) {
     return { kind: 'group', key, leftPx, widthPx } as TimelineRenderItem;
 }
@@ -289,6 +300,49 @@ describe('EpgTimelineComponent ribbon windowing', () => {
         expect(windowed).toEqual(
             expect.arrayContaining(itemsIn(anchoredLeft, ribbonWidth))
         );
+    });
+
+    // At the ribbon's start the anchored position is negative; the browser
+    // keeps scrollLeft at 0 and fires no scroll event to re-window.
+    it('windows the attainable range for a zoom-out at the ribbon start', () => {
+        render(midnightSchedule());
+        // From the deepest zoom, so the unclamped centre would be far off.
+        component.onZoom(6);
+        flushFrames();
+        scrollRibbonTo(0);
+        component.onRibbonWheel(
+            new WheelEvent('wheel', {
+                ctrlKey: true,
+                clientX: ribbonWidth - 20,
+                // 6 → about 1.4: above the grouping zoom, so blocks stay
+                // separate and a missing one shows.
+                deltaY: 727,
+            })
+        );
+        fixture.detectChanges();
+        expect(component.scale()).toBeGreaterThan(1.3);
+        const visible = itemsIn(0, ribbonWidth);
+        expect(visible.length).toBeGreaterThan(0);
+
+        const windowed = component.ribbonWindow.items().map((e) => e.key);
+        expect(windowed).toEqual(expect.arrayContaining(visible));
+    });
+
+    it('re-windows on the scroll position the browser applied', () => {
+        render(mockSchedule());
+        const end = blockLeftPx('Slot 239');
+        component.onZoom(component.scale() * 2);
+        // The browser clamps the anchored position to the end of the track.
+        const scroller = ribbon();
+        let applied = scroller.scrollLeft;
+        Object.defineProperty(scroller, 'scrollLeft', {
+            configurable: true,
+            get: () => applied,
+            set: () => (applied = end * 2),
+        });
+        flushFrames();
+
+        expect(renderedTitles()).toContain('Slot 239');
     });
 
     it('windows an expanded group before the ribbon scrolls to it', () => {

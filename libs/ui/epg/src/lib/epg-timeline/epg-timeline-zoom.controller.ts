@@ -99,8 +99,11 @@ export class TimelineZoomController {
         const currentLeft = this.pendingScrollLeft ?? scroller.scrollLeft;
         const anchorMin = (currentLeft + anchorPx) / prev;
         this.pendingScrollLeft = anchorMin * next - anchorPx;
+        // The browser clamps scrollLeft at 0: a zoom-out anchored right of
+        // centre at the ribbon's start lands there, not left of it.
         this.ctx.centreOn?.(
-            (this.pendingScrollLeft + scroller.clientWidth / 2) / next
+            (Math.max(0, this.pendingScrollLeft) + scroller.clientWidth / 2) /
+                next
         );
         if (this.frame === 0) {
             this.frame = requestAnimationFrame(() => this.flushScroll());
@@ -115,6 +118,12 @@ export class TimelineZoomController {
         const scroller = this.ctx.ribbon();
         if (scroller && left !== null) {
             scroller.scrollLeft = left;
+            // Where the browser put it: the end of the track clamps too, and
+            // an unchanged position fires no scroll event to re-window.
+            this.ctx.centreOn?.(
+                (scroller.scrollLeft + scroller.clientWidth / 2) /
+                    this.ctx.scale()
+            );
         }
     }
 }
