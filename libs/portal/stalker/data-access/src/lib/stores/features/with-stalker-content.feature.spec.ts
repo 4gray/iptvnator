@@ -204,11 +204,11 @@ describe('withStalkerContent failure states', () => {
                 : pending.promise
         );
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '5', category_name: 'Five' },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         patchState(store, { searchPhrase: 'sidebar' });
         await flushResources();
         const orderedCalls = () =>
@@ -305,6 +305,7 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             {
                 category_id: '5',
@@ -312,7 +313,6 @@ describe('withStalkerContent failure states', () => {
             },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(
@@ -361,6 +361,7 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             {
                 category_id: '5',
@@ -368,7 +369,6 @@ describe('withStalkerContent failure states', () => {
             },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.itvChannels().length === 1);
@@ -424,11 +424,11 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '5', category_name: 'News' },
             { category_id: '9', category_name: 'Sports' },
         ]);
-        store.setCurrentPlaylist(PLAYLIST);
         expect(store.itvChannelsCategory()).toBeNull();
 
         store.setSelectedCategory('5');
@@ -460,10 +460,10 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '5', category_name: 'News' },
         ]);
-        store.setCurrentPlaylist(PLAYLIST);
         store.setSelectedCategory('5');
         void store.isPaginatedContentLoading();
         await waitForCondition(() => store.itvChannelsCategory() === '5');
@@ -487,11 +487,11 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '5', category_name: 'News' },
             { category_id: '9', category_name: 'Sports' },
         ]);
-        store.setCurrentPlaylist(PLAYLIST);
         store.setSelectedCategory('5');
         void store.isPaginatedContentLoading();
         await waitForCondition(() => store.itvChannelsCategory() === '5');
@@ -537,11 +537,11 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             { category_id: '5', category_name: 'Action' },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.getPaginatedContent().length === 2);
@@ -587,11 +587,11 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             { category_id: '5', category_name: 'Action' },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.getPaginatedContent().length === 2);
@@ -634,12 +634,12 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             { category_id: '5', category_name: 'Action' },
             { category_id: '9', category_name: 'Adult' },
         ]);
         store.setSelectedCategory('*');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.getPaginatedContent().length === 1);
@@ -678,12 +678,12 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             { category_id: '5', category_name: 'Action' },
             { category_id: '9', category_name: 'Adult' },
         ]);
         store.setSelectedCategory('*');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.getPaginatedContent().length === 2);
@@ -728,12 +728,12 @@ describe('withStalkerContent failure states', () => {
                   })
         );
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             { category_id: '5', category_name: 'Action' },
             { category_id: '9', category_name: 'Adult' },
         ]);
         store.setSelectedCategory('*');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
         await waitForCondition(() => store.getPaginatedContent().length === 2);
 
@@ -774,11 +774,11 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             { category_id: '5', category_name: 'Action' },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
         await waitForCondition(() => store.getPaginatedContent().length === 1);
 
@@ -868,6 +868,7 @@ describe('withStalkerContent failure states', () => {
         });
 
         store.setSelectedContentType('radio');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('radio', [
             {
                 category_id: 'radio-all',
@@ -875,7 +876,6 @@ describe('withStalkerContent failure states', () => {
             },
         ]);
         store.setSelectedCategory('radio-all');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.radioChannels().length === 1);
@@ -915,6 +915,7 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             {
                 category_id: '5',
@@ -922,7 +923,6 @@ describe('withStalkerContent failure states', () => {
             },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => pendingByPage.get(1)?.length === 1);
@@ -1010,12 +1010,12 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
     function enterItvCategory(categoryId: string) {
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '5', category_name: 'News' },
             { category_id: '9', category_name: 'Sports' },
         ]);
         store.setSelectedCategory(categoryId);
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
     }
 
@@ -1073,12 +1073,12 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
         // Genre '19' has no channels in the cached full list.
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '5', category_name: 'News' },
             { category_id: '19', category_name: 'For adults', censored: true },
         ]);
         store.setSelectedCategory('19');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.itvChannels().length === 1);
@@ -1115,12 +1115,12 @@ describe('withStalkerContent full ITV channel list cache', () => {
     it('omits genres without cached channels from the count map (adult genres)', () => {
         setup(CACHED_CHANNELS);
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '*', category_name: 'All' },
             { category_id: '5', category_name: 'News' },
             { category_id: '19', category_name: 'For adults', censored: true },
         ]);
-        store.setCurrentPlaylist(PLAYLIST);
 
         const counts = store.itvCategoryItemCounts();
         expect(counts.get(5)).toBe(2);

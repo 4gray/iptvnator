@@ -22,6 +22,7 @@ import {
     routeParamSignal,
     resolveCurrentPortalPlaylistId,
     resolveCurrentPortalSection,
+    workspacePortalCommands,
 } from './portal-route.utils';
 
 describe('portal-route.utils', () => {
@@ -187,6 +188,41 @@ describe('portal-route.utils', () => {
                 'stalker'
             )
         ).toBe('playlist-2');
+    });
+
+    it('builds commands for the portal a nested route belongs to', () => {
+        const actorRoute = {
+            pathFromRoot: [
+                { snapshot: { params: {}, paramMap: convertToParamMap({}) } },
+                {
+                    snapshot: {
+                        params: { id: 'playlist-1' },
+                        paramMap: convertToParamMap({ id: 'playlist-1' }),
+                    },
+                },
+                {
+                    snapshot: {
+                        params: { personId: '287' },
+                        paramMap: convertToParamMap({ personId: '287' }),
+                    },
+                },
+            ],
+        } as unknown as ActivatedRoute;
+        const outsidePortal = {
+            pathFromRoot: [
+                { snapshot: { params: {}, paramMap: convertToParamMap({}) } },
+            ],
+        } as unknown as ActivatedRoute;
+
+        expect(workspacePortalCommands(actorRoute, 'xtreams')).toEqual([
+            '/workspace',
+            'xtreams',
+            'playlist-1',
+        ]);
+        expect(
+            workspacePortalCommands(actorRoute, 'stalker', 'series')
+        ).toEqual(['/workspace', 'stalker', 'playlist-1', 'series']);
+        expect(workspacePortalCommands(outsidePortal, 'xtreams')).toBeNull();
     });
 
     it('creates normalized query-param signals', () => {

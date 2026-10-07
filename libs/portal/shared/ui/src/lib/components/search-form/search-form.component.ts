@@ -39,7 +39,7 @@ export interface SearchFilter {
         TranslatePipe,
     ],
     templateUrl: './search-form.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             .search-container {

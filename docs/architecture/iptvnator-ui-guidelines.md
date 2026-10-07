@@ -195,7 +195,10 @@ Page-level Back lives only in the workspace header's leading slot (see
 [Header Back](./workspace-shell.md#header-back)). A routed page, or the shell
 it renders in, registers it with `registerWorkspaceBack()` instead of drawing
 an arrow, so Back keeps one position and one look on every page and never
-floats over a scroll owner. Without a registration the header falls back to
+floats over a scroll owner. A page whose Back is history Back calls
+`WorkspaceBackNavigationService.back()` with its parent route rather than
+`Location.back()`, so Back still leads somewhere when the page opened the
+session. Without a registration the header falls back to
 browser history while an in-app previous page exists, and shows nothing
 otherwise. An arrow that returns within a menu, dialog or player panel is not
 page navigation and stays in that surface; an error state may repeat the

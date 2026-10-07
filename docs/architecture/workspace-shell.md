@@ -146,9 +146,9 @@ label (else the translated "Back"), whether Escape on the page runs it, and
 | Page | Registered by | Back runs | ≤640 px |
 | --- | --- | --- | --- |
 | Portal, collection, offline and recording details | `PortalDetailShellComponent` while `backAvailable()` | the host's `backClicked` | replaces the drawer toggle |
-| Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's `Location.back()` | (no drawer) |
-| In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | `Location.back()` | (no drawer) |
-| Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | `Location.back()` | beside the drawer toggle |
+| Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's history Back; parent: the catalog section Discover lists (`vod` for movies, `series` for TV), the portal's default section for actor | (no drawer) |
+| In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | history Back; parent: the portal's default section | (no drawer) |
+| Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | history Back; parent: the first workspace view (`WorkspaceStartupPreferencesService.resolveDashboardPath()`: the dashboard, or sources when it is hidden) | beside the drawer toggle |
 
 Detail-page semantics (Escape, browse and watch) are in
 [Portal Detail Navigation](./portal-detail-navigation.md#detail-scroll-and-focus).
@@ -166,6 +166,31 @@ fallback; registered pages are unaffected. The fallback reads "Back" and
 advertises no Escape, because no page handles one for it. Pages that set
 `backAvailable=false`, such as M3U details, therefore show it too when they
 were reached by navigation.
+
+**Parent fallback.** "Parent" in the table above: a registered page whose
+Back is history Back calls `WorkspaceBackNavigationService.back(resolveParent)`
+instead of `Location.back()`. It runs `Location.back()` while the previous
+entry is an in-app one, by the same Navigation API test as the history
+fallback. Without the API (older Safari and Firefox) the router's history
+depth decides (`trackRouterHistoryDepth`): the document's first navigation is
+depth 0, a push adds one, a replacement keeps it and a traversal restores the
+depth recorded for its entry. The lazy workspace shell creates the service
+after the first navigation began, so the tracker adopts the router's current
+or last navigation: a first one is depth 0, a later one leaves the depth
+unknown. A traversal to an entry from before a reload
+leaves the depth unknown and keeps `Location.back()`, which then has a
+previous entry. Otherwise the page opened
+the session (a deep link, a reload or a restored view), where
+`Location.back()` does nothing in Electron and leaves the app in a browser.
+The service then navigates to the page's parent with `replaceUrl`, so history
+Back cannot return to the page just left; with nothing in-app before it, the
+parent shows no history fallback. The resolver returns a URL or router commands, may be asynchronous, and
+returns null when the page knows no parent, which keeps `Location.back()`.
+Portal pages build their parent with `workspacePortalCommands()`
+(`@iptvnator/portal/shared/util`) from the route's `:id`; without a section,
+the portal route's `redirectTo` picks the default section within the same
+navigation, so the replacement still applies. Detail pages keep their own
+return logic (`backClicked`).
 
 When there is nowhere to go, the slot is empty rather than a disabled arrow.
 Sessions often start on a page that never navigates (an M3U playlist or live
@@ -390,15 +415,32 @@ The Electron window hides the native title bar on all desktop platforms
 (`titleBarStyle: 'hidden'` in `apps/electron-backend/src/app/app.ts`):
 
 1. macOS keeps the native traffic lights (`titleBarOverlay: true`,
-   `trafficLightPosition`); the renderer draws no window buttons. The lights
-   sit in the 56 px header band above the rail, so the macOS rail
-   (`.app-rail.is-macos`) starts its first link at 56 px: level with the
-   content area and the dashboard hero, with its hover surface clear of the
-   lights. App zoom scales CSS pixels but not the lights, so the rail
-   publishes the page zoom factor (`outerWidth / innerWidth`, refreshed on
-   `resize`) as `--rail-zoom-factor` and keeps at least 48 window pixels when
-   zoomed out. `window-controls.e2e.ts` checks the alignment and the gap at
-   default and minimum zoom on macOS.
+   `trafficLightPosition` from `MACOS_TRAFFIC_LIGHTS_POSITION` in
+   `@iptvnator/shared/interfaces`); the renderer draws no window buttons.
+   The lights sit in the header band (`--workspace-header-band`, 56 px) over
+   the rail and the header's leading padding. The macOS rail
+   (`.app-rail.is-macos`) starts its first link below the band: level with
+   the content area and the dashboard hero, with its hover surface clear of
+   the lights. The header's content starts 84 window pixels from the
+   window's left edge (60 px rail plus 24 px padding). macOS 26 ends the
+   lights at 76 (earlier releases at 68), which is where Back's left edge
+   sits at 100 % because of its 8 px pull-in.
+
+   App zoom (see "Zoom level") scales CSS pixels but not the lights. On
+   macOS, `TrafficLightsClearanceDirective` on `.workspace-shell` reads the
+   page zoom factor (`outerWidth / innerWidth`, refreshed on `resize`) and
+   publishes the clearance in CSS pixels as `--traffic-lights-clear-x` (84
+   window pixels) and `--traffic-lights-clear-y` (48: the lights' bottom
+   plus a gap). Zoomed out, the band grows to the vertical clearance, so the
+   lights never overlap the content area. The header's leading padding grows
+   to the horizontal clearance, less the rail column
+   (`--workspace-header-lights-inset`). At 100 % both match the default
+   layout. Off macOS nothing is published and the defaults apply. The phone
+   layout, which puts the rail in a row above the header, ignores the
+   inset. `window-controls.e2e.ts` ("macOS traffic lights") checks the rail
+   alignment, the first header control (the switcher on the first page,
+   which has no history fallback yet, then a detail page's Back) and the
+   content top at default and minimum zoom.
 2. Windows and Linux use renderer-drawn window controls
    (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
    `frame` is intentionally left untouched so native resize borders and
@@ -510,15 +552,24 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
 3. `fullscreen` is the `BrowserWindow` constructor option: on Windows/Linux
    the window is created hidden and enters fullscreen before its first
    paint. macOS ignores the option while the window is hidden (an NSWindow
-   only toggles fullscreen once it is on screen), so `ready-to-show` repeats
+   only toggles fullscreen once it is on screen), so the first show repeats
    the request with `setFullScreen(true)` right after `show()` wherever
    `isFullScreen()` is still false — never unconditionally, or the
    platforms that honoured the option would animate a second toggle. The
    saved bounds stay spread into the options — they are the normal bounds
    the window returns to, and the close handler keeps persisting
-   `getNormalBounds()`. `maximized` calls `maximize()` inside
-   `ready-to-show` right before `show()`, never earlier: `maximize()` on a
-   hidden window shows it, and a blank window would flash.
+   `getNormalBounds()`. `maximized` calls `maximize()` right before the
+   first `show()`, never earlier: `maximize()` on a hidden window shows it,
+   and a blank window would flash. That first show happens at
+   `ready-to-show` or the main frame's `did-finish-load`, whichever comes
+   first (`services/main-window-first-show.ts`): on Linux a hidden window
+   whose startup scripts ran before its first frame gets the next one about
+   a second later, so `ready-to-show` alone left the window off screen and
+   the splash's animation frame waiting. At `did-finish-load` the inline
+   splash is parsed, and the window's `backgroundColor` is the splash colour
+   (`MAIN_WINDOW_BACKGROUND_COLOR`, keep it in sync with `#initial-splash`
+   in `apps/web/src/index.html`), so showing before the first paint does
+   not flash.
 4. `iptvnator --fullscreen` (read via `app.commandLine.hasSwitch`, so it can
    sit anywhere in argv; the playlist-path extractor already skips every
    `-`-prefixed argument) forces `fullscreen` for that launch only and is

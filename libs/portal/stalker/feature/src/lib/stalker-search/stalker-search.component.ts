@@ -8,7 +8,6 @@ import {
     untracked,
     viewChild,
 } from '@angular/core';
-import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -36,12 +35,14 @@ import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import { StalkerInlineDetailComponent } from '../stalker-inline-detail/stalker-inline-detail.component';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     isWorkspaceLayoutRoute,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     queryParamSignal,
+    workspacePortalCommands,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
@@ -89,7 +90,7 @@ interface StalkerFilter {
 })
 export class StalkerSearchComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
-    private readonly location = inject(Location);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly dataService = inject(DataService);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly playlistContext = inject(PlaylistContextFacade);
@@ -418,9 +419,14 @@ export class StalkerSearchComponent {
         this.stalkerStore.setSelectedItem(null);
     }
 
-    /** Leave the search page (e.g. back to the actor page that opened it) */
+    /**
+     * Leave the search page (e.g. back to the actor page that opened it); the
+     * portal's default section when the page opened the session.
+     */
     goBack(): void {
-        this.location.back();
+        this.backNavigation.back(() =>
+            workspacePortalCommands(this.activatedRoute, 'stalker')
+        );
     }
 
     onVodBack(): void {

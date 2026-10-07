@@ -91,7 +91,7 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
             useFactory: resolveWebPlayerSharedControls,
         },
     ],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
 })
 export class WebPlayerViewComponent implements OnDestroy {

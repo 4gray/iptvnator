@@ -19,6 +19,7 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { UpdateChannelOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
 @Component({
     selector: 'app-settings-about-section',
@@ -32,8 +33,7 @@ import { UpdateChannelOption } from './settings.models';
     ],
     templateUrl: './settings-about-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         ':host { display: contents; }',
         '.version-block .build-commit { opacity: 0.65; font-size: 0.85em; }',
@@ -58,6 +58,13 @@ export class SettingsAboutSectionComponent {
      * setting. Absent in hosts that only render the version block.
      */
     readonly form = input<FormGroup | null>(null);
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly updateChannelOptions = input<UpdateChannelOption[]>([]);
 
     readonly buildCommitShort = computed(() => {

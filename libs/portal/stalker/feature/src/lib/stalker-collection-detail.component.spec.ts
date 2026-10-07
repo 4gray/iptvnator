@@ -281,6 +281,26 @@ describe('StalkerCollectionDetailComponent', () => {
         fixture?.destroy();
     });
 
+    it('does not repoint the portal after a pending collection load outlives its view', async () => {
+        const pending = new Subject<Playlist>();
+        playlistsService.getPlaylistById.mockReturnValue(pending);
+        fixture.componentRef.setInput('item', buildCollectionItem({}));
+        fixture.detectChanges();
+        TestBed.tick();
+        expect(playlistsService.getPlaylistById).toHaveBeenCalled();
+
+        fixture.destroy();
+        const destination = { ...playlist, _id: 'destination' };
+        await stalkerStore.setCurrentPlaylist(destination);
+        stalkerStore.setSelectedItem({ id: 'destination-item' });
+        pending.next(playlist);
+        pending.complete();
+        for (let i = 0; i < 10; i++) await Promise.resolve();
+
+        expect(currentPlaylist()).toBe(destination);
+        expect(selectedItem()).toEqual({ id: 'destination-item' });
+    });
+
     it('opens legacy VOD is_series favorites through the lazy VOD-series flow', async () => {
         fixture.componentRef.setInput(
             'item',

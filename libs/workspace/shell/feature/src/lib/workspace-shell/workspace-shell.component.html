@@ -1,4 +1,9 @@
-<div class="workspace-shell" appPlaylistDropZone #dropZone="playlistDropZone">
+<div
+    class="workspace-shell"
+    appPlaylistDropZone
+    #dropZone="playlistDropZone"
+    [appTrafficLightsClearance]="facade.isMacOS"
+>
     <app-playlist-drop-overlay [state]="dropZone.overlayState()" />
     @if (facade.showXtreamImportOverlay()) {
         <app-workspace-shell-import-overlay />

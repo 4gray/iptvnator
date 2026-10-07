@@ -54,8 +54,9 @@ function isPlainObject(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// Three decimals: journey summaries round layout-shift scores to three.
 function formatNumber(value) {
-    return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    return value.toLocaleString('en-US', { maximumFractionDigits: 3 });
 }
 
 /**

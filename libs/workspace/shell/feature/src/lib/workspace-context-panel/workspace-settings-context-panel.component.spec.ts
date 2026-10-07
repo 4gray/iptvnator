@@ -1,18 +1,43 @@
 import { Location } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
+import {
+    WORKSPACE_HISTORY_NAVIGATION,
+    WorkspaceBackNavigationService,
+    WorkspaceHistoryNavigation,
+} from '@iptvnator/portal/shared/data-access';
+import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { WorkspaceSettingsContextPanelComponent } from './workspace-settings-context-panel.component';
 
+/** Navigation API state of a session that opened on the settings page. */
+const firstPageHistory = {
+    currentEntry: { index: 0 },
+    entries: () => [{ index: 0, sameDocument: true }],
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+} as unknown as WorkspaceHistoryNavigation;
+
 describe('WorkspaceSettingsContextPanelComponent', () => {
-    function setup() {
+    const resolveDashboardPath = jest.fn();
+
+    // Without a Navigation API (jsdom's default) history is unknown, so
+    // Back stays the browser's.
+    function setup(history: WorkspaceHistoryNavigation | null = null) {
+        resolveDashboardPath
+            .mockReset()
+            .mockResolvedValue('/workspace/dashboard');
         TestBed.configureTestingModule({
             imports: [WorkspaceSettingsContextPanelComponent],
             providers: [
                 provideRouter([]),
+                { provide: WORKSPACE_HISTORY_NAVIGATION, useValue: history },
+                {
+                    provide: WorkspaceStartupPreferencesService,
+                    useValue: { resolveDashboardPath },
+                },
                 {
                     provide: TranslateService,
                     useValue: {
@@ -66,9 +91,31 @@ describe('WorkspaceSettingsContextPanelComponent', () => {
 
         backNavigation.goBack();
         expect(back).toHaveBeenCalledTimes(1);
+        expect(resolveDashboardPath).not.toHaveBeenCalled();
 
         fixture.destroy();
         expect(backNavigation.target()).toBeNull();
+    });
+
+    it('leads to the first workspace view when settings opened the session', async () => {
+        setup(firstPageHistory);
+        const back = jest
+            .spyOn(TestBed.inject(Location), 'back')
+            .mockImplementation(() => undefined);
+        const navigateByUrl = jest
+            .spyOn(TestBed.inject(Router), 'navigateByUrl')
+            .mockResolvedValue(true);
+        resolveDashboardPath.mockResolvedValue('/workspace/sources');
+
+        TestBed.inject(WorkspaceBackNavigationService).goBack();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // Location.back() would do nothing in Electron or leave the PWA.
+        expect(back).not.toHaveBeenCalled();
+        expect(navigateByUrl).toHaveBeenCalledWith('/workspace/sources', {
+            replaceUrl: true,
+        });
     });
 
     it('shows no counts while settings search is idle', () => {
