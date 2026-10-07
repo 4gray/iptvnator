@@ -228,6 +228,20 @@ export class TimelineWindowController {
         }
     }
 
+    /**
+     * Re-centres the window on the ribbon minute a scale change is about to
+     * show, in the same pass as the new scale. The scroll event that would
+     * re-measure arrives only after the anchored `scrollLeft` lands on a
+     * later frame; until then the window would be the previous centre at the
+     * new scale, which can be far from what the ribbon shows.
+     */
+    centreOnMinute(offsetMin: number): void {
+        this.viewport.set({
+            centreMs: this.ctx.axis().startMs + offsetMin * TIMELINE_MINUTE_MS,
+            widthPx: this.viewport().widthPx,
+        });
+    }
+
     /** Follow the scroll position: re-centre once it moved far enough. */
     measure(): void {
         const scroller = this.scroller();

@@ -252,6 +252,70 @@ describe('EpgTimelineComponent ribbon windowing', () => {
         expect(titles).not.toContain('Slot 96');
     });
 
+    /** Render items overlapping the ribbon's px range at the current scale. */
+    function itemsIn(leftPx: number, widthPx: number): string[] {
+        return component
+            .renderItems()
+            .filter(
+                (entry) =>
+                    entry.leftPx + entry.widthPx >= leftPx &&
+                    entry.leftPx <= leftPx + widthPx
+            )
+            .map((entry) => entry.key);
+    }
+
+    // The anchored scroll lands on a later frame; the window must already
+    // cover what the ribbon will show at the new scale.
+    it('windows the anchored range in the same pass as a wheel zoom', () => {
+        render(mockSchedule());
+        const prevScale = component.scale();
+        const left = ribbon().scrollLeft;
+        // Zoom in to the maximum around the right edge of the ribbon.
+        const anchorPx = ribbonWidth - 20;
+        component.onRibbonWheel(
+            new WheelEvent('wheel', {
+                ctrlKey: true,
+                clientX: anchorPx,
+                deltaY: -1000,
+            })
+        );
+        fixture.detectChanges();
+
+        const nextScale = component.scale();
+        expect(nextScale).toBeGreaterThan(prevScale);
+        const anchoredLeft =
+            ((left + anchorPx) / prevScale) * nextScale - anchorPx;
+        const windowed = component.ribbonWindow.items().map((e) => e.key);
+        expect(windowed).toEqual(
+            expect.arrayContaining(itemsIn(anchoredLeft, ribbonWidth))
+        );
+    });
+
+    it('windows an expanded group before the ribbon scrolls to it', () => {
+        render(mockSchedule());
+        const first = component
+            .blocks()
+            .find((block) => block.program.title === 'Slot 200');
+        const last = component
+            .blocks()
+            .find((block) => block.program.title === 'Slot 203');
+        if (!first || !last) throw new Error('missing slots');
+        jest.spyOn(HTMLElement.prototype, 'scrollTo').mockImplementation(
+            () => undefined
+        );
+
+        component.onGroupExpand({
+            startMs: first.startMs,
+            stopMs: last.stopMs,
+        } as Parameters<EpgTimelineComponent['onGroupExpand']>[0]);
+        fixture.detectChanges();
+
+        expect(renderedTitles()).toEqual(
+            expect.arrayContaining(['Slot 200', 'Slot 203'])
+        );
+        expect(renderedTitles()).not.toContain('Slot 96');
+    });
+
     it('does not re-render for a scroll within a quarter viewport', () => {
         render(mockSchedule());
         const before = component.ribbonWindow.items();

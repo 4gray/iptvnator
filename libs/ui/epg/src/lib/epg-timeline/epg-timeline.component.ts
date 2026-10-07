@@ -145,6 +145,7 @@ export class EpgTimelineComponent {
         ribbon: () => this.ribbon()?.nativeElement,
         scale: () => this.scale(),
         setScale: (scale) => this.scale.set(scale),
+        centreOn: (offsetMin) => this.ribbonWindow.centreOnMinute(offsetMin),
     });
 
     /** Ribbon scrolling + channel-select auto-focus, extracted from the view. */
@@ -347,6 +348,7 @@ export class EpgTimelineComponent {
         const axis = this.axis();
         const centreMs = (group.startMs + group.stopMs) / 2;
         const offsetMin = (centreMs - axis.startMs) / TIMELINE_MINUTE_MS;
+        this.ribbonWindow.centreOnMinute(offsetMin);
         this.scroll.scrollToOffset(offsetMin, 0.5);
     }
 

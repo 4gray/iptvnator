@@ -23,6 +23,8 @@ export interface TimelineZoomContext {
     readonly ribbon: () => HTMLElement | undefined;
     readonly scale: () => number;
     readonly setScale: (scale: number) => void;
+    /** The ribbon minute the anchored scroll will centre, set with the scale. */
+    readonly centreOn?: (offsetMin: number) => void;
 }
 
 /**
@@ -97,6 +99,9 @@ export class TimelineZoomController {
         const currentLeft = this.pendingScrollLeft ?? scroller.scrollLeft;
         const anchorMin = (currentLeft + anchorPx) / prev;
         this.pendingScrollLeft = anchorMin * next - anchorPx;
+        this.ctx.centreOn?.(
+            (this.pendingScrollLeft + scroller.clientWidth / 2) / next
+        );
         if (this.frame === 0) {
             this.frame = requestAnimationFrame(() => this.flushScroll());
         }
