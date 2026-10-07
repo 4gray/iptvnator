@@ -82,11 +82,52 @@ describe('EpgTimelineTrackComponent', () => {
         expect(component.popover()).toBeNull();
     });
 
+    // The ribbon window can remove a focused block on scroll; a removed node
+    // fires no focusout, so the popover must follow the rendered items.
+    it('closes the popover when its block leaves the rendered items', () => {
+        const item = renderBlock({ tier: 'narrow' });
+        const other = renderBlock({ key: 'k2', tier: 'narrow' });
+        fixture.componentRef.setInput('items', [item, other]);
+        fixture.detectChanges();
+        component.onBlockEnter(item, {
+            currentTarget: {
+                getBoundingClientRect: () => ({
+                    left: 100,
+                    width: 40,
+                    top: 60,
+                    bottom: 200,
+                }),
+            },
+        } as unknown as Event);
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        expect(component.popover()?.key).toBe('k1');
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '[role="tooltip"]'
+            )
+        ).not.toBeNull();
+
+        fixture.componentRef.setInput('items', [other]);
+        fixture.detectChanges();
+        expect(component.popover()).toBeNull();
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '[role="tooltip"]'
+            )
+        ).toBeNull();
+    });
+
     it('never shows a popover for a wide block', () => {
         const item = renderBlock({ tier: 'wide' });
         component.onBlockEnter(item, {
             currentTarget: {
-                getBoundingClientRect: () => ({ left: 0, width: 200, bottom: 0 }),
+                getBoundingClientRect: () => ({
+                    left: 0,
+                    width: 200,
+                    bottom: 0,
+                }),
             },
         } as unknown as Event);
         expect(component.popover()).toBeNull();
