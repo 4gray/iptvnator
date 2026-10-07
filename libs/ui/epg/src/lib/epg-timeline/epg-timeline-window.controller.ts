@@ -149,20 +149,36 @@ export class TimelineWindowController {
         () => ({
             ribbon: this.scroller(),
             key: programsFocusKey(this.ctx.programs()),
+            axisStartMs: this.ctx.axis().startMs,
         }),
         {
             equal: (left, right) =>
-                left.ribbon === right.ribbon && left.key === right.key,
+                left.ribbon === right.ribbon &&
+                left.key === right.key &&
+                left.axisStartMs === right.axisStartMs,
         }
     );
     /**
      * Estimated once per channel or ribbon mount, then moved only by the
      * scroll and resize measurements: a live estimate would follow the 30 s
-     * now tick and the centred day away from what the ribbon shows.
+     * now tick and the centred day away from what the ribbon shows. A moved
+     * axis origin (a time offset carrying the first programme across
+     * midnight) shifts every track position under an unchanged `scrollLeft`,
+     * with no scroll event, so the viewport is measured from the ribbon again.
      */
-    private readonly viewport = linkedSignal<unknown, TimelineViewport>({
+    private readonly viewport = linkedSignal<
+        { ribbon: HTMLElement | undefined; key: string; axisStartMs: number },
+        TimelineViewport
+    >({
         source: this.identity,
-        computation: () => untracked(() => this.initialViewport()),
+        computation: (source, previous) =>
+            untracked(() =>
+                previous &&
+                previous.source.ribbon === source.ribbon &&
+                previous.source.key === source.key
+                    ? (this.measuredViewport() ?? previous.value)
+                    : this.initialViewport()
+            ),
     });
     private readonly range = computed(() =>
         timelineWindowRange(this.viewport(), this.ctx.axis(), this.ctx.scale())
@@ -258,6 +274,20 @@ export class TimelineWindowController {
         if (viewportNeedsWindow(this.viewport(), next, scale)) {
             this.viewport.set(next);
         }
+    }
+
+    /** The viewport the ribbon shows now; null before it is laid out. */
+    private measuredViewport(): TimelineViewport | null {
+        const scroller = this.scroller();
+        if (!scroller || scroller.clientWidth <= 0) {
+            return null;
+        }
+        return viewportFromScroller(
+            scroller.scrollLeft,
+            scroller.clientWidth,
+            this.ctx.axis(),
+            this.ctx.scale()
+        );
     }
 
     private scroller(): HTMLElement | undefined {

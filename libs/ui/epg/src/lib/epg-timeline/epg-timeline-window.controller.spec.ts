@@ -345,6 +345,26 @@ describe('EpgTimelineComponent ribbon windowing', () => {
         expect(renderedTitles()).toContain('Slot 239');
     });
 
+    // A time offset can carry the first programme across midnight: the axis
+    // origin and every track position move under an unchanged scrollLeft,
+    // and no scroll event follows.
+    it('re-measures the ribbon when the axis origin moves', () => {
+        render(midnightSchedule());
+        const startBefore = component.axis().startMs;
+        const left = ribbon().scrollLeft;
+
+        fixture.componentRef.setInput('offsetMinutes', -720);
+        fixture.detectChanges();
+
+        expect(component.axis().startMs).not.toBe(startBefore);
+        expect(ribbon().scrollLeft).toBe(left);
+        const visible = itemsIn(left, ribbonWidth);
+        expect(visible.length).toBeGreaterThan(0);
+        expect(component.ribbonWindow.items().map((e) => e.key)).toEqual(
+            expect.arrayContaining(visible)
+        );
+    });
+
     it('windows an expanded group before the ribbon scrolls to it', () => {
         render(mockSchedule());
         const first = component
