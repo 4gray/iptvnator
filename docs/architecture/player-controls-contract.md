@@ -288,9 +288,11 @@ It owns only transient presentation behavior:
 - `ControlsShortcuts` — document keyboard routing;
 - `ControlsSurface` — pointer/click/double-click surface interactions;
 - `ControlsTimeline` — scrub state and timeline projections;
-- `ControlsTimelineHover` — the time under the pointer over the timeline;
+- `ControlsTimelineLabel` — where the timeline label points: the time under
+  a hovering pointer, else the slider value while the keyboard or a drag
+  moves it, plus the pure `clampTimelineLabelLeft` placement;
 - `app-player-timeline` — presentation of the timeline row (current time,
-  segment track, knob, hover label, remaining time / LIVE, recording
+  segment track, knob, label, remaining time / LIVE, recording
   status); scrub `input`/`change` events go back to the controls component,
   which owns reveal and seeking;
 - `ControlsLayout` — the compact/wide dock mode from the host's width;
@@ -314,7 +316,10 @@ primary action and progress, cyan `#5cd6ff` for "something is on", violet
 `#6b7384` text ramp, and two reds: `--pc-live` `#d32f2f` fills the LIVE
 badge (white label 5.0:1), and `--pc-danger` `#ff5252` colours the active
 record glyph and the recording status (6.2:1 on the glass over a black
-frame). They are literal on purpose: the overlay is
+frame). The seek bar's unplayed track is the opaque `--pc-timeline-track`
+`#313437` and its segment separators are `--pc-timeline-separator` white,
+so their contrast does not depend on the frame (see Timeline segments).
+They are literal on purpose: the overlay is
 theme-independent (see the UI guidelines' player theme boundary), and the
 app's `--app-selection-color` is a different blue that would fight the video.
 Watch progress reads `--pc-progress`, the accent blue declared by the
@@ -327,13 +332,20 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   a white knob ringed in translucent blue) · remaining time as `−7:03`
   (`formatRemainingTime`; the LIVE badge replaces it on live streams and
   `--:--` stands in while no duration is known) · the recording status.
+  The badge text is the translated `LIVE_BADGE`, and both it and the
+  `--:--` placeholder (`UNKNOWN_TIME_TEXT`) are `role="img"` elements named
+  `LIVE_STREAM` / `DURATION_UNKNOWN`: a name on a role-less span is never
+  announced, and the dashes are not words.
   The `<input type="range">` stays as the interaction and accessibility
   layer, invisible and full-size over the drawn track: dragging, arrow
   keys, `aria-valuetext` and the focus ring (drawn on the track through
   `:has(:focus-visible)`) all belong to it, so scrubbing semantics are
   unchanged. Hovering the bar with a mouse shows a white marker and a
-  `1:40` label above the pointer (`ControlsTimelineHover`); touch never
-  hovers and a non-seekable timeline never labels.
+  `1:40` label above the pointer. Keyboard focus on the slider
+  (`:focus-visible`, or any seek key) and a drag preview — the only way
+  touch, which never hovers, gets it — show the same label at the slider
+  value instead, without the marker (`ControlsTimelineLabel`; a hovering
+  pointer wins). A non-seekable timeline never labels.
 - **Control row**: `minmax(0,1fr) auto minmax(0,1fr)`. Left: the volume
   button, with the slider **inline** (72px) in the wide mode and behind
   the hover/tap popover in the compact mode — inline, the button is a
@@ -359,13 +371,12 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
 
 ### Timeline segments
 
-The track is drawn as a row of segments, one flex item per segment with
-`flex-grow` equal to its share of the duration and its own accent fill, so
+The track is drawn as a row of segments, each with its own accent fill, so
 a film's chapters or a catch-up recording's programmes read directly off
 the bar. Each segment is placed absolutely at its time position (`left` =
-start percent, `width` = share minus the 3px gap every segment but the
+start percent, `width` = share minus the 2px gap every segment but the
 last keeps), so a drawn boundary sits exactly where the linear seek input
-and the hover label change segment; a segment shorter than the gap
+and the label change segment; a segment shorter than the gap
 collapses instead of pushing its neighbours. The optional `timelineSegments` input
 (`PlayerTimelineSegment { startSeconds, endSeconds, title }`) supplies
 them; `normalizeTimelineSegments` (`controls-timeline-segments.ts`) clamps
@@ -374,8 +385,31 @@ the previous end and fills every gap with an untitled segment so the row
 always covers `[0, duration]`. Without segments — live playback, VOD and
 series — the row is one untitled segment, which is the plain bar.
 `ControlsTimeline` owns the normalized list and the per-segment fill for the
-current scrub or playback value; the hover label becomes `Chapter 2 · 12:40`
+current scrub or playback value; the label becomes `Chapter 2 · 12:40`
 over a titled segment. mpv's chapter list is not a producer yet.
+
+Boundaries hold 3:1 over any frame. Segments only round the bar's two
+ends, and every gap (2px, `TIMELINE_SEGMENT_GAP_PX`) is filled by a
+separator (`separatorLeft`) in `--pc-timeline-separator` white: 12.5:1 on
+the opaque `--pc-timeline-track`, 3.2:1 on the `--pc-progress` fill, which
+keeps 4.0:1 on the track. The former translucent track with see-through
+gaps measured 1.3–1.6:1 at its boundaries, and its fill fell to 1.1:1 over
+a bright frame (`player-controls.palette.spec.ts` pins the ratios).
+
+The names reach every user, whichever source drew the segments. The
+slider's `aria-valuetext` is the translated `TIMELINE_SEGMENT_POSITION`
+(`{{title}} · {{time}}`) whenever the scrub or playback value — the
+keyboard's target included — lies in a titled segment
+(`ControlsTimeline.segmentTitle`), and the plain time otherwise. The visible
+label (`aria-hidden`; it mirrors the valuetext) is two parts: the title
+ellipsizes at `min(320px, 60cqw)` and the time never truncates. The
+stylesheet centres it on its anchor; once laid out,
+`PlayerTimelineComponent` moves it by its measured width
+(`clampTimelineLabelLeft`, an `afterRenderEffect`) so it stays 8px inside
+the player (`.player-controls-host`) — past the bar's ends when needed, as
+the bar is narrower than the player. `xtream-catchup-timeline-label.e2e.ts`
+tabs to the bar with a 120-character programme title at 1280 and 800px, in
+both themes and in de and ru.
 
 **Catch-up producer.** Archive playback of a live channel passes the EPG
 programmes overlapping its archive window.
@@ -1661,7 +1695,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-feedback.ts
 ├── controls-format.utils.ts
 ├── controls-layout.ts
-├── controls-timeline-hover.ts
+├── controls-timeline-label.ts
 ├── controls-timeline-segments.ts
 ├── controls-settings.ts
 ├── controls-settings-groups.ts

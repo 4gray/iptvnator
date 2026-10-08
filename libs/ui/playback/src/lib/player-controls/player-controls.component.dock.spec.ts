@@ -57,6 +57,10 @@ describe('PlayerControlsComponent dock', () => {
     const query = (selector: string) =>
         fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
+    const labelPart = (part: 'title' | 'time') =>
+        query(`[data-test-id="player-controls-timeline-label-${part}"]`)
+            ?.textContent ?? null;
+
     const setCapabilities = (overrides: Partial<PlayerControlsCapabilities>) =>
         fake.capabilities.set({ ...DEFAULT_PLAYER_CAPABILITIES, ...overrides });
 
@@ -110,6 +114,9 @@ describe('PlayerControlsComponent dock', () => {
                     FORWARD_10_SECONDS: 'Forward 10 seconds',
                     MUTE: 'Mute',
                     UNMUTE: 'Unmute',
+                    LIVE_STREAM: 'Live stream',
+                    LIVE_BADGE: 'LIVE',
+                    DURATION_UNKNOWN: 'Duration unknown',
                 },
             },
         });
@@ -221,14 +228,22 @@ describe('PlayerControlsComponent dock', () => {
         it('shows a placeholder for unknown durations and LIVE for live streams', () => {
             setState({ canSeek: false, isLive: false });
             fixture.detectChanges();
-            expect(query('.player-controls__time--end')?.textContent).toBe(
-                '--:--'
+            const placeholder = query('.player-controls__time--end');
+            expect(placeholder?.textContent).toBe('--:--');
+            // Assistive technology hears the name, not the dashes.
+            expect(placeholder?.getAttribute('role')).toBe('img');
+            expect(placeholder?.getAttribute('aria-label')).toBe(
+                'Duration unknown'
             );
 
             setState({ canSeek: false, isLive: true });
             fixture.detectChanges();
             expect(query('.player-controls__time--end')).toBeNull();
-            expect(query('.player-controls__live-badge')).not.toBeNull();
+            const badge = query('.player-controls__live-badge');
+            expect(badge?.textContent?.trim()).toBe('LIVE');
+            // A name on a role-less span is never announced.
+            expect(badge?.getAttribute('role')).toBe('img');
+            expect(badge?.getAttribute('aria-label')).toBe('Live stream');
         });
 
         it('draws the progress fill and knob from the timeline progress', () => {
@@ -281,7 +296,7 @@ describe('PlayerControlsComponent dock', () => {
                 '[data-test-id="player-controls-timeline-label"]'
             );
             expect(label?.textContent?.trim()).toBe('1:40');
-            expect(label?.style.getPropertyValue('--hover-x')).toBe('25%');
+            expect(label?.style.getPropertyValue('--anchor-x')).toBe('25%');
             expect(query('.player-controls__timeline-marker')?.style.left).toBe(
                 '25%'
             );
@@ -324,6 +339,14 @@ describe('PlayerControlsComponent dock', () => {
                 '75%',
             ]);
             expect(segments.at(-1)?.style.width).toBe('25%');
+            // A separator fills the gap before every following segment.
+            expect(
+                Array.from(
+                    fixture.nativeElement.querySelectorAll(
+                        '.player-controls__timeline-separator'
+                    ) as NodeListOf<HTMLElement>
+                ).map((separator) => separator.style.left)
+            ).toEqual(['calc(25% - 2px)', 'calc(75% - 2px)']);
             expect(
                 segments.map(
                     (s) =>
@@ -359,21 +382,115 @@ describe('PlayerControlsComponent dock', () => {
                 new MouseEvent('pointermove', { clientX: 100, bubbles: true })
             );
             fixture.detectChanges();
-            expect(
-                query(
-                    '[data-test-id="player-controls-timeline-label"]'
-                )?.textContent?.trim()
-            ).toBe('Intro \u00b7 1:40');
+            // Two parts, so a long title can ellipsize without the time.
+            expect(labelPart('title')).toBe('Intro');
+            expect(labelPart('time')).toBe('1:40');
 
             bar.dispatchEvent(
                 new MouseEvent('pointermove', { clientX: 300, bubbles: true })
             );
             fixture.detectChanges();
+            expect(labelPart('title')).toBeNull();
+            expect(labelPart('time')).toBe('5:00');
+        });
+
+        it('labels the keyboard position without a pointer marker', () => {
+            setCapabilities({ seek: true });
+            setState({
+                canSeek: true,
+                durationSeconds: 400,
+                positionSeconds: 100,
+            });
+            fixture.componentRef.setInput('timelineSegments', [
+                { startSeconds: 0, endSeconds: 200, title: 'Intro' },
+            ]);
+            fixture.detectChanges();
+            const slider = query(
+                '.player-controls__slider--timeline'
+            ) as HTMLInputElement;
+            Object.defineProperty(slider, 'matches', {
+                value: (selector: string) => selector === ':focus-visible',
+            });
+
+            slider.dispatchEvent(new FocusEvent('focus'));
+            fixture.detectChanges();
+            expect(labelPart('title')).toBe('Intro');
+            expect(labelPart('time')).toBe('1:40');
+            expect(query('.player-controls__timeline-marker')).toBeNull();
+
+            slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+            slider.value = '400';
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            expect(labelPart('title')).toBeNull();
+            expect(labelPart('time')).toBe('6:40');
+            // The step commits at once, as a key press does.
+            slider.dispatchEvent(new Event('change', { bubbles: true }));
+            fixture.detectChanges();
+            expect(fake.commands.seekTo).toHaveBeenCalledWith(400);
+
+            slider.dispatchEvent(new FocusEvent('blur'));
+            fixture.detectChanges();
             expect(
-                query(
+                query('[data-test-id="player-controls-timeline-label"]')
+            ).toBeNull();
+        });
+
+        it('moves the label by its measured width to stay inside the player', () => {
+            setCapabilities({ seek: true });
+            setState({
+                canSeek: true,
+                durationSeconds: 400,
+                positionSeconds: 0,
+            });
+            fixture.detectChanges();
+            // The player spans 0–800px; the bar 70–730px.
+            const host = fixture.nativeElement as HTMLElement;
+            host.getBoundingClientRect = () =>
+                ({ left: 0, right: 800, width: 800 }) as DOMRect;
+            const bar = query('.player-controls__timeline-bar') as HTMLElement;
+            bar.getBoundingClientRect = () =>
+                ({ left: 70, width: 660 }) as DOMRect;
+            const offsetWidth = Object.getOwnPropertyDescriptor(
+                HTMLElement.prototype,
+                'offsetWidth'
+            );
+            Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+                configurable: true,
+                get(this: HTMLElement) {
+                    return this.matches('.player-controls__timeline-label')
+                        ? 390
+                        : 0;
+                },
+            });
+
+            try {
+                bar.dispatchEvent(
+                    new MouseEvent('pointermove', { clientX: 70, bubbles: true })
+                );
+                fixture.detectChanges();
+                const label = query(
                     '[data-test-id="player-controls-timeline-label"]'
-                )?.textContent?.trim()
-            ).toBe('5:00');
+                ) as HTMLElement;
+                // 8px in from the player's left edge, in bar coordinates.
+                expect(label.style.left).toBe('-62px');
+                expect(label.style.transform).toBe('none');
+
+                bar.dispatchEvent(
+                    new MouseEvent('pointermove', { clientX: 730, bubbles: true })
+                );
+                fixture.detectChanges();
+                // Its right edge 8px in from the player's right edge.
+                expect(label.style.left).toBe(`${800 - 8 - 390 - 70}px`);
+            } finally {
+                if (offsetWidth) {
+                    Object.defineProperty(
+                        HTMLElement.prototype,
+                        'offsetWidth',
+                        offsetWidth
+                    );
+                }
+            }
         });
 
         it('does not hover-label a non-seekable timeline', () => {

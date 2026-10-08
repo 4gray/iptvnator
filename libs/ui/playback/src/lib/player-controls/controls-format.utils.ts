@@ -16,6 +16,14 @@ export function formatTime(value: number | null | undefined): string {
 }
 
 /**
+ * The end-time slot while no duration is known: {@link formatTime}'s shape
+ * with the digits blanked, no more a language string than `1:40` is. The
+ * docks pair it with the translated `DURATION_UNKNOWN` name for assistive
+ * technology, which would otherwise read out the dashes.
+ */
+export const UNKNOWN_TIME_TEXT = '--:--';
+
+/**
  * Time left until the end, as `−7:03`. The dock shows it in place of the
  * total duration: it is the number a viewer actually wants at a glance.
  * Null when there is no finite duration to count down from.

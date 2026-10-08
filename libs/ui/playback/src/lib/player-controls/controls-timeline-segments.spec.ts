@@ -68,20 +68,30 @@ describe('normalizeTimelineSegments', () => {
         ).toBeCloseTo(1);
     });
 
-    it('places segments at their time positions with a gap after all but the last', () => {
+    it('places segments at their time positions with a separated gap after all but the last', () => {
         const segments = normalizeTimelineSegments(
             [
                 { startSeconds: 0, endSeconds: 150, title: 'A' },
-                { startSeconds: 150, endSeconds: 600, title: 'B' },
+                { startSeconds: 150, endSeconds: 450, title: 'B' },
             ],
             600
         );
 
-        expect(segments.map((s) => s.startPercent)).toEqual([0, 25]);
+        expect(segments.map((s) => s.startPercent)).toEqual([0, 25, 75]);
         expect(segments.map((s) => s.width)).toEqual([
-            'max(0px, calc(25% - 3px))',
-            '75%',
+            'max(0px, calc(25% - 2px))',
+            'max(0px, calc(50% - 2px))',
+            '25%',
         ]);
+        // The separator fills the gap, ending where the next segment starts.
+        expect(segments.map((s) => s.separatorLeft)).toEqual([
+            'calc(25% - 2px)',
+            'calc(75% - 2px)',
+            null,
+        ]);
+        expect(normalizeTimelineSegments(null, 600)[0].separatorLeft).toBe(
+            null
+        );
     });
 
     it('clamps to the duration, cuts overlaps and drops empty segments', () => {

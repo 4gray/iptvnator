@@ -49,16 +49,36 @@
 }
 
 // Segments sit at their exact time positions (`left` = start, `width` =
-// share, minus the 3px gap at each segment's end), so a drawn boundary is
-// where the linear seek input and the hover label change segment. A segment
-// shorter than the gap simply collapses rather than shifting its neighbours.
+// share, minus the 2px gap after every segment but the last), so a drawn
+// boundary is where the linear seek input and the label change segment. A
+// segment shorter than the gap simply collapses rather than shifting its
+// neighbours. Only the bar's two ends are rounded; inside it, a white
+// separator fills each gap, so boundaries hold 3:1 over any frame.
 .player-controls__timeline-segment {
     position: absolute;
     top: 0;
     bottom: 0;
     overflow: hidden;
-    border-radius: 3px;
-    background: var(--pc-track);
+    background: var(--pc-timeline-track);
+}
+
+.player-controls__timeline-segment:first-child {
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.player-controls__timeline-segment:last-child {
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+// Width = `TIMELINE_SEGMENT_GAP_PX`.
+.player-controls__timeline-separator {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--pc-timeline-separator);
 }
 
 .player-controls__timeline-fill {
@@ -98,22 +118,49 @@
     pointer-events: none;
 }
 
+// Above the bar at its anchor: the pointer, or the slider value while the
+// keyboard or a drag moves it. Centred on the anchor here; once laid out,
+// the component moves it by its measured width to stay inside the player
+// (`clampTimelineLabelLeft`), so its width must not depend on `left`. A
+// long title ellipsizes; the time never truncates.
 .player-controls__timeline-label {
-    --hover-x: 0%;
+    --anchor-x: 0%;
     position: absolute;
     bottom: calc(100% + 2px);
-    // Centered on the pointer, but never past the bar's ends.
-    left: clamp(28px, var(--hover-x), calc(100% - 28px));
+    left: clamp(28px, var(--anchor-x), calc(100% - 28px));
     transform: translateX(-50%);
+    display: flex;
+    align-items: baseline;
+    box-sizing: border-box;
+    width: max-content;
+    // The player's width less `TIMELINE_LABEL_EDGE_PX` on each side.
+    max-width: calc(100cqw - 16px);
     padding: 5px 8px;
     color: var(--pc-text);
-    background: rgba(12, 16, 23, 0.85);
+    background: var(--pc-glass-bg-dense);
     border-radius: 6px;
     font-size: 11.5px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     pointer-events: none;
+}
+
+.player-controls__timeline-label-title {
+    min-width: 0;
+    max-width: min(320px, 60cqw);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-controls__timeline-label-time {
+    flex: none;
+}
+
+.player-controls__timeline-label-title
+    + .player-controls__timeline-label-time::before {
+    content: '\00b7';
+    margin: 0 0.4em;
 }
 
 .player-controls__recording-status {
