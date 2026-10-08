@@ -1767,7 +1767,11 @@ watched marks (the same limit Stalker positions have there).
   not for a streaming container (`.m3u8`, `.m3u`, `.ts`). A container
   extension with no path evidence makes a film only when the row states no
   broadcast — no `tvg-id`, no catch-up window — and is not `.flv`, which is
-  HTTP-FLV live delivery.
+  HTTP-FLV live delivery. Broadcast evidence is a non-blank VALUE
+  (`tvg-id`, `tvg-rec`, `timeshift`, or any `catchup` field): the parser
+  gives every row blank `tvg` and `catchup` objects, so their presence
+  proves nothing. An E2E fixture that plays a local clip as a channel
+  therefore carries a `tvg-id`.
 - The live views render `M3uCatalogIndexService.liveChannels` rather than the
   whole array, so the sections are a SPLIT and not an addition. It falls back
   to the complete list when the split is off or the playlist is live-only.

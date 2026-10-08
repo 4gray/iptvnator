@@ -176,6 +176,36 @@ describe('classifyM3uEntry', () => {
             ).toBe('live');
         });
 
+        it('reads the other spellings of a catch-up window', () => {
+            const loop = entry('http://h.example/loops/news.mp4');
+
+            expect(classifyM3uEntry({ ...loop, timeshift: '3' })).toBe('live');
+            expect(classifyM3uEntry({ ...loop, tvg: { rec: '3' } })).toBe(
+                'live'
+            );
+            expect(
+                classifyM3uEntry({
+                    ...loop,
+                    catchup: { source: 'http://h.example/a/${start}.m3u8' },
+                })
+            ).toBe('live');
+        });
+
+        it('files a parsed container-only row with no broadcast fields as a film', () => {
+            // What the playlist parser really emits for
+            // `#EXTINF:-1 group-title="Movies",Dune`: the objects are always
+            // there, with blank fields. Their presence must not count as a
+            // catch-up window, or no container-only row is ever a film.
+            expect(
+                classifyM3uEntry({
+                    ...entry('http://h.example/films/Dune.mp4', 'Dune'),
+                    tvg: { id: '', rec: '' },
+                    catchup: { type: '', days: '', source: '' },
+                    timeshift: '',
+                })
+            ).toBe('movie');
+        });
+
         it('ignores a blank guide id', () => {
             expect(
                 classifyM3uEntry({

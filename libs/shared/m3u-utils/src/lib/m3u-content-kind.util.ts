@@ -35,10 +35,22 @@ export interface M3uClassifiableEntry {
     readonly url?: string | null;
     readonly name?: string | null;
     readonly radio?: string | null;
-    /** Read only for the guide id; a file has no programme schedule. */
-    readonly tvg?: { readonly id?: string | null } | null;
+    /**
+     * Read for the guide id and the `tvg-rec` archive depth; a file has no
+     * programme schedule.
+     */
+    readonly tvg?: {
+        readonly id?: string | null;
+        readonly rec?: string | null;
+    } | null;
     /** A catch-up window only exists for a broadcast. */
-    readonly catchup?: unknown;
+    readonly catchup?: {
+        readonly type?: string | null;
+        readonly days?: string | null;
+        readonly source?: string | null;
+    } | null;
+    /** The `timeshift` attribute, another spelling of the archive depth. */
+    readonly timeshift?: string | null;
 }
 
 const SERIES_SEGMENT = '/series/';
@@ -67,9 +79,22 @@ const LIVE_FILE_EXTENSIONS = new Set(['flv']);
  * Whether the row states a broadcast: a guide id or a catch-up window. A
  * film or an episode file has neither, so either is enough to keep a row
  * with nothing but a container extension in the live list.
+ *
+ * The values are read, not the objects: the playlist parser gives EVERY row
+ * a `tvg` and a `catchup` object with blank fields, so their presence says
+ * nothing. The catch-up window is any of the spellings `getM3uArchiveDays`
+ * and the catch-up resolver accept.
  */
 function hasBroadcastEvidence(channel: M3uClassifiableEntry): boolean {
-    return Boolean(channel.tvg?.id?.trim()) || Boolean(channel.catchup);
+    const { tvg, catchup, timeshift } = channel;
+    return [
+        tvg?.id,
+        tvg?.rec,
+        timeshift,
+        catchup?.type,
+        catchup?.days,
+        catchup?.source,
+    ].some((value) => Boolean(value?.trim()));
 }
 
 /**
