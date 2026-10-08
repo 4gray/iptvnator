@@ -158,16 +158,31 @@ export class M3uSeriesDetailRouteComponent {
                 return null;
             }
 
-            return buildM3uPlaybackPayload({
-                channel,
-                target: channel,
-                playlistMeta: this.playlist(),
-                // An episode is a finished file, never a live edge; this is
-                // what gives the player a seekable timeline and a resume
-                // position instead of live semantics.
-                isLive: false,
-                startTime: playing.startTime,
-            });
+            return {
+                ...buildM3uPlaybackPayload({
+                    channel,
+                    target: channel,
+                    playlistMeta: this.playlist(),
+                    // An episode is a finished file, never a live edge;
+                    // this is what gives the player a seekable timeline and
+                    // a resume position instead of live semantics.
+                    isLive: false,
+                    startTime: playing.startTime,
+                }),
+                // Which episode is on screen. The shared player offers its
+                // fullscreen episode panel only for a playback that says
+                // so; the seasons and positions it is handed are not
+                // enough on their own. Inline only: an external launch
+                // stays untracked, as before.
+                contentInfo: {
+                    playlistId: this.playlistId(),
+                    contentXtreamId: Number(playing.episode.id),
+                    contentType: 'episode',
+                    seriesXtreamId: this.seriesId(),
+                    seasonNumber: playing.episode.season,
+                    episodeNumber: playing.episode.episode_num,
+                },
+            };
         }
     );
 
@@ -282,6 +297,11 @@ export class M3uSeriesDetailRouteComponent {
      * before the credits is not resuming, and the watched badge on the row
      * already says it was finished.
      */
+    /** An episode chosen in the player's fullscreen panel. */
+    protected onPanelEpisodeSelected(item: { episode: unknown }): void {
+        this.onEpisodeClicked(item.episode as XtreamSerieEpisode);
+    }
+
     protected onEpisodeClicked(episode: XtreamSerieEpisode): void {
         const saved = this.playbackPositions().get(Number(episode.id));
         const channel = this.channelOf(episode);

@@ -3,9 +3,12 @@ import {
     Component,
     computed,
     effect,
+    ElementRef,
     inject,
     linkedSignal,
     signal,
+    untracked,
+    viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -106,15 +109,37 @@ export class M3uCatalogRouteComponent {
 
     protected readonly selectedGroup = signal<string | null>(null);
 
+    /** Names the visible set: the section, the group and the search. */
+    private readonly visibleSetKey = computed(
+        () =>
+            `${this.kind()}\u0000${this.selectedGroup()}\u0000${this.searchTerm()}`
+    );
+
     /**
      * The render window resets whenever the visible set changes, so a
      * viewer who scrolled deep into one group does not land mid-way down
      * the next one.
      */
     private readonly windowSize = linkedSignal({
-        source: () =>
-            `${this.kind()}\u0000${this.selectedGroup()}\u0000${this.searchTerm()}`,
+        source: this.visibleSetKey,
         computation: () => INITIAL_WINDOW,
+    });
+
+    private readonly contentPane =
+        viewChild<ElementRef<HTMLElement>>('contentPane');
+
+    /**
+     * The pane's own scroll position has to go back with the window. A
+     * shorter window alone leaves `scrollTop` where it was, and the next
+     * group opens near the bottom of its first page instead of at its
+     * first card.
+     */
+    private readonly scrollReset = effect(() => {
+        this.visibleSetKey();
+        const pane = untracked(this.contentPane)?.nativeElement;
+        if (pane) {
+            pane.scrollTop = 0;
+        }
     });
 
     protected readonly groups = computed<readonly CatalogGroup[]>(() => {
@@ -144,8 +169,7 @@ export class M3uCatalogRouteComponent {
             id: group.title,
             // Rows with no `group-title` are an ordinary group, not missing
             // data: name it as the channel list does.
-            name:
-                group.title || this.translate.instant('CHANNELS.UNGROUPED'),
+            name: group.title || this.translate.instant('CHANNELS.UNGROUPED'),
             count: group.count,
         }))
     );

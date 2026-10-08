@@ -7,6 +7,7 @@ import {
     signal,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -90,6 +91,7 @@ class StubInlinePlayerComponent {
     readonly episodePlaybackPositions = input<Map<number, unknown>>(new Map());
     readonly closed = output<void>();
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly upNextEpisodeSelected = output<{ episode: unknown }>();
 }
 
 const row = (name: string) =>
@@ -303,6 +305,48 @@ describe('M3uSeriesDetailRouteComponent', () => {
 
         expect(component.playback()?.isLive).toBe(false);
         expect(component.playback()?.streamUrl).toContain('/series/');
+    });
+
+    it('tells the inline player which episode is playing', async () => {
+        // The shared player shows its fullscreen episode panel only for a
+        // playback that identifies an episode.
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, { id: string }[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): { contentInfo?: Record<string, unknown> } | null;
+        };
+        const second = component.seasons()['1'][1];
+
+        component.onEpisodeClicked(second);
+
+        expect(component.playback()?.contentInfo).toEqual({
+            playlistId: 'pl-1',
+            contentXtreamId: Number(second.id),
+            contentType: 'episode',
+            seriesXtreamId: SHOW.id,
+            seasonNumber: 1,
+            episodeNumber: 2,
+        });
+    });
+
+    it('plays the episode picked in the episode panel of the player', async () => {
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, { id: string }[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): { title: string } | null;
+        };
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+        fixture.detectChanges();
+
+        fixture.debugElement
+            .query(By.directive(StubInlinePlayerComponent))
+            .componentInstance.upNextEpisodeSelected.emit({
+                episode: component.seasons()['2'][0],
+            });
+
+        expect(component.playback()?.title).toBe('SHOW S2 E1');
     });
 
     it('plays the row of the episode clicked when two rows share a URL', async () => {

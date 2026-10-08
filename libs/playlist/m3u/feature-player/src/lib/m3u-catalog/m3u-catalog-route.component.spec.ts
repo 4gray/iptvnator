@@ -9,9 +9,7 @@ import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { M3uSeriesCatalogService } from '@iptvnator/m3u-state/series-catalog';
 import { SettingsStore } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
-import {
-    buildM3uCatalogIndex,
-} from '@iptvnator/shared/m3u-utils';
+import { buildM3uCatalogIndex } from '@iptvnator/shared/m3u-utils';
 import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils/series';
 import type { M3uCatalogRouteComponent as M3uCatalogRouteComponentType } from './m3u-catalog-route.component';
 
@@ -133,6 +131,28 @@ describe('M3uCatalogRouteComponent', () => {
             'Films',
             'Classics',
         ]);
+    });
+
+    it('scrolls the grid back to the top when the visible set changes', async () => {
+        channels.set([DUNE, MATRIX]);
+        const fixture = await render('movie');
+        const pane: HTMLElement =
+            fixture.nativeElement.querySelector('.catalog__content');
+        const component = fixture.componentInstance as unknown as {
+            onGroupSelected(item: { id: string }): void;
+        };
+        pane.scrollTop = 900;
+
+        component.onGroupSelected({ id: 'Classics' });
+        fixture.detectChanges();
+
+        expect(pane.scrollTop).toBe(0);
+
+        pane.scrollTop = 400;
+        queryParams.next(params('mat'));
+        fixture.detectChanges();
+
+        expect(pane.scrollTop).toBe(0);
     });
 
     it('names the group of rows that state no group-title', async () => {

@@ -1810,6 +1810,16 @@ watched marks (the same limit Stalker positions have there).
   URL-keyed id would silently drop every watched flag on the next auto
   update. The hash is 48-bit (`hashM3uId`) because these ids key persisted
   playback positions and a 31-bit hash collides at ≈0.4% over ~42k keys.
+  The one exception is a row the parser reads no number from. It has no
+  coordinates, and several such rows of one show are listed as separate
+  season-1 entries in playlist order; that slot moves on a reorder, so the
+  id is keyed on `rowKey`, the file name the URL ends in — the part of a
+  URL the rotating tokens (directories, query) do not touch.
+  `mintM3uEpisodeId` is the only place an episode id is derived.
+- Inline episode playback carries `contentInfo` (the episode's id and
+  coordinates), which is what makes the shared inline player offer its
+  fullscreen episode panel; a pick there arrives as `upNextEpisodeSelected`.
+  An external-player launch carries none and stays untracked.
 - A title whose rows state at most one year is one series under a year-free
   key. When a second year appears (a remake), the earliest year keeps that
   key, so a refresh that adds the remake leaves the original's ids and watch

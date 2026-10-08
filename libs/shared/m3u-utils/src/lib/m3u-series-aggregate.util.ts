@@ -7,6 +7,7 @@ import {
     M3uSeriesEpisode,
 } from './m3u-series-model';
 import {
+    mintM3uEpisodeId,
     regroupM3uSeriesByYear,
     remintM3uEpisodeIds,
 } from './m3u-series-remake-split.util';
@@ -221,7 +222,7 @@ function addEpisode<T extends M3uArtworkBearing>(
     }
 
     season.set(episodeNumber, {
-        id: hashM3uId(`${series.key}\u0000${seasonNumber}x${episodeNumber}`),
+        id: mintM3uEpisodeId(series.key, { seasonNumber, episodeNumber }),
         seasonNumber,
         episodeNumber,
         title: parsed.episodeTitle,
@@ -236,8 +237,14 @@ function addEpisode<T extends M3uArtworkBearing>(
  * Such rows cannot be told apart by coordinates, and `addEpisode` would
  * park every one after the first as a quality alternative — which nothing
  * plays. Rows that share a name but not a URL are therefore distinct
- * entries of season 1, numbered after whatever is already there. The same
+ * entries of season 1, listed after whatever is already there. The same
  * URL again is the same row and is still parked.
+ *
+ * The slot is only where the row is listed. Its id is keyed on the file
+ * name its URL ends in: the slot moves when the provider reorders the rows
+ * or adds a numbered episode, and a watched mark would move with it. The
+ * file name is what survives a refresh — the tokens providers rotate sit
+ * in the directories before it and in the query.
  */
 function addUnnumberedEpisode<T extends M3uArtworkBearing>(
     series: M3uSeriesAccumulator<T>,
@@ -250,6 +257,7 @@ function addUnnumberedEpisode<T extends M3uArtworkBearing>(
     }
 
     let last = 0;
+    const takenRowKeys = new Set<string>();
     for (const [number, existing] of season) {
         if (existing.channel.url === channel.url) {
             season.set(number, {
@@ -258,18 +266,34 @@ function addUnnumberedEpisode<T extends M3uArtworkBearing>(
             });
             return;
         }
+        if (existing.rowKey !== undefined) {
+            takenRowKeys.add(existing.rowKey);
+        }
         last = Math.max(last, number);
     }
 
-    const episodeNumber = last + 1;
-    season.set(episodeNumber, {
-        id: hashM3uId(`${series.key}\u00001x${episodeNumber}`),
-        seasonNumber: 1,
-        episodeNumber,
+    // Two rows can end in the same file name under different directories;
+    // the later one is told apart by its occurrence.
+    const fileName = fileNameOf(channel.url);
+    let rowKey = fileName;
+    for (let repeat = 2; takenRowKeys.has(rowKey); repeat += 1) {
+        rowKey = `${fileName}\u0000${repeat}`;
+    }
+
+    const episode = { seasonNumber: 1, episodeNumber: last + 1, rowKey };
+    season.set(episode.episodeNumber, {
+        ...episode,
+        id: mintM3uEpisodeId(series.key, episode),
         title: null,
         channel,
         alternatives: [],
     });
+}
+
+/** The last path segment, lowercased, without query or fragment. */
+function fileNameOf(url: string | null | undefined): string {
+    const path = (url ?? '').split(/[?#]/)[0].replace(/\/+$/, '');
+    return path.slice(path.lastIndexOf('/') + 1).toLowerCase();
 }
 
 function finalize<T extends M3uArtworkBearing>(

@@ -312,6 +312,38 @@ describe('buildM3uSeriesCatalog', () => {
         expect(new Set(episodes.map((episode) => episode.id)).size).toBe(4);
     });
 
+    it('keeps the id of an unnumbered row when the rows move or the tokens rotate', () => {
+        // The slot such a row is listed at is not its identity: a watched
+        // mark keyed on it would jump to another episode on the next refresh.
+        const earth = (file: string, token = 'u/p') => ({
+            ...row('Planet Earth'),
+            url: `http://h.example/series/${token}/${file}.mp4?t=${token}`,
+        });
+        const idsByFile = (rows: ReturnType<typeof earth>[]) =>
+            Object.fromEntries(
+                (
+                    buildM3uSeriesCatalog(rows, 'pl-1')[0].seasons.get(1) ?? []
+                ).map((episode) => [
+                    new URL(episode.channel.url).pathname
+                        .split('/')
+                        .pop()
+                        ?.split('.')[0],
+                    episode.id,
+                ])
+            );
+
+        const before = idsByFile([earth('a'), earth('b'), earth('c')]);
+        const after = idsByFile([
+            earth('c', 'x/y'),
+            row('Planet Earth S01E01') as ReturnType<typeof earth>,
+            earth('a', 'x/y'),
+            earth('b', 'x/y'),
+        ]);
+
+        expect(after).toEqual(expect.objectContaining(before));
+        expect(new Set(Object.values(before)).size).toBe(3);
+    });
+
     it('keeps a row whose name carries no marker at all', () => {
         // Classified as an episode by its /series/ path but named in a way
         // the parser does not recognise. Dropping it would make provider

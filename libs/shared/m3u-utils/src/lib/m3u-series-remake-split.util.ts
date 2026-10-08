@@ -87,6 +87,26 @@ function earliestStatedYear<T extends M3uArtworkBearing>(
     );
 }
 
+/**
+ * The one place an episode id is derived. A numbered episode is keyed on
+ * its coordinates; a row with no number on its `rowKey`, because its slot
+ * is not stable.
+ */
+export function mintM3uEpisodeId(
+    seriesKey: string,
+    episode: {
+        readonly seasonNumber: number;
+        readonly episodeNumber: number;
+        readonly rowKey?: string;
+    }
+): number {
+    return hashM3uId(
+        episode.rowKey === undefined
+            ? `${seriesKey}\u0000${episode.seasonNumber}x${episode.episodeNumber}`
+            : `${seriesKey}\u0000row\u0000${episode.rowKey}`
+    );
+}
+
 /** Ids follow the final key, or two series would share watch history. */
 export function remintM3uEpisodeIds<T extends M3uArtworkBearing>(
     series: M3uSeriesAccumulator<T>
@@ -95,9 +115,7 @@ export function remintM3uEpisodeIds<T extends M3uArtworkBearing>(
         for (const [number, episode] of episodes) {
             episodes.set(number, {
                 ...episode,
-                id: hashM3uId(
-                    `${series.key}\u0000${episode.seasonNumber}x${episode.episodeNumber}`
-                ),
+                id: mintM3uEpisodeId(series.key, episode),
             });
         }
     }

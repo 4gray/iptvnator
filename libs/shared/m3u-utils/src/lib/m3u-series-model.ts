@@ -10,8 +10,18 @@ import { M3uCatalogEntry } from './m3u-catalog-index.util';
  */
 
 export interface M3uSeriesEpisode<T> {
-    /** Stable numeric id, keyed on the series and the season×episode. */
+    /**
+     * Stable numeric id, keyed on the series and the season×episode — or,
+     * for a row that states no number, on the series and `rowKey`.
+     */
     readonly id: number;
+    /**
+     * Set only for a row the parser read no number from: the file name its
+     * URL ends in. Such a row's `episodeNumber` is just its slot in the
+     * list, which moves when the provider reorders rows or adds a numbered
+     * episode, so its id is keyed on this instead.
+     */
+    readonly rowKey?: string;
     readonly seasonNumber: number;
     readonly episodeNumber: number;
     /** The tail the provider wrote after the marker, when there was one. */

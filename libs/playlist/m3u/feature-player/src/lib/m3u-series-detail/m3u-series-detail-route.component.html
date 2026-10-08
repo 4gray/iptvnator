@@ -41,6 +41,7 @@
                 [episodePlaybackPositions]="playbackPositions()"
                 (closed)="onPlayerClosed()"
                 (timeUpdate)="onTimeUpdate($event)"
+                (upNextEpisodeSelected)="onPanelEpisodeSelected($event)"
             />
         }
     </div>
