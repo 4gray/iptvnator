@@ -106,7 +106,7 @@ export class DashboardSeriesEpisodesService {
     /** The source each series was last asked for, and the round it was last asked in. */
     private readonly sources = new Map<string, string>();
     private readonly rounds = new Map<string, number>();
-    /** The password of each series' last attempt: a corrected one retries a failure. */
+    /** The password of each series' last attempt: a corrected one retries a failed attempt. */
     private readonly passwords = new Map<string, string>();
     private readonly loadedAt = new Map<string, number>();
     /** When each series' last lookup failed, until one succeeds. */
@@ -166,8 +166,10 @@ export class DashboardSeriesEpisodesService {
             );
             const passwordChanged =
                 this.passwords.get(key) !== request.credentials.password;
+            // The last attempt failed (a first lookup or a refresh of a list
+            // that stands) and the password differs: a deliberate retry.
             const correctedPassword =
-                sameSource && entry?.status === 'failed' && passwordChanged;
+                sameSource && passwordChanged && this.failedAt.has(key);
             const retryDue =
                 now - (this.failedAt.get(key) ?? -Infinity) >=
                 DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS;

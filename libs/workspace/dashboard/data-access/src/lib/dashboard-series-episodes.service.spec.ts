@@ -334,6 +334,42 @@ describe('DashboardSeriesEpisodesService', () => {
             });
         });
 
+        it('refreshes a list whose refresh failed at once with a corrected password', async () => {
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            service.request([request(900)], 1);
+            await flush();
+
+            now += DASHBOARD_SERIES_EPISODES_MAX_AGE_MS;
+            getSeriesInfo.mockRejectedValueOnce(new Error('Wrong password'));
+            service.request([request(900)], 2);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901),
+            });
+
+            // The playlist is edited: no waiting for the retry delay.
+            getSeriesInfo.mockResolvedValueOnce({
+                episodes: seasons(901, 902),
+            });
+            service.request(
+                [
+                    {
+                        ...request(900),
+                        credentials: { ...credentials, password: 'corrected' },
+                    },
+                ],
+                2
+            );
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(3);
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901, 902),
+            });
+        });
+
         it('leaves a list whose refresh failed alone until the retry delay has passed', async () => {
             getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
             service.request([request(900)], 1);
