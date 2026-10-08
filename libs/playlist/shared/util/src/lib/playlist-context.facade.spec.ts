@@ -10,7 +10,7 @@ import {
 } from '@iptvnator/m3u-state';
 import { Subject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     PlaylistContextFacade,
     PlaylistRouteContext,
@@ -44,6 +44,7 @@ describe('PlaylistContextFacade', () => {
     let playlistsSignal: ReturnType<typeof signal<PlaylistMeta[]>>;
     let loadedSignal: ReturnType<typeof signal<boolean>>;
     let activePlaylistIdSignal: ReturnType<typeof signal<string | null>>;
+    const catalogTabs = signal<boolean | undefined>(true);
     let runtimeCapabilities: { supportsXtreamSectionNavigation: boolean };
 
     const xtreamA = createPlaylist({
@@ -111,6 +112,7 @@ describe('PlaylistContextFacade', () => {
         loadedSignal = signal(true);
         activePlaylistIdSignal = signal<string | null>(xtreamA._id);
         runtimeCapabilities = { supportsXtreamSectionNavigation: true };
+        catalogTabs.set(true);
 
         TestBed.configureTestingModule({
             providers: [
@@ -143,6 +145,10 @@ describe('PlaylistContextFacade', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtimeCapabilities,
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: { m3uCatalogTabs: catalogTabs },
                 },
             ],
         });
@@ -267,6 +273,34 @@ describe('PlaylistContextFacade', () => {
         expect(
             service.resolveTargetCommands('playlists', m3uB._id, noSection)
         ).toEqual(['workspace', 'playlists', m3uB._id, 'all']);
+    });
+
+    it('does not restore a remembered catalog section once the setting is off', () => {
+        // The rail no longer offers Movies; landing there would leave the
+        // viewer on a section with no link back.
+        localStorage.setItem(
+            LAST_SECTION_STORAGE_KEY,
+            JSON.stringify({
+                providers: {},
+                playlists: {
+                    [m3uA._id]: {
+                        provider: 'playlists',
+                        section: 'vod',
+                        updatedAt: 1,
+                    },
+                },
+            })
+        );
+        catalogTabs.set(false);
+
+        expect(
+            instantiateFacade().resolveTargetCommands('playlists', m3uA._id, {
+                inWorkspace: true,
+                provider: 'xtreams',
+                playlistId: xtreamA._id,
+                section: null,
+            })
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'all']);
     });
 
     it('maps Stalker ITV routes to Xtream live routes', () => {

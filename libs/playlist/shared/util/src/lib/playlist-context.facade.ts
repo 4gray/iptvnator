@@ -21,7 +21,7 @@ import {
     PortalProvider,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 
 export interface PlaylistRouteContext {
     inWorkspace: boolean;
@@ -86,6 +86,7 @@ const M3U_CATALOG_SECTIONS: ReadonlySet<string> = new Set(['vod', 'series']);
 export class PlaylistContextFacade {
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
 
@@ -346,7 +347,15 @@ export class PlaylistContextFacade {
                 playlistMemory.section,
                 provider
             );
-            if (normalizedPlaylistSection) {
+            // A remembered Movies/Series is only worth restoring while the
+            // rail still offers the catalog: with the setting off the viewer
+            // would land on a section that has no link back.
+            const catalogSectionOff =
+                this.isPlaylistBoundSection(
+                    normalizedPlaylistSection ?? '',
+                    provider
+                ) && this.settingsStore.m3uCatalogTabs?.() === false;
+            if (normalizedPlaylistSection && !catalogSectionOff) {
                 return normalizedPlaylistSection;
             }
         }
@@ -447,7 +456,10 @@ export class PlaylistContextFacade {
             const parsedProviders = (parsed as Record<string, unknown>)[
                 'providers'
             ];
-            if (typeof parsedProviders === 'object' && parsedProviders !== null) {
+            if (
+                typeof parsedProviders === 'object' &&
+                parsedProviders !== null
+            ) {
                 const candidate = parsedProviders as Record<string, unknown>;
                 if (typeof candidate['playlists'] === 'string') {
                     providers.playlists = candidate['playlists'];

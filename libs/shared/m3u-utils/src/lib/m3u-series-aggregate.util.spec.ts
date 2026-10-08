@@ -237,16 +237,37 @@ describe('buildM3uSeriesCatalog', () => {
         expect(series[0].posterUrl).toBe('http://logo/show.png');
     });
 
-    it('skips a row that is nothing but a marker', () => {
-        // There is no series name in "S01E01" to file it under, and taking
-        // the marker as a title would mint one phantom series per episode.
+    it('keeps a row that is nothing but a marker', () => {
+        // There is no series name in "S01E01", but the row plays and is no
+        // longer in the channel list: skipped, it would be nowhere. It is
+        // filed alone, under the only name it has.
         const series = buildM3uSeriesCatalog(
             [row('S01E01'), row('SHOW S1 E1')],
             'pl-1'
         );
 
-        expect(series).toHaveLength(1);
-        expect(series[0].title).toBe('SHOW');
+        expect(series.map((entry) => entry.title).sort()).toEqual([
+            'S01E01',
+            'SHOW',
+        ]);
+    });
+
+    it('keeps a row with no usable name under its file name', () => {
+        const blank = {
+            ...row(''),
+            url: 'http://h.example/series/u/p/Clip-9.mp4',
+        };
+        const dashes = {
+            ...row('---'),
+            url: 'http://h.example/series/u/p/other.mp4',
+        };
+        const series = buildM3uSeriesCatalog([blank, dashes], 'pl-1');
+
+        expect(series.map((entry) => entry.title).sort()).toEqual([
+            '---',
+            'clip-9.mp4',
+        ]);
+        expect(series.every((entry) => entry.episodeCount === 1)).toBe(true);
     });
 
     it('keeps a row whose marker the parser reads no episode from', () => {
@@ -254,7 +275,7 @@ describe('buildM3uSeriesCatalog', () => {
         // row is already out of the channel list, so skipping it here would
         // leave a playable entry nowhere.
         const series = buildM3uSeriesCatalog(
-            [row('Dark Season 1'), row('Dark - Staffel 2'), row('Season 1')],
+            [row('Dark Season 1'), row('Dark - Staffel 2')],
             'pl-1'
         );
 

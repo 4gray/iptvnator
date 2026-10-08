@@ -12,10 +12,7 @@ import {
     regroupM3uSeriesByYear,
     remintM3uEpisodeIds,
 } from './m3u-series-remake-split.util';
-import {
-    EPISODE_MARKER_PATTERNS,
-    hasEpisodeMarker,
-} from './m3u-vod-detection.util';
+import { hasEpisodeMarker } from './m3u-vod-detection.util';
 import { splitM3uNameTag } from './m3u-name-tag.util';
 
 /**
@@ -54,26 +51,27 @@ export function buildM3uSeriesCatalog<T extends M3uArtworkBearing>(
     const unnumbered: [M3uSeriesAccumulator<T>, T][] = [];
 
     for (const channel of episodes ?? []) {
-        const parsed = parseRow(channel.name);
-        if (!parsed) {
-            continue;
-        }
+        let parsed = parseRow(channel.name);
 
         // A standalone row is filed under its own name, whole. Normalizing
         // it would strip the marker and key "Dark Season 1" as "dark": it
         // would then sit at S1E1 of the real series, on top of that
         // series' own first episode.
-        const { tag, title } = parsed.standalone
+        let { tag, title } = parsed.standalone
             ? { tag: null, title: parsed.seriesTitle }
             : splitM3uNameTag(parsed.seriesTitle);
-        const keys = parsed.standalone
-            ? { base: `\u0001${title.toLowerCase()}`, trailingYear: null }
+        let keys = parsed.standalone
+            ? standaloneKeys(title)
             : normalizeTitleKeys(title);
         if (!keys.base) {
-            // Nothing identifying survives normalization — a row named only
-            // by punctuation or a bare tag. There is no series it could be
-            // filed under.
-            continue;
+            // Nothing identifying survives — a blank name, or one that is
+            // only punctuation or a bare tag. The row still plays and the
+            // split has already taken it out of the channel list, so it is
+            // filed alone, under its name or, failing that, its file name.
+            parsed = { ...parsed, standalone: true, unnumbered: true };
+            tag = null;
+            title = parsed.seriesTitle || fileNameOf(channel.url) || '?';
+            keys = standaloneKeys(title);
         }
 
         // The tag is IN the key. "TR:MODERN FAMILY" and "DE:MODERN FAMILY"
@@ -128,56 +126,30 @@ export function buildM3uSeriesCatalog<T extends M3uArtworkBearing>(
     });
 }
 
-const MARKER_PATTERNS_GLOBAL = EPISODE_MARKER_PATTERNS.map(
-    (pattern) => new RegExp(pattern.source, `${pattern.flags}g`)
-);
-/** A word, as opposed to the digits and quality tags a marker leaves. */
-const TITLE_WORD = /\p{L}{2,}/u;
-
-/** True when removing every marker leaves no word to name a series by. */
-function isOnlyAMarker(name: string): boolean {
-    let rest = name;
-    for (const pattern of MARKER_PATTERNS_GLOBAL) {
-        rest = rest.replace(pattern, ' ');
-    }
-    return !TITLE_WORD.test(rest);
+/** The key of a row filed under its whole name rather than a title. */
+function standaloneKeys(title: string): { base: string; trailingYear: null } {
+    return { base: `\u0001${title.toLowerCase()}`, trailingYear: null };
 }
 
 /**
- * A row classified as an episode that the parser cannot place still exists
- * and still plays. The split has already taken it out of the channel list,
- * so dropping it here would make provider content vanish with no trace —
- * worse than the alternative, a one-episode series named after the row.
- * That covers a name with no marker at all and a name with a marker the
- * parser reads no episode number from ("Dark Season 1"). The second kind is
- * `standalone`: its series is keyed on the whole name, so it cannot land on
- * an episode of the series its title resembles. If the parser later learns
- * the spelling, such rows collapse into their real series on the next load.
+ * Every row classified as an episode is placed somewhere. The split has
+ * already taken it out of the channel list, so a row dropped here would
+ * play nowhere — worse than the alternative, a one-episode series named
+ * after the row.
  *
- * A name that is nothing BUT a marker ("S01E01") is the other case and is
- * still skipped: there is no series name in it to file it under, and taking
- * the marker as the title would produce one phantom series per episode.
+ * A name with no marker at all is read as an unnumbered row of the series
+ * its name spells. A name with a marker the parser reads no episode from
+ * ("Dark Season 1", or a bare "S01E01") is `standalone`: its series is
+ * keyed on the whole name, so it cannot land on an episode of the series
+ * its title resembles. If the parser later learns the spelling, such rows
+ * collapse into their real series on the next load.
  */
 function parseRow(
     name: string | null | undefined
-): (M3uEpisodeParse & { standalone?: boolean; unnumbered?: boolean }) | null {
+): M3uEpisodeParse & { standalone?: boolean; unnumbered?: boolean } {
     const parsed = parseM3uEpisode(name);
     if (parsed) {
         return parsed;
-    }
-    if (hasEpisodeMarker(name)) {
-        if (isOnlyAMarker(name ?? '')) {
-            return null;
-        }
-        return {
-            seriesTitle: (name ?? '').trim(),
-            seasonNumber: 1,
-            episodeNumber: 1,
-            hasExplicitSeason: false,
-            episodeTitle: null,
-            standalone: true,
-            unnumbered: true,
-        };
     }
 
     return {
@@ -187,6 +159,7 @@ function parseRow(
         hasExplicitSeason: false,
         episodeTitle: null,
         unnumbered: true,
+        ...(hasEpisodeMarker(name) ? { standalone: true } : {}),
     };
 }
 

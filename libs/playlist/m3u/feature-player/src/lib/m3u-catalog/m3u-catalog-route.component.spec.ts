@@ -54,6 +54,7 @@ describe('M3uCatalogRouteComponent', () => {
     );
     const dispatch = jest.fn();
     const loading = signal(false);
+    const rowsPlaylistId = signal<string | null>('pl-1');
     const navigate = jest.fn();
 
     const params = (q?: string) => ({ get: () => q ?? null });
@@ -78,6 +79,7 @@ describe('M3uCatalogRouteComponent', () => {
                     useValue: {
                         index: () => buildM3uCatalogIndex(channels()),
                         loading,
+                        rowsPlaylistId,
                         hasNonLiveContent: () => true,
                     },
                 },
@@ -115,6 +117,7 @@ describe('M3uCatalogRouteComponent', () => {
         TestBed.resetTestingModule();
         channels.set([]);
         loading.set(false);
+        rowsPlaylistId.set('pl-1');
         queryParams.next(params());
         dispatch.mockReset();
         navigate.mockReset();
@@ -150,6 +153,13 @@ describe('M3uCatalogRouteComponent', () => {
 
         pane.scrollTop = 400;
         queryParams.next(params('mat'));
+        fixture.detectChanges();
+
+        expect(pane.scrollTop).toBe(0);
+
+        // Another playlist under the same group and search is another set.
+        pane.scrollTop = 250;
+        rowsPlaylistId.set('pl-2');
         fixture.detectChanges();
 
         expect(pane.scrollTop).toBe(0);

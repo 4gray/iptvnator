@@ -88,20 +88,17 @@ const NUMBER_FIRST_MARKER = new RegExp(
     'iu'
 );
 
-/** Every spelling `hasEpisodeMarker` accepts. */
-export const EPISODE_MARKER_PATTERNS: readonly RegExp[] = [
-    SEASON_EPISODE_CODE,
-    CROSS_EPISODE_CODE,
-    WORD_FIRST_MARKER,
-    NUMBER_FIRST_MARKER,
-];
-
 export function hasEpisodeMarker(name: string | null | undefined): boolean {
     if (!name) {
         return false;
     }
 
-    return EPISODE_MARKER_PATTERNS.some((pattern) => pattern.test(name));
+    return (
+        SEASON_EPISODE_CODE.test(name) ||
+        CROSS_EPISODE_CODE.test(name) ||
+        WORD_FIRST_MARKER.test(name) ||
+        NUMBER_FIRST_MARKER.test(name)
+    );
 }
 
 /**

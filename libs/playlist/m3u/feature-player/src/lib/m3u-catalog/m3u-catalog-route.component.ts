@@ -109,10 +109,14 @@ export class M3uCatalogRouteComponent {
 
     protected readonly selectedGroup = signal<string | null>(null);
 
-    /** Names the visible set: the section, the group and the search. */
+    /**
+     * Names the visible set: the playlist, the section, the group and the
+     * search. The playlist is part of it because the component is reused
+     * across playlists, and two of them can share a group name.
+     */
     private readonly visibleSetKey = computed(
         () =>
-            `${this.kind()}\u0000${this.selectedGroup()}\u0000${this.searchTerm()}`
+            `${this.catalog.rowsPlaylistId()}\u0000${this.kind()}\u0000${this.selectedGroup()}\u0000${this.searchTerm()}`
     );
 
     /**
