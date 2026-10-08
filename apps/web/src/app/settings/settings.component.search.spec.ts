@@ -151,10 +151,10 @@ describe('SettingsComponent search', () => {
     it('scrolls to, focuses and briefly highlights a revealed row', () => {
         jest.useFakeTimers();
 
-        settingsSearch.reveal(entry('show-captions'));
+        settingsSearch.reveal(entry('cover-titles'));
         fixture.detectChanges();
 
-        const row = query('[data-setting-id="show-captions"]') as HTMLElement;
+        const row = query('[data-setting-id="cover-titles"]') as HTMLElement;
         expect(scrollIntoView).toHaveBeenCalled();
         expect(scrollIntoView.mock.contexts[0]).toBe(row);
         expect(row.classList).toContain(SETTINGS_REVEALED_CLASS);

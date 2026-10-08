@@ -1,0 +1,169 @@
+// EPG page: the offset stepper and the sources list. Shared row and card
+// styles come from settings.component.scss (ViewEncapsulation.None).
+app-settings-epg-section {
+    display: contents;
+}
+
+// Number stepper (EPG offset).
+.settings-stepper {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    border: 1px solid var(--settings-control-border);
+    border-radius: 8px;
+    background: var(--settings-control-bg);
+    overflow: hidden;
+
+    &:focus-within {
+        border-color: var(--app-selection-color);
+    }
+
+    input {
+        width: 64px;
+        border: 0;
+        background: none;
+        color: var(--app-heading-color);
+        font: inherit;
+        font-size: 13px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+        appearance: textfield;
+        -moz-appearance: textfield;
+
+        &:focus {
+            outline: none;
+        }
+
+        &::-webkit-inner-spin-button,
+        &::-webkit-outer-spin-button {
+            display: none;
+        }
+    }
+}
+
+.settings-stepper--invalid {
+    border-color: var(--mat-sys-error);
+}
+
+.settings-stepper__button {
+    width: 32px;
+    height: 100%;
+    border: 0;
+    background: none;
+    color: var(--app-body-color);
+    font-size: 15px;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--app-hover-overlay);
+        color: var(--app-heading-color);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
+    }
+}
+
+.settings-stepper__unit {
+    padding-right: 10px;
+    color: var(--settings-muted);
+    font-size: 12px;
+}
+
+.settings-field-error {
+    margin: 0;
+    color: var(--mat-sys-error);
+    font-size: 12px;
+    line-height: 1.4;
+    text-align: right;
+}
+
+// ─── EPG sources ───────────────────────────────────────────────────────────
+.epg-sources {
+    display: flex;
+    flex-direction: column;
+}
+
+.epg-source-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px 8px 16px;
+
+    & + & {
+        border-top: 1px solid var(--settings-item-border);
+    }
+
+    .w-full {
+        width: 100%;
+    }
+
+    app-epg-source-status {
+        flex-shrink: 0;
+    }
+}
+
+.epg-sources-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 34px 20px 24px;
+    color: var(--settings-muted);
+    text-align: center;
+    line-height: 1.55;
+
+    .epg-sources-empty__icon {
+        width: 28px;
+        height: 28px;
+        font-size: 28px;
+        margin-bottom: 8px;
+        color: var(--app-muted-color);
+    }
+
+    .epg-sources-empty__title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--app-heading-color);
+    }
+
+    .epg-sources-empty__hint {
+        margin: 0;
+        max-width: 42ch;
+        font-size: 12.5px;
+    }
+
+    button {
+        margin-top: 14px;
+    }
+}
+
+.epg-sources__formats-examples {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin: 0;
+    padding: 10px 16px 12px;
+    border-top: 1px solid var(--settings-item-border);
+    color: var(--settings-muted);
+    font-size: 11.5px;
+
+    code {
+        padding: 1px 6px;
+        border-radius: 6px;
+        background: var(--settings-chip-bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+}
+
+// Pane width, see settings.component.scss.
+@container (max-width: 600px) {
+    .settings-field-error {
+        text-align: left;
+    }
+}

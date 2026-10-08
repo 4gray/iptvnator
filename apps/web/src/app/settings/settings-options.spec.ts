@@ -92,12 +92,26 @@ describe('buildSettingsSectionNavItems', () => {
             'playback',
             'epg',
             'dashboard',
-            'remote-control',
             'tmdb',
             'parental',
+            'remote-control',
             'backup',
-            'reset',
             'about',
         ]);
+    });
+
+    it('groups the sections and pins About to the footer', () => {
+        const items = buildSettingsSectionNavItems({
+            supportsEpg: true,
+            supportsRemoteControl: true,
+        });
+        const groupOf = (id: string) =>
+            items.find((item) => item.id === id)?.group;
+
+        expect(groupOf('general')).toBe('app');
+        expect(groupOf('tmdb')).toBe('library');
+        expect(groupOf('remote-control')).toBe('devices');
+        expect(groupOf('backup')).toBe('data');
+        expect(groupOf('about')).toBeUndefined();
     });
 });

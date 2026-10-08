@@ -55,23 +55,41 @@ describe('WorkspaceSettingsContextPanelComponent', () => {
         });
         const ctx = TestBed.inject(SettingsContextService);
         ctx.setSections([
-            { id: 'general', label: 'SETTINGS.NAV_GENERAL', icon: 'tune' },
+            {
+                id: 'general',
+                label: 'SETTINGS.NAV_GENERAL',
+                icon: 'tune',
+                group: 'app',
+            },
             {
                 id: 'playback',
                 label: 'SETTINGS.NAV_PLAYBACK',
                 icon: 'play_circle',
+                group: 'app',
             },
+            {
+                id: 'backup',
+                label: 'SETTINGS.NAV_BACKUP',
+                icon: 'backup',
+                group: 'data',
+            },
+            { id: 'about', label: 'SETTINGS.NAV_ABOUT', icon: 'info' },
         ]);
         const fixture = TestBed.createComponent(
             WorkspaceSettingsContextPanelComponent
         );
         fixture.detectChanges();
+        const element = fixture.nativeElement as HTMLElement;
         const link = (id: string) =>
-            (fixture.nativeElement as HTMLElement).querySelector(
+            element.querySelector(
                 `[data-test-id="settings-section-${id}"]`
             ) as HTMLElement;
-        return { ctx, fixture, link };
+        return { ctx, fixture, element, link };
     }
+
+    afterEach(() => {
+        TestBed.inject(SettingsContextService).reset();
+    });
 
     it('offers Back in the header, beside the phone drawer toggle', () => {
         const { fixture } = setup();
@@ -88,6 +106,8 @@ describe('WorkspaceSettingsContextPanelComponent', () => {
         // The drawer holds the sections, so its toggle must stay reachable.
         expect(target?.phoneDrawerToggle).toBe('beside');
         expect(target?.label()).toBeNull();
+        // Esc leaves settings; the header advertises it on the Back button.
+        expect(target?.escapeShortcut()).toBe(true);
 
         backNavigation.goBack();
         expect(back).toHaveBeenCalledTimes(1);
@@ -118,6 +138,59 @@ describe('WorkspaceSettingsContextPanelComponent', () => {
         });
     });
 
+    it('groups the sections and pins ungrouped ones to the footer', () => {
+        const { element, link } = setup();
+
+        const groups = Array.from(
+            element.querySelectorAll('.settings-nav__group')
+        ).map((group) => group.getAttribute('data-group'));
+        // Empty groups (library, devices) are left out.
+        expect(groups).toEqual(['app', 'data']);
+        expect(
+            element.querySelector('.settings-nav__footer')?.contains(link('about'))
+        ).toBe(true);
+        expect(
+            element.querySelector('[data-group="app"]')?.contains(link('playback'))
+        ).toBe(true);
+    });
+
+    it('shows the version beside About, replaced by a badge once an update waits', () => {
+        const { ctx, fixture, link } = setup();
+
+        ctx.setVersion('0.25.0');
+        fixture.detectChanges();
+        expect(
+            link('about').querySelector('[data-test-id="settings-nav-version"]')
+                ?.textContent
+        ).toBe('0.25.0');
+        expect(link('general').querySelector('.nav-item-version')).toBeNull();
+
+        ctx.setUpdateAvailable(true);
+        fixture.detectChanges();
+        expect(
+            link('about').querySelector(
+                '[data-test-id="settings-nav-update-badge"]'
+            )
+        ).not.toBeNull();
+        expect(
+            link('about').querySelector('[data-test-id="settings-nav-version"]')
+        ).toBeNull();
+    });
+
+    it('marks pages holding staged edits', () => {
+        const { ctx, fixture, link } = setup();
+
+        ctx.setDirtySections(new Set(['playback']));
+        fixture.detectChanges();
+
+        expect(
+            link('playback').querySelector(
+                '[data-test-id="settings-section-dirty-playback"]'
+            )
+        ).not.toBeNull();
+        expect(link('general').querySelector('.nav-item-dot')).toBeNull();
+    });
+
     it('shows no counts while settings search is idle', () => {
         const { link } = setup();
 
@@ -143,5 +216,59 @@ describe('WorkspaceSettingsContextPanelComponent', () => {
         ctx.reset();
         fixture.detectChanges();
         expect(ctx.matchCounts()).toBeNull();
+    });
+
+    describe('Escape', () => {
+        function pressEscape(
+            init: KeyboardEventInit = {},
+            target?: Element,
+            handled = false
+        ) {
+            const event = new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+                ...init,
+            });
+            // An earlier listener (the shell closing its drawer) consumed it.
+            if (handled) event.preventDefault();
+            (target ?? document.body).dispatchEvent(event);
+            return event;
+        }
+
+        it('leaves settings like the header Back', () => {
+            setup();
+            const back = jest
+                .spyOn(TestBed.inject(Location), 'back')
+                .mockImplementation(() => undefined);
+
+            const event = pressEscape();
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(back).toHaveBeenCalledTimes(1);
+        });
+
+        it('yields to handled keys, chords, open overlays and text fields', () => {
+            setup();
+            const back = jest
+                .spyOn(TestBed.inject(Location), 'back')
+                .mockImplementation(() => undefined);
+
+            pressEscape({}, undefined, true);
+            pressEscape({ shiftKey: true });
+
+            const input = document.createElement('input');
+            document.body.appendChild(input);
+            pressEscape({}, input);
+            input.remove();
+
+            const backdrop = document.createElement('div');
+            backdrop.className = 'cdk-overlay-backdrop';
+            document.body.appendChild(backdrop);
+            pressEscape();
+            backdrop.remove();
+
+            expect(back).not.toHaveBeenCalled();
+        });
     });
 });

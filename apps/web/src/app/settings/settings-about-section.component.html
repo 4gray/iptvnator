@@ -1,437 +1,427 @@
 <section class="settings-group" id="about">
     <header class="settings-group__header">
-        <div class="settings-group__header-icon">
-            <mat-icon>info</mat-icon>
-        </div>
-        <div class="settings-group__header-text">
-            <h3>{{ 'SETTINGS.ABOUT' | translate }}</h3>
-            <p>{{ 'SETTINGS.ABOUT_SUBTITLE' | translate }}</p>
-        </div>
+        <h2>{{ 'SETTINGS.ABOUT' | translate }}</h2>
+        <p>{{ 'SETTINGS.ABOUT_SUBTITLE' | translate }}</p>
     </header>
 
-    <div class="setting-item" data-setting-id="version">
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.VERSION' | translate }}</h4>
-            <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
-        </div>
-        <div class="setting-item__control version-block">
-            <span data-test-id="app-version">
-                {{ version() }}
-                @if (buildCommitShort(); as commit) {
-                    <span
-                        class="build-commit"
-                        data-test-id="app-build-commit"
-                        [title]="buildCommit()"
-                        >({{ commit }})</span
-                    >
-                }
-            </span>
-            <small>{{ updateMessage() }}</small>
-        </div>
-    </div>
-
-    @if (isDesktop() && appUpdateStatus(); as updateStatus) {
-        <div
-            class="setting-item setting-item--full-control app-update-panel"
-            data-setting-id="app-update"
-        >
-            <div class="setting-item__meta">
-                <h4>{{ 'SETTINGS.APP_UPDATE_TITLE' | translate }}</h4>
-                <p>{{ 'SETTINGS.APP_UPDATE_DESCRIPTION' | translate }}</p>
-            </div>
-            <div class="setting-item__control app-update-panel__control">
-                <div
-                    class="app-update-status"
-                    [class.app-update-status--stale]="hasPendingChannelChange()"
-                    data-test-id="app-update-status"
-                >
-                    @if (appliedChannelLabelKey(); as channelLabelKey) {
-                        <span
-                            class="app-update-status__channel"
-                            data-test-id="app-update-status-channel"
-                        >
-                            {{ channelLabelKey | translate }}
-                        </span>
-                    }
-                    <strong>
-                        {{
-                            appUpdateStatusLabelKey()
-                                | translate
-                                    : {
-                                          version:
-                                              updateStatus.latestVersion ||
-                                              updateStatus.currentVersion,
-                                      }
-                        }}
-                    </strong>
-                    @if (updateStatus.error) {
-                        <span>{{ updateStatus.error }}</span>
-                    }
-                    @if (updateStatus.progress; as progress) {
-                        <progress
-                            [value]="progress.percent"
-                            max="100"
-                            data-test-id="app-update-progress"
-                        ></progress>
-                    }
-                    @if (hasPendingChannelChange()) {
-                        <span data-test-id="app-update-channel-pending-hint">
-                            {{
-                                'SETTINGS.APP_UPDATE_CHANNEL_PENDING_HINT'
-                                    | translate
-                                        : {
-                                              current:
-                                                  (channelLabelKey(
-                                                      verdictChannel()
-                                                  ) | translate),
-                                              next:
-                                                  (channelLabelKey(
-                                                      draftUpdateChannel()
-                                                  ) | translate),
-                                          }
-                            }}
-                        </span>
-                    } @else if (hasRetainedOtherChannelVerdict()) {
-                        <span data-test-id="app-update-channel-retained-hint">
-                            {{
-                                'SETTINGS.APP_UPDATE_CHANNEL_RETAINED_HINT'
-                                    | translate
-                                        : {
-                                              current:
-                                                  (channelLabelKey(
-                                                      verdictChannel()
-                                                  ) | translate),
-                                              next:
-                                                  (channelLabelKey(
-                                                      updateStatus.channel
-                                                  ) | translate),
-                                          }
-                            }}
-                        </span>
+    <!-- Version, update state and channel in one block. -->
+    <section class="settings-section">
+        <div class="settings-card">
+            <div class="setting-item settings-hero" data-setting-id="version">
+                <img
+                    class="settings-hero__logo"
+                    src="assets/icons/android-chrome-192x192.png"
+                    alt=""
+                />
+                <div class="settings-hero__text">
+                    <div class="settings-hero__title">
+                        <span>IPTVnator</span>
+                        @if (updateStatusChip(); as chip) {
+                            <span
+                                class="settings-chip"
+                                [class.settings-chip--success]="
+                                    chip.tone === 'success'
+                                "
+                                [class.settings-chip--accent]="
+                                    chip.tone === 'accent'
+                                "
+                                [class.settings-chip--warn]="chip.tone === 'warn'"
+                                data-test-id="app-update-status-chip"
+                                >{{ chip.labelKey | translate }}</span
+                            >
+                        }
+                    </div>
+                    <code class="settings-hero__version" data-test-id="app-version">
+                        {{ version() }}
+                        @if (buildCommitShort(); as commit) {
+                            <span
+                                class="build-commit"
+                                data-test-id="app-build-commit"
+                                [title]="buildCommit()"
+                                >({{ commit }})</span
+                            >
+                        }
+                    </code>
+                    @if (!appUpdateStatus() && updateMessage()) {
+                        <small class="settings-hero__note">{{
+                            updateMessage()
+                        }}</small>
                     }
                 </div>
-                @if (canSelectUpdateChannel()) {
-                    <div
-                        class="app-update-channel"
-                        [formGroup]="form()!"
-                        data-test-id="app-update-channel"
-                    >
-                        <mat-form-field appearance="outline">
-                            <mat-label>{{
-                                'SETTINGS.APP_UPDATE_CHANNEL' | translate
-                            }}</mat-label>
-                            <mat-select
-                                formControlName="updateChannel"
-                                data-test-id="select-update-channel"
+                @if (isDesktop() && appUpdateStatus()) {
+                    <div class="settings-hero__actions">
+                        @if (canOpenAppUpdateReleaseNotes()) {
+                            <button
+                                mat-button
+                                type="button"
+                                (click)="openAppUpdateReleaseNotes.emit()"
+                                data-test-id="app-update-release-notes"
                             >
-                                @for (
-                                    option of updateChannelOptions();
-                                    track option.value
-                                ) {
-                                    <mat-option
-                                        [value]="option.value"
-                                        [attr.data-test-id]="
-                                            'update-channel-' + option.value
-                                        "
-                                    >
-                                        {{ option.labelKey | translate }}
-                                    </mat-option>
-                                }
-                            </mat-select>
-                        </mat-form-field>
-                        <small class="app-update-channel__note">
-                            {{
-                                'SETTINGS.APP_UPDATE_CHANNEL_DESCRIPTION'
-                                    | translate
-                            }}
-                        </small>
-                        @if (
-                            form()!.get('updateChannel')?.value === 'nightly'
-                        ) {
-                            <small
-                                class="app-update-channel__note"
-                                data-test-id="app-update-channel-nightly-warning"
-                            >
-                                {{
-                                    'SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY_WARNING'
-                                        | translate
-                                }}
-                            </small>
+                                <mat-icon>article</mat-icon>
+                                {{ 'SETTINGS.APP_UPDATE_RELEASE_NOTES' | translate }}
+                            </button>
                         }
-                        @if (isNightlyBuildOnStableChannel()) {
-                            <small
-                                class="app-update-channel__note"
-                                data-test-id="app-update-nightly-on-stable-hint"
+                        @if (canSaveAndCheckForAppUpdate()) {
+                            <button
+                                mat-flat-button
+                                type="button"
+                                (click)="saveAndCheckForAppUpdate.emit()"
+                                [disabled]="isAppUpdateBusy() || form()!.invalid"
+                                data-test-id="app-update-save-and-check"
                             >
+                                <mat-icon>save</mat-icon>
                                 {{
-                                    'SETTINGS.APP_UPDATE_NIGHTLY_ON_STABLE_HINT'
+                                    'SETTINGS.APP_UPDATE_SAVE_AND_CHECK'
                                         | translate
+                                            : {
+                                                  channel:
+                                                      (channelLabelKey(
+                                                          draftUpdateChannel()
+                                                      ) | translate),
+                                              }
                                 }}
-                            </small>
+                            </button>
+                        } @else {
+                            <button
+                                mat-stroked-button
+                                type="button"
+                                (click)="checkForAppUpdate.emit()"
+                                [disabled]="isAppUpdateBusy()"
+                                data-test-id="app-update-check"
+                            >
+                                <mat-icon>sync</mat-icon>
+                                {{ 'SETTINGS.APP_UPDATE_CHECK' | translate }}
+                            </button>
                         }
                     </div>
                 }
-                <div class="app-update-actions">
-                    @if (canSaveAndCheckForAppUpdate()) {
-                        <button
-                            mat-flat-button
-                            type="button"
-                            (click)="saveAndCheckForAppUpdate.emit()"
-                            [disabled]="isAppUpdateBusy() || form()!.invalid"
-                            data-test-id="app-update-save-and-check"
-                        >
-                            <mat-icon>save</mat-icon>
-                            {{
-                                'SETTINGS.APP_UPDATE_SAVE_AND_CHECK'
-                                    | translate
-                                        : {
-                                              channel:
-                                                  (channelLabelKey(
-                                                      draftUpdateChannel()
-                                                  ) | translate),
-                                          }
-                            }}
-                        </button>
-                    } @else {
-                        <button
-                            mat-stroked-button
-                            type="button"
-                            (click)="checkForAppUpdate.emit()"
-                            [disabled]="isAppUpdateBusy()"
-                            data-test-id="app-update-check"
-                        >
-                            <mat-icon>sync</mat-icon>
-                            {{ 'SETTINGS.APP_UPDATE_CHECK' | translate }}
-                        </button>
-                    }
-                    @if (canDownloadAppUpdate()) {
-                        <button
-                            mat-flat-button
-                            type="button"
-                            (click)="downloadAppUpdate.emit()"
-                            data-test-id="app-update-download"
-                        >
-                            <mat-icon>download</mat-icon>
-                            {{ 'SETTINGS.APP_UPDATE_DOWNLOAD' | translate }}
-                        </button>
-                    }
-                    @if (canOpenAppUpdateReleaseNotes()) {
-                        <button
-                            mat-stroked-button
-                            type="button"
-                            (click)="openAppUpdateReleaseNotes.emit()"
-                            data-test-id="app-update-release-notes"
-                        >
-                            <mat-icon>article</mat-icon>
-                            {{
-                                'SETTINGS.APP_UPDATE_RELEASE_NOTES' | translate
-                            }}
-                        </button>
-                    }
-                    @if (canInstallAppUpdate()) {
-                        <button
-                            mat-flat-button
-                            type="button"
-                            (click)="installAppUpdate.emit()"
-                            data-test-id="app-update-install"
-                        >
-                            <mat-icon>restart_alt</mat-icon>
-                            {{ 'SETTINGS.APP_UPDATE_INSTALL' | translate }}
-                        </button>
-                    }
-                    @if (canOpenManualAppUpdate()) {
-                        <button
-                            mat-stroked-button
-                            type="button"
-                            (click)="openManualAppUpdate.emit()"
-                            data-test-id="app-update-open-release"
-                        >
-                            <mat-icon>open_in_new</mat-icon>
-                            {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASE' | translate }}
-                        </button>
-                    }
-                </div>
             </div>
-        </div>
-    }
 
-    @if (isDesktop()) {
-        <div class="settings-note">
-            <strong>{{
-                'SETTINGS.EMBEDDED_MPV_NOTICE_TITLE' | translate
-            }}</strong>
-            <span>{{
-                'SETTINGS.EMBEDDED_MPV_NOTICE_DESCRIPTION' | translate
-            }}</span>
-        </div>
-    }
+            @if (isDesktop() && appUpdateStatus(); as updateStatus) {
+                <div
+                    class="setting-item app-update-panel"
+                    data-setting-id="app-update"
+                >
+                    <div class="setting-item__meta">
+                        <div
+                            class="app-update-status"
+                            [class.app-update-status--stale]="
+                                hasPendingChannelChange()
+                            "
+                            data-test-id="app-update-status"
+                        >
+                            @if (appliedChannelLabelKey(); as channelLabelKey) {
+                                <span
+                                    class="app-update-status__channel"
+                                    data-test-id="app-update-status-channel"
+                                >
+                                    {{ channelLabelKey | translate }}
+                                </span>
+                            }
+                            <strong>
+                                {{
+                                    appUpdateStatusLabelKey()
+                                        | translate
+                                            : {
+                                                  version:
+                                                      updateStatus.latestVersion ||
+                                                      updateStatus.currentVersion,
+                                              }
+                                }}
+                            </strong>
+                            @if (updateStatus.error) {
+                                <span>{{ updateStatus.error }}</span>
+                            }
+                            @if (updateStatus.progress; as progress) {
+                                <progress
+                                    [value]="progress.percent"
+                                    max="100"
+                                    data-test-id="app-update-progress"
+                                ></progress>
+                            }
+                            @if (hasPendingChannelChange()) {
+                                <span data-test-id="app-update-channel-pending-hint">
+                                    {{
+                                        'SETTINGS.APP_UPDATE_CHANNEL_PENDING_HINT'
+                                            | translate
+                                                : {
+                                                      current:
+                                                          (channelLabelKey(
+                                                              verdictChannel()
+                                                          ) | translate),
+                                                      next:
+                                                          (channelLabelKey(
+                                                              draftUpdateChannel()
+                                                          ) | translate),
+                                                  }
+                                    }}
+                                </span>
+                            } @else if (hasRetainedOtherChannelVerdict()) {
+                                <span
+                                    data-test-id="app-update-channel-retained-hint"
+                                >
+                                    {{
+                                        'SETTINGS.APP_UPDATE_CHANNEL_RETAINED_HINT'
+                                            | translate
+                                                : {
+                                                      current:
+                                                          (channelLabelKey(
+                                                              verdictChannel()
+                                                          ) | translate),
+                                                      next:
+                                                          (channelLabelKey(
+                                                              updateStatus.channel
+                                                          ) | translate),
+                                                  }
+                                    }}
+                                </span>
+                            }
+                        </div>
+                    </div>
+                    <div class="setting-item__control app-update-actions">
+                        @if (canDownloadAppUpdate()) {
+                            <button
+                                mat-flat-button
+                                type="button"
+                                (click)="downloadAppUpdate.emit()"
+                                data-test-id="app-update-download"
+                            >
+                                <mat-icon>download</mat-icon>
+                                {{ 'SETTINGS.APP_UPDATE_DOWNLOAD' | translate }}
+                            </button>
+                        }
+                        @if (canInstallAppUpdate()) {
+                            <button
+                                mat-flat-button
+                                type="button"
+                                (click)="installAppUpdate.emit()"
+                                data-test-id="app-update-install"
+                            >
+                                <mat-icon>restart_alt</mat-icon>
+                                {{ 'SETTINGS.APP_UPDATE_INSTALL' | translate }}
+                            </button>
+                        }
+                        @if (canOpenManualAppUpdate()) {
+                            <button
+                                mat-stroked-button
+                                type="button"
+                                (click)="openManualAppUpdate.emit()"
+                                data-test-id="app-update-open-release"
+                            >
+                                <mat-icon>open_in_new</mat-icon>
+                                {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASE' | translate }}
+                            </button>
+                        }
+                    </div>
+                </div>
 
-    <div
-        class="setting-item setting-item--full-control"
-        data-setting-id="tmdb-credits"
-    >
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.TMDB_CREDITS' | translate }}</h4>
-            <p>{{ 'SETTINGS.TMDB_ATTRIBUTION' | translate }}</p>
+                @if (canSelectUpdateChannel()) {
+                    <div
+                        class="setting-item"
+                        data-setting-id="app-update-channel"
+                        data-test-id="app-update-channel"
+                        [formGroup]="form()!"
+                    >
+                        <div class="setting-item__meta">
+                            <h4 id="app-update-channel-label">
+                                {{ 'SETTINGS.APP_UPDATE_CHANNEL' | translate }}
+                            </h4>
+                            <p>
+                                {{
+                                    'SETTINGS.APP_UPDATE_CHANNEL_DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <div class="setting-item__control">
+                            <mat-form-field
+                                class="settings-select"
+                                appearance="outline"
+                                subscriptSizing="dynamic"
+                            >
+                                <mat-select
+                                    formControlName="updateChannel"
+                                    aria-labelledby="app-update-channel-label"
+                                    data-test-id="select-update-channel"
+                                >
+                                    @for (
+                                        option of updateChannelOptions();
+                                        track option.value
+                                    ) {
+                                        <mat-option
+                                            [value]="option.value"
+                                            [attr.data-test-id]="
+                                                'update-channel-' + option.value
+                                            "
+                                        >
+                                            {{ option.labelKey | translate }}
+                                        </mat-option>
+                                    }
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+                    </div>
+                    <!-- The warning belongs to the risky choice, and only
+                         while it is selected. -->
+                    @if (draftUpdateChannel() === 'nightly') {
+                        <div class="setting-item__sub">
+                            <div
+                                class="settings-callout settings-callout--warn"
+                                data-test-id="app-update-channel-nightly-warning"
+                            >
+                                <mat-icon>warning</mat-icon>
+                                <div>
+                                    {{
+                                        'SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY_WARNING'
+                                            | translate
+                                    }}
+                                    <div class="settings-callout__actions">
+                                        <button
+                                            mat-stroked-button
+                                            type="button"
+                                            (click)="openBackup.emit()"
+                                            data-test-id="app-update-open-backup"
+                                        >
+                                            {{
+                                                'SETTINGS.APP_UPDATE_CHANNEL_OPEN_BACKUP'
+                                                    | translate
+                                            }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    @if (isNightlyBuildOnStableChannel()) {
+                        <div class="setting-item__sub">
+                            <div
+                                class="settings-callout settings-callout--info"
+                                data-test-id="app-update-nightly-on-stable-hint"
+                            >
+                                <mat-icon>info</mat-icon>
+                                <div>
+                                    {{
+                                        'SETTINGS.APP_UPDATE_NIGHTLY_ON_STABLE_HINT'
+                                            | translate
+                                    }}
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            }
+        </div>
+    </section>
+
+    <section class="settings-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.COMMUNITY' | translate }}</h3>
+        </div>
+        <div
+            class="settings-card link-cards"
+            data-setting-id="community"
+            tabindex="-1"
+        >
             <a
-                href="https://www.themoviedb.org"
+                class="link-card link-card--github"
+                href="https://github.com/4gray/iptvnator"
                 target="_blank"
                 rel="noreferrer noopener"
+                data-test-id="link-github"
             >
-                <img
-                    src="assets/images/tmdb-logo.svg"
-                    alt="TMDB"
-                    style="height: 20px; margin-top: 8px"
-                />
+                <span class="link-card__glyph">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path
+                            fill="currentColor"
+                            d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.6.112.793-.26.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.52 11.52 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.565 21.796 24 17.3 24 12c0-6.627-5.373-12-12-12z"
+                        />
+                    </svg>
+                </span>
+                <span class="link-card__text">
+                    <strong>GitHub</strong>
+                    <span>{{ 'SETTINGS.LINK_GITHUB_DESCRIPTION' | translate }}</span>
+                </span>
+            </a>
+            <a
+                class="link-card link-card--blog"
+                href="https://4gray.github.io/iptvnator/"
+                target="_blank"
+                rel="noreferrer noopener"
+                data-test-id="link-blog"
+            >
+                <span class="link-card__glyph">
+                    <mat-icon>menu_book</mat-icon>
+                </span>
+                <span class="link-card__text">
+                    <strong>{{ 'SETTINGS.LINK_BLOG' | translate }}</strong>
+                    <span>{{ 'SETTINGS.LINK_BLOG_DESCRIPTION' | translate }}</span>
+                </span>
+            </a>
+            <a
+                class="link-card link-card--telegram"
+                href="https://t.me/iptvnator"
+                target="_blank"
+                rel="noreferrer noopener"
+                data-test-id="link-telegram"
+            >
+                <span class="link-card__glyph">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path
+                            fill="currentColor"
+                            d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"
+                        />
+                    </svg>
+                </span>
+                <span class="link-card__text">
+                    <strong>Telegram</strong>
+                    <span>{{
+                        'SETTINGS.LINK_TELEGRAM_DESCRIPTION' | translate
+                    }}</span>
+                </span>
             </a>
         </div>
-    </div>
+    </section>
 
-    <div
-        class="setting-item setting-item--full-control"
-        data-setting-id="community"
-    >
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.COMMUNITY' | translate }}</h4>
-            <p>{{ 'SETTINGS.COMMUNITY_DESCRIPTION' | translate }}</p>
-        </div>
-        <div class="setting-item__control">
-            <div class="link-cards">
-                <a
-                    class="link-card link-card--github"
-                    href="https://github.com/4gray/iptvnator"
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    data-test-id="link-github"
-                >
-                    <span class="link-card__glyph">
-                        <svg
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                            focusable="false"
-                        >
-                            <path
-                                fill="currentColor"
-                                d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.6.112.793-.26.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.52 11.52 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.565 21.796 24 17.3 24 12c0-6.627-5.373-12-12-12z"
-                            />
-                        </svg>
-                    </span>
-                    <span class="link-card__text">
-                        <strong>GitHub</strong>
-                        <span>{{
-                            'SETTINGS.LINK_GITHUB_DESCRIPTION' | translate
-                        }}</span>
-                    </span>
-                    <mat-icon class="link-card__arrow">arrow_outward</mat-icon>
-                </a>
-                <a
-                    class="link-card link-card--blog"
-                    href="https://4gray.github.io/iptvnator/"
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    data-test-id="link-blog"
-                >
-                    <span class="link-card__glyph">
-                        <mat-icon>menu_book</mat-icon>
-                    </span>
-                    <span class="link-card__text">
-                        <strong>{{ 'SETTINGS.LINK_BLOG' | translate }}</strong>
-                        <span>{{
-                            'SETTINGS.LINK_BLOG_DESCRIPTION' | translate
-                        }}</span>
-                    </span>
-                    <mat-icon class="link-card__arrow">arrow_outward</mat-icon>
-                </a>
-                <a
-                    class="link-card link-card--telegram"
-                    href="https://t.me/iptvnator"
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    data-test-id="link-telegram"
-                >
-                    <span class="link-card__glyph">
-                        <svg
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                            focusable="false"
-                        >
-                            <path
-                                fill="currentColor"
-                                d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"
-                            />
-                        </svg>
-                    </span>
-                    <span class="link-card__text">
-                        <strong>Telegram</strong>
-                        <span>{{
-                            'SETTINGS.LINK_TELEGRAM_DESCRIPTION' | translate
-                        }}</span>
-                    </span>
-                    <mat-icon class="link-card__arrow">arrow_outward</mat-icon>
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <div
-        class="setting-item setting-item--full-control"
-        data-setting-id="support"
-    >
-        <div class="support-card" data-test-id="support-card">
-            <div class="support-card__intro">
-                <div class="support-card__emblem">
-                    <mat-icon>favorite</mat-icon>
-                </div>
-                <div class="support-card__copy">
-                    <h4>{{ 'SETTINGS.SUPPORT_TITLE' | translate }}</h4>
-                    <p>{{ 'SETTINGS.SUPPORT_DESCRIPTION' | translate }}</p>
-                </div>
+    <section class="settings-section">
+        <div
+            class="settings-card support-card"
+            data-setting-id="support"
+            data-test-id="support-card"
+            tabindex="-1"
+        >
+            <div class="support-card__copy">
+                <h4>{{ 'SETTINGS.SUPPORT_TITLE' | translate }}</h4>
+                <p>{{ 'SETTINGS.SUPPORT_DESCRIPTION' | translate }}</p>
             </div>
             <div class="support-card__actions">
                 <a
+                    mat-stroked-button
                     class="support-btn support-btn--sponsors"
                     href="https://github.com/sponsors/4gray"
                     target="_blank"
                     rel="noreferrer noopener"
                     data-test-id="support-sponsors"
                 >
-                    <span class="support-btn__glyph">
-                        <svg
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                            focusable="false"
-                        >
-                            <path
-                                fill="currentColor"
-                                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                            />
-                        </svg>
-                    </span>
-                    <span class="support-btn__text">
-                        <strong>GitHub Sponsors</strong>
-                        <small>{{
-                            'SETTINGS.SUPPORT_SPONSORS_HINT' | translate
-                        }}</small>
-                    </span>
+                    <mat-icon class="support-btn__glyph">favorite</mat-icon>
+                    GitHub Sponsors
                 </a>
                 <a
+                    mat-stroked-button
                     class="support-btn support-btn--kofi"
                     href="https://ko-fi.com/4gray"
                     target="_blank"
                     rel="noreferrer noopener"
                     data-test-id="support-kofi"
                 >
-                    <span class="support-btn__glyph">
-                        <mat-icon>local_cafe</mat-icon>
-                    </span>
-                    <span class="support-btn__text">
-                        <strong>Ko-fi</strong>
-                        <small>{{
-                            'SETTINGS.SUPPORT_KOFI_HINT' | translate
-                        }}</small>
-                    </span>
+                    <mat-icon class="support-btn__glyph">local_cafe</mat-icon>
+                    Ko-fi
                 </a>
             </div>
         </div>
+    </section>
+
+    <div class="settings-foot" data-setting-id="tmdb-credits" tabindex="-1">
+        <img src="assets/images/tmdb-logo.svg" alt="TMDB" />
+        <span>{{ 'SETTINGS.TMDB_ATTRIBUTION' | translate }}</span>
     </div>
 </section>

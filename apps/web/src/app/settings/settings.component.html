@@ -12,6 +12,30 @@
             {{ 'SETTINGS.TITLE' | translate }}
         </span>
 
+        <!-- A saved change that only applies after a restart: said once,
+             at the top, until dismissed. -->
+        @if (form.restartPendingControls().length > 0) {
+            <div
+                class="settings-restart-bar"
+                role="status"
+                data-test-id="settings-restart-notice"
+            >
+                <mat-icon>restart_alt</mat-icon>
+                <span>{{
+                    'SETTINGS.RESTART_NOTICE'
+                        | translate: { settings: restartPendingLabels() }
+                }}</span>
+                <button
+                    mat-button
+                    type="button"
+                    (click)="form.dismissRestartNotice()"
+                    data-test-id="settings-restart-later"
+                >
+                    {{ 'SETTINGS.RESTART_LATER' | translate }}
+                </button>
+            </div>
+        }
+
         <div class="settings-content">
             <!-- Only the routed section renders. The parent keeps the shared
                  form alive across section switches, so edits staged on one
@@ -96,21 +120,14 @@
                         />
                     }
                     @case ('backup') {
+                        <!-- Backup & data: the former Reset page is this
+                             page's last card, since it is one action. -->
                         <app-settings-backup-section
                             [isPwa]="isPwa"
                             [isRemovingAllPlaylists]="
                                 playlistReset.isRemovingAllPlaylists()
                             "
                             [isExportingData]="backup.isExportingData()"
-                            (importData)="importData()"
-                            (exportData)="exportData()"
-                        />
-                    }
-                    @case ('reset') {
-                        <app-settings-reset-section
-                            [isRemovingAllPlaylists]="
-                                playlistReset.isRemovingAllPlaylists()
-                            "
                             [canRemoveAllPlaylists]="
                                 playlistReset.canRemoveAll()
                             "
@@ -120,6 +137,8 @@
                             [removeAllProgressLabel]="
                                 playlistReset.removeAllProgressLabel()
                             "
+                            (importData)="importData()"
+                            (exportData)="exportData()"
                             (removeAll)="removeAll()"
                         />
                     }
@@ -142,6 +161,7 @@
                             (openAppUpdateReleaseNotes)="
                                 appUpdate.openReleaseNotes()
                             "
+                            (openBackup)="openSection('backup')"
                         />
                     }
                     @default {
@@ -168,16 +188,19 @@
             }
         </div>
 
-        <!-- Discord-style unsaved-changes bar: appears the moment any edit
-             makes the form dirty — on whichever section page — and vanishes
-             once saved or discarded. It replaces the always-visible footer
-             Save button of the single-scroll layout. -->
+        <!-- Save bar: appears the moment any edit makes the form dirty — on
+             whichever section page — and vanishes once saved or discarded.
+             It floats over the content column and counts the staged
+             changes; the navigation marks the pages they are on. -->
         @if (!settingsForm.pristine) {
             <footer class="unsaved-bar" data-test-id="settings-unsaved-bar">
-                <div class="unsaved-bar__message">
-                    <mat-icon>edit</mat-icon>
-                    <span>{{ 'SETTINGS.UNSAVED_CHANGES' | translate }}</span>
-                </div>
+                <span class="unsaved-bar__dot" aria-hidden="true"></span>
+                <span
+                    class="unsaved-bar__message"
+                    data-test-id="settings-unsaved-message"
+                >
+                    {{ unsavedMessageKey() | translate: { count: changeCount() } }}
+                </span>
                 <div class="unsaved-bar__actions">
                     <button
                         mat-button
@@ -194,8 +217,10 @@
                         [disabled]="!settingsForm.valid"
                         data-test-id="save-settings"
                     >
-                        <mat-icon>save</mat-icon>
                         {{ 'SETTINGS.SAVE_CHANGES' | translate }}
+                        <kbd class="settings-kbd" aria-hidden="true">{{
+                            saveShortcutLabel
+                        }}</kbd>
                     </button>
                 </div>
             </footer>

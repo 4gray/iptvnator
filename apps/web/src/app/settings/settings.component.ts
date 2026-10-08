@@ -3,6 +3,7 @@ import {
     computed,
     effect,
     ElementRef,
+    HostListener,
     inject,
     OnDestroy,
     OnInit,
@@ -23,12 +24,20 @@ import {
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
-import { Language, StreamFormat } from '@iptvnator/shared/interfaces';
-import { firstValueFrom, map } from 'rxjs';
+import {
+    ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
+    Language,
+    StreamFormat,
+} from '@iptvnator/shared/interfaces';
+import { firstValueFrom, map, startWith } from 'rxjs';
 import { BUILD_COMMIT } from '../../environments/build-commit';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
 import { SettingsAppUpdateFacade } from './settings-app-update.facade';
 import { SettingsBackupSectionComponent } from './settings-backup-section.component';
+import {
+    sectionOfSettingsPath,
+    SETTINGS_RESTART_CONTROLS,
+} from './settings-change-tracking';
 import { SettingsDashboardSectionComponent } from './settings-dashboard-section.component';
 import { SettingsEmbeddedMpvFacade } from './settings-embedded-mpv.facade';
 import { SettingsEpgFacade } from './settings-epg.facade';
@@ -51,7 +60,6 @@ import { SettingsParentalLockSectionComponent } from './settings-parental-sectio
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
 import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
-import { SettingsResetSectionComponent } from './settings-reset-section.component';
 import { SettingsSearchFacade } from './settings-search.facade';
 import { SettingsSearchResultsComponent } from './settings-search-results.component';
 import { SettingsTmdbSectionComponent } from './settings-tmdb-section.component';
@@ -98,7 +106,6 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsParentalLockSectionComponent,
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
-        SettingsResetSectionComponent,
         SettingsSearchResultsComponent,
         SettingsTmdbSectionComponent,
     ],
@@ -179,6 +186,42 @@ export class SettingsComponent
     /** Git commit the app was built from (CI builds only) */
     readonly buildCommit = BUILD_COMMIT;
 
+    /** Staged leaf values that differ from the saved settings */
+    readonly changeCount = computed(() => this.form.changedPaths().length);
+
+    /** Save bar text: a count once something actually differs */
+    readonly unsavedMessageKey = computed(() => {
+        const count = this.changeCount();
+        if (count === 1) return 'SETTINGS.UNSAVED_CHANGES_ONE';
+        return count > 1
+            ? 'SETTINGS.UNSAVED_CHANGES_COUNT'
+            : 'SETTINGS.UNSAVED_CHANGES';
+    });
+
+    /** Re-reads translated text after a language switch */
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
+
+    /** Rows whose saved change waits for a restart, as one readable list */
+    readonly restartPendingLabels = computed(() => {
+        this.languageTick();
+        return this.form
+            .restartPendingControls()
+            .map((control) =>
+                this.translate.instant(SETTINGS_RESTART_CONTROLS[control])
+            )
+            .join(', ');
+    });
+
+    /** The Save button advertises the platform's save chord */
+    readonly saveShortcutLabel = /mac|iphone|ipad/i.test(
+        navigator.platform || navigator.userAgent
+    )
+        ? '⌘S'
+        : 'Ctrl+S';
+
     readonly themeOptions = SETTINGS_THEME_OPTIONS;
     readonly coverSizeOptions = SETTINGS_COVER_SIZE_OPTIONS;
     readonly startupBehaviorOptions = SETTINGS_STARTUP_BEHAVIOR_OPTIONS;
@@ -242,6 +285,53 @@ export class SettingsComponent
             activeSection: this.activeSection,
             ready: this.formReady.asReadonly(),
         });
+
+        // The navigation marks pages with staged edits and shows the
+        // installed version (with an update badge) beside About.
+        effect(() => {
+            const sections = new Set<string>();
+            for (const path of this.form.changedPaths()) {
+                const section = sectionOfSettingsPath(path);
+                if (section) sections.add(section);
+            }
+            this.settingsCtx.setDirtySections(sections);
+        });
+        effect(() => {
+            const status = this.appUpdate.status()?.status;
+            this.settingsCtx.setVersion(this.appUpdate.version() || null);
+            this.settingsCtx.setUpdateAvailable(
+                status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available ||
+                    status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+            );
+        });
+    }
+
+    /**
+     * Cmd/Ctrl+S saves the staged edits. The browser's own save-page dialog
+     * is suppressed on every settings page, also while nothing is staged.
+     * While the page is inert (the phone drawer is open over it) or an
+     * overlay with a backdrop is up (the unsaved-changes dialog, a select
+     * panel), the chord belongs to that surface, not to the obscured form:
+     * saving under the leave dialog would make its Discard keep the edits.
+     */
+    @HostListener('document:keydown', ['$event'])
+    onSaveShortcut(event: KeyboardEvent): void {
+        const host = this.hostElement.nativeElement;
+        if (
+            event.defaultPrevented ||
+            !(event.metaKey || event.ctrlKey) ||
+            event.altKey ||
+            event.shiftKey ||
+            event.key.toLowerCase() !== 's' ||
+            host.closest('[inert]') ||
+            host.ownerDocument.querySelector('.cdk-overlay-backdrop')
+        ) {
+            return;
+        }
+        event.preventDefault();
+        if (!this.settingsForm.pristine && this.settingsForm.valid) {
+            this.onSubmit();
+        }
     }
 
     /**
@@ -272,6 +362,13 @@ export class SettingsComponent
     ngOnDestroy(): void {
         this.appUpdate.dispose();
         this.settingsCtx.reset();
+    }
+
+    /** Switches section page in place, like the sidebar links do */
+    openSection(sectionId: string): void {
+        void this.router.navigate(['/workspace/settings', sectionId], {
+            replaceUrl: true,
+        });
     }
 
     /** Picks a recording folder in the desktop shell and stages it in the form */

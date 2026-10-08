@@ -7,6 +7,7 @@ import {
     openSettings,
     openSettingsSection,
     saveSettings,
+    setSwitch,
     test,
 } from './electron-test-fixtures';
 
@@ -72,7 +73,7 @@ test('@settings @electron saves the portal cooldown preference and applies it wi
         await openSettingsSection(app.mainWindow, 'general');
         let checkbox = app.mainWindow
             .getByTestId('portal-connectivity-toggle')
-            .getByRole('checkbox');
+            .getByRole('switch');
         await expect(checkbox).toBeChecked();
         await requestFailure(app.mainWindow, origin);
         await requestFailure(app.mainWindow, origin);
@@ -80,7 +81,7 @@ test('@settings @electron saves the portal cooldown preference and applies it wi
             pausedMessage
         );
 
-        await checkbox.uncheck();
+        await setSwitch(checkbox, false);
         // An unsaved edit cannot alter backend policy.
         expect(await requestFailure(app.mainWindow, origin)).toContain(
             pausedMessage
@@ -114,9 +115,9 @@ test('@settings @electron saves the portal cooldown preference and applies it wi
         await openSettingsSection(app.mainWindow, 'general');
         checkbox = app.mainWindow
             .getByTestId('portal-connectivity-toggle')
-            .getByRole('checkbox');
+            .getByRole('switch');
         await expect(checkbox).not.toBeChecked();
-        await checkbox.check();
+        await setSwitch(checkbox, true);
         await saveSettings(app.mainWindow);
         expect(await requestFailure(app.mainWindow, origin)).toContain(
             xtreamNetworkFailure

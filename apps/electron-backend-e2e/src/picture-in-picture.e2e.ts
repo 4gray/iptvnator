@@ -10,6 +10,7 @@ import {
     openSettings,
     openSettingsSection,
     saveSettings,
+    setSwitch,
     test,
 } from './electron-test-fixtures';
 
@@ -37,10 +38,10 @@ for (const player of ['html5', 'videojs', 'artplayer']) {
                 await openSettingsSection(page, 'playback');
                 await page.getByTestId('select-video-player').click();
                 await page.getByTestId(player).click();
-                await page
+                const sharedControlsSwitch = page
                     .getByTestId('web-player-shared-controls-setting')
-                    .locator('input[type="checkbox"]')
-                    .setChecked(sharedControls);
+                    .getByRole('switch');
+                await setSwitch(sharedControlsSwitch, sharedControls);
                 // A fresh profile defaults to Video.js with shared controls.
                 // For changed settings, await the save control through the
                 // helper; an immediate isVisible() can miss Angular rendering it.

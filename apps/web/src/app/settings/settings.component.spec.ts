@@ -239,7 +239,7 @@ describe('SettingsComponent', () => {
     });
 
     it('enables the global wipe action only once a playlist exists', () => {
-        setSettingsSection('reset');
+        setSettingsSection('backup');
         fixture.detectChanges();
 
         const deleteButton = () =>

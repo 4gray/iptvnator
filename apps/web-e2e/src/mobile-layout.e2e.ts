@@ -138,7 +138,7 @@ test.describe('portrait phone 375x812', () => {
         // No footer Back any more; the list scrolls and ends inside the
         // panel instead of painting past it (#1326).
         await expect(panel.locator('button:has-text("Back")')).toHaveCount(0);
-        const listBox = await boxOf(panel.locator('.settings-sections-list'));
+        const listBox = await boxOf(panel.locator('.settings-nav'));
         expect(listBox.y + listBox.height).toBeLessThanOrEqual(
             panelBox.y + panelBox.height + 1
         );

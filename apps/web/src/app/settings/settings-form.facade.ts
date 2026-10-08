@@ -1,4 +1,4 @@
-import { DestroyRef, inject, Injectable } from '@angular/core';
+import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder } from '@angular/forms';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -16,6 +16,10 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
 import { AppDateLocaleService } from '../app-date-locales';
+import {
+    diffSettingsValues,
+    SETTINGS_RESTART_CONTROLS,
+} from './settings-change-tracking';
 import {
     applyEpgUrlsToFormArray,
     createEpgUrlControl,
@@ -50,6 +54,24 @@ export class SettingsFormFacade {
     /** Form array with epg sources — absent when EPG is unsupported */
     readonly epgUrl = this.form.get('epgUrl') as FormArray;
 
+    /**
+     * Dotted paths of the staged values that differ from the saved ones.
+     * Drives the save bar's change count and the dirty marks in the nav;
+     * the form's own `dirty` flag stays what the save/leave guards read.
+     */
+    readonly changedPaths = signal<readonly string[]>([]);
+
+    /** Controls whose saved change waits for a restart (cleared on Later). */
+    readonly restartPendingControls = signal<readonly string[]>([]);
+
+    private savedSnapshot: unknown = {};
+
+    constructor() {
+        this.form.valueChanges
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(() => this.refreshChangedPaths());
+    }
+
     /** Trimmed, non-empty EPG source URLs currently in the form */
     get epgUrls(): string[] {
         return ((this.epgUrl?.value as string[] | undefined) ?? [])
@@ -82,6 +104,7 @@ export class SettingsFormFacade {
             this.epgUrl.clear();
             this.setEpgUrls(currentSettings.epgUrl);
         }
+        this.takeSavedSnapshot();
     }
 
     bindDashboardControlsEnabledState(): void {
@@ -164,6 +187,10 @@ export class SettingsFormFacade {
             this.form,
             this.settingsStore.getSettings()
         );
+        // Read before the write: a successful save resets the diff.
+        const restartControls = this.changedPaths()
+            .map((path) => path.split('.')[0])
+            .filter((control) => control in SETTINGS_RESTART_CONTROLS);
 
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
@@ -176,7 +203,17 @@ export class SettingsFormFacade {
             // committed values, but retain the dirty form for cleanup retry.
             cleanupError = error;
         }
-        if (!cleanupError) onSaved();
+        if (!cleanupError) {
+            onSaved();
+            if (restartControls.length > 0) {
+                this.restartPendingControls.set([
+                    ...new Set([
+                        ...this.restartPendingControls(),
+                        ...restartControls,
+                    ]),
+                ]);
+            }
+        }
 
         if (window.electron) {
             window.electron.updateSettings(settings);
@@ -189,15 +226,31 @@ export class SettingsFormFacade {
         if (cleanupError) throw cleanupError;
     }
 
+    dismissRestartNotice(): void {
+        this.restartPendingControls.set([]);
+    }
+
     /** Applies the saved language/theme and resets the dirty state */
     applySavedSettings(): void {
         this.form.markAsPristine();
+        this.takeSavedSnapshot();
         // The switch re-renders every date with the new locale; its data is
         // a lazy chunk that must be registered first, and a newer choice
         // must win over an older one whose data arrives later.
         void this.dateLocales.use(this.form.value.language ?? Language.ENGLISH);
         this.settingsService.changeTheme(
             this.form.value.theme ?? Theme.SystemTheme
+        );
+    }
+
+    private takeSavedSnapshot(): void {
+        this.savedSnapshot = this.form.getRawValue();
+        this.refreshChangedPaths();
+    }
+
+    private refreshChangedPaths(): void {
+        this.changedPaths.set(
+            diffSettingsValues(this.form.getRawValue(), this.savedSnapshot)
         );
     }
 

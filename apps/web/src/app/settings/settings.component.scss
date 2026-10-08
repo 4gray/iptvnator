@@ -1,3 +1,8 @@
+// Settings page: one content column of titled cards. Every row is a label
+// column plus one right-aligned control column, so selects, switches and
+// segmented controls line up down the page. Tokens and the Material token
+// overrides (compact switch, dense select) live in `_settings-theme.scss`.
+
 .settings-page-host {
     display: block;
 }
@@ -5,19 +10,22 @@
 .settings-container {
     height: auto;
     overflow: visible;
-    padding: 18px 20px calc(36px + var(--settings-safe-bottom));
+    // Rows stack by the pane's width, not the viewport's: the sidebar keeps
+    // the page narrow on small desktop windows. This block is not the
+    // scroll owner, so inline-size containment costs it nothing.
+    container-type: inline-size;
 }
 
 .settings-layout {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
     align-items: stretch;
-    max-width: 920px;
+    box-sizing: border-box;
+    max-width: 880px;
     margin: 0 auto;
-    padding-bottom: calc(
-        var(--settings-action-bar-space) + var(--settings-safe-bottom)
-    );
+    padding: 28px 40px calc(48px + var(--settings-safe-bottom));
 }
 
 .settings-content {
@@ -27,101 +35,178 @@
     gap: 16px;
 }
 
-// Flat section — no panel chrome. The v0.22 mockup treats Settings as a
-// single scroll column with each section anchored by a large title +
-// bottom-border separator. The previous card frame (border-radius 22px,
-// filled bg, box-shadow, active-state ring + icon-circle) made every
-// section look like a feature card, which fought the inline form rhythm.
+// ─── Page header ───────────────────────────────────────────────────────────
 .settings-group {
-    position: relative;
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    overflow: visible;
-    padding: 0;
-    margin-top: 24px;
-    scroll-margin-top: 24px;
-    transition: none;
-
-    &:first-of-type {
-        margin-top: 0;
-    }
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
 }
 
 .settings-group__header {
+    h2 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.3px;
+        line-height: 1.2;
+        color: var(--app-heading-color);
+    }
+
+    p {
+        margin: 6px 0 0;
+        color: var(--app-body-color);
+        font-size: 13.5px;
+        line-height: 1.45;
+    }
+}
+
+// ─── Sections and cards ────────────────────────────────────────────────────
+.settings-section {
+    display: block;
+}
+
+.settings-section__header {
     display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    padding: 4px 0 18px;
-    margin: 0 0 8px;
-    border-bottom: 1px solid var(--settings-item-border);
+    align-items: center;
+    gap: 10px;
+    margin: 0 2px 10px;
+    min-height: 32px;
 
-    // Icon-circle removed per UX-audit recommendation (the section title
-    // is the anchor, not a card). Hidden rather than ripped out of every
-    // section template so the existing markup stays untouched.
-    .settings-group__header-icon {
-        display: none;
-    }
-
-    .settings-group__header-text {
-        h3 {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: 600;
-            letter-spacing: -0.015em;
-            line-height: 1.2;
-            color: var(--app-heading-color);
-        }
-
-        p {
-            margin: 6px 0 0;
-            color: var(--app-body-color);
-            font-size: 0.92rem;
-            line-height: 1.45;
-        }
+    h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--app-heading-color);
     }
 }
 
-.settings-group__footer {
-    padding: 12px 18px 16px;
-    border-top: 1px solid var(--settings-item-border);
+.settings-section__count {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--settings-chip-bg);
+    color: var(--settings-chip-fg);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
 }
 
-// Row layout — flat list aligned to the section title (no inset). The
-// previous `margin: 0 18px` came from the card chrome; now that each
-// section is a flat block, rows sit at the same gutter as the title.
+.settings-section__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.settings-section__desc {
+    margin: -4px 2px 10px;
+    color: var(--settings-muted);
+    font-size: 12.5px;
+    line-height: 1.5;
+    max-width: 72ch;
+}
+
+.settings-card {
+    background: var(--settings-card-bg);
+    border: 1px solid var(--settings-card-border);
+    border-radius: 12px;
+}
+
+.settings-card--danger {
+    border-color: var(--settings-item-danger-border);
+}
+
+// ─── Rows ──────────────────────────────────────────────────────────────────
 .setting-item {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(220px, 340px);
-    gap: 14px;
-    margin: 0;
-    padding: 18px 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 24px;
+    align-items: center;
+    min-height: 60px;
+    padding: 14px 16px;
+    position: relative;
+}
+
+.setting-item + .setting-item,
+.setting-item__sub + .setting-item,
+.setting-item + .setting-item__sub + .setting-item {
     border-top: 1px solid var(--settings-item-border);
-    background: transparent;
+}
 
-    &:first-of-type {
-        border-top: 0;
-        padding-top: 8px;
-    }
+// Meta stacked over a full-width control (textareas, lists). Flex children
+// do not grow from `justify-content`, so the field itself takes the row.
+.setting-item--full-control {
+    grid-template-columns: 1fr;
+    gap: 12px;
 
-    &:last-of-type {
-        margin-bottom: 0;
+    .setting-item__control {
+        justify-content: stretch;
+
+        > .mat-mdc-form-field {
+            width: 100%;
+        }
     }
 }
 
-.settings-group .setting-item:last-child {
-    margin-bottom: 0;
+.setting-item--list {
+    display: block;
+    padding: 0;
 }
 
-// A row opened from settings search or the command palette. It receives
-// programmatic focus (tabindex -1). Keyboard users keep a focus ring after
-// the temporary highlight fades; pointer users rely on the highlight alone,
-// as with any mouse-driven focus. The wash fills the row's own padding box
-// and two offset shadows widen it past the flush-left row edges without
-// shifting layout or painting over the separators above and below.
-.setting-item[data-setting-id] {
-    scroll-margin: 96px 0 calc(96px + var(--settings-action-bar-space));
+// A callout under the row it explains (player runtime note, nightly warning).
+.setting-item__sub {
+    padding: 0 16px 14px;
+}
+
+.setting-item__meta {
+    min-width: 0;
+
+    h4 {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--app-heading-color);
+    }
+
+    p {
+        margin: 3px 0 0;
+        max-width: 56ch;
+        color: var(--settings-muted);
+        font-size: 12.5px;
+        line-height: 1.5;
+        text-wrap: pretty;
+    }
+
+    a {
+        color: var(--app-selection-color);
+    }
+}
+
+.setting-item__control {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.setting-item__control--stack {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.setting-item__toggle {
+    justify-content: flex-end;
+}
+
+// Row revealed from settings search or the command palette.
+.setting-item[data-setting-id],
+.settings-card[data-setting-id],
+.settings-foot[data-setting-id] {
+    scroll-margin: 96px 0 120px;
 
     &:focus {
         outline: none;
@@ -130,39 +215,27 @@
     &:focus-visible {
         outline: 2px solid
             color-mix(in srgb, var(--app-selection-color) 60%, transparent);
-        outline-offset: 6px;
-        border-radius: 4px;
+        outline-offset: 2px;
+        border-radius: 12px;
     }
 }
 
 .setting-item--revealed {
-    --settings-reveal-wash: color-mix(
-        in srgb,
-        var(--app-selection-color) 12%,
-        transparent
-    );
-
-    background: var(--settings-reveal-wash);
-    box-shadow:
-        -12px 0 0 var(--settings-reveal-wash),
-        12px 0 0 var(--settings-reveal-wash);
     animation: settings-reveal-fade 2.4s ease-out forwards;
 }
 
 @keyframes settings-reveal-fade {
     0%,
     60% {
-        background: var(--settings-reveal-wash);
-        box-shadow:
-            -12px 0 0 var(--settings-reveal-wash),
-            12px 0 0 var(--settings-reveal-wash);
+        background: color-mix(
+            in srgb,
+            var(--app-selection-color) 10%,
+            transparent
+        );
     }
 
     100% {
         background: transparent;
-        box-shadow:
-            -12px 0 0 transparent,
-            12px 0 0 transparent;
     }
 }
 
@@ -172,264 +245,155 @@
     }
 }
 
-.setting-item__meta {
-    h4 {
-        margin: 0;
-        font-size: 0.95rem;
-        font-weight: 600;
-        letter-spacing: -0.01em;
+// ─── Controls ──────────────────────────────────────────────────────────────
+// Compact select without a floating label: the row label names it.
+.settings-select.mat-mdc-form-field {
+    width: 220px;
+
+    .mat-mdc-text-field-wrapper {
+        background: var(--settings-control-bg);
     }
 
-    p {
-        margin: 3px 0 0;
-        color: var(--settings-muted);
-        font-size: 0.84rem;
-        line-height: 1.45;
+    .mat-mdc-select-value,
+    .mat-mdc-input-element {
+        font-size: 13px;
     }
 }
 
-.setting-item__control {
-    display: flex;
-    justify-content: flex-end;
+.settings-text-field.mat-mdc-form-field {
+    width: min(100%, 340px);
+}
+
+.settings-chip {
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
-    min-height: 40px;
-
-    mat-form-field,
-    .w-full {
-        width: min(100%, 340px);
-    }
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--settings-chip-bg);
+    color: var(--settings-chip-fg);
+    font-size: 10.5px;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
 }
 
-.setting-item__toggle {
-    justify-content: flex-end;
+.settings-chip--success {
+    background: color-mix(in srgb, #4ade80 14%, transparent);
+    color: var(--app-provider-stalker);
 }
 
-.setting-item--full-control {
-    grid-template-columns: 1fr;
-    gap: 12px;
+.settings-chip--accent {
+    background: var(--app-selection-surface);
+    color: var(--app-selection-color);
 }
 
-.setting-item--full-control .setting-item__control {
-    justify-content: stretch;
+.settings-chip--warn {
+    background: var(--app-expiry-warn-surface);
+    color: var(--app-expiry-warn-text);
 }
 
-.app-update-panel__control {
-    align-items: stretch;
-    justify-content: space-between;
-    flex-wrap: wrap;
-}
-
-.app-update-status {
-    min-width: min(100%, 260px);
+.settings-callout {
     display: flex;
-    flex: 1 1 280px;
-    flex-direction: column;
-    gap: 6px;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--settings-callout-info-border);
+    background: var(--settings-callout-info-bg);
     color: var(--settings-muted);
-    font-size: 0.84rem;
-    line-height: 1.45;
+    font-size: 12.5px;
+    line-height: 1.5;
 
-    strong {
-        color: var(--app-body-color);
-        font-size: 0.9rem;
+    > mat-icon {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+        margin-top: 1px;
+        color: var(--app-selection-color);
+    }
+
+    b {
+        display: block;
+        margin-bottom: 2px;
+        color: var(--app-heading-color);
         font-weight: 600;
     }
 
-    progress {
-        width: min(100%, 320px);
-        height: 8px;
-        accent-color: var(--app-selection-color);
+    a {
+        color: var(--app-selection-color);
     }
 }
 
-.app-update-actions {
+.settings-callout--warn {
+    border-color: var(--settings-callout-warn-border);
+    background: var(--settings-callout-warn-bg);
+
+    > mat-icon {
+        color: var(--settings-callout-warn-icon);
+    }
+}
+
+.settings-callout__actions {
     display: flex;
-    flex: 0 1 auto;
-    flex-wrap: wrap;
-    justify-content: flex-end;
     gap: 8px;
-
-    button {
-        app-region: no-drag;
-    }
+    margin-top: 10px;
 }
 
-.setting-item--external-player-arguments {
-    grid-template-columns: 1fr;
-    gap: 10px;
-
-    .setting-item__control {
-        justify-content: stretch;
-        align-items: stretch;
-    }
-
-    mat-form-field {
-        width: 100%;
-    }
-
-    textarea {
-        min-height: 86px;
-        resize: vertical;
-        font-family:
-            'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
-            monospace;
-        font-size: 0.84rem;
-        line-height: 1.45;
-    }
-}
-
-// Compact segmented control — replaces the previous 3 buttons each ~78px
-// tall. Per the UX audit, "Light/Dark/System" was reading as the most
-// important setting on the page because of its sheer footprint. Now the
-// row reads at the same weight as the other compact rows (Language,
-// Startup behavior, etc.), restoring the visual hierarchy.
+// Segmented control (theme, cover size, guide layout): a pill.
 .theme-switcher {
-    width: min(100%, 360px);
     display: inline-flex;
     padding: 3px;
-    gap: 2px;
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-low) 80%,
-        transparent
-    );
-    border: 1px solid
-        color-mix(in srgb, var(--mat-sys-outline-variant) 60%, transparent);
-    border-radius: 10px;
+    border: 1px solid var(--settings-control-border);
+    border-radius: 999px;
+    background: var(--settings-control-bg);
 }
 
 .theme-switcher__option {
-    flex: 1 1 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: 30px;
-    padding: 4px 12px;
+    height: 28px;
+    padding: 0 12px;
     border: 0;
-    border-radius: 7px;
+    border-radius: 999px;
     background: transparent;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
     font: inherit;
-    font-size: 0.82rem;
+    font-size: 12.5px;
     font-weight: 500;
-    letter-spacing: 0;
     cursor: pointer;
     transition:
-        background 0.16s ease,
-        color 0.16s ease,
-        box-shadow 0.16s ease;
+        background 0.15s ease,
+        color 0.15s ease;
 
     mat-icon {
-        width: 16px;
-        height: 16px;
-        font-size: 16px;
-        line-height: 16px;
+        width: 14px;
+        height: 14px;
+        font-size: 14px;
     }
 
     &:hover {
-        background: color-mix(
-            in srgb,
-            var(--mat-sys-surface-container-highest) 70%,
-            transparent
-        );
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
     }
 
     &:focus-visible {
-        outline: none;
-        box-shadow: 0 0 0 2px
-            color-mix(in srgb, var(--app-selection-color) 50%, transparent);
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: 1px;
     }
 }
 
 .theme-switcher__option--selected {
-    background: var(--app-widget-bg, var(--mat-sys-surface));
+    background: var(--app-selection-surface);
     color: var(--app-selection-color);
-    font-weight: 600;
-    box-shadow:
-        0 1px 2px rgba(0, 0, 0, 0.18),
-        inset 0 0 0 1px
-            color-mix(in srgb, var(--app-selection-border) 36%, transparent);
 }
 
-.epg-sources {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.epg-sources__formats-examples {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 8px;
-
-    code {
-        padding: 1px 6px;
-        border-radius: 6px;
-        background: var(--app-hover-overlay);
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 0.75rem;
-        white-space: nowrap;
-    }
-}
-
-.epg-sources-empty {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 8px;
-    padding: 24px 16px 16px;
-    color: var(--mat-sys-on-surface-variant);
-
-    .epg-sources-empty__icon {
-        font-size: 40px;
-        width: 40px;
-        height: 40px;
-        opacity: 0.55;
-        margin-bottom: 4px;
-    }
-
-    .epg-sources-empty__title {
-        margin: 0;
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: var(--mat-sys-on-surface);
-    }
-
-    .epg-sources-empty__hint {
-        margin: 0;
-        font-size: 0.825rem;
-        line-height: 1.5;
-        max-width: 360px;
-        opacity: 0.75;
-    }
-}
-
-.epg-source-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-
-    .w-full {
-        width: 100%;
-    }
-
-    app-epg-source-status {
-        flex-shrink: 0;
-    }
-}
-
+// ─── Buttons in rows ───────────────────────────────────────────────────────
 .inline-actions {
     display: flex;
     justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
 }
 
 .button-spinner {
@@ -438,361 +402,76 @@
     vertical-align: middle;
 }
 
-.inline-actions__button {
-    min-width: 118px;
-}
-
-.inline-actions__button--busy {
-    background: color-mix(
-        in srgb,
-        var(--app-selection-surface) 74%,
-        transparent
-    );
-    color: var(--app-selection-color);
-    box-shadow:
-        inset 0 0 0 1px
-            color-mix(in srgb, var(--app-selection-border) 48%, transparent),
-        0 8px 18px -18px var(--settings-group-active-glow);
-}
-
 .inline-actions__label {
     display: inline-flex;
     align-items: center;
 }
 
-.remote-control-urls {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 6px;
+.inline-actions__button--busy {
+    background: var(--app-selection-surface);
 }
 
-.remote-control-url-item {
-    width: min(100%, 340px);
-}
-
-.url-row {
+// TMDB attribution / disclaimers under the last card (About, Metadata,
+// Parental lock).
+.settings-foot {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 4px;
-}
-
-.remote-control-url {
-    font-family:
-        'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
-    color: inherit;
-    text-decoration: none;
-    font-size: 0.84rem;
-
-    &:hover {
-        text-decoration: underline;
-    }
-}
-
-.qr-code-container {
-    display: flex;
-    justify-content: flex-end;
-    padding: 8px 0;
-}
-
-.version-block {
-    flex-direction: column;
-    align-items: flex-end;
-
-    span {
-        font-weight: 700;
-    }
-
-    small {
-        margin-top: 4px;
-        color: var(--mat-sys-on-surface-variant);
-        text-align: right;
-    }
-}
-
-.link-cards {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
-    box-sizing: border-box;
+    color: var(--settings-muted);
+    font-size: 11.5px;
+    line-height: 1.6;
+
+    img {
+        height: 14px;
+    }
 }
 
-.link-card {
-    box-sizing: border-box;
-    display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) 20px;
+// ─── Restart notice ────────────────────────────────────────────────────────
+.settings-restart-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 14px;
-    border: 1px solid
-        color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
-    border-radius: 16px;
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-low) 88%,
-        transparent
-    );
-    color: var(--mat-sys-on-surface);
-    text-decoration: none;
-    transition:
-        border-color 0.18s ease,
-        background 0.18s ease,
-        transform 0.18s ease,
-        box-shadow 0.18s ease;
-
-    &:hover {
-        transform: translateY(-1px);
-        border-color: color-mix(
-            in srgb,
-            var(--app-selection-border) 54%,
-            var(--mat-sys-outline-variant)
-        );
-        background: color-mix(
-            in srgb,
-            var(--mat-sys-surface-container-high) 92%,
-            transparent
-        );
-        box-shadow: 0 10px 20px -22px rgba(15, 23, 42, 0.5);
-
-        .link-card__arrow {
-            opacity: 1;
-            transform: translate(2px, -2px);
-        }
-    }
-
-    &:focus-visible {
-        outline: none;
-        box-shadow:
-            0 0 0 2px var(--mat-sys-surface),
-            0 0 0 4px
-                color-mix(in srgb, var(--app-selection-color) 40%, transparent);
-    }
-}
-
-.link-card__glyph {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-high) 82%,
-        transparent
-    );
-    color: var(--mat-sys-on-surface-variant);
-
-    svg {
-        width: 20px;
-        height: 20px;
-    }
+    padding: 8px 12px 8px 16px;
+    border: 1px solid var(--settings-card-border);
+    border-radius: 10px;
+    background: var(--settings-restart-bar-bg);
+    color: var(--app-body-color);
+    font-size: 12.5px;
 
     mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-    }
-}
-
-.link-card--github .link-card__glyph {
-    background: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
-    color: var(--mat-sys-on-surface);
-}
-
-.link-card--blog .link-card__glyph {
-    background: color-mix(in srgb, #ff7849 18%, transparent);
-    color: #ff8a5b;
-}
-
-.link-card--telegram .link-card__glyph {
-    background: color-mix(in srgb, #229ed9 22%, transparent);
-    color: #38b0e3;
-}
-
-.link-card__text {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-
-    strong {
-        font-size: 0.92rem;
-        font-weight: 600;
-        letter-spacing: -0.01em;
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+        color: var(--app-selection-color);
     }
 
     span {
-        color: var(--settings-muted);
-        font-size: 0.78rem;
-        line-height: 1.35;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-    }
-}
-
-.link-card__arrow {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    color: var(--settings-muted);
-    opacity: 0.6;
-    transition:
-        opacity 0.18s ease,
-        transform 0.18s ease;
-}
-
-.settings-note {
-    margin: 12px 18px 18px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    font-size: 0.84rem;
-    background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
-    border: 1px solid
-        color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
-    line-height: 1.45;
-
-    a {
-        color: inherit;
-        font-weight: 700;
-    }
-}
-
-.danger-zone {
-    margin-top: 8px;
-    margin-bottom: 18px;
-    padding: 14px 16px;
-    background: var(--settings-item-danger-bg);
-    border: 1px solid var(--settings-item-danger-border);
-    border-radius: 16px;
-    grid-template-columns: 1fr;
-    gap: 14px;
-}
-
-.danger-zone__header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-
-    .setting-item__meta {
         flex: 1;
         min-width: 0;
     }
 }
 
-.danger-zone__summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 0;
-}
-
-.danger-zone__summary-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 34px;
-    padding: 4px 6px 4px 12px;
-    border-radius: 12px;
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-high) 78%,
-        transparent
-    );
-    border: 1px solid
-        color-mix(in srgb, var(--settings-item-danger-border) 60%, transparent);
-    font-size: 0.82rem;
-    line-height: 1.2;
-    color: var(--mat-sys-on-surface);
-
-    .danger-zone__summary-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-        color: var(--mat-sys-on-surface-variant);
-        flex-shrink: 0;
-    }
-
-    .danger-zone__summary-label {
-        font-weight: 500;
-        letter-spacing: 0.01em;
-    }
-
-    .danger-zone__summary-count {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 26px;
-        height: 22px;
-        padding: 0 8px;
-        border-radius: 999px;
-        background: color-mix(
-            in srgb,
-            var(--mat-sys-on-surface) 10%,
-            transparent
-        );
-        color: var(--mat-sys-on-surface);
-        font-size: 0.78rem;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-        margin-left: 2px;
-    }
-}
-
-.danger-zone__progress {
-    margin: 0;
-    color: var(--mat-sys-on-surface-variant);
-    font-size: 0.84rem;
-}
-
-.danger-zone__button {
-    min-width: 138px;
-    flex-shrink: 0;
-    align-self: flex-start;
-}
-
-.danger-zone__button--busy {
-    background: color-mix(
-        in srgb,
-        var(--settings-item-danger-border) 28%,
-        transparent
-    );
-}
-
-// Unsaved-changes bar — only present while the form is dirty, so unlike the
-// previous always-visible footer Save button it doubles as the "you edited
-// something on another section page" reminder. Sticky rather than fixed so
-// it stays inside the settings column and never covers the shell rail.
+// ─── Save bar ──────────────────────────────────────────────────────────────
+// Only present while the form is dirty. It floats over the content column
+// (sticky, so it never covers the shell rail) and carries the change count.
 .unsaved-bar {
     position: sticky;
-    bottom: calc(
-        var(--settings-action-bar-offset) + var(--settings-safe-bottom)
-    );
-    margin-left: 0;
-    margin-right: 0;
-    // Stretched to the full layout width, so its own inline padding would be
-    // added on top and push the settings page into a horizontal scroll.
-    box-sizing: border-box;
+    bottom: calc(16px + var(--settings-safe-bottom));
     z-index: 100;
     display: flex;
-    justify-content: space-between;
     align-items: center;
     gap: 12px;
-    flex-wrap: wrap;
-    padding: 12px 18px;
-    border-top: 1px solid var(--settings-action-bar-border);
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 0;
-    border-radius: 0;
+    width: min(100%, 720px);
+    margin: 0 auto;
+    padding: 10px 10px 10px 16px;
+    box-sizing: border-box;
+    border: 1px solid var(--settings-action-bar-border);
+    border-radius: 12px;
     background: var(--settings-action-bar-bg);
-    backdrop-filter: blur(12px);
     box-shadow: var(--settings-action-bar-shadow);
     animation: unsaved-bar-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -804,7 +483,7 @@
 @keyframes unsaved-bar-enter {
     from {
         opacity: 0;
-        transform: translateY(8px);
+        transform: translateY(12px);
     }
 
     to {
@@ -813,18 +492,19 @@
     }
 }
 
-.unsaved-bar__message {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--settings-muted);
-    font-size: 0.88rem;
+.unsaved-bar__dot {
+    flex-shrink: 0;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--app-selection-color);
+}
 
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-    }
+.unsaved-bar__message {
+    flex: 1;
+    min-width: 0;
+    color: var(--app-heading-color);
+    font-size: 13px;
 }
 
 .unsaved-bar__actions {
@@ -832,116 +512,85 @@
     align-items: center;
     gap: 8px;
     margin-left: auto;
-    flex-wrap: wrap;
 }
 
 .settings-save-button.mat-mdc-button-base {
-    // Use the unified blue primary (--app-selection-color) instead of the
-    // old hand-rolled #3b82f6 gradient that didn't match the rest of the
-    // app's CTAs after the color unification commit.
-    background: var(--app-selection-color);
-    color: var(--app-selection-on-color, #fff);
+    font-weight: 600;
+}
+
+.settings-kbd {
+    margin-left: 8px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
     font-weight: 500;
-    padding: 0 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 14px
-        color-mix(in srgb, var(--app-selection-color) 28%, transparent);
-    transition:
-        transform 0.2s ease,
-        box-shadow 0.2s ease,
-        opacity 0.2s ease;
-
-    mat-icon {
-        margin-right: 6px;
-    }
-
-    &:hover:not([disabled]) {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 18px
-            color-mix(in srgb, var(--app-selection-color) 38%, transparent);
-    }
-
-    &:active:not([disabled]) {
-        transform: translateY(0);
-    }
-
-    &[disabled] {
-        background: color-mix(
-            in srgb,
-            var(--mat-sys-on-surface) 12%,
-            transparent
-        );
-        color: color-mix(in srgb, var(--mat-sys-on-surface) 38%, transparent);
-        box-shadow: none;
-    }
+    opacity: 0.8;
 }
 
-@media (max-width: 1100px) {
+// ─── Narrow panes ──────────────────────────────────────────────────────────
+// Below 600px of content width a row cannot hold its label beside a 220px
+// control, so the control drops under the label.
+@container (max-width: 600px) {
     .settings-layout {
-        max-width: 100%;
-        padding: 0;
-    }
-}
-
-@media (max-width: 860px) {
-    .settings-container {
-        height: auto;
-        padding: 12px 12px calc(18px + var(--settings-safe-bottom));
+        padding: 20px 16px calc(24px + var(--settings-safe-bottom));
     }
 
-    .settings-page-header {
-        padding: 12px 14px;
-        border-radius: 16px;
+    .settings-group__header h2 {
+        font-size: 22px;
     }
 
     .setting-item {
         grid-template-columns: 1fr;
         gap: 12px;
-        margin: 0 14px;
-        padding: 12px 0;
     }
 
-    .setting-item__control {
+    .setting-item__control,
+    .setting-item__toggle {
         justify-content: flex-start;
-
-        mat-form-field,
-        .w-full,
-        .epg-sources,
-        .remote-control-url-item {
-            width: 100%;
-        }
     }
 
-    .theme-switcher {
-        width: 100%;
-        grid-template-columns: 1fr;
-    }
-
-    .remote-control-urls,
-    .version-block {
+    .setting-item__control--stack {
         align-items: flex-start;
     }
 
-    .link-cards {
-        grid-template-columns: 1fr;
+    .settings-select.mat-mdc-form-field,
+    .settings-text-field.mat-mdc-form-field {
+        width: 100%;
     }
 
-    .support-btn {
-        flex: 1 1 100%;
+    // Translated option labels (ru, de) do not fit a one-line pill on a
+    // phone: the segments take the row and wrap when they must.
+    .theme-switcher {
+        width: 100%;
+        flex-wrap: wrap;
+        border-radius: 14px;
     }
 
-    .url-row {
-        justify-content: flex-start;
+    .theme-switcher__option {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .settings-section__header {
         flex-wrap: wrap;
     }
 
-    .unsaved-bar {
-        flex-direction: column;
-        align-items: stretch;
-        border-radius: 16px;
+    .settings-section__actions {
+        flex-basis: 100%;
+        margin-left: 0;
     }
 
+    .unsaved-bar {
+        flex-wrap: wrap;
+        bottom: calc(8px + var(--settings-safe-bottom));
+    }
+
+    // Long translations ("Enregistrer les modifications") do not fit two
+    // buttons side by side on a phone: stack them, Save first.
     .unsaved-bar__actions {
+        flex-basis: 100%;
         flex-direction: column-reverse;
         align-items: stretch;
         margin-left: 0;
@@ -949,5 +598,10 @@
         button {
             width: 100%;
         }
+    }
+
+    // A keyboard-only affordance has no place on a phone.
+    .settings-kbd {
+        display: none;
     }
 }
