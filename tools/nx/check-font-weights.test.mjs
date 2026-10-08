@@ -4973,6 +4973,21 @@ test('follows a weight variable in either reading of a keyframe that does not ho
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
+    // And where another module's mixin runs it.
+    for (const [run, expected] of [
+        ['k 1ms', ['libs/s11/c.scss:2 $w: 700']],
+        ['k 1ms forwards', []],
+    ]) {
+        const face = `@mixin face { font-family: ${mono}; animation: ${run}; }`;
+        assert.deepEqual(
+            workspace({
+                'libs/s11/_type.scss': `${roboto}\n${face}`,
+                'libs/s11/c.scss': `@use 'type';\n$w: 700;\n.x { @include type.face; font-weight: $w; }`,
+            }),
+            expected,
+            run
+        );
+    }
 });
 
 test('reads an `@at-root` rule where Sass writes it out', () => {
