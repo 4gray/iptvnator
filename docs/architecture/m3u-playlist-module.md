@@ -1746,8 +1746,14 @@ An M3U playlist is not necessarily a list of live channels. On a real
 and 40,330 episode rows. `buildM3uCatalogIndex` (`libs/shared/m3u-utils`)
 splits the array by derived content kind and `buildM3uSeriesCatalog`
 collapses the episode rows into 1,953 series. Both are memoised
-`computed()`s on `M3uCatalogIndexService` (`libs/m3u-state`), keyed
-implicitly on the channel array reference — there is no schema change, and
+`computed()`s in `libs/m3u-state`, keyed implicitly on the channel array
+reference: the index on `M3uCatalogIndexService`, the series layer on
+`M3uSeriesCatalogService`. The split is for the initial payload — the
+workspace shell injects the index service for the rail links, so the series
+code sits behind its own entry points (`@iptvnator/m3u-state/series-catalog`,
+`@iptvnator/shared/m3u-utils/series`) and loads with the lazy Series routes.
+Import it from those, never through the two barrels. There is no schema
+change, and
 the catalog itself behaves identically in the PWA. Episode progress is the
 exception: it goes through `PlaybackPositionService`, whose storage is the
 Electron SQLite bridge, so in the PWA episodes neither resume nor keep

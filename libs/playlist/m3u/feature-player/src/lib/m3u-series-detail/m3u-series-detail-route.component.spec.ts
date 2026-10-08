@@ -12,14 +12,14 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject } from 'rxjs';
-import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uSeriesCatalogService } from '@iptvnator/m3u-state/series-catalog';
 import {
     PlaybackPositionRuntimeBridgeService,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import { Channel } from '@iptvnator/shared/interfaces';
-import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils';
+import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils/series';
 import type { M3uSeriesDetailRouteComponent as ComponentType } from './m3u-series-detail-route.component';
 
 // The shared player barrel reaches video.js, whose CJS bundle cannot be
@@ -180,7 +180,7 @@ describe('M3uSeriesDetailRouteComponent', () => {
                     },
                 },
                 {
-                    provide: M3uCatalogIndexService,
+                    provide: M3uSeriesCatalogService,
                     useValue: {
                         seriesById: () =>
                             new Map(CATALOG.map((s) => [s.id, s])),

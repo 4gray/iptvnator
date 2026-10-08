@@ -12,10 +12,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { tmdbBackdropUrl, tmdbPosterUrl } from '@iptvnator/services';
-import {
-    M3uCatalogIndexService,
-    selectActivePlaylist,
-} from '@iptvnator/m3u-state';
+import { selectActivePlaylist } from '@iptvnator/m3u-state';
+import { M3uSeriesCatalogService } from '@iptvnator/m3u-state/series-catalog';
 import { Store } from '@ngrx/store';
 import {
     DetailMetaTemplateDirective,
@@ -32,7 +30,8 @@ import {
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
-import { isDashChannel, M3uSeries } from '@iptvnator/shared/m3u-utils';
+import { isDashChannel } from '@iptvnator/shared/m3u-utils';
+import { M3uSeries } from '@iptvnator/shared/m3u-utils/series';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 import { toSeasonRecord } from './m3u-series-episode.adapter';
 import { M3uSeriesMetadataService } from './m3u-series-metadata.service';
@@ -102,7 +101,7 @@ export class M3uSeriesDetailRouteComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
-    private readonly catalog = inject(M3uCatalogIndexService);
+    private readonly catalog = inject(M3uSeriesCatalogService);
     private readonly positions = inject(M3uSeriesPositionsService);
     private readonly metadata = inject(M3uSeriesMetadataService);
     private readonly portalPlayer = inject(PORTAL_PLAYER);

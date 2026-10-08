@@ -1,5 +1,6 @@
 import { Channel, foldSearchText } from '@iptvnator/shared/interfaces';
-import { M3uSeries, applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { M3uSeries } from '@iptvnator/shared/m3u-utils/series';
 
 /**
  * The shape the shared grid renders. Kept structural rather than imported:

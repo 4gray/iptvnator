@@ -6,12 +6,13 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject } from 'rxjs';
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uSeriesCatalogService } from '@iptvnator/m3u-state/series-catalog';
 import { SettingsStore } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
 import {
     buildM3uCatalogIndex,
-    buildM3uSeriesCatalog,
 } from '@iptvnator/shared/m3u-utils';
+import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils/series';
 import type { M3uCatalogRouteComponent as M3uCatalogRouteComponentType } from './m3u-catalog-route.component';
 
 // The shared portal-UI barrel reaches video.js (unified collection ->
@@ -80,6 +81,11 @@ describe('M3uCatalogRouteComponent', () => {
                         index: () => buildM3uCatalogIndex(channels()),
                         loading,
                         hasNonLiveContent: () => true,
+                    },
+                },
+                {
+                    provide: M3uSeriesCatalogService,
+                    useValue: {
                         series: () =>
                             buildM3uSeriesCatalog(
                                 buildM3uCatalogIndex(channels()).byKind.episode,

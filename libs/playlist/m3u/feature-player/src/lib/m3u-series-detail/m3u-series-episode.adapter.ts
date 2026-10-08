@@ -1,5 +1,5 @@
 import { Channel, XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
-import { M3uSeries, M3uSeriesEpisode } from '@iptvnator/shared/m3u-utils';
+import { M3uSeries, M3uSeriesEpisode } from '@iptvnator/shared/m3u-utils/series';
 
 /**
  * Converts an aggregated M3U series into the shape the shared season

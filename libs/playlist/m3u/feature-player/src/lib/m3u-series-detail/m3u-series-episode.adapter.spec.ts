@@ -1,5 +1,5 @@
 import { Channel } from '@iptvnator/shared/interfaces';
-import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils';
+import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils/series';
 import { toSeasonRecord, toXtreamEpisode } from './m3u-series-episode.adapter';
 
 const row = (name: string, url?: string) =>

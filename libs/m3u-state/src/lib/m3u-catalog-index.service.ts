@@ -5,15 +5,9 @@ import { Channel } from '@iptvnator/shared/interfaces';
 import {
     M3uCatalogIndex,
     M3uContentKind,
-    M3uSeries,
     buildM3uCatalogIndex,
-    buildM3uSeriesCatalog,
 } from '@iptvnator/shared/m3u-utils';
-import {
-    selectActivePlaylistId,
-    selectChannels,
-    selectChannelsLoading,
-} from './selectors';
+import { selectChannels, selectChannelsLoading } from './selectors';
 
 const EMPTY_INDEX: M3uCatalogIndex<Channel> = buildM3uCatalogIndex<Channel>([]);
 
@@ -65,7 +59,8 @@ export class M3uCatalogIndexService {
      * Rows split by content kind, with per-kind group buckets — empty while
      * a load is in flight.
      *
-     * The catalog, the series detail and the rail links read this, and
+     * The catalog, the series layer (`M3uSeriesCatalogService`) and the
+     * rail links read this, and
      * none of them may show the previous playlist's rows: a card would open
      * a film from another source, and an episode id would be minted with
      * the new playlist's id, so its progress would be saved against the
@@ -103,26 +98,6 @@ export class M3uCatalogIndexService {
     readonly liveChannels: Signal<readonly Channel[]> = computed(() =>
         this.splitsCatalog() ? this.storedIndex().liveChannels : this.channels()
     );
-
-    private readonly playlistId: Signal<string> = this.store.selectSignal(
-        selectActivePlaylistId
-    );
-
-    /**
-     * The series layer, kept as its own `computed` so it is only built when
-     * something reads it. It is the expensive half — title normalization
-     * runs per episode row, which is 40k of them on a real catalog — and a
-     * viewer who never opens the Series section should not pay for it.
-     */
-    readonly series: Signal<readonly M3uSeries<Channel>[]> = computed(() =>
-        buildM3uSeriesCatalog(this.index().byKind.episode, this.playlistId())
-    );
-
-    /** Series by their stable numeric id, for the detail route. */
-    readonly seriesById: Signal<ReadonlyMap<number, M3uSeries<Channel>>> =
-        computed(
-            () => new Map(this.series().map((series) => [series.id, series]))
-        );
 
     channelsOfKind(kind: M3uContentKind): Signal<readonly Channel[]> {
         return computed(() => this.index().byKind[kind]);

@@ -12,6 +12,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uSeriesCatalogService } from '@iptvnator/m3u-state/series-catalog';
 import {
     OPEN_M3U_CHANNEL_ID_STATE_KEY,
     OPEN_M3U_CHANNEL_URL_STATE_KEY,
@@ -76,6 +77,7 @@ export class M3uCatalogRouteComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly catalog = inject(M3uCatalogIndexService);
+    private readonly seriesCatalog = inject(M3uSeriesCatalogService);
     private readonly settingsStore = inject(SettingsStore);
 
     /** `movie` or `episode`, supplied by the route definition. */
@@ -127,7 +129,7 @@ export class M3uCatalogRouteComponent {
         // A series belongs to the group most of its episodes sit in, so the
         // rail counts shows rather than episode rows.
         const counts = new Map<string, number>();
-        for (const series of this.catalog.series()) {
+        for (const series of this.seriesCatalog.series()) {
             counts.set(
                 series.primaryGroup,
                 (counts.get(series.primaryGroup) ?? 0) + 1
@@ -155,7 +157,7 @@ export class M3uCatalogRouteComponent {
             // Two dubs of one show, or two remakes, are deliberately two
             // series. Without the qualifier they would be two cards with
             // the same name and poster.
-            const series = this.catalog.series();
+            const series = this.seriesCatalog.series();
             const duplicates = duplicateM3uSeriesTitles(series);
             return series.map((entry) =>
                 toM3uSeriesCard(
@@ -177,7 +179,7 @@ export class M3uCatalogRouteComponent {
     private readonly groupOfCard = computed<ReadonlyMap<string, string>>(() => {
         const map = new Map<string, string>();
         if (this.isSeries()) {
-            for (const series of this.catalog.series()) {
+            for (const series of this.seriesCatalog.series()) {
                 map.set(`series:${series.id}`, series.primaryGroup);
             }
             return map;
