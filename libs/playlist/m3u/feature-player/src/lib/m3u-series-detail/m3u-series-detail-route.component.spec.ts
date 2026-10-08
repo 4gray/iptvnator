@@ -219,8 +219,13 @@ describe('M3uSeriesDetailRouteComponent', () => {
         const fixture = TestBed.createComponent(M3uSeriesDetailRouteComponent);
         fixture.detectChanges();
         await fixture.whenStable();
+        // Let the positions read settle: an episode opened while it is in
+        // flight waits for it.
+        await settle();
         return fixture;
     }
+
+    const settle = () => new Promise((resolve) => setTimeout(resolve));
 
     beforeEach(() => {
         TestBed.resetTestingModule();
@@ -305,6 +310,54 @@ describe('M3uSeriesDetailRouteComponent', () => {
 
         expect(component.playback()?.isLive).toBe(false);
         expect(component.playback()?.streamUrl).toContain('/series/');
+    });
+
+    it('waits for the saved positions before opening an episode', async () => {
+        // A click can beat the read. Opening at once would start at zero,
+        // and the first tick would overwrite the resume point.
+        let deliver: (rows: unknown[]) => void = () => undefined;
+        positionBridge.getSeriesPlaybackPositions.mockReturnValue(
+            new Promise<unknown[]>((resolve) => {
+                deliver = resolve;
+            })
+        );
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, { id: string }[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): { startTime?: number } | null;
+        };
+        const first = component.seasons()['1'][0];
+
+        component.onEpisodeClicked(first);
+        expect(component.playback()).toBeNull();
+
+        deliver([savedPosition(Number(first.id), 300, 1200)]);
+        await settle();
+
+        expect(component.playback()?.startTime).toBe(300);
+    });
+
+    it('stops the episode of the series being left when the route moves on', async () => {
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): unknown;
+        };
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+        expect(component.playback()).not.toBeNull();
+
+        // Same component, another `:seriesId`.
+        params.next({ get: () => String(seriesTitled('TWIN').id) });
+        fixture.detectChanges();
+        await settle();
+        expect(component.playback()).toBeNull();
+
+        params.next({ get: () => String(SHOW.id) });
+        fixture.detectChanges();
+        await settle();
+        expect(component.playback()).toBeNull();
     });
 
     it('tells the inline player which episode is playing', async () => {

@@ -225,6 +225,15 @@ export class M3uSeriesDetailRouteComponent {
             const seriesId = this.seriesId();
             const series = this.series();
             untracked(() => {
+                // The component is reused when only `:seriesId` changes.
+                // The episode playing belongs to the series being left:
+                // kept, it would remount on the way back without a click,
+                // and its late ticks would be filed under the new series.
+                const key = `${playlistId}\u0000${seriesId}`;
+                if (key !== this.shownSeriesKey) {
+                    this.shownSeriesKey = key;
+                    this.playing.set(null);
+                }
                 void this.positions.load(playlistId, seriesId);
                 if (series) {
                     this.metadata.load(series);
@@ -302,7 +311,27 @@ export class M3uSeriesDetailRouteComponent {
         this.onEpisodeClicked(item.episode as XtreamSerieEpisode);
     }
 
+    private shownSeriesKey = '';
+
     protected onEpisodeClicked(episode: XtreamSerieEpisode): void {
+        // The resume point comes from the positions map, and a click can
+        // beat the read that fills it. Wait for the read rather than start
+        // at zero and let the first tick overwrite what was saved.
+        const pending = this.positions.whenLoaded();
+        if (!pending) {
+            this.openEpisode(episode);
+            return;
+        }
+
+        const key = this.shownSeriesKey;
+        void pending.then(() => {
+            if (key === this.shownSeriesKey) {
+                this.openEpisode(episode);
+            }
+        });
+    }
+
+    private openEpisode(episode: XtreamSerieEpisode): void {
         const saved = this.playbackPositions().get(Number(episode.id));
         const channel = this.channelOf(episode);
         if (channel && this.playsExternally(channel)) {

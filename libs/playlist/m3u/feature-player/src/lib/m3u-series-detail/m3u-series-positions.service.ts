@@ -75,7 +75,35 @@ export class M3uSeriesPositionsService implements OnDestroy {
     /** The playlist/series the published map describes. */
     private owner = '';
 
-    async load(playlistId: string, seriesId: number): Promise<void> {
+    private loadsInFlight = 0;
+    private lastLoad: Promise<void> = Promise.resolve();
+
+    /**
+     * The read in flight, or null once the map is what storage holds.
+     *
+     * An episode opened before the read lands would see an empty map, start
+     * at zero, and its first progress tick would then overwrite the resume
+     * point the read was about to deliver. Callers that open an episode
+     * wait for this first.
+     */
+    whenLoaded(): Promise<void> | null {
+        return this.loadsInFlight > 0 ? this.lastLoad : null;
+    }
+
+    load(playlistId: string, seriesId: number): Promise<void> {
+        const read = this.read(playlistId, seriesId);
+        this.loadsInFlight += 1;
+        this.lastLoad = read.then(
+            () => undefined,
+            () => undefined
+        );
+        void this.lastLoad.then(() => {
+            this.loadsInFlight -= 1;
+        });
+        return read;
+    }
+
+    private async read(playlistId: string, seriesId: number): Promise<void> {
         const token = ++this.loadToken;
         // The held-back tick belongs to the series being left, and its row
         // is still the right one to write.

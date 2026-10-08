@@ -61,6 +61,26 @@ describe('M3uSeriesPositionsService', () => {
         expect(service.byEpisodeId().get(12)?.positionSeconds).toBe(90);
     });
 
+    it('says when a read is still in flight', async () => {
+        let deliver: (rows: PlaybackPositionData[]) => void = () => undefined;
+        bridge.getSeriesPlaybackPositions.mockReturnValue(
+            new Promise<PlaybackPositionData[]>((resolve) => {
+                deliver = resolve;
+            })
+        );
+
+        const load = service.load('pl-1', 500);
+        const pending = service.whenLoaded();
+        expect(pending).not.toBeNull();
+
+        deliver([position(11, 60)]);
+        await load;
+        await pending;
+
+        expect(service.whenLoaded()).toBeNull();
+        expect(service.byEpisodeId().get(11)?.positionSeconds).toBe(60);
+    });
+
     it('asks for nothing without a playlist or series', async () => {
         await service.load('', 500);
         await service.load('pl-1', 0);
