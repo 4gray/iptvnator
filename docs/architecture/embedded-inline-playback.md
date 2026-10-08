@@ -269,7 +269,9 @@ seasons-grid + "Back to seasons" level. A season is auto-selected
 (inline-playing episode's season → most recently updated in-progress
 episode's season → earliest season with unwatched episodes → latest
 non-empty season; Stalker lazy-VOD series with unhydrated seasons pin
-the fallback to the first season because their watched state is unknown,
+the fallback to the first season still to load or holding episodes
+(`unloadedSeasonKeys`: a season the portal answered empty is passed over)
+because a pending season's watched state is unknown,
 and the empty→loaded positions flip caused by the session's own watched
 toggles never re-resolves the selection). Extras (season 0, by the
 episodes' season or, unloaded, the key: `isExtrasSeason`) steer none of

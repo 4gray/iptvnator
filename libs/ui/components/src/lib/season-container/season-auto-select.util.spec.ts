@@ -191,6 +191,18 @@ describe('resolveAutoSelectedSeason', () => {
         );
     });
 
+    it('pins the first season still to load past one answered empty', () => {
+        expect(
+            resolveAutoSelectedSeason(
+                context(
+                    { '1': [], '2': [], '3': ['301'] },
+                    {},
+                    { hasUnloadedSeasons: true, unloadedSeasonKeys: ['2'] }
+                )
+            )
+        ).toBe('2');
+    });
+
     it('pins the first key while seasons are still unloaded', () => {
         const ctx = context(
             { '1': ['101'], '2': ['201'], '3': [] },
@@ -262,6 +274,36 @@ describe('resolveAutoSelectedSeason', () => {
                     context({ '0': ['1'], '1': [], '2': [] })
                 )
             ).toBe('0');
+        });
+
+        it('open when every regular season came back empty and only they are still to load', () => {
+            // The aggregate flag is true because of the extras alone: the
+            // run has nothing to show, so the page loads the extras.
+            expect(
+                resolveAutoSelectedSeason(
+                    context(
+                        { '0': [], '1': [], '2': [] },
+                        {},
+                        {
+                            hasUnloadedSeasons: true,
+                            unloadedSeasonKeys: ['0'],
+                        }
+                    )
+                )
+            ).toBe('0');
+            // While a regular season is still to load, it comes first.
+            expect(
+                resolveAutoSelectedSeason(
+                    context(
+                        { '0': [], '1': [], '2': [] },
+                        {},
+                        {
+                            hasUnloadedSeasons: true,
+                            unloadedSeasonKeys: ['0', '2'],
+                        }
+                    )
+                )
+            ).toBe('2');
         });
 
         it('still open while one is playing', () => {

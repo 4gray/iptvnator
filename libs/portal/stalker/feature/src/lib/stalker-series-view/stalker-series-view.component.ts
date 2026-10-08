@@ -1625,6 +1625,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             : {}
     );
 
+    /** The seasons still to load, for the season tabs' auto-selection. */
+    readonly unloadedVodSeasonKeys = computed(() =>
+        Object.keys(this.vodSeasonLoadStates())
+    );
+
     async handleSeriesPlaybackToggleRequested(
         request: SeasonContainerSeriesPlaybackToggleRequest
     ): Promise<void> {

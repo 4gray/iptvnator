@@ -18,6 +18,12 @@ export interface AutoSeasonContext {
     ) => PlaybackPositionData | undefined;
     /** Stalker lazy-VOD: some seasons' episode lists are not loaded yet. */
     hasUnloadedSeasons: boolean;
+    /**
+     * Stalker lazy-VOD: the seasons whose lists are not loaded yet (pending
+     * or loading). `hasUnloadedSeasons` alone cannot tell one of them from a
+     * season the portal answered empty.
+     */
+    unloadedSeasonKeys?: readonly string[];
     episodeCounts: Record<string, number>;
     watchedCounts: Record<string, number>;
 }
@@ -41,17 +47,21 @@ export function resolveAutoSelectedSeason(
     if (context.playingSeasonKey) {
         return context.playingSeasonKey;
     }
+    const unloaded = new Set(context.unloadedSeasonKeys ?? []);
     const runKeys = keys.filter(
         (key) => !isExtrasSeason(key, context.seasons[key])
     );
-    // A run that came back empty does not hide the extras.
+    // A run that came back empty does not hide the extras; one still to
+    // load may. Without per-season states the aggregate flag stands in.
     const runMayHaveEpisodes =
-        context.hasUnloadedSeasons ||
-        runKeys.some((key) => (context.episodeCounts[key] ?? 0) > 0);
+        runKeys.some(
+            (key) => unloaded.has(key) || (context.episodeCounts[key] ?? 0) > 0
+        ) ||
+        (unloaded.size === 0 && context.hasUnloadedSeasons);
     const steering = runKeys.length > 0 && runMayHaveEpisodes ? runKeys : keys;
     return (
         findMostRecentInProgressSeason(context, steering) ??
-        resolveDefaultSeason(context, steering)
+        resolveDefaultSeason(context, steering, unloaded)
     );
 }
 
@@ -61,15 +71,21 @@ export function resolveAutoSelectedSeason(
  * non-empty season, where new episodes land (issue #1441). Loaded-but-empty
  * seasons (a valid Stalker answer) are never picked over one that has
  * episodes. Stalker lazy-VOD series with unhydrated seasons keep the first
- * season: their watched state is unknown, so skipping past them would be a
- * guess.
+ * season still to load or holding episodes: the watched state of a pending
+ * season is unknown, so skipping past it would be a guess, while a season
+ * answered empty before it has nothing to show.
  */
 function resolveDefaultSeason(
     { hasUnloadedSeasons, episodeCounts, watchedCounts }: AutoSeasonContext,
-    keys: readonly string[]
+    keys: readonly string[],
+    unloaded: ReadonlySet<string>
 ): string {
     if (hasUnloadedSeasons) {
-        return keys[0];
+        return (
+            keys.find(
+                (key) => unloaded.has(key) || (episodeCounts[key] ?? 0) > 0
+            ) ?? keys[0]
+        );
     }
     const firstUnwatched = keys.find((key) => {
         const total = episodeCounts[key] ?? 0;
