@@ -31,7 +31,6 @@ import {
     getM3uCatchupWindowEndSeconds,
     isDashChannel,
     isDashStreamUrl,
-    isLikelyM3uMovie,
     isLikelyM3uVod,
     isM3uCatchupPlaybackSupported,
     resolveM3uCatchupUrl,
@@ -151,6 +150,7 @@ import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions'
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 import { isM3uCollectionView } from './m3u-collection-view.util';
+import { isM3uMovieRow } from './m3u-movie-row.util';
 import {
     findM3uChannelOpenTarget,
     isM3uChannelOpenTarget,
@@ -440,7 +440,7 @@ export class VideoPlayerComponent
         return (
             this.settingsStore.m3uVodDetails?.() !== false &&
             this.tmdbEnrichment.isEnabled() &&
-            isLikelyM3uMovie(channel)
+            isM3uMovieRow(channel)
         );
     }
     /** Full multi-day programme window for the active channel (timeline). */

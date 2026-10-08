@@ -282,6 +282,36 @@ describe('buildM3uSeriesCatalog', () => {
         ).toBe('Dark S01E01');
     });
 
+    it('keeps every row of a show whose rows carry no numbers', () => {
+        // Same name, different files: without numbers they all resolved to
+        // S1E1, and all but the first were parked where nothing plays them.
+        const rows = [1, 2, 3].map((n) => ({
+            ...row('Planet Earth'),
+            url: `http://h.example/series/u/p/earth-${n}.mp4`,
+        }));
+        const series = buildM3uSeriesCatalog(
+            [...rows, { ...rows[0] }, row('Planet Earth S01E01')],
+            'pl-1'
+        );
+
+        expect(series).toHaveLength(1);
+        const episodes = series[0].seasons.get(1) ?? [];
+        // The numbered row keeps the coordinate it states; the repeated URL
+        // is one row, not two.
+        expect(
+            episodes.map((episode) => [
+                episode.episodeNumber,
+                episode.channel.url,
+            ])
+        ).toEqual([
+            [1, row('Planet Earth S01E01').url],
+            [2, rows[0].url],
+            [3, rows[1].url],
+            [4, rows[2].url],
+        ]);
+        expect(new Set(episodes.map((episode) => episode.id)).size).toBe(4);
+    });
+
     it('keeps a row whose name carries no marker at all', () => {
         // Classified as an episode by its /series/ path but named in a way
         // the parser does not recognise. Dropping it would make provider

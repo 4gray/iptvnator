@@ -49,6 +49,8 @@ export function buildM3uSeriesCatalog<T extends M3uArtworkBearing>(
 ): readonly M3uSeries<T>[] {
     const accumulators = new Map<string, M3uSeriesAccumulator<T>>();
 
+    const unnumbered: [M3uSeriesAccumulator<T>, T][] = [];
+
     for (const channel of episodes ?? []) {
         const parsed = parseRow(channel.name);
         if (!parsed) {
@@ -105,7 +107,17 @@ export function buildM3uSeriesCatalog<T extends M3uArtworkBearing>(
         series.posterUrl ??= channel.tvg?.logo || null;
         series.yearHint ??= keys.trailingYear;
 
-        addEpisode(series, channel, parsed);
+        if (parsed.unnumbered) {
+            unnumbered.push([series, channel]);
+        } else {
+            addEpisode(series, channel, parsed);
+        }
+    }
+
+    // After every numbered row, so a row with no number never takes the
+    // coordinate a real episode states.
+    for (const [series, channel] of unnumbered) {
+        addUnnumberedEpisode(series, channel);
     }
 
     return regroupM3uSeriesByYear(accumulators.values()).map((series) => {
@@ -146,7 +158,7 @@ function isOnlyAMarker(name: string): boolean {
  */
 function parseRow(
     name: string | null | undefined
-): (M3uEpisodeParse & { standalone?: boolean }) | null {
+): (M3uEpisodeParse & { standalone?: boolean; unnumbered?: boolean }) | null {
     const parsed = parseM3uEpisode(name);
     if (parsed) {
         return parsed;
@@ -162,6 +174,7 @@ function parseRow(
             hasExplicitSeason: false,
             episodeTitle: null,
             standalone: true,
+            unnumbered: true,
         };
     }
 
@@ -171,6 +184,7 @@ function parseRow(
         episodeNumber: 1,
         hasExplicitSeason: false,
         episodeTitle: null,
+        unnumbered: true,
     };
 }
 
@@ -211,6 +225,48 @@ function addEpisode<T extends M3uArtworkBearing>(
         seasonNumber,
         episodeNumber,
         title: parsed.episodeTitle,
+        channel,
+        alternatives: [],
+    });
+}
+
+/**
+ * Files a row the parser read no number from.
+ *
+ * Such rows cannot be told apart by coordinates, and `addEpisode` would
+ * park every one after the first as a quality alternative — which nothing
+ * plays. Rows that share a name but not a URL are therefore distinct
+ * entries of season 1, numbered after whatever is already there. The same
+ * URL again is the same row and is still parked.
+ */
+function addUnnumberedEpisode<T extends M3uArtworkBearing>(
+    series: M3uSeriesAccumulator<T>,
+    channel: T
+): void {
+    let season = series.seasons.get(1);
+    if (!season) {
+        season = new Map();
+        series.seasons.set(1, season);
+    }
+
+    let last = 0;
+    for (const [number, existing] of season) {
+        if (existing.channel.url === channel.url) {
+            season.set(number, {
+                ...existing,
+                alternatives: [...existing.alternatives, channel],
+            });
+            return;
+        }
+        last = Math.max(last, number);
+    }
+
+    const episodeNumber = last + 1;
+    season.set(episodeNumber, {
+        id: hashM3uId(`${series.key}\u00001x${episodeNumber}`),
+        seasonNumber: 1,
+        episodeNumber,
+        title: null,
         channel,
         alternatives: [],
     });
