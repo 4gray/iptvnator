@@ -370,6 +370,44 @@ describe('DashboardSeriesEpisodesService', () => {
             });
         });
 
+        it('keeps a password corrected for the new source when the old source answers late', async () => {
+            const moved = (password = credentials.password) => ({
+                ...request(900),
+                credentials: {
+                    ...credentials,
+                    serverUrl: 'http://moved.example',
+                    password,
+                },
+            });
+            const oldAnswer = deferred<XtreamSerieDetails>();
+            const movedAnswer = deferred<XtreamSerieDetails>();
+            getSeriesInfo
+                .mockReturnValueOnce(oldAnswer.promise)
+                .mockReturnValueOnce(movedAnswer.promise);
+            service.request([request(900)], 1);
+            // The playlist moves to another server while the lookup is out,
+            // and its password is corrected while the new lookup is out.
+            service.request([moved()], 1);
+            service.request([moved('corrected')], 1);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+
+            // The old server answers late: nothing of the new one is lost.
+            oldAnswer.reject(new Error('Gone'));
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            movedAnswer.reject(new Error('Wrong password'));
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(3);
+            expect(getSeriesInfo).toHaveBeenLastCalledWith(
+                moved('corrected').credentials,
+                900,
+                { suppressErrorLog: true }
+            );
+            expect(status(900)).toBe('loaded');
+        });
+
         it('leaves a list whose refresh failed alone until the retry delay has passed', async () => {
             getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
             service.request([request(900)], 1);

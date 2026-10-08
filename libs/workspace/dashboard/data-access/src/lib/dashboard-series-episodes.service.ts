@@ -252,13 +252,18 @@ export class DashboardSeriesEpisodesService {
         }
         const now = Date.now();
         this.inFlight.delete(`${key}#${source}`);
+        // A follow-up belongs to the source it was asked for: one queued for
+        // another source stands until that source's own attempt is over.
+        const queued = this.followUps.get(key);
+        const followUp =
+            queued && sourceOf(queued) === source ? queued : undefined;
+        if (followUp) {
+            this.followUps.delete(key);
+        }
         // The series was asked for from another source meanwhile.
         if (this.sources.get(key) !== source) {
-            this.followUps.delete(key);
             return;
         }
-        const followUp = this.followUps.get(key);
-        this.followUps.delete(key);
         if (seasons) {
             this.loadedAt.set(key, now);
             this.failedAt.delete(key);
