@@ -42,13 +42,30 @@ function fnv1a(value: string, seed: number): number {
 }
 
 export function hashM3uId(value: string): number {
+    return createM3uIdHasher('')(value);
+}
+
+/**
+ * `hashM3uId(prefix + suffix)` for many suffixes of one prefix.
+ *
+ * FNV-1a consumes its input left to right, so the state after the prefix
+ * can be kept and continued. A series mints one id per episode from
+ * `series key + coordinate`; hashing the long key once instead of once per
+ * episode is most of the cost of building a 40k-episode catalog.
+ */
+export function createM3uIdHasher(prefix: string): (suffix: string) => number {
     // Two independently seeded passes rather than one 32-bit hash widened:
     // widening cannot add entropy, and the collision rate is what the extra
     // bits are for.
-    const high = fnv1a(value, FNV_OFFSET) & HALF_MASK;
-    const low = fnv1a(value, FNV_PRIME) & HALF_MASK;
-    const id = high * HALF_SHIFT + low;
+    const highState = fnv1a(prefix, FNV_OFFSET);
+    const lowState = fnv1a(prefix, FNV_PRIME);
 
-    // Zero is reserved: callers treat a falsy id as "no id".
-    return id === 0 ? 1 : id;
+    return (suffix) => {
+        const high = fnv1a(suffix, highState) & HALF_MASK;
+        const low = fnv1a(suffix, lowState) & HALF_MASK;
+        const id = high * HALF_SHIFT + low;
+
+        // Zero is reserved: callers treat a falsy id as "no id".
+        return id === 0 ? 1 : id;
+    };
 }

@@ -1,4 +1,4 @@
-import { hashM3uId } from './stable-numeric-id.util';
+import { createM3uIdHasher, hashM3uId } from './stable-numeric-id.util';
 
 describe('hashM3uId', () => {
     it('is deterministic', () => {
@@ -36,5 +36,26 @@ describe('hashM3uId', () => {
         }
 
         expect(ids.size).toBe(2000 * 21);
+    });
+});
+
+describe('createM3uIdHasher', () => {
+    it('mints exactly the id of the whole key', () => {
+        // These ids key persisted watch progress: continuing the hash from a
+        // prefix is an optimisation and must not change a single one.
+        const mint = createM3uIdHasher('pl-1\u0000tr\u0000şöhret\u0000');
+
+        for (const suffix of ['1x1', '12x340', 'row\u0000file-7.mp4', '']) {
+            expect(mint(suffix)).toBe(
+                hashM3uId(`pl-1\u0000tr\u0000şöhret\u0000${suffix}`)
+            );
+        }
+    });
+
+    it('keeps no state between ids', () => {
+        const mint = createM3uIdHasher('SHOW\u0000');
+
+        expect(mint('1x2')).toBe(mint('1x2'));
+        expect(mint('1x1')).not.toBe(mint('1x2'));
     });
 });

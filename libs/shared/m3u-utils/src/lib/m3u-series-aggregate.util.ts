@@ -12,7 +12,6 @@ import {
     placeUnnumberedEpisode,
 } from './m3u-series-placement.util';
 import {
-    mintM3uEpisodeId,
     regroupM3uSeriesByYear,
     remintM3uEpisodeIds,
 } from './m3u-series-remake-split.util';
@@ -198,7 +197,8 @@ function addEpisode<T extends M3uArtworkBearing>(
     }
 
     placeNumberedEpisode(season, {
-        id: mintM3uEpisodeId(series.key, { seasonNumber, episodeNumber }),
+        // Minted with every other id once the series key is final.
+        id: 0,
         seasonNumber,
         episodeNumber,
         title: parsed.episodeTitle,

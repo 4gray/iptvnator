@@ -17,23 +17,57 @@
  */
 
 /**
- * Budget for a full index build over `REAL_PLAYLIST_ROW_COUNT` rows.
+ * The budgets are RATIOS to a reference pass timed in the same process, not
+ * milliseconds.
  *
- * Local measurement is well under this; the ceiling is ~3x that, chosen to
- * survive a loaded CI runner while still failing on an algorithmic
- * regression — an extra pass over the rows, a per-row `new URL`, or a
- * channel→kind map being reintroduced.
+ * A millisecond ceiling measures the machine as much as the code: the same
+ * build that takes 70 ms on a developer laptop took 714 ms on a shared CI
+ * runner, so a ceiling loose enough for CI caught nothing locally and one
+ * tight enough locally failed every CI run. The reference pass is ten cheap
+ * sweeps over the same rows (a lowercase + substring test and one regex
+ * each); it slows down with the machine exactly as the code under test
+ * does, so the ratio stays put.
  */
-export const M3U_CATALOG_INDEX_BUDGET_MS = 300;
+const REFERENCE_WORD = /\p{L}{4,}/u;
+
+export function runCatalogReferencePass(
+    rows: readonly { readonly url: string; readonly name: string }[]
+): number {
+    let hits = 0;
+    for (let pass = 0; pass < 10; pass += 1) {
+        for (const row of rows) {
+            if (row.url.toLowerCase().includes('/live/')) {
+                hits += 1;
+            }
+            if (REFERENCE_WORD.test(row.name)) {
+                hits += 1;
+            }
+        }
+    }
+    return hits;
+}
 
 /**
- * Budget for collapsing the episode rows of that playlist into series.
+ * Budget for a full index build over `REAL_PLAYLIST_ROW_COUNT` rows, in
+ * reference passes.
  *
- * Higher than the index budget because title normalization runs per row and
- * is the dominant cost; measured at ~290 ms on a real 40k-episode catalog,
- * so this leaves headroom without hiding a regression.
+ * Measured at ~1.4 (1.6 under coverage instrumentation). The ceiling is
+ * ~3x that: room for a different CPU's regex and string costs, while still
+ * failing on an algorithmic regression — an extra pass over the rows, a
+ * per-row `new URL`, or a channel→kind map being reintroduced.
  */
-export const M3U_SERIES_CATALOG_BUDGET_MS = 900;
+export const M3U_CATALOG_INDEX_BUDGET_RATIO = 5;
+
+/**
+ * Budget for collapsing the episode rows of that playlist into series, in
+ * reference passes.
+ *
+ * Higher than the index budget because title normalization and id minting
+ * run per row. Measured at ~5.5 (6 under coverage) on the synthetic mix,
+ * where every coordinate is shared by about ten rows and each is listed —
+ * the costliest shape for placement.
+ */
+export const M3U_SERIES_CATALOG_BUDGET_RATIO = 18;
 
 /** The size of the playlist the budget is expressed against. */
 export const REAL_PLAYLIST_ROW_COUNT = 62_696;

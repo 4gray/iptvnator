@@ -1,4 +1,4 @@
-import { hashM3uId } from '@iptvnator/shared/interfaces';
+import { createM3uIdHasher } from '@iptvnator/shared/interfaces';
 import {
     M3uArtworkBearing,
     M3uSeriesAccumulator,
@@ -92,31 +92,17 @@ function earliestStatedYear<T extends M3uArtworkBearing>(
 }
 
 /**
- * The one place an episode id is derived. A numbered episode is keyed on
- * its coordinates; a row with no number on its `rowKey`, because its slot
- * is not stable.
- */
-export function mintM3uEpisodeId(
-    seriesKey: string,
-    episode: {
-        readonly seasonNumber: number;
-        readonly episodeNumber: number;
-        readonly rowKey?: string;
-    }
-): number {
-    return hashM3uId(
-        episode.rowKey === undefined
-            ? `${seriesKey}\u0000${episode.seasonNumber}x${episode.episodeNumber}`
-            : `${seriesKey}\u0000row\u0000${episode.rowKey}`
-    );
-}
-
-/**
- * Ids follow the final key, or two series would share watch history.
+ * Mints every episode id of a series, once its key is final — ids follow
+ * the key, or two series would share watch history. This is the one place
+ * an episode id is derived.
  *
- * Unnumbered rows of one series can end in the same file name (two
- * `index.m3u8` under different directories). Nothing stable tells those
- * apart, and numbering them by playlist order would swap their watch
+ * A numbered episode is keyed on its coordinates. A row with a `rowKey` — no
+ * number, or a second row at a coordinate — is keyed on that instead,
+ * because its place in the list is not stable.
+ *
+ * Rows of one series can share a `rowKey`: it is the file name, and two
+ * `index.m3u8` can sit under different directories. Nothing stable tells
+ * those apart, and numbering them by playlist order would swap their watch
  * history on a reorder. They are keyed on their whole URL instead: a
  * rotated token then drops the mark rather than moving it to another
  * episode. Rows with a file name of their own are unaffected.
@@ -125,32 +111,28 @@ export function remintM3uEpisodeIds<T extends M3uArtworkBearing>(
     series: M3uSeriesAccumulator<T>
 ): void {
     const rowKeyUses = new Map<string, number>();
-    for (const [, episodes] of series.seasons) {
-        for (const [, episode] of episodes) {
-            if (episode.rowKey !== undefined) {
-                rowKeyUses.set(
-                    episode.rowKey,
-                    (rowKeyUses.get(episode.rowKey) ?? 0) + 1
-                );
+    for (const episodes of series.seasons.values()) {
+        for (const { rowKey } of episodes.values()) {
+            if (rowKey !== undefined) {
+                rowKeyUses.set(rowKey, (rowKeyUses.get(rowKey) ?? 0) + 1);
             }
         }
     }
 
-    for (const [, episodes] of series.seasons) {
-        for (const [number, episode] of episodes) {
-            const shared =
-                episode.rowKey !== undefined &&
-                (rowKeyUses.get(episode.rowKey) ?? 0) > 1;
-            episodes.set(number, {
+    // The key is hashed once and continued per episode.
+    const mint = createM3uIdHasher(`${series.key}\u0000`);
+
+    for (const episodes of series.seasons.values()) {
+        for (const [slot, episode] of episodes) {
+            const { rowKey } = episode;
+            episodes.set(slot, {
                 ...episode,
-                id: mintM3uEpisodeId(
-                    series.key,
-                    shared
-                        ? {
-                              ...episode,
-                              rowKey: `${episode.rowKey}\u0000${episode.channel.url}`,
-                          }
-                        : episode
+                id: mint(
+                    rowKey === undefined
+                        ? `${episode.seasonNumber}x${episode.episodeNumber}`
+                        : (rowKeyUses.get(rowKey) ?? 0) > 1
+                          ? `row\u0000${rowKey}\u0000${episode.channel.url}`
+                          : `row\u0000${rowKey}`
                 ),
             });
         }

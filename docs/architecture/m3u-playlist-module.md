@@ -1823,7 +1823,9 @@ watched marks (the same limit Stalker positions have there).
   URL the rotating tokens (directories, query) do not touch. Unnumbered
   rows of one series that share a file name are keyed on their whole URL:
   a rotated token then drops the mark instead of moving it to another row.
-  `mintM3uEpisodeId` is the only place an episode id is derived.
+  `remintM3uEpisodeIds` is the only place an episode id is derived; it
+  hashes the series key once (`createM3uIdHasher`) and continues it per
+  episode.
 - No episode row with its own URL is hidden behind another
   (`m3u-series-placement.util.ts`). The first row at a season×episode
   holds the coordinate and the id derived from it; a later row there with

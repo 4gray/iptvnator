@@ -87,14 +87,21 @@ const LIVE_FILE_EXTENSIONS = new Set(['flv']);
  */
 function hasBroadcastEvidence(channel: M3uClassifiableEntry): boolean {
     const { tvg, catchup, timeshift } = channel;
-    return [
-        tvg?.id,
-        tvg?.rec,
-        timeshift,
-        catchup?.type,
-        catchup?.days,
-        catchup?.source,
-    ].some((value) => Boolean(value?.trim()));
+    // Spelled out rather than looped: this runs for every file row of a
+    // playlist, and an array per row is the kind of cost the index budget
+    // exists to catch.
+    return (
+        isStated(tvg?.id) ||
+        isStated(tvg?.rec) ||
+        isStated(timeshift) ||
+        isStated(catchup?.type) ||
+        isStated(catchup?.days) ||
+        isStated(catchup?.source)
+    );
+}
+
+function isStated(value: string | null | undefined): boolean {
+    return !!value && value.trim() !== '';
 }
 
 /**
@@ -159,20 +166,22 @@ export function classifyM3uEntry(
         return 'live';
     }
 
-    const extension = getPlaybackMediaExtensionFromUrl(url);
-
     if (path.includes(SERIES_SEGMENT)) {
         // A folder can be called `series` as it can be called `movies`. A
         // streaming container there that also states a broadcast is a
         // channel ("/hls/series/index.m3u8" with a guide id), not an
-        // episode; everything else under the segment is one.
-        return STREAMING_EXTENSIONS.has(extension) &&
-            hasBroadcastEvidence(channel)
+        // episode; everything else under the segment is one. The broadcast
+        // check comes first: it is false for nearly every row here, which
+        // spares them the extension parse.
+        return hasBroadcastEvidence(channel) &&
+            STREAMING_EXTENSIONS.has(getPlaybackMediaExtensionFromUrl(url))
             ? 'live'
             : 'episode';
     }
 
     const name = channel.name;
+
+    const extension = getPlaybackMediaExtensionFromUrl(url);
 
     if (
         path.includes(XTREAM_MOVIE_SEGMENT) ||
