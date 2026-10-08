@@ -369,6 +369,28 @@ describe('buildM3uSeriesCatalog', () => {
         ]);
     });
 
+    it('does not swap the ids of unnumbered rows that share a file name', () => {
+        // Two `index.m3u8` under different directories: nothing but the
+        // whole URL tells them apart, and an occurrence counter would hand
+        // each the other's watch history when the provider reorders them.
+        const stream = (folder: string) => ({
+            ...row('Lecture'),
+            url: `http://h.example/series/${folder}/index.m3u8`,
+        });
+        const idsByUrl = (rows: ReturnType<typeof stream>[]) =>
+            Object.fromEntries(
+                (
+                    buildM3uSeriesCatalog(rows, 'pl-1')[0].seasons.get(1) ?? []
+                ).map((episode) => [episode.channel.url, episode.id])
+            );
+
+        const before = idsByUrl([stream('a'), stream('b')]);
+        const after = idsByUrl([stream('b'), stream('a')]);
+
+        expect(after).toEqual(before);
+        expect(new Set(Object.values(before)).size).toBe(2);
+    });
+
     it('keeps a row whose name carries no marker at all', () => {
         // Classified as an episode by its /series/ path but named in a way
         // the parser does not recognise. Dropping it would make provider

@@ -107,15 +107,47 @@ export function mintM3uEpisodeId(
     );
 }
 
-/** Ids follow the final key, or two series would share watch history. */
+/**
+ * Ids follow the final key, or two series would share watch history.
+ *
+ * Unnumbered rows of one series can end in the same file name (two
+ * `index.m3u8` under different directories). Nothing stable tells those
+ * apart, and numbering them by playlist order would swap their watch
+ * history on a reorder. They are keyed on their whole URL instead: a
+ * rotated token then drops the mark rather than moving it to another
+ * episode. Rows with a file name of their own are unaffected.
+ */
 export function remintM3uEpisodeIds<T extends M3uArtworkBearing>(
     series: M3uSeriesAccumulator<T>
 ): void {
+    const rowKeyUses = new Map<string, number>();
+    for (const [, episodes] of series.seasons) {
+        for (const [, episode] of episodes) {
+            if (episode.rowKey !== undefined) {
+                rowKeyUses.set(
+                    episode.rowKey,
+                    (rowKeyUses.get(episode.rowKey) ?? 0) + 1
+                );
+            }
+        }
+    }
+
     for (const [, episodes] of series.seasons) {
         for (const [number, episode] of episodes) {
+            const shared =
+                episode.rowKey !== undefined &&
+                (rowKeyUses.get(episode.rowKey) ?? 0) > 1;
             episodes.set(number, {
                 ...episode,
-                id: mintM3uEpisodeId(series.key, episode),
+                id: mintM3uEpisodeId(
+                    series.key,
+                    shared
+                        ? {
+                              ...episode,
+                              rowKey: `${episode.rowKey}\u0000${episode.channel.url}`,
+                          }
+                        : episode
+                ),
             });
         }
     }
@@ -209,15 +241,13 @@ function addMergedEpisode<T extends M3uArtworkBearing>(
 
 /**
  * Lists an unnumbered row at the next free slot of its season. The same
- * URL again is the same row and is parked; a `rowKey` another row already
- * holds is told apart by its occurrence, so the two keep separate ids.
+ * URL again is the same row and is parked.
  */
 export function placeUnnumberedEpisode<T extends M3uArtworkBearing>(
     season: Map<number, M3uSeriesEpisode<T>>,
     episode: M3uSeriesEpisode<T>
 ): void {
     let last = 0;
-    const takenRowKeys = new Set<string>();
     for (const [number, existing] of season) {
         if (existing.channel.url === episode.channel.url) {
             season.set(number, {
@@ -230,17 +260,8 @@ export function placeUnnumberedEpisode<T extends M3uArtworkBearing>(
             });
             return;
         }
-        if (existing.rowKey !== undefined) {
-            takenRowKeys.add(existing.rowKey);
-        }
         last = Math.max(last, number);
     }
 
-    const base = episode.rowKey ?? '';
-    let rowKey = base;
-    for (let repeat = 2; takenRowKeys.has(rowKey); repeat += 1) {
-        rowKey = `${base}\u0000${repeat}`;
-    }
-
-    season.set(last + 1, { ...episode, episodeNumber: last + 1, rowKey });
+    season.set(last + 1, { ...episode, episodeNumber: last + 1 });
 }

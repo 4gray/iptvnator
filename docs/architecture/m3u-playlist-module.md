@@ -1814,7 +1814,9 @@ watched marks (the same limit Stalker positions have there).
   coordinates, and several such rows of one show are listed as separate
   season-1 entries in playlist order; that slot moves on a reorder, so the
   id is keyed on `rowKey`, the file name the URL ends in — the part of a
-  URL the rotating tokens (directories, query) do not touch.
+  URL the rotating tokens (directories, query) do not touch. Unnumbered
+  rows of one series that share a file name are keyed on their whole URL:
+  a rotated token then drops the mark instead of moving it to another row.
   `mintM3uEpisodeId` is the only place an episode id is derived.
 - Inline episode playback carries `contentInfo` (the episode's id and
   coordinates), which is what makes the shared inline player offer its
