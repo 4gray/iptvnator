@@ -92,64 +92,62 @@
         min-width: 0;
     }
 
-    .view-toggle {
-        margin-left: auto;
+    // Segmented list/grid switch: a 2px-padded track with 30×26 segments;
+    // the checked one is a neutral raised segment with full-contrast ink.
+    .view-toggle mat-button-toggle-group {
+        gap: 2px;
+        height: auto;
+        padding: 2px;
+        overflow: visible;
+        border: 1px solid
+            color-mix(in srgb, var(--app-on-surface) 14%, transparent);
+        border-radius: 8px;
+        background: var(--app-widget-bg);
 
-        mat-button-toggle-group {
-            border: 1px solid
-                color-mix(in srgb, var(--app-on-surface) 14%, transparent);
-            border-radius: 6px;
-            overflow: hidden;
-            background: color-mix(
-                in srgb,
-                var(--app-on-surface) 3%,
-                transparent
-            );
+        ::ng-deep {
+            .mat-button-toggle {
+                border: 0;
+                border-radius: 6px;
+                background: transparent;
+                color: var(--app-eyebrow-color);
 
-            ::ng-deep {
-                .mat-button-toggle {
-                    background: transparent;
-
-                    .mat-button-toggle-button {
-                        padding: 0 8px;
-                        height: 30px;
-                    }
-
-                    mat-icon {
-                        font-size: 18px;
-                        width: 18px;
-                        height: 18px;
-                        color: var(--text-secondary);
-                    }
-
-                    &.mat-button-toggle-checked {
-                        background: var(--app-selection-surface);
-
-                        mat-icon {
-                            color: var(--app-selection-color);
-                        }
-                    }
-
-                    &:hover:not(.mat-button-toggle-checked) {
-                        background: var(--app-hover-overlay);
-                    }
+                .mat-button-toggle-button {
+                    width: 30px;
+                    height: 26px;
+                    padding: 0;
                 }
 
-                .mat-button-toggle-appearance-standard {
-                    .mat-button-toggle-label-content {
-                        line-height: 30px;
-                        padding: 0;
-                    }
+                .mat-button-toggle-label-content {
+                    display: grid;
+                    place-items: center;
+                    padding: 0;
+                    line-height: 26px;
                 }
 
-                .mat-button-toggle + .mat-button-toggle {
-                    border-left: 1px solid
-                        color-mix(
-                            in srgb,
-                            var(--app-on-surface) 14%,
-                            transparent
-                        );
+                mat-icon {
+                    width: 16px;
+                    height: 16px;
+                    font-size: 16px;
+                    line-height: 16px;
+                    color: inherit;
                 }
+
+                &:hover:not(.mat-button-toggle-checked) {
+                    color: var(--app-heading-color);
+                }
+
+                &.mat-button-toggle-checked {
+                    background: color-mix(
+                        in srgb,
+                        var(--app-on-surface) 12%,
+                        transparent
+                    );
+                    color: var(--app-heading-color);
+                }
+            }
+
+            .mat-button-toggle + .mat-button-toggle {
+                border-left: 0;
             }
         }
     }

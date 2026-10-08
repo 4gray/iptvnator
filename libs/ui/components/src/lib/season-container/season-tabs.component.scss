@@ -9,13 +9,16 @@
     flex-wrap: wrap;
     gap: 6px;
 
+    // Season pills and the dropdown share the section header's 30px pill.
     &__pill {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 8px 16px;
-        border: none;
+        height: 30px;
+        padding: 0 12px;
+        border: 1px solid transparent;
         border-radius: 999px;
+        box-sizing: border-box;
         background: transparent;
         color: var(--text-secondary, rgba(255, 255, 255, 0.7));
         font-size: 13px;
@@ -30,31 +33,47 @@
         }
 
         &--active {
-            background: var(--tag-bg, rgba(255, 255, 255, 0.1));
+            border-color: color-mix(
+                in srgb,
+                var(--app-on-surface) 14%,
+                transparent
+            );
+            background: var(--app-widget-bg);
             color: var(--text-primary, #fff);
-            font-weight: 600;
-            outline: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+            font-weight: 500;
         }
     }
 
     &__dropdown {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 8px 10px 8px 16px;
-        border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+        gap: 6px;
+        height: 30px;
+        padding: 0 10px 0 12px;
+        border: 1px solid
+            color-mix(in srgb, var(--app-on-surface) 14%, transparent);
         border-radius: 999px;
-        background: transparent;
+        box-sizing: border-box;
+        background: var(--app-widget-bg);
         color: var(--text-primary, #fff);
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 500;
         font-family: inherit;
         cursor: pointer;
+
+        > mat-icon {
+            width: 16px;
+            height: 16px;
+            font-size: 16px;
+            line-height: 16px;
+            color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+        }
 
         // The trigger hugs its thumbnail: less inset on the picture side and
         // vertically, so the pill grows only as much as the 42px poster needs.
         &--with-thumb {
             gap: 8px;
+            height: auto;
             padding: 4px 10px 4px 4px;
         }
     }
@@ -84,7 +103,7 @@
         font-size: 15px;
         width: 15px;
         height: 15px;
-        color: var(--accent-success, #4ade80);
+        color: var(--app-success-color, #4ade80);
     }
 
     &__back-to-playing {

@@ -24,7 +24,7 @@
                         | translate: { number: selectedSeason() ?? '—' }
                 }}
             </span>
-            <mat-icon>arrow_drop_down</mat-icon>
+            <mat-icon>expand_more</mat-icon>
         </button>
         <mat-menu #seasonMenu="matMenu">
             @for (seasonKey of seasonKeys(); track seasonKey) {
