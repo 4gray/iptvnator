@@ -207,6 +207,25 @@ async function rotationLayoutShift(page: Page): Promise<RotationShift> {
     );
 }
 
+/** One unattended rotation moves next to nothing on the page, and nothing
+ * at all inside the hero. */
+async function expectStableRotation(
+    page: Page,
+    label: string,
+    results: string[]
+): Promise<void> {
+    const shift = await rotationLayoutShift(page);
+    const sources = shift.sources.join('; ');
+    results.push(
+        `${label} rotation layout shift ${shift.score.toFixed(5)} [${sources}]`
+    );
+    expect(shift.score, `${label}: ${sources}`).toBeLessThan(0.001);
+    expect(
+        shift.sources.filter((source) => source.includes('hero__')),
+        `${label}: nothing in the hero moves`
+    ).toEqual([]);
+}
+
 /** Adds what a TMDB-enriched slide shows: a rating chip and an overview.
  * Once per slide: a slide keeps its content while another one is shown. */
 async function enrichSlide(slide: Locator): Promise<void> {
@@ -321,18 +340,10 @@ test.describe('Dashboard hero legibility', () => {
             // heights resized it and moved every rail below by 7px (a score
             // of 0.005). Every rotation dot keeps its width, so the active
             // one no longer pushes its neighbours either.
-            const shift = await rotationLayoutShift(page);
-            results.push(
-                `rotation layout shift ${shift.score.toFixed(5)} ` +
-                    `[${shift.sources.join('; ')}]`
-            );
-            expect(shift.score, shift.sources.join('; ')).toBeLessThan(0.001);
-            expect(
-                shift.sources.filter((source) => source.includes('hero__')),
-                'nothing in the hero moves'
-            ).toEqual([]);
+            await expectStableRotation(page, 'wide', results);
 
-            await page.getByTestId('dashboard-hero-pause').click();
+            const pause = page.getByTestId('dashboard-hero-pause');
+            await pause.click();
             const kinds = await slideKinds(page);
             for (const theme of ['light', 'dark'] as const) {
                 await applyTheme(page, theme);
@@ -379,6 +390,12 @@ test.describe('Dashboard hero legibility', () => {
                     }
                 }
             }
+
+            // Again at the narrow width, where slides wrap the most, now that
+            // every slide also carries a rating and a two-line overview.
+            await pause.click();
+            await expect(pause).toHaveAttribute('aria-pressed', 'false');
+            await expectStableRotation(page, 'narrow enriched', results);
         } finally {
             const report = testInfo.outputPath('contrast.txt');
             writeFileSync(report, results.join('\n'));

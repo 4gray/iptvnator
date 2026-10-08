@@ -193,8 +193,9 @@ slide hooks mark the shown slide only; the inert slides carry none.
 `dashboard-hero-rotation.e2e.ts` drives the real fill animation (with a
 shortened `--hero-rotation-ms`) to prove its `animationend` still advances
 and that pause holds the slide. `dashboard-hero-legibility.e2e.ts` sums the
-layout shifts of one unattended rotation: under 0.001 in all, and none
-inside the hero.
+layout shifts of an unattended rotation, at the wide width and again at the
+narrow one once every slide carries a rating and an overview: under 0.001 in
+all, and none inside the hero.
 
 ## Rail Contract
 
