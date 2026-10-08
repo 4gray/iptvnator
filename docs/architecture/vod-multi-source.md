@@ -757,6 +757,32 @@ lookup comes back empty, because "never watched" is an answer: the button must
 read Play, not `Resume 42:18` on a stream that starts at zero. A pin on the
 route's own row changes nothing; the loaded position already IS that copy's.
 
+## Menu launch and reset follow the primary button
+
+The "…" menu acts on the copy the primary button acts on. The shared launch
+rules are in
+[Forced External Launches From Detail Pages](./embedded-inline-playback.md#forced-external-launches-from-detail-pages).
+
+- "Open in external player" and "Start over" are host-owned
+  (`VodDetailsMenuBindings.openExternal` / `restart`); the menu service never
+  builds a playback itself. The route forces MPV/VLC for the pinned copy from
+  that copy's own resume point (`playPinnedSource` with `player` and
+  `replacePlaying`), also while that copy already plays: it is relaunched,
+  never swapped for the route copy. Only an `unavailable` pin falls through
+  to the route copy's Resume or Play.
+- "Reset progress" clears the row of `primaryTarget`: the pinned copy's own
+  row, otherwise the route copy's.
+- Resets in flight are a list of targets
+  (`VodDetailsPlaybackService.pendingResets`, `vod-details-reset-target.ts`),
+  not one flag: the reused page can show another movie and come back, and
+  resets of one copy can overlap, so each reset removes only its own entry.
+- A start is refused (`startResolvedPlayback`) while a launch this page made
+  has not settled or the list holds the copy the page currently acts on
+  (`resetTarget`). `startBlocked` disables Play, Start over and the menu
+  launch on those conditions and while a matched session is still
+  `launching`; the menu rows are also held while a start is pending. A reset
+  still writing for another copy does not block it.
+
 ## Provider codec metadata
 
 `info.video` / `info.audio` come back in two shapes: the declared string array
@@ -775,6 +801,11 @@ absent, because a warning people learn to ignore is not a warning. Few panels
 tag a language at all, so in practice it is usually silent — which is the
 honest state, and the same one the rest of this feature takes when it does not
 know.
+
+Undetermined language tags (`und`, including regional forms such as `und-US`)
+are explicitly treated as unknown after normalization. This must hold whether
+the runtime's `Intl.Locale` returns no language or preserves `und`: neither
+case establishes a factual dub difference against a known language.
 
 Switching sources through `startResolvedPlayback` closes the external session
 it LAUNCHED first — tracked separately so refreshes and overlapping handoffs

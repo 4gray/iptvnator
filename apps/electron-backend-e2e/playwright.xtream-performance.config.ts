@@ -19,13 +19,16 @@ export default defineConfig({
         testIdAttribute: 'data-test-id',
     },
     webServer: {
-        command: 'pnpm nx run xtream-mock-server:serve',
+        // One node process (not `nx run`) so the run's kill reaches it.
+        command: 'node --import tsx apps/xtream-mock-server/src/main.ts',
         cwd: workspaceRoot,
         env: {
             HOST: '127.0.0.1',
             IPTVNATOR_XTREAM_MOCK_CONTROL: '1',
             IPTVNATOR_XTREAM_MOCK_CONTROL_TOKEN: controlToken,
+            NODE_ENV: 'development',
             PORT: '3221',
+            TSX_TSCONFIG_PATH: 'tsconfig.base.json',
         },
         reuseExistingServer: false,
         url: 'http://127.0.0.1:3221/health',

@@ -12,10 +12,10 @@ import {
     Language,
     Theme,
 } from '@iptvnator/shared/interfaces';
-import { TranslateService } from '@ngx-translate/core';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
+import { AppDateLocaleService } from '../app-date-locales';
 import {
     applyEpgUrlsToFormArray,
     createEpgUrlControl,
@@ -32,6 +32,7 @@ type SettingsFormPatch = Parameters<SettingsForm['patchValue']>[0];
  */
 @Injectable()
 export class SettingsFormFacade {
+    private readonly dateLocales = inject(AppDateLocaleService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly formBuilder = inject(FormBuilder);
@@ -39,7 +40,6 @@ export class SettingsFormFacade {
     private readonly settingsService = inject(SettingsService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly translate = inject(TranslateService);
 
     readonly supportsEpg =
         this.epgBridge.supportsImport && this.epgBridge.supportsDataManagement;
@@ -192,7 +192,10 @@ export class SettingsFormFacade {
     /** Applies the saved language/theme and resets the dirty state */
     applySavedSettings(): void {
         this.form.markAsPristine();
-        this.translate.use(this.form.value.language ?? Language.ENGLISH);
+        // The switch re-renders every date with the new locale; its data is
+        // a lazy chunk that must be registered first, and a newer choice
+        // must win over an older one whose data arrives later.
+        void this.dateLocales.use(this.form.value.language ?? Language.ENGLISH);
         this.settingsService.changeTheme(
             this.form.value.theme ?? Theme.SystemTheme
         );

@@ -48,18 +48,34 @@ export function guideBlockRevealScrollLeft(
     return Math.max(0, block.leftPx - REVEAL_PADDING_PX);
 }
 
+/** A scroll target; an omitted `top` leaves the vertical offset alone. */
+export interface GuideScrollTarget {
+    readonly left: number;
+    readonly top?: number;
+}
+
 /**
- * `Element.scrollTo` is not implemented everywhere the guide renders (jsdom in
- * unit tests), so fall back to assigning `scrollLeft` directly.
+ * Scroll both axes with one call: a second smooth scroll on the same element
+ * cancels the first one's animation in Chromium, which left the lane at
+ * midnight whenever "now" also moved to the playing row. `Element.scrollTo`
+ * is not implemented everywhere the guide renders (jsdom in unit tests), so
+ * fall back to assigning the offsets directly.
  */
-export function scrollElementLeft(
+export function scrollElementTo(
     element: HTMLElement,
-    left: number,
+    { left, top }: GuideScrollTarget,
     animate: boolean
 ): void {
     if (typeof element.scrollTo === 'function') {
-        element.scrollTo({ left, behavior: animate ? 'smooth' : 'auto' });
+        element.scrollTo({
+            left,
+            ...(top === undefined ? {} : { top }),
+            behavior: animate ? 'smooth' : 'auto',
+        });
         return;
     }
     element.scrollLeft = left;
+    if (top !== undefined) {
+        element.scrollTop = top;
+    }
 }

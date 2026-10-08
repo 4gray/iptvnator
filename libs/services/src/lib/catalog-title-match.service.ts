@@ -1,9 +1,10 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import {
     CatalogTitleMatch,
     normalizeTitleKeys,
     titleYearsCompatible,
 } from '@iptvnator/shared/interfaces';
+import { ParentalLockService } from './parental-lock/parental-lock.service';
 
 /** What one caller is looking for, in catalog-match terms */
 export interface CatalogTitleLookup {
@@ -99,6 +100,8 @@ export function pickTitleMatch(
  */
 @Injectable({ providedIn: 'root' })
 export class CatalogTitleMatchService {
+    private readonly parentalLock = inject(ParentalLockService);
+
     get isAvailable(): boolean {
         return (
             typeof window !== 'undefined' &&
@@ -107,7 +110,14 @@ export class CatalogTitleMatchService {
     }
 
     async matchTitles(titles: string[]): Promise<CatalogTitleMatch[]> {
-        if (!this.isAvailable || titles.length === 0) {
+        // The worker filters locked rows by its own lock state and index;
+        // while the lock withholds everything (store unreadable, or a
+        // bridge without the worker filter) neither can be trusted.
+        if (
+            !this.isAvailable ||
+            titles.length === 0 ||
+            this.parentalLock.withholdsEverything()
+        ) {
             return [];
         }
 
@@ -117,5 +127,25 @@ export class CatalogTitleMatchService {
             console.warn('Cross-playlist title matching failed:', error);
             return [];
         }
+    }
+
+    /**
+     * Whether the parental lock withholds this match's category now. It
+     * reads the lock state, so a `computed` that filters with it re-runs on
+     * every relock and unlock: matches cached while unlocked (or returned
+     * by a lookup issued before a relock) must not keep advertising a
+     * locked title or its playlist name.
+     */
+    isWithheld(match: CatalogTitleMatch): boolean {
+        return this.parentalLock.isXtreamCategoryLocked(
+            match.playlistId,
+            match.type === 'movie' ? 'movies' : 'series',
+            match.categoryId
+        );
+    }
+
+    /** `matches` without the ones the lock withholds; reactive, see above. */
+    visibleMatches(matches: readonly CatalogTitleMatch[]): CatalogTitleMatch[] {
+        return matches.filter((match) => !this.isWithheld(match));
     }
 }

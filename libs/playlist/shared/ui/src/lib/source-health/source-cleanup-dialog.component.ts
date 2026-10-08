@@ -170,6 +170,7 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
                 </button>
                 <button
                     mat-flat-button
+                    class="app-destructive-button"
                     [disabled]="!selectedCount() || checking()"
                     (click)="model.removeSelected()"
                 >
@@ -180,7 +181,7 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
                 </button>
             }
         </mat-dialog-actions>`,
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {

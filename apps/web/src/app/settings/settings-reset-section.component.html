@@ -1,7 +1,4 @@
-<section
-    class="settings-group"
-    id="reset"
->
+<section class="settings-group" id="reset">
     <header class="settings-group__header">
         <div class="settings-group__header-icon">
             <mat-icon>delete_sweep</mat-icon>
@@ -12,7 +9,10 @@
         </div>
     </header>
 
-    <div class="setting-item danger-zone">
+    <div
+        class="setting-item danger-zone"
+        data-setting-id="remove-all-playlists"
+    >
         <div class="danger-zone__header">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.REMOVE_ALL' | translate }}</h4>
@@ -20,7 +20,7 @@
             </div>
             <button
                 mat-button
-                class="danger-zone__button"
+                class="danger-zone__button app-destructive-button"
                 [class.danger-zone__button--busy]="isRemovingAllPlaylists()"
                 [disabled]="!canRemoveAllPlaylists()"
                 [attr.aria-busy]="isRemovingAllPlaylists()"
@@ -29,7 +29,6 @@
                     $event.stopPropagation();
                     removeAll.emit()
                 "
-                color="warn"
             >
                 @if (isRemovingAllPlaylists()) {
                     <mat-progress-spinner
@@ -49,9 +48,9 @@
         </div>
         <div class="danger-zone__summary" aria-live="polite">
             <span class="danger-zone__summary-pill">
-                <mat-icon class="danger-zone__summary-icon"
-                    >folder_open</mat-icon
-                >
+                <mat-icon class="danger-zone__summary-icon">{{
+                    sourceIcons.m3u
+                }}</mat-icon>
                 <span class="danger-zone__summary-label">{{
                     'HOME.PLAYLIST_TYPES.M3U' | translate
                 }}</span>
@@ -60,7 +59,9 @@
                 }}</span>
             </span>
             <span class="danger-zone__summary-pill">
-                <mat-icon class="danger-zone__summary-icon">cloud</mat-icon>
+                <mat-icon class="danger-zone__summary-icon">{{
+                    sourceIcons.xtream
+                }}</mat-icon>
                 <span class="danger-zone__summary-label">{{
                     'HOME.PLAYLIST_TYPES.XTREAM' | translate
                 }}</span>
@@ -69,7 +70,9 @@
                 }}</span>
             </span>
             <span class="danger-zone__summary-pill">
-                <mat-icon class="danger-zone__summary-icon">cast</mat-icon>
+                <mat-icon class="danger-zone__summary-icon">{{
+                    sourceIcons.stalker
+                }}</mat-icon>
                 <span class="danger-zone__summary-label">{{
                     'HOME.PLAYLIST_TYPES.STALKER' | translate
                 }}</span>

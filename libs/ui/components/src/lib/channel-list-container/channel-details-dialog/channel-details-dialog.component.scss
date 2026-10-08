@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 :host {
     display: block;
     color: var(--app-body-color, var(--mat-sys-on-surface));
@@ -68,7 +69,7 @@
     margin: 0;
     font-size: 1.3rem;
     line-height: 1.2;
-    font-weight: 650;
+    font-weight: 600;
     letter-spacing: -0.02em;
     color: var(--app-heading-color, var(--mat-sys-on-surface));
 }
@@ -168,7 +169,7 @@
 
 .channel-stat__value {
     font-size: 1.1rem;
-    font-weight: 650;
+    font-weight: 600;
     letter-spacing: -0.02em;
     color: var(--app-heading-color, var(--mat-sys-on-surface));
     overflow: hidden;
@@ -178,6 +179,8 @@
     &--mono {
         font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
         font-size: 0.92rem;
+        // JetBrains Mono is bundled up to 500; the value's 600 would be faked.
+        font-weight: 500;
     }
 
     &--empty {
@@ -227,8 +230,12 @@
     flex-shrink: 0;
     width: 32px;
     height: 32px;
-    --mdc-icon-button-state-layer-size: 32px;
-    --mdc-icon-button-icon-size: 18px;
+    @include mat.icon-button-overrides(
+        (
+            state-layer-size: 32px,
+            icon-size: 18px,
+        )
+    );
     color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
 }
 

@@ -1,31 +1,37 @@
 import {
     Component,
     computed,
-    effect,
     inject,
     input,
     output,
-    signal,
-    untracked,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { MatIcon } from '@angular/material/icon';
-import { TranslatePipe } from '@ngx-translate/core';
-import { SafePipe } from '@iptvnator/pipes';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     createDiscoverFacetNavigation,
     createExternalPlaybackButtonState,
 } from '@iptvnator/portal/shared/util';
 import {
+    CastCrewRowComponent,
+    DetailActionButtonComponent,
     DetailActionsTemplateDirective,
+    DetailCreditsComponent,
+    DetailIconButtonComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    MetaChipComponent,
     PortalDetailShellComponent,
+    SimilarRailComponent,
+    TrailerDialogService,
     ViewInPortalActionComponent,
+    VodMoreMenuComponent,
+    scrollToCastCrewRow,
+    type SimilarRailItem,
 } from '@iptvnator/ui/components';
 import { Router } from '@angular/router';
 import {
+    ExternalPlayerName,
     ExternalPlayerSession,
     ResolvedPortalPlayback,
     TmdbEnrichedCastMember,
@@ -38,11 +44,20 @@ import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
     DownloadsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
+import { VOD_DETAILS_MENU_ACTION } from './vod-details-presentation';
+import { createVodDetailsHeroState } from './vod-details-hero.state';
+import {
+    buildVodActorRoute,
+    findSimilarByRailKey,
+} from './vod-details-navigation.util';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
-import { createVodDownloadState } from './vod-download-state.util';
+import { createVodLocalDownloadState } from './vod-download-state.util';
+import { createVodSimilarInPortals } from './vod-similar-in-portals.state';
 
 /**
  * Unified VOD details component for both Xtream and Stalker portals.
@@ -67,16 +82,21 @@ import { createVodDownloadState } from './vod-download-state.util';
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
     styleUrls: ['../styles/detail-view.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        CastCrewRowComponent,
+        DetailActionButtonComponent,
         DetailActionsTemplateDirective,
+        DetailCreditsComponent,
+        DetailIconButtonComponent,
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
-        MatIcon,
+        MetaChipComponent,
         PortalDetailShellComponent,
+        SimilarRailComponent,
         ViewInPortalActionComponent,
+        VodMoreMenuComponent,
         PortalInlinePlayerComponent,
-        SafePipe,
         TranslatePipe,
     ],
 })
@@ -92,6 +112,10 @@ export class VodDetailsComponent {
 
     /** Playback position in seconds for resume feature (managed by parent) */
     readonly playbackPosition = input<number | null>(null);
+    /** Duration the saved position was recorded against, for "N min left". */
+    readonly playbackDurationSeconds = input<number | null>(null);
+    /** Playlist name shown in the "Movie · source" eyebrow. */
+    readonly sourceLabel = input<string | null>(null);
 
     /** Inline playback payload for embedded players (managed by parent) */
     readonly inlinePlayback = input<ResolvedPortalPlayback | null>(null);
@@ -161,13 +185,26 @@ export class VodDetailsComponent {
     /** Emitted when the inline player requests MPV/VLC fallback */
     readonly inlineExternalFallbackRequested =
         output<PlaybackFallbackRequest>();
+    /** "Open in external player": the host resolves and launches MPV/VLC. */
+    readonly externalPlayRequested = output<{
+        item: VodDetailsItem;
+        player: ExternalPlayerName;
+        positionSeconds: number | null;
+    }>();
+    /** "Reset progress": the host clears the saved position. */
+    readonly resetProgressRequested = output<VodDetailsItem>();
 
     // ============ Services ============
 
     private readonly downloadsService = inject(DownloadsService);
+
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly externalPlaybackActions = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly router = inject(Router);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly translate = inject(TranslateService);
+    private readonly trailerDialog = inject(TrailerDialogService);
 
     // ============ Computed State ============
 
@@ -175,44 +212,33 @@ export class VodDetailsComponent {
     readonly isElectron = computed(() => this.downloadsService.isAvailable());
 
     /** Normalized metadata for display */
-    readonly normalizedMeta = computed(() => {
-        return normalizeVodDetails(this.item());
-    });
+    readonly normalizedMeta = computed(() => normalizeVodDetails(this.item()));
 
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.normalizedMeta().youtubeTrailer)
+    );
+    /** Provider + playlist + id: the hero keys its one-time layout decision on it. */
+    readonly contentKey = computed(
+        () =>
+            `${this.item().type}:${this.item().playlistId}:${getVodNumericId(this.item())}`
+    );
+    /** Settings → Playback → Play trailers in details background. */
+    readonly trailerBackdropUrl = computed(() =>
+        this.settingsStore.detailTrailerBackdrop?.() === true
+            ? this.trailerEmbedUrl()
+            : null
     );
 
     /**
      * TMDB recommendations found in the user's OTHER portals (batched DB
      * match, Electron only). Loaded async — the section appears when
      * resolved; staleness-guarded against item changes in flight.
+     * Filtered on read: a relock hides matches cached while unlocked.
      */
-    readonly similarInPortals = signal<CrossPortalSimilarItem[]>([]);
-
-    private readonly loadSimilarInPortals = effect(() => {
-        const meta = this.normalizedMeta();
-        const recommendations = meta.tmdbRecommendations;
-        untracked(() => {
-            this.similarInPortals.set([]);
-            if (
-                !recommendations?.length ||
-                !this.crossPortalSimilar.isAvailable
-            ) {
-                return;
-            }
-            void this.crossPortalSimilar
-                .matchRecommendations(recommendations, 'movie')
-                .then((items) => {
-                    if (
-                        this.normalizedMeta().tmdbRecommendations ===
-                        recommendations
-                    ) {
-                        this.similarInPortals.set(items);
-                    }
-                });
-        });
-    });
+    readonly similarInPortals = createVodSimilarInPortals(
+        this.normalizedMeta,
+        this.crossPortalSimilar
+    );
 
     openSimilarInPortals(item: CrossPortalSimilarItem): void {
         void this.router.navigate(this.crossPortalSimilar.buildLink(item));
@@ -222,39 +248,18 @@ export class VodDetailsComponent {
      * Whether there's a playback position to resume from. A watched movie
      * shows Play, not "Resume 1:32:00" from its final seconds.
      */
-    readonly hasPlaybackPosition = computed(() => {
-        const pos = this.playbackPosition();
-        return pos !== null && pos > 0 && !this.isWatched();
+    readonly hasPlaybackPosition = computed(
+        () => (this.playbackPosition() ?? 0) > 0 && !this.isWatched()
+    );
+
+    private readonly localDownload = createVodLocalDownloadState({
+        downloadsService: this.downloadsService,
+        item: this.item,
+        providerOnly: this.providerOnly,
     });
-
-    /** Formatted playback position (e.g., "12:34" or "1:23:45") */
-    readonly formattedPosition = computed(() => {
-        const pos = this.playbackPosition();
-        if (!pos || pos <= 0) return '';
-
-        const hours = Math.floor(pos / 3600);
-        const minutes = Math.floor((pos % 3600) / 60);
-        const seconds = Math.floor(pos % 60);
-
-        if (hours > 0) {
-            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    });
-
-    private readonly downloadState = createVodDownloadState(
-        this.downloadsService,
-        this.item
-    );
-    readonly isDownloaded = computed(
-        () => !this.providerOnly() && this.downloadState.isDownloaded()
-    );
-    readonly isDownloading = computed(
-        () => !this.providerOnly() && this.downloadState.isDownloading()
-    );
-    readonly isPausedDownload = computed(
-        () => !this.providerOnly() && this.downloadState.isPausedDownload()
-    );
+    readonly isDownloaded = this.localDownload.isDownloaded;
+    readonly isDownloading = this.localDownload.isDownloading;
+    readonly isPausedDownload = this.localDownload.isPausedDownload;
 
     private readonly externalButton = createExternalPlaybackButtonState({
         session: this.externalPlayback,
@@ -271,6 +276,66 @@ export class VodDetailsComponent {
         () =>
             this.isDownloaded() && this.externalPrimaryButtonState() === 'idle'
     );
+
+    // ============ Hero presentation ============
+
+    readonly hero = createVodDetailsHeroState({
+        meta: this.normalizedMeta,
+        sourceLabel: this.sourceLabel,
+        playbackPosition: this.playbackPosition,
+        playbackDurationSeconds: this.playbackDurationSeconds,
+        hasPlaybackPosition: this.hasPlaybackPosition,
+        isWatched: this.isWatched,
+        supportsExternalPlayers: () =>
+            this.runtime.supportsManagedExternalPlayers,
+        playbackStartPending: this.playbackStartPending,
+        isOfflinePrimary: this.isOfflinePrimary,
+        externalLabel: this.externalPrimaryLabel,
+        externalIcon: this.externalPrimaryIcon,
+        externalState: this.externalPrimaryButtonState,
+        similarInPortals: this.similarInPortals,
+        configuredPlayer: this.settingsStore.player,
+        translate: this.translate,
+    });
+
+    runMenuAction(actionId: string): void {
+        switch (actionId) {
+            case VOD_DETAILS_MENU_ACTION.ExternalPlayer:
+                this.externalPlayRequested.emit({
+                    item: this.item(),
+                    player: this.hero.externalPlayer(),
+                    positionSeconds: this.hasPlaybackPosition()
+                        ? this.playbackPosition()
+                        : null,
+                });
+                return;
+            case VOD_DETAILS_MENU_ACTION.StartOver:
+                this.onPlay();
+                return;
+            case VOD_DETAILS_MENU_ACTION.ResetProgress:
+                this.resetProgressRequested.emit(this.item());
+                return;
+        }
+    }
+
+    openTrailer(): void {
+        const embedUrl = this.trailerEmbedUrl();
+        if (embedUrl) {
+            this.trailerDialog.open({
+                embedUrl,
+                title: this.normalizedMeta().title ?? '',
+            });
+        }
+    }
+
+    readonly scrollToCast = scrollToCastCrewRow;
+
+    openSimilarRailItem(item: SimilarRailItem): void {
+        const match = findSimilarByRailKey(this.similarInPortals(), item.key);
+        if (match) {
+            this.openSimilarInPortals(match);
+        }
+    }
 
     // ============ Actions ============
 
@@ -352,20 +417,10 @@ export class VodDetailsComponent {
 
     /** Handle back navigation - emit event for parent to handle */
     openActor(member: TmdbEnrichedCastMember): void {
-        if (!member.tmdbPersonId) {
-            return;
+        const commands = buildVodActorRoute(this.item(), member);
+        if (commands) {
+            void this.router.navigate(commands);
         }
-        const item = this.item();
-        const basePath =
-            item.type === 'stalker'
-                ? '/workspace/stalker'
-                : '/workspace/xtreams';
-        void this.router.navigate([
-            basePath,
-            item.playlistId,
-            'actor',
-            member.tmdbPersonId,
-        ]);
     }
 
     goBack(): void {
@@ -396,13 +451,8 @@ export class VodDetailsComponent {
     }
 
     /** Resume the paused download of this VOD */
-    async resumePausedDownload(): Promise<void> {
-        const item = this.item();
-        await this.downloadsService.resumeDownloadByContent(
-            getVodNumericId(item),
-            item.playlistId,
-            'vod'
-        );
+    resumePausedDownload(): Promise<void> {
+        return this.localDownload.resumePausedDownload();
     }
 
     onInlineTimeUpdate(event: { currentTime: number; duration: number }): void {
@@ -428,18 +478,7 @@ export class VodDetailsComponent {
     }
 
     /** Play from local downloaded file */
-    async playFromLocal(): Promise<void> {
-        const item = this.item();
-        const vodId = getVodNumericId(item);
-
-        const filePath = this.downloadsService.getDownloadedFilePath(
-            vodId,
-            item.playlistId,
-            'vod'
-        );
-
-        if (filePath) {
-            await this.downloadsService.playDownload(filePath);
-        }
+    playFromLocal(): Promise<void> {
+        return this.localDownload.playFromLocal();
     }
 }

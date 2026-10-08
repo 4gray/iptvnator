@@ -452,8 +452,10 @@ export class DashboardDataService {
             this.finishInitialGlobalFavoritesLoadIfReady();
         });
 
+        // Before the inventory has loaded "no Xtream playlists" is not known
+        // yet; settling here would end the first load before it started.
         effect(() => {
-            if (this.hasXtreamPlaylists()) {
+            if (!this.playlistsLoaded() || this.hasXtreamPlaylists()) {
                 return;
             }
 

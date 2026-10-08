@@ -23,8 +23,12 @@ const IDLE_STATE: M3uVodMetadataState = {
     details: null,
 };
 
-/** NUL keeps the two parts unambiguous whatever an entry is named. */
-function lookupKeyOf(channel: Pick<Channel, 'id' | 'name'>): string {
+/**
+ * The identity of an M3U entry: entries can share an id and differ by
+ * name, so both parts count. NUL keeps them unambiguous whatever an entry
+ * is named.
+ */
+export function m3uVodEntryKey(channel: Pick<Channel, 'id' | 'name'>): string {
     return `${channel.id}\u0000${channel.name ?? ''}`;
 }
 
@@ -50,7 +54,7 @@ export class M3uVodMetadataService {
      * only the response for the channel the state currently tracks lands.
      */
     load(channel: Pick<Channel, 'id' | 'name'>): void {
-        const lookupKey = lookupKeyOf(channel);
+        const lookupKey = m3uVodEntryKey(channel);
         if (this.stateSignal().lookupKey === lookupKey) {
             return;
         }

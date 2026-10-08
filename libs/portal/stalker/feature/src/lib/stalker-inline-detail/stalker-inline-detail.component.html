@@ -19,6 +19,8 @@
             [item]="item"
             [isFavorite]="isFavorite()"
             [playbackPosition]="playbackPosition()"
+            [playbackDurationSeconds]="playbackDurationSeconds()"
+            [sourceLabel]="sourceLabel()"
             [inlinePlayback]="inlinePlayback()"
             [externalPlayback]="externalPlayback()"
             [providerOnly]="providerOnly()"
@@ -37,6 +39,8 @@
             (inlineExternalFallbackRequested)="
                 onInlineExternalFallbackRequested($event)
             "
+            (externalPlayRequested)="externalPlayRequested.emit($event)"
+            (resetProgressRequested)="resetProgressRequested.emit($event)"
         />
     }
 } @else if (categoryId() === 'series') {

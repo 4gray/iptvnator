@@ -34,6 +34,14 @@ export const STARTUP_WINDOW_MODE = 'STARTUP_WINDOW_MODE';
 export const PORTAL_CONNECTIVITY_GUARD = 'PORTAL_CONNECTIVITY_GUARD';
 
 /**
+ * Parental lock feature switch, mirrored from the renderer's settings by the
+ * SETTINGS_UPDATE handler. Read when the database worker starts and when a
+ * renderer reloads or dies, so the SQLite reads are locked before any page
+ * has announced its lock state. Absent means off.
+ */
+export const PARENTAL_LOCK_ENABLED = 'PARENTAL_LOCK_ENABLED';
+
+/**
  * Update channel (`stable` / `nightly`). Mirrored here from the renderer's
  * settings by the SETTINGS_UPDATE handler because the startup update check
  * runs before the renderer's IndexedDB settings are reachable; absent means
@@ -78,6 +86,7 @@ export type StoreType = {
     [EMBEDDED_MPV_AUTO_RECONNECT]: boolean;
     [STARTUP_WINDOW_MODE]: StartupWindowMode;
     [PORTAL_CONNECTIVITY_GUARD]: boolean;
+    [PARENTAL_LOCK_ENABLED]: boolean;
     [APP_UPDATE_CHANNEL]: AppUpdateChannel;
     [TRUSTED_LOCAL_EPG_SOURCES]: string[];
 };

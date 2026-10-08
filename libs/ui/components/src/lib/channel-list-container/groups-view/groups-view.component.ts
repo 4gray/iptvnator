@@ -22,7 +22,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { SettingsStore } from '@iptvnator/services';
+import { ParentalLockService, SettingsStore } from '@iptvnator/services';
 import {
     foldSearchText,
     Channel,
@@ -41,6 +41,7 @@ import { resolveChannelLogo } from '../channel-logo-fallback.util';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import { CategoryLockMenuComponent } from '../../category-lock-menu/category-lock-menu.component';
 import { ResizableDirective } from '../../resizable/resizable.directive';
 import {
     GroupManagementDialogComponent,
@@ -70,6 +71,7 @@ interface FilteredGroupView {
     styleUrls: ['./groups-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        CategoryLockMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
         MatButtonModule,
@@ -84,6 +86,7 @@ interface FilteredGroupView {
 })
 export class GroupsViewComponent {
     private readonly dialog = inject(MatDialog);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
@@ -144,6 +147,24 @@ export class GroupsViewComponent {
     /** Set of favorite channel URLs */
     readonly favoriteIds = input<Set<string>>(new Set());
     readonly hiddenGroupTitles = input<string[]>([]);
+    /**
+     * Parental lock. `lockedGroupTitles` is `null` while the lock feature is
+     * off (no toggles in the dialog); `managementGroups` lists EVERY group
+     * of the playlist, locked ones included, because `groupedChannels`
+     * arrives with the withheld groups already removed.
+     */
+    /**
+     * The playlist the groups belong to. The management dialog's result is
+     * applied only while it is still the open one: the host saves hidden
+     * and locked groups under the CURRENT playlist.
+     */
+    readonly playlistId = input<string | null>(null);
+    readonly lockedGroupTitles = input<string[] | null>(null);
+    readonly managementGroups = input<GroupManagementDialogGroup[] | null>(
+        null
+    );
+    /** Groups the active lock withholds; > 0 renders the unlock row. */
+    readonly withheldGroupCount = input(0);
 
     /** Current outer sidebar width */
     readonly sidebarWidth = input<number | null>(null);
@@ -164,6 +185,9 @@ export class GroupsViewComponent {
     /** Emits when the groups rail resize ends */
     readonly sidebarWidthRequestEnded = output<number>();
     readonly hiddenGroupTitlesChanged = output<string[]>();
+    readonly lockedGroupTitlesChanged = output<string[]>();
+    /** Right-click toggle of ONE group; the host applies it in the lock store's queue. */
+    readonly groupLockToggled = output<{ groupKey: string; locked: boolean }>();
 
     /** Emits when the user clicks the inline collapse toggle in the groups header */
     readonly sidebarToggleRequested = output<void>();
@@ -175,6 +199,10 @@ export class GroupsViewComponent {
      * guide's initial scope from it.
      */
     readonly selectedGroupChange = output<string | null>();
+
+    private readonly groupLockMenu =
+        viewChild<CategoryLockMenuComponent>('groupLockMenu');
+    private groupLockKey: string | null = null;
 
     readonly isGroupSearchOpen = signal(false);
     readonly localGroupSearchTerm = signal('');
@@ -477,28 +505,93 @@ export class GroupsViewComponent {
         this.localGroupSearchTerm.set(value);
     }
 
-    openGroupManagement(): void {
-        const groups = this.allGroups().map<GroupManagementDialogGroup>(
-            ({ key, count }) => ({
-                key,
-                count,
-            })
-        );
+    /**
+     * Right-click accelerator of the parental lock for one group; the host
+     * persists the emitted list exactly as it does for the dialog. No menu
+     * while the feature is off (`lockedGroupTitles` is null then).
+     */
+    onGroupContextMenu(groupKey: string, event: MouseEvent): void {
+        const locked = this.lockedGroupTitles();
+        if (locked === null) {
+            return;
+        }
+        this.groupLockKey = groupKey;
+        this.groupLockMenu()?.open(event, locked.includes(groupKey));
+    }
+
+    /**
+     * Emitted at once: the host asks for the PIN itself, after capturing the
+     * playlist the toggle belongs to — this view does not know it, and the
+     * user may navigate while the (lazily loaded) prompt is pending.
+     */
+    onGroupLockToggle(lock: boolean): void {
+        const groupKey = this.groupLockKey;
+        this.groupLockKey = null;
+        if (groupKey === null || this.lockedGroupTitles() === null) {
+            return;
+        }
+        this.groupLockToggled.emit({ groupKey, locked: lock });
+    }
+
+    async requestParentalUnlock(): Promise<void> {
+        await this.parentalLock.requestUnlock();
+    }
+
+    async openGroupManagement(): Promise<void> {
+        // The dialog lists every group by name, locked ones included, and can
+        // rewrite the locks — so it sits behind the PIN like the portal
+        // dialogs do.
+        const playlistId = this.playlistId();
+        if (
+            !(await this.parentalLock.requestUnlock()) ||
+            this.playlistId() !== playlistId
+        ) {
+            return;
+        }
+        const groups =
+            this.managementGroups() ??
+            this.allGroups().map<GroupManagementDialogGroup>(
+                ({ key, count }) => ({
+                    key,
+                    count,
+                })
+            );
+        // Lock toggles only from a lock store that was read: a draft built
+        // from the empty fail-closed snapshot would, if storage recovered by
+        // Save, replace the real locks with nothing. Hidden groups stay
+        // editable either way.
+        const lockedGroupTitles =
+            this.lockedGroupTitles() !== null &&
+            playlistId &&
+            (await this.parentalLock.ensureLocksReadable()) &&
+            this.playlistId() === playlistId
+                ? this.parentalLock.lockedGroupTitles(playlistId)
+                : null;
+        // Relocked while the store was being read: the dialog lists every
+        // group, locked ones included.
+        if (this.parentalLock.active() || this.playlistId() !== playlistId) {
+            return;
+        }
         const dialogRef = this.dialog.open(GroupManagementDialogComponent, {
             data: {
                 groups,
                 hiddenGroupTitles: this.hiddenGroupTitles(),
+                ...(lockedGroupTitles ? { lockedGroupTitles } : {}),
             },
             width: '500px',
+            maxWidth: 'calc(100vw - 32px)',
             maxHeight: '90vh',
         });
 
-        dialogRef.afterClosed().subscribe((hiddenGroupTitles) => {
-            if (hiddenGroupTitles === undefined) {
+        dialogRef.afterClosed().subscribe((result) => {
+            if (result === undefined || this.playlistId() !== playlistId) {
                 return;
             }
 
-            this.hiddenGroupTitlesChanged.emit(hiddenGroupTitles);
+            this.hiddenGroupTitlesChanged.emit(result.hiddenGroupTitles);
+            if (result.lockedGroupTitles) {
+                this.lockedGroupTitlesChanged.emit(result.lockedGroupTitles);
+            }
         });
     }
 

@@ -7,12 +7,19 @@ async function openSettings(page: Page) {
     // The bare settings URL redirects to the default section page.
     await page.waitForURL(/\/workspace\/settings\/general$/);
     await expect(page.locator('.settings-container')).toBeVisible();
-    await expect(page.locator('.settings-back-button')).toBeVisible();
+    await expect(settingsBack(page)).toBeVisible();
+}
+
+/** Settings' Back is the workspace header's leading button. */
+function settingsBack(page: Page) {
+    return page.locator('[data-test-id="workspace-header-back"]');
 }
 
 /** Settings render one section page at a time — open it via the rail. */
 async function openSettingsSection(page: Page, sectionId: string) {
-    await page.locator(`[data-test-id="settings-section-${sectionId}"]`).click();
+    await page
+        .locator(`[data-test-id="settings-section-${sectionId}"]`)
+        .click();
     await page.waitForURL(new RegExp(`/workspace/settings/${sectionId}$`));
 }
 
@@ -34,18 +41,41 @@ test.describe('Settings', () => {
 
     test('@settings @web Check settings page', async ({ page }) => {
         await openSettings(page);
-        await page.locator('.settings-back-button').click();
+        // The context panel no longer carries a Back of its own.
+        await expect(
+            page.locator('app-workspace-settings-context-panel button')
+        ).toHaveCount(0);
+        await settingsBack(page).click();
+        await page.waitForURL(/\/workspace\/dashboard$/);
+    });
+
+    test('@settings @web settings opening the session lead to the dashboard', async ({
+        page,
+    }) => {
+        // The only entry of a new tab's history, as in Electron after a
+        // deep link: browser Back has nowhere to go.
+        const firstEntryPage = await page.context().newPage();
+        await firstEntryPage.goto('/workspace/settings/general');
+        // A cold start in a new tab passes the startup splash first.
+        await expect(firstEntryPage.locator('.settings-container')).toBeVisible(
+            { timeout: 15_000 }
+        );
+
+        await settingsBack(firstEntryPage).click();
+        await firstEntryPage.waitForURL(/\/workspace\/dashboard$/);
+        // The dashboard replaced the settings entry: no Back leads to it.
+        await expect(settingsBack(firstEntryPage)).toHaveCount(0);
     });
 
     test('@settings @web Change video player', async ({ page }) => {
         await openSettings(page);
         await openSettingsSection(page, 'playback');
 
-        const playerSelect = page.locator('[data-test-id="select-video-player"]');
-
-        await expect(playerSelect).toContainText(
-            /Video\.js/i
+        const playerSelect = page.locator(
+            '[data-test-id="select-video-player"]'
         );
+
+        await expect(playerSelect).toContainText(/Video\.js/i);
         await playerSelect.click();
         await page.locator('mat-option[data-test-id="html5"]').click();
 
@@ -54,9 +84,7 @@ test.describe('Settings', () => {
         await openSettings(page);
         await openSettingsSection(page, 'playback');
 
-        await expect(playerSelect).toContainText(
-            /HTML5/i
-        );
+        await expect(playerSelect).toContainText(/HTML5/i);
     });
 
     test('@settings @web Opt out of shared web player controls', async ({
@@ -235,13 +263,71 @@ test.describe('Settings', () => {
         ).toHaveAttribute('aria-checked', 'true');
     });
 
+    test('@settings @web Parental lock — set a PIN, lock, survive a reload, unlock', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        await openSettingsSection(page, 'parental');
+
+        const enableToggle = page.locator(
+            '[data-test-id="parental-lock-enabled"] button[role="switch"]'
+        );
+        const pinInput = page.locator('[data-test-id="parental-lock-pin"]');
+        const pinConfirm = page.locator(
+            '[data-test-id="parental-lock-pin-confirm"]'
+        );
+        const pinSubmit = page.locator(
+            '[data-test-id="parental-lock-pin-submit"]'
+        );
+        const lockNow = page.locator('[data-test-id="parental-lock-lock-now"]');
+        const unlock = page.locator('[data-test-id="parental-lock-unlock"]');
+        const headerLock = page.locator(
+            '[data-test-id="header-parental-lock"]'
+        );
+
+        // Enabling asks for a new PIN twice; the parent stays unlocked.
+        await expect(enableToggle).toHaveAttribute('aria-checked', 'false');
+        await enableToggle.click();
+        await expect(pinInput).toBeVisible();
+        await pinInput.fill('2468');
+        await pinConfirm.fill('2468');
+        await pinSubmit.click();
+        await expect(enableToggle).toHaveAttribute('aria-checked', 'true');
+        await expect(lockNow).toBeVisible();
+        await expect(headerLock).toBeVisible();
+
+        // Lock now flips the state; a reload keeps the lock (never persisted
+        // as unlocked).
+        await lockNow.click();
+        await expect(unlock).toBeVisible();
+        await page.reload();
+        await openSettings(page);
+        await openSettingsSection(page, 'parental');
+        await expect(enableToggle).toHaveAttribute('aria-checked', 'true');
+        await expect(unlock).toBeVisible();
+
+        // A wrong PIN is refused, the right one unlocks.
+        await unlock.click();
+        await expect(pinInput).toBeVisible();
+        await pinInput.fill('0000');
+        await pinSubmit.click();
+        await expect(
+            page.locator('[data-test-id="parental-lock-pin-error"]')
+        ).toBeVisible();
+        await pinInput.fill('2468');
+        await pinSubmit.click();
+        await expect(lockNow).toBeVisible();
+
+        // The header button locks from anywhere.
+        await headerLock.click();
+        await expect(unlock).toBeVisible();
+    });
+
     test('@settings @web Change app language', async ({ page }) => {
         await openSettings(page);
         const languageSelect = page.locator('[data-test-id="select-language"]');
 
-        await expect(languageSelect).toContainText(
-            'English'
-        );
+        await expect(languageSelect).toContainText('English');
         await languageSelect.click();
         await page.locator('mat-option[data-test-id="de"]').click();
 
@@ -249,9 +335,85 @@ test.describe('Settings', () => {
         await page.reload();
         await openSettings(page);
 
-        await expect(languageSelect).toContainText(
-            'Deutsch'
+        await expect(languageSelect).toContainText('Deutsch');
+    });
+
+    test('@settings @search @web Search settings from the header and open a result', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        // The fresh browser context has no playlists; settings search must
+        // still be offered.
+        const search = page.locator(
+            'app-workspace-shell-header input[type="search"]'
         );
+        await expect(search).toBeEnabled();
+
+        // "subtitles" is a keyword of the "Show captions" row.
+        await search.fill('subtitles');
+        await expect(page).toHaveURL(/\/workspace\/settings\/general\?q=subtitles$/);
+        await expect(
+            page.locator('[data-test-id="settings-search-results"]')
+        ).toBeVisible();
+        await expect(page.locator('app-settings-general-section')).toHaveCount(0);
+        await expect(
+            page.locator('[data-test-id="settings-section-matches-general"]')
+        ).toHaveText('1');
+
+        await page
+            .locator('[data-test-id="settings-search-result-show-captions"]')
+            .click();
+
+        await expect(page).toHaveURL(/\/workspace\/settings\/general$/);
+        await expect(search).toHaveValue('');
+        const row = page.locator('[data-setting-id="show-captions"]');
+        await expect(row).toBeFocused();
+        await expect(row).toHaveClass(/setting-item--revealed/);
+        await expect(row).not.toHaveClass(/setting-item--revealed/, {
+            timeout: 5000,
+        });
+    });
+
+    test('@settings @search @web Enter opens the best settings match', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        const search = page.locator(
+            'app-workspace-shell-header input[type="search"]'
+        );
+
+        await search.fill('stream format');
+        await search.press('Enter');
+
+        await expect(page).toHaveURL(/\/workspace\/settings\/playback$/);
+        await expect(
+            page.locator('[data-setting-id="stream-format"]')
+        ).toBeFocused();
+    });
+
+    test('@settings @search @web Command palette opens a setting from anywhere', async ({
+        page,
+    }) => {
+        // The shell registers Ctrl/Cmd+K once its lazy chunk has rendered.
+        await expect(
+            page.locator('a[href$="/workspace/settings"]')
+        ).toBeVisible();
+        await expect(page).not.toHaveURL(/\/workspace\/settings/);
+        await page.keyboard.press('Control+k');
+
+        const palette = page.locator('.workspace-command-palette-overlay');
+        await expect(palette).toBeVisible();
+        await palette.locator('input[type="search"]').fill('ambient');
+        await expect(palette).toContainText('Settings');
+        await palette
+            .locator('.palette-command', { hasText: /ambient/i })
+            .first()
+            .click();
+
+        await expect(page).toHaveURL(/\/workspace\/settings\/playback$/);
+        await expect(
+            page.locator('[data-setting-id="player-ambient-mode"]')
+        ).toBeFocused();
     });
 
     test.afterEach(async ({ page }, testInfo) => {

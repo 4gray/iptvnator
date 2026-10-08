@@ -68,14 +68,26 @@ in `apps/web/src/m3-theme.scss`):
 
 Angular Material mixins and Material-component overrides may use the tokens
 owned by that component. Outside a Material-owned component, prefer the
-app-owned tokens above. A `--mat-sys-*` reference is acceptable there only
-after the built light and dark theme contexts both prove that it is emitted,
-and it must still have a real app-token or literal fallback, for example:
-`var(--mat-sys-surface-container, var(--app-widget-bg))`.
+app-owned tokens above.
 
-Several existing app surfaces still reference Material system tokens without
-that proof or use hard-coded layout/selection colors. Treat those references
-as migration debt, not patterns to copy.
+Both themes are built with the legacy `mat.define-theme` config, whose
+component mixins never declare the `--mat-sys-*` system variables. The theme
+therefore adds the `mat.system-level-*` mixins for the light (`html`) and dark
+(`.dark-theme`) contexts, and `apps/electron-backend-e2e/src/theme-tokens.e2e.ts`
+asserts they resolve in both. Use a `--mat-sys-*` token for Material-derived
+roles that have no app token (error, outline, surface containers); keep app
+chrome on `--app-*`.
+
+Set Material component tokens through the component's `mat.*-overrides()`
+mixin: it rejects unknown names at build time, where a hand-written `--mat-*`
+declaration with a typo fails silently. Material 22 reads only `--mat-*`
+tokens, so the retired `--mdc-*` names compile but do nothing;
+`pnpm run styles:material-tokens:validate` (CI) rejects them. A stylesheet that
+a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
+token directly and says why.
+
+Existing hard-coded layout and selection colors are migration debt, not
+patterns to copy.
 
 Do not hardcode unrelated accent colors for selected state when these tokens already exist.
 
@@ -88,7 +100,12 @@ icons. The dock must never pair a dark fallback surface with inherited light
 app text. Loader/stall and transient feedback overlays own a light foreground
 and dark scrim because they cover video. Video viewports remain black in both
 themes and fullscreen; frame-copy and built-in shared controls keep their
-existing light-on-dark overlay palette.
+light-on-dark overlay palette — the fixed `--pc-*` token set of the shared
+dock (accent blue, cyan, violet, the `--pc-live` / `--pc-danger` reds and a
+light text ramp), never the app theme. The overlay styles in
+`player-controls/` never read a `--mat-sys-*` token, and their keyboard focus
+is a 2px `--pc-text` outline rather than Material's theme-coloured focus layer
+(`player-controls-keyboard.e2e.ts` checks it in both themes).
 
 EPG timeline, list, empty states and programme details use the library-local
 `libs/ui/epg/src/lib/_epg-theme.scss` palette, based on app surfaces, separators,
@@ -136,14 +153,56 @@ Do not add extra badges, left rails, or second selection systems unless there is
 
 ## Detail Views
 
-VOD and series detail screens share the detail-view Sass mixin (`@mixin base`)
-from `libs/ui/styles/_detail-view.scss`. Feature-local `styles/detail-view.scss`
-files should only `@use` that module and `@include detail-view.base(...)` with
-small typography overrides when a provider needs them.
+VOD and series detail screens share `app-portal-detail-shell` and
+`app-content-hero` (`libs/ui/components`). The hero orders its column as
+kind label ("Movie · playlist") → title → chips → description (three lines,
+"More") → resume bar → action row → credits, with the poster bottom-aligned
+on the left and the backdrop filling the hero behind a two-layer scrim built
+from `--app-content-bg`. The hero keeps `min(480px, 60vh)` of stage for a
+16:9 backdrop. Without one, or when the provider sends the poster as the
+backdrop, the hero is compact (`hero--compact`, sized by its content) over
+the blurred poster. The layout is decided once per title, so a backdrop that
+TMDB enrichment adds a moment later fills the compact hero instead of
+growing it. The pane is a size container (`detail`); the poster hides below
+760px of pane width.
 
-Do not copy the full detail-view stylesheet into feature libraries. Add shared
-layout changes to the mixin, and keep provider-specific differences explicit in
-the wrapper file that includes it.
+The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
+`app-meta-chip` (pill; `rating` and `status` variants; facets as projected
+`.meta-chip__facet` buttons), `app-detail-action-button` (the light primary
+with a two-line label, or the ghost `secondary` text button),
+`app-detail-icon-button` (44px ghost with tooltip and `aria-label`),
+`app-vod-more-menu` (the "…" dropdown: right-aligned, flips upward, arrow
+keys, Escape, hosts the alternative-sources panel), `app-detail-credits`
+("Starring" + three names + "and more", "Director"), `app-cast-crew-row`,
+`app-detail-rail`/`app-similar-rail` (hidden scrollbar, prev/next arrows,
+title + year) and `TrailerDialogService`. The dashboard hero reuses the same
+light primary (`light-primary-button` in `libs/ui/styles/_detail-view-actions.scss`)
+and chip. Series titles drop their season marker (`splitSeasonSuffix`) into a
+"Season N" chip. Rows a provider cannot serve are left out of the menu, never
+disabled. The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
+only carries the page shell, meta items and the episodes section.
+
+With `detailTrailerBackdrop` on (Settings → Playback → "Play trailers in
+details background", default off) the hosts hand the trailer embed URL to the
+shell and `app-hero-trailer-backdrop` plays it muted and looping under the
+scrim after three idle seconds, with a 32px mute toggle in the corner. It
+never starts under `prefers-reduced-motion` or with `saveData`, and stops
+while the hero is off screen or the window is unfocused.
+
+## Back Navigation
+
+Page-level Back lives only in the workspace header's leading slot (see
+[Header Back](./workspace-shell.md#header-back)). A routed page, or the shell
+it renders in, registers it with `registerWorkspaceBack()` instead of drawing
+an arrow, so Back keeps one position and one look on every page and never
+floats over a scroll owner. A page whose Back is history Back calls
+`WorkspaceBackNavigationService.back()` with its parent route rather than
+`Location.back()`, so Back still leads somewhere when the page opened the
+session. Without a registration the header falls back to
+browser history while an in-app previous page exists, and shows nothing
+otherwise. An arrow that returns within a menu, dialog or player panel is not
+page navigation and stays in that surface; an error state may repeat the
+header's Back as a labelled recovery button beside its other actions.
 
 ## Electron Drag Regions
 
@@ -326,6 +385,18 @@ remain local when the meaning is explicit.
   layouts keep the full EPG-only panel.
 - Keep the EPG content mounted while collapsed so current-program state can
   continue updating.
+- The ribbon renders only the blocks, ticks and day dividers within half a
+  viewport of the visible range (`TimelineWindowController` in
+  `epg-timeline-window.controller.ts`); the track keeps the full schedule's
+  width, so positions, the scrollbar and scroll-to-now are unchanged. A
+  channel's full schedule is often a few hundred programmes, and rendering
+  them all competed with the stream's first frame (J3 in
+  [performance journeys](performance-journeys.md#j3-playback-start-playback-to-the-first-frame)).
+  Tests and features must not assume an off-screen programme is in the DOM:
+  scroll the ribbon to it first. Keyboard access must keep working: focusing
+  a block scrolls it into view, which renders its neighbours before the next
+  Tab (`epg-timeline-interaction.e2e.ts` walks past the rendered range both
+  ways).
 
 ### Collapsible Live Sidebar
 
@@ -508,6 +579,39 @@ a cache read open and checks text contrast across live theme changes.
 
 Channel preview progress and EPG current-program progress should stay visually aligned.
 
+### Watch progress colour
+
+A title's watch progress (its resume share, `progressPercent`) has exactly one
+colour per context, and never a literal of its own:
+
+- **App chrome** — dashboard rail cards and the hero, catalog grids and season
+  episodes (`app-progress-capsule`, and the season list rows' own fill):
+  `--app-progress-color`, declared per theme in `apps/web/src/m3-theme.scss`
+  as that theme's `--app-selection-color`, and declared again inside
+  `.dark-theme` because a derived custom property resolves where it is
+  declared. The capsule's green from 90 % marks a finished title; it is a
+  status, not progress.
+- **Over video** — the dock timeline, the Up next card, the Up Next rail and
+  the fullscreen episode panel: the player's fixed `--pc-progress` (accent
+  blue `#4f8eff`), never an app token, because the player palette is
+  theme-independent (see Player And EPG Theme Boundaries). An episode
+  therefore reads the same in every player surface. The rail and the episode
+  panel render beside the controls host, outside its `--pc-*` scope, so they
+  declare the token on their own `:host` with the `progress-token` mixin of
+  `libs/ui/playback/src/lib/player-controls/_player-palette.scss`.
+- ArtPlayer's legacy skin takes a colour string, not a custom property, so it
+  gets `PLAYER_PROGRESS_COLOR` (`player-palette.ts`), which a spec pins to the
+  Sass value.
+- Live programme progress next to a LIVE marker (the dashboard's live rail and
+  live hero slides) keeps `--app-live-color`; EPG programme progress keeps the
+  fill described below.
+
+Specs hold the rule in each owning project: `m3-theme.spec.ts` (web: the token
+in both theme contexts), `player-progress.palette.spec.ts` (ui-playback),
+`progress-capsule.component.spec.ts` and
+`season-container.progress-colour.spec.ts` (components) and
+`dashboard-progress-colour.spec.ts` (workspace-dashboard-feature).
+
 ### Track
 
 - Height:
@@ -541,6 +645,31 @@ Nothing is rendered yet, so the skeleton replaces the whole content area and
 mirrors the row/card geometry it precedes (see Channel List Item and Cover
 Grids). The unified Favorites/Recent page gates this on `isLoading`, set only
 while its item list is empty.
+
+### Pages of independently loading blocks: delayed skeletons
+
+The dashboard renders each rail as soon as its own data arrives, and several
+rails resolve empty on a normal profile. A per-rail skeleton shown
+immediately therefore flashed for a few tens of milliseconds and collapsed,
+pulling every rail below it upwards (a layout shift of about 0.23 on each
+launch with sources). Rail skeletons are gated per rail
+(`createRailSkeletonGates` in
+`libs/workspace/dashboard/feature/src/lib/rails/dashboard-skeleton-grace.ts`):
+
+- a skeleton waits out a grace period (`DASHBOARD_RAIL_SKELETON_GRACE_MS`,
+  300 ms) counted from when *that* rail started loading, since Xtream and
+  TMDB rails start after the local ones;
+- it never appears above a rail that already shows cards: the placeholder
+  would push visible content down, and back up if the rail resolves empty,
+  while the real rail inserts at most once;
+- once shown, it stays until its own rail finishes, so skeletons do not
+  vanish in a cascade when the first real rail arrives.
+
+The top block (the dashboard hero) keeps its immediate skeleton: it reserves
+the space above everything else, where a late insertion would push the whole
+page down. For the same reason it stays until every source that can fill it
+has loaded, not only the first one. Use the same rules for any page that
+stacks independently loading blocks.
 
 ### Reload with content on screen: non-destructive indicator
 
@@ -589,16 +718,20 @@ If the label is too long for the rail, shorten the label key instead of shrinkin
 
 ## Detail Actions And Episode Surfaces
 
-Secondary detail buttons, episode cards and list rows, and the season view
-toggle must keep visible edges in both themes before hover. Use app-owned
-surface colors and neutral borders derived from `--app-on-surface`; fixed
-white-alpha fills and borders disappear over the light detail background.
-Grid cards keep the thumbnail and title on one continuous widget surface.
-List rows use a subtle neutral fill, with the number on a slightly stronger
-inset surface. The checked grid/list toggle uses `--app-selection-surface`
-and `--app-selection-color`; hover uses the app's neutral surface treatment.
-Keep these treatments in the shared season components and detail-action
-partial so Xtream and Stalker share the same behavior.
+The action row never wraps on a desktop window: the primary, the Trailer
+button, then the 44px icon buttons and the "…" menu. Season and series
+actions (mark watched, download season, reset progress) live in that menu
+and drive the season container's presenters; the container's header is
+"Episodes" with the season pills and the episode count, plus the grid/list
+toggle. The checked toggle uses `--app-selection-surface` and
+`--app-selection-color`; hover uses the app's neutral surface treatment.
+
+Episode cards are flat: a 16:9 thumbnail (with a light hairline so its edge
+survives the light theme) and a 3px watched bar at its bottom edge, "N. Title", the plot clamped to two lines and a "42 min ·
+18m left / watched" line. List rows keep a subtle neutral fill. The selected
+season's cover and synopsis sit in a compact strip under the header only
+when present. Keep these treatments in the shared season components so
+Xtream and Stalker share the same behavior.
 
 Browser regression coverage measures the composited neutral edges and selected
 toggle fill, in addition to capturing light/dark grid and list screenshots.
@@ -624,6 +757,77 @@ Settings use the same system but are flatter than content-heavy views.
 - Denser tinted surfaces are acceptable
 - Neutral rows can use low-opacity dark overlays
 - Keep strong blue tint reserved for active sections and selected items
+
+## Dialogs
+
+- **Name.** Every dialog has a `mat-dialog-title`; Material points the
+  container's `aria-labelledby` at it. A custom-styled title keeps the
+  directive and overrides Material's headline padding and 40px `::before`
+  strut, as the programme dialog does.
+- **Order.** Dismiss first, primary last. With end alignment the primary sits
+  on the inline end: the right in LTR, the left in RTL.
+- **One dismiss.** Offer one visible dismiss: a footer "Cancel"/"Close" or a
+  header close icon, not both. Escape and the backdrop still close.
+- **One row.** Action labels are short verbs ("Cancel", "Discard", "Save"),
+  not phrases, so the row fits one line in every locale at the dialog width.
+  Secondary actions tied to one part of the content stay with that content
+  (the programme dialog's archive tools sit under their notice), so the
+  footer is only the dismiss and the primary.
+- **Phone.** At the phone breakpoint an action row may stack: one full-width
+  button per row, in DOM order (dismiss on top, primary at the bottom). The
+  settings unsaved-changes dialog is the reference;
+  `settings-unsaved-dialog-layout.e2e.ts` in `web-e2e` measures it in six
+  locales. The programme dialog stacks its archive tools and footer the same
+  way, letting a long label wrap inside its button; the Electron
+  `epg-timeline-interaction.e2e.ts` measures it in French at 360px.
+- **Width.** A dialog with several openers is opened through one helper that
+  owns its `MatDialogConfig`, so its width never depends on the entry point.
+  `EpgProgrammeDialogService` opens the programme dialog at 540px from the
+  timeline, list, guide and channel rows, with a panel class that scopes its
+  surface overrides.
+- **Destructive actions.** Material only emits `warn` button colors for M2
+  themes, so the `color` input is a no-op here. A button that removes or
+  discards user data uses the global `.app-destructive-button` class from
+  `m3-theme.scss` (error/on-error tokens per theme, for filled, text,
+  outlined and icon buttons), as the unsaved-changes dialog's Discard does.
+  Confirmations go through `DialogService.openConfirmDialog` with a
+  translated verb as the required `confirmLabel` ("Remove playlist",
+  "Clear") and `tone: 'destructive'` when the action loses data; the dismiss
+  defaults to "Cancel". Never confirm with "Yes"/"No". When the verb itself
+  is "Cancel …", pass `cancelLabel` "Close" so the two buttons do not read
+  alike. `theme-tokens.e2e.ts` checks the label and the error fill in both
+  themes.
+
+## Forms
+
+The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
+vocabulary, so a field reads the same wherever it appears:
+
+- **Name.** The source name is labelled "Playlist title"
+  (`HOME.XTREAM_PLAYLIST.TITLE`) in every add form. Every add form submits
+  with "Add playlist" (`HOME.URL_UPLOAD.ADD_PLAYLIST`).
+- **Passwords.** A password input is masked and has a `mat-icon-button`
+  suffix with `PasswordVisibilityToggleDirective`
+  (`@iptvnator/ui/components/password-visibility-toggle`). The input binds
+  `[type]="toggle.inputType()"`; the button keeps one translated label
+  ("Show password", `HOME.SHOW_PASSWORD`) and exposes its state through
+  `aria-pressed`, as an ARIA toggle button does.
+- **URLs.** A URL field has a neutral `mat-hint` where the format is not
+  obvious, and its own `mat-error`. Never borrow another field's message.
+- **Feedback.** While the dialog stays open, a check or refusal is shown
+  inline under the URL field in a `role="status"` paragraph. The message is
+  translated in the template and cleared by any edit. Use a snackbar only for
+  outcomes that close the dialog. `add-source-forms.e2e.ts` in `web-e2e`
+  covers the shared labels, the toggle and the URL errors.
+
+## Source Type Icons
+
+`SOURCE_TYPE_ICONS` in `@iptvnator/shared/interfaces` is the only source of
+provider icons: Xtream `cloud`, Stalker `cast`, the M3U family
+`playlist_play`, and per playlist `link` (URL), `description` (local file or
+text) and `subject` (pasted text in the add flow). Use
+`getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
+providers, and the Dashboard rail icon is never a provider icon.
 
 ## Phone Layout
 
@@ -713,7 +917,38 @@ Prefer removing a control over shrinking everything around it:
 - Counts and subtitles that a neighbouring control already states.
 
 Never drop the only way back to a hidden surface. A collapse toggle that is
-reachable by touch needs its restore affordance to be reachable too.
+reachable by touch needs its restore affordance to be reachable too. For the
+same reason the header's history Back yields to the context drawer toggle,
+and Settings keeps the toggle beside its Back; only a detail page's Back,
+whose list shows the toggle again, takes the toggle's slot.
+
+## Typography
+
+The app stack is DM Sans with Roboto behind it (`$app-font-stack` in
+`apps/web/src/m3-theme.scss`). DM Sans covers Latin only, so Cyrillic and Greek
+UI text (ru, by, el) renders in Roboto. `apps/web/src/styles.scss` bundles both
+families in 400, 500, 600 and 700, and JetBrains Mono in 400 and 500 (its
+heavier faces would exceed the initial-bytes ratchet).
+
+- Use only those four weights: in `font-weight`, in the `font` shorthand, and in
+  any custom property, Sass variable or token map that feeds one. A weight
+  between faces snaps to a neighbour (650 renders as 700), and 600 or more with
+  no face of at least 600 gets Chromium's synthetic bold. CI runs
+  `pnpm run styles:font-weights:validate`, which rejects any other value.
+- JetBrains Mono text stays at 500 or lighter, also where it is a fallback
+  behind `ui-monospace` (only macOS resolves that). The check enforces this in
+  any rule that sets the family, directly or through a variable, or inherits
+  it from an enclosing rule. A mixin's family and weights count where it is
+  included, from its own stylesheet module or another one. It cannot see what
+  a mono modifier class inherits from its base rule; set `font-weight: 500`
+  there.
+- Import whole `@fontsource/<family>/<weight>.css` files. The single-script
+  files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
+  face wins the weight match for Latin text in `Roboto, …` stacks and sends it
+  to the next family.
+- `<html lang>` follows the UI language (`syncDocumentLanguage()` maps `by` to
+  `be` and `zhtw` to `zh-TW`), so `hyphens`, `text-transform` (Turkish İ) and
+  Han glyph fallback use the right locale.
 
 ## Theme Guidance
 

@@ -1,8 +1,10 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import {
+    closeSeriesMenu,
     pressTab,
     rasterizedBorderContrast,
+    seriesMenuRow,
     setInputValue,
     surfaceContrast,
     waitForScrollIdle,
@@ -656,24 +658,26 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
 
     // Serial details: default scenario has 3 seasons × 8 episodes and no
     // playback positions yet, so season 1 is auto-selected fully unwatched.
-    const seasonToggle = page.locator('[data-test-id="toggle-season-watched"]');
-    await expect(seasonToggle).toBeVisible({ timeout: 15_000 });
+    // The season toggle is a row of the hero's "…" menu.
+    let seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText('Mark season as watched (8)');
+    await closeSeriesMenu(page);
 
     const episodeCards = page.locator('.episode-card');
     await expect(episodeCards).toHaveCount(8, { timeout: 10_000 });
     const watchedCards = page.locator('.episode-card--watched');
     await expect(watchedCards).toHaveCount(0);
 
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await seasonToggle.click();
 
-    // Full-progress rows land for all 8 episodes: the button flips, every
+    // Full-progress rows land for all 8 episodes: the row flips, every
     // episode card gets the watched state, and the per-episode toggles show
     // the filled check.
-    await expect(seasonToggle).toContainText('Mark season as unwatched', {
-        timeout: 15_000,
-    });
-    await expect(watchedCards).toHaveCount(8);
+    await expect(watchedCards).toHaveCount(8, { timeout: 15_000 });
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
+    await expect(seasonToggle).toContainText('Mark season as unwatched');
+    await closeSeriesMenu(page);
     await expect(
         page.locator(
             '[data-testid="episode-watched-toggle"].episode-card__watched-toggle--watched'
@@ -696,26 +700,31 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
     // fresh mount auto-selects the earliest season with unwatched episodes
     // (issue #1441), so season 2 opens while season 1's tab keeps the check.
     await page.reload();
-    await expect(seasonToggle).toBeVisible({ timeout: 20_000 });
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText('Mark season as watched (8)');
+    await closeSeriesMenu(page);
     await expect(watchedCards).toHaveCount(0, { timeout: 10_000 });
     await expect(
         seasonTabs.first().locator('.season-tabs__done')
     ).toBeVisible();
 
-    // Season 1 itself still holds the 8 persisted rows.
+    // Season 1 itself still holds the 8 persisted rows. The row lives in
+    // the overlay, so it is reacquired after every close.
     await seasonTabs.first().click();
+    await expect(watchedCards).toHaveCount(8, { timeout: 10_000 });
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText('Mark season as unwatched', {
         timeout: 15_000,
     });
-    await expect(watchedCards).toHaveCount(8, { timeout: 10_000 });
 
     // Second click clears every episode's position again.
     await seasonToggle.click();
+    await expect(watchedCards).toHaveCount(0, { timeout: 15_000 });
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText('Mark season as watched (8)', {
         timeout: 15_000,
     });
-    await expect(watchedCards).toHaveCount(0);
+    await closeSeriesMenu(page);
     await expect(page.locator('.season-tabs__done')).toHaveCount(0);
 });
 
@@ -830,17 +839,13 @@ test('@xtream series watched toggle — marks every season from the header menu,
     await expect(seriesCard).toBeVisible({ timeout: 10_000 });
     await seriesCard.click();
 
-    // The ⋮ series menu sits at the end of the season-header actions row
-    // (data-test-id with a dash — getByTestId only matches data-testid in
-    // this suite; the menu item renders into the CDK overlay).
-    const menuTrigger = page.locator('[data-test-id="series-watch-menu"]');
-    await expect(menuTrigger).toBeVisible({ timeout: 15_000 });
+    // The series row sits in the hero's "…" menu (data-test-id with a dash —
+    // getByTestId only matches data-testid in this suite; the row renders
+    // into the CDK overlay).
     const seasonTabs = page.locator('.season-tabs__pill');
     await expect(seasonTabs).toHaveCount(3);
 
-    await menuTrigger.click();
-    const seriesToggle = page.locator('[data-test-id="toggle-series-watched"]');
-    await expect(seriesToggle).toBeVisible();
+    let seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText('Mark series as watched (24)');
     await seriesToggle.click();
 
@@ -852,27 +857,29 @@ test('@xtream series watched toggle — marks every season from the header menu,
     await expect(page.locator('.episode-card--watched')).toHaveCount(8);
 
     // The action now offers unwatch-all.
-    await menuTrigger.click();
+    seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText('Mark series as unwatched');
-    await page.keyboard.press('Escape');
+    await closeSeriesMenu(page);
 
     // PWA persistence: positions live in localStorage, so a reload must come
     // back fully watched across all seasons.
     await page.reload();
-    await expect(menuTrigger).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('[data-testid="series-more-menu"]')).toBeVisible({
+        timeout: 20_000,
+    });
     await expect(page.locator('.season-tabs__done')).toHaveCount(3, {
         timeout: 10_000,
     });
 
     // Unwatch-all clears every season again.
-    await menuTrigger.click();
+    seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText('Mark series as unwatched');
     await seriesToggle.click();
     await expect(page.locator('.season-tabs__done')).toHaveCount(0, {
         timeout: 15_000,
     });
     await expect(page.locator('.episode-card--watched')).toHaveCount(0);
-    await menuTrigger.click();
+    seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText('Mark series as watched (24)');
 });
 
@@ -989,8 +996,12 @@ for (const theme of ['light', 'dark']) {
             (dark) => document.body.classList.toggle('dark-theme', dark),
             theme === 'dark'
         );
-        const favorite = shell.locator('.favorite-btn').first();
+        const favorite = shell
+            .locator('[data-testid="series-favorite-toggle"]')
+            .first();
         const card = shell.locator('.episode-card').first();
+        // The card is flat; its visible edge is the artwork's hairline.
+        const artwork = card.locator('.episode-card__thumbnail');
         const toggle = shell.locator('mat-button-toggle-group');
         await expect(card).toBeVisible();
         await expect(shell.locator('.hero__content')).toHaveCSS('opacity', '1');
@@ -1000,7 +1011,7 @@ for (const theme of ['light', 'dark']) {
         await expect
             .poll(() => rasterizedBorderContrast(favorite))
             .toBeGreaterThan(1.1);
-        for (const surface of [card, toggle]) {
+        for (const surface of [artwork, toggle]) {
             await expect
                 .poll(async () => (await surfaceContrast(surface)).border)
                 .toBeGreaterThan(1.15);
@@ -1015,7 +1026,7 @@ for (const theme of ['light', 'dark']) {
         });
         await card.hover();
         await expect
-            .poll(async () => (await surfaceContrast(card)).border)
+            .poll(async () => (await surfaceContrast(artwork)).border)
             .toBeGreaterThan(1.15);
         await page
             .getByRole('radio', { name: 'List view', exact: true })
@@ -1127,7 +1138,11 @@ for (const theme of ['light', 'dark']) {
                 .click();
             await page.locator('app-grid-list mat-card').first().click();
             const shell = page.locator('app-portal-detail-shell');
-            await expect(shell).toBeVisible();
+            // The loading skeleton is a scrollable shell of its own; a key
+            // sent to it is lost when the loaded shell replaces it.
+            await expect(
+                shell.getByRole('heading', { level: 1 })
+            ).toBeVisible();
             await page.evaluate(
                 (dark) => document.body.classList.toggle('dark-theme', dark),
                 theme === 'dark'
@@ -1149,7 +1164,7 @@ for (const theme of ['light', 'dark']) {
                 .toBeGreaterThan(0);
         });
 
-        test(`@xtream sticky detail Back ${section} (${theme})`, async ({
+        test(`@xtream header detail Back ${section} (${theme})`, async ({
             page,
         }, testInfo) => {
             await page.setViewportSize({ width: 1200, height: 540 });
@@ -1167,30 +1182,28 @@ for (const theme of ['light', 'dark']) {
                 (dark) => document.body.classList.toggle('dark-theme', dark),
                 theme === 'dark'
             );
-            const back = shell.getByRole('button', {
-                name: 'Back',
-                exact: true,
-            });
+            // Back is the header's leading control, not a page overlay.
+            const back = page.locator(
+                'app-workspace-shell-header [data-test-id="workspace-header-back"]'
+            );
             await expect(back).toBeVisible();
-            const backOffset = () =>
-                back.evaluate((el) => {
-                    const owner = el.closest('app-portal-detail-shell');
-                    return owner
-                        ? el.getBoundingClientRect().top -
-                              owner.getBoundingClientRect().top
-                        : NaN;
-                });
-            await expect.poll(backOffset).toBeCloseTo(16, 0);
+            await expect(back).toHaveAccessibleName('Back');
+            await expect(
+                shell.getByRole('button', { name: 'Back', exact: true })
+            ).toHaveCount(0);
+            const backTop = () =>
+                back.evaluate((el) => el.getBoundingClientRect().top);
+            const initialTop = await backTop();
             await page.keyboard.press('End');
             await expect
                 .poll(() => shell.evaluate((el) => el.scrollTop))
                 .toBeGreaterThan(0);
             await waitForScrollIdle(shell);
-            await expect.poll(backOffset).toBeCloseTo(16, 0);
+            expect(await backTop()).toBe(initialTop);
             await expect(back).toBeInViewport();
-            await shell.screenshot({
+            await page.screenshot({
                 path: testInfo.outputPath(
-                    `sticky-back-${section}-${theme}.png`
+                    `header-back-${section}-${theme}.png`
                 ),
             });
             await back.click();
@@ -1201,7 +1214,8 @@ for (const theme of ['light', 'dark']) {
             ).toBeVisible();
             await shell.focus();
             await page.keyboard.press('End');
-            // Hover/focus must not make a tooltip consume the advertised Esc.
+            // Hover/focus must not make a tooltip consume the advertised Esc,
+            // even with focus on the header rather than inside the page.
             await page.clock.install();
             await back.focus();
             await back.hover();

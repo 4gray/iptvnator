@@ -15,6 +15,29 @@ export function formatTime(value: number | null | undefined): string {
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+/**
+ * Time left until the end, as `−7:03`. The dock shows it in place of the
+ * total duration: it is the number a viewer actually wants at a glance.
+ * Null when there is no finite duration to count down from.
+ */
+export function formatRemainingTime(
+    positionSeconds: number,
+    durationSeconds: number | null | undefined
+): string | null {
+    if (
+        typeof durationSeconds !== 'number' ||
+        !Number.isFinite(durationSeconds) ||
+        durationSeconds <= 0
+    ) {
+        return null;
+    }
+    const remaining = Math.max(
+        0,
+        durationSeconds - Math.max(0, positionSeconds)
+    );
+    return `−${formatTime(Math.ceil(remaining))}`;
+}
+
 export function volumeIcon(value: number): string {
     if (value <= 0) {
         return 'volume_off';

@@ -1,9 +1,14 @@
+import { EventEmitter } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslateService } from '@ngx-translate/core';
+import {
+    DefaultLangChangeEvent,
+    LangChangeEvent,
+    TranslateService,
+} from '@ngx-translate/core';
 import {
     EpgRuntimeBridgeService,
     EpgService,
@@ -17,9 +22,11 @@ import { EMPTY, of } from 'rxjs';
 import {
     DataService,
     EpgSourceSettingsService,
+    ParentalLockService,
     SettingsStore,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
+import { ParentalLockEnforcementService } from './services/parental-lock-enforcement.service';
 import {
     Language,
     Settings,
@@ -31,8 +38,14 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { AppComponent } from './app.component';
+import { AppDateLocaleService } from './app-date-locales';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';
+
+/** Writable double for the bridge's read-only capability getters. */
+type EpgBridgeStub = {
+    -readonly [K in keyof EpgRuntimeBridgeService]?: EpgRuntimeBridgeService[K];
+};
 
 jest.spyOn(global.console, 'error').mockImplementation(() => {
     // suppress console.error output during tests
@@ -76,7 +89,7 @@ describe('AppComponent', () => {
     let store: MockStore;
     let translateService: TranslateService;
     let runtimeCapabilities: Partial<RuntimeCapabilitiesService>;
-    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let epgBridge: EpgBridgeStub;
 
     beforeEach(waitForAsync(() => {
         runtimeCapabilities = {
@@ -96,6 +109,14 @@ describe('AppComponent', () => {
             imports: [AppComponent],
             providers: [
                 provideMockStore(),
+                // The parental lock boots from AppComponent; its collaborators
+                // (Xtream/Stalker stores, SQLite bridge) are out of scope here.
+                MockProvider(ParentalLockService, {
+                    initialize: jest.fn().mockResolvedValue(undefined),
+                }),
+                MockProvider(ParentalLockEnforcementService, {
+                    start: jest.fn(),
+                }),
                 {
                     provide: Actions,
                     useValue: new Actions(EMPTY),
@@ -134,7 +155,16 @@ describe('AppComponent', () => {
                 MockProvider(TranslateService, {
                     instant: jest.fn((key: string) => key),
                     setDefaultLang: jest.fn(),
+                    getDefaultLang: jest.fn(() => 'en'),
                     use: jest.fn(),
+                    onLangChange: new EventEmitter<LangChangeEvent>(),
+                    onDefaultLangChange:
+                        new EventEmitter<DefaultLangChangeEvent>(),
+                }),
+                // The real service imports locale chunks; the language switch
+                // is gated on it, so it must resolve deterministically here.
+                MockProvider(AppDateLocaleService, {
+                    use: jest.fn().mockResolvedValue(undefined),
                 }),
                 {
                     provide: WORKSPACE_SHELL_ACTIONS,
@@ -223,12 +253,12 @@ describe('AppComponent', () => {
         });
         settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
         jest.spyOn(settingsService, 'changeTheme');
-        jest.spyOn(translateService, 'use');
+        const dateLocales = TestBed.inject(AppDateLocaleService);
 
         component.initSettings();
         await fixture.whenStable();
 
-        expect(translateService.use).toHaveBeenCalledWith(Language.SPANISH);
+        expect(dateLocales.use).toHaveBeenCalledWith(Language.SPANISH);
         expect(settingsService.changeTheme).toHaveBeenCalledWith(
             Theme.DarkTheme
         );

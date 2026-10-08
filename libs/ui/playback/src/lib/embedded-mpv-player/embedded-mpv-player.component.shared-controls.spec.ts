@@ -18,7 +18,7 @@ const PLAYBACK: ResolvedPortalPlayback = {
     contentInfo: {
         playlistId: 'playlist-1',
         contentXtreamId: 42,
-        contentType: 'movie',
+        contentType: 'vod',
     },
 };
 
@@ -251,9 +251,7 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
             fullscreenElement = target;
             document.dispatchEvent(new Event('fullscreenchange'));
         });
-        (target as HTMLElement & { requestFullscreen: jest.Mock })[
-            'requestFullscreen'
-        ] = requestFullscreen;
+        target.requestFullscreen = requestFullscreen;
         const exitFullscreenDescriptor = Object.getOwnPropertyDescriptor(
             document,
             'exitFullscreen'

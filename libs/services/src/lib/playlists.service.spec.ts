@@ -345,6 +345,49 @@ describe('PlaylistsService', () => {
         expect(electron.dbGetAppPlaylists).not.toHaveBeenCalled();
     });
 
+    it('reads resolved M3U favorites only after a queued favorites write lands', async () => {
+        let storedFavorites: string[] = [];
+        let releaseWrite!: () => void;
+        const writeGate = new Promise<void>((resolve) => {
+            releaseWrite = resolve;
+        });
+        const electron = {
+            dbGetAppPlaylist: jest.fn(async () => {
+                await writeGate;
+                return { _id: 'playlist-1', favorites: storedFavorites };
+            }),
+            dbGetAppPlaylistFavoriteChannels: jest.fn(async () =>
+                storedFavorites.map((id) => ({ id }))
+            ),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async (key: string) =>
+                key === SQLITE_PLAYLIST_MIGRATION_FLAG ||
+                key === STALKER_PLAYLIST_METADATA_MIGRATION_FLAG
+                    ? '1'
+                    : null
+            ),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(async (playlist: Playlist) => {
+                storedFavorites = playlist.favorites as string[];
+            }),
+            dbUpsertAppPlaylists: jest.fn(),
+        };
+        testWindow.electron = electron;
+
+        const service = createService();
+        const write = firstValueFrom(
+            service.updateFavorites('playlist-1', ['channel-1'])
+        );
+        const read = firstValueFrom(
+            service.getM3uFavoriteChannels('playlist-1')
+        );
+        await new Promise((resolve) => setTimeout(resolve));
+        releaseWrite();
+
+        await write;
+        await expect(read).resolves.toEqual([{ id: 'channel-1' }]);
+    });
+
     it('falls back from resolved M3U favorites when SQLite playlist migration is incomplete', async () => {
         const electron = {
             dbGetAppPlaylist: jest.fn(),

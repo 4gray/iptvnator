@@ -146,7 +146,6 @@ describe('buildDashboardContinueWatchingActions', () => {
 
 describe('resolveDashboardHeroArtwork', () => {
     const item = {
-        title: 'Broken Hero',
         posterUrl: 'https://images.example.test/poster.jpg',
         backdropUrl: 'https://images.example.test/backdrop.jpg',
     };
@@ -173,7 +172,8 @@ describe('resolveDashboardHeroArtwork', () => {
         });
     });
 
-    it('uses generated fallback artwork when backdrop and poster both fail', () => {
+    // The stylesheet paints the no-artwork gradient from the slide's hue.
+    it('reports no artwork when backdrop and poster both fail', () => {
         const artwork = resolveDashboardHeroArtwork(item, {
             [item.backdropUrl]: true,
             [item.posterUrl]: true,
@@ -185,8 +185,6 @@ describe('resolveDashboardHeroArtwork', () => {
             posterUrl: undefined,
             backdropUrl: undefined,
         });
-        expect(artwork.fallbackBackdropBackground).toContain('linear-gradient');
-        expect(artwork.fallbackPosterBackground).toContain('linear-gradient');
     });
 });
 
@@ -288,6 +286,30 @@ describe('EPG enrichment helpers', () => {
                 ),
                 nowPlayingProgress: 25,
             });
+        });
+
+        it('adds the synopsis and category only when the guide has them', () => {
+            const now = START_S * 1000;
+
+            expect(
+                buildDashboardLiveEpgDetails(
+                    baseProgram({
+                        desc: '  Live from Moscow.  ',
+                        category: 'Sport',
+                    }),
+                    now
+                )
+            ).toMatchObject({
+                nowPlayingDescription: 'Live from Moscow.',
+                nowPlayingCategory: 'Sport',
+            });
+
+            const bare = buildDashboardLiveEpgDetails(
+                baseProgram({ desc: ' ', category: null }),
+                now
+            );
+            expect(bare).not.toHaveProperty('nowPlayingDescription');
+            expect(bare).not.toHaveProperty('nowPlayingCategory');
         });
     });
 });
@@ -544,29 +566,7 @@ describe('Live rail helpers', () => {
         expect(first).toBe('a::movie::10|b::series::20');
     });
 
-    it('omits hero cards from live EPG lookup sources when the hero rail is disabled', () => {
-        const hero = channelCard({ id: 'hero', epgLookupKey: 'hero' });
-        const favorite = channelCard({
-            id: 'favorite',
-            epgLookupKey: 'favorite',
-        });
-        const recent = channelCard({ id: 'recent', epgLookupKey: 'recent' });
-
-        expect(
-            buildLiveEpgCardsForEnabledRails(
-                {
-                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
-                    hero: false,
-                },
-                hero,
-                [favorite],
-                [recent]
-            ).map((card) => card.id)
-        ).toEqual(['favorite', 'recent']);
-    });
-
     it('omits disabled live rails from live EPG lookup sources', () => {
-        const hero = channelCard({ id: 'hero', epgLookupKey: 'hero' });
         const favorite = channelCard({
             id: 'favorite',
             epgLookupKey: 'favorite',
@@ -578,13 +578,22 @@ describe('Live rail helpers', () => {
                 {
                     ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
                     liveFavorites: false,
-                    recentlyWatchedLive: false,
                 },
-                hero,
                 [favorite],
                 [recent]
             ).map((card) => card.id)
-        ).toEqual(['hero']);
+        ).toEqual(['recent']);
+        expect(
+            buildLiveEpgCardsForEnabledRails(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    liveFavorites: false,
+                    recentlyWatchedLive: false,
+                },
+                [favorite],
+                [recent]
+            )
+        ).toEqual([]);
     });
 });
 

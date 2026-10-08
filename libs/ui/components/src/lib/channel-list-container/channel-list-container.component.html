@@ -3,7 +3,7 @@
         [view]="activeView()"
         [showEpg]="shouldShowEpg()"
     />
-} @else if (displayedChannels().length) {
+} @else if (showChannelViews()) {
     @if (
         !compact() &&
         viewTitle() &&
@@ -62,11 +62,17 @@
                 [activeChannelUrl]="activeChannelUrl()"
                 [favoriteIds]="favoriteIds()"
                 [hiddenGroupTitles]="hiddenGroupTitles()"
+                [playlistId]="activePlaylist()?._id ?? null"
+                [lockedGroupTitles]="lockedGroupTitles()"
+                [withheldGroupCount]="withheldGroupCount()"
+                [managementGroups]="managementGroups()"
                 [sidebarWidth]="sidebarWidth()"
                 (channelSelected)="onChannelSelected($event)"
                 (channelPlaybackRequested)="onChannelPlaybackRequested($event)"
                 (favoriteToggled)="onFavoriteToggled($event)"
                 (hiddenGroupTitlesChanged)="onHiddenGroupTitlesChanged($event)"
+                (lockedGroupTitlesChanged)="onLockedGroupTitlesChanged($event)"
+                (groupLockToggled)="onGroupLockToggled($event)"
                 (sidebarWidthRequested)="onSidebarWidthRequested($event)"
                 (sidebarWidthRequestEnded)="onSidebarWidthRequestEnded($event)"
                 (sidebarToggleRequested)="sidebarToggleRequested.emit()"

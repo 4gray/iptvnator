@@ -22,6 +22,8 @@ class StubVodDetailsComponent {
     readonly providerOnly = input(false);
     readonly isFavorite = input(false);
     readonly playbackPosition = input<number | null>(null);
+    readonly playbackDurationSeconds = input<number | null>(null);
+    readonly sourceLabel = input<string | null>(null);
     readonly inlinePlayback = input<unknown>(null);
     readonly externalPlayback = input<unknown>(null);
     readonly isWatched = input(false);
@@ -35,6 +37,8 @@ class StubVodDetailsComponent {
     readonly backClicked = output<void>();
     readonly inlineTimeUpdated = output<unknown>();
     readonly inlinePlaybackClosed = output<void>();
+    readonly externalPlayRequested = output<unknown>();
+    readonly resetProgressRequested = output<unknown>();
     readonly streamUrlCopied = output<void>();
     readonly inlineExternalFallbackRequested = output<unknown>();
 }
@@ -51,7 +55,21 @@ class StubStalkerSeriesViewComponent {
 }
 
 const VOD_ITEM = createStalkerVodItem(
-    { id: '42', cmd: '/media/42', info: { name: 'Movie' } },
+    {
+        id: '42',
+        cmd: '/media/42',
+        info: {
+            name: 'Movie',
+            movie_image: '',
+            description: '',
+            actors: '',
+            director: '',
+            releasedate: '',
+            genre: '',
+            rating_imdb: '',
+            rating_kinopoisk: '',
+        },
+    },
     'stalker-1'
 );
 

@@ -4,7 +4,15 @@ import {
     runInInjectionContext,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import {
+    ActivatedRoute,
+    ActivatedRouteSnapshot,
+    convertToParamMap,
+} from '@angular/router';
+
+type WritableSnapshot = {
+    -readonly [K in keyof ActivatedRouteSnapshot]: ActivatedRouteSnapshot[K];
+};
 import { BehaviorSubject } from 'rxjs';
 import {
     extractPortalPlaylistId,
@@ -14,6 +22,7 @@ import {
     routeParamSignal,
     resolveCurrentPortalPlaylistId,
     resolveCurrentPortalSection,
+    workspacePortalCommands,
 } from './portal-route.utils';
 
 describe('portal-route.utils', () => {
@@ -36,7 +45,7 @@ describe('portal-route.utils', () => {
                     layout: 'workspace',
                 },
             },
-        } as ActivatedRoute;
+        } as unknown as ActivatedRoute;
         const childRoute = {
             snapshot: {
                 data: {},
@@ -181,6 +190,41 @@ describe('portal-route.utils', () => {
         ).toBe('playlist-2');
     });
 
+    it('builds commands for the portal a nested route belongs to', () => {
+        const actorRoute = {
+            pathFromRoot: [
+                { snapshot: { params: {}, paramMap: convertToParamMap({}) } },
+                {
+                    snapshot: {
+                        params: { id: 'playlist-1' },
+                        paramMap: convertToParamMap({ id: 'playlist-1' }),
+                    },
+                },
+                {
+                    snapshot: {
+                        params: { personId: '287' },
+                        paramMap: convertToParamMap({ personId: '287' }),
+                    },
+                },
+            ],
+        } as unknown as ActivatedRoute;
+        const outsidePortal = {
+            pathFromRoot: [
+                { snapshot: { params: {}, paramMap: convertToParamMap({}) } },
+            ],
+        } as unknown as ActivatedRoute;
+
+        expect(workspacePortalCommands(actorRoute, 'xtreams')).toEqual([
+            '/workspace',
+            'xtreams',
+            'playlist-1',
+        ]);
+        expect(
+            workspacePortalCommands(actorRoute, 'stalker', 'series')
+        ).toEqual(['/workspace', 'stalker', 'playlist-1', 'series']);
+        expect(workspacePortalCommands(outsidePortal, 'xtreams')).toBeNull();
+    });
+
     it('creates normalized query-param signals', () => {
         TestBed.configureTestingModule({});
 
@@ -257,10 +301,11 @@ describe('portal-route.utils', () => {
 
         expect(playlistId()).toBe('playlist-1');
 
-        route.snapshot.paramMap = convertToParamMap({
+        const snapshot = route.snapshot as WritableSnapshot;
+        snapshot.paramMap = convertToParamMap({
             id: 'playlist-2',
         });
-        route.snapshot.params = {
+        snapshot.params = {
             id: 'playlist-2',
         };
         paramMap$.next(
@@ -296,7 +341,7 @@ describe('portal-route.utils', () => {
                 },
             },
             paramMap: parentParamMap$.asObservable(),
-        } as ActivatedRoute;
+        } as unknown as ActivatedRoute;
         const route = {
             snapshot: {
                 data: {},
@@ -316,10 +361,11 @@ describe('portal-route.utils', () => {
 
         expect(playlistId()).toBe('playlist-1');
 
-        (parentRoute.snapshot as ActivatedRoute['snapshot']).paramMap =
-            convertToParamMap({
+        (parentRoute.snapshot as WritableSnapshot).paramMap = convertToParamMap(
+            {
                 id: 'playlist-2',
-            });
+            }
+        );
         (parentRoute.snapshot as ActivatedRoute['snapshot']).params = {
             id: 'playlist-2',
         };

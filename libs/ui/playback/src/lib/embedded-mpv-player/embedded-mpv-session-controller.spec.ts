@@ -206,7 +206,7 @@ describe('EmbeddedMpvSessionController', () => {
     });
 
     it('ignores a late startup rejection after teardown so it cannot clobber a newer session', async () => {
-        let rejectPrepare: ((error: Error) => void) | null = null;
+        let rejectPrepare: ((error: Error) => void) | undefined;
         electron.prepareEmbeddedMpv.mockImplementationOnce(
             () =>
                 new Promise((_resolve, reject) => {
@@ -221,7 +221,7 @@ describe('EmbeddedMpvSessionController', () => {
             0.5
         );
         await waitFor(
-            () => rejectPrepare !== null,
+            () => rejectPrepare !== undefined,
             'startup to reach prepareEmbeddedMpv'
         );
         teardown();

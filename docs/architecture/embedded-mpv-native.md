@@ -185,6 +185,39 @@ support API from global workspace startup paths; use an explicit user action
 or idle preparation path when a renderer surface only needs to reveal optional
 Embedded MPV UI.
 
+An unsupported answer can be `inconclusive`. The Linux native-view `mpv`
+executable check runs `mpv --version` by bare name, so the support and prepare
+handlers wait for the login shell PATH lookup (`startup/login-shell-path.ts`)
+first. When that lookup runs out of its budget, the check runs on the
+inherited PATH: `EmbeddedMpvNativeService` then reports a missing `mpv` as
+`supported: false` with `inconclusive: true`, keeps doing so while the cached
+result stands, and probes again once the shell answers. Every other answer,
+including a missing `mpv` after the shell answered, is final. An inconclusive
+answer is not a verdict on the machine: never persist a decision made from it.
+Whatever holds on to one answer follows it through `watchEmbeddedMpvSupport()`
+(`@iptvnator/shared/interfaces`), which asks again after
+`EMBEDDED_MPV_SUPPORT_RECHECK_MS`, backing off to
+`EMBEDDED_MPV_SUPPORT_RECHECK_MAX_MS`, until the answer is final:
+
+- The settings store keeps a saved Embedded MPV selection while the answer is
+  inconclusive, falls back to the default player only on a final unsupported
+  answer, and never overwrites a player the user picked meanwhile.
+- The player (`EmbeddedMpvSessionController`) and the settings page stay
+  mounted on one answer: a player mounted in that window starts playback by
+  itself once `mpv` is found, and the option appears without reopening the
+  page.
+- The settings page also follows the answer for its search
+  (`SettingsSearchService.followEmbeddedMpvSupport()`) and ends that when it
+  closes: the Embedded MPV rows become searchable while the page stays open,
+  and nothing keeps asking once no surface shows them.
+
+The command palette asks on demand, on every open, for its player commands and
+its settings rows (`ensureEmbeddedMpvSupportLoaded()`). Only a final answer is
+kept for the session; after an inconclusive one, or a failed request, the next
+open asks again. An open palette is a snapshot of that moment: it does not wait
+for a final answer, because a login shell that never answers would then keep
+it from opening.
+
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 
 For the native-view engine, the MPV video surface is a platform view/window,
@@ -443,7 +476,12 @@ Trade-offs and constraints:
   string to stderr. If an early tier selects Mesa software rendering (for
   example, while a proprietary NVIDIA driver is reachable through the default
   display or GBM), it probes the remaining tiers and uses software only when
-  no hardware-backed context works. Windows (any arch with a helper, in
+  no hardware-backed context works. On a software renderer the helper sets
+  `scale`, `cscale` and `dscale` to `bilinear` and `sigmoid-upscaling=no`
+  unless a session option sets the same key: mpv's LUT scalers upload their
+  weight texture with uninitialized row padding (`reinit_scaler`, mpv 0.41),
+  and llvmpipe carries NaN/Inf from it through zero-weight filtering, so
+  sessions otherwise render pure black at random. Windows (any arch with a helper, in
   practice x64) is ported: WGL renders offscreen against a hidden window,
   the shm ring is a session-local named file mapping, and the reader addon
   compiles as C++ there (MSVC has no C11 `<stdatomic.h>`). The helper
@@ -962,7 +1000,7 @@ Defensive practice for this component:
 
 Concrete bugs from the audit, recorded so they don't get reintroduced:
 
-- **Infinite session-create loop.** `EmbeddedMpvSessionController.startSession` once wrote `this.support.set(prepared)` after the `prepareEmbeddedMpv` round-trip. The component's session-creation effect tracks `this.support()`, so the write fired the effect → cleanup disposed the session → new session was created → prepare ran again → support was set again. Symptom: endless "Loading stream…" spinner. Fix: do not write `support` inside `startSession`; the constructor's `loadSupport()` already populates it including capabilities.
+- **Infinite session-create loop.** `EmbeddedMpvSessionController.startSession` once wrote `this.support.set(prepared)` after the `prepareEmbeddedMpv` round-trip. The component's session-creation effect tracks `this.support()`, so the write fired the effect → cleanup disposed the session → new session was created → prepare ran again → support was set again. Symptom: endless "Loading stream…" spinner. Fix: do not write `support` inside `startSession`; the constructor's `watchSupport()` already populates it including capabilities.
 - **Stream restart on volume change.** The session-creation effect once read `this.volume()` directly to pass to `startSession`'s `initialVolume`. Each volume tick re-ran the effect, disposing and recreating the session — for VOD/series this restarted playback from the beginning. Fix: read it via `untracked(() => this.volume())`. Subsequent volume changes flow through `controller.applyVolume()`, never through the effect graph.
 - **Spurious `timeUpdate` re-emits and `volume.set` calls.** The session-fan-out effect calls `scheduleControlsHide()`, which reads `isPlaying`, `menus.anyOpen`, `statusLabel`, and `controlsVisible`. Those reads became tracked deps, so opening any popover, pausing, or hovering re-ran the body. No loop in isolation, but a parent that wires `timeUpdate` back into `playback.startTime` would have hit the volume-restart bug class. Fix: wrap the side-effect block in `untracked()` so the effect listens only to session changes.
 - **2 Hz no-op stalled-tracker re-runs.** Position polling updates `session` around 2 Hz. Tracking the full session would re-run stalled logic for snapshots with unchanged status, so the controller tracks only `sessionStatus` and invokes `EmbeddedMpvStalledTracker.track` inside `untracked()`, avoiding full-session reruns.

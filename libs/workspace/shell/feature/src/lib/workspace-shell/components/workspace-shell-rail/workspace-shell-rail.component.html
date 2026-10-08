@@ -1,17 +1,6 @@
+<!-- No brand mark: it linked to the page the first workspace link opens.
+     The page's Back lives in the header's leading slot. -->
 <aside class="app-rail" [class.is-macos]="isMacOS()">
-    <a
-        class="brand"
-        [routerLink]="brandLink()"
-        [matTooltip]="brandTooltipKey() | translate"
-        [matTooltipPosition]="'right'"
-        [attr.aria-label]="brandAriaLabelKey() | translate"
-    >
-        <img
-            src="./assets/icons/icon-tv-256.png"
-            [attr.alt]="'WORKSPACE.SHELL.BRAND_ALT' | translate"
-        />
-    </a>
-
     <app-workspace-shell-rail-links [links]="workspaceLinks()" />
 
     @if (primaryContextLinks().length > 0) {

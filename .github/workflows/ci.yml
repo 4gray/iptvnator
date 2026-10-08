@@ -98,7 +98,7 @@ jobs:
                   fetch-depth: 0
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -126,17 +126,258 @@ jobs:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
-    unit-and-typecheck:
-        name: Unit Tests and Typechecks
+    initial-bytes-ratchet:
+        name: Initial bytes ratchet
         runs-on: ubuntu-latest
-        timeout-minutes: 45
+        timeout-minutes: 30
+        # pull-requests: read lets the direction check read the PR's labels.
+        permissions:
+            contents: read
+            pull-requests: read
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # The ratchet below compares a measurement with the baselines file
+            # of the same commit, so it cannot see a change that grows the
+            # payload and raises the baseline to match. Compare the file with
+            # the revision this one is measured against instead: the target
+            # branch for a pull request, the previous head for a master push,
+            # master for a manual dispatch. Any raised limit, widened tolerance
+            # or slack, or removed entry fails, unless a maintainer put the
+            # perf-baseline-increase label on the pull request. For a master
+            # push the label counts only when the push added exactly one
+            # first-parent commit (a squash or merge of one PR) and that
+            # commit's PR carries it: the check compares the whole push, so a
+            # multi-commit push cannot borrow one PR's label for another's
+            # increase. Labels are read from the API, not the event payload,
+            # so re-running this job after adding the label picks it up.
+            - name: Refuse baseline increases against the previous revision
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  BASE_REF: ${{ github.base_ref }}
+                  BEFORE_SHA: ${{ github.event.before }}
+                  HEAD_SHA: ${{ github.sha }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  REPOSITORY: ${{ github.repository }}
+                  GH_TOKEN: ${{ github.token }}
+                  INCREASE_LABEL: perf-baseline-increase
+              run: |
+                  set -euo pipefail
+                  case "$EVENT_NAME" in
+                      pull_request)
+                          git fetch --no-tags --depth=1 origin "$BASE_REF"
+                          ;;
+                      push)
+                          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+                              echo "No previous revision for this push; nothing to compare against."
+                              exit 0
+                          fi
+                          git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
+                          ;;
+                      *)
+                          git fetch --no-tags --depth=1 origin master
+                          ;;
+                  esac
+                  git show "FETCH_HEAD:tools/performance/journey-baselines.json" > /tmp/base-journey-baselines.json 2>/dev/null ||
+                      rm -f /tmp/base-journey-baselines.json
+                  case "$EVENT_NAME" in
+                      pull_request)
+                          labels="$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/labels?per_page=100" --paginate --jq '.[].name')"
+                          ;;
+                      push)
+                          parent="$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA" --jq '.parents[0].sha')"
+                          if [ "$parent" = "$BEFORE_SHA" ]; then
+                              labels="$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls?per_page=100" --paginate --jq '.[].labels[].name')"
+                          else
+                              echo "This push added more than one commit; the $INCREASE_LABEL label is not consulted."
+                              labels=""
+                          fi
+                          ;;
+                      *)
+                          labels=""
+                          ;;
+                  esac
+                  allow=()
+                  if grep -qxF "$INCREASE_LABEL" <<< "$labels"; then
+                      echo "The $INCREASE_LABEL label is set; weakened baselines are reported, not failed."
+                      allow=(--allow-increase)
+                  fi
+                  node tools/performance/check-baseline-direction.mjs \
+                      --base /tmp/base-journey-baselines.json \
+                      --head tools/performance/journey-baselines.json \
+                      "${allow[@]}"
+
+            # The production configuration is what users download; measuring
+            # any other build would ratchet a number nobody ships.
+            - name: Build web app (production)
+              run: pnpm nx build web --skip-nx-cache
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            # Fails when renderer.initialBytes exceeds value + slack committed
+            # in tools/performance/journey-baselines.json. Baselines only move
+            # down, with the printed measurement as evidence; the contract is
+            # docs/architecture/performance-journeys.md.
+            - name: Check renderer.initialBytes against the baseline
+              run: pnpm run perf:initial-bytes:check
+
+            - name: Upload journey summary
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: performance-journey-summary
+                  path: dist/performance/
+                  retention-days: 14
+
+    # Decides whether a pull request can move the performance journeys, so
+    # the journeys job below does not spend a runner on docs-only changes.
+    # Pushes to master and manual dispatches always run them.
+    performance-journeys-scope:
+        name: Performance journeys scope
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            run: ${{ steps.scope.outputs.run }}
+
+        steps:
+            # The PR checkout is the merge commit: its first parent is the
+            # target branch, so two commits are enough to diff the PR.
+            - name: Checkout code
+              if: github.event_name == 'pull_request'
+              uses: actions/checkout@v7
+              with:
+                  fetch-depth: 2
+
+            # Anything can move a journey (application code, the harness, root
+            # build inputs such as .nvmrc, nx.json or tsconfig.base.json), so
+            # the filter lists what cannot: the same paths the E2E workflow
+            # ignores, plus release notes.
+            - name: Detect journey-relevant changes
+              id: scope
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+              run: |
+                  set -euo pipefail
+                  if [ "$EVENT_NAME" != "pull_request" ]; then
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  relevant="$(git diff --name-only HEAD^1 HEAD |
+                      grep -vE '\.md$|^docs/|^\.plans/|^\.codex/|^\.claude/|^\.changes/|^apps/website/' || true)"
+                  if [ -n "$relevant" ]; then
+                      echo "Journey-relevant changes:"
+                      echo "$relevant"
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "No journey-relevant changes; skipping the performance journeys."
+                      echo "run=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+    # Runs the journey benchmarks (docs/architecture/performance-journeys.md)
+    # on the canonical Linux runner and uploads the summary as evidence.
+    performance-journeys:
+        name: Performance journeys
+        needs: performance-journeys-scope
+        if: needs.performance-journeys-scope.outputs.run == 'true'
+        runs-on: ubuntu-latest
+        # The electron-performance build is the bulk of the time; each journey
+        # (launch, open-source, playback, search) is six fresh Electron
+        # processes plus one seeding run.
+        timeout-minutes: 30
+        # Warn-only for the first two weeks of plan item B3: a failure is
+        # visible on the run but does not fail the workflow.
+        continue-on-error: true
+        env:
+            NX_SKIP_NX_CACHE: true
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # Electron dependency check, the xvfb run, the summary lookup and
+            # the job-summary report; shared with performance-ratchet.yml.
+            - name: Run the performance journeys
+              id: journeys
+              uses: ./.github/actions/performance-journeys
+
+            # Only the counters identical in every measured iteration of
+            # recent master runs; their entries say whether a counter is
+            # validated against wall-clock or a guard only (see Ratchet in
+            # docs/architecture/performance-journeys.md). Here and not in the
+            # composite action, so the weekly tightening still measures a run
+            # that would fail it. tools/performance tests keep this list equal
+            # to the journey entries of journey-baselines.json. It also runs
+            # when a later step of the action (the job-summary report) failed
+            # after the summary was written, so the counters are still checked.
+            - name: Check the journey counters against the baselines
+              if: ${{ !cancelled() && steps.journeys.outputs.summary != '' }}
+              env:
+                  SUMMARY: ${{ steps.journeys.outputs.summary }}
+              run: >-
+                  node tools/performance/check-journey-ratchet.mjs
+                  --summary "$SUMMARY"
+                  --only launch/renderer.ipcCallsToFirstCard
+                  --only launch/renderer.domMutationsToFirstCard
+                  --only launch/main.modulesRegisteredBeforeWindow
+                  --only launch/renderer.layoutShiftScore
+                  --only launch/renderer.layoutShiftScoreSettled
+                  --only open-source/main.mockHttpRequestsToSettled
+                  --only open-source/renderer.ipcCallsToFirstPage
+                  --only open-source/renderer.layoutShiftScore
+                  --only playback/renderer.httpRequestsToPlaying
+                  --only playback/renderer.layoutShiftScore
+
+            - name: Upload journey summaries
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: performance-journeys
+                  path: dist/performance/journeys/
+                  if-no-files-found: warn
+                  retention-days: 14
+
+    unit-and-typecheck:
+        name: Unit Tests and Typechecks
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        permissions:
+            contents: read
+            # The scope step lists the PR's changed files through the API.
+            pull-requests: read
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -159,20 +400,126 @@ jobs:
             - name: Validate electron-builder keychain password patch
               run: pnpm run deps:electron-builder:test
 
+            - name: Validate the font weight scale
+              run: pnpm run styles:font-weights:validate
+
             - name: Validate stylesheet Nx inputs
               run: pnpm run styles:inputs:validate
+
+            - name: Validate Angular Material token overrides
+              run: pnpm run styles:material-tokens:validate
+
+            # Nx rejects a non-parallel task with continuous dependencies, and
+            # the Playwright plugin infers serve dependencies only when CI is
+            # unset, so this checks both the local and the CI inference.
+            - name: Validate Playwright task graphs
+              run: pnpm run e2e:task-graphs:validate
 
             - name: Typecheck web and Electron entry points
               run: pnpm run typecheck:ci
 
-            - name: Check i18n drift
-              run: pnpm run i18n:check
+            - name: Typecheck Jest spec programs
+              run: pnpm run typecheck:spec:test && pnpm run typecheck:spec
+
+            # Fails on missing or extra keys and on values identical to
+            # English that tools/i18n/identical-en-baseline.json does not list.
+            # The baseline only changes through a reviewed
+            # `pnpm run i18n:baseline:update`; CI never rewrites it.
+            - name: Check i18n drift and untranslated values
+              run: pnpm run i18n:validate
+
+            # Node specs for the benchmark and journey harness (about ten
+            # seconds). They live in the E2E app, which the unit coverage scope
+            # below treats as out of scope, so this step is not gated by it.
+            - name: Test the performance harness
+              run: pnpm nx run electron-backend-e2e:test-performance-harness --skip-nx-cache
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            # A pull request whose changes cannot reach any Tier A test (docs,
+            # notes, other workflows, website, E2E and mock-server apps, release
+            # and packaging tooling, a scripts-only package.json edit) skips the
+            # suite. The allowlist lives in a unit-tested script; anything it
+            # does not know runs everything, and master always runs everything.
+            - name: Decide unit coverage scope
+              id: scope
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+              run: |
+                  set -euo pipefail
+                  if [ "$EVENT_NAME" != "pull_request" ]; then
+                      echo "Not a pull request; running the full suite."
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  # The list-files endpoint stops at 3,000 files; a truncated
+                  # list could hide a file that needs the suite.
+                  if [ "${CHANGED_FILES:-0}" -ge 3000 ]; then
+                      echo "PR changes ${CHANGED_FILES} files, beyond the API listing limit; running the full suite."
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  git fetch --no-tags --depth=1 origin "$BASE_SHA"
+                  gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+                      --paginate --jq '.[] | .filename, (.previous_filename // empty)' |
+                      node tools/coverage/unit-coverage-scope.mjs --base FETCH_HEAD --github-output
+
+            # pnpm only runs build scripts for allow-listed packages
+            # (pnpm-workspace.yaml), so electron's postinstall never fetches
+            # its binary. `require('electron')` then downloads it lazily, and
+            # parallel Jest workers and Tier A projects that spawn Electron
+            # race on the same download: one executes the half-written binary
+            # (ETXTBSY). Fetch it once before the Tier A suite, the only step
+            # here whose specs spawn Electron. Unlike a bare install.js, the
+            # helper also runs the binary, so a partial extraction fails here.
+            # The Tier A runner calls it too; this step only separates a
+            # download failure from test failures.
+            - name: Install the Electron binary
+              if: steps.scope.outputs.run == 'true'
+              run: node tools/testing/ensure-electron-binary.mjs
+
+            # Jest's transform cache (TypeScript/Angular transpilation plus
+            # coverage instrumentation, keyed by file content) is persisted
+            # between runs. Only master pushes and maintainer dispatches save
+            # it; pull requests restore it and never write, so a PR cannot plant
+            # an entry that a later master run would read.
+            - name: Restore Jest transform cache
+              if: steps.scope.outputs.run == 'true' && github.event_name != 'push'
+              uses: actions/cache/restore@v6
+              with:
+                  path: ${{ runner.temp }}/jest-cache
+                  key: jest-transform-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig.base.json', 'jest.preset.js', 'jest.web-esm.workspace.ts', 'apps/web/jest.config.ts') }}-${{ github.run_id }}
+                  restore-keys: |
+                      jest-transform-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig.base.json', 'jest.preset.js', 'jest.web-esm.workspace.ts', 'apps/web/jest.config.ts') }}-
 
             - name: Run Tier A unit coverage suite
+              if: steps.scope.outputs.run == 'true'
               run: pnpm run coverage:ci
               env:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+                  JEST_CACHE_DIRECTORY: ${{ runner.temp }}/jest-cache
+
+            - name: Validate coverage tooling (suite skipped)
+              if: steps.scope.outputs.run != 'true'
+              run: pnpm run coverage:tools:test && pnpm run coverage:policy:check
+
+            # Master pushes start from an empty cache, so the saved cache holds
+            # exactly the current tree and does not grow run over run.
+            - name: Save Jest transform cache
+              if: >-
+                  steps.scope.outputs.run == 'true' &&
+                  (github.event_name == 'workflow_dispatch' ||
+                  (github.event_name == 'push' && github.ref == 'refs/heads/master'))
+              uses: actions/cache/save@v6
+              with:
+                  path: ${{ runner.temp }}/jest-cache
+                  key: jest-transform-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig.base.json', 'jest.preset.js', 'jest.web-esm.workspace.ts', 'apps/web/jest.config.ts') }}-${{ github.run_id }}
 
             - name: Run Tier B/C validation commands
               run: node tools/coverage/check-coverage-policy.mjs --run-non-tier-a
@@ -181,7 +528,7 @@ jobs:
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
             - name: Upload unit coverage artifact
-              if: always()
+              if: always() && steps.scope.outputs.run == 'true'
               uses: actions/upload-artifact@v7
               with:
                   name: unit-coverage
@@ -190,7 +537,7 @@ jobs:
                   retention-days: 14
 
             - name: Upload unit coverage to Codecov
-              if: always()
+              if: always() && steps.scope.outputs.run == 'true'
               uses: codecov/codecov-action@v7
               with:
                   files: ./coverage/merged/lcov.info,./coverage/merged/cobertura-coverage.xml

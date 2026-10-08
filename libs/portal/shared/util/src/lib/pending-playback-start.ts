@@ -17,6 +17,12 @@ export interface PendingPlaybackStart<TOwner> {
     settle(startId: number): void;
     /** Reactive: whether the latest start belongs to this owner. */
     isPendingFor(owner: TOwner): boolean;
+    /**
+     * Forgets the start of `owner` once the page left it: whatever it still
+     * settles with no longer applies, and a return to the same owner must
+     * not find its actions held by a request that may never settle.
+     */
+    retire(owner: TOwner): void;
 }
 
 export function createPendingPlaybackStart<
@@ -39,6 +45,11 @@ export function createPendingPlaybackStart<
         isPendingFor(owner) {
             const current = pending();
             return current !== null && current.owner === owner;
+        },
+        retire(owner) {
+            if (pending()?.owner === owner) {
+                pending.set(null);
+            }
         },
     };
 }

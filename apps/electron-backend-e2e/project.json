@@ -16,7 +16,7 @@
             "executor": "nx:run-commands",
             "options": {
                 "cwd": "apps/electron-backend-e2e",
-                "command": "pnpm exec tsx --test src/performance/*.spec.ts"
+                "command": "tsx --test \"src/performance/*.spec.ts\""
             }
         },
         "benchmark-m3u-refresh-cancellation": {
@@ -26,7 +26,7 @@
             "parallelism": false,
             "options": {
                 "cwd": "apps/electron-backend-e2e",
-                "command": "pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-refresh-cancellation.performance.ts"
+                "command": "playwright test --config=playwright.performance.config.ts src/m3u-refresh-cancellation.performance.ts"
             }
         },
         "benchmark-m3u-import": {
@@ -36,7 +36,7 @@
             "parallelism": false,
             "options": {
                 "cwd": "apps/electron-backend-e2e",
-                "command": "pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-import.performance.ts"
+                "command": "playwright test --config=playwright.performance.config.ts src/m3u-import.performance.ts"
             }
         },
         "benchmark-xtream": {
@@ -46,7 +46,26 @@
             "parallelism": false,
             "options": {
                 "cwd": "apps/electron-backend-e2e",
-                "command": "pnpm exec playwright test --config=playwright.xtream-performance.config.ts src/xtream.performance.ts"
+                "command": "playwright test --config=playwright.xtream-performance.config.ts src/xtream.performance.ts"
+            }
+        },
+        "benchmark-charset-parse": {
+            "executor": "nx:run-commands",
+            "cache": false,
+            "parallelism": false,
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "command": "tsx --expose-gc --tsconfig tsconfig.json src/performance/charset-parse.benchmark.ts"
+            }
+        },
+        "journeys": {
+            "dependsOn": ["electron-backend:build-performance"],
+            "executor": "nx:run-commands",
+            "cache": false,
+            "parallelism": false,
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "command": "playwright test --config=playwright.journeys.config.ts"
             }
         },
         "packaged-frame-copy-smoke": {
@@ -59,14 +78,14 @@
             ],
             "options": {
                 "cwd": "apps/electron-backend-e2e",
-                "command": "pnpm exec playwright test --config=playwright.packaged.config.ts src/embedded-mpv-frame-copy-packaged.e2e.ts"
+                "command": "playwright test --config=playwright.packaged.config.ts src/embedded-mpv-frame-copy-packaged.e2e.ts"
             }
         },
         "test-packaged-frame-copy-fixtures": {
             "executor": "nx:run-commands",
             "options": {
                 "cwd": "apps/electron-backend-e2e",
-                "command": "pnpm exec tsx --test src/embedded-mpv-frame-copy-packaged-fixtures.spec.ts"
+                "command": "tsx --test src/embedded-mpv-frame-copy-packaged-fixtures.spec.ts"
             }
         },
         "lint": {

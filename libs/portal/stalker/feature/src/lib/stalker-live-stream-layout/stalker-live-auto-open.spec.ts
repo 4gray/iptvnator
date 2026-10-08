@@ -18,21 +18,21 @@ const channel = (
 describe('StalkerLiveAutoOpen', () => {
     let autoOpen: StalkerLiveAutoOpen;
     let events: Subject<unknown>;
+    const selectedCategoryId = signal<string | null>(null);
+    const searchPhrase = signal('');
     const store = {
         currentPlaylist: signal<{ _id?: string } | null>({ _id: 'pl-3' }),
         selectedContentType: signal<string | null>('itv'),
-        selectedCategoryId: signal<string | null>(null),
+        selectedCategoryId,
         itvChannelsCategory: signal<string | null>(null),
-        searchPhrase: signal(''),
+        searchPhrase,
         itvFullChannelList: signal<StalkerItvChannel[]>([]),
         itvFullListActive: signal(false),
         itvFullListUnsupported: signal(false),
         preloadItvChannels: jest.fn(() => Promise.resolve()),
-        setSearchPhrase: jest.fn((phrase: string) =>
-            store.searchPhrase.set(phrase)
-        ),
+        setSearchPhrase: jest.fn((phrase: string) => searchPhrase.set(phrase)),
         setSelectedCategory: jest.fn((category: string | null) =>
-            store.selectedCategoryId.set(category)
+            selectedCategoryId.set(category)
         ),
         setPage: jest.fn(),
     };

@@ -29,7 +29,6 @@ function createPlaylist(
     overrides: Partial<PlaylistMeta> & { _id: string }
 ): PlaylistMeta {
     return {
-        _id: overrides._id,
         title: overrides.title ?? overrides.filename ?? overrides._id,
         filename: overrides.filename,
         count: overrides.count ?? 0,

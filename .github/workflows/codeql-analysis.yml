@@ -15,6 +15,15 @@ on:
   schedule:
     - cron: '0 20 * * 3'
 
+# A newer push to a pull request cancels that PR's still-running analysis:
+# only the latest commit's result matters, and superseded runs otherwise hold
+# runners the rest of the pipeline is queued for. Pushes to master, the weekly
+# schedule and manual dispatches get a unique group (run_id), so they are never
+# cancelled or replaced, the same pattern as ci.yml.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # Required so `codeql-action/analyze` can upload its SARIF results. Without an
 # explicit grant the default token is read-only and the upload fails with
 # "Resource not accessible by integration".
@@ -45,7 +54,7 @@ jobs:
     # commit checked out above (the modern default); JavaScript is
     # interpreted, so no build step is needed before analysis.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4.37.7
+      uses: github/codeql-action/init@v4.38.2
       with:
         languages: ${{ matrix.language }}
         # Excludes the localhost dev/E2E mock servers from analysis; see the
@@ -57,4 +66,4 @@ jobs:
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4.37.7
+      uses: github/codeql-action/analyze@v4.38.2

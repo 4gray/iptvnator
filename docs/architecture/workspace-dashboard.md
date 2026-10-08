@@ -37,7 +37,7 @@ Core implementation:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Hero — Continue Watching (most recent item)                        │
+│  Hero — rotating cinematic banner (resume · live · discovery)       │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Continue Watching · See all →                                      │
 │  [poster][poster][poster][poster] →→                                │
@@ -73,12 +73,23 @@ Render rules:
    slow rail does not hide already available content.
 2. `hasPlaylists() === false` → render `<app-empty-state [type]="'welcome-dashboard'">`
    full-bleed. All rails and the hero are skipped.
-3. `hero()` = `globalRecentItems()[0]`. If present, render the hero panel.
+3. The hero (`lib-dashboard-hero`) renders when it has at least one slide;
+   see [Cinematic Hero](#cinematic-hero). It shows its own skeleton while
+   it has no slide and any of its sources (history, favorites, Xtream
+   recently added) is still on its first load, or a live candidate still
+   waits for its first programme answer (portal or XMLTV, for at most
+   `DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS`, 2 s, from the hero's creation).
+   Dropping it earlier removed the hero and inserted it again when a later
+   source featured a title, moving every rail below twice. Once the
+   skeleton has gone it does not come back. An item enters recent history only after
+   its stream has really played (see "Recently Viewed Confirmation" in
+   `embedded-inline-playback.md`), so a channel that failed at once never
+   becomes a hero slide.
 4. Each rail is emitted via `@if (cards.length > 0)`. Empty rails are hidden
    — there is no "empty widget" placeholder.
-5. The continue-watching hero prefers a stored Xtream `backdrop_url`; when it
-   is missing the UI falls back to a blurred poster treatment instead of
-   showing a flat panel.
+5. Hero slides prefer a stored `backdrop_url`, then the TMDB backdrop; when
+   both are missing the poster becomes a blurred wash plus key art on the
+   right instead of a flat panel.
 6. Live favorites are promoted into their own live rail; movie/series
    favorites render in a separate `Favorite movies & series` rail
    (`favoriteMoviesAndSeriesCards`, `data-test-id="dashboard-favorite-vod-rail"`,
@@ -89,6 +100,87 @@ Render rules:
    favorites. This avoids first-paint partial counts such as a single Stalker
    favorite appearing before M3U favorites finish resolving.
 
+## Cinematic Hero
+
+`DashboardHeroComponent` renders a full-bleed banner: it cancels the page's
+`--dashboard-gutter`/top padding and the centred `--dashboard-max-width`
+(the page host is the `dashboard` inline-size container), keeps
+`clamp(320px, 42vh, 520px)` so the first rail starts above the fold, and uses
+`--app-content-bg` as its scrim so it dissolves into the page in both themes.
+
+Slides (`pickDashboardHeroSources`, at most four, stable order, each title
+once):
+
+1. the newest unfinished movie/series (`isPortalPlaybackWatched` rows skip);
+2. a live channel with a programme on air — the first of
+   `selectDashboardHeroLiveCandidates` (up to three favourites, then two
+   recently watched channels) whose EPG answer has a title;
+3. one favourite movie/series and one Xtream recently-added title;
+4. remaining places round-robin over the next items of those lists;
+5. only when nothing qualifies, the newest history row of any kind (a
+   detail action: it can be a finished title).
+
+While live candidates exist but none has answered yet, one place stays
+reserved for the live slide, so its late arrival never evicts a slide the
+user may be viewing.
+
+The live candidates are derived and pinned by `DashboardLiveEpgPresenter`
+itself (XMLTV lookup and portal queue), independent of the live rails, so the
+slide works with those rails hidden. Actions: a resume slide keeps the resume
+handoff and adds a detail-only "Details" when a series episode can resume;
+discovery slides open the detail page; live slides open the channel. TMDB
+extras (backdrop, rating, genres, overview, year) come from
+`DashboardHeroTmdbService` per featured title and vanish when TMDB is off.
+
+Artwork: a title's backdrop, else its poster blurred and scaled past the
+edges (no second, sharp copy); a live channel's logo sits on the right as key
+art over its own wash. Series titles drop their season marker
+(`splitSeasonSuffix`) — the `S1·E1` chip names the season. Chips are
+`app-meta-chip`; the primary is the details pages' light primary
+(`light-primary-button` from `libs/ui/styles`). With no artwork at all the
+stage is a gradient in the title's hue (`--hero-hue`), light in the light
+theme and near-black in the dark one; a dark gradient under the light
+theme's page-coloured scrim read as a grey slab behind dark text.
+
+Legibility: slide text stays at 4.5:1 or more over any artwork. The side
+scrim holds 88% of the page colour up to the slide's right edge
+(`--hero-text-edge`: the inset plus `min(560px, 55%)`, the slide's own
+`max-width`) before it opens onto the art. In the narrow layout (`dashboard`
+container ≤ 720px) the slide spans the width, so a full-bleed scrim sits
+behind the text block (90%, fading in just above the eyebrow), the copy gets
+a scrim-coloured text shadow, and the slide enters without a fade so that
+scrim never flashes the art on a rotation. Body text is 85% of the heading
+colour; the rating chip uses `--app-rating-color`, set per theme in
+`m3-theme.scss`. Buttons end long labels in an ellipsis.
+`dashboard-hero-legibility.e2e.ts` replaces every image with a black-and-white
+checkerboard and measures each piece of slide text from the screen in both
+themes, at a wide and a narrow width, for a backdrop, a blurred-poster, a
+no-artwork and a live slide.
+
+Semantics: the page has one stable, visually hidden `h1` ("Dashboard",
+`dashboard-page-heading`); each slide title is an `h2`, like the rail titles.
+Slide changes are announced by one polite live region
+(`dashboard-hero-announcement`, position and title) that lives outside the
+re-created slide and is silent while the slides rotate on their own. A
+slide's progress bar is named after its title (a live slide: the programme)
+and a title's reads "N% watched". The dots are 24px targets (WCAG 2.5.8).
+
+Rotation is the active dot's CSS fill animation (8 s); its `animationend`
+advances. The fill animates `transform` only (a bar sliding in under the
+pill's rounded clip), so it runs on the compositor; animating `width` there
+cost a style, layout and paint pass on every frame of an idle dashboard.
+Hover, focus inside the hero, a hidden document and the pause button pause
+it; an explicit Play clears the hover/focus pause until they re-arm; under
+`prefers-reduced-motion` nothing auto-advances. The hero is a focusable
+region: ←/→ switch slides and Enter follows the primary action. The active slide is tracked
+by id, so a late live slide never moves the user off the current one. Test
+hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
+`dashboard-hero-dot`, `dashboard-hero-pause`,
+`dashboard-hero-primary-action`, `dashboard-hero-secondary-action`.
+`dashboard-hero-rotation.e2e.ts` drives the real fill animation (with a
+shortened `--hero-rotation-ms`) to prove its `animationend` still advances
+and that pause holds the slide.
+
 ## Rail Contract
 
 `DashboardRailComponent` is purely presentational:
@@ -96,20 +188,36 @@ Render rules:
 1. Inputs: `label`, `items: DashboardRailCard[]`, optional `seeAllLink`,
    optional `aspectRatio` (default `'2 / 3'`), optional `testId`.
 2. Behavior: horizontal flex track with `scroll-snap-type: x mandatory`.
+   The track scrolls back to the start and re-observes its cards only when
+   the ids or order of `items` change. Hosts rebuild card objects on every
+   clock tick (live progress, expiry badges), and such a rebuild must not
+   move a rail the user scrolled.
 3. Chevron buttons fade in on hover (desktop only via `@media (hover: none)`).
+   Edge fades follow the chevrons' visibility. The track bleeds
+   `--rail-bleed` past the viewport on every side so card focus rings and
+   hover lift are not clipped; the fades are offset by the same variable so
+   they reach the track's clipping edge and no card strip shows beyond them.
 4. Cards are keyboard-focusable router links; `scroll-snap-align: start`
-   means arrow-key nav lands on card boundaries.
+   means arrow-key nav lands on card boundaries. A card that receives
+   keyboard or script focus scrolls fully into the viewport: Chromium skips
+   its own focus scroll once 32px of an element shows, so the track's
+   `focusin` handler moves to the first card-start snap position revealing
+   the whole card (a card wider than the viewport aligns at its own start).
+   Focus caused by a press inside the track (within 100ms of `pointerdown`,
+   650ms for touch) leaves the rail still, so the card does not slide from
+   under the pointer before the click.
 5. Image handling: `loading="lazy"`, `decoding="async"`, fallback icon tile
    when `imageUrl` is missing or `error` fires.
-6. Dashboard hero, rail containers, rail cards, and "Manage all" links expose
-   stable `data-test-id` hooks. Treat these as the supported Electron E2E
+6. Dashboard hero, rail containers, rail viewports and tracks, rail cards and
+   their links, and "Manage all" links expose stable `data-test-id` hooks. Treat these as the supported Electron E2E
    selector surface; do not target internal CSS class names.
 
 ## Data Flow
 
 1. `WorkspaceDashboardRailsComponent` injects `DashboardDataService`.
 2. It derives the dashboard surface via `computed()`:
-    1. `hero` — first item of `globalRecentItems()`.
+    1. The hero slides — built by `DashboardHeroSlidesPresenter`, see
+       [Cinematic Hero](#cinematic-hero).
     2. `continueWatchingCards` — maps `globalRecentVodItems()` to movie/series
        cover cards. Portal playback positions are bulk-loaded per playlist so
        hero and cards can show progress, remaining time, and series season/
@@ -147,6 +255,17 @@ Render rules:
        lookups" in `m3u-playlist-module.md`, forwards everything portal-shaped
        to `DashboardPortalLiveEpgPresenter`, and `enrich()` returns the cards
        with their "now on air" row filled in.
+       One component-provided `DashboardLiveEpgClock` drives every live
+       refresh and progress bar on the page. It ticks every 30 s only while
+       the XMLTV lookup has cards or the portal presenter wants one, and
+       only while the document is visible; it reads the clock at once when
+       it starts again. A tick re-reads progress for every live card. It
+       re-asks an XMLTV scope only after one of its programmes has ended,
+       while a key has no programme, or once the answer is five minutes old
+       (`LIVE_EPG_MAX_ANSWER_AGE_MS`), because a guide refreshed elsewhere
+       can correct a programme still on air. A guide import or source change
+       (`EpgService.epgAvailable$`) re-asks at once. An unchanged answer is
+       not re-emitted.
        Xtream and Stalker cards have no XMLTV key of their own; their "now on
        air" line comes from the portal, **lazily and per card**:
         - `buildDashboardPortalLiveEpgEntry` (dashboard data-access) turns a
@@ -161,12 +280,13 @@ Render rules:
           card counts as visible. Cards that leave the list are reported gone
           at once.
         - `DashboardPortalLiveEpgPresenter` (component-provided) unions the
-          visible keys of both rails with the pinned hero key and calls
+          visible keys of both rails with the pinned hero keys and calls
           `DashboardPortalLiveEpgService.sync()` with exactly those entries —
-          on every change, on the 30 s tick, and on a display-offset change.
+          on every change, on each tick of the shared live-EPG clock, and on
+          a display-offset change.
           It is reached through `DashboardLiveEpgPresenter`, which derives the
-          portal rows itself from the enabled rails and pins the hero, so the
-          page component only forwards what a rail can see. The queue lives in
+          portal rows itself from the enabled rails and pins the hero's live
+          candidates, so the page component only forwards what a rail can see. The queue lives in
           the root service, so leaving the dashboard hands the wanted set back
           (`sync([])` on destroy); otherwise the queue would keep asking for
           cards on a page that is gone.
@@ -337,3 +457,10 @@ Xtream expiry from cached `PortalStatusService.checkPortalStatusDetails()`
 (`exp_date`). Stalker uses the persisted `stalkerAccountInfo` snapshot from the
 playlist payload, not the metadata row; each source therefore needs one memoized
 full-playlist read. The chip is not a separate account-refresh request.
+The badge only changes at day boundaries, so the rails do not poll the clock:
+`createSourceExpiryClock` arms one timer for the earliest boundary among the
+known facts (`nextSourceExpiryChangeMs`), capped at an hour because timers do
+not follow system sleep. It arms no timer while the page is hidden or the
+sources rail is disabled, and re-reads the clock when the page becomes visible. It schedules from the real
+time, so facts that arrive long after the last tick are not scheduled late.
+Facts whose badge can no longer change arm no timer.

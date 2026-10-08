@@ -58,6 +58,7 @@
                             activeDetail()?.playback?.title ||
                             ''
                         "
+                        [playbackSessionKey]="playbackSessionKey()"
                     />
                 } @else {
                     <app-web-player-view
@@ -66,6 +67,7 @@
                         [title]="activeDetail()?.playback?.title ?? ''"
                         [playback]="inlinePlayback()"
                         [playerOverride]="inlinePlayer()"
+                        [timelineSegments]="catchupTimelineSegments()"
                         [recordingMetadata]="recordingMetadata()"
                         (externalFallbackRequested)="
                             handleExternalFallbackRequest($event)

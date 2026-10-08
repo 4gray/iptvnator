@@ -41,6 +41,10 @@ import {
     getXtreamTitle,
     pickDistinctTitles,
 } from './portal-mock-fixtures';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
 
 test.describe('Electron Recently Viewed', () => {
     test('keeps unified live detail open when re-clicking the active M3U recent item', async ({
@@ -58,14 +62,17 @@ test.describe('Electron Recently Viewed', () => {
             ]
         );
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await importM3uPlaylistFromNativeDialog(app, filePath);
             await waitForM3uCatalog(app.mainWindow);
 
-            await channelItemByTitle(app.mainWindow, 'Stable Recent Channel')
-                .first()
-                .click();
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, 'Stable Recent Channel')
+                    .first()
+                    .click()
+            );
 
             await openPlaylistRecent(app.mainWindow);
 
@@ -109,17 +116,22 @@ test.describe('Electron Recently Viewed', () => {
             },
         ]);
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await importM3uPlaylistFromNativeDialog(app, filePath);
             await waitForM3uCatalog(app.mainWindow);
 
-            await channelItemByTitle(app.mainWindow, 'Recent Channel One')
-                .first()
-                .click();
-            await channelItemByTitle(app.mainWindow, 'Recent Channel Two')
-                .first()
-                .click();
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, 'Recent Channel One')
+                    .first()
+                    .click()
+            );
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, 'Recent Channel Two')
+                    .first()
+                    .click()
+            );
 
             await openPlaylistRecent(app.mainWindow);
             await expect
@@ -188,17 +200,22 @@ test.describe('Electron Recently Viewed', () => {
             ]
         );
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await importM3uPlaylistFromNativeDialog(app, filePath);
             await waitForM3uCatalog(app.mainWindow);
 
-            await channelItemByTitle(app.mainWindow, 'Context Recent One')
-                .first()
-                .click();
-            await channelItemByTitle(app.mainWindow, 'Context Recent Two')
-                .first()
-                .click();
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, 'Context Recent One')
+                    .first()
+                    .click()
+            );
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, 'Context Recent Two')
+                    .first()
+                    .click()
+            );
 
             await openPlaylistRecent(app.mainWindow);
             await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
@@ -247,6 +264,7 @@ test.describe('Electron Recently Viewed', () => {
         );
         const portalTitle = 'Xtream Recent Source';
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await addXtreamPortal(app.mainWindow, {
@@ -261,7 +279,9 @@ test.describe('Electron Recently Viewed', () => {
             );
             await toggleFavoriteForChannel(app.mainWindow, liveTitle);
             await openPlaylistFavorites(app.mainWindow);
-            await channelItemByTitle(app.mainWindow, liveTitle).first().click();
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, liveTitle).first().click()
+            );
             await expectUnifiedLiveDetailOpen(app.mainWindow, liveTitle);
 
             await app.mainWindow
@@ -277,7 +297,9 @@ test.describe('Electron Recently Viewed', () => {
             // card, avoiding a race where the grid re-renders between title read and
             // a separate search-by-title click.
             const movieTitle = await clickFirstGridListCard(app.mainWindow);
-            await playCurrentDetail(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playCurrentDetail(app.mainWindow)
+            );
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow
@@ -288,7 +310,9 @@ test.describe('Electron Recently Viewed', () => {
                 seriesFixture.categoryName
             );
             const seriesTitle = await clickFirstGridListCard(app.mainWindow);
-            await playFirstSeriesEpisode(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playFirstSeriesEpisode(app.mainWindow)
+            );
 
             await openPlaylistRecent(app.mainWindow);
             await expect(
@@ -347,7 +371,7 @@ test.describe('Electron Recently Viewed', () => {
         }
     });
 
-    test('opens Xtream recent movies and series inline from recent without switching the playlist or showing the sidebar', async ({
+    test('opens Xtream recent movies and series inline and preserves history through the movie portal handoff', async ({
         dataDir,
         request,
     }) => {
@@ -362,6 +386,7 @@ test.describe('Electron Recently Viewed', () => {
         );
         const portalTitle = 'Xtream Recent Detail Source';
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await addXtreamPortal(app.mainWindow, {
@@ -377,7 +402,10 @@ test.describe('Electron Recently Viewed', () => {
                 vodFixture.categoryName
             );
             const movieTitle = await clickFirstGridListCard(app.mainWindow);
-            await playCurrentDetail(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playCurrentDetail(app.mainWindow)
+            );
+            const moviePath = new URL(app.mainWindow.url()).pathname;
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow
@@ -388,7 +416,9 @@ test.describe('Electron Recently Viewed', () => {
                 seriesFixture.categoryName
             );
             const seriesTitle = await clickFirstGridListCard(app.mainWindow);
-            await playFirstSeriesEpisode(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playFirstSeriesEpisode(app.mainWindow)
+            );
 
             await openPlaylistRecent(app.mainWindow);
             await expect(playlistSwitcherTitle(app.mainWindow)).toContainText(
@@ -400,6 +430,42 @@ test.describe('Electron Recently Viewed', () => {
             await contentCardByTitle(app.mainWindow, movieTitle)
                 .first()
                 .click();
+            await expectInlineCollectionDetail(app.mainWindow, {
+                pathname: /\/workspace\/global-recent$/,
+                title: movieTitle,
+                playlistTitle: portalTitle,
+            });
+
+            const viewInPortal = app.mainWindow.getByRole('button', {
+                name: 'View in portal',
+                exact: true,
+            });
+            await viewInPortal.click();
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toBe(moviePath);
+            await expect(
+                app.mainWindow.locator('app-content-hero')
+            ).toContainText(movieTitle);
+            await expect(viewInPortal).toHaveCount(0);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playCurrentDetail(app.mainWindow)
+            );
+
+            await goBackFromDetail(app.mainWindow);
+            await expectInlineCollectionDetail(app.mainWindow, {
+                pathname: /\/workspace\/global-recent$/,
+                title: movieTitle,
+                playlistTitle: portalTitle,
+            });
+            await app.mainWindow.goForward();
+            await expect
+                .poll(() => new URL(app.mainWindow.url()).pathname)
+                .toBe(moviePath);
+            await expect(
+                app.mainWindow.locator('app-content-hero')
+            ).toContainText(movieTitle);
+            await app.mainWindow.goBack();
             await expectInlineCollectionDetail(app.mainWindow, {
                 pathname: /\/workspace\/global-recent$/,
                 title: movieTitle,
@@ -455,6 +521,7 @@ test.describe('Electron Recently Viewed', () => {
         );
         const portalTitle = 'Stalker Recent Source';
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await addStalkerPortal(app.mainWindow, {
@@ -468,7 +535,9 @@ test.describe('Electron Recently Viewed', () => {
             await clickCategoryById(app.mainWindow, liveFixture.categoryId);
             await toggleFavoriteForChannel(app.mainWindow, liveTitle);
             await openPlaylistFavorites(app.mainWindow);
-            await channelItemByTitle(app.mainWindow, liveTitle).first().click();
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, liveTitle).first().click()
+            );
             await expectUnifiedLiveDetailOpen(app.mainWindow, liveTitle);
 
             await app.mainWindow
@@ -476,7 +545,9 @@ test.describe('Electron Recently Viewed', () => {
                 .click();
             await clickCategoryById(app.mainWindow, vodFixture.categoryId);
             await clickGridListCardByTitle(app.mainWindow, movieTitle);
-            await playCurrentDetail(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playCurrentDetail(app.mainWindow)
+            );
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow
@@ -484,7 +555,9 @@ test.describe('Electron Recently Viewed', () => {
                 .click();
             await clickCategoryById(app.mainWindow, seriesFixture.categoryId);
             await clickGridListCardByTitle(app.mainWindow, seriesTitle);
-            await playFirstSeriesEpisode(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playFirstSeriesEpisode(app.mainWindow)
+            );
 
             await openPlaylistRecent(app.mainWindow);
             await expect(
@@ -559,6 +632,7 @@ test.describe('Electron Recently Viewed', () => {
         );
         const portalTitle = 'Stalker Recent Detail Source';
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await addStalkerPortal(app.mainWindow, {
@@ -571,7 +645,9 @@ test.describe('Electron Recently Viewed', () => {
                 .click();
             await clickCategoryById(app.mainWindow, vodFixture.categoryId);
             await clickGridListCardByTitle(app.mainWindow, movieTitle);
-            await playCurrentDetail(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playCurrentDetail(app.mainWindow)
+            );
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow
@@ -579,7 +655,9 @@ test.describe('Electron Recently Viewed', () => {
                 .click();
             await clickCategoryById(app.mainWindow, seriesFixture.categoryId);
             await clickGridListCardByTitle(app.mainWindow, seriesTitle);
-            await playFirstSeriesEpisode(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playFirstSeriesEpisode(app.mainWindow)
+            );
 
             await openPlaylistRecent(app.mainWindow);
             await expect(playlistSwitcherTitle(app.mainWindow)).toContainText(
@@ -635,7 +713,10 @@ async function clearRecentItems(page: Page, typeLabel: string): Promise<void> {
     await page
         .getByRole('button', { name: `Clear recently viewed ${typeLabel}` })
         .click();
-    await page.getByRole('button', { name: 'Yes' }).click();
+    await page
+        .locator('mat-dialog-container')
+        .getByRole('button', { name: 'Clear', exact: true })
+        .click();
 }
 
 async function expectUnifiedLiveDetailOpen(
@@ -653,12 +734,9 @@ async function expectUnifiedLiveDetailOpen(
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: the shell's sticky Back is route-level in browse
-    // and watch alike (closing the player is the bar's own Close button).
-    const backButton = page
-        .locator('app-portal-detail-shell')
-        .first()
-        .getByRole('button', { name: 'Back', exact: true });
+    // Return to the list: the header's Back is route-level in browse and
+    // watch alike (closing the player is the bar's own Close button).
+    const backButton = page.getByTestId('workspace-header-back');
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     try {
@@ -684,9 +762,9 @@ async function expectInlineCollectionDetail(
     );
     await expect(page.locator('app-workspace-context-panel')).toHaveCount(0);
     await expect(page.locator('app-content-hero')).toContainText(params.title);
-    await expect(
-        page.locator('app-portal-detail-shell .shell__back-button').first()
-    ).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId('workspace-header-back')).toBeVisible({
+        timeout: 20000,
+    });
 }
 
 async function expectInlinePlayerWithoutDialog(page: Page): Promise<void> {

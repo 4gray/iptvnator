@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../../shared/ui/src/lib/styles/content-grid' as grid;
 
 :host {
@@ -153,7 +154,7 @@
     height: 32px;
     padding: 4px;
     color: #fff;
-    --mdc-icon-button-state-layer-size: 32px;
+    @include mat.icon-button-overrides((state-layer-size: 32px));
 
     &::before {
         position: absolute;
@@ -191,7 +192,7 @@
     background: transparent;
     color: var(--app-heading-color);
     font-size: 0.93rem;
-    font-weight: 650;
+    font-weight: 600;
     line-height: 1.3;
     text-align: left;
     transition: color 140ms ease;
@@ -217,7 +218,7 @@
     padding: 8px 4px;
     background: transparent;
     color: var(--mat-sys-primary);
-    font-weight: 650;
+    font-weight: 600;
 }
 
 .download-library__episode-label {

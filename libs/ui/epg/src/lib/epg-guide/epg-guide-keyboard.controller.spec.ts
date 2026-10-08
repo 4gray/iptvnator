@@ -21,12 +21,13 @@ describe('EpgGuideKeyboardController', () => {
     beforeEach(() => {
         host = {
             rowCount: jest.fn(() => 5),
-            blockCount: jest.fn(() => 3),
+            blockCount: jest.fn((_row: number) => 3),
             activeRow: jest.fn(() => 2),
             isBlocked: jest.fn(() => false),
-            isOwnedTarget: jest.fn(() => true),
+            isOwnedTarget: jest.fn((_target: EventTarget | null) => true),
             play: jest.fn(),
             details: jest.fn(),
+            revealFocus: jest.fn(),
             jumpNow: jest.fn(),
             stepDay: jest.fn(),
             close: jest.fn(),
@@ -69,6 +70,32 @@ describe('EpgGuideKeyboardController', () => {
         expect(host.details).toHaveBeenCalledWith(3, 0);
         controller.handle(key('Enter'));
         expect(host.play).toHaveBeenLastCalledWith(3);
+    });
+
+    it('reveals the focus only for the keys that move it', () => {
+        controller.handle(key('ArrowDown'));
+        controller.handle(key('ArrowRight'));
+        expect(host.revealFocus).toHaveBeenCalledTimes(2);
+
+        host.revealFocus.mockClear();
+        controller.handle(key('n'));
+        controller.handle(key('PageDown'));
+        controller.handle(key('Enter'));
+        expect(host.revealFocus).not.toHaveBeenCalled();
+    });
+
+    it('moves the focus to the playing row on N, where the jump scrolls', () => {
+        controller.focus.set({ row: 4, block: 1 });
+        controller.handle(key('n'));
+        expect(controller.focus()).toEqual({ row: 2, block: null });
+        expect(host.jumpNow).toHaveBeenCalledTimes(1);
+
+        // Nothing playing: the jump stays on the focused row, and so does
+        // the focus.
+        host.activeRow.mockReturnValue(-1);
+        controller.focus.set({ row: 4, block: 1 });
+        controller.handle(key('n'));
+        expect(controller.focus()).toEqual({ row: 4, block: 1 });
     });
 
     it('maps N, PageUp/PageDown and Escape', () => {

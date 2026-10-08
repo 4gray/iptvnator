@@ -1,0 +1,235 @@
+// The dock's timeline row. Reads the `--pc-*` palette the controls host
+// declares; the host is the `player-controls` size container queried below.
+:host {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.player-controls__time {
+    flex: 0 0 auto;
+    color: var(--pc-text);
+    font-family: var(--pc-font-mono);
+    font-size: 14px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.player-controls__time--end {
+    color: var(--pc-text-secondary);
+}
+
+.player-controls__timeline-spacer {
+    flex: 1 1 auto;
+}
+
+// Pointer target of the bar. Taller than the 6px track so it is easy to hit;
+// the transparent range input on top owns dragging and the keyboard.
+.player-controls__timeline-bar {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 18px;
+    cursor: pointer;
+}
+
+.player-controls__timeline-bar--disabled {
+    cursor: default;
+}
+
+.player-controls__timeline-track {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    height: 6px;
+    transform: translateY(-50%);
+}
+
+// Segments sit at their exact time positions (`left` = start, `width` =
+// share, minus the 3px gap at each segment's end), so a drawn boundary is
+// where the linear seek input and the hover label change segment. A segment
+// shorter than the gap simply collapses rather than shifting its neighbours.
+.player-controls__timeline-segment {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--pc-track);
+}
+
+.player-controls__timeline-fill {
+    height: 100%;
+    background: var(--pc-progress);
+    border-radius: inherit;
+}
+
+.player-controls__timeline-knob {
+    position: absolute;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 0 5px
+        color-mix(in srgb, var(--pc-progress) 30%, transparent);
+    pointer-events: none;
+    transition: transform 120ms ease-out;
+}
+
+.player-controls__timeline-bar:hover .player-controls__timeline-knob,
+.player-controls__timeline-bar:has(.player-controls__slider:focus-visible)
+    .player-controls__timeline-knob {
+    transform: scale(1.15);
+}
+
+.player-controls__timeline-marker {
+    position: absolute;
+    top: 50%;
+    width: 2px;
+    height: 12px;
+    margin: -6px 0 0 -1px;
+    border-radius: 1px;
+    background: #ffffff;
+    pointer-events: none;
+}
+
+.player-controls__timeline-label {
+    --hover-x: 0%;
+    position: absolute;
+    bottom: calc(100% + 2px);
+    // Centered on the pointer, but never past the bar's ends.
+    left: clamp(28px, var(--hover-x), calc(100% - 28px));
+    transform: translateX(-50%);
+    padding: 5px 8px;
+    color: var(--pc-text);
+    background: rgba(12, 16, 23, 0.85);
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.player-controls__recording-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--pc-text-dim);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.player-controls__recording-status mat-icon {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: #ffffff;
+}
+
+.player-controls__recording-status span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-controls__recording-status--active {
+    color: var(--pc-danger);
+    font-weight: 700;
+}
+
+.player-controls__recording-status--active mat-icon {
+    color: var(--pc-danger);
+}
+
+.player-controls__live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #ffffff;
+    background: var(--pc-live);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.player-controls__live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: player-controls-live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes player-controls-live-pulse {
+    50% {
+        opacity: 0.35;
+    }
+}
+
+// The range input is the interaction and accessibility layer over the drawn
+// track: invisible and full-size. Its focus ring is drawn on the track
+// instead, because an outline on a transparent element is invisible.
+.player-controls__slider--timeline {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.player-controls__slider--timeline:disabled {
+    cursor: default;
+}
+
+.player-controls__timeline-bar:has(.player-controls__slider:focus-visible)
+    .player-controls__timeline-track {
+    outline: 2px solid var(--pc-text);
+    outline-offset: 5px;
+    border-radius: 4px;
+}
+
+// Touch scrubbing needs a taller hit strip; the 6px track is unchanged.
+@media (pointer: coarse) {
+    .player-controls__timeline-bar {
+        height: 28px;
+    }
+}
+
+// Keep in sync with `COMPACT_LAYOUT_MAX_WIDTH` in controls-layout.ts.
+@container player-controls (max-width: 719px) {
+    :host {
+        gap: 10px;
+    }
+
+    .player-controls__time {
+        font-size: 13px;
+    }
+
+    .player-controls__timeline-track {
+        height: 5px;
+    }
+
+    .player-controls__timeline-knob {
+        width: 11px;
+        height: 11px;
+        margin: -5.5px 0 0 -5.5px;
+        box-shadow: 0 0 0 4px
+            color-mix(in srgb, var(--pc-progress) 30%, transparent);
+    }
+}

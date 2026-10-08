@@ -1,4 +1,9 @@
-<div class="workspace-shell" appPlaylistDropZone #dropZone="playlistDropZone">
+<div
+    class="workspace-shell"
+    appPlaylistDropZone
+    #dropZone="playlistDropZone"
+    [appTrafficLightsClearance]="facade.isMacOS"
+>
     <app-playlist-drop-overlay [state]="dropZone.overlayState()" />
     @if (facade.showXtreamImportOverlay()) {
         <app-workspace-shell-import-overlay />
@@ -14,9 +19,6 @@
     <app-workspace-shell-rail
         [attr.inert]="contextDrawer.isOpen() ? '' : null"
         [isMacOS]="facade.isMacOS"
-        [brandLink]="facade.brandLink()"
-        [brandTooltipKey]="facade.brandTooltipKey()"
-        [brandAriaLabelKey]="facade.brandAriaLabelKey()"
         [workspaceLinks]="facade.workspaceLinks()"
         [primaryContextLinks]="facade.primaryContextLinks()"
         [secondaryContextLinks]="facade.secondaryContextLinks()"
@@ -28,6 +30,7 @@
     <app-workspace-shell-header
         #workspaceHeader
         [attr.inert]="contextDrawer.isOpen() ? '' : null"
+        [backTarget]="facade.backTarget()"
         [playlistTitle]="facade.playlistTitle()"
         [playlistSubtitle]="facade.playlistSubtitle()"
         [canOpenPlaylistInfo]="facade.canOpenPlaylistInfo()"
@@ -47,10 +50,12 @@
         [isDownloadsView]="facade.isDownloadsView()"
         [activeDownloadsCount]="facade.activeDownloadsCount()"
         [isSettingsRoute]="facade.isSettingsRoute()"
+        [parentalLockState]="facade.parentalLockState()"
         [showContextDrawerToggle]="facade.hasContextPanelContent()"
         [isContextDrawerOpen]="contextDrawer.isOpen()"
         [contextDrawerToggleAriaKey]="facade.contextDrawerLabelKeys().aria"
         [contextDrawerTooltipKey]="facade.contextDrawerLabelKeys().tooltip"
+        (backRequested)="facade.goBack()"
         (contextDrawerToggleRequested)="contextDrawer.toggle()"
         (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"
@@ -61,6 +66,7 @@
         (headerShortcutRequested)="facade.runHeaderShortcut()"
         (headerBulkActionRequested)="facade.runHeaderBulkAction()"
         (headerSidebarToggleRequested)="facade.toggleLiveSidebar()"
+        (parentalLockToggleRequested)="facade.toggleParentalLock()"
         (downloadsRequested)="facade.openDownloadsShortcut()"
         (playlistInfoRequested)="facade.openPlaylistInfo()"
         (accountInfoRequested)="facade.openAccountInfo()"

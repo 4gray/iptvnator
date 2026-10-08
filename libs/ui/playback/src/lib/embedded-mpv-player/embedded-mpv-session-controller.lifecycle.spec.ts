@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import {
+    EMBEDDED_MPV_SUPPORT_RECHECK_MS,
     EmbeddedMpvEngine,
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
@@ -106,6 +107,58 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
         });
     });
 
+    describe('an inconclusive support answer', () => {
+        // A slow login shell: mpv was looked up before its PATH arrived.
+        const inconclusive = {
+            supported: false,
+            platform: 'linux',
+            reason: 'mpv executable missing',
+            inconclusive: true,
+        };
+
+        it('is asked for again, so a mounted player recovers by itself', async () => {
+            const settled = createSupport('native');
+            electron.getEmbeddedMpvSupport
+                .mockResolvedValueOnce(inconclusive)
+                .mockResolvedValue(settled);
+            const controller = TestBed.inject(EmbeddedMpvSessionController);
+
+            await waitFor(
+                () => controller.support() !== null,
+                'the first support answer'
+            );
+            expect(controller.support()).toBe(inconclusive);
+
+            await jest.advanceTimersByTimeAsync(
+                EMBEDDED_MPV_SUPPORT_RECHECK_MS
+            );
+            expect(controller.support()).toBe(settled);
+            expect(electron.getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+
+            // A final answer is kept.
+            await jest.advanceTimersByTimeAsync(
+                EMBEDDED_MPV_SUPPORT_RECHECK_MS * 3
+            );
+            expect(electron.getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+        });
+
+        it('is no longer asked for once the player is gone', async () => {
+            electron.getEmbeddedMpvSupport.mockResolvedValue(inconclusive);
+            const controller = TestBed.inject(EmbeddedMpvSessionController);
+            await waitFor(
+                () => controller.support() !== null,
+                'the first support answer'
+            );
+
+            TestBed.resetTestingModule();
+            await jest.advanceTimersByTimeAsync(
+                EMBEDDED_MPV_SUPPORT_RECHECK_MS * 3
+            );
+
+            expect(electron.getEmbeddedMpvSupport).toHaveBeenCalledTimes(1);
+        });
+    });
+
     it('preserves the constructor support probe after preparing a session', async () => {
         const probedSupport = createSupport('native');
         const preparedSupport = createSupport('frame-copy');
@@ -182,8 +235,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
     });
 
     it('disposes a session whose creation resolves only after teardown', async () => {
-        let resolveCreate: ((session: EmbeddedMpvSession) => void) | null =
-            null;
+        let resolveCreate: ((session: EmbeddedMpvSession) => void) | undefined;
         electron.createEmbeddedMpvSession.mockImplementationOnce(
             () =>
                 new Promise((resolve) => {
@@ -198,7 +250,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
             0.5
         );
         await waitFor(
-            () => resolveCreate !== null,
+            () => resolveCreate !== undefined,
             'startup to reach createEmbeddedMpvSession'
         );
         teardown();
@@ -218,7 +270,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
 
     it('does not continue frame setup when teardown happens during playback load', async () => {
         const frameCopySupport = createSupport('frame-copy');
-        let resolveLoad: (() => void) | null = null;
+        let resolveLoad: (() => void) | undefined;
         electron.getEmbeddedMpvSupport.mockResolvedValueOnce(frameCopySupport);
         electron.prepareEmbeddedMpv.mockResolvedValueOnce(frameCopySupport);
         electron.loadEmbeddedMpvPlayback.mockImplementationOnce(
@@ -258,7 +310,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
 
     it('does not schedule bounds after teardown during frame view attachment', async () => {
         const frameCopySupport = createSupport('frame-copy');
-        let resolveAttach: ((attached: boolean) => void) | null = null;
+        let resolveAttach: ((attached: boolean) => void) | undefined;
         electron.getEmbeddedMpvSupport.mockResolvedValueOnce(frameCopySupport);
         electron.prepareEmbeddedMpv.mockResolvedValueOnce(frameCopySupport);
         electron.attachEmbeddedMpvFrameView.mockImplementationOnce(

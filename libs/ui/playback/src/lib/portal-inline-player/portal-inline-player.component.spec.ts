@@ -25,6 +25,7 @@ class StubWebPlayerViewComponent {
     readonly streamUrl = input.required<string>();
     readonly title = input('');
     readonly mediaTitle = input<unknown>(null);
+    readonly upNext = input<unknown>(null);
     readonly playback = input<unknown>(null);
     readonly volume = input(1);
     readonly playerOverride = input<unknown>(null);
@@ -145,11 +146,6 @@ describe('PortalInlinePlayerComponent', () => {
             title: 'Header-bearing live stream',
             isLive: true,
             headers: { Authorization: 'Bearer token' },
-            contentInfo: {
-                playlistId: 'playlist-1',
-                contentXtreamId: 42,
-                contentType: 'live',
-            },
         };
         const request: PlaybackFallbackRequest = {
             player: 'mpv',
@@ -158,11 +154,13 @@ describe('PortalInlinePlayerComponent', () => {
                 code: 'network-error',
                 player: 'videojs',
                 source: 'hls',
+                sourceUrl: playback.streamUrl,
                 container: '',
                 mimeType: '',
                 videoCodecs: [],
                 audioCodecs: [],
             },
+            trackLaunch: jest.fn(),
         };
         let forwarded: PlaybackFallbackRequest | undefined;
         component.externalFallbackRequested.subscribe(

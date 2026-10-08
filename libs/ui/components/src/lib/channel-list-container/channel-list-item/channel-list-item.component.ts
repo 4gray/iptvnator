@@ -11,14 +11,10 @@ import {
     signal,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-    EpgItemDescriptionComponent,
-    getProgramTimeMs,
-} from '@iptvnator/ui/epg';
+import { EpgProgrammeDialogService, getProgramTimeMs } from '@iptvnator/ui/epg';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
@@ -39,7 +35,7 @@ import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
     ],
 })
 export class ChannelListItemComponent {
-    private readonly dialog = inject(MatDialog);
+    private readonly programmeDialog = inject(EpgProgrammeDialogService);
     private readonly logoFailed = signal(false);
     private readonly settingsStore = inject(SettingsStore);
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
@@ -99,9 +95,7 @@ export class ChannelListItemComponent {
      */
     showProgramDescription(program: EpgProgram, event: MouseEvent): void {
         event.stopPropagation();
-        this.dialog.open(EpgItemDescriptionComponent, {
-            data: program,
-        });
+        this.programmeDialog.open(program);
     }
 
     /** Guarded click for the reserved (possibly still empty) info slot. */

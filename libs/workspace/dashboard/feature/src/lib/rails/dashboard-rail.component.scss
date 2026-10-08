@@ -1,8 +1,14 @@
+@use '@angular/material' as mat;
 :host {
     display: block;
     --rail-card-width: var(--cover-rail-width, 172px);
     --rail-gap: var(--cover-gap, 14px);
     --rail-radius: 12px;
+    // How far the scrolling track bleeds past the viewport on every side:
+    // room for a card's focus ring (2px outline + 3px offset) plus its 2px
+    // hover lift, so neither is clipped. The track clips partially visible
+    // cards at this outer edge, so the edge fades extend by the same amount.
+    --rail-bleed: 8px;
 }
 
 .rail {
@@ -81,13 +87,14 @@
 
     // Soft edge gradients hint at horizontal scroll without any interaction.
     // Anchored to the viewport so they appear/disappear in sync with the
-    // chevrons' `.rail__chev--visible` state.
+    // chevrons' `.rail__chev--visible` state, but offset by the track bleed
+    // so each fade ends exactly where the track clips the partial card.
     &::before,
     &::after {
         content: '';
         position: absolute;
-        top: 0;
-        bottom: 0;
+        top: calc(-1 * var(--rail-bleed));
+        bottom: calc(-1 * var(--rail-bleed));
         width: 32px;
         pointer-events: none;
         z-index: 1;
@@ -96,7 +103,7 @@
     }
 
     &::before {
-        left: 0;
+        left: calc(-1 * var(--rail-bleed));
         background: linear-gradient(
             to right,
             var(--app-content-bg, #161a22) 0%,
@@ -105,7 +112,7 @@
     }
 
     &::after {
-        right: 0;
+        right: calc(-1 * var(--rail-bleed));
         background: linear-gradient(
             to left,
             var(--app-content-bg, #161a22) 0%,
@@ -135,10 +142,10 @@
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
-    scroll-padding-inline-start: 4px;
+    scroll-padding-inline-start: var(--rail-bleed);
     scrollbar-width: none;
-    padding: 4px;
-    margin: -4px;
+    padding: var(--rail-bleed);
+    margin: calc(-1 * var(--rail-bleed));
 
     &::-webkit-scrollbar {
         display: none;
@@ -266,7 +273,7 @@
     i {
         display: block;
         height: 100%;
-        background: var(--app-selection-color, #78adff);
+        background: var(--app-progress-color);
         transition: width 0.4s ease;
     }
 }
@@ -301,7 +308,7 @@
     transition:
         opacity 0.15s ease,
         transform 0.15s ease;
-    --mdc-icon-button-state-layer-size: 30px;
+    @include mat.icon-button-overrides((state-layer-size: 30px));
 
     mat-icon {
         font-size: 18px;
@@ -683,14 +690,6 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-family: var(
-        --font-mono,
-        ui-monospace,
-        'SF Mono',
-        'JetBrains Mono',
-        Menlo,
-        monospace
-    );
     font-size: 0.6rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -721,10 +720,15 @@
 
     i {
         display: block;
+        width: 100%;
         height: 100%;
         background: var(--app-live-color, #ff8f8f);
         border-radius: 2px;
-        transition: width 0.4s ease;
+        // A full-width fill slid into place, neither a width nor animated: a
+        // live-EPG tick moves it by under one percent, so an animation was
+        // invisible yet cost a layout pass (width) or a burst of compositor
+        // frames (transform transition) on every tick.
+        transform: translateX(calc(var(--live-progress, 0) * 1% - 100%));
     }
 
     &--idle i {

@@ -375,6 +375,110 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             expect(support.frameCopyAvailable).toBe(true);
         });
 
+        it('predicts the bare-name mpv probe exactly when getSupport runs it', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            mockSpawnSync.mockClear();
+            mockSpawnSync.mockReturnValue({ status: 0 });
+            mockRuntimeUsable();
+
+            expect(service.willProbeLinuxMpvExecutable()).toBe(true);
+            service.getSupport();
+            expect(mockSpawnSync).toHaveBeenCalledWith(
+                'mpv',
+                ['--version'],
+                expect.anything()
+            );
+            // Cached afterwards: no further probe, so no further wait.
+            expect(service.willProbeLinuxMpvExecutable()).toBe(false);
+        });
+
+        it('probes mpv again after a missing or a found result is forgotten', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            mockSpawnSync.mockClear();
+            mockSpawnSync.mockReturnValue({ status: 1 });
+            mockRuntimeUsable();
+
+            expect(service.getSupport().supported).toBe(false);
+            service.forgetLinuxMpvExecutableProbe();
+            expect(service.willProbeLinuxMpvExecutable()).toBe(true);
+
+            mockSpawnSync.mockReturnValue({ status: 0 });
+            service.getSupport();
+            expect(mockSpawnSync).toHaveBeenCalledTimes(2);
+            expect(service.willProbeLinuxMpvExecutable()).toBe(false);
+            service.forgetLinuxMpvExecutableProbe();
+            expect(service.willProbeLinuxMpvExecutable()).toBe(true);
+        });
+
+        it('reports a missing mpv as inconclusive only while its probe is provisional', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            mockSpawnSync.mockReturnValue({ status: 1 });
+            mockRuntimeUsable();
+
+            // The login shell has not answered: mpv is looked up on the
+            // inherited PATH.
+            service.markLinuxMpvExecutableProbeProvisional();
+            expect(service.getSupport()).toEqual(
+                expect.objectContaining({
+                    supported: false,
+                    inconclusive: true,
+                })
+            );
+            expect(service.prepareAddon()).toEqual(
+                expect.objectContaining({
+                    supported: false,
+                    inconclusive: true,
+                })
+            );
+
+            // It answered: the next probe is a verdict again.
+            service.forgetLinuxMpvExecutableProbe();
+            const settled = service.getSupport();
+            expect(settled.supported).toBe(false);
+            expect(settled.reason).toContain('mpv executable');
+            expect(settled.inconclusive).toBeUndefined();
+        });
+
+        it('keeps every other answer final while the mpv probe is provisional', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            mockSpawnSync.mockReturnValue({ status: 0 });
+            mockRuntimeUsable();
+            service.markLinuxMpvExecutableProbeProvisional();
+
+            const found = service.getSupport();
+            expect(found.supported).toBe(true);
+            expect(found.inconclusive).toBeUndefined();
+
+            // mpv is there, the addon is not: the PATH cannot change that.
+            addon.isSupported.mockReturnValue(false);
+            const unsupported = service.getSupport();
+            expect(unsupported.supported).toBe(false);
+            expect(unsupported.inconclusive).toBeUndefined();
+        });
+
+        it('predicts no probe for the frame-copy engine or native Wayland', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            process.env.WAYLAND_DISPLAY = 'wayland-0';
+            mockSpawnSync.mockClear();
+            mockRuntimeUsable();
+            expect(service.willProbeLinuxMpvExecutable()).toBe(false);
+
+            delete process.env.WAYLAND_DISPLAY;
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+            expect(service.willProbeLinuxMpvExecutable()).toBe(false);
+            service.getSupport();
+            expect(mockSpawnSync).not.toHaveBeenCalled();
+        });
+
         it('keeps frame-copy supported on Linux without a system mpv executable', () => {
             // The helper links libmpv itself; the mpv-on-PATH probe only
             // binds the native --wid engine.

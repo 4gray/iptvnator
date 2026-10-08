@@ -51,8 +51,15 @@
             ],
             "options": {
                 "outputPath": "dist/apps/electron-backend",
-                "main": "apps/electron-backend/src/main.ts",
+                "main": "apps/electron-backend/src/main.entry.ts",
+                "additionalEntryPoints": [
+                    {
+                        "entryName": "main.app",
+                        "entryPath": "apps/electron-backend/src/main.ts"
+                    }
+                ],
                 "tsConfig": "apps/electron-backend/tsconfig.app.json",
+                "webpackConfig": "apps/electron-backend/webpack.config.cjs",
                 "assets": [
                     "apps/electron-backend/src/assets",
                     {
@@ -143,8 +150,15 @@
             ],
             "options": {
                 "outputPath": "dist/apps/electron-backend",
-                "main": "apps/electron-backend/src/main.ts",
+                "main": "apps/electron-backend/src/main.entry.ts",
+                "additionalEntryPoints": [
+                    {
+                        "entryName": "main.app",
+                        "entryPath": "apps/electron-backend/src/main.ts"
+                    }
+                ],
                 "tsConfig": "apps/electron-backend/tsconfig.app.json",
+                "webpackConfig": "apps/electron-backend/webpack.config.cjs",
                 "assets": [
                     "apps/electron-backend/src/assets",
                     {
@@ -197,6 +211,13 @@
             "options": {
                 "name": "electron-backend",
                 "frontendProject": "web",
+                "files": [
+                    {
+                        "from": "electron-backend",
+                        "to": "electron-backend",
+                        "filter": ["main.app.js", "deferred-events.js"]
+                    }
+                ],
                 "sourcePath": "dist/apps",
                 "outputPath": "dist/packages",
                 "prepackageOnly": true
@@ -211,6 +232,13 @@
             "options": {
                 "name": "electron-backend",
                 "frontendProject": "web",
+                "files": [
+                    {
+                        "from": "electron-backend",
+                        "to": "electron-backend",
+                        "filter": ["main.app.js", "deferred-events.js"]
+                    }
+                ],
                 "sourcePath": "dist/apps",
                 "outputPath": "dist/executables"
             }

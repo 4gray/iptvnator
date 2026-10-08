@@ -642,12 +642,12 @@ test.describe('Electron Downloads', () => {
             const providerDetail = app.mainWindow.locator(
                 'main app-portal-detail-shell'
             );
-            await expect(
-                providerDetail.getByRole('button', {
-                    name: 'Play',
-                    exact: true,
-                })
-            ).toBeVisible();
+            // The primary action reads "Play" plus its runtime line.
+            const primaryAction = providerDetail.locator(
+                '[data-testid="vod-primary-action"]'
+            );
+            await expect(primaryAction).toBeVisible();
+            await expect(primaryAction).toContainText('Play');
             await expect(
                 providerDetail.getByText('Offline', { exact: true })
             ).toHaveCount(0);

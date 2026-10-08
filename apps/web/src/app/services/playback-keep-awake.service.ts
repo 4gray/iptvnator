@@ -72,6 +72,11 @@ export class PlaybackKeepAwakeService {
         this.sync();
     };
 
+    /** Whether any tracked `<video>` is currently playing. */
+    hasPlayingVideo(): boolean {
+        return this.playingVideos.size > 0;
+    }
+
     start(): void {
         if (this.started) {
             return;

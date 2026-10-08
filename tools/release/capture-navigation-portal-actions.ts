@@ -159,8 +159,8 @@ async function openXtreamLiveChannel(
 
 /**
  * Opens a movie of the primary portal whose copy also exists in the secondary
- * one (seeded with `secondaryXtream`), and waits for lazy discovery to render
- * the Sources chip.
+ * one (seeded with `secondaryXtream`), opens the "…" menu and waits for lazy
+ * discovery to add its "Other sources" row.
  */
 async function openXtreamVodSources(
     page: Page,
@@ -168,8 +168,9 @@ async function openXtreamVodSources(
 ): Promise<void> {
     requirePlaylistId('xtreams-secondary');
     await openXtreamVod(page, param ?? 'Action & Mystery');
+    await page.locator('[data-testid="vod-more-menu"]').click();
     await page
-        .locator('app-vod-sources-chip button')
+        .locator('[data-test-id="vod-menu-sources"]')
         .waitFor({ state: 'visible', timeout: 30_000 });
     await page.waitForTimeout(500);
 }
@@ -179,7 +180,7 @@ async function openXtreamVodSourcesMenu(
     param: string | null
 ): Promise<void> {
     await openXtreamVodSources(page, param);
-    await page.locator('app-vod-sources-chip button').click();
+    await page.locator('[data-test-id="vod-menu-sources"]').click();
 
     const menu = page.locator('app-vod-sources-menu');
 

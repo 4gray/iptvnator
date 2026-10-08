@@ -147,6 +147,7 @@ export async function verifyStalkerSeasonMarkers(
             'src',
             new RegExp(`/season-${season}\\.jpg$`)
         );
+        await page.locator('[data-testid="series-more-menu"]').click();
         await page.locator('[data-test-id="toggle-season-watched"]').click();
         await expect(page.locator('.episode-card--watched')).toHaveCount(1);
         await page.getByRole('button', { name: 'Back', exact: true }).click();

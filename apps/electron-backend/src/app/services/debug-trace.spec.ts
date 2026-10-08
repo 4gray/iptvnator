@@ -66,3 +66,98 @@ describe('debug trace redaction', () => {
         }
     });
 });
+
+describe('startup phase counting', () => {
+    const FLAGS = ['IPTVNATOR_PERF_CAPTURE', 'IPTVNATOR_TRACE_STARTUP'];
+    const original = FLAGS.map((name) => [name, process.env[name]] as const);
+
+    afterEach(() => {
+        for (const [name, value] of original) {
+            if (value === undefined) {
+                delete process.env[name];
+            } else {
+                process.env[name] = value;
+            }
+        }
+        jest.restoreAllMocks();
+        jest.resetModules();
+    });
+
+    async function runPhases(env: Record<string, string>) {
+        for (const name of FLAGS) {
+            delete process.env[name];
+        }
+        Object.assign(process.env, env);
+        const log = jest.spyOn(console, 'log').mockImplementation(() => {
+            /* silenced */
+        });
+        const payload = jest.fn(() => ({ source: 'did-start-loading' }));
+        const { performanceCounters, traceStartupPhase } =
+            await import('./debug-trace');
+
+        traceStartupPhase('bootstrap-app');
+        traceStartupPhase('deferred-events:start', payload);
+
+        return {
+            counters: performanceCounters.read().counters,
+            lines: log.mock.calls.map((call) => String(call[0])),
+            payload,
+        };
+    }
+
+    it('neither counts nor traces nor builds payloads by default', async () => {
+        const result = await runPhases({});
+
+        expect(result.counters).toEqual({});
+        expect(result.lines).toEqual([]);
+        expect(result.payload).not.toHaveBeenCalled();
+    });
+
+    it('counts every phase with IPTVNATOR_PERF_CAPTURE=1 without tracing', async () => {
+        const result = await runPhases({ IPTVNATOR_PERF_CAPTURE: '1' });
+
+        expect(result.counters).toEqual({ 'main.startupPhases': 2 });
+        expect(result.lines).toEqual([]);
+        expect(result.payload).not.toHaveBeenCalled();
+    });
+
+    it('keeps the startup trace lines unchanged when tracing is on', async () => {
+        const result = await runPhases({ IPTVNATOR_TRACE_STARTUP: '1' });
+
+        expect(result.counters).toEqual({});
+        expect(result.lines).toEqual([
+            '[IPTVnator Trace][startup] bootstrap-app',
+            '[IPTVnator Trace][startup] deferred-events:start {"source":"did-start-loading"}',
+        ]);
+    });
+});
+
+describe('SQL statement count opt-in', () => {
+    const FLAGS = ['IPTVNATOR_PERF_CAPTURE', 'IPTVNATOR_PERF_COUNT_SQL'];
+    const original = FLAGS.map((name) => [name, process.env[name]] as const);
+
+    afterEach(() => {
+        for (const [name, value] of original) {
+            if (value === undefined) {
+                delete process.env[name];
+            } else {
+                process.env[name] = value;
+            }
+        }
+    });
+
+    it.each([
+        [{}, false],
+        [{ IPTVNATOR_PERF_CAPTURE: '1' }, false],
+        [{ IPTVNATOR_PERF_COUNT_SQL: '1' }, false],
+        [{ IPTVNATOR_PERF_CAPTURE: '1', IPTVNATOR_PERF_COUNT_SQL: '1' }, true],
+    ])('needs both flags: %j -> %s', async (env, expected) => {
+        for (const name of FLAGS) {
+            delete process.env[name];
+        }
+        Object.assign(process.env, env);
+        const { isSqlStatementCountEnabled } = await import('./debug-trace');
+
+        expect(isSqlStatementCountEnabled()).toBe(expected);
+    });
+});

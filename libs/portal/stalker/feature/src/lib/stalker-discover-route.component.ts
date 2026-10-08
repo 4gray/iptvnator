@@ -1,4 +1,3 @@
-import { Location } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -17,10 +16,15 @@ import {
     pickTitleMatch,
 } from '@iptvnator/services';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
-import { createLatestRequestGuard } from '@iptvnator/portal/shared/util';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
+import {
+    createLatestRequestGuard,
+    workspacePortalCommands,
+} from '@iptvnator/portal/shared/util';
 import {
     DiscoverViewComponent,
     TitleResultsScope,
+    discoverCatalogSection,
     discoverFacetKey,
     hasDiscoverFacet,
     parseDiscoverParams,
@@ -58,7 +62,7 @@ interface DiscoverItem extends DiscoverTitle {
 export class StalkerDiscoverRouteComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
-    private readonly location = inject(Location);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
     private readonly titleMatch = inject(CatalogTitleMatchService);
 
@@ -79,8 +83,11 @@ export class StalkerDiscoverRouteComponent {
     private readonly globalMatches = signal<CatalogTitleMatch[] | null>(null);
     private readonly matchRequest = createLatestRequestGuard();
     private readonly discoverRequest = createLatestRequestGuard();
+    // Filtered on read: a relock hides matches cached while unlocked.
     private readonly globalIndex = computed(() =>
-        groupTitleMatchesByKey(this.globalMatches() ?? [])
+        groupTitleMatchesByKey(
+            this.titleMatch.visibleMatches(this.globalMatches() ?? [])
+        )
     );
 
     readonly items = computed<DiscoverItem[]>(() => {
@@ -140,8 +147,18 @@ export class StalkerDiscoverRouteComponent {
         );
     }
 
+    /**
+     * History Back; the catalog section this page lists when it opened the
+     * session.
+     */
     goBack(): void {
-        this.location.back();
+        this.backNavigation.back(() =>
+            workspacePortalCommands(
+                this.route,
+                'stalker',
+                discoverCatalogSection(this.facets())
+            )
+        );
     }
 
     /** The portal ':id' param lives on an ancestor route */

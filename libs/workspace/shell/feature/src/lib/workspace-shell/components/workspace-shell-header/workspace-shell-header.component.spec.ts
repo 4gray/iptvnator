@@ -4,6 +4,7 @@ import {
     Component,
     input,
     output,
+    signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -14,6 +15,10 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
+import {
+    WorkspaceBackPhoneSlot,
+    WorkspaceBackTarget,
+} from '@iptvnator/portal/shared/util';
 import { WorkspaceShellHeaderComponent } from './workspace-shell-header.component';
 
 @Component({
@@ -229,6 +234,21 @@ describe('WorkspaceShellHeaderComponent', () => {
         ).toBeNull();
     });
 
+    it('hides search without playlists except on the settings route', () => {
+        const searchInput = () =>
+            fixture.nativeElement.querySelector('input[type="search"]');
+
+        fixture.componentRef.setInput('hasNoPlaylists', true);
+        fixture.detectChanges();
+        expect(searchInput()).toBeNull();
+
+        // Settings search needs no playlist: a fresh user can still search.
+        fixture.componentRef.setInput('isSettingsRoute', true);
+        fixture.detectChanges();
+        expect(searchInput()).not.toBeNull();
+        expect(searchInput().disabled).toBe(false);
+    });
+
     it('renders scope and status chips when search metadata is provided', () => {
         fixture.componentRef.setInput('searchScopeLabel', 'Movies / All Items');
         fixture.componentRef.setInput(
@@ -238,7 +258,9 @@ describe('WorkspaceShellHeaderComponent', () => {
         fixture.detectChanges();
 
         const chips = Array.from(
-            fixture.nativeElement.querySelectorAll('.search-chip')
+            (fixture.nativeElement as HTMLElement).querySelectorAll(
+                '.search-chip'
+            )
         ).map((element: Element) => element.textContent?.trim());
 
         expect(chips).toEqual(['Movies / All Items', 'Loaded channels only']);
@@ -356,6 +378,158 @@ describe('WorkspaceShellHeaderComponent', () => {
             fixture.nativeElement.querySelector(
                 '[data-test-id="context-drawer-toggle"]'
             )
+        );
+    });
+
+    describe('page Back', () => {
+        const backButton = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="workspace-header-back"]'
+            );
+
+        const drawerToggle = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="context-drawer-toggle"]'
+            );
+
+        function setBackTarget(
+            label: string | null,
+            escapeShortcut: boolean,
+            phoneDrawerToggle?: WorkspaceBackPhoneSlot
+        ): WorkspaceBackTarget {
+            const target: WorkspaceBackTarget = {
+                label: signal(label),
+                escapeShortcut: signal(escapeShortcut),
+                phoneDrawerToggle,
+                run: jest.fn(),
+            };
+            fixture.componentRef.setInput('backTarget', target);
+            fixture.detectChanges();
+            return target;
+        }
+
+        it('renders nothing while the page has no Back', () => {
+            expect(backButton()).toBeNull();
+        });
+
+        it('leads the header and emits Back requests', () => {
+            const requested = jest.fn();
+            component.backRequested.subscribe(requested);
+            setBackTarget('Back to Downloads', true);
+
+            const button = backButton();
+            expect(
+                fixture.nativeElement.querySelector('header')?.firstElementChild
+            ).toBe(button);
+            expect(button?.type).toBe('button');
+            button?.click();
+
+            expect(requested).toHaveBeenCalledTimes(1);
+        });
+
+        it('names the page Back and announces Escape only while it applies', () => {
+            setBackTarget('Back to Downloads', true);
+            expect(backButton()?.getAttribute('aria-label')).toBe(
+                'Back to Downloads'
+            );
+            expect(backButton()?.getAttribute('aria-keyshortcuts')).toBe(
+                'Escape'
+            );
+
+            setBackTarget(null, false);
+            // No host label: the generic translated Back.
+            expect(backButton()?.getAttribute('aria-label')).toBe('BACK');
+            expect(backButton()?.hasAttribute('aria-keyshortcuts')).toBe(false);
+        });
+
+        it('runs the advertised Escape from the focused Back only while it applies', () => {
+            const requested = jest.fn();
+            component.backRequested.subscribe(requested);
+            const press = (init: KeyboardEventInit = {}) => {
+                const event = new KeyboardEvent('keydown', {
+                    key: 'Escape',
+                    bubbles: true,
+                    cancelable: true,
+                    ...init,
+                });
+                backButton()?.dispatchEvent(event);
+                return event;
+            };
+
+            setBackTarget(null, true);
+            press({ repeat: true });
+            press({ shiftKey: true });
+            expect(requested).not.toHaveBeenCalled();
+            expect(press().defaultPrevented).toBe(true);
+            expect(requested).toHaveBeenCalledTimes(1);
+
+            // In watch, Escape belongs to the player's close shortcut.
+            setBackTarget(null, false);
+            expect(press().defaultPrevented).toBe(false);
+            expect(requested).toHaveBeenCalledTimes(1);
+        });
+
+        it('takes the drawer toggle slot while the page offers Back', () => {
+            fixture.componentRef.setInput('showContextDrawerToggle', true);
+            setBackTarget(null, true);
+
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="context-drawer-toggle"]'
+                )
+            ).toBeNull();
+
+            fixture.componentRef.setInput('backTarget', null);
+            fixture.detectChanges();
+
+            expect(backButton()).toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="context-drawer-toggle"]'
+                )
+            ).not.toBeNull();
+        });
+
+        it('keeps the drawer toggle after Back for a page whose sections live in the drawer', () => {
+            fixture.componentRef.setInput('showContextDrawerToggle', true);
+            setBackTarget(null, false, 'beside');
+
+            expect(drawerToggle()).not.toBeNull();
+            expect(backButton()?.nextElementSibling).toBe(drawerToggle());
+            expect(backButton()?.classList).not.toContain(
+                'header-back--yields'
+            );
+        });
+
+        it('lets the history fallback yield to the drawer toggle at phone width', () => {
+            fixture.componentRef.setInput('showContextDrawerToggle', true);
+            setBackTarget(null, false, 'yield');
+
+            expect(drawerToggle()).not.toBeNull();
+            // Hidden by the ≤640px rule; above it the toggle itself is hidden.
+            expect(backButton()?.classList).toContain('header-back--yields');
+
+            // Routes without a drawer keep the fallback at every width.
+            fixture.componentRef.setInput('showContextDrawerToggle', false);
+            fixture.detectChanges();
+            expect(backButton()?.classList).not.toContain(
+                'header-back--yields'
+            );
+        });
+    });
+
+    it('hides a yielding Back only in the phone layout', () => {
+        const styleSource = readFileSync(
+            join(__dirname, 'workspace-shell-header.component.scss'),
+            'utf8'
+        );
+        const phoneStart = styleSource.indexOf('@media (max-width: 640px)');
+
+        expect(styleSource.indexOf('.header-back--yields')).toBeGreaterThan(
+            phoneStart
+        );
+        expect(styleSource.slice(phoneStart)).toMatch(
+            /\.header-back--yields\s*\{\s*display:\s*none;/
         );
     });
 

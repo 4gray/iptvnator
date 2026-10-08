@@ -16,7 +16,6 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { AppUpdateInstallService } from './services/app-update-install.service';
-import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-release-notes-dialog.component';
 
 @Component({
     selector: 'app-update-notification-panel',
@@ -102,8 +101,7 @@ import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-rele
             </section>
         }
     `,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             .app-update-notification {
@@ -239,8 +237,31 @@ export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
         this.unsubscribeStatus = null;
     }
 
-    openReleaseNotes(): void {
-        const latestVersion = this.status()?.latestVersion;
+    /**
+     * Loaded on demand: the dialog renders Markdown with `marked`, which this
+     * always-mounted panel would otherwise put on the initial path. A field so
+     * specs can substitute it.
+     */
+    loadReleaseNotesDialog = () =>
+        import('./settings/app-update-release-notes-dialog.component');
+
+    async openReleaseNotes(): Promise<void> {
+        const status = this.status();
+        const latestVersion = status?.latestVersion;
+        let dialogModule: Awaited<
+            ReturnType<typeof this.loadReleaseNotesDialog>
+        >;
+        try {
+            dialogModule = await this.loadReleaseNotesDialog();
+        } catch (error) {
+            // The same notes are on the releases page; the next click retries.
+            console.error('Could not load the release notes dialog:', error);
+            if (status?.manualDownloadUrl) {
+                window.open(status.manualDownloadUrl, '_blank', 'noreferrer');
+            }
+            return;
+        }
+        const { AppUpdateReleaseNotesDialogComponent } = dialogModule;
 
         this.dialog.open(AppUpdateReleaseNotesDialogComponent, {
             autoFocus: false,

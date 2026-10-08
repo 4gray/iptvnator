@@ -52,23 +52,11 @@
         flex: 1;
         flex-wrap: wrap;
 
-        // Keep the back arrow and title tightly grouped, independent of the
-        // wide gap between the title group and the filters (RTL-safe)
-        .header-title-group {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .header-back {
-            flex-shrink: 0;
-        }
-
         h2 {
             margin: 0;
             white-space: nowrap;
             font-size: 1.2rem;
-            font-weight: 650;
+            font-weight: 600;
             letter-spacing: -0.02em;
         }
 
@@ -135,7 +123,7 @@
         h3 {
             margin: 0 0 0.5rem;
             font-size: 1.05rem;
-            font-weight: 520;
+            font-weight: 500;
             letter-spacing: -0.01em;
             color: var(--text-color);
         }

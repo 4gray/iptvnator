@@ -8,12 +8,7 @@ import {
     FullscreenOverlayContainer,
     OverlayContainer,
 } from '@angular/cdk/overlay';
-import {
-    ApplicationConfig,
-    inject,
-    importProvidersFrom,
-    provideZoneChangeDetection,
-} from '@angular/core';
+import { ApplicationConfig, inject, importProvidersFrom } from '@angular/core';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
@@ -21,7 +16,6 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { provideEffects } from '@ngrx/effects';
 import { provideRouterStore, routerReducer } from '@ngrx/router-store';
 import { provideStore } from '@ngrx/store';
-import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { PlaylistEffects, playlistReducer } from '@iptvnator/m3u-state';
@@ -30,20 +24,25 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
-} from '@iptvnator/portal/shared/util';
-import { STALKER_PLAYLIST_CONNECTION_EDITOR } from '@iptvnator/playlist/shared/ui';
+} from '@iptvnator/portal/shared/util/tokens';
+import { STALKER_PLAYLIST_CONNECTION_EDITOR } from '@iptvnator/playlist/shared/ui/stalker-connection-editor';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
-import { DataService } from '@iptvnator/services';
+import {
+    provideParentalLockPlaylistCleanup,
+    DataService,
+} from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
-import { AppConfig } from '../environments/environment';
+import { changeDetectionProviders } from '../environments/change-detection.providers';
+import { storeDevtoolsProviders } from '../environments/store-devtools.providers';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
 import { ExternalPlaybackService } from './services/external-playback.service';
 import { PlayerService } from './services/player.service';
+import { provideParentalLockPrompt } from './services/parental-lock-prompt.service';
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
 import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
-import { AppStalkerPlaylistConnectionEditorService } from './services/stalker-playlist-connection-editor.service';
+import { LazyStalkerPlaylistConnectionEditor } from './services/lazy-stalker-playlist-connection-editor';
 import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
 
 // AoT requires an exported function for factories
@@ -106,7 +105,7 @@ export function DataFactory() {
 
 export const appConfig: ApplicationConfig = {
     providers: [
-        provideZoneChangeDetection({ eventCoalescing: true }),
+        ...changeDetectionProviders,
         provideRouter(routes, withComponentInputBinding()),
         provideAnimations(),
         // CDK overlays (menus, tooltips, dialogs) live in a container under
@@ -122,7 +121,7 @@ export const appConfig: ApplicationConfig = {
         }),
         provideEffects([PlaylistEffects]),
         provideRouterStore(),
-        ...(AppConfig.production ? [] : [provideStoreDevtools({ maxAge: 25 })]),
+        ...storeDevtoolsProviders,
         provideServiceWorker('ngsw-worker.js', {
             enabled: shouldEnableServiceWorker(),
             registrationStrategy: 'registerWhenStable:30000',
@@ -157,9 +156,11 @@ export const appConfig: ApplicationConfig = {
         ...providePortalPlaybackPositions(),
         {
             provide: STALKER_PLAYLIST_CONNECTION_EDITOR,
-            useExisting: AppStalkerPlaylistConnectionEditorService,
+            useExisting: LazyStalkerPlaylistConnectionEditor,
         },
         ...provideWorkspaceShellActions(),
+        ...provideParentalLockPrompt(),
+        provideParentalLockPlaylistCleanup(),
         ...provideXtreamDataSource(),
         {
             provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,

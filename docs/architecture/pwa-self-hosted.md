@@ -73,6 +73,25 @@ The current self-hosted PWA uses these `apps/web-backend` routes:
 - `GET /xtream?targetId=<id>&username=<u>&password=<p>&action=<action>`
 - `GET /stalker?targetId=<id>&macAddress=<mac>&action=<action>`
 
+`pnpm nx run web-backend:serve` starts the backend by hand on port 3333 with
+`TSX_TSCONFIG_PATH=tsconfig.base.json`, which `tsx` needs for the
+`@iptvnator/*` path aliases. `apps/web-e2e/playwright.config.ts` does not use
+that target: it launches `node --import tsx apps/web-backend/src/main.ts` with
+an `env` that mirrors the target's. Nx `run-commands` starts its command in a
+detached process group, and Playwright stops a `webServer` with a
+process-group `SIGKILL` (`taskkill /T /F` on Windows). The kill therefore
+reached only `pnpm`/`nx`, and the orphaned server kept port 3333 after the run.
+`apps/web-backend/src/app/project-config.spec.ts` fails if a Playwright config
+launches the backend through Nx or its `env` drifts from the `serve` target.
+`WEB_BACKEND_PORT` (default 3333) relocates the E2E backend and the
+`self-hosted.e2e.ts` URLs, like `MOCK_PORT` does for the mocks. Use it when
+another worktree holds 3333. The `web:serve` entry can stay on Nx:
+`@angular/build:dev-server` runs inside the Nx process, so the group kill
+stops it. Playwright launches that command itself even outside CI: the
+web-e2e targets carry no Nx `serve` dependency, because Nx refuses a
+non-parallel task with a continuous dependency. The mock servers follow the
+same rule; see [Xtream mock Playwright integration](xtream-mock-server.md#playwright-integration).
+
 The PWA continues to use `PwaService`; only the backend base URL is resolved at
 runtime. Electron routes remain owned by the Electron backend and preload
 bridge.

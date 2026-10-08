@@ -59,7 +59,11 @@
 
 <mat-dialog-actions align="end">
     @if (currentMapping()) {
-        <button mat-button color="warn" (click)="removeMapping()">
+        <button
+            mat-button
+            class="app-destructive-button"
+            (click)="removeMapping()"
+        >
             {{ 'EPG_MAPPING_DIALOG.REMOVE' | translate }}
         </button>
     }

@@ -90,6 +90,13 @@
                 "e2eTags": ["@epg"]
             },
             {
+                "name": "playback-data-access",
+                "root": "libs/playback/data-access",
+                "sourceRoot": "libs/playback/data-access/src",
+                "validationCommand": "pnpm nx test playback-data-access",
+                "e2eTags": ["@persistence"]
+            },
+            {
                 "name": "m3u-state",
                 "root": "libs/m3u-state",
                 "sourceRoot": "libs/m3u-state/src",
@@ -316,6 +323,12 @@
                 "root": "tools/eslint",
                 "validationCommand": "pnpm nx test eslint-tools",
                 "reason": "Node tests assert the committed max-lines baseline still matches what the generator produces; the scripts are lint tooling, not shipped source, and percentage coverage over a generated list would not mean anything."
+            },
+            {
+                "name": "performance-tools",
+                "root": "tools/performance",
+                "validationCommand": "pnpm nx test performance-tools",
+                "reason": "Node tests validate the initial-bytes measurement over synthetic build output; the scripts are performance tooling, not shipped source."
             },
             {
                 "name": "shared-marketing-fixtures",

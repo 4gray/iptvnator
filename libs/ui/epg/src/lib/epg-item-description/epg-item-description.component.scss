@@ -48,7 +48,7 @@
     position: absolute;
     left: 14px;
     top: 12px;
-    max-width: calc(100% - 64px);
+    max-width: calc(100% - 28px);
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -75,36 +75,6 @@
     white-space: nowrap;
 }
 
-.epg-dialog__close {
-    position: absolute;
-    right: 12px;
-    top: 12px;
-    width: 30px;
-    height: 30px;
-    display: grid;
-    place-items: center;
-    border: none;
-    border-radius: 8px;
-    background: $surface-1;
-    color: $text-secondary;
-    cursor: pointer;
-    backdrop-filter: blur(6px);
-    transition:
-        color 120ms,
-        background 120ms;
-
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-    }
-
-    &:hover {
-        color: $text-primary;
-        background: $surface-3;
-    }
-}
-
 /* ── body ── */
 .epg-dialog__body {
     padding: 18px 22px 22px;
@@ -129,13 +99,21 @@
     opacity: 0.55;
 }
 
-.epg-dialog__title {
+/* `mat-dialog-title` names the dialog; keep the design's type and spacing
+   instead of Material's headline padding and baseline strut. */
+.epg-dialog__title.mat-mdc-dialog-title {
     margin: 0 0 12px;
+    padding: 0;
+    font-family: inherit;
     font-size: 21px;
     font-weight: 600;
     line-height: 1.25;
     letter-spacing: -0.01em;
     color: $text-primary;
+
+    &::before {
+        display: none;
+    }
 }
 
 .epg-dialog__desc {
@@ -180,20 +158,30 @@
 }
 
 /* ── actions ── */
-.epg-dialog__actions {
-    flex-wrap: wrap;
+.epg-dialog__archive {
+    margin: 0 0 18px;
+}
+
+.epg-dialog__tools {
     display: flex;
-    align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
 }
 
-.epg-dialog__spacer {
-    flex: 1;
-}
-
 .epg-dialog__note {
+    margin: 0 0 12px;
     font-size: 12.5px;
     color: $text-tertiary;
+}
+
+/* Dismiss first, primary last, both on the inline end. Wrapping is only a
+   last resort; both buttons fit one row at the 540px width. */
+.epg-dialog__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
 }
 
 .epg-dialog__btn {
@@ -236,10 +224,29 @@
     }
 }
 
-/* Let the dialog provide its own surface, border and shadow. */
-::ng-deep .mat-mdc-dialog-container {
-    --mdc-dialog-container-color: transparent;
+/* Phone breakpoint: the viewport caps the dialog, so actions stack one per
+   row at full width, in DOM order (dismiss above the primary). A long
+   translated label wraps inside its button instead of being clipped. */
+@media (max-width: 640px) {
+    .epg-dialog__tools,
+    .epg-dialog__actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
 
+    .epg-dialog__btn {
+        justify-content: center;
+        height: auto;
+        min-height: 40px;
+        padding-block: 8px;
+        text-align: center;
+    }
+}
+
+/* Let the dialog provide its own surface, border and shadow. Scoped to the
+   panel class from EPG_PROGRAMME_DIALOG_CONFIG so no other dialog loses its
+   surface while this one is open. */
+::ng-deep .epg-programme-dialog-panel .mat-mdc-dialog-container {
     .mat-mdc-dialog-surface,
     .mdc-dialog__surface {
         background: transparent !important;

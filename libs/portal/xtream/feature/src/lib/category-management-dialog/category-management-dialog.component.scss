@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 ::ng-deep .mat-mdc-dialog-content {
     overflow: hidden !important;
 }
@@ -134,7 +135,7 @@
     }
 
     mat-checkbox {
-        --mdc-checkbox-state-layer-size: 28px;
+        @include mat.checkbox-overrides((state-layer-size: 28px));
     }
 }
 
@@ -155,7 +156,6 @@
 
 :host ::ng-deep {
     .mat-mdc-dialog-content {
-        min-width: 480px;
         max-width: 600px;
         max-height: 85vh !important;
     }
@@ -166,5 +166,32 @@ mat-dialog-actions {
         mat-spinner {
             display: inline-block;
         }
+    }
+}
+
+.selection-info__locks {
+    margin-left: 4px;
+}
+
+.lock-toggle {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    padding: 0;
+    line-height: 28px;
+    color: var(--app-eyebrow-color);
+    flex-shrink: 0;
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+
+    // Locked reads as state, not only as a different glyph: accent colour
+    // plus the selection tint behind it.
+    &--locked {
+        color: var(--app-selection-color);
+        background: var(--app-selection-surface);
     }
 }

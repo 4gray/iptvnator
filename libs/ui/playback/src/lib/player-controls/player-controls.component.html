@@ -22,6 +22,9 @@
     <div
         class="player-controls__title"
         [class.player-controls__title--visible]="controlsAreVisible()"
+        [class.player-controls__title--panel-open]="
+            settings.isOpen() && layout.roomy()
+        "
         data-test-id="player-controls-media-title"
     >
         <div class="player-controls__title-primary">
@@ -39,6 +42,9 @@
     <div
         class="player-controls__corner"
         [class.player-controls__corner--visible]="controlsAreVisible()"
+        [class.player-controls__corner--panel-open]="
+            settings.isOpen() && layout.roomy()
+        "
         (pointerenter)="chrome.onPointerEnter()"
         (pointerleave)="chrome.onPointerLeave()"
         (pointerdown)="chrome.onPointerDown()"
@@ -55,7 +61,9 @@
                 data-test-id="player-controls-stream-info-button"
                 (click)="toggleMenu('stats')"
                 [attr.aria-expanded]="menus.statsOpen()"
-                [attr.aria-label]="'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate"
+                [attr.aria-label]="
+                    'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate
+                "
                 [matTooltip]="'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate"
                 matTooltipPosition="below"
             >
@@ -75,7 +83,10 @@
                     </div>
                     @if (streamStats.hasRows()) {
                         <dl class="player-controls__stats-list">
-                            @for (row of streamStats.rows(); track row.labelKey) {
+                            @for (
+                                row of streamStats.rows();
+                                track row.labelKey
+                            ) {
                                 <div class="player-controls__stats-row">
                                     <dt>{{ row.labelKey | translate }}</dt>
                                     <dd>{{ row.value }}</dd>
@@ -97,10 +108,27 @@
 }
 
 @if (showControls()) {
+    <!-- Backdrop of the whole dock. Like the top scrim, one element rather than
+         a background per row: the timeline and the button row overlap the same
+         gradient, and two would darken the overlap twice. -->
+    <div
+        class="player-controls__bottom-scrim"
+        [class.player-controls__bottom-scrim--visible]="controlsAreVisible()"
+        data-test-id="player-controls-bottom-scrim"
+        aria-hidden="true"
+    ></div>
     <div
         #controlsBar
         class="player-controls__bar"
         [class.player-controls__bar--visible]="controlsAreVisible()"
+        [class.player-controls__bar--compact]="isCompact()"
+        [class.player-controls__bar--panel-open]="
+            settings.isOpen() && layout.roomy()
+        "
+        [attr.inert]="settings.isOpen() && !layout.roomy() ? '' : null"
+        [class.player-controls__bar--sheet-open]="
+            settings.isOpen() && !layout.roomy()
+        "
         (pointerenter)="chrome.onPointerEnter()"
         (pointerleave)="chrome.onPointerLeave()"
         (pointerdown)="chrome.onPointerDown()"
@@ -109,201 +137,60 @@
         (focusin)="chrome.onFocusIn($event)"
         (focusout)="chrome.onFocusOut($event)"
     >
-        <div class="player-controls__transport">
-            <button
-                mat-icon-button
-                type="button"
-                class="player-controls__button"
-                [disabled]="!canTogglePlay()"
-                (click)="togglePlay()"
-                [attr.aria-label]="
-                    (isPaused()
-                        ? 'EMBEDDED_MPV.PLAYER.PLAY'
-                        : 'EMBEDDED_MPV.PLAYER.PAUSE'
-                    ) | translate
-                "
-                [matTooltip]="
-                    (isPaused()
-                        ? 'EMBEDDED_MPV.PLAYER.PLAY'
-                        : 'EMBEDDED_MPV.PLAYER.PAUSE'
-                    ) | translate
-                "
-                matTooltipPosition="above"
-            >
-                <mat-icon>{{ isPaused() ? 'play_arrow' : 'pause' }}</mat-icon>
-            </button>
+        <app-player-timeline
+            [timeline]="timeline"
+            [hover]="timelineHover"
+            [seekable]="capabilities().seek"
+            [canSeek]="state().canSeek"
+            [isLive]="state().isLive"
+            [remaining]="remainingTimeText()"
+            [recordingStatus]="recordingStatusText()"
+            [recording]="isRecording()"
+            (scrubInput)="onTimelineInput($event)"
+            (scrubCommit)="onTimelineCommit($event)"
+        />
 
-            @if (capabilities().seriesNavigation) {
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="player-controls__button"
-                    data-test-id="player-controls-previous-episode"
-                    [disabled]="isLoading() || !state().canPreviousEpisode"
-                    (click)="requestPreviousEpisode()"
-                    [attr.aria-label]="
-                        'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE' | translate
-                    "
-                    [matTooltip]="
-                        'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE' | translate
-                    "
-                    matTooltipPosition="above"
-                >
-                    <mat-icon>skip_previous</mat-icon>
-                </button>
-
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="player-controls__button"
-                    data-test-id="player-controls-next-episode"
-                    [disabled]="isLoading() || !state().canNextEpisode"
-                    (click)="requestNextEpisode()"
-                    [attr.aria-label]="
-                        'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
-                    "
-                    [matTooltip]="
-                        'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
-                    "
-                    matTooltipPosition="above"
-                >
-                    <mat-icon>skip_next</mat-icon>
-                </button>
-            }
-
-            @if (capabilities().seek) {
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="player-controls__button"
-                    [disabled]="!state().canSeek"
-                    (click)="seekBy(-10)"
-                    [attr.aria-label]="
-                        'EMBEDDED_MPV.PLAYER.BACK_10_SECONDS' | translate
-                    "
-                    [matTooltip]="
-                        'EMBEDDED_MPV.PLAYER.BACK_10_SECONDS' | translate
-                    "
-                    matTooltipPosition="above"
-                >
-                    <mat-icon>replay_10</mat-icon>
-                </button>
-
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="player-controls__button"
-                    [disabled]="!state().canSeek"
-                    (click)="seekBy(10)"
-                    [attr.aria-label]="
-                        'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
-                    "
-                    [matTooltip]="
-                        'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
-                    "
-                    matTooltipPosition="above"
-                >
-                    <mat-icon>forward_10</mat-icon>
-                </button>
-            }
-        </div>
-
-        <div class="player-controls__timeline">
-            @if (capabilities().seek) {
-                <input
-                    class="player-controls__slider"
-                    [style.--slider-progress.%]="timelineProgress()"
-                    type="range"
-                    min="0"
-                    [max]="timelineDuration()"
-                    [value]="timelineValue()"
-                    [disabled]="!state().canSeek"
-                    [attr.aria-label]="
-                        'EMBEDDED_MPV.PLAYER.PLAYBACK_POSITION' | translate
-                    "
-                    [attr.aria-valuetext]="formatTime(timelineValue())"
-                    (input)="onTimelineInput($event)"
-                    (change)="onTimelineCommit($event)"
-                />
-            }
-            <div class="player-controls__time">
-                <span>{{ formatTime(timelineValue()) }}</span>
-                @if (state().canSeek) {
-                    <span>{{ formatTime(timelineDuration()) }}</span>
-                } @else if (state().isLive) {
-                    <span
-                        class="player-controls__live-badge"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.LIVE_STREAM' | translate
-                        "
+        <div class="player-controls__row">
+            <div class="player-controls__left">
+                @if (capabilities().volume) {
+                    <div
+                        class="player-controls__popover-anchor player-controls__volume"
+                        (pointerenter)="volumeInteractions.hoverEnter($event)"
+                        (pointerleave)="volumeInteractions.hoverLeave($event)"
+                        (focusin)="volumeInteractions.hoverEnter($event)"
+                        (focusout)="volumeInteractions.hoverLeave($event)"
+                        (wheel)="volumeInteractions.wheel($event)"
                     >
-                        <span
-                            class="player-controls__live-dot"
-                            aria-hidden="true"
-                        ></span>
-                        LIVE
-                    </span>
-                } @else {
-                    <span>--:--</span>
-                }
-            </div>
-            @if (recordingStatusText(); as recordingStatus) {
-                <div
-                    class="player-controls__recording-status"
-                    [class.player-controls__recording-status--active]="
-                        isRecording()
-                    "
-                    [attr.aria-live]="isRecording() ? 'off' : 'polite'"
-                >
-                    <mat-icon>{{
-                        isRecording() ? 'fiber_manual_record' : 'check_circle'
-                    }}</mat-icon>
-                    <span>{{ recordingStatus }}</span>
-                </div>
-            }
-        </div>
-
-        <div class="player-controls__actions">
-            @if (capabilities().volume) {
-                <div
-                    class="player-controls__popover-anchor"
-                    (pointerenter)="volumeInteractions.hoverEnter($event)"
-                    (pointerleave)="volumeInteractions.hoverLeave($event)"
-                    (focusin)="volumeInteractions.hoverEnter($event)"
-                    (focusout)="volumeInteractions.hoverLeave($event)"
-                    (wheel)="volumeInteractions.wheel($event)"
-                >
-                    <button
-                        mat-icon-button
-                        type="button"
-                        class="player-controls__button"
-                        (click)="volumeInteractions.buttonClick($event)"
-                        [attr.aria-label]="
-                            (displayVolume() <= 0
-                                ? 'EMBEDDED_MPV.PLAYER.UNMUTE'
-                                : 'EMBEDDED_MPV.PLAYER.MUTE'
-                            ) | translate
-                        "
-                        [matTooltip]="
-                            (displayVolume() <= 0
-                                ? 'EMBEDDED_MPV.PLAYER.UNMUTE'
-                                : 'EMBEDDED_MPV.PLAYER.MUTE'
-                            ) | translate
-                        "
-                        matTooltipPosition="above"
-                    >
-                        <mat-icon>{{ volumeIcon() }}</mat-icon>
-                    </button>
-                    @if (menus.volumeOpen()) {
-                        <div
-                            class="player-controls__panel player-controls__volume-popover"
-                            role="dialog"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.VOLUME' | translate
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="player-controls__button"
+                            (click)="
+                                volumeInteractions.buttonClick($event, {
+                                    inlineSlider: !isCompact(),
+                                })
                             "
+                            [attr.aria-label]="
+                                (displayVolume() <= 0
+                                    ? 'EMBEDDED_MPV.PLAYER.UNMUTE'
+                                    : 'EMBEDDED_MPV.PLAYER.MUTE'
+                                ) | translate
+                            "
+                            [matTooltip]="
+                                (displayVolume() <= 0
+                                    ? 'EMBEDDED_MPV.PLAYER.UNMUTE'
+                                    : 'EMBEDDED_MPV.PLAYER.MUTE'
+                                ) | translate
+                            "
+                            matTooltipPosition="above"
                         >
+                            <mat-icon>{{ volumeIcon() }}</mat-icon>
+                        </button>
+                        @if (!isCompact()) {
+                            <!-- Wide players keep the slider inline: it is the
+                                 control the pointer reaches for most often. -->
                             <input
-                                class="player-controls__slider player-controls__slider--volume"
+                                class="player-controls__slider player-controls__slider--volume player-controls__slider--inline"
                                 [style.--slider-progress.%]="
                                     displayVolume() * 100
                                 "
@@ -324,693 +211,413 @@
                                 "
                                 (input)="volumeInteractions.sliderInput($event)"
                             />
-                            <span class="player-controls__volume-value">
-                                {{
-                                    'EMBEDDED_MPV.PLAYER.VOLUME_LABEL'
-                                        | translate
-                                            : { percent: volumePercent() }
-                                }}
-                            </span>
-                        </div>
-                    }
-                </div>
-            }
+                        } @else if (menus.volumeOpen()) {
+                            <div
+                                class="player-controls__panel player-controls__volume-popover"
+                                role="dialog"
+                                [attr.aria-label]="
+                                    'EMBEDDED_MPV.PLAYER.VOLUME' | translate
+                                "
+                            >
+                                <input
+                                    class="player-controls__slider player-controls__slider--volume"
+                                    [style.--slider-progress.%]="
+                                        displayVolume() * 100
+                                    "
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.01"
+                                    [value]="displayVolume()"
+                                    [attr.aria-label]="
+                                        'EMBEDDED_MPV.PLAYER.VOLUME_LABEL'
+                                            | translate
+                                                : { percent: volumePercent() }
+                                    "
+                                    [attr.aria-valuetext]="
+                                        'EMBEDDED_MPV.PLAYER.VOLUME_LABEL'
+                                            | translate
+                                                : { percent: volumePercent() }
+                                    "
+                                    (input)="
+                                        volumeInteractions.sliderInput($event)
+                                    "
+                                />
+                                <span class="player-controls__volume-value">
+                                    {{
+                                        'EMBEDDED_MPV.PLAYER.VOLUME_LABEL'
+                                            | translate
+                                                : { percent: volumePercent() }
+                                    }}
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
 
-            @if (hasAudioTracks()) {
-                <div class="player-controls__popover-anchor">
+            <div class="player-controls__transport">
+                @if (capabilities().seriesNavigation) {
                     <button
                         mat-icon-button
                         type="button"
                         class="player-controls__button"
-                        (click)="toggleMenu('audio')"
-                        [attr.aria-expanded]="menus.audioOpen()"
+                        data-test-id="player-controls-previous-episode"
+                        [disabled]="isLoading() || !state().canPreviousEpisode"
+                        (click)="requestPreviousEpisode()"
                         [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate
+                            'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE' | translate
                         "
                         [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate
+                            'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE' | translate
                         "
                         matTooltipPosition="above"
                     >
-                        <mat-icon>graphic_eq</mat-icon>
+                        <mat-icon>skip_previous</mat-icon>
                     </button>
-                    @if (menus.audioOpen()) {
-                        <div
-                            class="player-controls__panel player-controls__track-popover"
-                            role="menu"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate
-                            "
-                        >
-                            <div class="player-controls__menu-title">
-                                {{
-                                    'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS'
-                                        | translate
-                                }}
-                            </div>
-                            <div class="player-controls__track-list">
-                                @for (
-                                    track of state().audioTracks;
-                                    track track.id
-                                ) {
-                                    <button
-                                        type="button"
-                                        role="menuitemradio"
-                                        [attr.aria-checked]="track.selected"
-                                        class="player-controls__track"
-                                        [class.player-controls__track--selected]="
-                                            track.selected
-                                        "
-                                        (click)="
-                                            menuSelection.audioTrack(track.id)
-                                        "
-                                    >
-                                        <span>{{ track.label }}</span>
-                                        @if (track.selected) {
-                                            <mat-icon>check</mat-icon>
-                                        }
-                                    </button>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
+                }
 
-            @if (hasSubtitleTracks()) {
-                <div class="player-controls__popover-anchor">
+                @if (capabilities().seek) {
                     <button
                         mat-icon-button
                         type="button"
                         class="player-controls__button"
-                        (click)="toggleMenu('subtitle')"
-                        [attr.aria-expanded]="menus.subtitleOpen()"
+                        [disabled]="!state().canSeek"
+                        (click)="seekBy(-10)"
                         [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
+                            'EMBEDDED_MPV.PLAYER.BACK_10_SECONDS' | translate
                         "
                         [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
+                            'EMBEDDED_MPV.PLAYER.BACK_10_SECONDS' | translate
+                        "
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>replay_10</mat-icon>
+                    </button>
+                }
+
+                <button
+                    type="button"
+                    class="player-controls__play"
+                    data-test-id="player-controls-play"
+                    [disabled]="!canTogglePlay()"
+                    (click)="togglePlay()"
+                    [attr.aria-label]="
+                        (isPaused()
+                            ? 'EMBEDDED_MPV.PLAYER.PLAY'
+                            : 'EMBEDDED_MPV.PLAYER.PAUSE'
+                        ) | translate
+                    "
+                    [matTooltip]="
+                        (isPaused()
+                            ? 'EMBEDDED_MPV.PLAYER.PLAY'
+                            : 'EMBEDDED_MPV.PLAYER.PAUSE'
+                        ) | translate
+                    "
+                    matTooltipPosition="above"
+                >
+                    <mat-icon>{{
+                        isPaused() ? 'play_arrow' : 'pause'
+                    }}</mat-icon>
+                </button>
+
+                @if (capabilities().seek) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="player-controls__button"
+                        [disabled]="!state().canSeek"
+                        (click)="seekBy(10)"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
+                        "
+                        [matTooltip]="
+                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
+                        "
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>forward_10</mat-icon>
+                    </button>
+                }
+
+                @if (capabilities().seriesNavigation) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="player-controls__button"
+                        data-test-id="player-controls-next-episode"
+                        [disabled]="isLoading() || !state().canNextEpisode"
+                        (click)="requestNextEpisode()"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
+                        "
+                        [matTooltip]="
+                            'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
+                        "
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>skip_next</mat-icon>
+                    </button>
+                }
+            </div>
+
+            <div class="player-controls__actions">
+                @if (
+                    settings.available() && layout.roomy() && !settings.isOpen()
+                ) {
+                    @if (settings.groups().subtitles) {
+                        <!-- On with no track marked selected yet (the engine
+                             can report the id before the list) reads "On",
+                             never "Off". The name carries the value
+                             ("Subtitles: English"); the label is the value. -->
+                        @let subtitleValue =
+                            settings.subtitleLabel() ??
+                            ((settings.subtitlesOn()
+                                ? 'EMBEDDED_MPV.PLAYER.SUBTITLES_ON'
+                                : 'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
+                            ) | translate);
+                        <button
+                            type="button"
+                            class="player-controls__chip"
+                            [class.player-controls__chip--on]="
+                                settings.subtitlesOn()
+                            "
+                            data-test-id="player-controls-subtitle-chip"
+                            (click)="settings.open('subtitles')"
+                            (contextmenu)="
+                                settings.onSubtitleChipContextMenu($event)
+                            "
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.SUBTITLES_TOOLTIP'
+                                    | translate: { subtitles: subtitleValue }
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.SUBTITLES_TOOLTIP'
+                                    | translate: { subtitles: subtitleValue }
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>{{
+                                settings.subtitlesOn()
+                                    ? 'closed_caption'
+                                    : 'closed_caption_disabled'
+                            }}</mat-icon>
+                            <span class="player-controls__chip-label">{{
+                                subtitleValue
+                            }}</span>
+                        </button>
+                    }
+                    @if (settings.groups().speed) {
+                        <button
+                            type="button"
+                            class="player-controls__chip"
+                            [class.player-controls__chip--modified]="
+                                settings.speedModified()
+                            "
+                            data-test-id="player-controls-speed-chip"
+                            (click)="settings.open('speed')"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.SPEED_TOOLTIP'
+                                    | translate
+                                        : { speed: settings.speedLabel() }
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.SPEED_TOOLTIP'
+                                    | translate
+                                        : { speed: settings.speedLabel() }
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>speed</mat-icon>
+                            <span class="player-controls__chip-label">{{
+                                settings.speedLabel()
+                            }}</span>
+                        </button>
+                    }
+                }
+
+                @if (settings.available()) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="player-controls__button player-controls__tune"
+                        [class.player-controls__tune--active]="
+                            settings.isOpen()
+                        "
+                        data-test-id="player-controls-settings-button"
+                        (click)="settings.toggle()"
+                        aria-haspopup="dialog"
+                        [attr.aria-expanded]="settings.isOpen()"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.SETTINGS' | translate
+                        "
+                        [matTooltip]="
+                            'EMBEDDED_MPV.PLAYER.SETTINGS' | translate
+                        "
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>tune</mat-icon>
+                        @if (
+                            !layout.roomy() &&
+                            !settings.isOpen() &&
+                            settings.hasDots()
+                        ) {
+                            <span
+                                class="player-controls__tune-dots"
+                                data-test-id="player-controls-settings-dots"
+                                aria-hidden="true"
+                            >
+                                @if (settings.dots().cyan) {
+                                    <span
+                                        class="player-controls__tune-dot player-controls__tune-dot--cyan"
+                                    ></span>
+                                }
+                                @if (settings.dots().violet) {
+                                    <span
+                                        class="player-controls__tune-dot player-controls__tune-dot--violet"
+                                    ></span>
+                                }
+                            </span>
+                        }
+                    </button>
+                }
+
+                @if (canRecord() && !(settings.isOpen() && layout.roomy())) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="player-controls__button player-controls__record-button"
+                        [class.player-controls__record-button--active]="
+                            isRecording()
+                        "
+                        [disabled]="isLoading()"
+                        (click)="toggleRecording()"
+                        [attr.aria-pressed]="isRecording()"
+                        [attr.aria-label]="
+                            (isRecording()
+                                ? 'EMBEDDED_MPV.PLAYER.STOP_RECORDING'
+                                : 'EMBEDDED_MPV.PLAYER.START_RECORDING'
+                            ) | translate
+                        "
+                        [matTooltip]="
+                            (isRecording()
+                                ? 'EMBEDDED_MPV.PLAYER.STOP_RECORDING'
+                                : 'EMBEDDED_MPV.PLAYER.START_RECORDING'
+                            ) | translate
                         "
                         matTooltipPosition="above"
                     >
                         <mat-icon>{{
-                            state().subtitlesEnabled
-                                ? 'subtitles'
-                                : 'subtitles_off'
+                            isRecording()
+                                ? 'stop_circle'
+                                : 'fiber_manual_record'
                         }}</mat-icon>
                     </button>
-                    @if (menus.subtitleOpen()) {
-                        <div
-                            class="player-controls__panel player-controls__track-popover"
-                            role="menu"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
-                            "
-                        >
-                            <div class="player-controls__menu-title">
-                                {{
-                                    'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
-                                }}
-                            </div>
-                            <!-- Single scroll owner for the track list AND the
-                                 delay/style sections: on short players the
-                                 popover height cap must scroll everything, not
-                                 clip the sections outside the list. -->
-                            <div class="player-controls__subtitle-body">
-                            <div class="player-controls__track-list">
-                                @if (
-                                    capabilities().subtitles &&
-                                    state().subtitleTracks.length > 0
-                                ) {
-                                    <button
-                                        type="button"
-                                        role="menuitemradio"
-                                        [attr.aria-checked]="
-                                            !state().subtitlesEnabled
-                                        "
-                                        class="player-controls__track"
-                                        [class.player-controls__track--selected]="
-                                            !state().subtitlesEnabled
-                                        "
-                                        (click)="
-                                            menuSelection.subtitleTrack(-1)
-                                        "
-                                    >
-                                        <span>{{
-                                            'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
-                                                | translate
-                                        }}</span>
-                                        @if (!state().subtitlesEnabled) {
-                                            <mat-icon>check</mat-icon>
-                                        }
-                                    </button>
-                                }
-                                @for (
-                                    track of state().subtitleTracks;
-                                    track track.id
-                                ) {
-                                    <button
-                                        type="button"
-                                        role="menuitemradio"
-                                        [attr.aria-checked]="track.selected"
-                                        class="player-controls__track"
-                                        [class.player-controls__track--selected]="
-                                            track.selected
-                                        "
-                                        (click)="
-                                            menuSelection.subtitleTrack(
-                                                track.id
-                                            )
-                                        "
-                                    >
-                                        <span>{{ track.label }}</span>
-                                        @if (track.selected) {
-                                            <mat-icon>check</mat-icon>
-                                        }
-                                    </button>
-                                }
-                                @if (capabilities().externalSubtitles) {
-                                    <button
-                                        type="button"
-                                        role="menuitem"
-                                        class="player-controls__track player-controls__load-subtitle"
-                                        data-test-id="player-controls-load-subtitle"
-                                        (click)="loadExternalSubtitle()"
-                                    >
-                                        <span>{{
-                                            'EMBEDDED_MPV.PLAYER.LOAD_SUBTITLE_FILE'
-                                                | translate
-                                        }}</span>
-                                        <mat-icon>upload_file</mat-icon>
-                                    </button>
-                                }
-                            </div>
-                            @if (capabilities().subtitleDelay) {
-                                <div
-                                    class="player-controls__subtitle-section"
-                                    data-test-id="player-controls-subtitle-delay"
-                                >
-                                    <div
-                                        class="player-controls__subtitle-section-title"
-                                    >
-                                        {{
-                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY'
-                                                | translate
-                                        }}
-                                    </div>
-                                    <div
-                                        class="player-controls__subtitle-delay-row"
-                                    >
-                                        <button
-                                            mat-icon-button
-                                            type="button"
-                                            class="player-controls__button"
-                                            (click)="
-                                                subtitleSettings.adjustDelay(
-                                                    -subtitleDelayStep
-                                                )
-                                            "
-                                            [attr.aria-label]="
-                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_DECREASE'
-                                                    | translate
-                                            "
-                                            [matTooltip]="
-                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_DECREASE'
-                                                    | translate
-                                            "
-                                        >
-                                            <mat-icon>remove</mat-icon>
-                                        </button>
-                                        <span
-                                            class="player-controls__subtitle-delay-value"
-                                            aria-live="polite"
-                                            >{{
-                                                subtitleDelayLabel(
-                                                    state()
-                                                        .subtitleDelaySeconds
-                                                )
-                                            }}</span
-                                        >
-                                        <button
-                                            mat-icon-button
-                                            type="button"
-                                            class="player-controls__button"
-                                            (click)="
-                                                subtitleSettings.adjustDelay(
-                                                    subtitleDelayStep
-                                                )
-                                            "
-                                            [attr.aria-label]="
-                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_INCREASE'
-                                                    | translate
-                                            "
-                                            [matTooltip]="
-                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_INCREASE'
-                                                    | translate
-                                            "
-                                        >
-                                            <mat-icon>add</mat-icon>
-                                        </button>
-                                        <button
-                                            mat-icon-button
-                                            type="button"
-                                            class="player-controls__button"
-                                            [disabled]="
-                                                state().subtitleDelaySeconds ===
-                                                0
-                                            "
-                                            (click)="subtitleSettings.resetDelay()"
-                                            [attr.aria-label]="
-                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_RESET'
-                                                    | translate
-                                            "
-                                            [matTooltip]="
-                                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_RESET'
-                                                    | translate
-                                            "
-                                        >
-                                            <mat-icon>restart_alt</mat-icon>
-                                        </button>
-                                    </div>
-                                </div>
-                            }
-                            @if (capabilities().subtitleStyle) {
-                                <div
-                                    class="player-controls__subtitle-section"
-                                    data-test-id="player-controls-subtitle-style"
-                                >
-                                    <div
-                                        class="player-controls__subtitle-section-title"
-                                    >
-                                        {{
-                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE'
-                                                | translate
-                                        }}
-                                    </div>
-                                    <div
-                                        class="player-controls__subtitle-preset-row"
-                                        role="radiogroup"
-                                        [attr.aria-label]="
-                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE'
-                                                | translate
-                                        "
-                                    >
-                                        @for (
-                                            preset of subtitleSizePresets;
-                                            track preset.value
-                                        ) {
-                                            <button
-                                                type="button"
-                                                role="radio"
-                                                class="player-controls__subtitle-chip"
-                                                [attr.aria-checked]="
-                                                    preset.value ===
-                                                    state().subtitleStyle
-                                                        .sizePercent
-                                                "
-                                                [class.player-controls__subtitle-chip--selected]="
-                                                    preset.value ===
-                                                    state().subtitleStyle
-                                                        .sizePercent
-                                                "
-                                                (click)="
-                                                    subtitleSettings.setSize(
-                                                        preset.value
-                                                    )
-                                                "
-                                            >
-                                                {{ preset.label }}
-                                            </button>
-                                        }
-                                    </div>
-                                    <div
-                                        class="player-controls__subtitle-section-title"
-                                    >
-                                        {{
-                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR'
-                                                | translate
-                                        }}
-                                    </div>
-                                    <div
-                                        class="player-controls__subtitle-preset-row"
-                                        role="radiogroup"
-                                        [attr.aria-label]="
-                                            'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR'
-                                                | translate
-                                        "
-                                    >
-                                        @for (
-                                            preset of subtitleColorPresets;
-                                            track preset.label
-                                        ) {
-                                            <button
-                                                type="button"
-                                                role="radio"
-                                                class="player-controls__subtitle-swatch"
-                                                [class.player-controls__subtitle-swatch--default]="
-                                                    preset.value === null
-                                                "
-                                                [style.--swatch-color]="
-                                                    preset.value
-                                                "
-                                                [attr.aria-checked]="
-                                                    preset.value ===
-                                                    state().subtitleStyle.color
-                                                "
-                                                [class.player-controls__subtitle-swatch--selected]="
-                                                    preset.value ===
-                                                    state().subtitleStyle.color
-                                                "
-                                                [attr.aria-label]="
-                                                    preset.label | translate
-                                                "
-                                                [matTooltip]="
-                                                    preset.label | translate
-                                                "
-                                                (click)="
-                                                    subtitleSettings.setColor(
-                                                        preset.value
-                                                    )
-                                                "
-                                            ></button>
-                                        }
-                                    </div>
-                                </div>
-                            }
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
+                }
 
-            @if (hasQualityLevels()) {
-                <div class="player-controls__popover-anchor">
+                @if (
+                    capabilities().pictureInPicture &&
+                    !(settings.isOpen() && layout.roomy())
+                ) {
                     <button
                         mat-icon-button
                         type="button"
                         class="player-controls__button"
-                        data-test-id="player-controls-quality"
-                        (click)="toggleMenu('quality')"
-                        [attr.aria-expanded]="menus.qualityOpen()"
+                        [disabled]="!state().canPictureInPicture"
+                        (click)="togglePictureInPicture()"
+                        [attr.aria-pressed]="state().pictureInPictureActive"
                         [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.QUALITY' | translate
-                        "
-                        [matTooltip]="'EMBEDDED_MPV.PLAYER.QUALITY' | translate"
-                        matTooltipPosition="above"
-                    >
-                        <mat-icon>high_quality</mat-icon>
-                    </button>
-                    @if (menus.qualityOpen()) {
-                        <div
-                            class="player-controls__panel player-controls__track-popover"
-                            role="menu"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.QUALITY' | translate
-                            "
-                        >
-                            <div class="player-controls__menu-title">
-                                {{ 'EMBEDDED_MPV.PLAYER.QUALITY' | translate }}
-                            </div>
-                            <div class="player-controls__track-list">
-                                <button
-                                    type="button"
-                                    role="menuitemradio"
-                                    [attr.aria-checked]="
-                                        state().qualityAutoEnabled
-                                    "
-                                    class="player-controls__track"
-                                    [class.player-controls__track--selected]="
-                                        state().qualityAutoEnabled
-                                    "
-                                    (click)="menuSelection.qualityLevel(-1)"
-                                >
-                                    <span>{{
-                                        'EMBEDDED_MPV.PLAYER.QUALITY_AUTO'
-                                            | translate
-                                    }}</span>
-                                    @if (state().qualityAutoEnabled) {
-                                        <mat-icon>check</mat-icon>
-                                    }
-                                </button>
-                                @for (
-                                    level of state().qualityLevels;
-                                    track level.id
-                                ) {
-                                    <button
-                                        type="button"
-                                        role="menuitemradio"
-                                        [attr.aria-checked]="level.selected"
-                                        class="player-controls__track"
-                                        [class.player-controls__track--selected]="
-                                            level.selected
-                                        "
-                                        (click)="
-                                            menuSelection.qualityLevel(level.id)
-                                        "
-                                    >
-                                        <span>{{ level.label }}</span>
-                                        @if (level.selected) {
-                                            <mat-icon>check</mat-icon>
-                                        }
-                                    </button>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
-
-            @if (capabilities().playbackSpeed) {
-                <div class="player-controls__popover-anchor">
-                    <button
-                        mat-icon-button
-                        type="button"
-                        class="player-controls__button"
-                        (click)="toggleMenu('speed')"
-                        [attr.aria-expanded]="menus.speedOpen()"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED' | translate
+                            (state().pictureInPictureActive
+                                ? 'EMBEDDED_MPV.PLAYER.EXIT_PICTURE_IN_PICTURE'
+                                : 'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
+                            ) | translate
                         "
                         [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.SPEED_TOOLTIP'
-                                | translate
-                                    : {
-                                          speed: speedLabel(
-                                              state().playbackSpeed
-                                          ),
-                                      }
+                            (state().pictureInPictureActive
+                                ? 'EMBEDDED_MPV.PLAYER.EXIT_PICTURE_IN_PICTURE'
+                                : 'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
+                            ) | translate
                         "
                         matTooltipPosition="above"
                     >
-                        <mat-icon>speed</mat-icon>
+                        <mat-icon>{{
+                            state().pictureInPictureActive
+                                ? 'picture_in_picture_alt'
+                                : 'picture_in_picture'
+                        }}</mat-icon>
                     </button>
-                    @if (menus.speedOpen()) {
-                        <div
-                            class="player-controls__panel player-controls__track-popover"
-                            role="menu"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED' | translate
-                            "
-                        >
-                            <div class="player-controls__menu-title">
-                                {{
-                                    'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED'
-                                        | translate
-                                }}
-                            </div>
-                            <div class="player-controls__track-list">
-                                @for (
-                                    preset of state().speedPresets;
-                                    track preset.value
-                                ) {
-                                    <button
-                                        type="button"
-                                        role="menuitemradio"
-                                        [attr.aria-checked]="
-                                            preset.value ===
-                                            state().playbackSpeed
-                                        "
-                                        class="player-controls__track"
-                                        [class.player-controls__track--selected]="
-                                            preset.value ===
-                                            state().playbackSpeed
-                                        "
-                                        (click)="
-                                            menuSelection.speed(preset.value)
-                                        "
-                                    >
-                                        <span>{{ preset.label }}</span>
-                                        @if (
-                                            preset.value ===
-                                            state().playbackSpeed
-                                        ) {
-                                            <mat-icon>check</mat-icon>
-                                        }
-                                    </button>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
+                }
 
-            @if (capabilities().aspectRatio) {
-                <div class="player-controls__popover-anchor">
+                @if (capabilities().fullscreen) {
                     <button
                         mat-icon-button
                         type="button"
                         class="player-controls__button"
-                        (click)="toggleMenu('aspect')"
-                        [attr.aria-expanded]="menus.aspectOpen()"
+                        [disabled]="!canFullscreen()"
+                        (click)="toggleFullscreen()"
                         [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate
+                            (isFullscreen()
+                                ? 'EMBEDDED_MPV.PLAYER.EXIT_FULLSCREEN'
+                                : 'EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN'
+                            ) | translate
                         "
                         [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate
+                            (isFullscreen()
+                                ? 'EMBEDDED_MPV.PLAYER.EXIT_FULLSCREEN'
+                                : 'EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN'
+                            ) | translate
                         "
                         matTooltipPosition="above"
                     >
-                        <mat-icon>aspect_ratio</mat-icon>
+                        <mat-icon>{{
+                            isFullscreen() ? 'fullscreen_exit' : 'fullscreen'
+                        }}</mat-icon>
                     </button>
-                    @if (menus.aspectOpen()) {
-                        <div
-                            class="player-controls__panel player-controls__track-popover"
-                            role="menu"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate
-                            "
-                        >
-                            <div class="player-controls__menu-title">
-                                {{
-                                    'EMBEDDED_MPV.PLAYER.ASPECT_RATIO'
-                                        | translate
-                                }}
-                            </div>
-                            <div class="player-controls__track-list">
-                                @for (
-                                    preset of state().aspectPresets;
-                                    track preset.value
-                                ) {
-                                    <button
-                                        type="button"
-                                        role="menuitemradio"
-                                        [attr.aria-checked]="
-                                            preset.value === state().aspectRatio
-                                        "
-                                        class="player-controls__track"
-                                        [class.player-controls__track--selected]="
-                                            preset.value === state().aspectRatio
-                                        "
-                                        (click)="
-                                            menuSelection.aspect(preset.value)
-                                        "
-                                    >
-                                        <span>{{
-                                            preset.value === 'no'
-                                                ? ('EMBEDDED_MPV.PLAYER.ASPECT_DEFAULT'
-                                                  | translate)
-                                                : preset.label
-                                        }}</span>
-                                        @if (
-                                            preset.value === state().aspectRatio
-                                        ) {
-                                            <mat-icon>check</mat-icon>
-                                        }
-                                    </button>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
-
-            @if (canRecord()) {
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="player-controls__button player-controls__record-button"
-                    [class.player-controls__record-button--active]="
-                        isRecording()
-                    "
-                    [disabled]="isLoading()"
-                    (click)="toggleRecording()"
-                    [attr.aria-pressed]="isRecording()"
-                    [attr.aria-label]="
-                        (isRecording()
-                            ? 'EMBEDDED_MPV.PLAYER.STOP_RECORDING'
-                            : 'EMBEDDED_MPV.PLAYER.START_RECORDING'
-                        ) | translate
-                    "
-                    [matTooltip]="
-                        (isRecording()
-                            ? 'EMBEDDED_MPV.PLAYER.STOP_RECORDING'
-                            : 'EMBEDDED_MPV.PLAYER.START_RECORDING'
-                        ) | translate
-                    "
-                    matTooltipPosition="above"
-                >
-                    <mat-icon>{{
-                        isRecording() ? 'stop_circle' : 'fiber_manual_record'
-                    }}</mat-icon>
-                </button>
-            }
-
-            @if (capabilities().pictureInPicture) {
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="player-controls__button"
-                    [disabled]="!state().canPictureInPicture"
-                    (click)="togglePictureInPicture()"
-                    [attr.aria-pressed]="state().pictureInPictureActive"
-                    [attr.aria-label]="
-                        (state().pictureInPictureActive
-                            ? 'EMBEDDED_MPV.PLAYER.EXIT_PICTURE_IN_PICTURE'
-                            : 'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
-                        ) | translate
-                    "
-                    [matTooltip]="
-                        (state().pictureInPictureActive
-                            ? 'EMBEDDED_MPV.PLAYER.EXIT_PICTURE_IN_PICTURE'
-                            : 'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
-                        ) | translate
-                    "
-                    matTooltipPosition="above"
-                >
-                    <mat-icon>{{
-                        state().pictureInPictureActive
-                            ? 'picture_in_picture_alt'
-                            : 'picture_in_picture'
-                    }}</mat-icon>
-                </button>
-            }
-
-            @if (capabilities().fullscreen) {
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="player-controls__button"
-                    [disabled]="!canFullscreen()"
-                    (click)="toggleFullscreen()"
-                    [attr.aria-label]="
-                        (isFullscreen()
-                            ? 'EMBEDDED_MPV.PLAYER.EXIT_FULLSCREEN'
-                            : 'EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN'
-                        ) | translate
-                    "
-                    [matTooltip]="
-                        (isFullscreen()
-                            ? 'EMBEDDED_MPV.PLAYER.EXIT_FULLSCREEN'
-                            : 'EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN'
-                        ) | translate
-                    "
-                    matTooltipPosition="above"
-                >
-                    <mat-icon>{{
-                        isFullscreen() ? 'fullscreen_exit' : 'fullscreen'
-                    }}</mat-icon>
-                </button>
-            }
+                }
+            </div>
         </div>
     </div>
+
+    @if (settings.isOpen()) {
+        <app-player-settings-panel
+            class="player-controls__settings"
+            [class.player-controls__settings--sheet]="!layout.roomy()"
+            data-test-id="player-controls-settings-panel"
+            [controller]="controller()"
+            [settings]="settings"
+            [selection]="menuSelection"
+            [subtitleSettings]="subtitleSettings"
+            [mode]="layout.roomy() ? 'panel' : 'sheet'"
+            [title]="'EMBEDDED_MPV.PLAYER.SETTINGS' | translate"
+            (closeRequested)="settings.close()"
+            (pointerenter)="chrome.onPointerEnter()"
+            (pointerleave)="chrome.onPointerLeave()"
+            (pointerdown)="chrome.onPointerDown()"
+            (click)="chrome.onClick($event)"
+            (keydown)="chrome.onKeyDown()"
+            (focusin)="chrome.onFocusIn($event)"
+            (focusout)="chrome.onFocusOut($event)"
+        />
+    }
+
+    @if (upNextCard.item(); as item) {
+        <app-player-up-next-card
+            class="player-controls__up-next"
+            [class.player-controls__up-next--compact]="isCompact()"
+            [item]="item"
+            [remainingSeconds]="upNextCard.remainingSeconds() ?? 0"
+            [compact]="isCompact()"
+            [collapsed]="upNextCard.collapsed()"
+            (selected)="reveal(); nextEpisodeRequested.emit()"
+            (dismissed)="upNextCard.dismiss()"
+            (collapseRequested)="upNextCard.collapse()"
+            (pointerenter)="chrome.onPointerEnter()"
+            (pointerleave)="chrome.onPointerLeave()"
+            (pointerdown)="chrome.onPointerDown()"
+            (click)="chrome.onClick($event)"
+            (keydown)="chrome.onKeyDown()"
+            (focusin)="chrome.onFocusIn($event)"
+            (focusout)="chrome.onFocusOut($event)"
+        />
+    }
 }

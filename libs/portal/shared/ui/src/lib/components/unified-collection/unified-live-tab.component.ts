@@ -198,6 +198,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly timelineChannelLogo = this.epgView.timelineChannelLogo;
     readonly timelineArchiveAvailable = this.epgView.timelineArchiveAvailable;
     readonly timelineArchiveDays = this.epgView.timelineArchiveDays;
+    readonly catchupTimelineSegments = this.epgView.catchupTimelineSegments;
 
     private readonly recording = createUnifiedLiveRecording({
         activeItem: this.activeItem,

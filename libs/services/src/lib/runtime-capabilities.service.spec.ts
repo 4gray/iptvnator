@@ -20,6 +20,16 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsPortalConnectivityGuard).toBe(false);
     });
 
+    it('offers the parental lock worker filter only with both bridge methods', () => {
+        const service = new RuntimeCapabilitiesService();
+        testWindow.electron = { setParentalLockState: jest.fn() };
+        expect(service.supportsParentalLockSqliteFilter).toBe(false);
+        testWindow.electron['dbSetCategoryLocks'] = jest.fn();
+        expect(service.supportsParentalLockSqliteFilter).toBe(true);
+        testWindow.electron = undefined;
+        expect(service.supportsParentalLockSqliteFilter).toBe(false);
+    });
+
     it('reports browser PWA capabilities when the Electron bridge is absent', () => {
         testWindow.electron = undefined;
 

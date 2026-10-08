@@ -2,15 +2,24 @@ import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { DataService } from '@iptvnator/services';
+import { StalkerPortalDiscoveryService } from '@iptvnator/portal/stalker/data-access';
+import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     PLAYLIST_PARSE_BY_URL,
     ProviderImportCandidate,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { AddPlaylistDialogComponent } from './add-playlist-dialog.component';
+
+type ChildSignalKey =
+    | 'urlUpload'
+    | 'fileUpload'
+    | 'textImport'
+    | 'xtreamImport'
+    | 'stalkerImport'
+    | 'autoImport';
 
 describe('AddPlaylistDialogComponent', () => {
     let component: AddPlaylistDialogComponent;
@@ -67,8 +76,20 @@ describe('AddPlaylistDialogComponent', () => {
         );
     });
 
+    /**
+     * Replaces a read-only `viewChild` signal with a stub that resolves to a
+     * minimal structural double of the child component, or to `undefined`
+     * while the child is not rendered yet.
+     */
+    function stubChild(key: ChildSignalKey, child: object | undefined): void {
+        Object.defineProperty(component, key, {
+            value: jest.fn(() => child),
+            configurable: true,
+        });
+    }
+
     it('sends a trimmed custom title for URL playlists', () => {
-        (component as { urlUpload: jest.Mock }).urlUpload = jest.fn(() => ({
+        stubChild('urlUpload', {
             form: {
                 getRawValue: () => ({
                     playlistName: '  My Playlist  ',
@@ -76,7 +97,7 @@ describe('AddPlaylistDialogComponent', () => {
                     playlistUrl: ' https://example.com/list.m3u ',
                 }),
             },
-        }));
+        });
 
         component.submitUrlPlaylist();
 
@@ -92,7 +113,7 @@ describe('AddPlaylistDialogComponent', () => {
     });
 
     it('omits the title when the optional name is blank', () => {
-        (component as { urlUpload: jest.Mock }).urlUpload = jest.fn(() => ({
+        stubChild('urlUpload', {
             form: {
                 getRawValue: () => ({
                     playlistName: '   ',
@@ -100,7 +121,7 @@ describe('AddPlaylistDialogComponent', () => {
                     playlistUrl: 'https://example.com/list.m3u',
                 }),
             },
-        }));
+        });
 
         component.submitUrlPlaylist();
 
@@ -167,10 +188,7 @@ describe('AddPlaylistDialogComponent', () => {
         'clears the current $type import surface',
         ({ type, childAccessor, clearMethod }) => {
             const clear = jest.fn();
-            (component as unknown as Record<string, jest.Mock>)[childAccessor] =
-                jest.fn(() => ({
-                    [clearMethod]: clear,
-                }));
+            stubChild(childAccessor, { [clearMethod]: clear });
             selectType(type);
 
             component.clearCurrentForm();
@@ -180,10 +198,10 @@ describe('AddPlaylistDialogComponent', () => {
     );
 
     it('disables clear when a file upload has no selection', () => {
-        (component as { fileUpload: jest.Mock }).fileUpload = jest.fn(() => ({
+        stubChild('fileUpload', {
             isImporting: () => false,
             selectedFile: () => null,
-        }));
+        });
         selectType('file');
 
         expect(component.isClearDisabled()).toBeTruthy();
@@ -260,9 +278,7 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('prefills the xtream form once the child exists and clears the pending candidate', () => {
             const patchValue = jest.fn();
-            (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
-                () => ({ form: { patchValue } })
-            );
+            stubChild('xtreamImport', { form: { patchValue } });
 
             component.onCandidateSelected({
                 kind: 'xtream',
@@ -288,9 +304,7 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('drops the candidate when the user switches to another method first', () => {
             const patchValue = jest.fn();
-            (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
-                () => ({ form: { patchValue } })
-            );
+            stubChild('xtreamImport', { form: { patchValue } });
 
             component.onCandidateSelected({
                 kind: 'xtream',
@@ -309,9 +323,7 @@ describe('AddPlaylistDialogComponent', () => {
         });
 
         it('keeps the candidate pending while the target form does not exist yet', () => {
-            (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
-                () => undefined
-            );
+            stubChild('xtreamImport', undefined);
             const patchValue = jest.fn();
 
             component.onCandidateSelected({
@@ -322,9 +334,7 @@ describe('AddPlaylistDialogComponent', () => {
             applyPrefill();
 
             // Child appears on a later change-detection pass.
-            (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
-                () => ({ form: { patchValue } })
-            );
+            stubChild('xtreamImport', { form: { patchValue } });
             applyPrefill();
 
             expect(patchValue).toHaveBeenCalledWith(
@@ -334,8 +344,7 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('prefills the stalker form including identity fields', () => {
             const patchValue = jest.fn();
-            (component as { stalkerImport: jest.Mock }).stalkerImport =
-                jest.fn(() => ({ form: { patchValue } }));
+            stubChild('stalkerImport', { form: { patchValue } });
 
             component.onCandidateSelected({
                 kind: 'stalker',
@@ -369,9 +378,9 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('prefills the URL form for an m3u-url candidate', () => {
             const patchValue = jest.fn();
-            (component as { urlUpload: jest.Mock }).urlUpload = jest.fn(() => ({
+            stubChild('urlUpload', {
                 form: { patchValue },
-            }));
+            });
 
             component.onCandidateSelected({
                 kind: 'm3u-url',
@@ -389,9 +398,7 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('prefills the raw-text form for an m3u-text candidate', () => {
             const patchValue = jest.fn();
-            (component as { textImport: jest.Mock }).textImport = jest.fn(
-                () => ({ textForm: { patchValue } })
-            );
+            stubChild('textImport', { textForm: { patchValue } });
 
             component.onCandidateSelected({
                 kind: 'm3u-text',
@@ -411,4 +418,69 @@ describe('AddPlaylistDialogComponent', () => {
         // methods — no more category × subtype matrix.
         component.method.set(type);
     }
+});
+
+describe('AddPlaylistDialogComponent actions', () => {
+    function render(type: PlaylistType) {
+        TestBed.configureTestingModule({
+            imports: [AddPlaylistDialogComponent, TranslateModule.forRoot()],
+            providers: [
+                { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
+                { provide: MatDialogRef, useValue: { close: jest.fn() } },
+                { provide: Store, useValue: { dispatch: jest.fn() } },
+                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+                { provide: MAT_DIALOG_DATA, useValue: { type } },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { isElectron: true },
+                },
+                {
+                    provide: StalkerPortalDiscoveryService,
+                    useValue: { discover: jest.fn() },
+                },
+            ],
+        });
+        const fixture = TestBed.createComponent(AddPlaylistDialogComponent);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    function primaryLabel(root: HTMLElement): string | undefined {
+        const buttons = root.querySelectorAll<HTMLButtonElement>(
+            '.apd-actions__decision button'
+        );
+        return buttons[buttons.length - 1]?.textContent?.trim();
+    }
+
+    it.each<PlaylistType>(['url', 'text', 'xtream', 'stalker'])(
+        'submits the %s form with the shared "Add playlist" label',
+        (type) => {
+            const fixture = render(type);
+
+            expect(primaryLabel(fixture.nativeElement)).toBe(
+                'HOME.URL_UPLOAD.ADD_PLAYLIST'
+            );
+        }
+    );
+
+    it('shows a single ellipsis while a Stalker portal validates', () => {
+        const fixture = render('stalker');
+        fixture.componentInstance.stalkerImport()?.isLoading.set(true);
+        fixture.detectChanges();
+
+        expect(primaryLabel(fixture.nativeElement)).toBe(
+            'HOME.STALKER_PORTAL.VALIDATING'
+        );
+    });
+
+    it('names the method picker with a translated label', () => {
+        const fixture = render('url');
+        const group = (fixture.nativeElement as HTMLElement).querySelector(
+            '[role="radiogroup"]'
+        );
+
+        expect(group?.getAttribute('aria-label')).toBe(
+            'HOME.ADD_PLAYLIST.METHOD_GROUP_LABEL'
+        );
+    });
 });

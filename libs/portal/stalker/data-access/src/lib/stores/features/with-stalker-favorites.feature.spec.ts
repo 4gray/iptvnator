@@ -179,7 +179,7 @@ describe('withStalkerFavorites', () => {
                     playlist: {
                         _id: 'portal-1',
                         favorites: [],
-                    } as PlaylistMeta,
+                    } as Partial<PlaylistMeta> as PlaylistMeta,
                 })
             );
             expect(snackBar.open).toHaveBeenCalledWith(

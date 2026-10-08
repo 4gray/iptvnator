@@ -220,7 +220,7 @@
 
     &__title {
         font-size: 0.85rem;
-        font-weight: 520;
+        font-weight: 500;
         letter-spacing: -0.01em;
         margin-bottom: 4px;
         text-wrap: balance;
@@ -310,7 +310,7 @@
 
 .empty-state-title {
     font-size: 1.05rem;
-    font-weight: 520;
+    font-weight: 500;
     letter-spacing: -0.01em;
     margin-bottom: 8px;
 }
@@ -325,5 +325,58 @@
 @container (max-width: 220px) {
     .groups-nav-list {
         padding-inline-end: 0;
+    }
+}
+
+// Same affordance as the portal category rail's locked row: the parent
+// sees that groups are withheld and can unlock from here.
+.groups-locked-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px 12px;
+    border: 1px dashed var(--app-separator);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--app-body-color);
+    font: inherit;
+    font-size: 0.8125rem;
+    text-align: left;
+    cursor: pointer;
+
+    // Hover tints like the rail's other rows. Keyboard focus keeps the rail
+    // background so the ring holds >= 3:1 against what surrounds it.
+    &:hover:not(:focus-visible) {
+        background: var(--app-selection-surface);
+        color: var(--app-heading-color);
+    }
+
+    &:focus-visible {
+        color: var(--app-heading-color);
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
+    }
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+
+    &__label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__hint {
+        font-size: 0.6875rem;
+        opacity: 0.8;
+        white-space: nowrap;
     }
 }

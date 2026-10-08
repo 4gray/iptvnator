@@ -101,6 +101,7 @@ export class StubAudioPlayerComponent {
     readonly icon = input('');
     readonly url = input.required<string>();
     readonly channelName = input('');
+    readonly playbackSessionKey = input<string | null>(null);
 }
 
 @Component({
@@ -114,6 +115,7 @@ export class StubWebPlayerViewComponent {
     readonly title = input('');
     readonly playback = input<ResolvedPortalPlayback | null>(null);
     readonly playerOverride = input<VideoPlayer | null>(null);
+    readonly timelineSegments = input<unknown>(null);
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly recordingStopped = output<RecordingStoppedEvent>();

@@ -1,341 +1,46 @@
-import {
-    Component,
-    input,
-    output,
-    signal,
-    ChangeDetectionStrategy,
-} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { Location } from '@angular/common';
-import { MatIcon } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute } from '@angular/router';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { MockPipe } from 'ng-mocks';
-import {
-    ContentHeroComponent,
-    SeasonContainerComponent,
-} from '@iptvnator/ui/components';
-import {
-    PORTAL_EXTERNAL_PLAYBACK,
-    PORTAL_PLAYBACK_POSITIONS,
-    PORTAL_PLAYER,
-    SeriesResumeTarget,
-} from '@iptvnator/portal/shared/util';
-import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import { ContentHeroComponent } from '@iptvnator/ui/components';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
-import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details.component';
+import { SerialDetailsMenuService } from './serial-details-menu.service';
 import { SerialDetailsPlaybackService } from './serial-details-playback.service';
-import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
-
-@Component({
-    selector: 'app-season-container',
-    standalone: true,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    template: '<div data-testid="season-container"></div>',
-})
-class StubSeasonContainerComponent {
-    readonly seasons = input<unknown>(null);
-    readonly seriesId = input<number | string | null>(null);
-    readonly playlistId = input('');
-    readonly seriesTitle = input<string | undefined>(undefined);
-    readonly playbackPositions = input<unknown>(null);
-    readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
-    readonly downloadsEnabled = input(true);
-    readonly openingEpisodeId = input<number | null>(null);
-    readonly activeEpisodeId = input<number | null>(null);
-    readonly playingEpisodeId = input<number | null>(null);
-    readonly seasonDescriptions = input<unknown>(null);
-    readonly seasonPosters = input<unknown>(null);
-    readonly seasonWatchBatchRunning = input(false);
-    readonly episodeClicked = output<unknown>();
-    readonly playbackToggleRequested = output<unknown>();
-    readonly seasonPlaybackToggleRequested = output<unknown>();
-}
-
-@Component({
-    selector: 'app-portal-inline-player',
-    standalone: true,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    template: '',
-})
-class StubPortalInlinePlayerComponent {
-    readonly playbackSessionKey = input.required<string>();
-    readonly playback = input<unknown>(null);
-    readonly episodeMetadata = input<unknown>(null);
-    readonly seriesTitle = input<string | null>(null);
-    readonly seriesNavigation = input<unknown>(null);
-    readonly upNextEpisodes = input<unknown>(null);
-    readonly seriesEpisodes = input<unknown>(null);
-    readonly seasonPosters = input<unknown>(null);
-    readonly episodePlaybackPositions = input<unknown>(null);
-    readonly seasonLoadStates = input<unknown>(null);
-    readonly timeUpdate = output<unknown>();
-    readonly closed = output<void>();
-    readonly streamUrlCopied = output<void>();
-    readonly externalFallbackRequested = output<unknown>();
-    readonly playbackEnded = output<void>();
-    readonly previousEpisodeRequested = output<void>();
-    readonly nextEpisodeRequested = output<void>();
-    readonly upNextEpisodeSelected = output<unknown>();
-    readonly episodePanelSeasonSelected = output<string>();
-}
-
-@Component({
-    selector: 'mat-icon',
-    standalone: true,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    template: '<ng-content />',
-})
-class StubMatIconComponent {}
+import {
+    configureSerialDetailsTestBed,
+    createSerialDetailsStubs,
+    resetSerialDetailsStubs,
+} from './serial-details.harness';
+import {
+    StubPortalInlinePlayerComponent,
+    StubSeasonContainerComponent,
+} from './serial-details.test-stubs';
 
 describe('SerialDetailsComponent', () => {
     let fixture: ComponentFixture<SerialDetailsComponent>;
-    const selectedItem = signal<unknown>(null);
-    const selectedContentType = signal<'series'>('series');
-    const isFavorite = signal(false);
-    const isLoadingDetails = signal(false);
-    const detailsError = signal<string | null>(null);
-    const currentPlaylist = signal({
-        id: 'xtream-1',
-        serverUrl: 'http://xtream.example',
-        username: 'user',
-        password: 'pass',
-        userAgent: 'ProtectedProvider/2.0',
-        referrer: 'https://referrer.example/series',
-        origin: 'https://origin.example',
-    });
-    const fetchSerialDetailsWithMetadata = jest.fn();
-    const cancelDetailsRequest = jest.fn();
-    const checkFavoriteStatus = jest.fn();
-    const constructEpisodeStreamUrl = jest.fn();
-    const addRecentItem = jest.fn();
-    const openResolvedPlayback = jest.fn();
-    const openExternalPlayback = jest.fn();
-    const savePlaybackPosition = jest.fn();
-    const clearPlaybackPosition = jest.fn();
-    const savePlaybackPositionsBatch = jest.fn();
-    const clearPlaybackPositionsBatch = jest.fn();
-    const loadAllPositions = jest.fn();
-    const isEmbeddedPlayer = jest.fn();
-    const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
-    let positionUpdateCallback: ((data: PlaybackPositionData) => void) | null =
-        null;
-    let seriesResumeTarget: ReturnType<
-        typeof signal<SeriesResumeTarget | null>
-    >;
-    let routeParams: BehaviorSubject<{
-        categoryId: string;
-        serialId: string;
-    }>;
+    const stubs = createSerialDetailsStubs();
+    const {
+        selectedItem,
+        currentPlaylist,
+        fetchSerialDetailsWithMetadata,
+        cancelDetailsRequest,
+        checkFavoriteStatus,
+        constructEpisodeStreamUrl,
+        addRecentItem,
+        openResolvedPlayback,
+        openExternalPlayback,
+        savePlaybackPosition,
+        isEmbeddedPlayer,
+        getSeriesPlaybackPositions,
+        seriesResumeTarget,
+        routeParams,
+    } = stubs;
 
     beforeEach(async () => {
         window.history.replaceState({}, '', window.location.href);
-        selectedItem.set({
-            series_id: 103,
-            info: {
-                name: 'Series One',
-                plot: 'Series plot',
-                cover: 'cover.jpg',
-                backdrop_path: [],
-                genre: 'Drama',
-                category_id: '3',
-                tmdb_id: 901,
-                tmdb_cast: [{ name: 'Sienna Wave', character: 'Mara' }],
-            },
-            episodes: {
-                '1': [
-                    {
-                        id: '1001',
-                        episode_num: 1,
-                        title: 'Episode 1',
-                        season: 1,
-                    },
-                    {
-                        id: '1002',
-                        episode_num: 2,
-                        title: 'Episode 2',
-                        season: 1,
-                    },
-                ],
-                '2': [
-                    {
-                        id: '2001',
-                        episode_num: 1,
-                        title: 'Season 2 Episode 1',
-                        season: 2,
-                    },
-                ],
-            },
-        });
-        isFavorite.set(false);
-        isLoadingDetails.set(false);
-        detailsError.set(null);
-        fetchSerialDetailsWithMetadata.mockClear();
-        cancelDetailsRequest.mockClear();
-        checkFavoriteStatus.mockClear();
-        constructEpisodeStreamUrl.mockReset();
-        constructEpisodeStreamUrl.mockImplementation(
-            (episode: { id: string | number }) =>
-                `http://xtream.example/series/${episode.id}.mp4`
-        );
-        addRecentItem.mockClear();
-        openResolvedPlayback.mockReset();
-        openResolvedPlayback.mockResolvedValue(undefined);
-        openExternalPlayback.mockReset();
-        openExternalPlayback.mockResolvedValue(undefined);
-        savePlaybackPosition.mockReset();
-        savePlaybackPosition.mockResolvedValue(undefined);
-        clearPlaybackPosition.mockReset();
-        clearPlaybackPosition.mockResolvedValue(undefined);
-        savePlaybackPositionsBatch.mockReset();
-        savePlaybackPositionsBatch.mockResolvedValue(undefined);
-        clearPlaybackPositionsBatch.mockReset();
-        clearPlaybackPositionsBatch.mockResolvedValue(undefined);
-        loadAllPositions.mockReset();
-        loadAllPositions.mockResolvedValue(undefined);
-        positionUpdateCallback = null;
-        isEmbeddedPlayer.mockReset();
-        isEmbeddedPlayer.mockReturnValue(false);
-        getSeriesPlaybackPositions.mockClear();
-        getSeriesPlaybackPositions.mockResolvedValue([]);
-        seriesResumeTarget = signal<SeriesResumeTarget | null>(null);
-        routeParams = new BehaviorSubject({
-            categoryId: '3',
-            serialId: '103',
-        });
-
-        await TestBed.configureTestingModule({
-            imports: [SerialDetailsComponent],
-            providers: [
-                {
-                    provide: ActivatedRoute,
-                    useValue: {
-                        params: routeParams,
-                        snapshot: {
-                            params: {
-                                categoryId: '3',
-                                serialId: '103',
-                            },
-                        },
-                    },
-                },
-                {
-                    provide: XtreamStore,
-                    useValue: {
-                        selectedItem,
-                        selectedContentType,
-                        isFavorite,
-                        isLoadingDetails,
-                        detailsError,
-                        currentPlaylist,
-                        fetchSerialDetailsWithMetadata,
-                        cancelDetailsRequest,
-                        checkFavoriteStatus,
-                        setSelectedItem: jest.fn((value: unknown) =>
-                            selectedItem.set(value)
-                        ),
-                        toggleFavorite: jest.fn(),
-                        constructEpisodeStreamUrl,
-                        addRecentItem,
-                        backfillContentMetadata: jest.fn(),
-                        loadAllPositions,
-                    },
-                },
-                {
-                    provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: {
-                        activeSession: signal(null),
-                    },
-                },
-                {
-                    provide: PORTAL_PLAYBACK_POSITIONS,
-                    useValue: {
-                        getSeriesPlaybackPositions,
-                        savePlaybackPosition,
-                        clearPlaybackPosition,
-                        savePlaybackPositionsBatch,
-                        clearPlaybackPositionsBatch,
-                    },
-                },
-                {
-                    provide: PORTAL_PLAYER,
-                    useValue: {
-                        isEmbeddedPlayer,
-                        openResolvedPlayback,
-                        openExternalPlayback,
-                    },
-                },
-                {
-                    provide: PlaybackPositionRuntimeBridgeService,
-                    useValue: {
-                        onPlaybackPositionUpdate: (
-                            callback: (data: PlaybackPositionData) => void
-                        ) => {
-                            positionUpdateCallback = callback;
-                            return () => {
-                                positionUpdateCallback = null;
-                            };
-                        },
-                    },
-                },
-                {
-                    provide: XTREAM_SERIES_RESUME_TARGET,
-                    useValue: seriesResumeTarget,
-                },
-                {
-                    provide: MatSnackBar,
-                    useValue: {
-                        open: jest.fn(),
-                    },
-                },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        instant: (key: string) => key,
-                        get: (key: string) => of(key),
-                        stream: (key: string) => of(key),
-                        onLangChange: EMPTY,
-                        onTranslationChange: EMPTY,
-                        onDefaultLangChange: EMPTY,
-                    },
-                },
-                {
-                    provide: Location,
-                    useValue: {
-                        back: jest.fn(),
-                    },
-                },
-            ],
-        })
-            .overrideComponent(SerialDetailsComponent, {
-                remove: {
-                    imports: [
-                        MatIcon,
-                        PortalInlinePlayerComponent,
-                        SeasonContainerComponent,
-                        TranslatePipe,
-                    ],
-                },
-                add: {
-                    imports: [
-                        StubMatIconComponent,
-                        StubPortalInlinePlayerComponent,
-                        StubSeasonContainerComponent,
-                        MockPipe(
-                            TranslatePipe,
-                            (value: string | null | undefined) => value ?? ''
-                        ),
-                    ],
-                },
-            })
-            .compileComponents();
+        resetSerialDetailsStubs(stubs);
+        await configureSerialDetailsTestBed(stubs);
 
         fixture = TestBed.createComponent(SerialDetailsComponent);
     });
@@ -554,9 +259,7 @@ describe('SerialDetailsComponent', () => {
             );
 
         expect(quickStartButton).not.toBeNull();
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_FIRST_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
@@ -564,12 +267,20 @@ describe('SerialDetailsComponent', () => {
         expect(constructEpisodeStreamUrl).toHaveBeenCalledWith(
             expect.objectContaining({ id: '1001' })
         );
+        // The series is a recent view only once the episode has played.
+        expect(addRecentItem).not.toHaveBeenCalled();
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['http://xtream.example/series/1001.mp4'],
+        });
         expect(addRecentItem).toHaveBeenCalledWith({
             xtreamId: '103',
             contentType: 'series',
-            playlist: currentPlaylist,
+            playlist: expect.any(Function),
             backdropUrl: undefined,
         });
+        expect(addRecentItem.mock.calls[0][0].playlist()).toEqual(
+            currentPlaylist()
+        );
         expect(openResolvedPlayback).toHaveBeenCalledWith(
             expect.objectContaining({
                 streamUrl: 'http://xtream.example/series/1001.mp4',
@@ -610,9 +321,9 @@ describe('SerialDetailsComponent', () => {
             );
 
         expect(quickStartButton?.textContent).toContain(
-            'XTREAM.RESUME_EPISODE'
+            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
-        expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
+        expect(quickStartButton?.textContent).toContain('S01E01');
 
         quickStartButton?.click();
 
@@ -648,6 +359,8 @@ describe('SerialDetailsComponent', () => {
             season: 2,
         } as never);
         await fixture.whenStable();
+        // The launch settles through its page checks before the save.
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(savePlaybackPosition).toHaveBeenCalledWith(
             'xtream-1',
@@ -662,12 +375,16 @@ describe('SerialDetailsComponent', () => {
                 updatedAt: expect.any(String),
             })
         );
+        // The launched episode's position lands two microtasks after the
+        // save: `recordExternalLaunch` awaits the launch, then the save.
+        await Promise.resolve();
+        await Promise.resolve();
         fixture.detectChanges();
         const quickStartButton: HTMLButtonElement | null =
             fixture.nativeElement.querySelector(
                 '[data-testid="series-quick-start"]'
             );
-        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY_EPISODE');
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain(
             'S02E01 \u00b7 Season 2 Episode 1'
         );
@@ -747,6 +464,7 @@ describe('SerialDetailsComponent', () => {
     it('applies streamed playback-position updates for the selected series only', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
+        const positionUpdateCallback = stubs.positionUpdates.callback;
         if (!positionUpdateCallback) {
             throw new Error('expected a playback-position subscription');
         }
@@ -768,7 +486,7 @@ describe('SerialDetailsComponent', () => {
                 '[data-testid="series-quick-start"]'
             );
         expect(quickStartButton()?.textContent).not.toContain(
-            'XTREAM.RESUME_EPISODE'
+            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
 
         positionUpdateCallback({
@@ -784,9 +502,34 @@ describe('SerialDetailsComponent', () => {
         fixture.detectChanges();
 
         expect(quickStartButton()?.textContent).toContain(
-            'XTREAM.RESUME_EPISODE'
+            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
-        expect(quickStartButton()?.textContent).toContain('S01E01 · Episode 1');
+        expect(quickStartButton()?.textContent).toContain('S01E01');
+    });
+
+    it('records history when the menu opens the next episode in MPV', async () => {
+        const streamUrl = 'http://xtream.example/series/1001.mp4';
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const menu = fixture.debugElement.injector.get(
+            SerialDetailsMenuService
+        );
+        await menu.run('external-player');
+        await fixture.whenStable();
+
+        // The regular episode start with the player forced: same history
+        // and launch-position bookkeeping as the Play button.
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({ streamUrl }),
+            'mpv'
+        );
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: [streamUrl],
+        });
+        expect(addRecentItem).toHaveBeenCalledWith(
+            expect.objectContaining({ xtreamId: '103', contentType: 'series' })
+        );
     });
 
     it('persists the launched episode after an external fallback succeeds', async () => {
@@ -877,237 +620,6 @@ describe('SerialDetailsComponent', () => {
             duration: 1200,
         });
         expect(savePlaybackPosition).not.toHaveBeenCalled();
-    });
-
-    it('saves and clears positions for season-container toggle requests', async () => {
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const playbackService = fixture.debugElement.injector.get(
-            SerialDetailsPlaybackService
-        );
-        await playbackService.handlePlaybackToggleRequested({
-            contentXtreamId: 1001,
-            nextPosition: {
-                playlistId: 'xtream-1',
-                contentXtreamId: 1001,
-                contentType: 'episode',
-                seriesXtreamId: 103,
-                seasonNumber: 1,
-                episodeNumber: 1,
-                positionSeconds: 950,
-                durationSeconds: 1000,
-            },
-        } as never);
-        expect(savePlaybackPosition).toHaveBeenCalledWith(
-            'xtream-1',
-            expect.objectContaining({ contentXtreamId: 1001 })
-        );
-
-        await playbackService.handlePlaybackToggleRequested({
-            contentXtreamId: 1001,
-            nextPosition: null,
-        } as never);
-        expect(clearPlaybackPosition).toHaveBeenCalledWith(
-            'xtream-1',
-            1001,
-            'episode'
-        );
-    });
-
-    it('marks a season watched through one batch save and updates rendered positions', async () => {
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const playbackService = fixture.debugElement.injector.get(
-            SerialDetailsPlaybackService
-        );
-        const snackBar = TestBed.inject(MatSnackBar);
-        const seasonPosition = (contentXtreamId: number, episodeNumber: number) => ({
-            playlistId: 'xtream-1',
-            contentXtreamId,
-            contentType: 'episode' as const,
-            seriesXtreamId: 103,
-            seasonNumber: 1,
-            episodeNumber,
-            positionSeconds: 1200,
-            durationSeconds: 1200,
-        });
-
-        await playbackService.handleWatchToggleRequested(
-            {
-                seasonKey: '1',
-                markWatched: true,
-                requests: [
-                    {
-                        contentXtreamId: 1001,
-                        nextPosition: seasonPosition(1001, 1),
-                    },
-                    {
-                        contentXtreamId: 1002,
-                        nextPosition: seasonPosition(1002, 2),
-                    },
-                ],
-            } as never,
-            'season'
-        );
-
-        expect(savePlaybackPositionsBatch).toHaveBeenCalledTimes(1);
-        expect(savePlaybackPositionsBatch).toHaveBeenCalledWith('xtream-1', [
-            expect.objectContaining({ contentXtreamId: 1001 }),
-            expect.objectContaining({ contentXtreamId: 1002 }),
-        ]);
-        expect(savePlaybackPosition).not.toHaveBeenCalled();
-        expect(
-            playbackService.episodePlaybackPositions().get(1001)
-        ).toEqual(expect.objectContaining({ positionSeconds: 1200 }));
-        expect(
-            playbackService.episodePlaybackPositions().get(1002)
-        ).toBeDefined();
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'XTREAM.SEASON_MARKED_WATCHED',
-            undefined,
-            { duration: 5000 }
-        );
-        // The catalog badge source must follow the batch.
-        expect(loadAllPositions).toHaveBeenCalledWith('xtream-1');
-        expect(playbackService.seasonWatchBatchRunning()).toBe(false);
-    });
-
-    it('unwatches a season through one batch clear', async () => {
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const playbackService = fixture.debugElement.injector.get(
-            SerialDetailsPlaybackService
-        );
-        await playbackService.handleWatchToggleRequested(
-            {
-                seasonKey: '1',
-                markWatched: false,
-                requests: [
-                    { contentXtreamId: 1001, nextPosition: null },
-                    { contentXtreamId: 1002, nextPosition: null },
-                ],
-            } as never,
-            'season'
-        );
-
-        expect(clearPlaybackPositionsBatch).toHaveBeenCalledTimes(1);
-        expect(clearPlaybackPositionsBatch).toHaveBeenCalledWith('xtream-1', [
-            { contentXtreamId: 1001, contentType: 'episode' },
-            { contentXtreamId: 1002, contentType: 'episode' },
-        ]);
-        expect(clearPlaybackPosition).not.toHaveBeenCalled();
-        expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
-            false
-        );
-    });
-
-    it('does not write a stale season batch into another playlist state', async () => {
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        let resolveBatch!: () => void;
-        savePlaybackPositionsBatch.mockImplementation(
-            () =>
-                new Promise<void>((resolve) => {
-                    resolveBatch = resolve;
-                })
-        );
-        const playbackService = fixture.debugElement.injector.get(
-            SerialDetailsPlaybackService
-        );
-        const pending = playbackService.handleWatchToggleRequested(
-            {
-                seasonKey: '1',
-                markWatched: true,
-                requests: [
-                    {
-                        contentXtreamId: 1001,
-                        nextPosition: {
-                            playlistId: 'xtream-1',
-                            contentXtreamId: 1001,
-                            contentType: 'episode',
-                            seriesXtreamId: 103,
-                            seasonNumber: 1,
-                            episodeNumber: 1,
-                            positionSeconds: 1200,
-                            durationSeconds: 1200,
-                        },
-                    },
-                ],
-            } as never,
-            'season'
-        );
-
-        // The user navigates to another playlist while the batch is pending.
-        const initialPlaylist = currentPlaylist();
-        currentPlaylist.set({ ...initialPlaylist, id: 'xtream-2' });
-        resolveBatch();
-        await pending;
-
-        expect(savePlaybackPositionsBatch).toHaveBeenCalledWith(
-            'xtream-1',
-            expect.anything()
-        );
-        expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
-            false
-        );
-        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
-        // The store now belongs to the other playlist — no stale refresh.
-        expect(loadAllPositions).not.toHaveBeenCalled();
-        expect(playbackService.seasonWatchBatchRunning()).toBe(false);
-        currentPlaylist.set(initialPlaylist);
-    });
-
-    it('keeps rendered positions and reports the error when the season batch fails', async () => {
-        const consoleError = jest
-            .spyOn(console, 'error')
-            .mockImplementation(() => undefined);
-        savePlaybackPositionsBatch.mockRejectedValue(
-            new Error('batch failed')
-        );
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const playbackService = fixture.debugElement.injector.get(
-            SerialDetailsPlaybackService
-        );
-        const snackBar = TestBed.inject(MatSnackBar);
-        await playbackService.handleWatchToggleRequested(
-            {
-                seasonKey: '1',
-                markWatched: true,
-                requests: [
-                    {
-                        contentXtreamId: 1001,
-                        nextPosition: {
-                            playlistId: 'xtream-1',
-                            contentXtreamId: 1001,
-                            contentType: 'episode',
-                            seriesXtreamId: 103,
-                            seasonNumber: 1,
-                            episodeNumber: 1,
-                            positionSeconds: 1200,
-                            durationSeconds: 1200,
-                        },
-                    },
-                ],
-            } as never,
-            'season'
-        );
-
-        expect(playbackService.episodePlaybackPositions().has(1001)).toBe(
-            false
-        );
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'XTREAM.SEASON_WATCH_UPDATE_FAILED',
-            undefined,
-            { duration: 5000 }
-        );
-        expect(playbackService.seasonWatchBatchRunning()).toBe(false);
-        consoleError.mockRestore();
     });
 
     it('passes inline episode metadata and autoplays only inside the current season', async () => {

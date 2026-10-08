@@ -57,8 +57,8 @@
                     "budgets": [
                         {
                             "type": "initial",
-                            "maximumWarning": "4.5mb",
-                            "maximumError": "5mb"
+                            "maximumWarning": "1.8mb",
+                            "maximumError": "2mb"
                         },
                         {
                             "type": "anyComponentStyle",
@@ -88,8 +88,8 @@
                     "budgets": [
                         {
                             "type": "initial",
-                            "maximumWarning": "4.5mb",
-                            "maximumError": "5mb"
+                            "maximumWarning": "1.8mb",
+                            "maximumError": "2mb"
                         },
                         {
                             "type": "anyComponentStyle",
@@ -120,7 +120,13 @@
                     "serviceWorker": false,
                     "optimization": false,
                     "extractLicenses": false,
-                    "sourceMap": true
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/store-devtools.providers.ts",
+                            "with": "apps/web/src/environments/store-devtools.providers.dev.ts"
+                        }
+                    ]
                 },
                 "electron-performance": {
                     "baseHref": "./",
@@ -139,7 +145,32 @@
                     "fileReplacements": [
                         {
                             "replace": "apps/web/src/environments/environment.ts",
-                            "with": "apps/web/src/environments/environment.prod.ts"
+                            "with": "apps/web/src/environments/environment.performance.ts"
+                        }
+                    ]
+                },
+                "electron-performance-zoneless": {
+                    "baseHref": "./",
+                    "serviceWorker": false,
+                    "optimization": {
+                        "scripts": true,
+                        "styles": {
+                            "minify": true,
+                            "inlineCritical": false,
+                            "removeSpecialComments": true
+                        },
+                        "fonts": true
+                    },
+                    "outputHashing": "all",
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/environment.ts",
+                            "with": "apps/web/src/environments/environment.performance.ts"
+                        },
+                        {
+                            "replace": "apps/web/src/environments/change-detection.providers.ts",
+                            "with": "apps/web/src/environments/change-detection.providers.zoneless.ts"
                         }
                     ]
                 },
@@ -148,7 +179,30 @@
                     "serviceWorker": false,
                     "optimization": false,
                     "extractLicenses": false,
-                    "sourceMap": true
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/store-devtools.providers.ts",
+                            "with": "apps/web/src/environments/store-devtools.providers.dev.ts"
+                        }
+                    ]
+                },
+                "electron-e2e-zoneless": {
+                    "baseHref": "./",
+                    "serviceWorker": false,
+                    "optimization": false,
+                    "extractLicenses": false,
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/store-devtools.providers.ts",
+                            "with": "apps/web/src/environments/store-devtools.providers.dev.ts"
+                        },
+                        {
+                            "replace": "apps/web/src/environments/change-detection.providers.ts",
+                            "with": "apps/web/src/environments/change-detection.providers.zoneless.ts"
+                        }
+                    ]
                 }
             },
             "defaultConfiguration": "production"

@@ -59,10 +59,6 @@ export interface StalkerSeriesFeatureStoreContract
     vodSeriesSeasonsResource: ResourceState<StalkerVodSeriesSeason[]>;
 }
 
-export interface StalkerRecentCallbackStoreContract {
-    addToRecentlyViewed?: (item: StalkerRecentlyViewedItem) => void;
-}
-
 export type StalkerRecentlyViewedItem = StalkerPortalItem & {
     id: string | number;
     title: string;
@@ -74,8 +70,7 @@ export interface StalkerPlayerFeatureStoreContract
         Pick<
             StalkerSelectionStoreContract,
             'selectedContentType' | 'selectedItem'
-        >,
-        StalkerRecentCallbackStoreContract {}
+        > {}
 
 export interface StalkerEpgFeatureStoreContract
     extends

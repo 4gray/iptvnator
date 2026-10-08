@@ -18,6 +18,7 @@ import {
     WorkspacePortalContext,
     WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
+import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
 import { WorkspaceShellComponent } from './workspace-shell.component';
 import {
     WorkspaceHeaderBulkAction,
@@ -33,9 +34,6 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 })
 class MockWorkspaceShellRailComponent {
     readonly isMacOS = input(false);
-    readonly brandLink = input('/workspace/dashboard');
-    readonly brandTooltipKey = input('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = input('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = input<unknown[]>([]);
     readonly primaryContextLinks = input<unknown[]>([]);
     readonly secondaryContextLinks = input<unknown[]>([]);
@@ -51,6 +49,7 @@ class MockWorkspaceShellRailComponent {
     standalone: true,
 })
 class MockWorkspaceShellHeaderComponent {
+    readonly backTarget = input<unknown>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
     readonly canOpenPlaylistInfo = input(false);
@@ -74,6 +73,8 @@ class MockWorkspaceShellHeaderComponent {
     readonly contextDrawerTooltipKey = input('');
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = input<unknown>(null);
+    readonly parentalLockState = input<'off' | 'locked' | 'unlocked'>('off');
+    readonly backRequested = output<void>();
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
@@ -84,6 +85,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly downloadsRequested = output<void>();
     readonly headerBulkActionRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
+    readonly parentalLockToggleRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
@@ -150,9 +152,8 @@ class MockWorkspaceKeyboardShortcutsService {
 }
 
 class MockWorkspaceShellFacade {
-    readonly brandLink = signal('/workspace/dashboard');
-    readonly brandTooltipKey = signal('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = signal('WORKSPACE.SHELL.OPEN_DASHBOARD');
+    readonly backTarget = signal(null);
+    goBack = jest.fn();
     readonly workspaceLinks = signal([]);
     readonly primaryContextLinks = signal([]);
     readonly secondaryContextLinks = signal([]);
@@ -179,6 +180,8 @@ class MockWorkspaceShellFacade {
     readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = signal(null);
     toggleLiveSidebar = jest.fn();
+    readonly parentalLockState = signal<'off' | 'locked' | 'unlocked'>('off');
+    toggleParentalLock = jest.fn();
     readonly showContextPanel = signal(true);
     readonly hasContextPanelContent = signal(true);
     readonly contextDrawerLabelKeys = signal({
@@ -268,6 +271,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {
@@ -305,6 +309,14 @@ describe('WorkspaceShellComponent', () => {
             By.directive(MockWorkspaceShellHeaderComponent)
         ).componentInstance as MockWorkspaceShellHeaderComponent;
         expect(header.activeDownloadsCount()).toBe(3);
+        // macOS: the rail and header read the traffic-light clearance.
+        expect(
+            (
+                fixture.nativeElement.querySelector(
+                    '.workspace-shell'
+                ) as HTMLElement
+            ).style.getPropertyValue('--traffic-lights-clear-x')
+        ).toMatch(/px$/);
         expect(
             fixture.nativeElement.querySelector(
                 'app-workspace-shell-context-sidebar'
@@ -355,6 +367,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {
@@ -432,6 +445,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {
@@ -505,6 +519,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {
@@ -546,6 +561,25 @@ describe('WorkspaceShellComponent', () => {
         expect(event.defaultPrevented).toBe(true);
         expect(facade.openGlobalSearch).toHaveBeenCalledWith('');
         expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
+
+        // On settings the header search is the settings search, so find
+        // focuses it in place instead of leaving for global search.
+        facade.openGlobalSearch.mockClear();
+        header.focusSearchInput.mockClear();
+        facade.isSettingsRoute.set(true);
+        const settingsEvent = new KeyboardEvent('keydown', {
+            key: 'f',
+            metaKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+
+        document.dispatchEvent(settingsEvent);
+        jest.runOnlyPendingTimers();
+
+        expect(settingsEvent.defaultPrevented).toBe(true);
+        expect(facade.openGlobalSearch).not.toHaveBeenCalled();
+        expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
         jest.useRealTimers();
     });
 
@@ -585,6 +619,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
                     ],
                     providers: [
                         {

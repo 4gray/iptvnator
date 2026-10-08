@@ -97,6 +97,7 @@ export class StubAudioPlayerComponent {
     readonly channelName = input('');
     readonly channelLogo = input('');
     readonly volume = input<number | null>(null);
+    readonly playbackSessionKey = input<string | null>(null);
     readonly volumeChange = output<number>();
 }
 
@@ -112,6 +113,7 @@ export class StubWebPlayerViewComponent {
     readonly playback = input<unknown>(null);
     readonly playerOverride = input<VideoPlayer | null>(null);
     readonly volume = input(1);
+    readonly timelineSegments = input<unknown>(null);
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly recordingStopped = output<RecordingStoppedEvent>();

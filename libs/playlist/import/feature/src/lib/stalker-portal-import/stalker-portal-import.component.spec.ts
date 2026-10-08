@@ -2,7 +2,7 @@ import { webcrypto } from 'node:crypto';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     stalkerSessionFingerprint,
     StalkerPortalDiscoveryService,
@@ -305,11 +305,12 @@ describe('StalkerPortalImportComponent identity handling', () => {
 
         await component.addPlaylist();
 
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'HOME.STALKER_PORTAL.LOGIN_REQUIRED',
-            undefined,
-            expect.any(Object)
-        );
+        // Inline, like the Xtream connection test: the dialog stays open, so
+        // a snackbar would cover the footer the user acts from next.
+        expect(component.feedback()).toEqual({
+            key: 'HOME.STALKER_PORTAL.LOGIN_REQUIRED',
+        });
+        expect(snackBar.open).not.toHaveBeenCalled();
         expect(store.dispatch).not.toHaveBeenCalled();
     });
 
@@ -374,13 +375,103 @@ describe('StalkerPortalImportComponent identity handling', () => {
 
         await component.addPlaylist();
 
-        // The translate mock returns keys, so both the kind headline and the
-        // portal-message wrapper must be present.
+        expect(component.feedback()).toEqual({
+            key: 'HOME.STALKER_PORTAL.PORTAL_REFUSED',
+            portalText: 'device conflict - device_id mismatch',
+        });
+        expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('shows the generic refusal inline when a canonical portal is unreachable', async () => {
+        portalDiscovery.discover.mockResolvedValue({ status: 'unreachable' });
+        component.form.patchValue({
+            title: 'Offline Portal',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
+        });
+
+        await component.addPlaylist();
+
+        expect(component.feedback()).toEqual({
+            key: 'HOME.STALKER_PORTAL.AUTH_FAILED',
+        });
+        expect(snackBar.open).not.toHaveBeenCalled();
+        expect(store.dispatch).not.toHaveBeenCalled();
+    });
+
+    it('announces an unvalidated import with a translated snackbar', async () => {
+        portalDiscovery.discover.mockResolvedValue({ status: 'unreachable' });
+        component.form.patchValue({
+            title: 'Offline Panel',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'https://panel.example.com/c',
+        });
+
+        await component.addPlaylist();
+
+        // The dialog closes on this path, so an inline message would vanish.
         expect(snackBar.open).toHaveBeenCalledWith(
-            'HOME.STALKER_PORTAL.PORTAL_REFUSED HOME.STALKER_PORTAL.PORTAL_MESSAGE',
+            'HOME.STALKER_PORTAL.ADDED_WITHOUT_VALIDATION',
             undefined,
             expect.any(Object)
         );
+        expect(component.feedback()).toBeNull();
+        expect(store.dispatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('translates the expiry announced after a validated import', async () => {
+        const translate = TestBed.inject(TranslateService);
+        portalDiscovery.discover.mockResolvedValue({
+            status: 'resolved',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
+            isFullStalkerPortal: true,
+            token: 'token-1',
+            accountInfo: { login: 'demo', expire_date: 1893456000 },
+        });
+        component.form.patchValue({
+            title: 'Expiring Portal',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'https://portal.example.com/stalker_portal/c',
+        });
+
+        await component.addPlaylist();
+
+        expect(translate.instant).toHaveBeenCalledWith(
+            'HOME.STALKER_PORTAL.VALIDATED_EXPIRES',
+            { date: new Date(1893456000 * 1000).toLocaleDateString() }
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'HOME.STALKER_PORTAL.VALIDATED_EXPIRES',
+            undefined,
+            expect.any(Object)
+        );
+    });
+
+    it('drops a refusal once the user edits the form or retries', async () => {
+        portalDiscovery.discover.mockResolvedValue({
+            status: 'auth-rejected',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
+            error: new StalkerPortalError('login-required'),
+        });
+        component.form.patchValue({
+            title: 'Login Portal',
+            macAddress: '00:1A:79:00:00:08',
+            portalUrl: 'https://portal.example.com/stalker_portal/c',
+        });
+
+        await component.addPlaylist();
+        expect(component.feedback()).not.toBeNull();
+
+        component.form.controls.username.setValue('demo');
+        expect(component.feedback()).toBeNull();
+
+        await component.addPlaylist();
+        expect(component.feedback()).not.toBeNull();
+        component.clearForm();
+        expect(component.feedback()).toBeNull();
     });
 
     it('classifies the offline fallback on the normalized URL, not the raw query', async () => {
@@ -934,11 +1025,10 @@ describe('StalkerPortalImportComponent identity handling', () => {
 
         await component.addPlaylist();
 
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'HOME.STALKER_PORTAL.DEVICE_CONFLICT HOME.STALKER_PORTAL.PORTAL_MESSAGE',
-            undefined,
-            expect.any(Object)
-        );
+        expect(component.feedback()).toEqual({
+            key: 'HOME.STALKER_PORTAL.DEVICE_CONFLICT',
+            portalText: 'device conflict - device_id mismatch',
+        });
     });
 
     it('normalizes a query-carrying /c URL in the unreachable-host fallback', async () => {
@@ -984,5 +1074,121 @@ describe('StalkerPortalImportComponent identity handling', () => {
                 isFullStalkerPortal: false,
             })
         );
+    });
+});
+
+describe('StalkerPortalImportComponent form', () => {
+    let portalDiscovery: { discover: jest.Mock };
+
+    afterEach(() => {
+        // jsdom has no scrollIntoView; one test installs a spy for it.
+        delete (HTMLElement.prototype as { scrollIntoView?: unknown })
+            .scrollIntoView;
+    });
+
+    function render() {
+        portalDiscovery = { discover: jest.fn() };
+        TestBed.configureTestingModule({
+            imports: [StalkerPortalImportComponent, TranslateModule.forRoot()],
+            providers: [
+                {
+                    provide: StalkerPortalDiscoveryService,
+                    useValue: portalDiscovery,
+                },
+                { provide: Store, useValue: { dispatch: jest.fn() } },
+                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+            ],
+        });
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            HOME: {
+                STALKER_PORTAL: {
+                    PORTAL_REFUSED: 'Refused.',
+                    PORTAL_MESSAGE: 'The portal reported: {{message}}',
+                },
+            },
+        });
+        translate.use('en');
+        const fixture = TestBed.createComponent(StalkerPortalImportComponent);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        return { fixture, root, component: fixture.componentInstance };
+    }
+
+    it('labels the name field like the other add-source forms', () => {
+        const { root } = render();
+
+        expect(
+            root.querySelector('#title')?.closest('mat-form-field')?.textContent
+        ).toContain('HOME.XTREAM_PLAYLIST.TITLE');
+    });
+
+    it('masks the password until the visibility toggle is pressed', () => {
+        const { fixture, root } = render();
+        const password = root.querySelector('#password') as HTMLInputElement;
+        const toggle = password
+            .closest('mat-form-field')
+            ?.querySelector('button') as HTMLButtonElement;
+
+        expect(password.type).toBe('password');
+        expect(toggle.getAttribute('aria-label')).toBe('HOME.SHOW_PASSWORD');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+
+        toggle.click();
+        fixture.detectChanges();
+        expect(password.type).toBe('text');
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('masks the password again when the form is cleared', () => {
+        const { fixture, root, component } = render();
+        const password = root.querySelector('#password') as HTMLInputElement;
+        const toggle = password
+            .closest('mat-form-field')
+            ?.querySelector('button') as HTMLButtonElement;
+
+        toggle.click();
+        fixture.detectChanges();
+        expect(password.type).toBe('text');
+
+        component.clearForm();
+        fixture.detectChanges();
+
+        expect(password.type).toBe('password');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('shows a refusal inline under the portal URL and scrolls it into view', async () => {
+        const scrollIntoView = jest.fn();
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+            configurable: true,
+            value: scrollIntoView,
+        });
+        const { fixture, root, component } = render();
+        portalDiscovery.discover.mockResolvedValue({
+            status: 'auth-rejected',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
+            error: new StalkerPortalError('blocked', 'account disabled'),
+        });
+        component.form.patchValue({
+            title: 'Blocked Portal',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'https://portal.example.com/stalker_portal/c',
+        });
+
+        await component.addPlaylist();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const status = root.querySelector('[role="status"]') as HTMLElement;
+        expect(status.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+            'Refused. The portal reported: account disabled'
+        );
+        expect(status.getAttribute('aria-live')).toBe('polite');
+        expect(
+            status.previousElementSibling?.querySelector('#portalUrl')
+        ).not.toBeNull();
+        expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
     });
 });

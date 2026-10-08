@@ -1,0 +1,121 @@
+:host {
+    display: block;
+}
+
+.settings-search-results__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.settings-search-result {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 56px;
+    padding: 12px 10px;
+    border: 0;
+    border-top: 1px solid var(--settings-item-border);
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--app-hover-overlay);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
+        border-radius: 8px;
+    }
+}
+
+li:first-child .settings-search-result {
+    border-top: 0;
+}
+
+.settings-search-result__icon,
+.settings-search-result__chevron {
+    flex-shrink: 0;
+    color: var(--settings-muted);
+}
+
+.settings-search-result__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.settings-search-result__label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--app-heading-color);
+}
+
+.settings-search-result__description {
+    overflow: hidden;
+    color: var(--settings-muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-search-result__section {
+    flex-shrink: 0;
+    padding: 2px 10px;
+    border: 1px solid var(--settings-item-border);
+    border-radius: 999px;
+    color: var(--settings-muted);
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.settings-search-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 40px 16px;
+    color: var(--settings-muted);
+    text-align: center;
+
+    mat-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 32px;
+    }
+
+    p {
+        margin: 0;
+        max-width: 420px;
+        line-height: 1.45;
+    }
+}
+
+@media (max-width: 640px) {
+    .settings-search-result {
+        flex-wrap: wrap;
+        padding: 12px 14px;
+    }
+
+    .settings-search-result__description {
+        white-space: normal;
+    }
+
+    .settings-search-result__section {
+        margin-left: 38px;
+    }
+
+    .settings-search-result__chevron {
+        display: none;
+    }
+}

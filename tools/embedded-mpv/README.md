@@ -397,8 +397,11 @@ CI. This affects only Chromium's software-renderer admission; the manifest,
 hash, loader, and helper probes still fail closed, and `--no-sandbox` remains
 root-only.
 
-Snap publication is a separate `release.published` workflow for public `v*`
-GitHub releases. It verifies that the public release already contains at least
+Snap publication is a separate `release.published` workflow for public stable
+GitHub releases, with a `workflow_dispatch` retry from `master` for an existing
+public stable tag. Both paths resolve the release through the API before
+checking out its tag; draft, prerelease and mismatched event IDs are rejected.
+It verifies that the public release already contains at least
 one Snap and exactly one non-empty
 `linux-frame-copy-runtime-sources.tar.xz` before uploading anything. The
 release verifier hashes the downloaded archive, checks its clean released
@@ -430,7 +433,12 @@ The dependent publish job runs on a bounded GitHub-hosted `ubuntu-latest`
 runner with no checkout or release-tag code. It verifies that separate digest,
 the exact receipt schema, every asset size/hash, and the expected regular-file
 layout, rejects links and extras, root-seals the transferred data again, and
-installs the official stable Snapcraft snap. Only its final fixed shell step
+installs the official stable Snapcraft snap. Snapcraft creates temporary
+metadata-extraction siblings beside its input, so the publisher creates
+root-owned read-only hard links in a separate root-owned sticky directory.
+The uploader can create temporary siblings but cannot modify or replace those
+inputs; the original sealed snapshot supplies the upload filename list.
+Only its final fixed shell step
 receives the Store credential; it executes no released code, resolves no PATH
 command, and passes the credential only to each exact
 `/snap/bin/snapcraft upload --release=edge` process. GitHub credentials remain

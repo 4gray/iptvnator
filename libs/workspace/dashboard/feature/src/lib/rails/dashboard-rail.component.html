@@ -33,7 +33,11 @@
         }
     </header>
 
-    <div class="rail__viewport">
+    <div
+        #viewport
+        class="rail__viewport"
+        [attr.data-test-id]="testId() ? testId() + '-viewport' : null"
+    >
         <button
             type="button"
             class="rail__chev rail__chev--left"
@@ -49,7 +53,10 @@
             #track
             class="rail__track"
             [attr.data-layout]="layout()"
+            [attr.data-test-id]="testId() ? testId() + '-track' : null"
             (scroll)="onScroll()"
+            (focusin)="onTrackFocusIn($event)"
+            (pointerdown)="onTrackPointerDown($event)"
             role="list"
         >
             @for (card of items(); track card.id) {
@@ -67,6 +74,9 @@
                         <a
                             class="rail__channel-link"
                             [routerLink]="card.link"
+                            [attr.data-test-id]="
+                                testId() ? testId() + '-card-link' : null
+                            "
                             [queryParams]="card.queryParams ?? null"
                             [state]="card.state"
                         >
@@ -126,7 +136,7 @@
                                     "
                                 >
                                     <i
-                                        [style.width.%]="
+                                        [style.--live-progress]="
                                             card.nowPlayingProgress ?? 0
                                         "
                                     ></i>
@@ -153,6 +163,9 @@
                         <a
                             class="rail__card-link"
                             [routerLink]="card.link"
+                            [attr.data-test-id]="
+                                testId() ? testId() + '-card-link' : null
+                            "
                             [queryParams]="card.queryParams ?? null"
                             [state]="card.state"
                         >

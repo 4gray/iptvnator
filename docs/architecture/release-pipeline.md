@@ -168,7 +168,11 @@ into `apps/website/public/blog/guides/screenshots/` instead of a release folder
 guard a release shot does; the add-playlist dialog shots fill the form with the
 mock's fictional `marketing` credentials and use a labeled hand-out for the
 Auto-detect method rather than a `get.php?username=…` link, because G4 rejects
-any URL carrying query credentials. Shots that walk into a Stalker portal
+any URL carrying query credentials. The Xtream shot clicks **Test HTTPS and
+HTTP** against the plain-`http://` mock, so no HTTPS probe is made, and fails
+the run unless the status line reports an active portal; the mock does not
+check passwords, so that verdict proves the scenario answered, not that the
+password is right. Shots that walk into a Stalker portal
 (`open-stalker-live`) make the run start the stalker-mock-server on port 3210
 and seed its `marketing-demo` portal as a third source, which is why they are
 never part of a release run. That scenario's MAC, `00:1A:79:00:00:07`, is the
@@ -436,8 +440,28 @@ Publishing the GitHub release is manual. That publication automatically
 verifies its Snap assets and uploads them to `edge`; installed-Snap smoke and
 candidate/stable promotion remain manual (see
 `tools/packaging/validate-snap-release-boundary.mjs`). Keep the blog post a
-draft during artifact verification, then publish it in a follow-up commit and
-verify the website deployment.
+draft during artifact verification. After the release is public and its assets
+are verified, publish the blog and advance
+`apps/website/released-version.json` to that published version in the same
+follow-up commit. Run `WEBSITE_SKIP_RELEASE_FETCH=1 pnpm nx test website --skip-nx-cache`,
+compare the generated download links with the public release assets, and
+verify the website deployment. The fallback pin must never follow the
+development/nightly version in the root `package.json`.
+
+If a Store upload fails after publication, run `publish-snap.yaml` from
+`master` with its `tag` input set to the existing public stable tag, for example
+`gh workflow run publish-snap.yaml --ref master -f tag=v0.24.0`. The workflow
+resolves the public release through the API, rejects drafts/prereleases and
+invalid tags, and repeats the full released-tooling, asset and source-archive
+verification before uploading to `edge`. Do not move the release tag, rebuild
+its assets or republish the GitHub release to retry a Store upload.
+
+Snapcraft extracts metadata into a temporary sibling of the input `.snap`.
+The publisher therefore gives it root-owned read-only hard links in a separate
+root-owned sticky directory. Temporary siblings are writable, while the sticky
+bit prevents the unprivileged uploader from replacing the root-owned inputs.
+The original verified snapshot stays sealed; upload filenames are enumerated
+only from that snapshot, never from the writable scratch directory.
 
 ## Validation
 

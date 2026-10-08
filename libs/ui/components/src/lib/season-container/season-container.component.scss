@@ -1,6 +1,13 @@
 .seasons-section {
     width: 100%;
-    margin-top: 24px;
+    margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .episode-card,
+    .episode-card__thumbnail img {
+        transition: none;
+    }
 }
 
 .loading-container {
@@ -21,8 +28,16 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)),
-        radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 60%);
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.06),
+            rgba(255, 255, 255, 0.03)
+        ),
+        radial-gradient(
+            circle at top,
+            rgba(255, 255, 255, 0.06),
+            transparent 60%
+        );
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.04),
         0 18px 40px rgba(0, 0, 0, 0.22);
@@ -64,90 +79,160 @@
     &--season {
         border-color: rgba(255, 255, 255, 0.1);
         background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.04)),
-            radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 65%);
+            linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.07),
+                rgba(255, 255, 255, 0.04)
+            ),
+            radial-gradient(
+                circle at top,
+                rgba(255, 255, 255, 0.08),
+                transparent 65%
+            );
     }
 }
 
 // Grid Layout
 .episodes-grid {
     display: grid;
-    gap: 12px;
+    gap: 16px;
     width: 100%;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
-// Season card: an optional cover column (--season-cover-width follows
-// Settings.coverSize: 96 / 120 / 144px, tokens in apps/web/src/_cover-size.scss)
-// next to the tabs + description. Without a cover the grid is one column and
-// the tabs render exactly as they did before season posters existed.
-.season-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-    align-items: start;
-    margin-bottom: 16px;
+// "Episodes" header: title, season pills, count and the view toggle on one
+// line; the pills wrap first when the pane is narrow.
+.episodes-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-bottom: 14px;
 
-    &--with-cover {
-        grid-template-columns: var(--season-cover-width, 120px) minmax(0, 1fr);
+    &__title {
+        margin: 0 6px 0 0;
+        color: var(--text-primary);
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.3;
     }
+
+    &__tabs {
+        display: block;
+        min-width: 0;
+    }
+
+    &__count {
+        color: var(--text-muted);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .view-toggle {
+        margin-left: auto;
+
+        mat-button-toggle-group {
+            border: 1px solid
+                color-mix(in srgb, var(--app-on-surface) 14%, transparent);
+            border-radius: 6px;
+            overflow: hidden;
+            background: color-mix(
+                in srgb,
+                var(--app-on-surface) 3%,
+                transparent
+            );
+
+            ::ng-deep {
+                .mat-button-toggle {
+                    background: transparent;
+
+                    .mat-button-toggle-button {
+                        padding: 0 8px;
+                        height: 30px;
+                    }
+
+                    mat-icon {
+                        font-size: 18px;
+                        width: 18px;
+                        height: 18px;
+                        color: var(--text-secondary);
+                    }
+
+                    &.mat-button-toggle-checked {
+                        background: var(--app-selection-surface);
+
+                        mat-icon {
+                            color: var(--app-selection-color);
+                        }
+                    }
+
+                    &:hover:not(.mat-button-toggle-checked) {
+                        background: var(--app-hover-overlay);
+                    }
+                }
+
+                .mat-button-toggle-appearance-standard {
+                    .mat-button-toggle-label-content {
+                        line-height: 30px;
+                        padding: 0;
+                    }
+                }
+
+                .mat-button-toggle + .mat-button-toggle {
+                    border-left: 1px solid
+                        color-mix(
+                            in srgb,
+                            var(--app-on-surface) 14%,
+                            transparent
+                        );
+                }
+            }
+        }
+    }
+}
+
+// The selected season's cover (--season-cover-width follows
+// Settings.coverSize) and synopsis under the header.
+.season-strip {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
 
     &__cover {
         display: block;
-        width: 100%;
+        flex: 0 0 auto;
+        width: calc(var(--season-cover-width, 120px) * 0.5);
         aspect-ratio: 2 / 3;
         object-fit: cover;
         border-radius: 8px;
         background: var(--app-widget-bg);
-        box-shadow: var(--poster-shadow, 0 8px 40px rgba(0, 0, 0, 0.5));
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    &__description {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 760px;
+        font-size: 12.5px;
+        line-height: 1.55;
+        color: var(--text-secondary);
     }
 }
 
-app-season-tabs {
-    display: block;
-    min-width: 0;
-}
-
-@media (max-width: 640px) {
-    .season-card--with-cover {
-        grid-template-columns: 88px minmax(0, 1fr);
-        gap: 14px;
-    }
-}
-
-// Episode Card
+// Episode Card — flat: the thumbnail and the text sit on the page, no box.
 .episode-card {
-    background: var(--app-widget-bg);
-    border-radius: 6px;
-    overflow: hidden;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 1px solid color-mix(in srgb, var(--app-on-surface) 14%, transparent);
     position: relative;
-
-    // In-progress state
-    &--in-progress {
-        border-color: color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
-        background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
-
-        &::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(
-                135deg,
-                color-mix(in srgb, var(--mat-sys-primary) 10%, transparent) 0%,
-                transparent 50%
-            );
-            pointer-events: none;
-            z-index: 1;
-        }
-    }
+    cursor: pointer;
+    border-radius: 10px;
+    transition: opacity 0.2s ease;
 
     &--launching,
     &--active-external {
-        border-color: color-mix(in srgb, var(--mat-sys-tertiary) 56%, transparent);
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--mat-sys-tertiary) 28%, transparent);
+        .episode-card__thumbnail {
+            box-shadow: 0 0 0 2px
+                color-mix(in srgb, var(--mat-sys-tertiary) 56%, transparent);
+        }
     }
 
     &--launching {
@@ -157,14 +242,15 @@ app-season-tabs {
         }
     }
 
-    &--active-external {
-        background: color-mix(in srgb, var(--mat-sys-tertiary-container) 18%, transparent);
+    // Playing in the inline player
+    &--playing .episode-card__thumbnail {
+        box-shadow: 0 0 0 2px
+            color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
     }
 
-    // Playing in the inline player
-    &--playing {
-        border-color: color-mix(in srgb, var(--mat-sys-primary) 70%, transparent);
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: 2px;
     }
 
     // Watched state — the sole indicator is the watched toggle on the
@@ -235,10 +321,6 @@ app-season-tabs {
     }
 
     &:hover {
-        transform: translateY(-2px);
-        background: var(--app-card-hover-bg);
-        border-color: color-mix(in srgb, var(--app-on-surface) 22%, transparent);
-
         .episode-card__overlay {
             opacity: 1;
         }
@@ -246,32 +328,44 @@ app-season-tabs {
         .episode-card__play {
             transform: scale(1);
         }
+
+        .episode-card__thumbnail img {
+            transform: scale(1.03);
+        }
     }
 
     &__thumbnail {
         position: relative;
         aspect-ratio: 16 / 9;
         background: #000;
+        // A hairline keeps the artwork's edge visible on the light theme too.
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 10px;
         overflow: hidden;
 
         img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transition: transform 0.2s ease;
         }
     }
 
-    &__position-text {
+    // 3px watched share at the bottom of the artwork
+    &__progress {
         position: absolute;
-        bottom: 8px;
-        left: 8px;
-        background: rgba(0, 0, 0, 0.85);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: white;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.15);
         z-index: 2;
+
+        i {
+            display: block;
+            height: 100%;
+            background: var(--app-selection-color, #98b8ff);
+        }
     }
 
     &__placeholder {
@@ -345,7 +439,11 @@ app-season-tabs {
             color: var(--mat-sys-tertiary) !important;
 
             &:hover {
-                background: color-mix(in srgb, var(--mat-sys-tertiary) 80%, transparent);
+                background: color-mix(
+                    in srgb,
+                    var(--mat-sys-tertiary) 80%,
+                    transparent
+                );
             }
         }
 
@@ -388,34 +486,22 @@ app-season-tabs {
         }
     }
 
-    &__number {
-        position: absolute;
-        bottom: 6px;
-        right: 6px;
-        background: rgba(0, 0, 0, 0.85);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: white;
-    }
-
     &__info {
-        padding: 12px;
+        padding: 8px 2px 0;
     }
 
     &__title-row {
         display: flex;
         align-items: flex-start;
         gap: 4px;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }
 
     &__title {
         flex: 1;
         min-width: 0;
-        font-size: 0.875rem;
-        font-weight: 600;
+        font-size: 13px;
+        font-weight: 500;
         margin: 0;
         color: var(--text-primary);
         line-height: 1.4;
@@ -469,9 +555,9 @@ app-season-tabs {
     }
 
     &__plot {
-        font-size: 0.75rem;
+        font-size: 12px;
         color: var(--text-secondary);
-        margin: 0 0 8px 0;
+        margin: 0 0 4px 0;
         line-height: 1.4;
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -479,13 +565,10 @@ app-season-tabs {
         overflow: hidden;
     }
 
-    &__duration {
-        font-size: 0.6875rem;
+    &__subline {
+        display: block;
+        font-size: 11.5px;
         color: var(--text-muted);
-        display: inline-block;
-        padding: 1px 6px;
-        background: rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
     }
 }
 
@@ -510,7 +593,11 @@ app-season-tabs {
 
     &:hover {
         background: var(--app-card-hover-bg);
-        border-color: color-mix(in srgb, var(--app-on-surface) 22%, transparent);
+        border-color: color-mix(
+            in srgb,
+            var(--app-on-surface) 22%,
+            transparent
+        );
 
         .episode-list-item__actions {
             opacity: 1;
@@ -526,12 +613,24 @@ app-season-tabs {
     }
 
     &--in-progress {
-        border-color: color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+        border-color: color-mix(
+            in srgb,
+            var(--mat-sys-primary) 40%,
+            transparent
+        );
         background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
 
         &:hover {
-            border-color: color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
-            background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+            border-color: color-mix(
+                in srgb,
+                var(--mat-sys-primary) 60%,
+                transparent
+            );
+            background: color-mix(
+                in srgb,
+                var(--mat-sys-primary) 8%,
+                transparent
+            );
         }
     }
 
@@ -671,7 +770,7 @@ app-season-tabs {
 
     &__progress-fill {
         height: 100%;
-        background: var(--mat-sys-primary);
+        background: var(--app-progress-color);
         border-radius: 2px;
         transition: width 0.3s ease;
     }
@@ -712,7 +811,11 @@ app-season-tabs {
                 color: var(--mat-sys-tertiary);
 
                 &:hover {
-                    background: color-mix(in srgb, var(--mat-sys-tertiary) 15%, transparent);
+                    background: color-mix(
+                        in srgb,
+                        var(--mat-sys-tertiary) 15%,
+                        transparent
+                    );
                 }
             }
 
@@ -726,12 +829,24 @@ app-season-tabs {
 
     &--launching,
     &--active-external {
-        border-color: color-mix(in srgb, var(--mat-sys-tertiary) 46%, transparent);
-        background: color-mix(in srgb, var(--mat-sys-tertiary-container) 12%, transparent);
+        border-color: color-mix(
+            in srgb,
+            var(--mat-sys-tertiary) 46%,
+            transparent
+        );
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-tertiary-container) 12%,
+            transparent
+        );
     }
 
     &--playing {
-        border-color: color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
+        border-color: color-mix(
+            in srgb,
+            var(--mat-sys-primary) 60%,
+            transparent
+        );
         background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
     }
 

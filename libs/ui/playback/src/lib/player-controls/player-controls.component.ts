@@ -17,34 +17,45 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ControlsChromeInteractions } from './controls-chrome-interactions';
 import { ControlsFeedback } from './controls-feedback';
 import { ControlsFullscreen } from './controls-fullscreen';
+import { ControlsLayout } from './controls-layout';
 import { ControlsMenuSelection } from './controls-menu-selection';
 import { type ControlsMenu, ControlsMenuState } from './controls-menu-state';
+import { ControlsSettings } from './controls-settings';
 import { ControlsShortcuts } from './controls-shortcuts';
 import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
 import { ControlsTimeline } from './controls-timeline';
+import { ControlsTimelineHover } from './controls-timeline-hover';
+import { ControlsUpNext } from './controls-up-next';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
 import { ControlsVolumeInteractions } from './controls-volume-interactions';
 import { ControlsSubtitleSettings } from './controls-subtitle-settings';
-import { formatTime, speedLabel } from './controls-format.utils';
+import { formatRemainingTime } from './controls-format.utils';
 import type {
     PlayerController,
     PlayerMediaTitle,
+    PlayerTimelineSegment,
+    PlayerUpNextItem,
 } from './player-controls.model';
-import {
-    SUBTITLE_COLOR_PRESETS,
-    SUBTITLE_DELAY_STEP_SECONDS,
-    SUBTITLE_SIZE_PRESETS,
-    subtitleDelayLabel,
-} from './subtitle-style';
+import { PlayerSettingsPanelComponent } from './player-settings-panel.component';
+import { PlayerTimelineComponent } from './player-timeline.component';
+import { PlayerUpNextCardComponent } from './player-up-next-card.component';
 
 @Component({
     selector: 'app-player-controls',
     templateUrl: './player-controls.component.html',
     styleUrl: './player-controls.component.scss',
-    imports: [MatButtonModule, MatIconModule, MatTooltipModule, TranslatePipe],
+    imports: [
+        MatButtonModule,
+        MatIconModule,
+        MatTooltipModule,
+        TranslatePipe,
+        PlayerSettingsPanelComponent,
+        PlayerTimelineComponent,
+        PlayerUpNextCardComponent,
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
         class: 'player-controls-host',
@@ -68,12 +79,21 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly showControls = input(true);
     readonly shortcutsEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    /** Chapters / programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
+    /** The next episode, for the "Up next" card near the end of this one. */
+    readonly upNext = input<PlayerUpNextItem | null>(null);
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     readonly menus = new ControlsMenuState();
     readonly feedback = new ControlsFeedback();
     readonly anyMenuOpen = this.menus.anyOpen;
     private readonly shortcuts = new ControlsShortcuts();
+    readonly layout = new ControlsLayout();
+    /** Compact dock: narrow inline players and phone-sized viewports. */
+    readonly isCompact = computed(() => this.layout.mode() === 'compact');
     private readonly visibility = new ControlsVisibility(() => this.canHide());
     private readonly fullscreen = new ControlsFullscreen(
         () => this.fullscreenTarget() ?? this.playerSurface(),
@@ -105,8 +125,6 @@ export class PlayerControlsComponent implements OnDestroy {
     });
     readonly menuSelection = new ControlsMenuSelection({
         commands: () => this.controller().commands,
-        menus: this.menus,
-        visibility: this.visibility,
         revealSticky: () => this.reveal({ scheduleHide: false }),
     });
     readonly volumeInteractions = new ControlsVolumeInteractions({
@@ -128,12 +146,36 @@ export class PlayerControlsComponent implements OnDestroy {
 
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
+    readonly settings = new ControlsSettings({
+        state: this.state,
+        capabilities: this.capabilities,
+        showControls: this.showControls,
+        menus: this.menus,
+        commands: () => this.controller().commands,
+        reveal: (options) => this.reveal(options),
+    });
+    readonly upNextCard = new ControlsUpNext({
+        item: this.upNext,
+        state: this.state,
+        capabilities: this.capabilities,
+        showControls: this.showControls,
+        settingsOpen: this.settings.isOpen,
+        segments: this.timelineSegments,
+    });
     private readonly controllerVolume = computed(() => this.state().volume);
-    private readonly timeline = new ControlsTimeline(this.state);
+    readonly timeline = new ControlsTimeline(this.state, this.timelineSegments);
     readonly scrubPosition = this.timeline.scrubPosition;
-    readonly timelineDuration = this.timeline.duration;
-    readonly timelineValue = this.timeline.value;
-    readonly timelineProgress = this.timeline.progress;
+    readonly timelineHover = new ControlsTimelineHover({
+        duration: this.timeline.duration,
+        interactive: computed(
+            () => this.capabilities().seek && this.state().canSeek
+        ),
+        segments: this.timeline.segments,
+    });
+    /** `−7:03` while a finite duration is known; the dock prefers it to the total. */
+    readonly remainingTimeText = computed(() =>
+        formatRemainingTime(this.timeline.value(), this.timeline.duration())
+    );
 
     readonly displayVolume = this.volume.value;
     readonly isFullscreen = this.fullscreen.isFullscreen;
@@ -175,9 +217,6 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly isPaused = this.vm.isPaused;
     readonly isPlaying = this.vm.isPlaying;
     readonly canTogglePlay = this.vm.canTogglePlay;
-    readonly hasAudioTracks = this.vm.hasAudioTracks;
-    readonly hasSubtitleTracks = this.vm.hasSubtitleTracks;
-    readonly hasQualityLevels = this.vm.hasQualityLevels;
     readonly canRecord = this.vm.canRecord;
     readonly isRecording = this.vm.isRecording;
     readonly recordingStatusText = this.vm.recordingStatusText;
@@ -189,6 +228,7 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly controlsAreVisible = this.vm.controlsAreVisible;
     readonly hideCursor = this.vm.hideCursor;
     constructor() {
+        this.layout.attach(this.host);
         this.shortcuts.attach({
             isAvailable: () => this.shortcutsEnabled() && this.showControls(),
             hostElement: () => this.host,
@@ -282,6 +322,7 @@ export class PlayerControlsComponent implements OnDestroy {
         });
     }
     ngOnDestroy(): void {
+        this.layout.dispose();
         this.shortcuts.detach();
         this.feedback.dispose();
         this.visibility.dispose();
@@ -290,12 +331,6 @@ export class PlayerControlsComponent implements OnDestroy {
         this.surface.dispose();
         this.streamStats.dispose();
     }
-    formatTime = formatTime;
-    speedLabel = speedLabel;
-    subtitleDelayLabel = subtitleDelayLabel;
-    readonly subtitleSizePresets = SUBTITLE_SIZE_PRESETS;
-    readonly subtitleColorPresets = SUBTITLE_COLOR_PRESETS;
-    readonly subtitleDelayStep = SUBTITLE_DELAY_STEP_SECONDS;
     togglePlay(): void {
         this.reveal();
         if (!this.canTogglePlay()) {
@@ -350,12 +385,6 @@ export class PlayerControlsComponent implements OnDestroy {
         this.reveal();
     }
 
-    loadExternalSubtitle(): void {
-        if (!this.capabilities().externalSubtitles) {
-            return;
-        }
-        this.menuSelection.externalSubtitle();
-    }
     toggleRecording(): void {
         if (!this.canRecord()) {
             return;

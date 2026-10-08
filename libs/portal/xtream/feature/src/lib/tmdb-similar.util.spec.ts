@@ -40,12 +40,14 @@ describe('matchRecommendationsToCatalog', () => {
                 categoryId: '5',
                 title: 'The Matrix Reloaded',
                 posterUrl: 'http://provider/reloaded.jpg',
+                year: null,
             },
             {
                 id: 22,
                 categoryId: '7',
                 title: 'EN - Inception (2010) 4K',
                 posterUrl: 'http://provider/inception.jpg',
+                year: null,
             },
         ]);
     });

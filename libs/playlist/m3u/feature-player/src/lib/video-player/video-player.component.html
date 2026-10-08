@@ -85,7 +85,7 @@
                 [playbackSessionKey]="playbackSessionKey()"
                 [inlinePlayerAvailable]="shouldShowInlinePlayer(activeChannel)"
                 [volume]="volume()"
-                [playerOverride]="playerSettings.player ?? null"
+                [playerOverride]="playerSettings().player ?? null"
                 (playbackStarted)="refreshVolumeFromBus()"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)
@@ -112,6 +112,7 @@
                             "
                             [channelName]="displayChannelName()"
                             [volume]="volume()"
+                            [playbackSessionKey]="playbackSessionKey()"
                             (volumeChange)="onInlineVolumeChange($event)"
                         />
                     } @else {
@@ -123,9 +124,10 @@
                             [playerOverride]="
                                 activeChannelIsDash()
                                     ? dashPlayerOverride()
-                                    : (playerSettings.player ?? null)
+                                    : (playerSettings().player ?? null)
                             "
                             [volume]="volume()"
+                            [timelineSegments]="catchupTimelineSegments()"
                             [recordingMetadata]="recordingMetadata()"
                             (externalFallbackRequested)="
                                 handleExternalFallbackRequest($event)
@@ -253,10 +255,10 @@
             }
         }
 
-        @if (showChannelNumberOverlay) {
+        @if (showChannelNumberOverlay()) {
             <div class="channel-number-overlay">
                 <div class="channel-number-display">
-                    {{ channelNumberInput }}
+                    {{ channelNumberInput() }}
                 </div>
             </div>
         }

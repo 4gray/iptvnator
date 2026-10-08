@@ -368,6 +368,10 @@ describe('HtmlVideoPlayerComponent', () => {
             if (issue) issues.push(issue);
         });
         const secret = 'html-hls-secret-sentinel';
+        const networkDetails = new XMLHttpRequest();
+        Object.defineProperty(networkDetails, 'responseText', {
+            value: secret,
+        });
 
         (
             component as unknown as {
@@ -385,7 +389,7 @@ describe('HtmlVideoPlayerComponent', () => {
                 text: secret,
                 data: { body: secret },
             },
-            networkDetails: { responseText: secret },
+            networkDetails,
         });
 
         expect(issues[0]).toEqual(

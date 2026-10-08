@@ -2,6 +2,7 @@ import {
     AfterViewInit,
     ChangeDetectionStrategy,
     Component,
+    computed,
     ElementRef,
     OnDestroy,
     effect,
@@ -155,6 +156,8 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
      */
     readonly totalCount = input<number | null>(null);
 
+    private readonly viewport =
+        viewChild.required<ElementRef<HTMLDivElement>>('viewport');
     private readonly track =
         viewChild.required<ElementRef<HTMLDivElement>>('track');
     private readonly cardElements =
@@ -170,20 +173,32 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     private readonly visibleCardIds = new Set<string>();
     private lastVisibleSignature: string | null = null;
     private resetFrameId: number | null = null;
+    /** Last mouse, pen or touch press inside the track. */
+    private pointerPress: { timeStamp: number; touch: boolean } | null = null;
     private settleFrameId: number | null = null;
+
+    /**
+     * Which cards the rail shows, in order. Hosts rebuild their card objects
+     * on every clock tick (live progress, expiry badges); only a change of
+     * this identity is a new rail worth scrolling back to the start for or
+     * re-observing.
+     */
+    private readonly cardIds = computed(() =>
+        JSON.stringify(this.items().map((card) => card.id))
+    );
 
     constructor() {
         effect(() => {
-            this.items();
+            this.cardIds();
             if (!this.viewReady()) return;
             this.scheduleResetToStart();
         });
-        // The rendered card set changed: watch the new elements. Reading
-        // `items()` too keeps an id-only change (same elements, new cards)
-        // from leaving a stale visible set behind.
+        // The rendered card set changed: watch the new elements. Reading the
+        // ids too keeps an id-only change (same elements, new cards) from
+        // leaving a stale visible set behind.
         effect(() => {
             const elements = this.cardElements();
-            this.items();
+            this.cardIds();
             untracked(() => this.observeCards(elements));
         });
     }
@@ -268,6 +283,86 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
 
     onScroll(): void {
         this.updateScrollState();
+    }
+
+    /**
+     * Brings a card that receives keyboard or programmatic focus (Tab or
+     * `focus()`) fully into view; focus caused by a mouse or touch press
+     * leaves the rail where it is.
+     * Chromium skips its own focus scroll when 32px or more of the element
+     * already shows, which left a card partly hidden under the edge fade
+     * when the rail overflows by less than a card. A plain "nearest" scroll
+     * is not enough either: mandatory snapping can round it back to where
+     * the card is still cut off. So the rail moves to the first card-start
+     * snap position that reveals the whole card. The visible area is the
+     * viewport, not the track, whose padding bleeds under the fades.
+     */
+    onTrackFocusIn(event: FocusEvent): void {
+        if (this.isFocusFromPointerPress(event)) return;
+        const card =
+            event.target instanceof Element
+                ? event.target.closest<HTMLElement>('.rail__card')
+                : null;
+        if (!card) return;
+        const track = this.track().nativeElement;
+        const visible = this.viewport().nativeElement.getBoundingClientRect();
+        const rect = card.getBoundingClientRect();
+        const hiddenLeft = rect.left < visible.left - 1;
+        if (!hiddenLeft && rect.right <= visible.right + 1) return;
+
+        // Scroll offset that aligns an element's start with the visible
+        // edge — where `scroll-padding-inline-start` makes each card snap.
+        const snapOffset = (element: HTMLElement) =>
+            track.scrollLeft +
+            element.getBoundingClientRect().left -
+            visible.left;
+        const maxLeft = track.scrollWidth - track.clientWidth;
+        let left = maxLeft;
+        // A card wider than the visible area (a narrow window, or zoom) can
+        // never fit: show its start rather than a later card's snap point,
+        // which would move it offscreen.
+        if (
+            hiddenLeft ||
+            rect.right - rect.left > visible.right - visible.left
+        ) {
+            left = snapOffset(card);
+        } else {
+            const needed = track.scrollLeft + rect.right - visible.right;
+            for (const { nativeElement } of this.cardElements()) {
+                const offset = snapOffset(nativeElement);
+                if (offset >= needed - 1) {
+                    left = offset;
+                    break;
+                }
+            }
+        }
+        track.scrollTo({
+            left: Math.max(0, Math.min(left, maxLeft)),
+            behavior: 'auto',
+        });
+    }
+
+    onTrackPointerDown(event: PointerEvent): void {
+        this.pointerPress = {
+            timeStamp: event.timeStamp,
+            touch: event.pointerType === 'touch',
+        };
+    }
+
+    /**
+     * A press focuses the card it lands on too, but scrolling then would
+     * slide the card from under the pointer and lose the click. A mouse or
+     * pen focuses on the mousedown right after the pointerdown; a tap only
+     * with the compatibility mouse events once the finger lifts, so it gets
+     * the CDK FocusMonitor's 650ms touch buffer. Focus later than that, such
+     * as `focus()` after a click elsewhere, is not the press's. Only
+     * timestamps are compared: nothing in the DOM changes before the click.
+     */
+    private isFocusFromPointerPress(event: FocusEvent): boolean {
+        const press = this.pointerPress;
+        if (!press) return false;
+        const elapsed = event.timeStamp - press.timeStamp;
+        return elapsed >= 0 && elapsed <= (press.touch ? 650 : 100);
     }
 
     scrollBy(direction: 1 | -1): void {

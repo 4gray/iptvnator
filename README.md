@@ -60,7 +60,8 @@ The application is a cross-platform, open-source project built with Electron and
 
 - Per-playlist and global favorites, aggregated across all playlists ⭐
 - Recently viewed / watch history
-- Command palette (`Ctrl/Cmd+K`)
+- Command palette (`Ctrl/Cmd+K`) that also finds and opens individual settings
+- Settings search from the header search box on the Settings page
 
 **Platform**
 
@@ -76,9 +77,9 @@ Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
 | Area              | Shortcut                    | Action                                                     |
 | ----------------- | --------------------------- | ---------------------------------------------------------- |
 | Global            | `Ctrl/Cmd+K`                | Open command palette                                       |
-| Global            | `Ctrl/Cmd+F`                | Open global search in the desktop app                      |
+| Global            | `Ctrl/Cmd+F`                | Open global search (desktop); on Settings, search settings |
 | Global            | `Ctrl/Cmd+R`                | Open recently viewed in the desktop app                    |
-| Global            | `Enter` in workspace search | Submit the current search                                  |
+| Global            | `Enter` in workspace search | Submit the search; on Settings, open the best match        |
 | Global            | `F11`                       | Toggle app window fullscreen in the desktop app            |
 | Navigation        | `Ctrl/Cmd+B`                | Toggle the live sidebar                                    |
 | Navigation        | `0-9`                       | Select an M3U channel by number                            |
@@ -375,6 +376,29 @@ To run only the Angular app without Electron, use:
 ```
 $ pnpm run serve:frontend
 ```
+
+To see how many bytes the built web app puts on the initial load path (the
+number the CI ratchet guards), build it and run the measurement:
+
+```
+$ pnpm nx build web
+$ pnpm run perf:initial-bytes
+```
+
+The contract behind that number is in
+[docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
+
+To benchmark the "launch to usable", "open a source" and "start playback"
+journeys (fresh Electron processes on a seeded profile against the local
+Xtream mock, exact renderer counters plus wall-clock), run:
+
+```
+$ pnpm run perf:journeys
+```
+
+The journeys, their counters and the summary written under
+`dist/performance/journeys/` are described in
+[docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
 
 ## Disclaimer
 

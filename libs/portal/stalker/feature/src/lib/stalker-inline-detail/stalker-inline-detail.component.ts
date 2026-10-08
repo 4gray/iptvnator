@@ -10,6 +10,7 @@ import {
     VodDetailsComponent,
 } from '@iptvnator/ui/playback';
 import {
+    ExternalPlayerName,
     ExternalPlayerSession,
     ResolvedPortalPlayback,
     VodDetailsItem,
@@ -39,6 +40,8 @@ export class StalkerInlineDetailComponent {
     readonly vodDetailsItem = input<VodDetailsItem | null>(null);
     readonly isFavorite = input<boolean>(false);
     readonly playbackPosition = input<number | null>(null);
+    readonly playbackDurationSeconds = input<number | null>(null);
+    readonly sourceLabel = input<string | null>(null);
     readonly inlinePlayback = input<ResolvedPortalPlayback | null>(null);
     readonly externalPlayback = input<ExternalPlayerSession | null>(null);
     readonly providerOnly = input(false);
@@ -69,6 +72,12 @@ export class StalkerInlineDetailComponent {
     readonly streamUrlCopied = output<void>();
     readonly inlineExternalFallbackRequested =
         output<PlaybackFallbackRequest>();
+    readonly externalPlayRequested = output<{
+        item: VodDetailsItem;
+        player: ExternalPlayerName;
+        positionSeconds: number | null;
+    }>();
+    readonly resetProgressRequested = output<VodDetailsItem>();
 
     onBackClicked() {
         this.backClicked.emit();

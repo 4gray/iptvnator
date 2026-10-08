@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 
 export interface SettingsDeleteAllPlaylistsDialogData {
     summary: {
@@ -30,8 +31,7 @@ type SettingsDeleteSummaryItem = {
     selector: 'app-settings-delete-all-playlists-dialog',
     templateUrl: './settings-delete-all-playlists-dialog.component.html',
     styleUrls: ['./settings-delete-all-playlists-dialog.component.scss'],
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CommonModule,
         MatButtonModule,
@@ -48,19 +48,19 @@ export class SettingsDeleteAllPlaylistsDialogComponent {
         {
             id: 'm3u',
             count: this.dialogData.summary.m3u,
-            icon: 'playlist_play',
+            icon: SOURCE_TYPE_ICONS.m3u,
             labelKey: 'HOME.PLAYLIST_TYPES.M3U',
         },
         {
             id: 'xtream',
             count: this.dialogData.summary.xtream,
-            icon: 'cloud',
+            icon: SOURCE_TYPE_ICONS.xtream,
             labelKey: 'HOME.PLAYLIST_TYPES.XTREAM',
         },
         {
             id: 'stalker',
             count: this.dialogData.summary.stalker,
-            icon: 'router',
+            icon: SOURCE_TYPE_ICONS.stalker,
             labelKey: 'HOME.PLAYLIST_TYPES.STALKER',
         },
     ]);

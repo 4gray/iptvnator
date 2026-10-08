@@ -1,0 +1,86 @@
+// The theme declares no Material system colours, so the error colour is a
+// local token with a value per theme (>= 6:1 on the dialog surface in both).
+// The fields' error state (message, outline, label, caret) takes it too.
+:host {
+    --pin-dialog-error-color: #b3261e;
+    --mat-form-field-error-text-color: var(--pin-dialog-error-color);
+    --mat-form-field-outlined-error-outline-color: var(
+        --pin-dialog-error-color
+    );
+    --mat-form-field-outlined-error-hover-outline-color: var(
+        --pin-dialog-error-color
+    );
+    --mat-form-field-outlined-error-focus-outline-color: var(
+        --pin-dialog-error-color
+    );
+    --mat-form-field-outlined-error-label-text-color: var(
+        --pin-dialog-error-color
+    );
+    --mat-form-field-outlined-error-hover-label-text-color: var(
+        --pin-dialog-error-color
+    );
+    --mat-form-field-outlined-error-focus-label-text-color: var(
+        --pin-dialog-error-color
+    );
+    --mat-form-field-outlined-error-caret-color: var(--pin-dialog-error-color);
+}
+
+:host-context(.dark-theme) {
+    --pin-dialog-error-color: #ffb4ab;
+}
+
+.pin-dialog__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pin-dialog__content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pin-dialog__description {
+    margin: 0;
+    color: var(--app-body-color);
+    font-size: 0.875rem;
+}
+
+.pin-dialog__field {
+    width: 100%;
+
+    input {
+        letter-spacing: 0.3em;
+        font-size: 1.1rem;
+    }
+}
+
+.pin-dialog__field--shake {
+    animation: pin-dialog-shake 0.4s ease;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+.pin-dialog__note {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--app-body-color);
+}
+
+@keyframes pin-dialog-shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    20%,
+    60% {
+        transform: translateX(-6px);
+    }
+    40%,
+    80% {
+        transform: translateX(6px);
+    }
+}

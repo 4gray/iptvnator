@@ -107,9 +107,10 @@ test('@epg @xtream @electron removes uploaded guide data and restores provider E
         await expect
             .poll(() => timelineBlockTitles(app.mainWindow))
             .not.toContain('Temporary XMLTV Bulletin');
+        // The programme on now: the ribbon renders the blocks around it.
         await expect
             .poll(() => timelineBlockTitles(app.mainWindow))
-            .toContain(fixture.fullEpg[0].title);
+            .toContain(fixture.shortEpg[0].title);
     } finally {
         await closeElectronApp(app);
         await source.close();
@@ -281,14 +282,28 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
                 app.mainWindow.locator('app-epg-timeline')
             ).toBeVisible({ timeout: 20000 });
 
-            // The timeline renders the full multi-day window as blocks,
-            // sorted by start time (no per-day filtering — it scrolls).
+            // The timeline lays out the full multi-day window sorted by start
+            // time (no per-day filtering — it scrolls) and renders the blocks
+            // near the visible range: an ordered run around the current
+            // programme, and every programme once the ribbon is swept.
             const allTitles = [...fixture.fullEpg]
                 .sort((a, b) => a.startTimestamp - b.startTimestamp)
                 .map((listing) => listing.title);
             await expect
-                .poll(() => timelineBlockTitles(app.mainWindow))
-                .toEqual(allTitles);
+                .poll(async () => {
+                    const titles = await timelineBlockTitles(app.mainWindow);
+                    return (
+                        titles.includes(currentProgram.title) &&
+                        isContiguousRun(titles, allTitles)
+                    );
+                })
+                .toBe(true);
+            expect(await sweepTimelineTitles(app.mainWindow)).toEqual(
+                new Set(allTitles)
+            );
+            await app.mainWindow
+                .locator('app-epg-timeline .epg-timeline__jump')
+                .click();
 
             // The current programme is highlighted as the "now" block.
             await expect(
@@ -864,6 +879,56 @@ async function timelineBlockTitles(
         .locator('app-epg-timeline .epg-timeline__block-title')
         .allInnerTexts()
         .then((titles) => titles.map((title) => title.trim()).filter(Boolean));
+}
+
+/**
+ * Scroll the ribbon from its start to its end in half-viewport steps and
+ * collect every programme title rendered on the way.
+ */
+async function sweepTimelineTitles(
+    page: Parameters<typeof channelItemByTitle>[0]
+): Promise<Set<string>> {
+    const ribbon = page.locator('app-epg-timeline .epg-timeline__ribbon');
+    const seen = new Set<string>();
+    let left = 0;
+    for (;;) {
+        const { scrollLeft, maxLeft, step } = await ribbon.evaluate(
+            (element, target) => {
+                element.scrollLeft = target;
+                return {
+                    scrollLeft: element.scrollLeft,
+                    maxLeft: element.scrollWidth - element.clientWidth,
+                    step: Math.max(1, element.clientWidth / 2),
+                };
+            },
+            left
+        );
+        // Two frames: the scroll's measure, then the re-rendered blocks.
+        await page.evaluate(
+            () =>
+                new Promise((resolve) =>
+                    requestAnimationFrame(() => requestAnimationFrame(resolve))
+                )
+        );
+        (await timelineBlockTitles(page)).forEach((title) => seen.add(title));
+        if (scrollLeft >= maxLeft) {
+            return seen;
+        }
+        left = scrollLeft + step;
+    }
+}
+
+/** Whether `run` is a non-empty, in-order slice of `all`. */
+function isContiguousRun(run: string[], all: string[]): boolean {
+    if (run.length === 0) {
+        return false;
+    }
+    for (let start = 0; start + run.length <= all.length; start++) {
+        if (run.every((title, index) => all[start + index] === title)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 async function getProgressWidthPercent(

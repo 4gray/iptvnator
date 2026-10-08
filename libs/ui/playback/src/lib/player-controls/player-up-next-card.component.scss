@@ -1,0 +1,205 @@
+// Glass card, bottom-right above the dock, inside the controls host (the
+// `player-controls` container) whose `--pc-*` palette it reads. It does not
+// fade with idle controls; instead it collapses to a pill once seen, and the
+// corner close button dismisses it for the episode.
+:host {
+    position: absolute;
+    right: 32px;
+    bottom: 136px;
+    z-index: 3;
+    display: block;
+    max-width: calc(100cqw - 64px);
+    pointer-events: auto;
+    animation: player-up-next-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:host(.player-up-next--compact) {
+    right: 12px;
+    bottom: 92px;
+    max-width: calc(100cqw - 24px);
+}
+
+@keyframes player-up-next-in {
+    from {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host {
+        animation: none;
+    }
+}
+
+.player-up-next__button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 320px;
+    padding: 8px 14px 8px 8px;
+    color: var(--pc-text, #e7ecf3);
+    background: var(--pc-glass-bg, rgba(12, 16, 23, 0.72));
+    border: 1px solid var(--pc-glass-border, rgba(255, 255, 255, 0.09));
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(18px) saturate(1.3);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition:
+        background 120ms ease-out,
+        transform 120ms ease-out;
+}
+
+.player-up-next__button:hover {
+    background: rgba(12, 16, 23, 0.84);
+    transform: translateY(-1px);
+}
+
+.player-up-next__button:focus-visible {
+    outline: 2px solid var(--pc-text, #e7ecf3);
+    outline-offset: 2px;
+}
+
+.player-up-next__thumb {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 88px;
+    height: 50px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.player-up-next__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+// No still: the episode label as a large numeral tile, so the card still
+// looks designed without artwork.
+.player-up-next__placeholder {
+    color: var(--pc-text-secondary, #9aa3b2);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.player-up-next__progress {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.player-up-next__progress-bar {
+    display: block;
+    height: 100%;
+    background: var(--pc-progress);
+}
+
+.player-up-next__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.player-up-next__eyebrow {
+    color: var(--pc-text-secondary, #9aa3b2);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.player-up-next__title {
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-up-next__icon {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    font-size: 22px;
+    color: var(--pc-text-secondary, #9aa3b2);
+}
+
+:host(.player-up-next--compact) .player-up-next__button {
+    gap: 10px;
+    max-width: 240px;
+    padding: 5px 10px 5px 5px;
+    border-radius: 10px;
+}
+
+:host(.player-up-next--compact) .player-up-next__thumb {
+    width: 56px;
+    height: 32px;
+    border-radius: 6px;
+}
+
+:host(.player-up-next--compact) .player-up-next__eyebrow {
+    font-size: 9px;
+}
+
+:host(.player-up-next--compact) .player-up-next__title {
+    font-size: 11.5px;
+}
+
+// Collapsed: a single-line pill with the label and countdown; the thumbnail
+// and title are gone, so it no longer covers the picture.
+:host(.player-up-next--collapsed) .player-up-next__button {
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 999px;
+}
+
+.player-up-next__close {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    color: var(--pc-text, #e7ecf3);
+    background: var(--pc-glass-bg, rgba(12, 16, 23, 0.72));
+    border: 1px solid var(--pc-glass-border, rgba(255, 255, 255, 0.09));
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(18px) saturate(1.3);
+    cursor: pointer;
+    transition: background 120ms ease-out;
+
+    mat-icon {
+        width: 14px;
+        height: 14px;
+        font-size: 14px;
+    }
+}
+
+.player-up-next__close:hover {
+    background: rgba(12, 16, 23, 0.9);
+}
+
+.player-up-next__close:focus-visible {
+    outline: 2px solid var(--pc-text, #e7ecf3);
+    outline-offset: 2px;
+}

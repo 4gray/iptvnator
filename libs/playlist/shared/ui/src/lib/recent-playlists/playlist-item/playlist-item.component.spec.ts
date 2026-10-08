@@ -127,9 +127,7 @@ describe('PlaylistItemComponent', () => {
         fixture.detectChanges();
 
         expect(
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.refresh-btn'
-            )
+            (fixture.nativeElement as HTMLElement).querySelector('.refresh-btn')
         ).toBeNull();
     });
 
@@ -149,9 +147,7 @@ describe('PlaylistItemComponent', () => {
         fixture.detectChanges();
 
         expect(
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.refresh-btn'
-            )
+            (fixture.nativeElement as HTMLElement).querySelector('.refresh-btn')
         ).not.toBeNull();
     });
 
@@ -173,9 +169,7 @@ describe('PlaylistItemComponent', () => {
         fixture.detectChanges();
 
         expect(
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.refresh-btn'
-            )
+            (fixture.nativeElement as HTMLElement).querySelector('.refresh-btn')
         ).not.toBeNull();
 
         fixture.destroy();
@@ -195,10 +189,38 @@ describe('PlaylistItemComponent', () => {
         fixture.detectChanges();
 
         expect(
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.refresh-btn'
-            )
+            (fixture.nativeElement as HTMLElement).querySelector('.refresh-btn')
         ).toBeNull();
+    });
+
+    // OnPush: the status arrives after an await outside any template event,
+    // so it must reach the view without a zone-triggered tick.
+    it('renders the portal status that resolves after the first render', async () => {
+        fixture.destroy();
+        fixture = TestBed.createComponent(PlaylistItemComponent);
+        component = fixture.componentInstance;
+        component.item = {
+            title: 'Xtream Source',
+            _id: 'xtream-source',
+            count: 10,
+            importDate: Date.now().toString(),
+            autoRefresh: false,
+            serverUrl: 'https://example.com',
+            username: 'demo',
+            password: 'secret',
+        };
+        // The fixture renders on its own: a forced detectChanges() after the
+        // await would hide a status that does not schedule a render.
+        fixture.autoDetectChanges();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        const statusDot = (fixture.nativeElement as HTMLElement).querySelector(
+            '.status-dot'
+        );
+        expect(statusDot?.getAttribute('aria-label')).toBe(
+            'Portal status: active'
+        );
     });
 
     it('renders cancel and progress UI for long-running playlist actions', () => {
@@ -221,4 +243,41 @@ describe('PlaylistItemComponent', () => {
         ).toContain('42%');
         expect(nativeElement.querySelector('.cancel-btn')).not.toBeNull();
     });
+
+    it.each([
+        [
+            { macAddress: '00:1A:79:00:00:01', url: 'http://portal.test' },
+            'cast',
+            true,
+        ],
+        [{ macAddress: '00:1A:79:00:00:01' }, 'cast', false],
+        [{ serverUrl: 'http://xtream.test' }, 'cloud', false],
+        [{ url: 'http://list.test/playlist.m3u' }, 'link', true],
+        [{}, 'description', true],
+    ])(
+        'shows one provider icon for %o (%s) and keeps the auto-refresh badge: %s',
+        (source, icon, autoRefreshBadge) => {
+            fixture.destroy();
+            fixture = TestBed.createComponent(PlaylistItemComponent);
+            fixture.componentInstance.item = {
+                title: 'Source',
+                _id: 'source',
+                count: 10,
+                importDate: Date.now().toString(),
+                autoRefresh: true,
+                ...source,
+            };
+            fixture.detectChanges();
+
+            const row = fixture.nativeElement as HTMLElement;
+            const icons = Array.from(
+                row.querySelectorAll('.upload-type-icon'),
+                (element) => element.textContent?.trim()
+            );
+            expect(icons).toEqual([icon]);
+            expect(row.querySelector('.auto-refresh-indicator') !== null).toBe(
+                autoRefreshBadge
+            );
+        }
+    );
 });

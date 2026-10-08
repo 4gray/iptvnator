@@ -26,7 +26,11 @@ import {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
-import type { PlayerMediaTitle } from '../player-controls/player-controls.model';
+import type {
+    PlayerMediaTitle,
+    PlayerUpNextItem,
+    PlayerTimelineSegment,
+} from '../player-controls/player-controls.model';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvDockPanelComponent } from './embedded-mpv-dock-panel.component';
@@ -53,6 +57,7 @@ import {
     subtitleTrackLabel,
     volumeIcon,
 } from './embedded-mpv-format.utils';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 
@@ -82,13 +87,15 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Catch-up programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the root. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
@@ -563,6 +570,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 this.timeUpdate.emit({
                     currentTime: session.positionSeconds,
                     duration: session.durationSeconds ?? 0,
+                    playing: session.status === 'playing',
                 });
                 this.legacyInteractions.scheduleControlsHide();
             });

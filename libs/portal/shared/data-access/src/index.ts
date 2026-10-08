@@ -6,3 +6,6 @@ export * from './lib/live-channel-playback-queue';
 export * from './lib/source-health.service';
 
 export * from './lib/source-cleanup.service';
+
+export * from './lib/register-workspace-back';
+export * from './lib/workspace-back-navigation.service';

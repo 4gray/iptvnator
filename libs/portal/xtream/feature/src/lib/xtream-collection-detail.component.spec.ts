@@ -1,5 +1,10 @@
 import { signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+    ComponentFixture,
+    TestBed,
+    fakeAsync,
+    flushMicrotasks,
+} from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { VIEW_IN_PORTAL_HANDOFF } from '@iptvnator/ui/components';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
@@ -9,7 +14,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
-import { firstValueFrom, of } from 'rxjs';
+import { Subject, firstValueFrom, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details/serial-details-resume-target.token';
 import { XtreamCollectionDetailComponent } from './xtream-collection-detail.component';
@@ -17,9 +22,7 @@ import { XtreamCollectionDetailComponent } from './xtream-collection-detail.comp
 describe('XtreamCollectionDetailComponent', () => {
     let fixture: ComponentFixture<XtreamCollectionDetailComponent>;
     let playlistId: ReturnType<typeof signal<string>>;
-    let currentPlaylist: ReturnType<
-        typeof signal<XtreamPlaylistData | null>
-    >;
+    let currentPlaylist: ReturnType<typeof signal<XtreamPlaylistData | null>>;
     let selectedContentType: ReturnType<
         typeof signal<'live' | 'vod' | 'series'>
     >;
@@ -66,9 +69,8 @@ describe('XtreamCollectionDetailComponent', () => {
                             (value: 'live' | 'vod' | 'series') =>
                                 selectedContentType.set(value)
                         ),
-                        setSelectedCategory: jest.fn(
-                            (value: number | null) =>
-                                selectedCategoryId.set(value)
+                        setSelectedCategory: jest.fn((value: number | null) =>
+                            selectedCategoryId.set(value)
                         ),
                         setSelectedItem: jest.fn((value: unknown) =>
                             selectedItem.set(value)
@@ -177,6 +179,53 @@ describe('XtreamCollectionDetailComponent', () => {
 
         expect(cancelDetailsRequest).toHaveBeenCalledTimes(1);
     });
+
+    it('ignores a pending playlist load after the collection detail is destroyed', fakeAsync(() => {
+        const pendingPlaylist = new Subject<Playlist>();
+        jest.spyOn(
+            TestBed.inject(PlaylistsService),
+            'getPlaylistById'
+        ).mockReturnValue(pendingPlaylist);
+        fixture.componentRef.setInput('item', {
+            uid: 'xtream::xtream-1::movie:99',
+            name: 'Movie One',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream Portal',
+            xtreamId: 99,
+            categoryId: 42,
+        } satisfies UnifiedCollectionItem);
+        fixture.detectChanges();
+
+        fixture.destroy();
+        const nextPlaylist: XtreamPlaylistData = {
+            id: 'xtream-2',
+            name: 'Next Portal',
+            serverUrl: 'http://next.example',
+            username: 'next-user',
+            password: 'next-pass',
+            type: 'xtream',
+        };
+        playlistId.set(nextPlaylist.id);
+        currentPlaylist.set(nextPlaylist);
+        selectedContentType.set('live');
+
+        pendingPlaylist.next({
+            _id: 'xtream-1',
+            title: 'Xtream Portal',
+            serverUrl: 'http://xtream.example',
+            username: 'user',
+            password: 'pass',
+        } as Playlist);
+        flushMicrotasks();
+
+        expect(playlistId()).toBe('xtream-2');
+        expect(currentPlaylist()).toBe(nextPlaylist);
+        expect(selectedContentType()).toBe('live');
+        expect(fixture.componentInstance.detailComponent()).toBeNull();
+        expect(fixture.componentInstance.detailInjector()).toBeNull();
+    }));
 
     it('provides itself as the view-in-portal handoff to the inline detail', async () => {
         fixture.componentRef.setInput('item', {

@@ -16,113 +16,154 @@
             <!-- Only the routed section renders. The parent keeps the shared
                  form alive across section switches, so edits staged on one
                  page survive a visit to another. -->
-            @switch (activeSection()) {
-                @case ('playback') {
-                    <app-settings-playback-section
-                        [form]="settingsForm"
-                        [players]="players()"
-                        [streamFormatEnum]="streamFormatEnum"
-                        [isDesktop]="isDesktop"
-                        [supportsManagedExternalPlayers]="
-                            supportsManagedExternalPlayers
-                        "
-                        [supportsExternalPlayerPathSettings]="
-                            supportsExternalPlayerPathSettings
-                        "
-                        [supportsVodMultiSource]="supportsVodMultiSource"
-                        [frameCopyAvailable]="embeddedMpv.frameCopyAvailable()"
-                        [frameCopyActive]="embeddedMpv.frameCopyActive()"
-                        (selectRecordingFolder)="selectRecordingFolder()"
-                    />
-                }
-                @case ('epg') {
-                    <app-settings-epg-section
-                        [form]="settingsForm"
-                        [epgUrl]="form.epgUrl"
-                        [isClearingEpgData]="epg.isClearing()"
-                        [canBrowseFiles]="epg.supportsFilePicker"
-                        [epgViewModeOptions]="epgViewModeOptions"
-                        (refreshEpg)="epg.refresh($event)"
-                        (browseEpgSource)="epg.browse($event)"
-                        (removeEpgSource)="form.removeEpgSource($event)"
-                        (addEpgSource)="form.addEpgSource()"
-                        (refreshAllEpg)="epg.refreshAll()"
-                        (clearEpgData)="epg.clear()"
-                        (selectEpgViewMode)="form.selectEpgViewMode($event)"
-                    />
-                }
-                @case ('dashboard') {
-                    <app-settings-dashboard-section [form]="settingsForm" />
-                }
-                @case ('remote-control') {
-                    <app-settings-remote-control-section
-                        [form]="settingsForm"
-                        [localIpAddresses]="remoteControl.localIpAddresses()"
-                        [visibleQrCodeIp]="remoteControl.visibleQrCodeIp()"
-                        (toggleQrCode)="remoteControl.toggleQrCode($event)"
-                    />
-                }
-                @case ('tmdb') {
-                    <app-settings-tmdb-section [form]="settingsForm" />
-                }
-                @case ('backup') {
-                    <app-settings-backup-section
-                        [isPwa]="isPwa"
-                        [isRemovingAllPlaylists]="
-                            playlistReset.isRemovingAllPlaylists()
-                        "
-                        [isExportingData]="backup.isExportingData()"
-                        (importData)="importData()"
-                        (exportData)="exportData()"
-                    />
-                }
-                @case ('reset') {
-                    <app-settings-reset-section
-                        [isRemovingAllPlaylists]="
-                            playlistReset.isRemovingAllPlaylists()
-                        "
-                        [canRemoveAllPlaylists]="playlistReset.canRemoveAll()"
-                        [playlistDeleteSummary]="playlistReset.deleteSummary()"
-                        [removeAllProgressLabel]="
-                            playlistReset.removeAllProgressLabel()
-                        "
-                        (removeAll)="removeAll()"
-                    />
-                }
-                @case ('about') {
-                    <app-settings-about-section
-                        [isDesktop]="isDesktop"
-                        [form]="settingsForm"
-                        [updateChannelOptions]="updateChannelOptions"
-                        [version]="appUpdate.version()"
-                        [buildCommit]="buildCommit"
-                        [updateMessage]="appUpdate.updateMessage()"
-                        [appUpdateStatus]="appUpdate.status()"
-                        (checkForAppUpdate)="appUpdate.checkForAppUpdate()"
-                        (saveAndCheckForAppUpdate)="onSubmit()"
-                        (downloadAppUpdate)="appUpdate.downloadAppUpdate()"
-                        (installAppUpdate)="appUpdate.installAppUpdate()"
-                        (openManualAppUpdate)="appUpdate.openManualAppUpdate()"
-                        (openAppUpdateReleaseNotes)="
-                            appUpdate.openReleaseNotes()
-                        "
-                    />
-                }
-                @default {
-                    <app-settings-general-section
-                        [form]="settingsForm"
-                        [languageEnum]="languageEnum"
-                        [themeOptions]="themeOptions"
-                        [coverSizeOptions]="coverSizeOptions"
-                        [startupBehaviorOptions]="startupBehaviorOptions"
-                        [startupWindowModeOptions]="startupWindowModeOptions"
-                        [supportsPortalConnectivityGuard]="
-                            supportsPortalConnectivityGuard
-                        "
-                        [supportsStartupWindowMode]="supportsStartupWindowMode"
-                        (selectTheme)="form.selectTheme($event)"
-                        (selectCoverSize)="form.selectCoverSize($event)"
-                    />
+            <!-- An active header search term (`q`) replaces the section page
+                 with ranked results across every section. -->
+            @if (search.isSearching()) {
+                <app-settings-search-results
+                    [query]="search.query()"
+                    [results]="search.results()"
+                    (selected)="search.select($event)"
+                />
+            } @else {
+                @switch (activeSection()) {
+                    @case ('playback') {
+                        <app-settings-playback-section
+                            [form]="settingsForm"
+                            [players]="players()"
+                            [streamFormatEnum]="streamFormatEnum"
+                            [isDesktop]="isDesktop"
+                            [supportsManagedExternalPlayers]="
+                                supportsManagedExternalPlayers
+                            "
+                            [supportsExternalPlayerPathSettings]="
+                                supportsExternalPlayerPathSettings
+                            "
+                            [supportsVodMultiSource]="supportsVodMultiSource"
+                            [frameCopyAvailable]="
+                                embeddedMpv.frameCopyAvailable()
+                            "
+                            [frameCopyActive]="embeddedMpv.frameCopyActive()"
+                            (selectRecordingFolder)="selectRecordingFolder()"
+                        />
+                    }
+                    @case ('epg') {
+                        <app-settings-epg-section
+                            [form]="settingsForm"
+                            [epgUrl]="form.epgUrl"
+                            [isClearingEpgData]="epg.isClearing()"
+                            [canBrowseFiles]="epg.supportsFilePicker"
+                            [epgViewModeOptions]="epgViewModeOptions"
+                            (refreshEpg)="epg.refresh($event)"
+                            (browseEpgSource)="epg.browse($event)"
+                            (removeEpgSource)="form.removeEpgSource($event)"
+                            (addEpgSource)="form.addEpgSource()"
+                            (refreshAllEpg)="epg.refreshAll()"
+                            (clearEpgData)="epg.clear()"
+                            (selectEpgViewMode)="form.selectEpgViewMode($event)"
+                        />
+                    }
+                    @case ('dashboard') {
+                        <app-settings-dashboard-section [form]="settingsForm" />
+                    }
+                    @case ('remote-control') {
+                        <app-settings-remote-control-section
+                            [form]="settingsForm"
+                            [localIpAddresses]="
+                                remoteControl.localIpAddresses()
+                            "
+                            [visibleQrCodeIp]="remoteControl.visibleQrCodeIp()"
+                            (toggleQrCode)="remoteControl.toggleQrCode($event)"
+                        />
+                    }
+                    @case ('tmdb') {
+                        <app-settings-tmdb-section [form]="settingsForm" />
+                    }
+                    @case ('parental') {
+                        <app-settings-parental-lock-section
+                            [enabled]="parentalLock.enabled()"
+                            [unlocked]="parentalLock.unlocked()"
+                            [hasPin]="parentalLock.hasPin()"
+                            [relockMinutes]="parentalLock.relockMinutes()"
+                            [relockOptions]="parentalLock.relockOptions"
+                            [busy]="parentalLock.busy()"
+                            (toggleEnabled)="parentalLock.toggleEnabled($event)"
+                            (changePin)="parentalLock.changePin()"
+                            (relockMinutesChanged)="
+                                parentalLock.setRelockMinutes($event)
+                            "
+                            (lockNow)="parentalLock.lockNow()"
+                            (unlock)="parentalLock.unlock()"
+                        />
+                    }
+                    @case ('backup') {
+                        <app-settings-backup-section
+                            [isPwa]="isPwa"
+                            [isRemovingAllPlaylists]="
+                                playlistReset.isRemovingAllPlaylists()
+                            "
+                            [isExportingData]="backup.isExportingData()"
+                            (importData)="importData()"
+                            (exportData)="exportData()"
+                        />
+                    }
+                    @case ('reset') {
+                        <app-settings-reset-section
+                            [isRemovingAllPlaylists]="
+                                playlistReset.isRemovingAllPlaylists()
+                            "
+                            [canRemoveAllPlaylists]="
+                                playlistReset.canRemoveAll()
+                            "
+                            [playlistDeleteSummary]="
+                                playlistReset.deleteSummary()
+                            "
+                            [removeAllProgressLabel]="
+                                playlistReset.removeAllProgressLabel()
+                            "
+                            (removeAll)="removeAll()"
+                        />
+                    }
+                    @case ('about') {
+                        <app-settings-about-section
+                            [isDesktop]="isDesktop"
+                            [form]="settingsForm"
+                            [updateChannelOptions]="updateChannelOptions"
+                            [version]="appUpdate.version()"
+                            [buildCommit]="buildCommit"
+                            [updateMessage]="appUpdate.updateMessage()"
+                            [appUpdateStatus]="appUpdate.status()"
+                            (checkForAppUpdate)="appUpdate.checkForAppUpdate()"
+                            (saveAndCheckForAppUpdate)="onSubmit()"
+                            (downloadAppUpdate)="appUpdate.downloadAppUpdate()"
+                            (installAppUpdate)="appUpdate.installAppUpdate()"
+                            (openManualAppUpdate)="
+                                appUpdate.openManualAppUpdate()
+                            "
+                            (openAppUpdateReleaseNotes)="
+                                appUpdate.openReleaseNotes()
+                            "
+                        />
+                    }
+                    @default {
+                        <app-settings-general-section
+                            [form]="settingsForm"
+                            [languageEnum]="languageEnum"
+                            [themeOptions]="themeOptions"
+                            [coverSizeOptions]="coverSizeOptions"
+                            [startupBehaviorOptions]="startupBehaviorOptions"
+                            [startupWindowModeOptions]="
+                                startupWindowModeOptions
+                            "
+                            [supportsPortalConnectivityGuard]="
+                                supportsPortalConnectivityGuard
+                            "
+                            [supportsStartupWindowMode]="
+                                supportsStartupWindowMode
+                            "
+                            (selectTheme)="form.selectTheme($event)"
+                            (selectCoverSize)="form.selectCoverSize($event)"
+                        />
+                    }
                 }
             }
         </div>

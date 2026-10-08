@@ -174,6 +174,12 @@ export class EmbeddedMpvNativeService {
     private powerBlockerId: number | null = null;
     private readonly loadAddonModule = createRequire(__filename);
     private cachedLinuxMpvExecutableReason: string | null | undefined;
+    /**
+     * True while `mpv --version` runs, or was cached, on the inherited PATH
+     * because the login shell had not answered: a missing mpv is then no
+     * verdict yet.
+     */
+    private linuxMpvExecutableProbeIsProvisional = false;
     private frameCopyAdapter: EmbeddedMpvFrameCopyAdapter | null = null;
     private sessionOptionsDirectory: string | null = null;
     /**
@@ -377,6 +383,42 @@ export class EmbeddedMpvNativeService {
         };
     }
 
+    /**
+     * Whether `getSupport()` would now run the uncached Linux bare-name
+     * `mpv --version` probe, i.e. reach the native-engine checks: no
+     * frame-copy engine, a usable display server and the feature enabled.
+     * The IPC layer waits for the login shell PATH only then.
+     */
+    willProbeLinuxMpvExecutable(): boolean {
+        return (
+            process.platform === 'linux' &&
+            this.cachedLinuxMpvExecutableReason === undefined &&
+            !this.isUnsupportedLinuxDisplayServer() &&
+            isEmbeddedMpvFeatureEnabled() &&
+            !this.isFrameCopyEngineActive()
+        );
+    }
+
+    /**
+     * Drops the cached `mpv --version` result, found or missing, so the next
+     * support check probes again. For a probe that ran before the login
+     * shell PATH arrived: that PATH may add mpv or leave out the directory
+     * the inherited one found it in.
+     */
+    forgetLinuxMpvExecutableProbe(): void {
+        this.cachedLinuxMpvExecutableReason = undefined;
+        this.linuxMpvExecutableProbeIsProvisional = false;
+    }
+
+    /**
+     * Declares that the probe sees the inherited PATH, the login shell one
+     * not having arrived. Until `forgetLinuxMpvExecutableProbe()`, a missing
+     * mpv is reported as `inconclusive`, so no caller settles on it.
+     */
+    markLinuxMpvExecutableProbeProvisional(): void {
+        this.linuxMpvExecutableProbeIsProvisional = true;
+    }
+
     getSupport(): EmbeddedMpvSupport {
         if (!SUPPORTED_EMBEDDED_MPV_PLATFORMS.has(process.platform)) {
             return {
@@ -432,6 +474,9 @@ export class EmbeddedMpvNativeService {
                 supported: false,
                 platform: process.platform,
                 reason: missingLinuxMpvExecutableReason,
+                ...(this.linuxMpvExecutableProbeIsProvisional
+                    ? { inconclusive: true }
+                    : {}),
                 ...this.getFrameCopySupportDetails(),
             };
         }

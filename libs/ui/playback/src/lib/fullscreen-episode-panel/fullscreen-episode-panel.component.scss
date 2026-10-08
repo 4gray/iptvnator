@@ -1,7 +1,12 @@
+@use '../player-controls/player-palette' as palette;
+
 // Stamped into the fullscreen panel's body, which is its single flex child;
 // the list below is the body's only scroll owner. The panel wears the
 // `dark-theme` context class, so the light-on-dark palette here is fixed.
+// The panel sits beside the controls host, outside its `--pc-*` scope, so it
+// declares the player's progress colour itself.
 :host {
+    @include palette.progress-token;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -121,6 +126,11 @@
         background: rgba(255, 255, 255, 0.1);
     }
 
+    &:focus-visible {
+        outline: 2px solid #e7ecf3;
+        outline-offset: -2px;
+    }
+
     mat-icon {
         width: 16px;
         height: 16px;
@@ -152,14 +162,22 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
+        outline: 2px solid #e7ecf3;
         outline-offset: -2px;
     }
 }
 
+// The playing row wears the settings panel's selected-option tint: cyan means
+// "this is on" across the player chrome.
 .episode-panel__item--playing {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(92, 214, 255, 0.14);
     cursor: default;
+
+    // Keep the cue while the row is hovered or focused.
+    &:hover,
+    &:focus-visible {
+        background: rgba(92, 214, 255, 0.2);
+    }
 }
 
 // Watched rows step back so the unwatched ones read as "what's left".
@@ -225,7 +243,7 @@
 .episode-panel__progress-bar {
     display: block;
     height: 100%;
-    background: #e50914;
+    background: var(--pc-progress);
 }
 
 // ─── Text ────────────────────────────────────────────────────────────────────
@@ -266,7 +284,7 @@
     font-size: 0.62rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: #7dd87d;
+    color: #5cd6ff;
 }
 
 .episode-panel__title {

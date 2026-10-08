@@ -2,18 +2,18 @@ import { DatePipe } from '@angular/common';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { EpgProgrammeDialogService } from '@iptvnator/ui/epg';
 import { ChannelListItemComponent } from './channel-list-item.component';
 
 describe('ChannelListItemComponent', () => {
     let fixture: ComponentFixture<ChannelListItemComponent>;
-    let dialog: { open: jest.Mock };
+    let programmeDialog: { open: jest.Mock };
 
     beforeEach(async () => {
-        dialog = {
+        programmeDialog = {
             open: jest.fn(),
         };
 
@@ -25,8 +25,8 @@ describe('ChannelListItemComponent', () => {
             ],
             providers: [
                 {
-                    provide: MatDialog,
-                    useValue: dialog,
+                    provide: EpgProgrammeDialogService,
+                    useValue: programmeDialog,
                 },
             ],
         }).compileComponents();
@@ -140,6 +140,27 @@ describe('ChannelListItemComponent', () => {
         expect(buttons[1]).not.toContain('slot-empty');
     });
 
+    it('opens the programme through the shared dialog service', () => {
+        const program: EpgProgram = {
+            start: '2026-04-05 05:30:00',
+            stop: '2026-04-05 06:00:00',
+            channel: 'channel-1',
+            title: 'Current Show',
+            desc: 'Current description',
+            category: null,
+        };
+        fixture.componentRef.setInput('name', 'Info Channel');
+        fixture.componentRef.setInput('epgProgram', program);
+        fixture.detectChanges();
+
+        // The service owns the open config, so the row opens the dialog at
+        // the same width as the timeline, list and guide.
+        fixture.nativeElement.querySelector('.program-info-button').click();
+
+        expect(programmeDialog.open).toHaveBeenCalledTimes(1);
+        expect(programmeDialog.open).toHaveBeenCalledWith(program);
+    });
+
     it('keeps an inert info slot while the row has no programme', () => {
         fixture.componentRef.setInput('name', 'No EPG Yet');
         fixture.componentRef.setInput('showFavoriteButton', true);
@@ -155,7 +176,7 @@ describe('ChannelListItemComponent', () => {
         expect(slot.disabled).toBe(true);
 
         slot.click();
-        expect(dialog.open).not.toHaveBeenCalled();
+        expect(programmeDialog.open).not.toHaveBeenCalled();
     });
 
     it('renders the catch-up badge only when catch-up is available', () => {
@@ -271,7 +292,10 @@ describe('ChannelListItemComponent', () => {
                     TranslateModule.forRoot(),
                 ],
                 providers: [
-                    { provide: MatDialog, useValue: dialog },
+                    {
+                        provide: EpgProgrammeDialogService,
+                        useValue: programmeDialog,
+                    },
                     {
                         provide: SettingsStore,
                         useValue: {
@@ -307,7 +331,10 @@ describe('ChannelListItemComponent with an EPG display offset', () => {
                 TranslateModule.forRoot(),
             ],
             providers: [
-                { provide: MatDialog, useValue: { open: jest.fn() } },
+                {
+                    provide: EpgProgrammeDialogService,
+                    useValue: { open: jest.fn() },
+                },
                 {
                     provide: SettingsStore,
                     useValue: {

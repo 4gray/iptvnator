@@ -7,42 +7,66 @@
             <p>{{ 'XTREAM.CATEGORY_MANAGEMENT.LOADING' | translate }}</p>
         </div>
     } @else {
-        <div class="header-actions">
-            <div class="selection-info">
-                {{ 'XTREAM.CATEGORY_MANAGEMENT.SELECTED' | translate }}:
-                <strong>{{ selectedCount() }}</strong> / {{ totalCount() }}
+        <!-- Hide/show is Electron-only: the PWA lists categories for their
+             lock toggles alone, so it shows no selection count or bulk
+             selection actions. -->
+        @if (supportsVisibility || showLocks()) {
+            <div class="header-actions">
+                <div class="selection-info">
+                    @if (supportsVisibility) {
+                        {{ 'XTREAM.CATEGORY_MANAGEMENT.SELECTED' | translate }}:
+                        <strong>{{ selectedCount() }}</strong> /
+                        {{ totalCount() }}
+                    }
+                    @if (showLocks()) {
+                        <span
+                            class="selection-info__locks"
+                            data-test-id="category-locked-count"
+                        >
+                            @if (supportsVisibility) {
+                                ·
+                            }
+                            {{ 'PARENTAL_LOCK.LOCKED_COUNT' | translate }}:
+                            <strong>{{ lockedCount() }}</strong>
+                        </span>
+                    }
+                </div>
+                @if (supportsVisibility) {
+                    <div class="bulk-actions">
+                        <button
+                            mat-stroked-button
+                            (click)="selectAll()"
+                            [disabled]="
+                                isSaving() ||
+                                filteredCategories().length === 0 ||
+                                allFilteredSelected()
+                            "
+                        >
+                            {{
+                                (searchTerm()
+                                    ? 'XTREAM.CATEGORY_MANAGEMENT.SELECT_FILTERED'
+                                    : 'XTREAM.CATEGORY_MANAGEMENT.SELECT_ALL'
+                                ) | translate
+                            }}
+                        </button>
+                        <button
+                            mat-stroked-button
+                            (click)="deselectAll()"
+                            [disabled]="
+                                isSaving() || filteredSelectedCount() === 0
+                            "
+                        >
+                            {{
+                                (searchTerm()
+                                    ? 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_FILTERED'
+                                    : 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_ALL'
+                                ) | translate
+                            }}
+                        </button>
+                    </div>
+                }
             </div>
-            <div class="bulk-actions">
-                <button
-                    mat-stroked-button
-                    (click)="selectAll()"
-                    [disabled]="
-                        isSaving() ||
-                        filteredCategories().length === 0 ||
-                        allFilteredSelected()
-                    "
-                >
-                    {{
-                        (searchTerm()
-                            ? 'XTREAM.CATEGORY_MANAGEMENT.SELECT_FILTERED'
-                            : 'XTREAM.CATEGORY_MANAGEMENT.SELECT_ALL'
-                        ) | translate
-                    }}
-                </button>
-                <button
-                    mat-stroked-button
-                    (click)="deselectAll()"
-                    [disabled]="isSaving() || filteredSelectedCount() === 0"
-                >
-                    {{
-                        (searchTerm()
-                            ? 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_FILTERED'
-                            : 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_ALL'
-                        ) | translate
-                    }}
-                </button>
-            </div>
-        </div>
+        }
 
         <label class="search-inline">
             <mat-icon class="search-inline__icon">search</mat-icon>
@@ -60,6 +84,9 @@
                     type="button"
                     mat-icon-button
                     class="search-inline__clear"
+                    [attr.aria-label]="
+                        'EMBEDDED_MPV.PLAYER.CLEAR_SEARCH' | translate
+                    "
                     (click)="clearSearch()"
                 >
                     <mat-icon>close</mat-icon>
@@ -74,17 +101,48 @@
                     [attr.data-category-id]="category.xtream_id"
                     (click)="toggleCategory(category)"
                 >
-                    <mat-checkbox
-                        [checked]="category.selected"
-                        [aria-label]="category.name"
-                        (click)="$event.stopPropagation()"
-                        (change)="toggleCategory(category)"
-                    >
-                    </mat-checkbox>
+                    @if (supportsVisibility) {
+                        <mat-checkbox
+                            [checked]="category.selected"
+                            [aria-label]="category.name"
+                            (click)="$event.stopPropagation()"
+                            (change)="toggleCategory(category)"
+                        >
+                        </mat-checkbox>
+                    }
                     <span class="category-name">{{ category.name }}</span>
                     <span class="item-count"
                         >({{ getItemCount(category) }})</span
                     >
+                    @if (showLocks()) {
+                        <button
+                            type="button"
+                            mat-icon-button
+                            class="lock-toggle"
+                            [class.lock-toggle--locked]="category.lockedDraft"
+                            [attr.aria-pressed]="category.lockedDraft"
+                            [attr.data-test-id]="
+                                'category-lock-' + category.xtream_id
+                            "
+                            [matTooltip]="
+                                (category.lockedDraft
+                                    ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
+                                    : 'PARENTAL_LOCK.LOCK_CATEGORY'
+                                ) | translate
+                            "
+                            [attr.aria-label]="
+                                (category.lockedDraft
+                                    ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
+                                    : 'PARENTAL_LOCK.LOCK_CATEGORY'
+                                ) | translate
+                            "
+                            (click)="toggleLock(category, $event)"
+                        >
+                            <mat-icon>{{
+                                category.lockedDraft ? 'lock' : 'lock_open'
+                            }}</mat-icon>
+                        </button>
+                    }
                 </div>
             } @empty {
                 <div class="empty-message">

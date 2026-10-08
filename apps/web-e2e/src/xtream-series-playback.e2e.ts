@@ -123,6 +123,66 @@ test.describe('@xtream inline series fullscreen', () => {
         expect(await fullscreenOwner()).not.toBeNull();
     });
 
+    test('shows the Up next card near the end and plays the next episode from it', async ({
+        page,
+        request,
+    }) => {
+        await routeEpisodeClip(page);
+        await rewriteSeriesEpisodesToMp4(page);
+        await selectWebPlayer(page, 'HTML5 video player');
+        const { playerView, video } = await playFirstSeriesEpisode(
+            page,
+            request
+        );
+        await expect(playerView.locator('app-html-video-player')).toBeVisible({
+            timeout: 15_000,
+        });
+        await expect
+            .poll(() =>
+                video.evaluate((el) => (el as HTMLVideoElement).readyState)
+            )
+            .toBeGreaterThanOrEqual(1);
+
+        // The 30 s fixture clip is shorter than the card's 40 s minimum
+        // lead, so the card is up as soon as the duration is known.
+        const card = playerView.locator(
+            '[data-test-id="player-controls-up-next"]'
+        );
+        await expect(card).toBeVisible();
+        await expect(card).toContainText('Up next');
+        await expect(card).toHaveAttribute('aria-label', /S01E02/);
+
+        // The settings panel takes the same corner: the card yields to it.
+        await playerView.hover();
+        await playerView
+            .locator('[data-test-id="player-controls-settings-button"]')
+            .click();
+        await expect(card).toHaveCount(0);
+        await page.keyboard.press('Escape');
+        await expect(card).toBeVisible();
+
+        // A click plays the next episode through the host's own path.
+        await card.click();
+        await expect(
+            page.locator('app-portal-inline-player .player-shell__episode-meta')
+        ).toContainText('S01E02', { timeout: 15_000 });
+        await expect(card).toHaveAttribute('aria-label', /S01E03/, {
+            timeout: 15_000,
+        });
+
+        // The corner button hides the card for this episode; bringing the
+        // controls back does not bring it back.
+        await playerView
+            .locator('[data-test-id="player-controls-up-next-close"]')
+            .click();
+        await expect(card).toHaveCount(0);
+        await playerView.hover({ position: { x: 40, y: 40 } });
+        await expect(
+            playerView.locator('[data-test-id="player-controls-next-episode"]')
+        ).toBeVisible();
+        await expect(card).toHaveCount(0);
+    });
+
     test('switches episodes from the fullscreen episode panel without leaving fullscreen', async ({
         page,
         request,

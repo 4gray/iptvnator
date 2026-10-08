@@ -15,11 +15,14 @@ import {
 import Artplayer from 'artplayer';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import { releaseVideoPictureInPicture } from '../player-controls/web-video-picture-in-picture-lifecycle';
+import { PLAYER_PROGRESS_COLOR } from '../player-controls/player-palette';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import {
     type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
+    PlayerUpNextItem,
+    type PlayerTimelineSegment,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -34,6 +37,7 @@ import {
 } from './art-player-setup';
 import { ArtPlayerSourceSession } from './art-player-source-session';
 import { ArtPlayerVideoSession } from './art-player-video-session';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const debugArtPlayer = createDevLogger('ArtPlayer');
 
@@ -47,7 +51,7 @@ Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
     ],
     providers: [WebVideoControlsAdapter],
     templateUrl: './art-player.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./art-player.component.scss'],
 })
 export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
@@ -59,13 +63,15 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Catch-up programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackEnded = output<void>();
     readonly playbackStarted = output<void>();
@@ -174,7 +180,9 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             playsInline: true,
             backdrop: true,
             mutex: true,
-            theme: '#ff0000',
+            // Colours the vendor chrome (legacy skin only; shared controls
+            // hide it) with the player's progress colour, not a stray red.
+            theme: PLAYER_PROGRESS_COLOR,
             ...buildArtPlayerChrome(this.sharedControls),
             customType: sourceSession.customType,
         });

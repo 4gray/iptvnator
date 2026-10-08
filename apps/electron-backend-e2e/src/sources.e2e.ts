@@ -91,7 +91,7 @@ test.describe('Electron Sources View', () => {
                 path: test.info().outputPath('http-connection-add.png'),
             });
             await dialog
-                .getByRole('button', { name: 'Add', exact: true })
+                .getByRole('button', { name: 'Add playlist', exact: true })
                 .click();
             await waitForXtreamCatalog(page);
             await openSources(page);

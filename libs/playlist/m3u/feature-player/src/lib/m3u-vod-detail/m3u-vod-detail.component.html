@@ -1,6 +1,8 @@
 <app-portal-detail-shell
     [backAvailable]="false"
+    [contentKey]="heroKey()"
     [title]="title()"
+    [kindLabel]="kindLabel()"
     [description]="overview()"
     [posterUrl]="posterUrl()"
     [backdropUrl]="backdropUrl()"
@@ -9,80 +11,35 @@
 >
     <ng-template appDetailTags>
         @if (year()) {
-            <span class="details__tag">{{ year() }}</span>
+            <app-meta-chip>{{ year() }}</app-meta-chip>
         }
-        @if (genres()) {
-            <span class="details__tag">{{ genres() }}</span>
+        @if (runtimeLabel(); as runtime) {
+            <app-meta-chip>{{ runtime }}</app-meta-chip>
         }
-        @if (runtimeLabel()) {
-            <span class="details__tag">{{ runtimeLabel() }}</span>
+        @if (genres(); as genreList) {
+            <app-meta-chip>{{ genreList }}</app-meta-chip>
         }
         @if (rating()) {
-            <span class="details__tag details__tag--rating">
-                ⭐ {{ rating() }}
-            </span>
+            <app-meta-chip variant="rating">★ {{ rating() }}</app-meta-chip>
         }
     </ng-template>
 
     <ng-template appDetailMeta>
-        @if (cast().length) {
-            <div class="details__meta-item">
-                <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
-                <div class="details__cast-strip">
-                    @for (
-                        member of cast();
-                        track member.tmdbPersonId
-                            ? 'p' + member.tmdbPersonId
-                            : 'i' + $index
-                    ) {
-                        <span
-                            class="details__cast-chip"
-                            [title]="
-                                member.character
-                                    ? member.name + ' — ' + member.character
-                                    : member.name
-                            "
-                        >
-                            @if (member.profileUrl) {
-                                <img
-                                    class="details__cast-avatar"
-                                    [src]="member.profileUrl"
-                                    [alt]="member.name"
-                                    loading="lazy"
-                                />
-                            } @else {
-                                <span
-                                    class="details__cast-avatar details__cast-avatar--fallback"
-                                >
-                                    {{ member.name.charAt(0) }}
-                                </span>
-                            }
-                            <span class="details__cast-name">{{
-                                member.name
-                            }}</span>
-                        </span>
-                    }
-                </div>
-            </div>
-        }
-        @if (directors()) {
-            <div class="details__meta-item">
-                <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
-                <span class="value">{{ directors() }}</span>
-            </div>
-        }
+        <app-detail-credits
+            [cast]="castNames()"
+            [directors]="directorNames()"
+            (moreRequested)="scrollToCast()"
+        />
     </ng-template>
 
     <ng-template appDetailActions>
         @if (canPlayInline() && !playbackActive()) {
-            <button
-                class="play-btn"
-                data-test-id="m3u-vod-play"
-                (click)="startPlayback()"
-            >
-                <mat-icon>play_arrow</mat-icon>
-                {{ 'XTREAM.PLAY' | translate }}
-            </button>
+            <app-detail-action-button
+                [label]="'XTREAM.PLAY' | translate"
+                [meta]="runtimeLabel()"
+                testId="m3u-vod-play"
+                (pressed)="startPlayback()"
+            />
         }
     </ng-template>
 
@@ -97,4 +54,13 @@
             (externalFallbackRequested)="externalFallbackRequested.emit($event)"
         />
     }
+
+    <div detail-extras>
+        <!-- M3U has no actor page: the people stay plain entries -->
+        <app-cast-crew-row
+            [cast]="cast()"
+            [directors]="directorMembers()"
+            [interactive]="false"
+        />
+    </div>
 </app-portal-detail-shell>

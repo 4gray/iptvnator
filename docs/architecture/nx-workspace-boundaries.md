@@ -189,6 +189,14 @@ other utility projects, including shared interface contracts, while
 `ui-playback` and feature hosts may depend on it to render and execute
 session-local recovery actions.
 
+`libs/playback/data-access` is the `playback-data-access` Nx project,
+imported through `@iptvnator/playback/data-access` (tags `scope:shared`,
+`domain:playback`, `type:data-access`). It owns renderer playback state that
+store, feature and player layers share — currently `PlaybackHistoryGate`,
+which holds "recently viewed" writes until playback is confirmed. It is kept
+out of `@iptvnator/services` on purpose: that barrel ships in the initial
+bundle, and this project is only reached from lazy player and portal code.
+
 ## Project Tags
 
 Every Nx project keeps one tag from each family in `project.json`:
@@ -232,6 +240,53 @@ sub-entrypoints are `@iptvnator/shared/interfaces/ipc-commands` and
 `@iptvnator/shared/interfaces` barrel pulls in `ngx-indexed-db`, which the
 preload bundle must not carry, so the preload only type-imports the barrel
 and value-imports those two dependency-free modules directly.
+`@iptvnator/workspace/shell/util/settings-search` exists for the opposite
+reason: the main `workspace-shell-util` barrel is imported eagerly, and the
+settings search index must stay in the lazy settings and shell chunks.
+`@iptvnator/workspace/shell/util/settings-context` keeps
+`SettingsContextService`, which only the lazy settings page and settings
+context panel use, out of that barrel for the same reason, and
+`@iptvnator/services/playlist-backup` keeps `PlaylistBackupService` (about
+22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
+barrel.
+
+The web app's root shell (`app.component.ts`, `app.config.ts` and the services
+they construct) is on the renderer's initial path, where a barrel costs its
+whole library: esbuild keeps every Angular component module a barrel
+re-exports, because their static definitions count as side effects (so do an
+`@Injectable` service's and a pipe's). Importing
+`WindowControlsComponent` and `DialogService` from `@iptvnator/ui/components`
+once put the channel lists, EPG views, `@angular/forms`, `date-fns` and the
+Stalker data layer into `main.js`. The root shell therefore uses file-level
+entries: `@iptvnator/ui/components/window-controls`,
+`@iptvnator/ui/components/confirm-dialog`,
+`@iptvnator/playlist/shared/ui/stalker-connection-editor`,
+`@iptvnator/playlist/shared/util/playlist-file-import` (the barrel would add
+`PlaylistContextFacade`) and `@iptvnator/pipes/date-format` (the barrel would
+add `SafePipe`; the eager EPG progress panel uses it too), like the existing
+`@iptvnator/ui/epg/progress-panel`, and loads anything used only on demand
+through a local file it imports dynamically (the Stalker connection editor,
+the release-notes dialog, the external-player info dialog, the parental-lock
+PIN dialog and the Stalker step of the parental-lock enforcement, which runs
+only while a Stalker route is open). A local file,
+not the library alias, is the dynamic-import target because
+`@nx/enforce-module-boundaries` forbids static imports of a library the same
+project also loads dynamically.
+
+A barrel the initial path imports also costs code it never runs itself:
+code splitting places a module in the chunk shared by every entry point
+that reaches it, so a helper that only lazy routes use, but that an eager
+file can reach through a barrel's re-export, lands in an initial chunk even
+though tree shaking would drop it from a single bundle. The eager Xtream
+data layer and root shell therefore import `@iptvnator/portal/shared/util/logger`
+and `@iptvnator/portal/shared/util/tokens` (the portal DI tokens), not the
+`@iptvnator/portal/shared/util` barrel, whose navigation, keyboard-shortcut
+and download helpers (about 45 KB) belong to the lazy portal routes. A
+type-only import of a barrel uses `import type`, so it can never keep the
+barrel reachable. `renderer.initialBytes` in
+[performance journeys](performance-journeys.md) guards the result; to see why a
+module is eager, build with `pnpm nx build web --stats-json` and follow the
+static imports in `dist/apps/web/stats.json` from `apps/web/src/main.ts`.
 
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency

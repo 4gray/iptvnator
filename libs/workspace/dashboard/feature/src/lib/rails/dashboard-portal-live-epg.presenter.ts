@@ -8,8 +8,6 @@ import {
     untracked,
     type Signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { interval, map } from 'rxjs';
 import type {
     EpgProgram,
     PortalActivityItem,
@@ -21,7 +19,7 @@ import {
     type DashboardPortalLiveEpgEntry,
 } from '@iptvnator/workspace/dashboard/data-access';
 import type { DashboardRailCard } from './dashboard-rail.component';
-import { LIVE_EPG_TICK_MS } from './dashboard-live-epg.utils';
+import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
 
 /**
  * The rails component's view of `DashboardPortalLiveEpgService`: which
@@ -30,14 +28,16 @@ import { LIVE_EPG_TICK_MS } from './dashboard-live-epg.utils';
  *
  * "On screen" is what the rails report through their visibility output,
  * plus the pinned keys (the hero card, always at the top). A card the user
- * never scrolls to is never asked for. The 30 s tick re-syncs so a programme
- * that ended is asked again and progress bars keep moving; a changed display
- * offset re-syncs at once because every cached answer was just retired.
+ * never scrolls to is never asked for. The shared live-EPG clock re-syncs so
+ * a programme that ended is asked again; it only runs while some card is
+ * wanted. A changed display offset re-syncs at once because every cached
+ * answer was just retired.
  */
 @Injectable()
 export class DashboardPortalLiveEpgPresenter {
     private readonly service = inject(DashboardPortalLiveEpgService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly clock = inject(DashboardLiveEpgClock);
 
     private readonly source = signal<Signal<
         readonly PortalActivityItem[]
@@ -46,13 +46,6 @@ export class DashboardPortalLiveEpgPresenter {
         ReadonlyMap<string, ReadonlySet<string>>
     >(new Map());
     private readonly pinnedKeys = signal<ReadonlySet<string>>(new Set());
-
-    /** Heartbeat shared with the XMLTV batch: shifted by one so the first
-     *  emission differs from `initialValue` and is not swallowed. */
-    readonly tick = toSignal(
-        interval(LIVE_EPG_TICK_MS).pipe(map((tick) => tick + 1)),
-        { initialValue: 0 }
-    );
 
     private readonly entries = computed<
         ReadonlyMap<string, DashboardPortalLiveEpgEntry>
@@ -83,9 +76,10 @@ export class DashboardPortalLiveEpgPresenter {
     });
 
     constructor() {
+        this.clock.demand(computed(() => this.wanted().length > 0));
         effect(() => {
             const wanted = this.wanted();
-            this.tick();
+            this.clock.now();
             this.settingsStore.resolvedEpgOffsetMinutes();
             untracked(() => this.service.sync(wanted));
         });
@@ -131,5 +125,18 @@ export class DashboardPortalLiveEpgPresenter {
 
     isPending(key: string | null | undefined): boolean {
         return !!key && this.service.pending().has(key);
+    }
+
+    /**
+     * True until the first answer for a portal card arrives, including the
+     * moment before its key reaches the queue; never where portals are not
+     * asked at all.
+     */
+    awaitsFirstAnswer(key: string | null | undefined): boolean {
+        return (
+            !!key &&
+            this.service.answersPortals &&
+            this.service.programs().get(key) === undefined
+        );
     }
 }

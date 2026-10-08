@@ -306,3 +306,110 @@
         max-width: 100%;
     }
 }
+
+// ── Cinematic action row (VOD details hero + dashboard hero) ────────────────
+// One light primary and one ghost surface, shared by the detail pages and the
+// dashboard hero so "Continue" means the same thing everywhere. Fixed
+// geometry: 44px tall in the details, 38px in the dashboard hero; the mixins
+// only size the type and radius, the caller sets the height.
+
+@mixin light-primary-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+    padding: 0 20px 0 16px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--app-cta-bg, #f2f4f8);
+    color: var(--app-cta-fg, #0a0e14);
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.15;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        transform 0.15s ease;
+
+    &:hover:not(:disabled) {
+        background: var(--app-cta-hover-bg, #fff);
+    }
+
+    &:active:not(:disabled) {
+        transform: translateY(1px);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: 2px;
+    }
+
+    &:disabled {
+        cursor: default;
+        opacity: 0.6;
+    }
+
+    mat-icon {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+        line-height: 20px;
+    }
+}
+
+@mixin ghost-action-surface {
+    background: color-mix(in srgb, var(--app-on-surface, #e6e1e5) 12%, transparent);
+    color: var(--app-heading-color, #d8dce8);
+    border: 1px solid
+        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 14%, transparent);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+
+    &:hover:not(:disabled) {
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 20%,
+            transparent
+        );
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: 2px;
+    }
+}
+
+// Text secondary action ("Trailer", "Details"): the ghost surface at the
+// primary's height.
+@mixin ghost-text-button {
+    @include ghost-action-surface;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    padding: 0 18px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
+    }
+}

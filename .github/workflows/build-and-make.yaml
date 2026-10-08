@@ -416,7 +416,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -1099,14 +1099,33 @@ jobs:
                   sudo snap disconnect iptvnator:graphics-core22 mesa-core22:graphics-core22
                   snap connections iptvnator | awk \
                       '$2 == "iptvnator:graphics-core22" && $3 == "-" { found=1 } END { exit !found }'
+                  probe_timed_out() {
+                      # GNU timeout exits 124 when SIGTERM ends the app and 137 when -k
+                      # escalates to SIGKILL. --verbose announces that KILL, so an app
+                      # killed by anything else is not misreported as a timeout.
+                      local status="$1" output="$2"
+                      [ "${status}" -eq 124 ] && return 0
+                      [ "${status}" -eq 137 ] &&
+                          grep -Fq 'sending signal KILL to command' <<<"${output}"
+                  }
+                  # GNU timeout kills a packaged app that never exits, for example when the
+                  # main process throws before app ready and Electron's uncaught-exception
+                  # dialog blocks under xvfb. ELECTRON_ENABLE_LOGGING routes Chromium and
+                  # main-process stderr into the captured output; the probe's JSON verdict is
+                  # still a single stdout line that grep -Fx matches.
                   set +e
                   disconnected_probe="$(
-                      xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                      xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 ELECTRON_ENABLE_LOGGING=1 \
+                          timeout --verbose -k 10 300 \
                           snap run iptvnator --embedded-mpv-runtime-probe 2>&1
                   )"
                   disconnected_status=$?
                   set -e
                   printf '%s\n' "${disconnected_probe}"
+                  if probe_timed_out "${disconnected_status}" "${disconnected_probe}"; then
+                      echo "::error::The packaged Snap app did not exit within 300 seconds during the disconnected graphics runtime probe and was killed; inspect the probe output above for main-process startup errors."
+                      exit 1
+                  fi
                   test "${disconnected_status}" -eq 1
                   printf '%s\n' "${disconnected_probe}" | \
                       grep -Fx '{"usable":false,"reason":"snap-graphics-provider-unavailable"}'
@@ -1117,27 +1136,43 @@ jobs:
                       '$2 == "iptvnator:gnome-3-28-1804" && $3 == "gnome-3-28-1804:gnome-3-28-1804" { found=1 } END { exit !found }'
                   snap connections iptvnator | awk \
                       '$1 == "shared-memory" && $2 == "iptvnator:shared-memory" && $3 == ":shared-memory" { found=1 } END { exit !found }'
-                  xvfb-run -a env \
-                      LIBGL_ALWAYS_SOFTWARE=1 \
-                      IPTVNATOR_TRACE_PLAYER=1 \
-                      EGL_LOG_LEVEL=debug \
-                      LIBGL_DEBUG=verbose \
-                      __EGL_VENDOR_LIBRARY_FILENAMES=/tmp/hostile-egl-vendor.json \
-                      GBM_BACKEND=/tmp/hostile-gbm \
-                      MESA_LOADER_DRIVER_OVERRIDE=/tmp/hostile-dri \
-                      LIBVA_DRIVER_NAME=/tmp/hostile-va \
-                      VDPAU_DRIVER_PATH=/tmp/hostile-vdpau \
-                      VK_DRIVER_FILES=/tmp/hostile-vulkan-driver.json \
-                      VK_ICD_FILENAMES=/tmp/hostile-vulkan-icd.json \
-                      VK_ADD_DRIVER_FILES=/tmp/hostile-vulkan-add-driver.json \
-                      VK_ADD_LAYER_PATH=/tmp/hostile-vulkan-layers \
-                      VK_IMPLICIT_LAYER_PATH=/tmp/hostile-vulkan-implicit-layers \
-                      VK_ADD_IMPLICIT_LAYER_PATH=/tmp/hostile-vulkan-add-implicit-layers \
-                      XDG_CONFIG_HOME=/tmp/hostile-xdg-config-home \
-                      XDG_CONFIG_DIRS=/tmp/hostile-xdg-config-dirs \
-                      XDG_DATA_HOME=/tmp/hostile-xdg-data-home \
-                      XDG_DATA_DIRS=/tmp/hostile-xdg-data-dirs \
-                      snap run iptvnator --embedded-mpv-runtime-probe
+                  set +e
+                  hostile_probe="$(
+                      xvfb-run -a env \
+                          LIBGL_ALWAYS_SOFTWARE=1 \
+                          ELECTRON_ENABLE_LOGGING=1 \
+                          IPTVNATOR_TRACE_PLAYER=1 \
+                          EGL_LOG_LEVEL=debug \
+                          LIBGL_DEBUG=verbose \
+                          __EGL_VENDOR_LIBRARY_FILENAMES=/tmp/hostile-egl-vendor.json \
+                          GBM_BACKEND=/tmp/hostile-gbm \
+                          MESA_LOADER_DRIVER_OVERRIDE=/tmp/hostile-dri \
+                          LIBVA_DRIVER_NAME=/tmp/hostile-va \
+                          VDPAU_DRIVER_PATH=/tmp/hostile-vdpau \
+                          VK_DRIVER_FILES=/tmp/hostile-vulkan-driver.json \
+                          VK_ICD_FILENAMES=/tmp/hostile-vulkan-icd.json \
+                          VK_ADD_DRIVER_FILES=/tmp/hostile-vulkan-add-driver.json \
+                          VK_ADD_LAYER_PATH=/tmp/hostile-vulkan-layers \
+                          VK_IMPLICIT_LAYER_PATH=/tmp/hostile-vulkan-implicit-layers \
+                          VK_ADD_IMPLICIT_LAYER_PATH=/tmp/hostile-vulkan-add-implicit-layers \
+                          XDG_CONFIG_HOME=/tmp/hostile-xdg-config-home \
+                          XDG_CONFIG_DIRS=/tmp/hostile-xdg-config-dirs \
+                          XDG_DATA_HOME=/tmp/hostile-xdg-data-home \
+                          XDG_DATA_DIRS=/tmp/hostile-xdg-data-dirs \
+                          timeout --verbose -k 10 300 \
+                          snap run iptvnator --embedded-mpv-runtime-probe 2>&1
+                  )"
+                  hostile_status=$?
+                  set -e
+                  printf '%s\n' "${hostile_probe}"
+                  if probe_timed_out "${hostile_status}" "${hostile_probe}"; then
+                      echo "::error::The packaged Snap app did not exit within 300 seconds during the hostile-environment runtime probe and was killed; inspect the probe output above for main-process startup errors."
+                      exit 1
+                  fi
+                  if [ "${hostile_status}" -ne 0 ]; then
+                      echo "::error::Snap hostile-environment runtime probe failed with status ${hostile_status}."
+                      exit "${hostile_status}"
+                  fi
 
             - name: Run packaged x64 frame-copy and fallback smoke
               if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
@@ -1223,24 +1258,47 @@ jobs:
                       ELF_MAGIC="$(od -An -tx1 -N4 "${LAUNCHER_PATH}" | tr -d "[:space:]")"
                       test "${ELF_MAGIC}" = "7f454c46"
                   '
+                  probe_timed_out() {
+                      # GNU timeout exits 124 when SIGTERM ends the app and 137 when -k
+                      # escalates to SIGKILL. --verbose announces that KILL, so an app
+                      # killed by anything else is not misreported as a timeout.
+                      local status="$1" output="$2"
+                      [ "${status}" -eq 124 ] && return 0
+                      [ "${status}" -eq 137 ] &&
+                          grep -Fq 'sending signal KILL to command' <<<"${output}"
+                  }
+                  # GNU timeout kills a packaged app that never exits, for example when the
+                  # main process throws before app ready and Electron's uncaught-exception
+                  # dialog blocks under xvfb. ELECTRON_ENABLE_LOGGING routes Chromium and
+                  # main-process stderr into the captured output.
                   set +e
                   PROBE_OUTPUT="$(
-                      xvfb-run -a dbus-run-session -- flatpak run \
+                      xvfb-run -a dbus-run-session -- timeout --verbose -k 10 300 flatpak run \
                           --env=LIBGL_ALWAYS_SOFTWARE=1 \
+                          --env=ELECTRON_ENABLE_LOGGING=1 \
                           com.fourgray.iptvnator \
                           --embedded-mpv-runtime-probe 2>&1
                   )"
                   PROBE_STATUS=$?
                   set -e
 
+                  # Keep both ends of oversized output: logging can push a startup
+                  # exception or the timeout notice past the first window.
                   PROBE_OUTPUT_LIMIT=16384
-                  printf '%s\n' "${PROBE_OUTPUT:0:PROBE_OUTPUT_LIMIT}"
-                  if [ "${#PROBE_OUTPUT}" -gt "${PROBE_OUTPUT_LIMIT}" ]; then
-                      echo "::warning::Flatpak runtime probe output was truncated to ${PROBE_OUTPUT_LIMIT} characters."
+                  if [ "${#PROBE_OUTPUT}" -le $((PROBE_OUTPUT_LIMIT * 2)) ]; then
+                      printf '%s\n' "${PROBE_OUTPUT}"
+                  else
+                      printf '%s\n' "${PROBE_OUTPUT:0:PROBE_OUTPUT_LIMIT}"
+                      echo "::warning::Flatpak runtime probe output was truncated to its first and last ${PROBE_OUTPUT_LIMIT} characters."
+                      printf '%s\n' "${PROBE_OUTPUT: -PROBE_OUTPUT_LIMIT}"
                   fi
                   if [[ "${PROBE_OUTPUT}" == *"not an ELF file"* ]] ||
                       [[ "${PROBE_OUTPUT}" == *"Zypak needs to be called directly"* ]]; then
                       echo "::error::Flatpak launched a wrapper instead of the Electron ELF."
+                      exit 1
+                  fi
+                  if probe_timed_out "${PROBE_STATUS}" "${PROBE_OUTPUT}"; then
+                      echo "::error::The packaged Flatpak app did not exit within 300 seconds during the application runtime probe and was killed; inspect the probe output above for main-process startup errors."
                       exit 1
                   fi
                   if [ "${PROBE_STATUS}" -ne 0 ]; then

@@ -161,6 +161,9 @@ describe('SeasonContainerComponent', () => {
     let emittedSeasons: string[];
     const snackBarOpen = jest.fn();
 
+    /** The season download, as the hero "…" menu drives it through the presenter. */
+    const seasonDownload = () => component.downloadPresenter;
+
     const setRequiredInputs = (
         seasons: Record<string, XtreamSerieEpisode[]>,
         isLoading = false
@@ -593,19 +596,11 @@ describe('SeasonContainerComponent', () => {
         setRequiredInputs({ '1': [paused, eligible] });
         fixture.detectChanges();
 
-        const button = fixture.nativeElement.querySelector(
-            '[data-test-id="download-season"]'
-        ) as HTMLButtonElement;
-        expect(button.textContent).toContain('Download season (1)');
-        expect(button.getAttribute('aria-label')).toBe(
-            'Download season, 1 episodes available'
-        );
-        expect(
-            button.querySelector('.season-download-button__label')?.textContent
-        ).toContain('Download season (1)');
-        expect(button.nextElementSibling?.classList).toContain('view-toggle');
+        expect(seasonDownload().presentationVisible()).toBe(true);
+        expect(seasonDownload().eligibleEpisodeCount()).toBe(1);
+        expect(seasonDownload().seasonDisabled()).toBe(false);
 
-        button.click();
+        await seasonDownload().enqueueSeason();
         await fixture.whenStable();
 
         expect(downloadsServiceStub.startDownload).toHaveBeenCalledTimes(1);
@@ -628,14 +623,11 @@ describe('SeasonContainerComponent', () => {
         fixture.detectChanges();
 
         const action = episodeAction(episode.id);
-        const seasonButton = fixture.nativeElement.querySelector(
-            '[data-test-id="download-season"]'
-        ) as HTMLButtonElement;
         expect(action.disabled).toBe(true);
         expect(action.querySelector('mat-icon')?.textContent).toContain(
             'block'
         );
-        expect(seasonButton.disabled).toBe(true);
+        expect(seasonDownload().seasonDisabled()).toBe(true);
         expect(downloadsServiceStub.startDownload).not.toHaveBeenCalled();
     });
 
@@ -654,15 +646,12 @@ describe('SeasonContainerComponent', () => {
         fixture.detectChanges();
 
         const action = episodeAction(episode.id);
-        const seasonButton = fixture.nativeElement.querySelector(
-            '[data-test-id="download-season"]'
-        ) as HTMLButtonElement;
         expect(action.disabled).toBe(false);
         expect(action.querySelector('mat-icon')?.textContent).toContain(
             'download'
         );
-        expect(seasonButton.disabled).toBe(false);
-        expect(seasonButton.textContent).toContain('Download season (1)');
+        expect(seasonDownload().seasonDisabled()).toBe(false);
+        expect(seasonDownload().eligibleEpisodeCount()).toBe(1);
     });
 
     it('gives the grid and list view radios localized accessible names', () => {
@@ -694,38 +683,34 @@ describe('SeasonContainerComponent', () => {
         setRequiredInputs({ '1': [first] });
         fixture.detectChanges();
 
-        const seasonButton = () =>
-            fixture.nativeElement.querySelector(
-                '[data-test-id="download-season"]'
-            ) as HTMLButtonElement;
-        expect(seasonButton().disabled).toBe(true);
+        expect(seasonDownload().seasonDisabled()).toBe(true);
         expect(downloadsServiceStub.hasLoadedDownloads()).toBe(true);
         expect(episodeAction(first.id).disabled).toBe(true);
 
         downloadsServiceStub.hasAuthoritativeDownloadList.set(true);
         fixture.componentRef.setInput('isLoading', true);
         fixture.detectChanges();
-        expect(seasonButton().disabled).toBe(true);
+        expect(seasonDownload().seasonDisabled()).toBe(true);
 
         fixture.componentRef.setInput('isLoading', false);
         fixture.componentRef.setInput('seasons', { '1': [] });
         fixture.detectChanges();
-        expect(seasonButton().disabled).toBe(true);
+        expect(seasonDownload().seasonDisabled()).toBe(true);
 
         fixture.componentRef.setInput('seasons', { '1': [first] });
         downloadsServiceStub.downloads.set([
             createDownload(first, { status: 'paused' }),
         ]);
         fixture.detectChanges();
-        expect(seasonButton().disabled).toBe(true);
+        expect(seasonDownload().seasonDisabled()).toBe(true);
 
         downloadsServiceStub.downloads.set([]);
         const start = deferred<{ success: boolean }>();
         downloadsServiceStub.startDownload.mockReturnValue(start.promise);
         fixture.detectChanges();
-        seasonButton().click();
+        void seasonDownload().enqueueSeason();
         fixture.detectChanges();
-        expect(seasonButton().disabled).toBe(true);
+        expect(seasonDownload().seasonDisabled()).toBe(true);
 
         start.resolve({ success: true });
         await fixture.whenStable();
@@ -740,33 +725,22 @@ describe('SeasonContainerComponent', () => {
         setRequiredInputs({ '1': [createEpisode()] });
         fixture.detectChanges();
 
-        const seasonButton = () =>
-            fixture.nativeElement.querySelector(
-                '[data-test-id="download-season"]'
-            ) as HTMLButtonElement;
-        seasonButton().click();
+        void seasonDownload().enqueueSeason();
         fixture.detectChanges();
 
-        expect(seasonButton().textContent).toContain('Adding to queue…');
-        expect(seasonButton().getAttribute('aria-label')).toBe(
-            'Adding to queue…'
-        );
-        expect(seasonButton().getAttribute('aria-busy')).toBe('true');
+        expect(seasonDownload().batchRunning()).toBe(true);
 
         start.resolve({ success: true });
         await Promise.resolve();
         await Promise.resolve();
         fixture.detectChanges();
-        expect(seasonButton().getAttribute('aria-busy')).toBe('true');
+        expect(seasonDownload().batchRunning()).toBe(true);
 
         refresh.resolve(undefined);
         await fixture.whenStable();
         fixture.detectChanges();
-        expect(seasonButton().hasAttribute('aria-busy')).toBe(false);
-        expect(seasonButton().textContent).toContain('Download season (1)');
-        expect(seasonButton().getAttribute('aria-label')).toBe(
-            'Download season, 1 episodes available'
-        );
+        expect(seasonDownload().batchRunning()).toBe(false);
+        expect(seasonDownload().eligibleEpisodeCount()).toBe(1);
     });
 
     it('hides all download presentation on web, in provider-only mode, or without an adapter', () => {
@@ -774,11 +748,7 @@ describe('SeasonContainerComponent', () => {
         setRequiredInputs({ '1': [first] });
         fixture.componentRef.setInput('downloadAdapter', downloadAdapter);
         fixture.detectChanges();
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="download-season"]'
-            )
-        ).toBeNull();
+        expect(seasonDownload().presentationVisible()).toBe(false);
 
         downloadsServiceStub.isAvailable.set(true);
         downloadsServiceStub.hasLoadedDownloads.set(true);
@@ -789,20 +759,12 @@ describe('SeasonContainerComponent', () => {
                 '[data-test-id^="episode-download-"]'
             )
         ).toBeNull();
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="download-season"]'
-            )
-        ).toBeNull();
+        expect(seasonDownload().presentationVisible()).toBe(false);
 
         fixture.componentRef.setInput('downloadsEnabled', true);
         fixture.componentRef.setInput('downloadAdapter', null);
         fixture.detectChanges();
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="download-season"]'
-            )
-        ).toBeNull();
+        expect(seasonDownload().presentationVisible()).toBe(false);
         expect(
             fixture.nativeElement.querySelector(
                 '[data-test-id^="episode-download-"]'
@@ -999,12 +961,8 @@ describe('SeasonContainerComponent', () => {
         enableDownloads();
         setRequiredInputs({ '1': [createEpisode()] });
         fixture.detectChanges();
-        const seasonButton = fixture.nativeElement.querySelector(
-            '[data-test-id="download-season"]'
-        ) as HTMLButtonElement;
-
-        seasonButton.click();
-        seasonButton.click();
+        void seasonDownload().enqueueSeason();
+        void seasonDownload().enqueueSeason();
         await Promise.resolve();
         await Promise.resolve();
 
@@ -1082,10 +1040,7 @@ describe('SeasonContainerComponent', () => {
         component.selectSeason('1');
         fixture.detectChanges();
 
-        const seasonButton = fixture.nativeElement.querySelector(
-            '[data-test-id="download-season"]'
-        ) as HTMLButtonElement;
-        seasonButton.click();
+        void seasonDownload().enqueueSeason();
         component.selectSeason('2');
         fixture.componentRef.setInput('seasons', {
             '1': [createEpisode({ id: '103', title: 'Replacement' })],
@@ -1119,11 +1074,7 @@ describe('SeasonContainerComponent', () => {
         });
         fixture.detectChanges();
 
-        (
-            fixture.nativeElement.querySelector(
-                '[data-test-id="download-season"]'
-            ) as HTMLButtonElement
-        ).click();
+        await seasonDownload().enqueueSeason();
         await fixture.whenStable();
 
         expect(snackBarOpen).toHaveBeenCalledWith(
@@ -1151,10 +1102,28 @@ describe('SeasonContainerComponent', () => {
             playlistId: 'playlist-1',
         });
 
-        const toggleButton = (): HTMLButtonElement | null =>
-            fixture.nativeElement.querySelector(
-                '[data-test-id="toggle-season-watched"]'
-            );
+        /**
+         * The season toggle as the hero "…" menu presents it: the presenter
+         * owns label, count, disabled state and the click.
+         */
+        const toggleButton = () => {
+            const presenter = component.watchPresenter;
+            if (!presenter.seasonWatchToggleVisible()) {
+                return null;
+            }
+            const fullyWatched = presenter.selectedSeasonFullyWatched();
+            const count = presenter.seasonWatchEligibleCount();
+            return {
+                textContent: fullyWatched
+                    ? 'Mark season as unwatched'
+                    : `Mark season as watched (${count})`,
+                icon: fullyWatched ? 'remove_done' : 'done_all',
+                disabled:
+                    component.seasonWatchBatchRunning() ||
+                    (!fullyWatched && count === 0),
+                click: () => presenter.toggleSeasonWatched(),
+            };
+        };
 
         const threeEpisodes = () => ({
             '1': [
@@ -1239,9 +1208,7 @@ describe('SeasonContainerComponent', () => {
 
             const button = toggleButton();
             expect(button?.textContent).toContain('Mark season as unwatched');
-            expect(button?.querySelector('mat-icon')?.textContent).toContain(
-                'remove_done'
-            );
+            expect(button?.icon).toBe('remove_done');
             button?.click();
 
             expect(emitted).toHaveLength(1);
@@ -1299,8 +1266,7 @@ describe('SeasonContainerComponent', () => {
 
             const button = toggleButton();
             expect(button?.disabled).toBe(true);
-            expect(button?.getAttribute('aria-busy')).toBe('true');
-            expect(button?.querySelector('mat-spinner')).not.toBeNull();
+            expect(component.seasonWatchBatchRunning()).toBe(true);
         });
 
         it('hides the toggle without a playlist id and on empty seasons', () => {

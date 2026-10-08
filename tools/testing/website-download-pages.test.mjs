@@ -1,15 +1,19 @@
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import ts from 'typescript';
+import astroConfig from '../../apps/website/astro.config.mjs';
 
 /**
  * Structural checks for the per-OS download pages in the built website.
  * The build resolves the latest release from the GitHub API and falls back to
- * package.json, so assertions accept any semver version but insist on direct
+ * the pinned published version, so assertions accept any semver but insist on direct
  * asset links, canonical URLs, structured data and internal linking.
  */
 
 const distRoot = new URL('../../dist/apps/website/', import.meta.url);
+const { version: publishedVersion } = JSON.parse(await readFile(new URL('../../apps/website/released-version.json', import.meta.url), 'utf8'));
 const SITE = 'https://4gray.github.io/iptvnator';
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');
@@ -152,3 +156,38 @@ test('sitemap lists the download pages', async () => {
     assert.match(sitemap, new RegExp(`<loc>${SITE}/${path}</loc>`));
   }
 });
+
+// Use the real Astro defines so a development-version bump cannot silently
+// change the offline download URLs. The API is the only mocked boundary.
+for (const failure of ['offline', 'rate-limit', 'timeout']) {
+  test(`release lookup ${failure}: downloads stay on the published release`, async () => {
+    const source = await readFile(new URL('../../apps/website/src/lib/downloads.ts', import.meta.url), 'utf8');
+    const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+    const exports = {};
+    let fetchCalls = 0;
+    const warnings = [];
+    vm.runInNewContext(code, {
+      exports,
+      ...Object.fromEntries(Object.entries(astroConfig.vite.define).map(([name, value]) => [name, JSON.parse(value)])),
+      process: { env: { WEBSITE_SKIP_RELEASE_FETCH: failure === 'offline' ? '1' : '0' } },
+      AbortSignal,
+      console: { warn(message) { warnings.push(message); } },
+      fetch: async () => {
+        fetchCalls++;
+        if (failure === 'timeout') throw new Error('The operation timed out');
+        return { ok: false, status: 403 };
+      },
+    });
+    const release = await exports.getLatestRelease();
+    assert.equal(release.version, publishedVersion, 'The published release is independent of the upcoming development version');
+    assert.equal(fetchCalls, failure === 'offline' ? 0 : 1);
+    assert.equal(warnings.length, failure === 'offline' ? 0 : 1);
+    for (const platform of ['windows', 'macos', 'linux']) {
+      const downloads = exports.resolveDownloads(release, platform);
+      assert.ok(downloads.length > 0);
+      for (const download of downloads) {
+        assert.ok(download.url.includes(`/releases/download/v${publishedVersion}/iptvnator-${publishedVersion}-`), download.url);
+      }
+    }
+  });
+}

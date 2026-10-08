@@ -23,6 +23,7 @@ import {
 } from '@iptvnator/playback/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
     VideoPlayer,
     type Channel,
@@ -36,8 +37,12 @@ import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-
 import { FullscreenChannelPanelComponent } from '../fullscreen-channel-panel/fullscreen-channel-panel.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
+import { PlaybackHistoryConfirmation } from '../playback-history/playback-history-confirmation';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import {
     type PlayerMediaTitle,
+    PlayerUpNextItem,
+    type PlayerTimelineSegment,
     WEB_PLAYER_SHARED_CONTROLS,
 } from '../player-controls';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
@@ -86,7 +91,7 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
             useFactory: resolveWebPlayerSharedControls,
         },
     ],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
 })
 export class WebPlayerViewComponent implements OnDestroy {
@@ -116,8 +121,16 @@ export class WebPlayerViewComponent implements OnDestroy {
         optional: true,
     });
     private readonly recoverySession = new PlaybackRecoverySession();
+    private readonly historyGate = inject(PlaybackHistoryGate);
     private readonly externalRecovery = new ExternalPlaybackRecoveryCoordinator(
-        this.externalPlayback
+        this.externalPlayback,
+        // "Open in MPV/VLC" after an inline failure is still this session's
+        // view; the app-wide session confirmation carries only the URL.
+        (session) =>
+            this.historyGate.confirm({
+                sessionKey: this.playbackSessionKey(),
+                streamUrls: [session.streamUrl],
+            })
     );
     private readonly applicationHandoff =
         new WebPlayerApplicationHandoffCoordinator(
@@ -134,6 +147,12 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly playerOverride = input<VideoPlayer | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    /** Next episode for the shared controls' "Up next" card; series hosts only. */
+    readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Catch-up programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     readonly alternativeSources = input<VodSourceDescriptor[]>([]);
     /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
@@ -213,6 +232,15 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly resolvedIsLive = this.applicationState.isLive;
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
+    /** Commits deferred "recently viewed" writes once this stream plays. */
+    private readonly historyConfirmation = new PlaybackHistoryConfirmation({
+        gate: this.historyGate,
+        target: () => ({
+            sessionKey: this.playbackSessionKey(),
+            streamUrls: [this.streamUrl(), this.playback()?.streamUrl],
+        }),
+        sourceRevision: () => this.playbackSourceRevisionToken(),
+    });
     readonly playbackExternallyTransferable = computed(() =>
         isPlaybackExternallyTransferable(this.resolvedPlayback())
     );
@@ -355,7 +383,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     handleTimeUpdate(
-        event: { currentTime: number; duration: number },
+        event: PlayerTimeUpdate,
         ownership: PlaybackApplicationOwnership
     ): void {
         if (
@@ -377,6 +405,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         }
 
         this.recoverySession.recordTimeUpdate(event, ownership.isLive);
+        this.historyConfirmation.record(event.currentTime, event.playing);
         this.timeUpdate.emit(event);
     }
 

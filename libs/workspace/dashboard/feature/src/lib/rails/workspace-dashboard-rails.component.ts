@@ -4,24 +4,20 @@ import {
     computed,
     effect,
     inject,
-    signal,
     untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { interval, map, startWith } from 'rxjs';
+import { startWith } from 'rxjs';
 import {
+    getPlaylistSourceIcon,
     isStalkerAccountPlaylist,
     isXtreamAccountPlaylist,
     normalizeDashboardRailsSettings,
-    type PlaybackPositionData,
     playlistDisplayLabel,
-    resolvePortalActivityWatchKind,
 } from '@iptvnator/shared/interfaces';
-import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -53,22 +49,22 @@ import {
     DashboardTrendingService,
     GlobalRecentItem,
     resolveSourceExpiryBadge,
-    SOURCE_EXPIRY_TICK_MS,
 } from '@iptvnator/workspace/dashboard/data-access';
-import type { DashboardHeroTmdbExtras } from './dashboard-hero-tmdb.service';
-import { DashboardHeroTmdbService } from './dashboard-hero-tmdb.service';
+import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
 import { DashboardRailComponent } from './dashboard-rail.component';
 import type {
     DashboardRailCard,
     DashboardRailActionSelection,
 } from './dashboard-rail.component';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import type { DashboardHeroModel } from './dashboard-hero.utils';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
-import { resolveDashboardHeroArtwork } from './dashboard-hero.utils';
+import { DashboardHeroComponent } from './dashboard-hero.component';
 import { buildLiveEpgCardsForEnabledRails } from './dashboard-live-epg.utils';
 import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
+import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
+import { createSourceExpiryClock } from './dashboard-source-expiry-clock';
 import {
+    buildDashboardEpisodeBadge,
     buildPlaybackPositionReloadKey,
     formatRemainingLabel,
     isContinueWatchingRecentItem,
@@ -94,11 +90,9 @@ import type {
 @Component({
     selector: 'lib-workspace-dashboard-rails',
     imports: [
+        DashboardHeroComponent,
         DashboardRailComponent,
         EmptyStateComponent,
-        MatButtonModule,
-        MatIcon,
-        RouterLink,
         TranslatePipe,
     ],
     templateUrl: './workspace-dashboard-rails.component.html',
@@ -107,7 +101,11 @@ import type {
     host: {
         '[class.rails-page-host--empty]': 'ready() && !hasPlaylists()',
     },
-    providers: [DashboardLiveEpgPresenter, DashboardPortalLiveEpgPresenter],
+    providers: [
+        DashboardLiveEpgClock,
+        DashboardLiveEpgPresenter,
+        DashboardPortalLiveEpgPresenter,
+    ],
 })
 export class WorkspaceDashboardRailsComponent {
     readonly data = inject(DashboardDataService);
@@ -130,7 +128,6 @@ export class WorkspaceDashboardRailsComponent {
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly heroTmdb = inject(DashboardHeroTmdbService);
     private readonly sourceExpiry = inject(DashboardSourceExpiryService);
     readonly trendingService = inject(DashboardTrendingService);
     readonly recommendationsService = inject(DashboardRecommendationsService);
@@ -143,76 +140,9 @@ export class WorkspaceDashboardRailsComponent {
     readonly skeletonSlots = SKELETON_CARDS_PER_RAIL;
     readonly skeletonRails = SKELETON_RAILS;
     readonly liveRailTitleKeyForSource = liveRailTitleKeyForSource;
-    readonly failedHeroImages = signal<Record<string, true>>({});
     readonly dashboardRails = computed(() =>
         normalizeDashboardRailsSettings(this.settingsStore.dashboardRails?.())
     );
-
-    private readonly heroRecentItem = computed(
-        () => this.data.globalRecentItems()[0] ?? null
-    );
-
-    /** TMDB extras for the current hero item, patched in after first paint */
-    private readonly heroTmdbExtras = signal<{
-        key: string;
-        extras: DashboardHeroTmdbExtras | null;
-    } | null>(null);
-
-    private readonly heroLiveCard = computed<DashboardRailCard | null>(() => {
-        const item = this.heroRecentItem();
-        return item?.type === 'live' ? this.toRecentCard(item) : null;
-    });
-
-    readonly hero = computed<DashboardHeroModel | null>(() => {
-        const item = this.heroRecentItem();
-        if (!item) {
-            return null;
-        }
-
-        // Single reactive read, gated on the TMDB opt-in so cached
-        // extras vanish immediately when the user opts out mid-session
-        const extrasState = this.heroTmdbExtras();
-        const extras =
-            this.heroTmdb.isEnabled() &&
-            extrasState?.key === this.heroTmdbKey(item)
-                ? extrasState.extras
-                : null;
-        const artwork = resolveDashboardHeroArtwork(
-            {
-                backdropUrl: item.backdrop_url || (extras?.backdropUrl ?? null),
-                posterUrl: item.poster_url,
-                title: item.title,
-            },
-            this.failedHeroImages()
-        );
-
-        const position = this.data.getPlaybackPositionForItem(item);
-        const liveEpgDetails =
-            item.type === 'live'
-                ? this.liveEpg.detailsFor(this.heroLiveCard())
-                : null;
-        const episodeBadge = this.buildEpisodeBadge(item, position);
-
-        return {
-            ...artwork,
-            contentType: item.type,
-            icon: this.typeIcon(item.type),
-            link: this.data.getRecentItemLink(item),
-            state: this.data.getRecentItemNavigationState(item),
-            subtitle: this.buildHeroSubtitle(item),
-            title: item.title,
-            rating: extras?.rating ?? null,
-            genres: extras?.genres ?? [],
-            episodeBadge,
-            watchProgress:
-                item.type === 'live' ? null : playbackProgressPercent(position),
-            remainingLabel:
-                item.type === 'live' ? null : formatRemainingLabel(position),
-            nowPlayingTitle: liveEpgDetails?.nowPlayingTitle ?? null,
-            nowPlayingTimeRange: liveEpgDetails?.nowPlayingTimeRange ?? null,
-            nowPlayingProgress: liveEpgDetails?.nowPlayingProgress ?? null,
-        };
-    });
 
     readonly continueWatchingBaseCards = computed<DashboardRailCard[]>(() => {
         this.languageTick();
@@ -255,12 +185,11 @@ export class WorkspaceDashboardRailsComponent {
         })
     );
 
-    // The live cards whose rails are enabled; the presenter looks their
-    // programmes up per XMLTV source scope.
+    // The live cards whose rails are enabled; the presenter adds the hero's
+    // live candidates and looks the programmes up per XMLTV source scope.
     private readonly enabledLiveCards = computed(() =>
         buildLiveEpgCardsForEnabledRails(
             this.dashboardRails(),
-            this.heroLiveCard(),
             this.liveFavoriteCards(),
             this.recentLiveCards()
         )
@@ -337,14 +266,12 @@ export class WorkspaceDashboardRailsComponent {
             : this.t('WORKSPACE.DASHBOARD.TMDB_RECOMMENDED');
     });
 
-    // Minute heartbeat for the expiry badges: resolveSourceExpiryBadge reads
-    // the wall clock, so without a reactive tick a dashboard left open would
-    // never cross a day-countdown or expiration boundary. interval() emits
-    // 0 first — shifted by one so it differs from initialValue, otherwise
-    // the signal's equality check would swallow the first tick.
-    private readonly sourceExpiryTick = toSignal(
-        interval(SOURCE_EXPIRY_TICK_MS).pipe(map((tick) => tick + 1)),
-        { initialValue: 0 }
+    // resolveSourceExpiryBadge reads the wall clock, so a dashboard left
+    // open needs a reactive clock to cross a day-countdown or expiration
+    // boundary. It moves only at those boundaries, not on a polling tick.
+    private readonly sourceExpiryNow = createSourceExpiryClock(
+        this.sourceExpiry.facts,
+        computed(() => this.dashboardRails().recentSources)
     );
 
     readonly sourceCards = computed<DashboardRailCard[]>(() => {
@@ -360,11 +287,7 @@ export class WorkspaceDashboardRailsComponent {
                 playlist.filename ||
                 this.t('WORKSPACE.DASHBOARD.UNTITLED_SOURCE'),
             subtitle: this.data.getPlaylistProvider(playlist),
-            icon: playlist.serverUrl
-                ? 'cloud'
-                : playlist.macAddress
-                  ? 'cast'
-                  : 'folder_open',
+            icon: getPlaylistSourceIcon(playlist),
             link: this.data.getPlaylistLink(playlist),
             actions: buildDashboardSourceActions(
                 playlist,
@@ -373,6 +296,9 @@ export class WorkspaceDashboardRailsComponent {
             expiryBadge: this.buildSourceExpiryBadge(playlist._id),
         }));
     });
+
+    /** Per-rail skeleton gates; see createDashboardRailSkeletons. */
+    readonly railSkeletons = createDashboardRailSkeletons(this);
 
     constructor() {
         // Re-entering the dashboard should pick up any DB-backed recent/favorite
@@ -403,27 +329,6 @@ export class WorkspaceDashboardRailsComponent {
         effect(() => {
             this.playbackPositionReloadKey();
             untracked(() => void this.data.reloadPlaybackPositions());
-        });
-
-        // TMDB extras for the hero (backdrop/rating/genres) — async after
-        // first paint, staleness-guarded against hero changes in flight.
-        effect(() => {
-            const item = this.heroRecentItem();
-            if (!item || (item.type !== 'movie' && item.type !== 'series')) {
-                return;
-            }
-            const key = this.heroTmdbKey(item);
-            untracked(() => {
-                if (this.heroTmdbExtras()?.key === key) {
-                    return;
-                }
-                void this.heroTmdb.getExtras(item).then((extras) => {
-                    const current = untracked(() => this.heroRecentItem());
-                    if (current && this.heroTmdbKey(current) === key) {
-                        this.heroTmdbExtras.set({ key, extras });
-                    }
-                });
-            });
         });
 
         // Subscription-expiry badges for the source cards. Xtream rides the
@@ -476,12 +381,6 @@ export class WorkspaceDashboardRailsComponent {
 
     onAddPlaylist(type?: WorkspacePlaylistType): void {
         this.shellActions.openAddPlaylistDialog(type);
-    }
-
-    markHeroImageFailed(url: string): void {
-        this.failedHeroImages.update((state) =>
-            state[url] ? state : { ...state, [url]: true }
-        );
     }
 
     onSourceActionSelected(selection: DashboardRailActionSelection): void {
@@ -576,46 +475,14 @@ export class WorkspaceDashboardRailsComponent {
         );
     }
 
-    /**
-     * Only the source name under the hero title. Provider kind (Xtream /
-     * Stalker / M3U) and content kind (movie / series) are the app's own
-     * taxonomy, not a property of the title, and the badges row already
-     * says "S1·E5"; a stored playlist name can be a pasted URL with
-     * credentials or a MAC, so it goes through `playlistDisplayLabel`.
-     */
-    private buildHeroSubtitle(item: GlobalRecentItem): string {
-        return playlistDisplayLabel(
-            item.playlist_name,
-            this.data.getRecentItemProviderLabel(item)
-        );
-    }
-
-    /**
-     * "S1·E5" for an item whose progress is tracked per episode. Keyed on
-     * the WATCH kind: a Stalker embedded-VOD / lazy `is_series` show routes
-     * as a movie but still names the episode it is on.
-     */
-    private buildEpisodeBadge(
-        item: GlobalRecentItem,
-        position: PlaybackPositionData | null
-    ): string | null {
-        return resolvePortalActivityWatchKind(item) === 'series' &&
-            position?.seasonNumber != null &&
-            position?.episodeNumber != null
-            ? this.translate.instant(
-                  'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
-                  {
-                      season: position.seasonNumber,
-                      episode: position.episodeNumber,
-                  }
-              )
-            : null;
-    }
-
     private toRecentCard(item: GlobalRecentItem): DashboardRailCard {
         const position = this.data.getPlaybackPositionForItem(item);
         const watchProgress = playbackProgressPercent(position);
-        const episodeBadge = this.buildEpisodeBadge(item, position);
+        const episodeBadge = buildDashboardEpisodeBadge(
+            item,
+            position,
+            (key, params) => this.translate.instant(key, params)
+        );
         return {
             id: this.recentCardId(item),
             title: item.title,
@@ -686,10 +553,6 @@ export class WorkspaceDashboardRailsComponent {
         };
     }
 
-    private heroTmdbKey(item: GlobalRecentItem): string {
-        return this.heroTmdb.keyFor(item);
-    }
-
     private toTrendingCard(item: DashboardTrendingItem): DashboardRailCard {
         const subtitle = [
             item.year !== null ? String(item.year) : null,
@@ -748,12 +611,12 @@ export class WorkspaceDashboardRailsComponent {
     private buildSourceExpiryBadge(
         playlistId: string
     ): DashboardRailCard['expiryBadge'] {
-        // Reactive read: ties the wall-clock evaluation below to the minute
-        // tick (this method only runs inside the sourceCards computed).
-        this.sourceExpiryTick();
+        // Reactive read: ties the evaluation below to the expiry clock (this
+        // method only runs inside the sourceCards computed). Date.now() keeps
+        // a recompute for any other reason on the real time.
         const badge = resolveSourceExpiryBadge(
             this.sourceExpiry.facts().get(playlistId),
-            Date.now()
+            Math.max(this.sourceExpiryNow(), Date.now())
         );
         if (!badge) {
             return null;
@@ -809,6 +672,8 @@ export class WorkspaceDashboardRailsComponent {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
+            confirmLabel: this.translate.instant('HOME.PLAYLISTS.REMOVE'),
+            tone: 'destructive',
             onConfirm: () => {
                 void this.removePlaylist(playlist);
             },

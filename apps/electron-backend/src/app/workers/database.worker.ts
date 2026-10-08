@@ -1,9 +1,10 @@
 import { migrateAppPlaylists } from '../database/operations/playlist-migration.operations';
 import {
     closeWorkerDatabase,
+    flushWorkerSqlStatementCount,
     getWorkerDatabase,
 } from './database.worker-connection';
-import { parentPort } from 'worker_threads';
+import { parentPort, workerData } from 'worker_threads';
 import type {
     ContentMetadataPatch,
     VodSourcePin,
@@ -25,8 +26,10 @@ import {
     getCategories,
     hasCategories,
     saveCategories,
+    setCategoryLocks,
     updateCategoryVisibility,
 } from '../database/operations/category.operations';
+import { setParentalLockActive } from '../database/parental-lock-state';
 import {
     addFavorite,
     getAllGlobalFavorites,
@@ -133,6 +136,12 @@ import {
 } from './operation-progress-throttle';
 
 const loggerLabel = '[DB Worker]';
+// Seeded by the main process so a (re)started worker is locked before its
+// first read; DB_SET_PARENTAL_LOCK_STATE updates it afterwards.
+setParentalLockActive(
+    (workerData as { parentalLockActive?: unknown } | undefined)
+        ?.parentalLockActive === true
+);
 const batchDelayMs = Number.parseInt(
     process.env['IPTVNATOR_DB_WORKER_BATCH_DELAY_MS'] ?? '0',
     10
@@ -210,6 +219,7 @@ function serializeError(error: unknown) {
 }
 
 function postMessage(message: DbWorkerMessage): void {
+    flushWorkerSqlStatementCount();
     parentPort?.postMessage(message);
 }
 
@@ -440,6 +450,7 @@ async function executeRequest(
                 }>;
                 type: 'live' | 'movies' | 'series';
                 hiddenCategoryXtreamIds?: number[];
+                lockedCategoryXtreamIds?: number[];
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -449,6 +460,7 @@ async function executeRequest(
                 payload.categories,
                 payload.type,
                 payload.hiddenCategoryXtreamIds,
+                payload.lockedCategoryXtreamIds,
                 capturePhase
             );
         }
@@ -470,6 +482,20 @@ async function executeRequest(
                 db,
                 payload.categoryIds,
                 payload.hidden
+            );
+        }
+
+        case 'DB_SET_CATEGORY_LOCKS': {
+            const payload = message.payload as {
+                playlistId: string;
+                type: 'live' | 'movies' | 'series';
+                lockedXtreamIds: number[];
+            };
+            return setCategoryLocks(
+                db,
+                payload.playlistId,
+                payload.type,
+                payload.lockedXtreamIds
             );
         }
 
@@ -1243,6 +1269,11 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             message,
             activePerformanceCaptures.size === 0
         );
+        return;
+    }
+
+    if (message.type === 'parental-lock') {
+        setParentalLockActive(message.active === true);
         return;
     }
 

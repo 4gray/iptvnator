@@ -1,0 +1,20 @@
+<button
+    type="button"
+    class="icon-btn"
+    [class.is-active]="active()"
+    [class.is-pulsing]="pulsing()"
+    [class.icon-btn--favorite]="tone() === 'favorite'"
+    [class.icon-btn--watched]="tone() === 'watched'"
+    [class.icon-btn--done]="tone() === 'done'"
+    [disabled]="disabled()"
+    [matTooltip]="label()"
+    [attr.aria-label]="label()"
+    [attr.aria-pressed]="pressedState()"
+    [attr.data-testid]="testId()"
+    (click)="pressed.emit()"
+>
+    <ng-content select="[glyph]" />
+    @if (icon(); as glyph) {
+        <mat-icon aria-hidden="true">{{ glyph }}</mat-icon>
+    }
+</button>

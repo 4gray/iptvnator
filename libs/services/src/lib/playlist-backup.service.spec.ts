@@ -14,6 +14,23 @@ describe('PlaylistBackupService', () => {
         localStorage.clear();
     });
 
+    it('refuses to export while the parental lock store is not readable', async () => {
+        const initialize = jest.fn().mockResolvedValue(undefined);
+        const service = createPlaylistBackupService({
+            parentalLock: {
+                initialize,
+                locksReadable: jest.fn(() => false),
+                locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
+                replacePlaylistLocks: jest.fn().mockResolvedValue(true),
+            },
+        });
+
+        await expect(service.exportBackup()).rejects.toThrow(
+            /parental lock store/
+        );
+        expect(initialize).toHaveBeenCalled();
+    });
+
     it('exports self-contained M3U data and strips Stalker session fields', async () => {
         const playlistsService = {
             addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),

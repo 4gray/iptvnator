@@ -1,0 +1,183 @@
+// App tokens only: the theme declares no Material system colours. The
+// adult-chip red is local, with a value per theme (>= 4.5:1 on its tint).
+:host {
+    --lock-dialog-error-color: #b3261e;
+}
+
+:host-context(.dark-theme) {
+    --lock-dialog-error-color: #ffb4ab;
+}
+
+.mat-mdc-dialog-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lock-dialog__description {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--app-body-color);
+}
+
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.selection-info {
+    font-size: 0.8125rem;
+    color: var(--app-body-color);
+
+    strong {
+        color: var(--app-heading-color);
+    }
+}
+
+.bulk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    button {
+        font-size: 12px;
+    }
+}
+
+.search-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    min-height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--app-search-border);
+    background: var(--app-search-bg);
+    cursor: text;
+
+    &:focus-within {
+        border-color: var(--app-selection-color);
+    }
+
+    &__icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--app-eyebrow-color);
+    }
+
+    input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: var(--app-heading-color);
+        font: inherit;
+        font-size: 0.84rem;
+        min-width: 0;
+
+        &::-webkit-search-cancel-button {
+            display: none;
+        }
+    }
+
+    &__clear {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        padding: 0;
+
+        mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+        }
+    }
+}
+
+.categories-list {
+    flex: 1;
+    min-height: 200px;
+    max-height: 50vh;
+    overflow-y: auto;
+    border: 1px solid var(--app-separator);
+    border-radius: 8px;
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 0 10px;
+    min-height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--app-heading-color);
+    font: inherit;
+    font-size: 0.8125rem;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background-color: var(--app-card-hover-bg);
+    }
+
+    // The global reset strips every button outline; an inset ring keeps
+    // the focused row visible inside the list's clipped scroll box.
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
+    }
+
+    &:not(:last-child) {
+        border-bottom: 1px solid var(--app-widget-header-border);
+    }
+
+    &__icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--app-eyebrow-color);
+    }
+
+    &--locked .category-item__icon {
+        color: var(--app-selection-color);
+    }
+}
+
+.category-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.censored-chip {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: color-mix(
+        in srgb,
+        var(--lock-dialog-error-color) 16%,
+        transparent
+    );
+    color: var(--lock-dialog-error-color);
+}
+
+.empty-message {
+    padding: 24px;
+    text-align: center;
+    color: var(--app-body-color);
+    font-size: 0.8125rem;
+}
+
+// No min-width: the opener caps the panel at the viewport on a phone.
+:host ::ng-deep .mat-mdc-dialog-content {
+    max-width: 600px;
+}

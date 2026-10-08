@@ -1,8 +1,34 @@
 <header class="workspace-header" [class.is-settings-route]="isSettingsRoute()">
+    <!-- The page's Back, or browser history while an in-app previous page
+         exists, at the leading edge where desktop apps and Material's top
+         app bar keep navigation (beside the macOS traffic lights). The
+         header never scrolls, so the control stays put over long pages. -->
+    @if (backTarget(); as back) {
+        @let backLabel = back.label() || ('BACK' | translate);
+        <button
+            type="button"
+            class="header-back"
+            [class.header-back--yields]="backYieldsToDrawerToggle()"
+            mat-icon-button
+            data-test-id="workspace-header-back"
+            (click)="backRequested.emit()"
+            (keydown.escape)="onBackEscape($event)"
+            [matTooltip]="
+                back.escapeShortcut() ? backLabel + ' (Esc)' : backLabel
+            "
+            [attr.aria-label]="backLabel"
+            [attr.aria-keyshortcuts]="back.escapeShortcut() ? 'Escape' : null"
+        >
+            <mat-icon>arrow_back</mat-icon>
+        </button>
+    }
+
     <!-- Phone-only (≤640px, CSS-hidden above): on phones the context panel
          is an off-canvas drawer, and this button is the only way to open
-         it, so it must never be dropped while the route has a panel. -->
-    @if (showContextDrawerToggle()) {
+         it. A detail page's Back takes its slot (one navigation icon, as in
+         Material's top app bar); the list Back returns to shows it again.
+         Settings keeps both, and the history fallback yields to it. -->
+    @if (showDrawerToggle()) {
         <button
             #contextDrawerToggle
             type="button"
@@ -42,7 +68,9 @@
         />
     }
 
-    @if (!hasNoPlaylists()) {
+    <!-- Settings search works without any playlist, so a fresh user can
+         find settings before importing a first source. -->
+    @if (!hasNoPlaylists() || isSettingsRoute()) {
         <label class="search-field">
             <mat-icon>search</mat-icon>
             @if (searchScopeLabel()) {
@@ -114,6 +142,33 @@
         >
             <mat-icon>add</mat-icon>
         </button>
+        @if (parentalLockState() !== 'off') {
+            <button
+                type="button"
+                class="header-shortcut header-parental-lock"
+                mat-icon-button
+                data-test-id="header-parental-lock"
+                [class.is-active]="parentalLockState() === 'locked'"
+                (click)="parentalLockToggleRequested.emit()"
+                [matTooltip]="
+                    (parentalLockState() === 'locked'
+                        ? 'PARENTAL_LOCK.HEADER_UNLOCK'
+                        : 'PARENTAL_LOCK.HEADER_LOCK'
+                    ) | translate
+                "
+                [attr.aria-label]="
+                    (parentalLockState() === 'locked'
+                        ? 'PARENTAL_LOCK.HEADER_UNLOCK'
+                        : 'PARENTAL_LOCK.HEADER_LOCK'
+                    ) | translate
+                "
+                [attr.aria-pressed]="parentalLockState() === 'locked'"
+            >
+                <mat-icon>{{
+                    parentalLockState() === 'locked' ? 'lock' : 'lock_open'
+                }}</mat-icon>
+            </button>
+        }
         @if (!isSettingsRoute()) {
             @if (headerSidebarToggle(); as sidebarToggle) {
                 <button

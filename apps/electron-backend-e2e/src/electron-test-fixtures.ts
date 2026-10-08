@@ -30,6 +30,7 @@ import {
 import {
     captureElectronProcess,
     closeElectronApplicationAndConfirmExit,
+    type ElectronExitConfirmationOptions,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
 
@@ -200,7 +201,7 @@ export { expect };
  * helper that spawns the app itself has to use the same list. `appArgs` land
  * after the entry point, which is where the OS puts an opened file's path.
  */
-function buildElectronLaunchArgs(
+export function buildElectronLaunchArgs(
     extraArgs: readonly string[] = [],
     appArgs: readonly string[] = [],
     entryPoint = electronMainPath
@@ -577,10 +578,18 @@ export async function closeElectronApp(
 export async function closeElectronAppAndConfirmExit(
     app: LaunchedElectronApp
 ): Promise<void> {
-    await closeElectronApplicationAndConfirmExit(app.electronApp, {
+    await closeElectronApplicationAndConfirmExit(
+        app.electronApp,
+        electronAppExitConfirmationOptions()
+    );
+}
+
+/** The close/exit timeouts the shared fixture applies to every launch. */
+export function electronAppExitConfirmationOptions(): ElectronExitConfirmationOptions {
+    return {
         closeTimeoutMs: electronAppCloseTimeoutMs,
         exitTimeoutMs: electronAppKillWaitMs,
-    });
+    };
 }
 
 function assertPackagedRendererBuildIsElectronSafe(): void {
@@ -1004,7 +1013,7 @@ export async function saveSettings(page: Page): Promise<void> {
 
 export async function goToDashboard(page: Page): Promise<void> {
     const dashboardLink = page
-        .locator('a.brand[href$="/workspace/dashboard"]')
+        .locator('app-workspace-shell-rail a[href$="/workspace/dashboard"]')
         .first();
 
     await expect(dashboardLink).toBeVisible();
@@ -1257,7 +1266,7 @@ export async function clearCurrentUnifiedCollection(page: Page): Promise<void> {
 
     const dialog = page.locator('mat-dialog-container').last();
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: /^Yes$/i }).click();
+    await dialog.getByRole('button', { name: 'Clear', exact: true }).click();
     await expect(dialog).toBeHidden();
 }
 
@@ -1655,7 +1664,7 @@ export async function deleteSource(page: Page, title: string): Promise<void> {
 
     await expect(row).toBeVisible();
     await row.locator('.delete-btn').click();
-    await confirmDialog(page);
+    await confirmDialog(page, 'Remove playlist');
 }
 
 export async function refreshSource(
@@ -1672,7 +1681,7 @@ export async function refreshSource(
     await row.locator('.refresh-btn').click();
 
     if (confirm) {
-        await confirmDialog(page);
+        await confirmDialog(page, 'Refresh playlist');
     }
 }
 
@@ -2089,7 +2098,7 @@ async function openCommandPalette(page: Page): Promise<Locator> {
     return dialog;
 }
 
-async function confirmDialog(page: Page, buttonLabel = 'Yes'): Promise<void> {
+async function confirmDialog(page: Page, buttonLabel: string): Promise<void> {
     const dialog = page.locator('mat-dialog-container');
 
     await expect(dialog).toBeVisible();

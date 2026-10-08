@@ -3,6 +3,7 @@ import {
     type Playlist,
 } from '@iptvnator/shared/interfaces';
 import type { createLogger } from '@iptvnator/portal/shared/util';
+import { createBackgroundInterval } from './background-interval';
 
 /**
  * The portal expects `get_events` every `watchdog_timeout` seconds — 120 by
@@ -30,13 +31,16 @@ export interface StalkerWatchdogDeps {
      * Reads the persisted row for a playlist. The row is the source of truth
      * for the configuration a ping authenticates as; see `resolvePlaylist`.
      */
-    readPersistedPlaylist: (playlistId: string) => Promise<Playlist | undefined>;
+    readPersistedPlaylist: (
+        playlistId: string
+    ) => Promise<Playlist | undefined>;
     logger: ReturnType<typeof createLogger>;
 }
 
 interface WatchdogTimers {
     timeslotTimeout?: ReturnType<typeof setTimeout>;
-    interval?: ReturnType<typeof setInterval>;
+    /** Stops the periodic ping (see `createBackgroundInterval`). */
+    stopInterval?: () => void;
 }
 
 /**
@@ -98,7 +102,9 @@ export class StalkerWatchdogController {
      * while persistence is pending (or failed), and pinging that would stop
      * or misdirect the keepalive.
      */
-    registerPlaylistDecorator(decorator: (playlist: Playlist) => Playlist): void {
+    registerPlaylistDecorator(
+        decorator: (playlist: Playlist) => Playlist
+    ): void {
         this.playlistDecorator = decorator;
     }
 
@@ -158,8 +164,8 @@ export class StalkerWatchdogController {
         if (timers.timeslotTimeout) {
             clearTimeout(timers.timeslotTimeout);
         }
-        if (timers.interval) {
-            clearInterval(timers.interval);
+        if (timers.stopInterval) {
+            timers.stopInterval();
         }
     }
 
@@ -185,7 +191,10 @@ export class StalkerWatchdogController {
                 return;
             }
             current.timeslotTimeout = undefined;
-            current.interval = setInterval(() => {
+            // A worker-driven tick: a portal whose watchdog_timeout is below
+            // Chromium's one-minute wake-up limit for hidden pages must still
+            // see get_events on time while the window is minimized.
+            current.stopInterval = createBackgroundInterval(() => {
                 void this.sendPing(playlistId, '0');
             }, periodSeconds * 1000);
         };
@@ -282,7 +291,11 @@ function normalizeTiming(timing: {
         MIN_PERIOD_SECONDS,
         MAX_PERIOD_SECONDS
     );
-    const timeslot = clamp(Math.floor(timing.timeslotSeconds ?? 0), 0, period - 1);
+    const timeslot = clamp(
+        Math.floor(timing.timeslotSeconds ?? 0),
+        0,
+        period - 1
+    );
     return { periodSeconds: period, timeslotSeconds: timeslot };
 }
 

@@ -10,16 +10,21 @@ import {
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import {
     catchError,
+    combineLatest,
     defaultIfEmpty,
+    distinctUntilChanged,
+    filter,
     forkJoin,
-    interval,
     map,
+    merge,
     of,
-    startWith,
+    skip,
     switchMap,
+    tap,
 } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
+    epgProviderClockMs,
     normalizeDashboardRailsSettings,
     type EpgProgram,
     type PortalActivityItem,
@@ -31,19 +36,26 @@ import {
     DashboardDataService,
 } from '@iptvnator/workspace/dashboard/data-access';
 import type { DashboardRailCard } from './dashboard-rail.component';
+import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 import {
     buildDashboardLiveEpgDetails,
     buildLiveEpgLookupGroups,
     getLiveEpgProgramForCard,
     liveEpgAllowsAnySource,
+    liveEpgAnswersNeedRefresh,
     liveEpgProgramKey,
     liveEpgScopeKey,
-    LIVE_EPG_TICK_MS,
+    LIVE_EPG_MAX_ANSWER_AGE_MS,
+    sameLiveEpgAnswers,
     type DashboardLiveEpgDetails,
     type DashboardLiveEpgLookupGroup,
 } from './dashboard-live-epg.utils';
 import { RAIL_ITEM_LIMIT } from './dashboard-rail.utils';
+import {
+    selectDashboardHeroLiveCandidates,
+    type DashboardHeroLiveCandidate,
+} from './dashboard-hero-slides.utils';
 
 type ScopeAnswer = {
     readonly scopeKey: string;
@@ -84,6 +96,7 @@ export class DashboardLiveEpgPresenter {
     private readonly settingsStore = inject(SettingsStore);
     /** Xtream/Stalker cards are answered by their portal, not by XMLTV. */
     private readonly portal = inject(DashboardPortalLiveEpgPresenter);
+    private readonly clock = inject(DashboardLiveEpgClock);
 
     private readonly cards = signal<Signal<
         readonly DashboardRailCard[]
@@ -105,41 +118,102 @@ export class DashboardLiveEpgPresenter {
         return byPlaylistId;
     });
 
-    private readonly lookupGroups = computed(() =>
-        buildLiveEpgLookupGroups(this.cards()?.() ?? [], (card) =>
-            this.sourceUrlsForCard(card)
-        )
-    );
-
-    // Re-fetch on rail change AND on a 30s heartbeat so the progress bar
-    // catches the boundary between programs without a full page revisit.
-    private readonly programs = toSignal(
-        toObservable(this.lookupGroups).pipe(
-            switchMap((groups) =>
-                groups.length === 0
-                    ? of(new Map<string, EpgProgram | null>())
-                    : interval(LIVE_EPG_TICK_MS).pipe(
-                          startWith(0),
-                          switchMap(() =>
-                              forkJoin(
-                                  groups.map((group) => this.askScope(group))
-                              ).pipe(map((answers) => mergeAnswers(answers)))
-                          )
-                      )
-            )
-        ),
-        { initialValue: new Map<string, EpgProgram | null>() }
-    );
-
     private readonly rails = computed(() =>
         normalizeDashboardRailsSettings(this.settingsStore.dashboardRails?.())
     );
 
-    /** The live row behind the hero panel, when that rail shows one. */
-    private readonly heroLiveItem = computed<PortalActivityItem | null>(() => {
-        const hero = this.data.globalRecentItems()[0] ?? null;
-        return this.rails().hero && hero?.type === 'live' ? hero : null;
-    });
+    /**
+     * Channels that may fill the hero's live slide. Looked up and pinned
+     * here, independent of the rails, so the slide works with the live rails
+     * hidden and never waits for a rail to scroll a card into view.
+     */
+    readonly heroLiveCandidates = computed<DashboardHeroLiveCandidate[]>(() =>
+        this.rails().hero
+            ? selectDashboardHeroLiveCandidates(
+                  this.data.globalFavoriteLiveItems(),
+                  this.data.globalRecentLiveItems()
+              )
+            : []
+    );
+
+    private readonly heroLiveCards = computed(() =>
+        this.heroLiveCandidates().map(({ item }) =>
+            buildDashboardLiveEpgCard(item)
+        )
+    );
+
+    private readonly lookupGroups = computed(() =>
+        buildLiveEpgLookupGroups(
+            [...this.heroLiveCards(), ...(this.cards()?.() ?? [])],
+            (card) => this.sourceUrlsForCard(card)
+        )
+    );
+
+    /** The lookup groups the XMLTV batch below last answered. */
+    private readonly answeredLookupGroups = signal<
+        readonly DashboardLiveEpgLookupGroup[] | null
+    >(null);
+
+    private readonly offsetMinutes = computed(() =>
+        this.settingsStore.resolvedEpgOffsetMinutes()
+    );
+    /** Created once: `toObservable` owns an effect for the injector's life. */
+    private readonly now$ = toObservable(this.clock.now);
+
+    /** A guide import or source change can replace a programme on air. */
+    private readonly guideChanged$ = this.epgService.epgAvailable$.pipe(
+        skip(1),
+        filter(Boolean),
+        map(() => Date.now())
+    );
+
+    // Asked on rail or offset change and whenever the guide changes. On
+    // clock ticks it is asked again only once an answer can be stale: a
+    // programme ended, a key is still without one, or the answer is older
+    // than LIVE_EPG_MAX_ANSWER_AGE_MS. An unchanged answer is not
+    // re-emitted, so the rails rebuild on a tick only for the progress bars.
+    private readonly programs = toSignal(
+        combineLatest([
+            toObservable(this.lookupGroups),
+            toObservable(this.offsetMinutes),
+        ]).pipe(
+            switchMap(([groups, offsetMinutes]) => {
+                if (groups.length === 0) {
+                    this.answeredLookupGroups.set(groups);
+                    return of(new Map<string, EpgProgram | null>());
+                }
+                let answers: ReadonlyMap<string, EpgProgram | null> | null =
+                    null;
+                let answeredAt = 0;
+                return merge(
+                    this.now$,
+                    this.guideChanged$.pipe(tap(() => (answers = null)))
+                ).pipe(
+                    filter(
+                        (nowMs) =>
+                            nowMs - answeredAt >= LIVE_EPG_MAX_ANSWER_AGE_MS ||
+                            liveEpgAnswersNeedRefresh(
+                                answers,
+                                groups,
+                                epgProviderClockMs(nowMs, offsetMinutes)
+                            )
+                    ),
+                    switchMap(() =>
+                        forkJoin(
+                            groups.map((group) => this.askScope(group))
+                        ).pipe(map((scopes) => mergeAnswers(scopes)))
+                    ),
+                    tap((merged) => {
+                        answers = merged;
+                        answeredAt = Date.now();
+                        this.answeredLookupGroups.set(groups);
+                    }),
+                    distinctUntilChanged(sameLiveEpgAnswers)
+                );
+            })
+        ),
+        { initialValue: new Map<string, EpgProgram | null>() }
+    );
 
     // The Xtream/Stalker live rows behind the hero and the two live rails.
     // Their programmes come from the portal, asked for lazily per visible
@@ -147,9 +221,8 @@ export class DashboardLiveEpgPresenter {
     private readonly portalItems = computed<readonly PortalActivityItem[]>(
         () => {
             const rails = this.rails();
-            const hero = this.heroLiveItem();
             return [
-                ...(hero ? [hero] : []),
+                ...this.heroLiveCandidates().map(({ item }) => item),
                 ...(rails.liveFavorites
                     ? this.data
                           .globalFavoriteLiveItems()
@@ -165,20 +238,20 @@ export class DashboardLiveEpgPresenter {
     );
 
     constructor() {
+        this.clock.demand(computed(() => this.lookupGroups().length > 0));
         this.portal.connect(this.portalItems);
         // The hero sits at the top of the page and is never scrolled into
-        // view, so its key is wanted regardless of what the rails report.
-        // Only the hero: the first entry of `portalItems` is a favourite
-        // when that rail is hidden, and pinning it would keep asking for a
-        // card nobody can see.
+        // view, so its candidates are wanted regardless of what the rails
+        // report. Only those: a rail card nobody can see stays unpinned.
         effect(() => {
-            const hero = this.heroLiveItem();
-            const heroKey = hero ? buildDashboardPortalLiveEpgKey(hero) : null;
-            untracked(() => this.portal.setPinnedKeys([heroKey]));
+            const keys = this.heroLiveCandidates().map(({ item }) =>
+                buildDashboardPortalLiveEpgKey(item)
+            );
+            untracked(() => this.portal.setPinnedKeys(keys));
         });
     }
 
-    /** The live cards whose rails are enabled, hero included. */
+    /** The live cards whose rails are enabled (hero candidates are added here). */
     connect(cards: Signal<readonly DashboardRailCard[]>): void {
         this.cards.set(cards);
     }
@@ -206,6 +279,31 @@ export class DashboardLiveEpgPresenter {
         });
     }
 
+    /**
+     * True while a hero live candidate may still get its first programme:
+     * its portal has not answered yet, or the XMLTV batch has not answered
+     * the current lookups. A live slide exists only once a programme is on
+     * air, so the hero keeps its skeleton meanwhile instead of inserting
+     * the slide late.
+     */
+    readonly heroLiveAwaitingFirstAnswer = computed(() => {
+        const cards = this.heroLiveCards();
+        if (cards.length === 0) {
+            return false;
+        }
+        return (
+            this.answeredLookupGroups() !== this.lookupGroups() ||
+            cards.some((card) =>
+                this.portal.awaitsFirstAnswer(card.liveEpgSourceKey)
+            )
+        );
+    });
+
+    /** Current programme of a hero live candidate, or `null`. */
+    heroDetailsFor(item: PortalActivityItem): DashboardLiveEpgDetails | null {
+        return this.detailsFor(buildDashboardLiveEpgCard(item));
+    }
+
     /** `null` when nothing is known about the card's current programme. */
     detailsFor(card: DashboardRailCard | null): DashboardLiveEpgDetails | null {
         if (!card) {
@@ -224,8 +322,9 @@ export class DashboardLiveEpgPresenter {
                     liveEpgAllowsAnySource(card)
                 )
             );
-        // Recompute the now-window each tick so progress moves between
-        // 30s ticks even if the program identity is unchanged.
+        // Read the clock so progress moves on every tick even while the
+        // programme itself is unchanged.
+        this.clock.now();
         return buildDashboardLiveEpgDetails(
             program,
             Date.now(),
@@ -284,4 +383,20 @@ function mergeAnswers(
         }
     }
     return merged;
+}
+
+/** The fields the EPG lookups read, for a live row that has no rail card. */
+function buildDashboardLiveEpgCard(
+    item: PortalActivityItem
+): DashboardRailCard {
+    return {
+        id: `hero-live-${item.playlist_id}-${item.xtream_id ?? item.id}`,
+        title: item.title,
+        icon: 'live_tv',
+        contentType: 'live',
+        link: [],
+        epgLookupKey: item.epg_lookup_key,
+        epgPlaylistId: item.playlist_id,
+        liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
+    };
 }

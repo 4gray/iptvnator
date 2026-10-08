@@ -1,0 +1,492 @@
+// The settings panel / bottom sheet. Reads the `--pc-*` palette that the
+// controls host declares and places itself inside that host (the
+// `player-controls` container): beside the video as a panel, or rising from
+// the bottom edge as a sheet.
+:host {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 4;
+    width: 330px;
+    max-width: calc(100cqw - 32px);
+    animation: player-settings-panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-sizing: border-box;
+    padding: 18px 16px;
+    color: var(--pc-text, #e7ecf3);
+    background: var(--pc-glass-bg-dense, rgba(12, 16, 23, 0.86));
+    border: 1px solid var(--pc-glass-border, rgba(255, 255, 255, 0.09));
+    border-radius: 20px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(18px) saturate(1.3);
+    overflow: hidden;
+    pointer-events: auto;
+}
+
+:host(:focus) {
+    outline: none;
+}
+
+:host(:focus-visible) {
+    box-shadow:
+        0 0 0 2px var(--pc-text, #e7ecf3),
+        0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+:host(.player-settings--sheet) {
+    top: auto;
+    right: 8px;
+    bottom: 0;
+    left: 8px;
+    width: auto;
+    max-width: none;
+    max-height: min(70%, calc(100cqh - 24px));
+    animation-name: player-settings-sheet-in;
+    gap: 9px;
+    padding: 10px 14px 12px;
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+}
+
+.player-settings__grip {
+    flex: 0 0 auto;
+    align-self: center;
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.player-settings__header {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.player-settings__title {
+    margin: 0;
+    overflow: hidden;
+    color: inherit;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:host(.player-settings--sheet) .player-settings__title {
+    font-size: 13px;
+}
+
+:host :is(button[mat-icon-button]) {
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    color: var(--pc-text, #e7ecf3);
+    --mat-icon-button-icon-color: var(--pc-text, #e7ecf3);
+    --mat-icon-button-state-layer-size: 32px;
+    --mat-icon-button-container-shape: 10px;
+    --mat-icon-button-icon-size: 20px;
+    --mat-icon-button-hover-state-layer-opacity: 0;
+    // The ring below is the focus indicator; Material's focus layer would
+    // take its colour from the app theme.
+    --mat-icon-button-focus-state-layer-opacity: 0;
+    border-radius: 10px;
+}
+
+:host :is(button[mat-icon-button]) mat-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    color: var(--pc-text, #e7ecf3);
+}
+
+:host :is(button[mat-icon-button]:hover:not([disabled])) {
+    background: var(--pc-hover, rgba(255, 255, 255, 0.1));
+}
+
+// Inset like the option rows: the body is the scroll owner and would clip
+// an outer ring on its edge.
+:host :is(button[mat-icon-button]:focus-visible) {
+    outline: 2px solid var(--pc-text, #e7ecf3);
+    outline-offset: -2px;
+}
+
+:host :is(button[mat-icon-button][disabled]),
+:host :is(button[mat-icon-button][disabled]) mat-icon {
+    color: var(--pc-text-tertiary, #6b7384);
+    --mat-icon-button-icon-color: var(--pc-text-tertiary, #6b7384);
+}
+
+:host(.player-settings--sheet) .player-settings__close {
+    width: 26px;
+    height: 26px;
+    padding: 3px;
+    --mat-icon-button-state-layer-size: 26px;
+}
+
+// Single scroll owner: on a short player the whole content scrolls, never
+// one group inside another.
+.player-settings__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 18px;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+:host(.player-settings--sheet) .player-settings__body {
+    gap: 9px;
+}
+
+.player-settings__group {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 6px;
+    border-radius: 12px;
+    transition: box-shadow 220ms ease-out;
+}
+
+// The group a chip opened the panel for: a brief ring, no layout change.
+.player-settings__group--focused {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+// Small caps text on glass over video: the secondary ramp step keeps it at
+// 4.5:1 or more over a mid-grey frame (the tertiary step measured 4.1:1 over
+// black). One long word ("Wiedergabegeschwindigkeit") breaks instead of
+// running out of the narrow sheet column; `hyphens` needs `<html lang>`.
+.player-settings__heading,
+.player-settings__subheading {
+    margin: 0;
+    color: var(--pc-text-secondary, #9aa3b2);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+}
+
+.player-settings__heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 4px 4px;
+}
+
+.player-settings__heading .player-settings__dot {
+    flex: 0 0 auto;
+}
+
+.player-settings__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.player-settings__dot--cyan {
+    background: var(--pc-accent-cyan, #5cd6ff);
+}
+
+.player-settings__dot--violet {
+    background: var(--pc-accent-violet, #b599ff);
+}
+
+.player-settings__dot--neutral {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.player-settings__options {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.player-settings__option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 36px;
+    padding: 0 12px;
+    color: var(--pc-text, #e7ecf3);
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+}
+
+.player-settings__option span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-settings__option mat-icon {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+}
+
+// "Off" / "Auto" rows read as the neutral choice until selected.
+.player-settings__option--default {
+    color: var(--pc-text-secondary, #9aa3b2);
+}
+
+.player-settings__option--action {
+    color: var(--pc-text-secondary, #9aa3b2);
+}
+
+.player-settings__option:hover,
+.player-settings__option:focus-visible {
+    background: var(--pc-hover, rgba(255, 255, 255, 0.1));
+}
+
+.player-settings__option--selected {
+    color: var(--pc-accent-cyan, #5cd6ff);
+    background: rgba(92, 214, 255, 0.14);
+    font-weight: 600;
+}
+
+.player-settings__option:focus-visible {
+    outline: 2px solid var(--pc-text, #e7ecf3);
+    outline-offset: -2px;
+}
+
+.player-settings__seg {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.player-settings__seg-item {
+    flex: 1 1 auto;
+    height: 30px;
+    padding: 0 8px;
+    color: var(--pc-text-secondary, #9aa3b2);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.player-settings__seg-item--default {
+    color: var(--pc-text, #e7ecf3);
+}
+
+.player-settings__seg-item:hover,
+.player-settings__seg-item:focus-visible {
+    background: var(--pc-hover, rgba(255, 255, 255, 0.1));
+}
+
+.player-settings__seg-item--selected {
+    color: var(--pc-accent-violet, #b599ff);
+    background: rgba(181, 153, 255, 0.2);
+    font-weight: 600;
+}
+
+// The default value selected is "nothing changed": neutral, not violet.
+.player-settings__seg-item--default.player-settings__seg-item--selected {
+    color: var(--pc-text, #e7ecf3);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.player-settings__seg-item:focus-visible {
+    outline: 2px solid var(--pc-text, #e7ecf3);
+    outline-offset: -2px;
+}
+
+.player-settings__subsection {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.player-settings__subheading {
+    padding: 0 4px;
+}
+
+.player-settings__delay-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.player-settings__delay-value {
+    min-width: 58px;
+    color: var(--pc-text, #e7ecf3);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+.player-settings__swatches {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    // Room on every side for the focus ring (2px offset + 2px): the body
+    // scrolls and would clip it at its edge.
+    padding: 4px;
+}
+
+.player-settings__swatch {
+    width: 26px;
+    height: 26px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 50%;
+    cursor: pointer;
+    background: var(--swatch-color, transparent);
+}
+
+// The "engine default" swatch has no color of its own: render a diagonal
+// slash so it reads as "no override".
+.player-settings__swatch--default {
+    background:
+        linear-gradient(
+            135deg,
+            transparent 44%,
+            rgba(255, 255, 255, 0.7) 46%,
+            rgba(255, 255, 255, 0.7) 54%,
+            transparent 56%
+        ),
+        rgba(255, 255, 255, 0.08);
+}
+
+.player-settings__swatch:hover {
+    border-color: #ffffff;
+}
+
+// Selected: a white ring with a dark gap inside it, which reads on every
+// swatch colour, the white one included.
+.player-settings__swatch--selected {
+    border-color: #ffffff;
+    box-shadow: inset 0 0 0 2px rgba(12, 16, 23, 0.9);
+}
+
+// Keyboard focus adds a ring outside the border, so a focused selected
+// swatch looks different from one that is only selected.
+.player-settings__swatch:focus-visible {
+    outline: 2px solid var(--pc-text, #e7ecf3);
+    outline-offset: 2px;
+}
+
+// Sheet density: two-column rows (heading | control) so five groups fit a
+// phone-height player without scrolling in the common case.
+:host(.player-settings--sheet) .player-settings__group {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 4px 10px;
+    align-items: start;
+}
+
+// The heading column is narrow: "Playback speed" wraps onto two lines, and a
+// single long word breaks (see the heading rule), instead of running under
+// the control.
+:host(.player-settings--sheet) .player-settings__heading {
+    align-items: flex-start;
+    min-width: 0;
+    padding: 6px 0 0;
+    font-size: 10px;
+    line-height: 1.25;
+}
+
+:host(.player-settings--sheet) .player-settings__heading .player-settings__dot {
+    flex: 0 0 auto;
+    margin-top: 4px;
+}
+
+:host(.player-settings--sheet) .player-settings__dot {
+    width: 5px;
+    height: 5px;
+}
+
+:host(.player-settings--sheet) .player-settings__options {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+:host(.player-settings--sheet) .player-settings__option {
+    flex: 1 1 auto;
+    justify-content: center;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 8px;
+    font-size: 11.5px;
+}
+
+:host(.player-settings--sheet) .player-settings__option mat-icon {
+    display: none;
+}
+
+// The load-file action sits outside the radio group: keep it in the control
+// column, on the same pill background.
+:host(.player-settings--sheet) .player-settings__option--action {
+    grid-column: 2;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+:host(.player-settings--sheet) .player-settings__seg-item {
+    height: 24px;
+    font-size: 11.5px;
+}
+
+:host(.player-settings--sheet) .player-settings__subsection {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    padding-top: 6px;
+}
+
+@keyframes player-settings-panel-in {
+    from {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes player-settings-sheet-in {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host {
+        animation: none;
+    }
+}

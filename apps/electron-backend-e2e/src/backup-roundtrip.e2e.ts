@@ -17,6 +17,7 @@ import {
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
+import { readVisibleSidebarCategories } from './sidebar-categories.e2e-support';
 
 /**
  * Full backup round-trip through the real UI, DB worker and IPC stack:
@@ -237,32 +238,18 @@ async function pickVisibleCategoryWithContent(
     await expect
         .poll(
             async () => {
-                const categories = page.locator(
-                    'app-workspace-context-panel .category-item:visible'
+                const category = (
+                    await readVisibleSidebarCategories(page)
+                ).find(
+                    (candidate) =>
+                        candidate.id &&
+                        candidate.name &&
+                        candidate.itemCount > 0
                 );
-                const count = await categories.count();
 
-                for (let index = 0; index < count; index += 1) {
-                    const category = categories.nth(index);
-                    const id =
-                        (
-                            await category.getAttribute('data-category-id')
-                        )?.trim() ?? '';
-                    const name =
-                        (
-                            await category
-                                .locator('.nav-item-label')
-                                .textContent()
-                        )?.trim() ?? '';
-                    const countText =
-                        (
-                            await category.locator('.item-count').textContent()
-                        )?.trim() ?? '';
-
-                    if (id && name && (Number.parseInt(countText, 10) || 0) > 0) {
-                        picked = { id, name };
-                        return true;
-                    }
+                if (category) {
+                    picked = { id: category.id, name: category.name };
+                    return true;
                 }
 
                 picked = null;

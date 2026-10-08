@@ -550,12 +550,62 @@ The mock server is listed as a third `webServer` entry:
 
 ```typescript
 {
-  command: 'pnpm nx run xtream-mock-server:serve',
-  url: 'http://localhost:3211/health',
+  command: 'node --import tsx apps/xtream-mock-server/src/main.ts',
+  env: {
+    NODE_ENV: 'development',
+    TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+  },
+  url: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}/health`,
   reuseExistingServer: !process.env['CI'],
   cwd: workspaceRoot,
 }
 ```
+
+Every mock-server `webServer` entry uses this launch form, never
+`pnpm nx run …:serve`. The web and Electron E2E configs
+(`apps/web-e2e/playwright.config.ts`,
+`apps/electron-backend-e2e/playwright.config.ts`) start both the Stalker and
+the Xtream mock. The journeys and Xtream benchmark configs start only the
+Xtream mock, on their own loopback ports. The packaged and other performance
+configs start no mock.
+Playwright stops a `webServer` by sending `SIGKILL` to the process group it
+spawned (`taskkill /T /F` on Windows), and Nx `run-commands` starts its command
+in a detached process group of its own. The kill therefore reached only
+`pnpm`/`nx`, and the `tsx` server was reparented and kept the port, which made
+the next run fail with "…/health is already used" or, with
+`reuseExistingServer`, silently reuse a stale server. `node --import tsx` keeps
+the server a single process in Playwright's group. `TSX_TSCONFIG_PATH` stands in
+for the serve target's `--tsconfig` flag and is required for the `@iptvnator/*`
+path aliases. `project-config.spec.ts` pins which configs start which mock,
+and fails if any of them launches a mock through Nx or a new config starts one
+without being listed there. The `serve` targets remain the entry point
+for starting a mock by hand, and no E2E target may depend on them: with no
+Nx-launched server, `@nx/playwright` infers the atomized `e2e-ci--*` targets
+as non-parallel, and Nx refuses to run a non-parallel task that depends on a
+continuous `serve` task. The same spec guards the `e2e*` entries of `nx.json`
+`targetDefaults` and every target in the `apps/*-e2e` `project.json` files. The web-e2e `web-backend` entry uses the same
+launch form; see [PWA web backend](pwa-self-hosted.md#web-backend).
+
+Playwright, not Nx, starts every E2E server, including the web dev server.
+`@nx/playwright/plugin` infers a continuous `serve` dependency from a
+`pnpm nx run <project>:serve` webServer only while `reuseExistingServer` is
+true, which the configs set only when `CI` is unset. It also sets
+`parallelism: false` on a target when a webServer has an `env` or a plain
+`node` command, because no Nx task covers that server. Nx refuses to run a
+non-parallel task that depends on a continuous task, so the inferred
+`web-e2e:e2e` failed locally with "do not support parallelism but depend on
+continuous tasks" and passed only in CI. Therefore:
+
+- `apps/web-e2e/project.json` sets `e2e.dependsOn` to `[]`, and the filtered
+  `e2e-ci--src/*.e2e.ts` target default in `nx.json` does the same for the
+  per-file web targets. The per-file Electron targets depend only on
+  `electron-backend:build-e2e`.
+- The plugin runs with `waitForWebServer: false`, because no target consumes
+  its `e2e--wait-for-webserver` readiness task. Playwright's own URL probe
+  covers readiness.
+- `pnpm run e2e:task-graphs:validate` (`tools/nx/check-e2e-task-graphs.mjs`)
+  builds each Playwright target's task graph with Nx's own validation, once
+  with `CI` unset and once with it set.
 
 ### Request Interception
 

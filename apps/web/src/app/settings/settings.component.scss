@@ -114,11 +114,69 @@
     margin-bottom: 0;
 }
 
+// A row opened from settings search or the command palette. It receives
+// programmatic focus (tabindex -1). Keyboard users keep a focus ring after
+// the temporary highlight fades; pointer users rely on the highlight alone,
+// as with any mouse-driven focus. The wash fills the row's own padding box
+// and two offset shadows widen it past the flush-left row edges without
+// shifting layout or painting over the separators above and below.
+.setting-item[data-setting-id] {
+    scroll-margin: 96px 0 calc(96px + var(--settings-action-bar-space));
+
+    &:focus {
+        outline: none;
+    }
+
+    &:focus-visible {
+        outline: 2px solid
+            color-mix(in srgb, var(--app-selection-color) 60%, transparent);
+        outline-offset: 6px;
+        border-radius: 4px;
+    }
+}
+
+.setting-item--revealed {
+    --settings-reveal-wash: color-mix(
+        in srgb,
+        var(--app-selection-color) 12%,
+        transparent
+    );
+
+    background: var(--settings-reveal-wash);
+    box-shadow:
+        -12px 0 0 var(--settings-reveal-wash),
+        12px 0 0 var(--settings-reveal-wash);
+    animation: settings-reveal-fade 2.4s ease-out forwards;
+}
+
+@keyframes settings-reveal-fade {
+    0%,
+    60% {
+        background: var(--settings-reveal-wash);
+        box-shadow:
+            -12px 0 0 var(--settings-reveal-wash),
+            12px 0 0 var(--settings-reveal-wash);
+    }
+
+    100% {
+        background: transparent;
+        box-shadow:
+            -12px 0 0 transparent,
+            12px 0 0 transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .setting-item--revealed {
+        animation: none;
+    }
+}
+
 .setting-item__meta {
     h4 {
         margin: 0;
         font-size: 0.95rem;
-        font-weight: 650;
+        font-weight: 600;
         letter-spacing: -0.01em;
     }
 
@@ -175,7 +233,7 @@
     strong {
         color: var(--app-body-color);
         font-size: 0.9rem;
-        font-weight: 650;
+        font-weight: 600;
     }
 
     progress {
@@ -562,7 +620,7 @@
 
     strong {
         font-size: 0.92rem;
-        font-weight: 650;
+        font-weight: 600;
         letter-spacing: -0.01em;
     }
 

@@ -22,25 +22,26 @@ describe('StalkerLiveNavigation', () => {
     const third = channel('3', 'sports');
     const rows = signal([first, second]);
     const loading = signal(false);
+    const selectedCategoryId = signal<string | null>('news');
+    const searchPhrase = signal('');
+    const page = signal(0);
     const store = {
         currentPlaylist: signal({ _id: 'source-a' }),
         selectedContentType: signal('itv'),
-        selectedCategoryId: signal<string | null>('news'),
-        searchPhrase: signal(''),
+        selectedCategoryId,
+        searchPhrase,
         selectedItem: signal<StalkerItvChannel | null>(null),
-        page: signal(0),
+        page,
         hasMoreChannels: signal(false),
         getCategoryResource: signal([
             { category_id: 'news' },
             { category_id: 'sports' },
         ]),
-        setSearchPhrase: jest.fn((query: string) =>
-            store.searchPhrase.set(query)
-        ),
+        setSearchPhrase: jest.fn((query: string) => searchPhrase.set(query)),
         setSelectedCategory: jest.fn((category: string) =>
-            store.selectedCategoryId.set(category)
+            selectedCategoryId.set(category)
         ),
-        setPage: jest.fn((page: number) => store.page.set(page)),
+        setPage: jest.fn((next: number) => page.set(next)),
     };
     const router = {
         url: '/workspace/stalker/source-a/itv?q=sport&keep=1',

@@ -5,8 +5,15 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import {
+    XTREAM_DATA_SOURCE,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
+import {
+    PlaybackPositionRuntimeBridgeService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -28,6 +35,10 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     /** The bridge callback the service registers at construction. */
     let positionListener: ((data: PlaybackPositionData) => void) | undefined;
     const addRecentItem = jest.fn();
+    const xtreamDataSource = {
+        getContentByXtreamId: jest.fn(),
+        addRecentItem: jest.fn(),
+    };
     const activeSession = signal<unknown>(null);
     const closeSession = jest.fn().mockResolvedValue(undefined);
     const openResolvedPlayback = jest.fn();
@@ -81,6 +92,10 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         routeVodId.set(ROUTE_VOD_ID);
         positionListener = undefined;
         addRecentItem.mockClear();
+        xtreamDataSource.getContentByXtreamId
+            .mockReset()
+            .mockResolvedValue({ id: 77 });
+        xtreamDataSource.addRecentItem.mockReset().mockResolvedValue(undefined);
         closeSession.mockReset().mockResolvedValue(undefined);
         openResolvedPlayback
             .mockReset()
@@ -105,6 +120,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                             .mockReturnValue('https://example.com/route.mkv'),
                     },
                 },
+                { provide: XTREAM_DATA_SOURCE, useValue: xtreamDataSource },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
                     useValue: { activeSession, closeSession },
@@ -146,6 +162,162 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             supersedePendingSwitch,
         });
     });
+
+    it('records the view when the menu opens the movie in MPV or VLC', async () => {
+        const movie = {
+            info: {},
+            movie_data: {
+                stream_id: ROUTE_VOD_ID,
+                name: 'Route movie',
+                container_extension: 'mkv',
+            },
+        } as never;
+        const launch = service.playVod(movie, 'vlc');
+        expect(launch).not.toBeNull();
+        await launch;
+
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/route.mkv',
+            }),
+            'vlc'
+        );
+        expect(addRecentItem).not.toHaveBeenCalled();
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/route.mkv'],
+        });
+        expect(addRecentItem).toHaveBeenCalledWith(
+            expect.objectContaining({
+                xtreamId: ROUTE_VOD_ID,
+                contentType: 'movie',
+            })
+        );
+    });
+
+    it('replaces a running external session when the menu relaunches the movie', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/route.mkv',
+            title: 'Route movie',
+            contentInfo: launched.contentInfo,
+        });
+        activeSession.set(launched);
+        closeSession.mockClear();
+        openExternalPlayback.mockClear();
+
+        await service.playVod(
+            {
+                info: {},
+                movie_data: {
+                    stream_id: ROUTE_VOD_ID,
+                    name: 'Route movie',
+                    container_extension: 'mkv',
+                },
+            } as never,
+            'mpv'
+        );
+
+        // Replaced, never doubled: the running player closes first.
+        expect(closeSession).toHaveBeenCalledWith(launched);
+        expect(closeSession.mock.invocationCallOrder[0]).toBeLessThan(
+            openExternalPlayback.mock.invocationCallOrder[0]
+        );
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/route.mkv',
+            }),
+            'mpv'
+        );
+    });
+
+    it('records the movie as recently viewed only once its stream played', async () => {
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/broken.mkv',
+            title: 'Broken source',
+        });
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/route.mkv',
+            title: 'Working source',
+        });
+        expect(addRecentItem).not.toHaveBeenCalled();
+
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/route.mkv'],
+        });
+
+        expect(addRecentItem).toHaveBeenCalledTimes(1);
+        const [recentItem] = addRecentItem.mock.calls[0];
+        expect(recentItem).toEqual(
+            expect.objectContaining({
+                xtreamId: ROUTE_VOD_ID,
+                contentType: 'movie',
+            })
+        );
+        expect(recentItem.playlist()).toEqual({ id: ROUTE_PLAYLIST });
+    });
+
+    it('saves a confirmation that arrives after a playlist switch without touching the store', async () => {
+        // Only a slow MPV/VLC launch can confirm after the page is gone; the
+        // store's recent list belongs to the other playlist by then.
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/route.mkv',
+            title: 'Slow external launch',
+        });
+        currentPlaylist.set({ id: 'playlist-switched-meanwhile' });
+
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/route.mkv'],
+        });
+        await Promise.resolve();
+
+        expect(addRecentItem).not.toHaveBeenCalled();
+        expect(xtreamDataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            ROUTE_VOD_ID,
+            ROUTE_PLAYLIST,
+            'movie'
+        );
+        expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
+            77,
+            ROUTE_PLAYLIST,
+            undefined
+        );
+    });
+
+    it.each([
+        ['the API-only data source', false, 1],
+        ['the SQLite data source', true, 0],
+    ])(
+        'keys a late, uncached write by Xtream id only for %s',
+        async (_label, sqlite: boolean, saves: number) => {
+            // A partial Electron bridge still selects the API-only source.
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(sqlite);
+            xtreamDataSource.getContentByXtreamId.mockResolvedValue(null);
+            await service.startResolvedPlayback({
+                streamUrl: 'https://example.com/route.mkv',
+                title: 'Slow external launch',
+            });
+            currentPlaylist.set({ id: 'playlist-switched-meanwhile' });
+
+            TestBed.inject(PlaybackHistoryGate).confirm({
+                streamUrls: ['https://example.com/route.mkv'],
+            });
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(xtreamDataSource.addRecentItem).toHaveBeenCalledTimes(saves);
+            if (saves) {
+                expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
+                    ROUTE_VOD_ID,
+                    ROUTE_PLAYLIST,
+                    undefined
+                );
+            }
+        }
+    );
 
     it('owns a session launched for the route’s own stream', () => {
         activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
@@ -340,6 +512,9 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 contentXtreamId: 991,
                 contentType: 'vod',
             },
+        });
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/alt.mkv'],
         });
 
         expect(addRecentItem).toHaveBeenCalled();

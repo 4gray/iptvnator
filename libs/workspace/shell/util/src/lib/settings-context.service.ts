@@ -16,12 +16,25 @@ export interface SettingsNavItem {
 @Injectable({ providedIn: 'root' })
 export class SettingsContextService {
     readonly sections = signal<SettingsNavItem[]>([]);
+    /**
+     * Settings search matches per section id while a search term is active,
+     * `null` otherwise. The panel shows the counts and mutes sections
+     * without matches.
+     */
+    readonly matchCounts = signal<Readonly<Record<string, number>> | null>(
+        null
+    );
 
     setSections(items: SettingsNavItem[]): void {
         this.sections.set(items);
     }
 
+    setMatchCounts(counts: Readonly<Record<string, number>> | null): void {
+        this.matchCounts.set(counts);
+    }
+
     reset(): void {
         this.sections.set([]);
+        this.matchCounts.set(null);
     }
 }

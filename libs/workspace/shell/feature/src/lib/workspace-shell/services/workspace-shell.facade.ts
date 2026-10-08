@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     WorkspaceHeaderContextService,
@@ -10,6 +11,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     DownloadsService,
+    ParentalLockService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -40,11 +42,13 @@ export class WorkspaceShellFacade {
     );
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly downloadsService = inject(DownloadsService);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
     private readonly search = inject(WorkspaceShellSearchService);
     private readonly header = inject(WorkspaceShellHeaderService);
     private readonly xtreamImport = inject(WorkspaceShellXtreamImportService);
     readonly headerContext = inject(WorkspaceHeaderContextService);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -82,9 +86,7 @@ export class WorkspaceShellFacade {
     readonly currentUrl = this.routeState.currentUrl;
     readonly currentRoute = this.routeState.currentRoute;
     readonly showDashboard = this.routeState.showDashboard;
-    readonly brandLink = this.routeState.brandLink;
-    readonly brandTooltipKey = this.routeState.brandTooltipKey;
-    readonly brandAriaLabelKey = this.routeState.brandAriaLabelKey;
+    readonly backTarget = this.backNavigation.target;
     readonly currentContext = this.routeState.currentContext;
     readonly currentSection = this.routeState.currentSection;
     readonly commandPaletteCommands = computed<WorkspaceResolvedCommandItem[]>(
@@ -118,6 +120,12 @@ export class WorkspaceShellFacade {
     readonly searchScopeLabel = this.search.searchScopeLabel;
     readonly searchStatusLabel = this.search.searchStatusLabel;
     readonly railProviderClass = this.routeState.railProviderClass;
+    readonly parentalLockState = computed<'off' | 'locked' | 'unlocked'>(() => {
+        if (!this.parentalLock.enabled()) {
+            return 'off';
+        }
+        return this.parentalLock.unlocked() ? 'unlocked' : 'locked';
+    });
     readonly primaryContextLinks = this.routeState.primaryContextLinks;
     readonly secondaryContextLinks = this.routeState.secondaryContextLinks;
     readonly isDownloadsView = this.routeState.isDownloadsView;
@@ -210,6 +218,10 @@ export class WorkspaceShellFacade {
         this.header.toggleLiveSidebar();
     }
 
+    goBack(): void {
+        this.backNavigation.goBack();
+    }
+
     navigateToGlobalFavorites(): void {
         this.header.navigateToGlobalFavorites();
     }
@@ -246,6 +258,14 @@ export class WorkspaceShellFacade {
         this.header.refreshCurrentPlaylist();
     }
 
+    toggleParentalLock(): void {
+        if (this.parentalLock.unlocked()) {
+            this.parentalLock.lock();
+            return;
+        }
+        void this.parentalLock.requestUnlock();
+    }
+
     private makeCommandBuilderContext(): CommandBuilderContext {
         return {
             route: this.currentRoute(),
@@ -258,6 +278,7 @@ export class WorkspaceShellFacade {
             canRefreshPlaylist: this.canRefreshPlaylist(),
             supportsDownloads: this.supportsDownloads,
             showDashboard: this.showDashboard(),
+            parentalLockState: this.parentalLockState(),
             translate: (key, params) => this.translateText(key, params),
             router: this.router,
             actions: this.commandBuilderActions,
@@ -276,6 +297,10 @@ export class WorkspaceShellFacade {
         openDownloadsShortcut: () => this.openDownloadsShortcut(),
         openAddPlaylistDialog: (kind) =>
             this.header.openAddPlaylistDialog(kind),
+        lockParentalLock: () => this.parentalLock.lock(),
+        unlockParentalLock: () => {
+            void this.parentalLock.requestUnlock();
+        },
     };
 
     private translateText(

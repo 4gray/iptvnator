@@ -31,6 +31,7 @@ import {
     waitForM3uCatalog,
     workspaceRoot,
 } from './electron-test-fixtures';
+import { startAndConfirmPlayback } from './playable-stream-fixture';
 
 /**
  * DASH + ClearKey playback in the real Electron runtime — the only automated
@@ -192,7 +193,9 @@ async function importDashPlaylistFromText(
     const dialog = app.mainWindow.locator('mat-dialog-container').last();
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
     await dialog.locator('textarea').fill(playlist);
-    await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await dialog.waitFor({ state: 'detached' });
     await waitForM3uCatalog(app.mainWindow);
 }
@@ -541,7 +544,8 @@ for (const configuredPlayer of ['videojs', 'mpv', 'artplayer']) {
                 buildDashPlaylist(fixtureServer.origin)
             );
             const channel = channelItemByTitle(page, 'ClearKey DASH').first();
-            await channel.click();
+            // Recent history records the channel once it has really played.
+            await startAndConfirmPlayback(page, () => channel.click());
             await channel.locator('.favorite-button').click();
             await expect(
                 channel.locator('.favorite-button mat-icon')

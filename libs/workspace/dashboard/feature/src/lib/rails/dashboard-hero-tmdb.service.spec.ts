@@ -11,7 +11,10 @@ describe('DashboardHeroTmdbService', () => {
         backdrop_path: '/serial.jpg',
         vote_average: 7.4,
         vote_count: 12,
-        genres: [{ id: 1, name: 'Drama' }, { id: 2, name: 'Comedy' }],
+        genres: [
+            { id: 1, name: 'Drama' },
+            { id: 2, name: 'Comedy' },
+        ],
     };
 
     /**
@@ -53,6 +56,7 @@ describe('DashboardHeroTmdbService', () => {
     } as unknown as DashboardHeroTmdbItem;
 
     let isEnabled: jest.Mock;
+    let language: jest.Mock;
     let enrichMovie: jest.Mock;
     let enrichTv: jest.Mock;
 
@@ -61,7 +65,7 @@ describe('DashboardHeroTmdbService', () => {
             providers: [
                 {
                     provide: TmdbEnrichmentService,
-                    useValue: { isEnabled, enrichMovie, enrichTv },
+                    useValue: { isEnabled, language, enrichMovie, enrichTv },
                 },
             ],
         });
@@ -70,6 +74,7 @@ describe('DashboardHeroTmdbService', () => {
 
     beforeEach(() => {
         isEnabled = jest.fn().mockReturnValue(true);
+        language = jest.fn().mockReturnValue('en-US');
         enrichMovie = jest.fn().mockResolvedValue(null);
         enrichTv = jest.fn().mockResolvedValue(tvDetails);
     });
@@ -86,6 +91,57 @@ describe('DashboardHeroTmdbService', () => {
             service.getExtras({ title: 'X', type: 'live' })
         ).resolves.toBeNull();
         expect(enrichMovie).not.toHaveBeenCalled();
+    });
+
+    it('maps the backdrop, rating, genres, overview and year for the slide', async () => {
+        enrichTv.mockResolvedValue({
+            ...tvDetails,
+            genres: [
+                { id: 1, name: 'Drama' },
+                { id: 2, name: 'Comedy' },
+                { id: 3, name: 'Crime' },
+            ],
+            overview: '  A pharmacist enters big business.  ',
+            first_air_date: '2024-11-18',
+        });
+        const service = createService();
+
+        await expect(
+            service.getExtras({ title: 'Big Pharma', type: 'series' })
+        ).resolves.toEqual({
+            backdropUrl: expect.stringContaining('/serial.jpg'),
+            rating: '7.4',
+            genres: ['Drama', 'Comedy'],
+            overview: 'A pharmacist enters big business.',
+            year: 2024,
+        });
+    });
+
+    it('loads the extras again for another TMDB language', async () => {
+        const service = createService();
+        const item: DashboardHeroTmdbItem = { title: 'Serial', type: 'series' };
+
+        await service.getExtras(item);
+        const englishKey = service.keyFor(item);
+        await service.getExtras(item);
+        expect(enrichTv).toHaveBeenCalledTimes(1);
+
+        language.mockReturnValue('ru-RU');
+        expect(service.keyFor(item)).not.toBe(englishKey);
+        await service.getExtras(item);
+        expect(enrichTv).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports a missing overview and year as null', async () => {
+        const service = createService();
+
+        const extras = await service.getExtras({
+            title: 'No plot',
+            type: 'series',
+        });
+
+        expect(extras?.overview).toBeNull();
+        expect(extras?.year).toBeNull();
     });
 
     it('falls back to a TV lookup for movie-typed items without a movie match', async () => {
@@ -256,7 +312,9 @@ describe('DashboardHeroTmdbService', () => {
                 },
             } as DashboardHeroTmdbItem;
 
-            expect(service.keyFor(stalkerItem)).not.toBe(service.keyFor(remake));
+            expect(service.keyFor(stalkerItem)).not.toBe(
+                service.keyFor(remake)
+            );
 
             await service.getExtras(stalkerItem);
             await service.getExtras(remake);

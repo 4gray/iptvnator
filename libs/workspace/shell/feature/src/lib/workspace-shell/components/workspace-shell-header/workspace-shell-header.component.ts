@@ -12,7 +12,10 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
-import { WorkspaceHeaderAction } from '@iptvnator/portal/shared/util';
+import {
+    WorkspaceBackTarget,
+    WorkspaceHeaderAction,
+} from '@iptvnator/portal/shared/util';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     WorkspaceHeaderBulkAction,
@@ -46,6 +49,8 @@ export class WorkspaceShellHeaderComponent {
         /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
     readonly commandShortcutLabel = this.isMac ? '⌘K' : 'Ctrl+K';
 
+    /** The page's Back or the history fallback; null when there is neither. */
+    readonly backTarget = input<WorkspaceBackTarget | null>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
     readonly canOpenPlaylistInfo = input(false);
@@ -79,6 +84,11 @@ export class WorkspaceShellHeaderComponent {
      */
     readonly isSettingsRoute = input(false);
     /**
+     * Parental lock indicator: `off` hides the button, `locked` offers the
+     * PIN prompt, `unlocked` offers "Lock now".
+     */
+    readonly parentalLockState = input<'off' | 'locked' | 'unlocked'>('off');
+    /**
      * Phone-width (≤640px) drawer toggle for the context panel. The button
      * itself is hidden by CSS above the phone breakpoint, so these inputs
      * only matter on small viewports: `showContextDrawerToggle` reflects
@@ -100,6 +110,21 @@ export class WorkspaceShellHeaderComponent {
         'WORKSPACE.SHELL.CONTEXT_DRAWER_CATEGORIES_TOOLTIP'
     );
 
+    private readonly backPhoneSlot = computed(() => {
+        const back = this.backTarget();
+        return back ? (back.phoneDrawerToggle ?? 'replace') : null;
+    });
+    /** The drawer toggle renders unless Back takes its phone slot. */
+    readonly showDrawerToggle = computed(
+        () =>
+            this.showContextDrawerToggle() && this.backPhoneSlot() !== 'replace'
+    );
+    /** At phone width, Back hides behind a shown drawer toggle. */
+    readonly backYieldsToDrawerToggle = computed(
+        () => this.showDrawerToggle() && this.backPhoneSlot() === 'yield'
+    );
+
+    readonly backRequested = output<void>();
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
@@ -108,6 +133,7 @@ export class WorkspaceShellHeaderComponent {
     readonly headerShortcutRequested = output<void>();
     readonly headerBulkActionRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
+    readonly parentalLockToggleRequested = output<void>();
     readonly refreshPlaylistRequested = output<void>();
     readonly downloadsRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
@@ -140,6 +166,27 @@ export class WorkspaceShellHeaderComponent {
     onSearchEnter(event: Event): void {
         const target = event.target as HTMLInputElement | null;
         this.searchSubmitted.emit(target?.value ?? this.searchQuery());
+    }
+
+    /**
+     * The tooltip advertises Escape for Back. The page only handles it with
+     * focus inside the page, so the button keeps that promise itself.
+     */
+    onBackEscape(event: Event): void {
+        const keyboard = event as KeyboardEvent;
+        if (
+            !this.backTarget()?.escapeShortcut() ||
+            keyboard.defaultPrevented ||
+            keyboard.repeat ||
+            keyboard.altKey ||
+            keyboard.ctrlKey ||
+            keyboard.metaKey ||
+            keyboard.shiftKey
+        ) {
+            return;
+        }
+        keyboard.preventDefault();
+        this.backRequested.emit();
     }
 
     onPlaylistInfoRequested(): void {

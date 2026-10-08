@@ -20,6 +20,8 @@ export interface SimilarCatalogItem {
     categoryId: string;
     title: string;
     posterUrl: string | null;
+    /** TMDB release year of the recommendation that matched. */
+    year: number | null;
 }
 
 /** Catalog rows vary by source (API vs DB) — fields are read structurally */
@@ -205,6 +207,7 @@ export function matchRecommendationsToCatalog(
             categoryId: String(categoryId),
             title: streamTitle(stream),
             posterUrl: recommendation.posterUrl ?? streamPoster(stream),
+            year: recommendation.year ?? null,
         });
     }
 

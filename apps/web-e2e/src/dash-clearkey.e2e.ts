@@ -131,7 +131,9 @@ async function importDashPlaylist(page: Page): Promise<void> {
     await dialog.locator('textarea').fill(DASH_PLAYLIST);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog.getByRole('button', { name: 'Import', exact: true }).click(),
+        dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click(),
     ]);
     await expect(page.getByText('3 channels')).toBeVisible();
 }
@@ -189,6 +191,19 @@ test('@web @m3u @dash ClearKey reopens from recent and favorites collections', a
     await importDashPlaylist(page);
     await page.getByText('1. ClearKey DASH').click();
     await expectVideoPlaying(page);
+    // Recent history records the channel once it has played two seconds.
+    await expect
+        .poll(
+            () =>
+                page
+                    .locator('app-web-player-view video')
+                    .first()
+                    .evaluate(
+                        (element: HTMLVideoElement) => element.currentTime
+                    ),
+            { timeout: 20_000 }
+        )
+        .toBeGreaterThan(2.5);
     const playlistUrl = page.url().replace(/\/all$/, '');
     const channel = page.locator('.channel-list-item').filter({
         hasText: '1. ClearKey DASH',

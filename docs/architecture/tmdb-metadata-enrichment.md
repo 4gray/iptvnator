@@ -733,15 +733,15 @@ since shipped.)
   does not latch and retries instead. Same gating as trending: TMDB
   opt-in + Electron DB worker, deferred behind the dashboard's own data.
 - **Hero extras**: `DashboardHeroTmdbService`
-  (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
-  backdrop (when the activity row has none), a rating badge and up to two
-  genre chips — resolved through the enrichment facade, so items already
-  opened in a detail view come from the SQLite cache without network.
-  Results are memoized per lookup identity for the session. The hero renders
-  immediately from provider data; extras appear when resolved. Series
-  heroes additionally show the tracked "S{n}·E{n}" badge from the playback
-  position (no TMDB involved); the watch-progress bar is limited to
-  movie/series heroes.
+  (`libs/workspace/dashboard/feature`) patches each movie/series hero slide
+  with a TMDB backdrop (when the activity row has none), a rating badge, up
+  to two genre chips, the overview and the release/first-air year — resolved
+  through the enrichment facade, so items already opened in a detail view
+  come from the SQLite cache without network. Results are memoized per
+  lookup identity for the session. Slides render immediately from provider
+  data; extras appear when resolved and disappear when TMDB is turned off.
+  Series slides additionally show the tracked "S{n}·E{n}" badge from the
+  playback position (no TMDB involved). Live slides never query TMDB.
 
     The query is built to **match what the detail view searched with**, not
     just what the card displays. A title alone is weaker identity than the

@@ -1,6 +1,11 @@
 import { Injector } from '@angular/core';
 import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
-import { sourceHealthType } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistSourceIconKey,
+    resolvePlaylistSourceIconKey,
+    SOURCE_TYPE_ICONS,
+    sourceHealthType,
+} from '@iptvnator/shared/interfaces';
 import { SourceHealthIndicatorComponent } from '../../source-health/source-health-indicator.component';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
@@ -12,6 +17,7 @@ import {
     inject,
     input,
     output,
+    signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -28,13 +34,13 @@ import {
     PortalStatusService,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-playlist-item',
     templateUrl: './playlist-item.component.html',
     styleUrls: ['./playlist-item.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         SourceHealthIndicatorComponent,
         DatePipe,
@@ -65,9 +71,33 @@ export class PlaylistItemComponent implements OnInit {
     readonly removeClicked = output<string>();
     readonly cancelBusyActionClicked = output<void>();
 
-    portalStatus: PortalStatus = 'unavailable';
+    readonly portalStatus = signal<PortalStatus>('unavailable');
     private readonly portalStatusService = inject(PortalStatusService);
     readonly runtime = inject(RuntimeCapabilitiesService);
+    readonly sourceIcons = SOURCE_TYPE_ICONS;
+
+    get sourceIconKey(): PlaylistSourceIconKey {
+        return resolvePlaylistSourceIconKey(this.item);
+    }
+
+    /** Without source health, Xtream rows badge the portal status instead. */
+    get showsPortalStatusDot(): boolean {
+        return (
+            this.sourceIconKey === 'xtream' &&
+            !this.runtime.supportsSourceHealth
+        );
+    }
+
+    /**
+     * Auto-refresh re-fetches a URL or a local file, so any row with a URL
+     * keeps the badge, whichever provider icon it shows.
+     */
+    get showsAutoRefresh(): boolean {
+        return (
+            !!this.item.autoRefresh &&
+            (!!this.item.url || this.sourceIconKey === 'm3u-local')
+        );
+    }
     private readonly translate = inject(TranslateService);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -96,21 +126,22 @@ export class PlaylistItemComponent implements OnInit {
 
     private async checkPortalStatus() {
         if (this.item.serverUrl && this.item.username && this.item.password) {
-            this.portalStatus =
+            this.portalStatus.set(
                 await this.portalStatusService.checkPortalStatus(
                     this.item.serverUrl,
                     this.item.username,
                     this.item.password
-                );
+                )
+            );
         }
     }
 
     getStatusClass(): string {
-        return this.portalStatusService.getStatusClass(this.portalStatus);
+        return this.portalStatusService.getStatusClass(this.portalStatus());
     }
 
     getStatusIcon(): string {
-        return this.portalStatusService.getStatusIcon(this.portalStatus);
+        return this.portalStatusService.getStatusIcon(this.portalStatus());
     }
 
     onPlaylistClick(): void {

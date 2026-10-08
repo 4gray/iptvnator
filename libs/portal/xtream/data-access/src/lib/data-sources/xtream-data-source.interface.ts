@@ -16,7 +16,7 @@ import {
 } from '../services/xtream-api.service';
 
 // Re-export for backward compatibility
-export { PlaybackPositionData };
+export type { PlaybackPositionData };
 
 /**
  * Playlist representation in the data source
@@ -88,6 +88,8 @@ export interface XtreamCategoryFromDb {
     type: 'movies' | 'live' | 'series';
     xtream_id: number;
     hidden: boolean;
+    /** Parental lock index; see ParentalLockService. */
+    locked: boolean;
 }
 
 /**

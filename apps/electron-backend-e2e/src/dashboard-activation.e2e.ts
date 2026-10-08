@@ -25,6 +25,15 @@ import {
     getXtreamTitle,
     pickDistinctTitles,
 } from './portal-mock-fixtures';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
+import {
+    addCurrentDetailToFavorites,
+    goBackFromDetail,
+    toggleFavoriteForChannel,
+} from './dashboard-e2e-flows';
 
 test.describe('Dashboard Activation', () => {
     test('opens live favorites in the collection route and movies/series in global collection detail views from the dashboard', async ({
@@ -76,6 +85,7 @@ test.describe('Dashboard Activation', () => {
             return new RegExp(titles.join('|'));
         };
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await addXtreamPortal(app.mainWindow, {
@@ -99,7 +109,10 @@ test.describe('Dashboard Activation', () => {
             );
             const movieTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
-            await playCurrentDetail(app.mainWindow);
+            // Recorded as recently viewed once it has really played.
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playCurrentDetail(app.mainWindow)
+            );
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow
@@ -111,7 +124,9 @@ test.describe('Dashboard Activation', () => {
             );
             const seriesTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
-            await playFirstSeriesEpisode(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playFirstSeriesEpisode(app.mainWindow)
+            );
 
             await goToDashboard(app.mainWindow);
 
@@ -176,11 +191,13 @@ test.describe('Dashboard Activation', () => {
                     liveTitle
                 ).locator('.rail__channel-now')
             ).toContainText(liveNowTitle(), { timeout: 30000 });
-            await dashboardRailCardByTitle(
-                app.mainWindow,
-                'dashboard-live-favorites-rail',
-                liveTitle
-            ).click();
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                dashboardRailCardByTitle(
+                    app.mainWindow,
+                    'dashboard-live-favorites-rail',
+                    liveTitle
+                ).click()
+            );
             await app.mainWindow.waitForURL(
                 /\/workspace\/xtreams\/[^/]+\/favorites$/
             );
@@ -293,41 +310,6 @@ function dashboardRailCardByTitle(
         .first();
 }
 
-async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: the shell's sticky Back is route-level in browse
-    // and watch alike (closing the player is the bar's own Close button).
-    const backButton = page
-        .locator('app-portal-detail-shell')
-        .first()
-        .getByRole('button', { name: 'Back', exact: true });
-
-    await expect(backButton).toBeVisible({ timeout: 20000 });
-    try {
-        await backButton.click({ timeout: 5000 });
-    } catch {
-        await backButton.evaluate((button: HTMLButtonElement) =>
-            button.click()
-        );
-    }
-}
-
-// By accessible name, not class: the Xtream movie detail's favorite control is
-// an icon-only button that carries its label in aria-label, while series and
-// Stalker details still use the labeled variant. This matches both.
-async function addCurrentDetailToFavorites(page: Page): Promise<void> {
-    const addButton = page
-        .getByRole('button', { name: /add to favorites/i })
-        .first();
-
-    await expect(addButton).toBeVisible({ timeout: 20000 });
-    await addButton.click();
-    await expect(
-        page.getByRole('button', { name: /remove from favorites/i }).first()
-    ).toBeVisible({
-        timeout: 20000,
-    });
-}
-
 async function expectInlineCollectionDetail(
     page: Page,
     params: {
@@ -338,9 +320,9 @@ async function expectInlineCollectionDetail(
     await expectPathname(page, params.pathname);
     await expect(page.locator('app-workspace-context-panel')).toHaveCount(0);
     await expect(page.locator('app-content-hero')).toContainText(params.title);
-    await expect(
-        page.locator('app-portal-detail-shell .shell__back-button').first()
-    ).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId('workspace-header-back')).toBeVisible({
+        timeout: 20000,
+    });
 }
 
 async function playCurrentDetail(page: Page): Promise<void> {
@@ -373,21 +355,4 @@ async function playFirstSeriesEpisode(page: Page): Promise<void> {
     await episodeCard.scrollIntoViewIfNeeded();
     await expect(episodeCard).toBeVisible({ timeout: 20000 });
     await episodeCard.click();
-}
-
-async function toggleFavoriteForChannel(
-    page: Page,
-    title: string
-): Promise<void> {
-    const item = page
-        .locator('[data-test-id="channel-item"]')
-        .filter({ hasText: title })
-        .first();
-
-    await expect(item).toBeVisible({ timeout: 20000 });
-    await item.hover();
-    await item.locator('.favorite-button').first().click();
-    await expect(item.locator('.favorite-button mat-icon').first()).toHaveText(
-        /star/
-    );
 }

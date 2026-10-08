@@ -657,10 +657,11 @@ test.describe('Electron Settings', () => {
                     exact: true,
                 })
             ).toHaveCount(0);
-            await expect(secondLaunch.mainWindow.locator('a.brand')).toHaveAttribute(
-                'href',
-                /\/workspace\/sources$/
-            );
+            await expect(
+                secondLaunch.mainWindow
+                    .locator('app-workspace-shell-rail a.nav-item')
+                    .first()
+            ).toHaveAttribute('href', /\/workspace\/sources$/);
         } finally {
             await closeElectronApp(secondLaunch);
         }
@@ -699,14 +700,25 @@ test.describe('Electron Settings', () => {
 
             await goToDashboard(app.mainWindow);
             await app.mainWindow.waitForURL(/\/workspace\/dashboard$/);
+            // The URL changes before the settings view is torn down and the
+            // dashboard renders. Wait for the dashboard itself, or the rail
+            // check passes vacuously and the "Dashboard" link below also
+            // matches the settings page's own "Dashboard" section link.
+            // Attached, not visible: with its only populated rail disabled
+            // the fixture's dashboard is empty and has no size.
+            await expect(
+                app.mainWindow.getByTestId('dashboard-page')
+            ).toBeAttached({ timeout: 20000 });
+            await expect(
+                app.mainWindow.getByTestId('settings-section-dashboard')
+            ).toHaveCount(0);
             await expect(
                 app.mainWindow.getByTestId('dashboard-recent-sources-rail')
             ).toHaveCount(0);
             await expect(
-                app.mainWindow.getByRole('link', {
-                    name: 'Dashboard',
-                    exact: true,
-                })
+                app.mainWindow
+                    .getByRole('link', { name: 'Dashboard', exact: true })
+                    .and(app.mainWindow.locator('.portal-rail-link'))
             ).toBeVisible();
         } finally {
             await closeElectronApp(app);

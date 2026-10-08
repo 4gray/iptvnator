@@ -8,6 +8,7 @@ import {
     WorkspacePortalContext,
     WorkspaceShellRoute,
 } from '@iptvnator/workspace/shell/util';
+import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 import { TranslateFn } from './workspace-shell-search-labels';
 
 export interface CommandBuilderActions {
@@ -20,6 +21,8 @@ export interface CommandBuilderActions {
     openGlobalRecent: () => void;
     openDownloadsShortcut: () => void;
     openAddPlaylistDialog: (kind?: 'url' | 'xtream' | 'stalker') => void;
+    lockParentalLock: () => void;
+    unlockParentalLock: () => void;
 }
 
 export interface CommandBuilderContext {
@@ -31,6 +34,7 @@ export interface CommandBuilderContext {
     canRefreshPlaylist: boolean;
     supportsDownloads: boolean;
     showDashboard: boolean;
+    parentalLockState: 'off' | 'locked' | 'unlocked';
     translate: TranslateFn;
     router: Router;
     actions: CommandBuilderActions;
@@ -148,10 +152,35 @@ export function getGlobalCommandDefinitions(
         hasSearchablePlaylists,
         supportsDownloads,
         showDashboard,
+        parentalLockState,
         actions,
     } = ctx;
 
     return [
+        {
+            id: 'parental-lock-now',
+            group: 'global',
+            icon: 'lock',
+            labelKey: 'WORKSPACE.SHELL.COMMANDS.PARENTAL_LOCK_NOW_LABEL',
+            descriptionKey:
+                'WORKSPACE.SHELL.COMMANDS.PARENTAL_LOCK_NOW_DESCRIPTION',
+            priority: 5,
+            visible: parentalLockState === 'unlocked',
+            keywords: ['parental', 'pin', 'lock'],
+            run: () => actions.lockParentalLock(),
+        },
+        {
+            id: 'parental-unlock',
+            group: 'global',
+            icon: 'lock_open',
+            labelKey: 'WORKSPACE.SHELL.COMMANDS.PARENTAL_UNLOCK_LABEL',
+            descriptionKey:
+                'WORKSPACE.SHELL.COMMANDS.PARENTAL_UNLOCK_DESCRIPTION',
+            priority: 5,
+            visible: parentalLockState === 'locked',
+            keywords: ['parental', 'pin', 'unlock'],
+            run: () => actions.unlockParentalLock(),
+        },
         {
             id: 'global-search',
             group: 'global',
@@ -215,8 +244,7 @@ export function getGlobalCommandDefinitions(
             group: 'global',
             icon: 'library_books',
             labelKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_SOURCES_LABEL',
-            descriptionKey:
-                'WORKSPACE.SHELL.COMMANDS.OPEN_SOURCES_DESCRIPTION',
+            descriptionKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_SOURCES_DESCRIPTION',
             priority: 60,
             visible: route.kind !== 'sources',
             run: () => {
@@ -241,15 +269,14 @@ export function getGlobalCommandDefinitions(
             group: 'global',
             icon: 'add_circle_outline',
             labelKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_LABEL',
-            descriptionKey:
-                'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_DESCRIPTION',
+            descriptionKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_DESCRIPTION',
             priority: 80,
             run: () => actions.openAddPlaylistDialog(),
         },
         {
             id: 'add-playlist-m3u',
             group: 'global',
-            icon: 'folder_open',
+            icon: SOURCE_TYPE_ICONS.m3u,
             labelKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_M3U_LABEL',
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_M3U_DESCRIPTION',
@@ -260,7 +287,7 @@ export function getGlobalCommandDefinitions(
         {
             id: 'add-playlist-xtream',
             group: 'global',
-            icon: 'cloud',
+            icon: SOURCE_TYPE_ICONS.xtream,
             labelKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_XTREAM_LABEL',
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_XTREAM_DESCRIPTION',
@@ -271,7 +298,7 @@ export function getGlobalCommandDefinitions(
         {
             id: 'add-playlist-stalker',
             group: 'global',
-            icon: 'cast',
+            icon: SOURCE_TYPE_ICONS.stalker,
             labelKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_STALKER_LABEL',
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_STALKER_DESCRIPTION',
@@ -468,6 +495,8 @@ export function getCommandGroupOrder(
             return 0;
         case 'playlist':
             return 1;
+        case 'settings':
+            return 3;
         default:
             return 2;
     }

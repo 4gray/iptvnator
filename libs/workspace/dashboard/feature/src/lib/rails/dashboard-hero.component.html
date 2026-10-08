@@ -1,0 +1,284 @@
+@if (activeSlide(); as active) {
+    <section
+        class="hero"
+        data-test-id="dashboard-hero"
+        aria-roledescription="carousel"
+        tabindex="0"
+        [attr.aria-label]="'WORKSPACE.DASHBOARD.HERO_LABEL' | translate"
+        [class.hero--paused]="paused()"
+        [class.hero--rotating]="canRotate()"
+        (mouseenter)="setHovered(true)"
+        (mouseleave)="setHovered(false)"
+        (focusin)="onFocusIn()"
+        (focusout)="onFocusOut($event)"
+        (keydown)="onHeroKeydown($event)"
+    >
+        <!-- Every slide's backdrop stays mounted so switching crossfades
+             and the next image is already decoded. -->
+        <div class="hero__stage" aria-hidden="true">
+            @for (slide of slides(); track slide.id) {
+                <div
+                    class="hero__backdrop"
+                    [class.hero__backdrop--active]="$index === activeIndex()"
+                    [class.hero__backdrop--poster]="
+                        slide.backdropSource === 'poster'
+                    "
+                    [class.hero__backdrop--live]="slide.contentType === 'live'"
+                    [style.--hero-hue]="slide.accentHue"
+                >
+                    <span class="hero__backdrop-fallback"></span>
+                    @if (slide.backdropUrl; as backdropUrl) {
+                        <img
+                            class="hero__backdrop-image"
+                            [src]="backdropUrl"
+                            alt=""
+                            decoding="async"
+                            [attr.loading]="
+                                $index === activeIndex() ? 'eager' : 'lazy'
+                            "
+                            (error)="presenter.markImageFailed(backdropUrl)"
+                        />
+                        <!-- A channel logo is not a backdrop: it sits on the
+                             right as the slide's artwork. A title's poster
+                             only washes the stage, blurred. -->
+                        @if (
+                            slide.backdropSource === 'poster' &&
+                            slide.contentType === 'live'
+                        ) {
+                            <img
+                                class="hero__backdrop-keyart"
+                                [src]="backdropUrl"
+                                alt=""
+                                decoding="async"
+                            />
+                        }
+                    }
+                </div>
+            }
+            <span class="hero__scrim"></span>
+        </div>
+
+        @for (slide of [active]; track slide.id) {
+            <div
+                class="hero__content"
+                role="group"
+                aria-roledescription="slide"
+                data-test-id="dashboard-hero-slide"
+                [attr.data-hero-kind]="slide.kind"
+                [attr.aria-label]="
+                    'WORKSPACE.DASHBOARD.HERO_SLIDE_POSITION'
+                        | translate
+                            : {
+                                  index: activeIndex() + 1,
+                                  count: slides().length,
+                              }
+                "
+            >
+                <p class="hero__eyebrow">
+                    <span
+                        class="hero__type"
+                        [class.hero__type--live]="slide.contentType === 'live'"
+                        >{{ slide.typeLabelKey | translate }}</span
+                    >
+                    <span class="hero__eyebrow-sep" aria-hidden="true">·</span>
+                    <span>{{ slide.reasonLabelKey | translate }}</span>
+                </p>
+
+                <h2 class="hero__title">{{ slide.title }}</h2>
+
+                <p class="hero__meta" data-test-id="dashboard-hero-badges">
+                    @if (slide.episodeBadge) {
+                        <app-meta-chip class="hero__pill">{{
+                            slide.episodeBadge
+                        }}</app-meta-chip>
+                    }
+                    @if (slide.rating) {
+                        <app-meta-chip class="hero__pill" variant="rating"
+                            >★ {{ slide.rating }}</app-meta-chip
+                        >
+                    }
+                    @for (genre of slide.genres; track genre) {
+                        <app-meta-chip class="hero__pill">{{
+                            genre
+                        }}</app-meta-chip>
+                    }
+                    @if (slide.category) {
+                        <app-meta-chip class="hero__pill">{{
+                            slide.category
+                        }}</app-meta-chip>
+                    }
+                    @if (slide.timeRange) {
+                        <app-meta-chip class="hero__pill hero__pill--time">{{
+                            slide.timeRange
+                        }}</app-meta-chip>
+                    }
+                    @if (slide.year) {
+                        <app-meta-chip class="hero__pill">{{
+                            slide.year
+                        }}</app-meta-chip>
+                    }
+                    @if (slide.source) {
+                        <app-meta-chip class="hero__pill hero__pill--source">{{
+                            slide.source
+                        }}</app-meta-chip>
+                    }
+                </p>
+
+                @if (slide.programmeTitle) {
+                    <p
+                        class="hero__programme"
+                        data-test-id="dashboard-hero-live-epg"
+                    >
+                        {{ slide.programmeTitle }}
+                    </p>
+                }
+                @if (slide.description) {
+                    <p class="hero__description">{{ slide.description }}</p>
+                }
+
+                @if (slide.progress !== null) {
+                    <span
+                        class="hero__progress"
+                        [class.hero__progress--live]="
+                            slide.contentType === 'live'
+                        "
+                        role="progressbar"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        [attr.aria-valuenow]="slide.progress"
+                        [attr.aria-label]="slide.programmeTitle ?? slide.title"
+                        [attr.aria-valuetext]="
+                            slide.contentType === 'live'
+                                ? null
+                                : ('WORKSPACE.DASHBOARD.PERCENT_WATCHED'
+                                  | translate: { value: slide.progress })
+                        "
+                    >
+                        <i [style.--hero-progress]="slide.progress"></i>
+                    </span>
+                }
+
+                <div class="hero__actions">
+                    @let primary = slide.primaryAction;
+                    <a
+                        class="hero__button hero__button--primary"
+                        [attr.data-test-id]="primary.testId"
+                        [routerLink]="primary.link"
+                        [state]="primary.state ?? {}"
+                    >
+                        <mat-icon aria-hidden="true">{{
+                            primary.icon
+                        }}</mat-icon>
+                        <span>{{ primary.labelKey | translate }}</span>
+                        @if (primary.remainingLabel; as remaining) {
+                            <span class="hero__button-detail"
+                                >·
+                                {{
+                                    remaining.key | translate: remaining.params
+                                }}</span
+                            >
+                        }
+                    </a>
+                    @if (slide.secondaryAction; as secondary) {
+                        <a
+                            class="hero__button hero__button--secondary"
+                            [attr.data-test-id]="secondary.testId"
+                            [routerLink]="secondary.link"
+                            [state]="secondary.state ?? {}"
+                        >
+                            <mat-icon aria-hidden="true">{{
+                                secondary.icon
+                            }}</mat-icon>
+                            <span>{{ secondary.labelKey | translate }}</span>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+        <!-- Outside the @for: a live region has to be in the page before
+             its text changes, or the change is not announced. Silent while
+             the slides rotate on their own. -->
+        <p
+            class="visually-hidden"
+            data-test-id="dashboard-hero-announcement"
+            aria-atomic="true"
+            [attr.aria-live]="canRotate() && !paused() ? 'off' : 'polite'"
+        >
+            {{
+                'WORKSPACE.DASHBOARD.HERO_SLIDE_POSITION'
+                    | translate
+                        : { index: activeIndex() + 1, count: slides().length }
+            }}
+            {{ active.title }}
+        </p>
+
+        @if (slides().length > 1) {
+            <div class="hero__controls">
+                @if (canRotate()) {
+                    <button
+                        type="button"
+                        class="hero__pause"
+                        data-test-id="dashboard-hero-pause"
+                        [attr.aria-pressed]="userPaused()"
+                        [attr.aria-label]="
+                            (userPaused()
+                                ? 'WORKSPACE.DASHBOARD.HERO_PLAY'
+                                : 'WORKSPACE.DASHBOARD.HERO_PAUSE'
+                            ) | translate
+                        "
+                        (click)="togglePaused()"
+                    >
+                        <mat-icon aria-hidden="true">{{
+                            userPaused() ? 'play_arrow' : 'pause'
+                        }}</mat-icon>
+                    </button>
+                }
+                <div
+                    class="hero__dots"
+                    role="group"
+                    [attr.aria-label]="
+                        'WORKSPACE.DASHBOARD.HERO_LABEL' | translate
+                    "
+                >
+                    @for (slide of slides(); track slide.id) {
+                        <button
+                            type="button"
+                            class="hero__dot"
+                            data-test-id="dashboard-hero-dot"
+                            [class.hero__dot--active]="$index === activeIndex()"
+                            [attr.aria-current]="
+                                $index === activeIndex() ? 'true' : null
+                            "
+                            [attr.aria-label]="
+                                'WORKSPACE.DASHBOARD.HERO_SHOW_SLIDE'
+                                    | translate: { title: slide.title }
+                            "
+                            [attr.tabindex]="$index === activeIndex() ? 0 : -1"
+                            (click)="show($index)"
+                            (keydown)="onDotKeydown($event, $index)"
+                        >
+                            <span
+                                class="hero__dot-fill"
+                                (animationend)="onRotationTick()"
+                            ></span>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+} @else if (presenter.loading()) {
+    <section
+        class="hero hero--skeleton"
+        aria-hidden="true"
+        aria-busy="true"
+        data-test-id="dashboard-hero-skeleton"
+    >
+        <div class="hero__content">
+            <span class="hero__skeleton hero__skeleton--eyebrow"></span>
+            <span class="hero__skeleton hero__skeleton--title"></span>
+            <span class="hero__skeleton hero__skeleton--meta"></span>
+            <span class="hero__skeleton hero__skeleton--button"></span>
+        </div>
+    </section>
+}

@@ -1,36 +1,13 @@
-import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
+import {
+    isPortalPlaybackWatched,
+    parseDurationSeconds,
+} from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
 /** Pure helpers for episode duration parsing and progress-text formatting. */
 
 export function parseDuration(duration: string | number | undefined): number {
-    if (!duration) {
-        return 0;
-    }
-
-    if (typeof duration === 'number') {
-        return duration;
-    }
-
-    // Providers report "45 min" (Stalker VOD) and "1h 30min" (Xtream) —
-    // the hour component must not be dropped when both are present.
-    const minutesMatch = duration.match(/(?:(\d+)\s*h\w*)?\s*(\d+)\s*min/);
-    if (minutesMatch) {
-        return (
-            parseInt(minutesMatch[1] ?? '0', 10) * 3600 +
-            parseInt(minutesMatch[2], 10) * 60
-        );
-    }
-
-    const parts = duration.split(':').map(Number);
-    if (parts.length === 3) {
-        return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    }
-    if (parts.length === 2) {
-        return parts[0] * 60 + parts[1];
-    }
-
-    return Number(duration) || 0;
+    return parseDurationSeconds(duration);
 }
 
 /**
@@ -73,4 +50,14 @@ export function formatEpisodePositionText(
         .filter((value, index) => (index === 0 ? value !== '00' : true))
         .join(':');
     return `${formatted}${suffix}`;
+}
+
+/** The episode runtime: the provider's `duration_secs` first, then its formatted `duration`. */
+export function episodeRuntimeSeconds(
+    info: { duration_secs?: number; duration?: string } | null | undefined
+): number {
+    const seconds = Number(info?.duration_secs);
+    return Number.isFinite(seconds) && seconds > 0
+        ? Math.floor(seconds)
+        : parseDuration(info?.duration);
 }

@@ -17,7 +17,7 @@ import {
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
-import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
+import { type Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import { releaseVideoPictureInPicture } from '../player-controls/web-video-picture-in-picture-lifecycle';
 import {
     InlinePlaybackPlayer,
@@ -29,6 +29,8 @@ import {
     type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
+    PlayerUpNextItem,
+    type PlayerTimelineSegment,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -53,6 +55,7 @@ import {
     HtmlVideoPlayerControlsBridge,
     type HtmlVideoControlsSource,
 } from './html-video-player-controls.bridge';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
 
@@ -68,7 +71,7 @@ const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
         SeriesPlaybackNavigationControlsComponent,
     ],
     providers: [WebVideoControlsAdapter],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     standalone: true,
 })
 export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
@@ -81,12 +84,14 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly interactionEnabled = input(true);
     readonly showCaptions = input(false);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Catch-up programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
-    @Output() timeUpdate = new EventEmitter<{
-        currentTime: number;
-        duration: number;
-    }>();
+    @Output() timeUpdate = new EventEmitter<PlayerTimeUpdate>();
     @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
     @Output() playbackEnded = new EventEmitter<void>();
     @Output() playbackStarted = new EventEmitter<void>();

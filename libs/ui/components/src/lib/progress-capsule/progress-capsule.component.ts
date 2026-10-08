@@ -19,8 +19,7 @@ import {
             ></div>
         </div>
     `,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             .progress-capsule {
@@ -34,11 +33,7 @@ import {
 
                 &__fill {
                     height: 100%;
-                    background: linear-gradient(
-                        90deg,
-                        #e50914 0%,
-                        #ff4d4d 100%
-                    );
+                    background: var(--app-progress-color);
                     transition: width 0.3s ease-out;
                     border-radius: 0 2px 2px 0;
                 }

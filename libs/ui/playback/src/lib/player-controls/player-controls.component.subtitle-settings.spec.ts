@@ -30,6 +30,7 @@ function createFakeController() {
         addExternalSubtitleFile: jest.fn(),
         setSubtitleDelay: jest.fn(),
         setSubtitleStyle: jest.fn(),
+        setQualityLevel: jest.fn(),
         setPlaybackSpeed: jest.fn(),
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
@@ -60,7 +61,7 @@ describe('PlayerControlsComponent subtitle settings', () => {
         fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
     const openSubtitleMenu = () => {
-        fixture.componentInstance.toggleMenu('subtitle');
+        fixture.componentInstance.settings.open('subtitles');
         fixture.detectChanges();
     };
 
@@ -97,26 +98,28 @@ describe('PlayerControlsComponent subtitle settings', () => {
         fixture.detectChanges();
     });
 
-    it('renders the subtitle button with zero tracks when external loading exists', () => {
-        expect(query('[aria-label="Subtitles"]')).toBeNull();
+    it('renders the subtitle chip with zero tracks when external loading exists', () => {
+        const chip = () =>
+            query('[data-test-id="player-controls-subtitle-chip"]');
+        expect(chip()).toBeNull();
 
         setCapabilities({ externalSubtitles: true });
         fixture.detectChanges();
 
-        expect(query('[aria-label="Subtitles"]')).not.toBeNull();
+        expect(chip()).not.toBeNull();
         openSubtitleMenu();
         // No track list entries: no Off row without a selectable track…
-        expect(query('.player-controls__track--selected')).toBeNull();
+        expect(query('.player-settings__option--selected')).toBeNull();
         // …but the load action is present.
         const load = query('[data-test-id="player-controls-load-subtitle"]');
         expect(load).not.toBeNull();
         load?.click();
         expect(fake.commands.addExternalSubtitleFile).toHaveBeenCalledTimes(1);
         fixture.detectChanges();
-        // The pick closes the popover (a file dialog opens on top).
+        // The panel stays open: the loaded file appears as a track in it.
         expect(
             query('[data-test-id="player-controls-load-subtitle"]')
-        ).toBeNull();
+        ).not.toBeNull();
     });
 
     it('hides the load action, delay, and style sections without the capabilities', () => {
@@ -153,8 +156,7 @@ describe('PlayerControlsComponent subtitle settings', () => {
         );
         expect(section).not.toBeNull();
         expect(
-            section?.querySelector('.player-controls__subtitle-delay-value')
-                ?.textContent
+            section?.querySelector('.player-settings__delay-value')?.textContent
         ).toContain('+0.5 s');
 
         (
@@ -198,7 +200,7 @@ describe('PlayerControlsComponent subtitle settings', () => {
         ) as HTMLElement;
         const chips = Array.from(
             style.querySelectorAll<HTMLButtonElement>(
-                '.player-controls__subtitle-chip'
+                '.player-settings__seg-item'
             )
         );
         const largeChip = chips.find((chip) =>
@@ -211,9 +213,7 @@ describe('PlayerControlsComponent subtitle settings', () => {
         });
 
         (
-            style.querySelector(
-                '[aria-label="Yellow"]'
-            ) as HTMLButtonElement
+            style.querySelector('[aria-label="Yellow"]') as HTMLButtonElement
         ).click();
         expect(fake.commands.setSubtitleStyle).toHaveBeenLastCalledWith({
             sizePercent: 100,
@@ -223,7 +223,13 @@ describe('PlayerControlsComponent subtitle settings', () => {
 
     it('guards the new commands behind their capabilities', () => {
         const component = fixture.componentInstance;
-        component.loadExternalSubtitle();
+        // Without a subtitle group the panel cannot open, and without the
+        // capability the load action is not rendered inside it.
+        component.settings.open('subtitles');
+        fixture.detectChanges();
+        expect(
+            query('[data-test-id="player-controls-load-subtitle"]')
+        ).toBeNull();
         component.subtitleSettings.adjustDelay(0.5);
         component.subtitleSettings.resetDelay();
         component.subtitleSettings.setSize(150);

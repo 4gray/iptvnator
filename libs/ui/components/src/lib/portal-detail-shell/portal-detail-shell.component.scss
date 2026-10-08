@@ -5,13 +5,21 @@
 :host {
     // Shared surface palette (mirrors content-hero) so the area below the
     // natural-height hero and the About block match the page background.
-    --surface-bg: #fffaf5;
-    --text-primary: #1a1a1a;
-    --text-secondary: rgba(26, 26, 26, 0.75);
-    --text-muted: rgba(26, 26, 26, 0.5);
-    --tag-bg: rgba(0, 0, 0, 0.06);
-    --tag-border: rgba(0, 0, 0, 0.12);
-    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+    --surface-bg: var(--app-content-bg, #f5f6f8);
+    --text-primary: var(--app-heading-color, #1a1d23);
+    --text-secondary: var(--app-body-color, #4a5060);
+    --text-muted: var(--app-muted-color, #8891a4);
+    --tag-bg: color-mix(
+        in srgb,
+        var(--app-on-surface, #1d1b1e) 10%,
+        transparent
+    );
+    --tag-border: color-mix(
+        in srgb,
+        var(--app-on-surface, #1d1b1e) 14%,
+        transparent
+    );
+    --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
     --content-max-width: 1400px;
 
     display: block;
@@ -20,6 +28,9 @@
     overflow-x: hidden;
     background: var(--surface-bg);
     color: var(--text-primary);
+    // The hero and the rows size themselves to this pane, not the viewport:
+    // beside the categories panel it is narrower than the window.
+    container: detail / inline-size;
 
     scrollbar-gutter: stable;
     scrollbar-width: auto;
@@ -31,55 +42,7 @@
 }
 
 :host-context(.dark-theme) {
-    --surface-bg: #141414;
-    --text-primary: #fff;
-    --text-secondary: rgba(255, 255, 255, 0.7);
-    --text-muted: rgba(255, 255, 255, 0.5);
-    --tag-bg: rgba(255, 255, 255, 0.1);
-    --tag-border: rgba(255, 255, 255, 0.2);
-    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-}
-
-.shell__navigation {
-    // Direct child of the scroll owner: sticky lasts through the entire page.
-    position: sticky;
-    top: 16px;
-    height: 0;
-    z-index: 10;
-    pointer-events: none;
-}
-
-.shell__back-button {
-    position: absolute;
-    left: 16px;
-    pointer-events: auto;
-    app-region: no-drag;
-    -webkit-app-region: no-drag;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--app-widget-bg, var(--surface-bg));
-    color: var(--app-on-surface, var(--text-primary));
-    border: 1px solid var(--app-separator, var(--tag-border));
-    cursor: pointer;
-
-    &:hover {
-        background: var(--app-card-hover-bg, var(--surface-bg));
-    }
-
-    &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
-    }
-
-    mat-icon {
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
-    }
+    --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
 }
 
 // ============================================================================
@@ -129,7 +92,11 @@
 .shell__episodes {
     max-width: var(--content-max-width);
     margin: 0 auto;
-    padding: 0 40px;
+    padding: 0 32px;
+
+    &:empty {
+        display: none;
+    }
 }
 
 .shell__about {
@@ -140,9 +107,16 @@
 }
 
 .shell__extras {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
     max-width: var(--content-max-width);
     margin: 0 auto;
-    padding: 0 40px 40px;
+    padding: 8px 32px 40px;
+
+    &:empty {
+        display: none;
+    }
 }
 
 @keyframes shell-fade-in {

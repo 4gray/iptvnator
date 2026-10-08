@@ -12,8 +12,10 @@ are not prerequisites for reading repository contracts.
 | Area / code ownership | Canonical documents | Repository skill |
 | --- | --- | --- |
 | Bootstrap, project placement, dependencies, aliases and lint configuration; root Nx config and project-local project.json files | [Nx boundaries](../architecture/nx-workspace-boundaries.md), [security overrides](../architecture/dependency-security-overrides.md) | [Nx architecture](../../.codex/skills/iptvnator-nx-architecture/SKILL.md) |
-| Angular conventions; docs and skills maintenance | [Agent workflow](../development/agent-workflow.md) | Use the area's skill below |
-| Unit, E2E, lint and coverage; `tools/coverage` | [Validation map](../architecture/validation-map.md) | Use the area's validation section |
+| Angular conventions; docs and skills maintenance; local review before a pull request | [Agent workflow](../development/agent-workflow.md) | Use the area's skill below |
+| Unit, E2E, lint and coverage; `tools/coverage`, `tools/typecheck` | [Validation map](../architecture/validation-map.md) | Use the area's validation section |
+| Performance journeys, counters, benchmark probes and the CI ratchet; `apps/electron-backend-e2e/src/journeys`, `apps/electron-backend-e2e/src/performance`, `tools/performance` | [Performance journeys](../architecture/performance-journeys.md) | Read the contract directly |
+| Zoneless change detection, `ChangeDetectionStrategy.Eager` components, `NgZone` usage | [Zoneless migration](../architecture/zoneless-migration.md) | Read the checklist directly |
 | Electron entry/events/preload and CDP; `apps/electron-backend` | [Debugging and trace flags](../development/electron-debugging.md), [Electron security](../architecture/electron-security.md) | Use the available global electron skill for automation |
 | Releases, notes, screenshots, native assets, Linux manager metadata; `tools/release` | [Release pipeline](../architecture/release-pipeline.md), [note format](../../.changes/README.md) | [Release notes](../../.codex/skills/release-notes/SKILL.md), [release cut](../../.codex/skills/release-cut/SKILL.md) |
 
@@ -38,6 +40,7 @@ are not prerequisites for reading repository contracts.
 | Live panels, keyboard focus, grid/layout conventions; shared UI and portal views | [UI guidelines](../architecture/iptvnator-ui-guidelines.md), [detail navigation](../architecture/portal-detail-navigation.md) | [UI design](../../.codex/skills/iptvnator-ui-design/SKILL.md), [theme/style](../../.codex/skills/iptvnator-theme-style/SKILL.md) |
 | Workspace routes, title bar, switcher, collections and dashboard; `libs/workspace` | [Workspace shell](../architecture/workspace-shell.md), [dashboard](../architecture/workspace-dashboard.md), [collection/detail navigation](../architecture/portal-detail-navigation.md) | UI/theme skills for visible changes |
 | Remote control, playback queue, channel return and shortcuts; `libs/ui/remote-control`, `apps/remote-control-web` | [Remote control](../architecture/remote-control.md) | Provider skill when queue ownership changes |
+| Parental lock: PIN, per-category locks, worker-side filtering; `libs/services/src/lib/parental-lock`, category/group dialogs, `apps/electron-backend/src/app/database/parental-lock-state.ts` | [Parental lock](../architecture/parental-lock.md), affected provider contract | Read the affected provider skill |
 | Downloads, offline details, catch-up and file availability; `libs/portal/downloads` | [Download manager](../architecture/download-manager.md), provider contract for URL resolution | Read the affected provider skill |
 | VOD source discovery, factual metadata and failover; `libs/portal/shared/data-access` | [VOD multi-source](../architecture/vod-multi-source.md) | [Xtream](../../.codex/skills/xtream-electron/SKILL.md) |
 | TMDB enrichment, artwork, actors and recommendations; `libs/services/src/lib/tmdb` | [TMDB contracts](../architecture/tmdb-metadata-enrichment.md), [dashboard](../architecture/workspace-dashboard.md) | UI skill for rendering changes |

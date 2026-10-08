@@ -1,0 +1,742 @@
+// Cinematic dashboard hero. Bleeds to the edges of the workspace content
+// area (the page's `--dashboard-gutter` padding and the centred max-width
+// are both cancelled out), keeps a height ceiling so the first rail still
+// starts above the fold, and dissolves into the page background instead of
+// sitting in a raised card.
+//
+// The scrim is the page background itself (`--app-content-bg`), so the
+// light theme gets a light scrim with dark text and the dark theme the
+// reverse, with the same geometry.
+
+@use '../../../../../../ui/styles/detail-view-actions' as detail-actions;
+
+// The host renders nothing when there is no slide and no skeleton; with
+// `display: contents` it then adds no flex gap to the rails page either.
+:host {
+    display: contents;
+}
+
+.hero {
+    // Offset of the rails' content edge from the content-area edge: the page
+    // gutter plus whatever the centred max-width leaves on either side.
+    // `100cqw` is the rails page host (the `dashboard` size container).
+    --hero-inset: calc(
+        var(--dashboard-gutter, 28px) +
+            max(0px, (100cqw - var(--dashboard-max-width, 1440px)) / 2)
+    );
+    // The slide's widest extent, and its right edge measured from the
+    // hero's left edge: the scrim holds its text-safe opacity up to there.
+    --hero-text-width: min(560px, 55%);
+    --hero-text-edge: calc(var(--hero-inset) + var(--hero-text-width));
+    --hero-scrim: var(--app-content-bg, #161a22);
+    --hero-heading: var(--app-heading-color, #d8dce8);
+    --hero-body: color-mix(
+        in srgb,
+        var(--app-heading-color, #d8dce8) 85%,
+        var(--hero-scrim)
+    );
+    // Saturation and lightness of the no-artwork gradient. Light by
+    // default: a near-black gradient under the light theme's page-coloured
+    // scrim turned into a grey slab behind dark text.
+    --hero-fallback-from: 55% 90%;
+    --hero-fallback-to: 60% 78%;
+    --hero-pill-bg: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 12%,
+        transparent
+    );
+
+    position: relative;
+    // A floor, not a fixed height: the slide sits in normal flow at the
+    // bottom, so an unusually full slide (two-line title, programme,
+    // synopsis, wrapped pills) grows the banner instead of losing its top.
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    box-sizing: border-box;
+    min-height: clamp(320px, 42vh, 520px);
+    // Flush with the content area's top and sides; the rails page's own
+    // top padding and gutters are cancelled. The negative bottom margin
+    // tucks the first rail into the fade (the gradient does the spacing).
+    margin: calc(-1 * var(--dashboard-top-gutter, 24px))
+        calc(-1 * var(--hero-inset)) -12px;
+    overflow: hidden;
+    isolation: isolate;
+    color: var(--hero-heading);
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: -2px;
+    }
+}
+
+:host-context(.dark-theme) .hero {
+    --hero-fallback-from: 50% 15%;
+    --hero-fallback-to: 80% 5%;
+}
+
+// ── Backdrops ──────────────────────────────────────────────────────────────
+.hero__stage {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.hero__backdrop {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 700ms ease;
+
+    &--active {
+        opacity: 1;
+    }
+}
+
+.hero__backdrop-fallback,
+.hero__backdrop-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+// No artwork at all: a gradient tinted by the title's hue (`--hero-hue`).
+.hero__backdrop-fallback {
+    background: linear-gradient(
+        135deg,
+        hsl(var(--hero-hue) var(--hero-fallback-from)) 0%,
+        hsl(calc(var(--hero-hue) + 60) var(--hero-fallback-to)) 100%
+    );
+}
+
+.hero__backdrop-image {
+    display: block;
+    object-fit: cover;
+    object-position: center 22%;
+    transform: scale(1.04);
+    transition: transform 8s ease-out;
+
+    .hero__backdrop--active & {
+        transform: scale(1);
+    }
+}
+
+// No 16:9 backdrop (Xtream/Stalker often lack one): the poster, blurred and
+// scaled past its edges, is the backdrop. No second, sharp copy of it.
+.hero__backdrop--poster .hero__backdrop-image {
+    filter: blur(24px) saturate(1.2);
+    transform: scale(1.12);
+}
+
+.hero__backdrop--poster.hero__backdrop--active .hero__backdrop-image {
+    transform: scale(1.1);
+}
+
+// A live channel's logo fills the right-hand side as key art, faded into
+// its own blurred wash, so the slide still shows the channel's artwork.
+.hero__backdrop-keyart {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: min(46%, 640px);
+    object-fit: cover;
+    object-position: center 18%;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
+}
+
+// Live channels: a logo is not a backdrop. The stage is a title-tinted
+// glow with a hint of the live accent; the logo, when there is one, sits
+// on the right as the slide's artwork over a soft wash of its own colours.
+.hero__backdrop--live {
+    .hero__backdrop-fallback {
+        background:
+            radial-gradient(
+                55% 120% at 78% 30%,
+                hsl(var(--hero-hue, 220) 60% 45% / 0.45),
+                transparent 70%
+            ),
+            radial-gradient(
+                40% 90% at 100% 100%,
+                color-mix(
+                    in srgb,
+                    var(--app-live-color, #ff8f8f) 28%,
+                    transparent
+                ),
+                transparent 70%
+            ),
+            var(--hero-scrim);
+    }
+
+    &.hero__backdrop--active .hero__backdrop-image,
+    .hero__backdrop-image {
+        inset: 10% 6% 10% auto;
+        width: 40%;
+        height: 80%;
+        object-fit: contain;
+        filter: blur(56px) saturate(1.6);
+        opacity: 0.5;
+        transform: none;
+    }
+
+    .hero__backdrop-keyart {
+        top: 50%;
+        right: calc(var(--hero-inset) + 8%);
+        width: min(22%, 240px);
+        height: 50%;
+        object-fit: contain;
+        object-position: center;
+        transform: translateY(-50%);
+        filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.45));
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+}
+
+// Text never sits on less than 88% of the page colour: the side gradient
+// holds that up to the slide's right edge and only then opens onto the art.
+// Fixed stops at 30% / 60% left the end of a full-width slide on ~45%.
+.hero__scrim {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(
+            90deg,
+            color-mix(in srgb, var(--hero-scrim) 96%, transparent) 0%,
+            color-mix(in srgb, var(--hero-scrim) 88%, transparent)
+                var(--hero-text-edge),
+            color-mix(in srgb, var(--hero-scrim) 35%, transparent)
+                calc(var(--hero-text-edge) + 18%),
+            transparent 100%
+        ),
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--hero-scrim) 30%, transparent) 0%,
+            transparent 22%,
+            transparent 55%,
+            var(--hero-scrim) 100%
+        );
+}
+
+// ── Slide content ──────────────────────────────────────────────────────────
+.hero__content {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    // Top padding keeps clear of the title bar edge when the slide grows.
+    margin-left: var(--hero-inset);
+    padding: 72px 0 34px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    max-width: var(--hero-text-width);
+    animation: hero-content-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes hero-content-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+// The narrow layout's entrance: no fade, because the slide carries its own
+// scrim there and a fading scrim would flash the art on every rotation.
+@keyframes hero-content-rise {
+    from {
+        transform: translateY(8px);
+    }
+    to {
+        transform: none;
+    }
+}
+
+.hero__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--hero-body);
+}
+
+.hero__type--live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--app-live-color, #ff8f8f);
+
+    &::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 8px currentColor;
+    }
+}
+
+.hero__eyebrow-sep {
+    opacity: 0.6;
+}
+
+.hero__title {
+    margin: 0;
+    font-size: clamp(28px, 3.4vw, 44px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.5px;
+    color: var(--hero-heading);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow-wrap: anywhere;
+}
+
+.hero__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.hero__pill {
+    &--time {
+        font-variant-numeric: tabular-nums;
+    }
+
+    &--source {
+        max-width: 220px;
+        color: var(--hero-body);
+    }
+}
+
+.hero__programme {
+    margin: 0;
+    max-width: 100%;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--hero-heading);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hero__description {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--hero-body);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.hero__progress {
+    display: block;
+    width: 220px;
+    max-width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 18%,
+        transparent
+    );
+
+    i {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--app-progress-color);
+        // A full-width fill slid into place, neither a width nor animated: a
+        // live-EPG tick moves it by under one percent, so an animation was
+        // invisible yet cost a layout pass (width) or a burst of compositor
+        // frames (transform transition) on every tick.
+        transform: translateX(calc(var(--hero-progress, 0) * 1% - 100%));
+    }
+
+    &--live i {
+        background: var(--app-live-color, #ff8f8f);
+    }
+}
+
+.hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.hero__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 18px 0 14px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    // A long label (or translation) ends in an ellipsis instead of pushing
+    // the button past a narrow slide; the icon keeps its size.
+    max-width: 100%;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    transition:
+        background-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
+
+    > span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    mat-icon {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+        line-height: 20px;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: 2px;
+    }
+
+    &:active {
+        transform: translateY(1px);
+    }
+
+    // The same light primary as the details pages' Continue / Play.
+    &--primary {
+        @include detail-actions.light-primary-button;
+
+        height: 38px;
+        padding: 0 18px 0 14px;
+        font-size: 13px;
+    }
+
+    &--secondary {
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 12%,
+            transparent
+        );
+        color: var(--hero-heading);
+        border: 1px solid
+            color-mix(in srgb, var(--app-on-surface, #e6e1e5) 14%, transparent);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+
+        &:hover {
+            background: color-mix(
+                in srgb,
+                var(--app-on-surface, #e6e1e5) 20%,
+                transparent
+            );
+        }
+    }
+}
+
+.hero__button-detail {
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+// ── Rotation controls ──────────────────────────────────────────────────────
+.hero__controls {
+    position: absolute;
+    right: var(--hero-inset);
+    bottom: 34px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 4px;
+    border-radius: 999px;
+    // Keeps the dots legible over bright key art in both themes.
+    background: color-mix(in srgb, var(--hero-scrim) 55%, transparent);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.hero__pause {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--hero-body);
+    cursor: pointer;
+    transition:
+        color 0.15s ease,
+        background-color 0.15s ease;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
+    }
+
+    &:hover {
+        background: var(--hero-pill-bg);
+        color: var(--hero-heading);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: 1px;
+    }
+}
+
+.hero__dots {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+// 6px dots inside a 24px hit area (WCAG 2.5.8 target size), 2px apart; the
+// active one stretches into a pill whose fill runs for one rotation interval.
+.hero__dot {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    &::before {
+        content: '';
+        grid-area: 1 / 1;
+        width: 6px;
+        height: 6px;
+        border-radius: 3px;
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 32%,
+            transparent
+        );
+        transition:
+            width 0.25s ease,
+            background-color 0.15s ease;
+    }
+
+    &:hover::before {
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 55%,
+            transparent
+        );
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: -2px;
+        border-radius: 6px;
+    }
+
+    &--active {
+        width: 32px;
+
+        &::before {
+            width: 18px;
+        }
+    }
+}
+
+.hero__dot-fill {
+    grid-area: 1 / 1;
+    justify-self: start;
+    // Aligns with the 18px pill centred in the 32px button.
+    margin-left: 7px;
+    width: 0;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    pointer-events: none;
+
+    // The fill is a full-width bar that slides in from the left under the
+    // pill's rounded clip. Only `transform` animates, so the compositor runs
+    // it: animating `width` meant style, layout and paint on every frame for
+    // as long as an idle dashboard stayed on screen. Its `animationend`
+    // reaches the span (the originating element) and advances the slide.
+    &::before {
+        content: '';
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--hero-heading);
+    }
+
+    .hero__dot--active & {
+        width: 18px;
+    }
+
+    .hero--rotating .hero__dot--active &::before {
+        animation: hero-dot-fill var(--hero-rotation-ms, 8000ms) linear both;
+    }
+
+    .hero--paused .hero__dot--active &::before {
+        animation-play-state: paused;
+    }
+}
+
+@keyframes hero-dot-fill {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: none;
+    }
+}
+
+// ── Skeleton ───────────────────────────────────────────────────────────────
+.hero--skeleton {
+    background: linear-gradient(
+        180deg,
+        var(--app-widget-bg, #1e2330) 0%,
+        var(--hero-scrim) 100%
+    );
+}
+
+.hero__skeleton {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 8%, transparent) 0%,
+        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 16%, transparent) 50%,
+        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 8%, transparent) 100%
+    );
+    background-size: 200% 100%;
+    animation: hero-skeleton-shimmer 1.6s linear infinite;
+
+    &--eyebrow {
+        width: 180px;
+        height: 11px;
+    }
+
+    &--title {
+        width: 380px;
+        max-width: 100%;
+        height: 40px;
+    }
+
+    &--meta {
+        width: 260px;
+        height: 20px;
+        border-radius: 999px;
+    }
+
+    &--button {
+        width: 190px;
+        height: 38px;
+        border-radius: 10px;
+        margin-top: 4px;
+    }
+}
+
+@keyframes hero-skeleton-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
+}
+
+// ── Narrow content area ────────────────────────────────────────────────────
+@container dashboard (max-width: 720px) {
+    .hero__content {
+        margin-right: var(--hero-inset);
+        // Clears the rotation controls, which move to the top here.
+        padding: 64px 0 28px;
+        max-width: none;
+        animation-name: hero-content-rise;
+        text-shadow: 0 1px 2px
+            color-mix(in srgb, var(--hero-scrim) 80%, transparent);
+    }
+
+    // The slide spans the whole width here, over the art: the full-bleed
+    // scrim behind the text block keeps it on at least 90% of the page
+    // colour, fading in just above the eyebrow.
+    .hero__content::before {
+        content: '';
+        position: absolute;
+        z-index: -1;
+        inset: 24px calc(-1 * var(--hero-inset)) 0;
+        background: linear-gradient(
+            180deg,
+            transparent,
+            color-mix(in srgb, var(--hero-scrim) 90%, transparent) 40px
+        );
+        pointer-events: none;
+    }
+
+    .hero__button {
+        text-shadow: none;
+    }
+
+    .hero__controls {
+        top: 16px;
+        bottom: auto;
+    }
+
+    .hero__scrim {
+        background:
+            linear-gradient(
+                90deg,
+                color-mix(in srgb, var(--hero-scrim) 80%, transparent) 0%,
+                color-mix(in srgb, var(--hero-scrim) 40%, transparent) 100%
+            ),
+            linear-gradient(180deg, transparent 30%, var(--hero-scrim) 100%);
+    }
+
+    .hero__backdrop-keyart {
+        width: 70%;
+        opacity: 0.6;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero__backdrop,
+    .hero__backdrop-image {
+        transition: none;
+    }
+
+    .hero__content,
+    .hero__skeleton {
+        animation: none;
+    }
+}

@@ -4,7 +4,8 @@ import { openSourceEditor, sourceRowByTitle } from './sources-pwa.helpers';
 import { postWithRetry, setInputValue } from './e2e-helpers';
 import { expect, test } from './fixtures';
 
-const WEB_BACKEND_URL = 'http://localhost:3333';
+const WEB_BACKEND_PORT = process.env['WEB_BACKEND_PORT'] ?? '3333';
+const WEB_BACKEND_URL = `http://localhost:${WEB_BACKEND_PORT}`;
 const XTREAM_MOCK_PORT = process.env['XTREAM_MOCK_PORT'] ?? '3211';
 const STALKER_MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
 const XTREAM_MOCK_SERVER = `http://localhost:${XTREAM_MOCK_PORT}`;
@@ -28,16 +29,16 @@ async function addXtreamPortal(page: Page): Promise<void> {
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
-    await dialog
-        .getByRole('radio', { name: /Xtream credentials/i })
-        .click();
+    await dialog.getByRole('radio', { name: /Xtream credentials/i }).click();
 
     await dialog.locator('#title').fill('Self-hosted Xtream');
     await dialog.locator('#serverUrl').fill(XTREAM_MOCK_SERVER);
     await dialog.locator('#username').fill('user1');
     await dialog.locator('#password').fill('pass1');
 
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await expect(dialog).toBeHidden();
     await page.waitForURL(/xtreams.*vod/);
 }
@@ -74,7 +75,10 @@ async function addStalkerPortal(page: Page): Promise<void> {
     await setInputValue(dialog.locator('input#portalUrl'), STALKER_PORTAL_URL);
     await setInputValue(dialog.locator('input#macAddress'), DEFAULT_MAC);
 
-    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+    const addButton = dialog.getByRole('button', {
+        name: 'Add playlist',
+        exact: true,
+    });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
     await expect(dialog).toBeHidden();
@@ -159,9 +163,9 @@ test('@self-hosted Xtream portal loads through web-backend proxy', async ({
     await expect(vodItem).toBeVisible({ timeout: 30_000 });
     await vodItem.click();
     await expect(page).toHaveURL(/\/workspace\/xtreams\/[^/]+\/vod\/\d+\/\d+/);
-    await expect(
-        page.getByRole('button', { name: 'Play', exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    const primaryAction = page.locator('[data-testid="vod-primary-action"]');
+    await expect(primaryAction).toBeVisible({ timeout: 15_000 });
+    await expect(primaryAction).toContainText('Play');
 
     expect(
         consoleErrors.filter((message) =>
@@ -256,9 +260,9 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
         const row = sourceRowByTitle(page, 'Protected M3U');
         await row.hover();
         await row.locator('.refresh-btn').click();
-        await expect(page.locator('.mat-mdc-snack-bar-label').last()).toContainText(
-            'updated'
-        );
+        await expect(
+            page.locator('.mat-mdc-snack-bar-label').last()
+        ).toContainText('updated');
         await page.goto(catalogUrl);
         await expect(page.getByText('1. Refreshed UA Channel')).toBeVisible();
         expect(received.slice(1)).toEqual([userAgent, userAgent]);

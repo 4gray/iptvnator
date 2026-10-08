@@ -9,7 +9,7 @@
         </div>
     </header>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="video-player">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }}</h4>
             <p>{{ 'SETTINGS.VIDEO_PLAYER_DESCRIPTION' | translate }}</p>
@@ -35,7 +35,7 @@
         </div>
     </div>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="stream-format">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.STREAM_FORMAT' | translate }}</h4>
             <p>{{ 'SETTINGS.STREAM_FORMAT_DESCRIPTION' | translate }}</p>
@@ -67,6 +67,7 @@
     @if (isWebPlayerSelected()) {
         <div
             class="setting-item"
+            data-setting-id="web-player-shared-controls"
             data-test-id="web-player-shared-controls-setting"
         >
             <div class="setting-item__meta">
@@ -91,7 +92,11 @@
             </div>
         </div>
 
-        <div class="setting-item" data-test-id="player-ambient-mode-setting">
+        <div
+            class="setting-item"
+            data-setting-id="player-ambient-mode"
+            data-test-id="player-ambient-mode-setting"
+        >
             <div class="setting-item__meta">
                 <h4>
                     {{ 'SETTINGS.PLAYER_AMBIENT_MODE' | translate }}
@@ -109,7 +114,11 @@
             </div>
         </div>
 
-        <div class="setting-item" data-test-id="player-up-next-rail-setting">
+        <div
+            class="setting-item"
+            data-setting-id="player-up-next-rail"
+            data-test-id="player-up-next-rail-setting"
+        >
             <div class="setting-item__meta">
                 <h4>
                     {{ 'SETTINGS.PLAYER_UP_NEXT_RAIL' | translate }}
@@ -128,9 +137,62 @@
         </div>
     }
 
+    <!-- A details-page feature: shown for every player, not only the web ones. -->
+    <div
+        class="setting-item"
+        data-setting-id="detail-trailer-backdrop"
+        data-test-id="detail-trailer-backdrop-setting"
+    >
+        <div class="setting-item__meta">
+            <h4>
+                {{ 'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND' | translate }}
+            </h4>
+            <p>
+                {{
+                    'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION'
+                        | translate
+                }}
+            </p>
+        </div>
+        <div class="setting-item__control setting-item__toggle">
+            <mat-checkbox
+                [aria-label]="
+                    'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND' | translate
+                "
+                formControlName="detailTrailerBackdrop"
+                data-test-id="detail-trailer-backdrop-toggle"
+            ></mat-checkbox>
+        </div>
+    </div>
+
+    @if (supportsUpNextCard()) {
+        <div
+            class="setting-item"
+            data-setting-id="player-up-next-card"
+            data-test-id="player-up-next-card-setting"
+        >
+            <div class="setting-item__meta">
+                <h4>
+                    {{ 'SETTINGS.PLAYER_UP_NEXT_CARD' | translate }}
+                </h4>
+                <p>
+                    {{ 'SETTINGS.PLAYER_UP_NEXT_CARD_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    [aria-label]="'SETTINGS.PLAYER_UP_NEXT_CARD' | translate"
+                    formControlName="playerUpNextCard"
+                    data-test-id="player-up-next-card-toggle"
+                ></mat-checkbox>
+            </div>
+        </div>
+    }
+
     @if (supportsFullscreenChannelPanel()) {
         <div
             class="setting-item"
+            data-setting-id="fullscreen-channel-panel"
             data-test-id="fullscreen-channel-panel-setting"
         >
             <div class="setting-item__meta">
@@ -159,7 +221,11 @@
     <!-- Only the web players raise a playback diagnostic, so under MPV, VLC
          or Embedded MPV nothing would ever trigger a failover. -->
     @if (supportsVodMultiSource() && isWebPlayerSelected()) {
-        <div class="setting-item" data-test-id="vod-auto-failover-setting">
+        <div
+            class="setting-item"
+            data-setting-id="vod-auto-failover"
+            data-test-id="vod-auto-failover-setting"
+        >
             <div class="setting-item__meta">
                 <h4>
                     {{ 'SETTINGS.VOD_AUTO_FAILOVER' | translate }}
@@ -181,6 +247,7 @@
     @if (supportsManagedExternalPlayers() && isExternalPlayerSelected()) {
         <div
             class="setting-item"
+            data-setting-id="external-player-double-click"
             data-test-id="external-player-double-click-setting"
         >
             <div class="setting-item__meta">
@@ -206,7 +273,7 @@
     }
 
     @if (isDesktop()) {
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="show-external-playback-bar">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.SHOW_EXTERNAL_PLAYBACK_BAR' | translate }}</h4>
                 <p>
@@ -226,6 +293,7 @@
         @if (frameCopyAvailable() || form().value.embeddedMpvFrameCopy) {
             <div
                 class="setting-item"
+                data-setting-id="embedded-mpv-frame-copy"
                 data-test-id="embedded-mpv-frame-copy-setting"
             >
                 <div class="setting-item__meta">
@@ -262,6 +330,7 @@
         @if (form().value.player === 'embedded-mpv') {
             <div
                 class="setting-item"
+                data-setting-id="embedded-mpv-extra-options"
                 data-test-id="embedded-mpv-extra-options-setting"
             >
                 <div class="setting-item__meta">
@@ -332,6 +401,7 @@
 
             <div
                 class="setting-item"
+                data-setting-id="embedded-mpv-auto-reconnect"
                 data-test-id="embedded-mpv-auto-reconnect-setting"
             >
                 <div class="setting-item__meta">
@@ -354,7 +424,11 @@
             </div>
         }
 
-        <div class="setting-item" data-test-id="recording-folder-setting">
+        <div
+            class="setting-item"
+            data-setting-id="recording-folder"
+            data-test-id="recording-folder-setting"
+        >
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.RECORDING_FOLDER_LABEL' | translate }}</h4>
                 <p>
@@ -391,7 +465,7 @@
     @if (
         supportsExternalPlayerPathSettings() && form().value.player === 'mpv'
     ) {
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="mpv-player-path">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}</h4>
                 <p>
@@ -418,6 +492,7 @@
 
         <div
             class="setting-item setting-item--external-player-arguments"
+            data-setting-id="mpv-player-arguments"
             data-test-id="mpv-player-arguments-setting"
         >
             <div class="setting-item__meta">
@@ -449,7 +524,7 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="mpv-reuse-instance">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.MPV_REUSE_INSTANCE_LABEL' | translate }}</h4>
                 <p>
@@ -465,7 +540,7 @@
     @if (
         supportsExternalPlayerPathSettings() && form().value.player === 'vlc'
     ) {
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="vlc-player-path">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}</h4>
                 <p>
@@ -489,6 +564,7 @@
 
         <div
             class="setting-item setting-item--external-player-arguments"
+            data-setting-id="vlc-player-arguments"
             data-test-id="vlc-player-arguments-setting"
         >
             <div class="setting-item__meta">
@@ -520,7 +596,7 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="vlc-reuse-instance">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.VLC_REUSE_INSTANCE_LABEL' | translate }}</h4>
                 <p>

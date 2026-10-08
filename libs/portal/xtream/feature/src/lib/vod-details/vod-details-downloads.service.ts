@@ -2,6 +2,7 @@ import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { createMovieDownloadSnapshot } from '@iptvnator/portal/shared/util';
 import { DownloadsService } from '@iptvnator/services';
+import { DialogService } from '@iptvnator/ui/components';
 import { resolveXtreamVodPlaybackSource } from '@iptvnator/portal/xtream/data-access';
 import {
     getXtreamVodInfo,
@@ -54,6 +55,7 @@ export class VodDetailsDownloadsService {
     private readonly downloadsService = inject(DownloadsService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly translateService = inject(TranslateService);
+    private readonly dialogService = inject(DialogService);
 
     private routeContentId: Signal<number> = signal(NaN);
 
@@ -124,12 +126,48 @@ export class VodDetailsDownloadsService {
             : null;
     });
 
+    /** 2πr of the r=15.5 progress-ring circle in its 36×36 viewBox. */
+    readonly ringCircumference = 2 * Math.PI * 15.5;
+
+    /**
+     * Dash offset that leaves the arc at the real percent — or a fixed
+     * quarter arc when the total size is unknown and the ring spins instead.
+     */
+    readonly ringOffset = computed(() => {
+        const percent = this.downloadPercent();
+        return percent === null
+            ? this.ringCircumference * 0.75
+            : this.ringCircumference * (1 - percent / 100);
+    });
+
     /** Cancel whatever download is running or queued for this movie. */
     async cancelActive(): Promise<void> {
         const item = this.activeDownload();
         if (item) {
             await this.downloadsService.cancelDownload(item.id);
         }
+    }
+
+    /**
+     * A running download is destroyed by one click, so the icon button asks
+     * first — there is no label left to warn what the click does.
+     */
+    promptCancel(): void {
+        this.dialogService.openConfirmDialog({
+            title: this.translateService.instant(
+                'DOWNLOADS.CANCEL_CONFIRM_TITLE'
+            ),
+            message: this.translateService.instant(
+                'DOWNLOADS.CANCEL_CONFIRM_MESSAGE'
+            ),
+            confirmLabel: this.translateService.instant(
+                'DOWNLOADS.CANCEL_CONFIRM_TITLE'
+            ),
+            // "Cancel" next to "Cancel download" would read as the same action.
+            cancelLabel: this.translateService.instant('CLOSE'),
+            tone: 'destructive',
+            onConfirm: () => void this.cancelActive(),
+        });
     }
 
     /** Open the finished file's location in the system file manager. */

@@ -86,6 +86,7 @@ describe('DatabaseWorkerClient', () => {
                 nativeModuleSearchPaths: [
                     '/mock/resources/app.asar.unpacked/node_modules',
                 ],
+                parentalLockActive: false,
             },
         });
 
@@ -180,6 +181,63 @@ describe('DatabaseWorkerClient', () => {
         });
 
         await expect(requestPromise).resolves.toBe(resultIdentity);
+    });
+
+    describe('SQL statement counts', () => {
+        const PERF_CAPTURE_ENV = 'IPTVNATOR_PERF_CAPTURE';
+        const originalCapture = process.env[PERF_CAPTURE_ENV];
+
+        afterEach(() => {
+            if (originalCapture === undefined) {
+                delete process.env[PERF_CAPTURE_ENV];
+            } else {
+                process.env[PERF_CAPTURE_ENV] = originalCapture;
+            }
+        });
+
+        async function emitCountsDuringRequest(
+            counts: unknown[]
+        ): Promise<Record<string, number>> {
+            const client = createClient();
+            const requestPromise = client.request('DB_GET_APP_STATE', {
+                key: 'counts',
+            });
+            const worker = mockWorkerInstances[0];
+            worker.emit('message', { type: 'ready' });
+            await flushPromises();
+            const request = worker.postMessage.mock.calls[0][0];
+
+            for (const count of counts) {
+                worker.emit('message', {
+                    type: 'performance-sql-statements',
+                    count,
+                });
+            }
+            worker.emit('message', {
+                type: 'response',
+                requestId: request.requestId,
+                success: true,
+                result: 'state',
+            });
+
+            await expect(requestPromise).resolves.toBe('state');
+            const { performanceCounters } = await import('./debug-trace');
+            return performanceCounters.read().counters;
+        }
+
+        it('adds worker statement counts to main.sqlStatements with capture on', async () => {
+            process.env[PERF_CAPTURE_ENV] = '1';
+
+            await expect(
+                emitCountsDuringRequest([3, 4, 0, -1, 'x'])
+            ).resolves.toEqual({ 'main.sqlStatements': 7 });
+        });
+
+        it('counts nothing without the capture flag', async () => {
+            delete process.env[PERF_CAPTURE_ENV];
+
+            await expect(emitCountsDuringRequest([3])).resolves.toEqual({});
+        });
     });
 
     it('turns serialized worker errors into rejected Error instances', async () => {

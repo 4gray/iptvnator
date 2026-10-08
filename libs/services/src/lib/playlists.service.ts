@@ -116,6 +116,12 @@ export class PlaylistsService {
     private readonly playlistDeleteCleanups =
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
     private electronMigrationPromise: Promise<void> | null = null;
+    // Startup reads the inventory twice at once (the playlist effect and the
+    // XMLTV source reconciliation); both share one worker round trip. Only the
+    // first read is shared, while the startup screen still hides every action
+    // that writes playlists (other services write them too, e.g. the settings
+    // reset); it ends when that read settles or a write here starts (null).
+    private startupMetas?: Promise<Playlist[]> | null;
     private indexedDbMigrationPromise: Promise<void> | null = null;
     private readonly playlistWriteQueues = new Map<string, Promise<unknown>>();
 
@@ -397,6 +403,7 @@ export class PlaylistsService {
                 return playlist;
             }
 
+            this.startupMetas = null;
             if (operationId === undefined) {
                 await electron.dbUpsertAppPlaylist(playlist);
             } else {
@@ -414,6 +421,7 @@ export class PlaylistsService {
                 return playlists;
             }
 
+            this.startupMetas = null;
             await electron.dbUpsertAppPlaylists(playlists);
             playlists.forEach((playlist) => this.healthEvidence?.connections.next({ id: playlist._id, playlist }));
             return playlists;
@@ -492,16 +500,27 @@ export class PlaylistsService {
 
     getAllPlaylists() {
         if (this.isElectronStorageAvailable) {
-            return this.runOnSqlite(async () => {
-                const electron = this.electronApi;
-                const playlists = electron
-                    ? await (electron.dbGetAppPlaylistMetas?.() ??
-                          electron.dbGetAppPlaylists())
-                    : [];
-                return (playlists as Playlist[]).map((playlist) =>
-                    this.toPlaylistMeta(playlist)
-                );
-            });
+            const shared = this.startupMetas;
+            // A joining caller gets its own copy of the shared result.
+            if (shared) return from(shared.then((p) => structuredClone(p)));
+            const read = firstValueFrom(
+                this.runOnSqlite(async () => {
+                    const electron = this.electronApi;
+                    const playlists = electron
+                        ? await (electron.dbGetAppPlaylistMetas?.() ??
+                              electron.dbGetAppPlaylists())
+                        : [];
+                    return (playlists as Playlist[]).map((playlist) =>
+                        this.toPlaylistMeta(playlist)
+                    );
+                })
+            );
+            if (shared === undefined) {
+                this.startupMetas = read;
+                const end = () => (this.startupMetas = null);
+                read.then(end, end);
+            }
+            return from(read);
         }
 
         return this.runOnIndexedDb(() =>
@@ -555,6 +574,7 @@ export class PlaylistsService {
                         await this.ensureElectronPlaylistMigrations();
                         const electron = this.electronApi;
                         if (electron) {
+                            this.startupMetas = null;
                             if (options) {
                                 const deleted =
                                     await this.databaseService.deletePlaylist(
@@ -1072,6 +1092,9 @@ export class PlaylistsService {
 
         return from(
             (async () => {
+                // A favorite toggled just before this read may still be queued;
+                // the queue tail never rejects.
+                await this.playlistWriteQueues.get(playlistId);
                 const alreadyMigrated = await electron.dbGetAppState(
                     SQLITE_PLAYLIST_MIGRATION_FLAG
                 );
@@ -1326,6 +1349,7 @@ export class PlaylistsService {
                     await this.ensureElectronPlaylistMigrations();
                     const electron = this.electronApi;
                     if (electron) {
+                        this.startupMetas = null;
                         await electron.dbDeleteAllPlaylists();
                         this.healthEvidence?.connections.next({});
                     }

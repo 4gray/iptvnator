@@ -19,6 +19,7 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { UpdateChannelOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
 @Component({
     selector: 'app-settings-about-section',
@@ -32,15 +33,14 @@ import { UpdateChannelOption } from './settings.models';
     ],
     templateUrl: './settings-about-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         ':host { display: contents; }',
         '.version-block .build-commit { opacity: 0.65; font-size: 0.85em; }',
         '.app-update-channel { margin-top: 12px; }',
         '.app-update-channel mat-form-field { width: 100%; max-width: 320px; }',
         '.app-update-channel__note { display: block; margin-top: 4px; opacity: 0.75; font-size: 0.85em; }',
-        '.app-update-status__channel { align-self: flex-start; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase; color: var(--mat-sys-on-surface-variant); background: color-mix(in srgb, var(--mat-sys-on-surface) 9%, transparent); }',
+        '.app-update-status__channel { align-self: flex-start; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--mat-sys-on-surface-variant); background: color-mix(in srgb, var(--mat-sys-on-surface) 9%, transparent); }',
         '.app-update-status--stale strong, .app-update-status--stale .app-update-status__channel { opacity: 0.55; }',
     ],
 })
@@ -58,6 +58,13 @@ export class SettingsAboutSectionComponent {
      * setting. Absent in hosts that only render the version block.
      */
     readonly form = input<FormGroup | null>(null);
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly updateChannelOptions = input<UpdateChannelOption[]>([]);
 
     readonly buildCommitShort = computed(() => {

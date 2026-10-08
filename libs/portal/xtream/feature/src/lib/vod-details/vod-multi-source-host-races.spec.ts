@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import type { VodSourceCandidate } from '@iptvnator/shared/interfaces';
 import {
     ALT_THREE,
     ALT_TWO,
@@ -137,7 +138,8 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
             expect.objectContaining({
                 streamUrl: expect.stringContaining(String(ALT_THREE.contentId)),
             }),
-            expect.any(Function)
+            expect.any(Function),
+            undefined
         );
     });
 

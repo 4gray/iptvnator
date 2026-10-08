@@ -5,7 +5,11 @@ import { By } from '@angular/platform-browser';
 import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { of, Subject } from 'rxjs';
+import { Observable, of, Subject } from 'rxjs';
+import type {
+    EpgItemDialogAction,
+    EpgItemDialogData,
+} from '../epg-item-description/epg-item-description.component';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { EpgGuideComponent } from './epg-guide.component';
 import {
@@ -65,7 +69,11 @@ describe('EpgGuideComponent', () => {
     const searchHits = signal<EpgGuideSearchHit[]>([]);
     const activate = jest.fn();
     const setScope = jest.fn();
-    const dialogOpen = jest.fn(() => of(undefined));
+    const dialogOpen = jest.fn(
+        (
+            _data: EpgItemDialogData
+        ): Observable<EpgItemDialogAction | undefined> => of(undefined)
+    );
 
     beforeEach(() => {
         localStorage.clear();
@@ -437,6 +445,29 @@ describe('EpgGuideComponent', () => {
         expect(cells().map((cell) => cell.getAttribute('tabindex'))).toEqual([
             '0',
         ]);
+    });
+
+    it('jumps to now on N without scrolling back to a focus left off-screen', async () => {
+        await settle(fixture);
+        const viewportEl: HTMLElement = fixture.debugElement.query(
+            By.css('cdk-virtual-scroll-viewport')
+        ).nativeElement;
+        const scrollTo = jest.fn();
+        viewportEl.scrollTo = scrollTo as unknown as HTMLElement['scrollTo'];
+        // jsdom reports a zero-sized lane, so this programme counts as hidden.
+        component.focusCell(0, 0);
+        await settle(fixture);
+        scrollTo.mockClear();
+
+        component.onKeydown(keydown('n'));
+
+        // One combined smooth scroll; a reveal after it would cancel it. The
+        // focus follows the jump to the playing row.
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+        expect(scrollTo).toHaveBeenCalledWith(
+            expect.objectContaining({ top: 0, behavior: 'smooth' })
+        );
+        expect(component.focus()).toEqual({ row: 0, block: null });
     });
 
     it('moves the roving focus to a clicked programme card', async () => {

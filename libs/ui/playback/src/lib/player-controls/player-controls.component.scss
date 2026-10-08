@@ -1,24 +1,55 @@
+@use 'player-palette' as palette;
+
 :host {
-    --pc-accent: #ffffff;
-    --pc-track: rgba(255, 255, 255, 0.3);
-    --pc-thumb-ring: rgba(255, 255, 255, 0.95);
-    --pc-panel-bg: rgba(18, 18, 20, 0.92);
-    --pc-panel-border: rgba(255, 255, 255, 0.16);
-    --pc-text: #ffffff;
+    // Overlay palette. Deliberately literal and theme-independent: the shared
+    // controls always sit on video, and the UI guidelines keep them on one
+    // light-on-dark palette in both app themes. The values are the design
+    // tokens of the "Hybrid" controls concept (accent blue = primary action
+    // and progress; cyan = something is on; violet = a value was changed).
+    // Accent blue and the progress fill come from the shared player palette,
+    // which the Up Next rail and the fullscreen episode panel also read.
+    --pc-accent-blue: #{palette.$accent-blue};
+    @include palette.progress-token;
+    // Fills that carry a white glyph (play, active tune) use deeper blues:
+    // white on #4f8eff is only 3.2:1, too close to the 3:1 floor once a
+    // 1x display antialiases the glyph. These give 4.4:1 and 5.3:1.
+    --pc-accent-blue-strong: #3474e8;
+    --pc-accent-blue-hover: #2a66d6;
+    --pc-accent-cyan: #5cd6ff;
+    --pc-accent-violet: #b599ff;
+    // Reds, literal like the rest: the theme's error colour changes with the
+    // theme, and its dark-theme tone is too pale to carry a white label.
+    // White on the LIVE fill is 5.0:1; the earlier #e53935 gave only 4.2:1,
+    // under the 4.5:1 text floor. The record glyph and the recording status
+    // text read 6.2:1 on the glass over a black frame.
+    --pc-live: #d32f2f;
+    --pc-danger: #ff5252;
+    --pc-text: #e7ecf3;
+    --pc-text-secondary: #9aa3b2;
+    --pc-text-tertiary: #6b7384;
     --pc-text-dim: rgba(255, 255, 255, 0.82);
+    --pc-scrim-ink: 4, 7, 11;
+    --pc-track: rgba(255, 255, 255, 0.18);
+    --pc-hover: rgba(255, 255, 255, 0.1);
+    --pc-glass-bg: rgba(12, 16, 23, 0.72);
+    // The settings panel carries small secondary text over whatever frame is
+    // playing: denser glass keeps it at 4.5:1 even over a white frame.
+    --pc-glass-bg-dense: rgba(12, 16, 23, 0.86);
+    --pc-glass-border: rgba(255, 255, 255, 0.09);
+    --pc-font-mono:
+        ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 
     position: absolute;
     inset: 0;
     z-index: 2;
     display: block;
     // The control layer is transparent to the mouse so the video underneath
-    // stays interactive; only the bar/popovers opt back in to pointer events.
+    // stays interactive; only the dock/popovers opt back in to pointer events.
     pointer-events: none;
     color: var(--pc-text);
-    // Become a query container so popovers can size against the actual player
-    // box (the host fills the player via inset:0) instead of fixed pixels or
-    // the viewport — they grow to fit when there is room and shrink to scroll
-    // when the player is small, never spilling past its edges.
+    // Become a query container so the dock and popovers can size against the
+    // actual player box (the host fills the player via inset:0) instead of
+    // fixed pixels or the viewport.
     container-type: size;
     container-name: player-controls;
 }
@@ -77,31 +108,56 @@
 // footage. Deliberately one element rather than a background per consumer: two
 // overlapping gradients would darken the overlap twice.
 //
-// The stops are the bottom bar's, mirrored, so the two edges of the player read
-// as one system.
+// The stops mirror the bottom scrim so the two edges of the player read as one
+// system; the height follows the player so a tall fullscreen stage gets a
+// proportionally deeper fade, never less than the chrome it backs.
 .player-controls__top-scrim {
     position: absolute;
     top: 0;
     right: 0;
     left: 0;
     z-index: 1;
-    // Mirrors the bar's 48px top padding + 64px min-height.
-    height: 112px;
+    height: max(28%, 112px);
     opacity: 0;
     // Purely decorative: clicks belong to the video surface underneath.
     pointer-events: none;
     background: linear-gradient(
         to bottom,
-        rgba(0, 0, 0, 0.78) 0%,
-        rgba(0, 0, 0, 0.45) 45%,
+        rgba(var(--pc-scrim-ink), 0.78) 0%,
+        rgba(var(--pc-scrim-ink), 0.45) 45%,
         transparent 100%
     );
     // Fades with the controls, but does not slide: a moving scrim edge is
     // visible against video in a way a moving control is not.
-    transition: opacity 180ms ease-out;
+    transition: opacity 200ms ease-out;
 }
 
 .player-controls__top-scrim--visible {
+    opacity: 1;
+}
+
+// Backdrop of the dock. Same rule as the top scrim: one gradient for the
+// timeline and the button row together, and no surface under the dock itself
+// — the controls sit directly on the video.
+.player-controls__bottom-scrim {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+    height: 55%;
+    opacity: 0;
+    pointer-events: none;
+    background: linear-gradient(
+        to top,
+        rgba(var(--pc-scrim-ink), 0.92) 0%,
+        rgba(var(--pc-scrim-ink), 0.55) 45%,
+        rgba(var(--pc-scrim-ink), 0) 100%
+    );
+    transition: opacity 200ms ease-out;
+}
+
+.player-controls__bottom-scrim--visible {
     opacity: 1;
 }
 
@@ -115,20 +171,20 @@
     flex-direction: column;
     gap: 4px;
     // Bottom padding keeps the text inside the top scrim's opaque half.
-    padding: 20px 24px 40px;
+    padding: 20px 28px 40px;
     opacity: 0;
     // Purely informative: never intercept clicks meant for the video surface.
     pointer-events: none;
     transform: translateY(-8px);
     transition:
-        opacity 180ms ease-out,
-        transform 200ms ease-out;
+        opacity 200ms ease-out,
+        transform 220ms ease-out;
 }
 
 // Only when the corner button is actually rendered: keep the fullscreen title
 // from running underneath it (a long title ellipsizes at the full width).
 .player-controls__title:has(~ .player-controls__corner) {
-    padding-right: 64px;
+    padding-right: 72px;
 }
 
 .player-controls__title--visible {
@@ -139,7 +195,7 @@
 .player-controls__title-primary {
     overflow: hidden;
     color: var(--pc-text);
-    font-size: 1.15rem;
+    font-size: 17px;
     font-weight: 600;
     line-height: 1.3;
     text-overflow: ellipsis;
@@ -149,29 +205,29 @@
 
 .player-controls__title-secondary {
     overflow: hidden;
-    color: var(--pc-text-dim);
-    font-size: 0.85rem;
+    color: var(--pc-text-secondary);
+    font-size: 12.5px;
     line-height: 1.3;
     text-overflow: ellipsis;
     white-space: nowrap;
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
-// Top-right corner chrome (stream-info button). It fades with the bottom bar
+// Top-right corner chrome (stream-info button). It fades with the dock
 // but is its own layer: the title scrim above it is click-through, so the
 // button opts back into pointer events on its own.
 .player-controls__corner {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 16px;
+    right: 20px;
     z-index: 3;
     display: flex;
     opacity: 0;
     pointer-events: none;
     transform: translateY(-8px);
     transition:
-        opacity 180ms ease-out,
-        transform 200ms ease-out;
+        opacity 200ms ease-out,
+        transform 220ms ease-out;
 }
 
 .player-controls__corner--visible {
@@ -180,34 +236,23 @@
     transform: translateY(0);
 }
 
+// The dock: timeline row above, control row below. No background of its own;
+// the bottom scrim is the backdrop.
 .player-controls__bar {
     position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    right: 32px;
+    bottom: 22px;
+    left: 32px;
     z-index: 2;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 16px;
-    align-items: center;
-    align-content: end;
-    min-height: 64px;
-    // Generous top padding lets the scrim rise above the controls and fade out.
-    padding: 48px 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     opacity: 0;
     pointer-events: none;
     transform: translateY(8px);
-    // True-overlay scrim: opaque-ish black at the bottom fading to fully
-    // transparent at the top, so controls read clearly over full-bleed video.
-    background: linear-gradient(
-        to top,
-        rgba(0, 0, 0, 0.78) 0%,
-        rgba(0, 0, 0, 0.45) 45%,
-        transparent 100%
-    );
     transition:
-        opacity 180ms ease-out,
-        transform 200ms ease-out;
+        opacity 200ms ease-out,
+        transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .player-controls__bar--visible {
@@ -216,94 +261,64 @@
     transform: translateY(0);
 }
 
+// The wide settings panel sits beside the video: the dock and the top chrome
+// slide left so nothing is covered, in sync with the panel's own slide-in.
+.player-controls__bar--panel-open {
+    right: 370px;
+}
+
+.player-controls__title--panel-open {
+    right: 354px;
+}
+
+.player-controls__corner--panel-open {
+    right: 374px;
+}
+
+// A compact sheet replaces the dock while open; the sheet carries the
+// controls' pointer events, and the video tap that closes it lands on the
+// surface underneath.
+.player-controls__bar--sheet-open {
+    opacity: 0;
+    pointer-events: none;
+}
+
+// --- Control row ------------------------------------------------------------
+
+// Each side column keeps at least its own content width: when the action
+// cluster needs more than half of what the transport leaves, the transport
+// slides off-centre instead of the actions overlapping it or leaving the
+// player. Which extras exist at all is decided by `ControlsLayout`.
+.player-controls__row {
+    display: grid;
+    grid-template-columns: minmax(min-content, 1fr) auto minmax(
+            min-content,
+            1fr
+        );
+    gap: 8px;
+    align-items: center;
+}
+
+.player-controls__left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
 .player-controls__transport {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-}
-
-.player-controls__timeline {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-}
-
-.player-controls__time {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    color: var(--pc-text-dim);
-    font-size: 0.78rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.player-controls__recording-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    color: rgba(255, 255, 255, 0.78);
-    font-size: 0.72rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.player-controls__recording-status mat-icon {
-    flex: 0 0 auto;
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
-    color: #ffffff;
-}
-
-.player-controls__recording-status span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.player-controls__recording-status--active {
-    color: var(--mat-sys-error, #ff5252);
-    font-weight: 700;
-}
-
-.player-controls__recording-status--active mat-icon {
-    color: var(--mat-sys-error, #ff5252);
-}
-
-.player-controls__live-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    color: #ffffff;
-    background: var(--mat-sys-error, #e53935);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-}
-
-.player-controls__live-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    animation: player-controls-live-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes player-controls-live-pulse {
-    50% {
-        opacity: 0.35;
-    }
 }
 
 .player-controls__actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: flex-end;
+    gap: 4px;
+    min-width: 0;
 }
 
 .player-controls__popover-anchor {
@@ -311,47 +326,223 @@
     display: flex;
 }
 
-.player-controls__record-button--active {
-    color: var(--mat-sys-error, #ff5252) !important;
+.player-controls__volume {
+    align-items: center;
+    gap: 4px;
 }
 
-// Scope to :host — the controls render directly under the component host
-// (`.player-controls-host`); there is no `.player-controls` wrapper element, so
-// selectors prefixed with `.player-controls ` never matched (which is why the
-// icons were only white on :hover, the one rule scoped to `.player-controls__bar`).
-:host :is(button[mat-icon-button]) {
-    // Material drives the icon colour through MDC tokens, not plain `color`,
-    // so force both — otherwise the icons render in the dim theme colour.
+// The glyph is the only visible part of the button, and the icon-button rule
+// below colours the mat-icon directly, so the red must name the icon too.
+// A disabled button (loading, e.g. a reconnect mid-recording) keeps the muted
+// disabled colour, so it does not look clickable.
+.player-controls__record-button--active:not([disabled]),
+.player-controls__record-button--active:not([disabled]) mat-icon {
+    color: var(--pc-danger) !important;
+}
+
+// Value chips (subtitles, speed): the two settings a viewer changes mid-film.
+// Neutral until something is on (cyan) or changed (violet).
+.player-controls__chip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    max-width: 132px;
+    padding: 0 11px;
+    color: var(--pc-text);
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 120ms ease-out;
+}
+
+.player-controls__chip mat-icon {
+    flex: 0 0 auto;
+    width: 19px;
+    height: 19px;
+    font-size: 19px;
+}
+
+.player-controls__chip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-controls__chip:hover,
+.player-controls__chip:focus-visible {
+    background: var(--pc-hover);
+}
+
+.player-controls__chip:focus-visible {
+    outline: 2px solid var(--pc-text);
+    outline-offset: 2px;
+}
+
+.player-controls__chip--on {
+    color: var(--pc-accent-cyan);
+    background: rgba(92, 214, 255, 0.15);
+}
+
+.player-controls__chip--modified {
+    color: var(--pc-accent-violet);
+    background: rgba(181, 153, 255, 0.16);
+}
+
+.player-controls__chip--on:hover,
+.player-controls__chip--on:focus-visible {
+    background: rgba(92, 214, 255, 0.24);
+}
+
+.player-controls__chip--modified:hover,
+.player-controls__chip--modified:focus-visible {
+    background: rgba(181, 153, 255, 0.26);
+}
+
+// The settings button: filled in the accent while its panel is open, and
+// carrying state dots where the chips are folded away (compact).
+:host :is(.player-controls__tune) {
+    position: relative;
+}
+
+:host :is(.player-controls__tune--active),
+:host :is(.player-controls__tune--active:hover) {
     color: #ffffff;
-    --mdc-icon-button-icon-color: #ffffff;
+    background: var(--pc-accent-blue-strong);
     --mat-icon-button-icon-color: #ffffff;
 }
 
-:host :is(button[mat-icon-button]) mat-icon {
+.player-controls__tune-dots {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    display: flex;
+    gap: 4px;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.player-controls__tune-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+}
+
+.player-controls__tune-dot--cyan {
+    background: var(--pc-accent-cyan);
+}
+
+.player-controls__tune-dot--violet {
+    background: var(--pc-accent-violet);
+}
+
+// Primary action: a filled circle in the accent colour. Not a Material icon
+// button on purpose — the ring and the fill are the design, and Material's
+// state layer would tint them.
+.player-controls__play {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin: 0 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
     color: #ffffff;
+    background: var(--pc-accent-blue-strong);
+    box-shadow:
+        0 0 0 6px rgba(79, 142, 255, 0.18),
+        0 6px 20px rgba(79, 142, 255, 0.35);
+    cursor: pointer;
+    transition: background 120ms ease-out;
+}
+
+.player-controls__play mat-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 30px;
+    color: #ffffff;
+}
+
+// Hover darkens rather than lightens, and does not scale: the white glyph
+// keeps its contrast against the fill, and a scaled glyph is resampled and
+// blurred on 1x displays (the theme E2E rasterizes exactly this state).
+.player-controls__play:hover:not(:disabled) {
+    background: var(--pc-accent-blue-hover);
+}
+
+.player-controls__play:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 3px;
+}
+
+.player-controls__play:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+// Scope to :host — the controls render directly under the component host
+// (`.player-controls-host`); there is no `.player-controls` wrapper element.
+:host :is(button[mat-icon-button]) {
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    // Material drives the icon colour and geometry through its tokens, not
+    // plain `color`/`width`, so set both — otherwise the icons render in the
+    // dim theme colour inside a 48px circle.
+    color: var(--pc-text);
+    --mat-icon-button-icon-color: var(--pc-text);
+    --mat-icon-button-state-layer-size: 40px;
+    --mat-icon-button-container-shape: 12px;
+    --mat-icon-button-hover-state-layer-opacity: 0;
+    // The ring below is the focus indicator; Material's focus layer would
+    // take its colour from the app theme.
+    --mat-icon-button-focus-state-layer-opacity: 0;
+    border-radius: 12px;
+    transition: background 120ms ease-out;
+}
+
+// Keyboard focus in the overlay's own text colour, so it shows on video in
+// both app themes. The active `tune` button keeps its accent fill under it.
+:host :is(button[mat-icon-button]:focus-visible) {
+    outline: 2px solid var(--pc-text);
+    outline-offset: 2px;
+}
+
+:host :is(button[mat-icon-button]) mat-icon {
+    color: var(--pc-text);
 }
 
 :host :is(button[mat-icon-button][disabled]) {
     // Keep disabled affordances visibly muted.
-    --mdc-icon-button-icon-color: rgba(255, 255, 255, 0.38);
-    color: rgba(255, 255, 255, 0.38);
+    --mat-icon-button-icon-color: var(--pc-text-tertiary);
+    color: var(--pc-text-tertiary);
 }
 
 :host :is(button[mat-icon-button][disabled]) mat-icon {
-    color: rgba(255, 255, 255, 0.38);
+    color: var(--pc-text-tertiary);
 }
 
 :host
     :is(.player-controls__bar, .player-controls__corner)
-    :is(button[mat-icon-button]:hover) {
+    :is(button[mat-icon-button]:hover:not([disabled])) {
     color: #ffffff;
-    background: rgba(255, 255, 255, 0.16);
+    background: var(--pc-hover);
 }
+
+// --- Sliders ----------------------------------------------------------------
 
 .player-controls__slider {
     --slider-progress: 0%;
     width: 100%;
     height: 18px;
+    margin: 0;
     appearance: none;
     -webkit-appearance: none;
     background: transparent;
@@ -359,7 +550,7 @@
 }
 
 .player-controls__slider:focus-visible {
-    outline: 2px solid var(--pc-accent);
+    outline: 2px solid var(--pc-text);
     outline-offset: 4px;
     border-radius: 4px;
 }
@@ -369,7 +560,7 @@
     border-radius: 999px;
     background: linear-gradient(
         to right,
-        var(--pc-accent) var(--slider-progress),
+        var(--pc-text) var(--slider-progress),
         var(--pc-track) var(--slider-progress)
     );
 }
@@ -377,13 +568,13 @@
 .player-controls__slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 14px;
-    height: 14px;
-    margin-top: -5px;
-    border: 2px solid var(--pc-thumb-ring);
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    border: 0;
     border-radius: 50%;
-    background: var(--pc-accent);
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
     transition: transform 120ms ease-out;
 }
 
@@ -398,7 +589,6 @@
 
 .player-controls__slider:disabled::-webkit-slider-thumb {
     background: rgba(255, 255, 255, 0.45);
-    border-color: rgba(255, 255, 255, 0.6);
     box-shadow: none;
 }
 
@@ -411,16 +601,16 @@
 .player-controls__slider::-moz-range-progress {
     height: 4px;
     border-radius: 999px;
-    background: var(--pc-accent);
+    background: var(--pc-text);
 }
 
 .player-controls__slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border: 2px solid var(--pc-thumb-ring);
+    width: 12px;
+    height: 12px;
+    border: 0;
     border-radius: 50%;
-    background: var(--pc-accent);
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
     transition: transform 120ms ease-out;
 }
 
@@ -431,24 +621,30 @@
 
 .player-controls__slider:disabled::-moz-range-thumb {
     background: rgba(255, 255, 255, 0.45);
-    border-color: rgba(255, 255, 255, 0.6);
     box-shadow: none;
 }
+
+.player-controls__slider--inline {
+    width: 72px;
+    margin-left: 4px;
+}
+
+// --- Popovers ---------------------------------------------------------------
 
 .player-controls__panel {
     min-width: 0;
     color: var(--pc-text);
-    background: var(--pc-panel-bg);
-    border: 1px solid var(--pc-panel-border);
+    background: var(--pc-glass-bg);
+    border: 1px solid var(--pc-glass-border);
     border-radius: 14px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px) saturate(1.3);
 }
 
 .player-controls__volume-popover {
     position: absolute;
     bottom: calc(100% + 6px);
-    right: 0;
+    left: 0;
     display: grid;
     grid-template-columns: 1fr;
     gap: 4px;
@@ -481,29 +677,10 @@
     white-space: nowrap;
 }
 
-.player-controls__track-popover {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    right: 0;
-    display: flex;
-    flex-direction: column;
-    min-width: 220px;
-    // Cap to the player box (minus a small gutter) so the panel never spills
-    // past the player's edges on small windows; falls back to the viewport
-    // where container units are unavailable.
-    max-width: min(420px, calc(100cqw - 24px), 80vw);
-    // Height grows to fit the list; only when it would exceed the room above
-    // the controls bar does the inner list start scrolling. 96px ≈ the controls
-    // bar height plus the 6px gap and a little breathing room.
-    max-height: min(calc(100cqh - 96px), 70vh);
-    padding: 10px 12px;
-    z-index: 3;
-}
-
 .player-controls__menu-title {
     flex: 0 0 auto;
     padding: 0 2px 6px;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--pc-text-tertiary);
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -521,7 +698,7 @@
     flex-direction: column;
     min-width: 240px;
     max-width: min(360px, calc(100cqw - 24px), 80vw);
-    max-height: min(calc(100cqh - 96px), 70vh);
+    max-height: min(calc(100cqh - 120px), 70vh);
     padding: 10px 12px;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -563,257 +740,98 @@
     font-size: 0.8rem;
 }
 
-.player-controls__track-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    // No fixed cap: the panel's max-height bounds the popover, and the title
-    // above stays pinned while this list takes the remaining space and scrolls
-    // only when the content genuinely exceeds it.
-    flex: 0 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: thin;
-}
-
-.player-controls__track {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 10px;
-    color: var(--pc-text);
-    background: transparent;
-    border: 0;
-    border-radius: 10px;
-    cursor: pointer;
-    font: inherit;
-    text-align: left;
-}
-
-.player-controls__track span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.player-controls__track:hover,
-.player-controls__track:focus-visible,
-.player-controls__track--selected {
-    background: rgba(255, 255, 255, 0.16);
-}
-
-.player-controls__track mat-icon {
-    color: #ffffff;
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-}
-
-.player-controls__load-subtitle mat-icon {
-    color: rgba(255, 255, 255, 0.85);
-}
-
-// Single scroll owner for the subtitle popover's list + delay/style sections:
-// on short players (e.g. the 220px portal player) the panel's max-height cap
-// must scroll ALL content — sections outside the list's own scroll area would
-// otherwise clip or overflow into the controls bar.
-.player-controls__subtitle-body {
-    display: flex;
-    flex-direction: column;
-    flex: 0 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: thin;
-}
-
-// Inside the shared scroll owner the list must not nest a second scroll area.
-.player-controls__subtitle-body .player-controls__track-list {
-    flex: none;
-    overflow-y: visible;
-}
-
-.player-controls__subtitle-section {
-    flex: 0 0 auto;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.player-controls__subtitle-section-title {
-    padding: 0 2px 6px;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.player-controls__subtitle-delay-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.player-controls__subtitle-delay-value {
-    min-width: 58px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-    color: var(--pc-text);
-}
-
-.player-controls__subtitle-preset-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding-bottom: 4px;
-}
-
-.player-controls__subtitle-chip {
-    padding: 4px 10px;
-    color: var(--pc-text);
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 999px;
-    cursor: pointer;
-    font: inherit;
-    font-size: 0.8rem;
-}
-
-.player-controls__subtitle-chip:hover,
-.player-controls__subtitle-chip:focus-visible,
-.player-controls__subtitle-chip--selected {
-    background: rgba(255, 255, 255, 0.16);
-    border-color: rgba(255, 255, 255, 0.6);
-}
-
-.player-controls__subtitle-swatch {
-    width: 26px;
-    height: 26px;
-    border: 2px solid rgba(255, 255, 255, 0.35);
-    border-radius: 50%;
-    cursor: pointer;
-    background: var(--swatch-color, transparent);
-}
-
-// The "engine default" swatch has no color of its own: render a diagonal
-// slash so it reads as "no override".
-.player-controls__subtitle-swatch--default {
-    background:
-        linear-gradient(
-            135deg,
-            transparent 44%,
-            rgba(255, 255, 255, 0.7) 46%,
-            rgba(255, 255, 255, 0.7) 54%,
-            transparent 56%
-        ),
-        rgba(255, 255, 255, 0.08);
-}
-
-.player-controls__subtitle-swatch:hover,
-.player-controls__subtitle-swatch:focus-visible,
-.player-controls__subtitle-swatch--selected {
-    border-color: #ffffff;
-}
-
-@media (max-width: 720px) {
-    // Moderately tight viewports keep the single-row layout: the transport and
-    // action buttons hold their natural width while the middle timeline column
-    // (the seek slider) absorbs the shrink. Genuinely narrow players reflow to
-    // two rows via the container query below, which wins over this gap.
-    .player-controls__bar {
-        gap: 8px;
-    }
-
-    .player-controls__actions {
-        min-width: 0;
-    }
-
-    .player-controls__volume-popover,
-    .player-controls__track-popover {
-        right: 0;
-        left: auto;
-    }
-}
-
-// Touch scrubbing needs a taller hit strip and thumb than the 18px mouse
-// slider; the 4px visual track is unchanged — only the input's touch area and
-// the thumb grow.
+// Touch needs a taller hit strip and thumb than the 18px mouse slider; the
+// drawn track is unchanged. The timeline row sizes its own strip.
 @media (pointer: coarse) {
     .player-controls__slider {
         height: 28px;
     }
 
     .player-controls__slider::-webkit-slider-thumb {
-        width: 18px;
-        height: 18px;
-        margin-top: -7px;
+        width: 16px;
+        height: 16px;
+        margin-top: -6px;
     }
 
     .player-controls__slider::-moz-range-thumb {
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
     }
 }
 
-// Narrow players — phone-sized PWA viewports and small windowed/inline
-// players — cannot hold transport + timeline + the variable-count actions
-// cluster in one row (every action button from volume to fullscreen is
-// conditional, so the cluster's width is content-dependent). Give the
-// timeline its own full-width row and split the second row between the two
-// button clusters. Container-based on purpose: a small inline player inside a
-// wide desktop window needs the same treatment as a phone viewport.
-@container player-controls (max-width: 640px) {
-    // Matches the bar's reduced padding below: on a small inline player two
-    // full-height scrims would tint most of the picture.
+// Compact dock — phone-sized PWA viewports and small windowed/inline players.
+// Keep this in sync with `COMPACT_LAYOUT_MAX_WIDTH` in controls-layout.ts,
+// which decides what is rendered; this block only sizes it. Container-based
+// on purpose: a small inline player inside a wide desktop window needs the
+// same treatment as a phone viewport.
+@container player-controls (max-width: 719px) {
     .player-controls__top-scrim {
-        height: 88px;
+        height: max(28%, 88px);
+    }
+
+    .player-controls__title {
+        padding: 12px 16px 28px;
+    }
+
+    .player-controls__corner {
+        top: 8px;
+        right: 8px;
     }
 
     .player-controls__bar {
-        grid-template-columns: auto minmax(0, 1fr);
-        grid-template-areas:
-            'timeline timeline'
-            'transport actions';
-        gap: 0 8px;
-        padding: 36px 10px 8px;
+        right: 14px;
+        bottom: 10px;
+        left: 14px;
+        gap: 6px;
+    }
+
+    .player-controls__row {
+        gap: 4px;
     }
 
     .player-controls__transport {
-        grid-area: transport;
+        gap: 4px;
     }
 
-    .player-controls__timeline {
-        grid-area: timeline;
+    .player-controls__play {
+        width: 36px;
+        height: 36px;
+        margin: 0 4px;
+        box-shadow: 0 0 0 4px rgba(79, 142, 255, 0.18);
+    }
+
+    .player-controls__play mat-icon {
+        width: 22px;
+        height: 22px;
+        font-size: 22px;
     }
 
     .player-controls__actions {
-        grid-area: actions;
         position: relative;
-        justify-self: end;
-        // When even a dedicated row cannot hold the cluster (worst case:
-        // series transport plus audio/subtitles/quality/speed/aspect/PiP),
-        // wrap the actions instead of making them a scroll container. A scroll
-        // container would clip every absolutely positioned capability panel.
+        // When even the row cannot hold the cluster (worst case: audio/
+        // subtitles/quality/speed/aspect/PiP), wrap the actions instead of
+        // making them a scroll container. A scroll container would clip
+        // every absolutely positioned capability panel.
         flex-wrap: wrap;
         justify-content: flex-end;
         max-width: 100%;
         overflow: visible;
     }
 
-    // Anchor narrow-player panels to the whole actions cluster. This keeps the
-    // right-aligned panels inside the player and above every wrapped action row.
-    .player-controls__actions .player-controls__popover-anchor {
-        position: static;
-    }
-
     // Compact icon buttons: wins back roughly one button of width per four.
     .player-controls__bar :is(button[mat-icon-button]) {
-        width: 40px;
-        height: 40px;
-        padding: 8px;
-        --mdc-icon-button-state-layer-size: 40px;
+        width: 32px;
+        height: 32px;
+        padding: 6px;
+        border-radius: 9px;
+        --mat-icon-button-state-layer-size: 32px;
+        --mat-icon-button-container-shape: 9px;
+        --mat-icon-button-icon-size: 20px;
+    }
+
+    .player-controls__bar :is(button[mat-icon-button]) mat-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
     }
 }

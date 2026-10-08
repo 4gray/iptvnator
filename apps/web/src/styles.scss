@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
 @use './settings-theme';
 @use './cover-size';
@@ -14,17 +15,25 @@
 @import 'material-design-icons-iconfont/dist/material-design-icons.css';
 
 // ─── Bundled Fonts ────────────────────────────────────────────────────────────
+// DM Sans ships only Latin glyphs, so Cyrillic and Greek text (ru, by, el)
+// falls back to Roboto. Both load every weight on the UI scale
+// (400/500/600/700, enforced by `pnpm run styles:font-weights:check`): a 600
+// or 700 that finds nothing heavier than 500 gets Chromium's synthetic bold.
+// Load whole weights, not the single-script files: those carry no
+// unicode-range, so a Cyrillic-only 600 face would win the weight match for
+// Latin text in `Roboto, …` stacks and push it onto the next family.
+// JetBrains Mono stops at 500: its 600/700 faces would add more than the
+// initial-bytes ratchet allows, so monospace text stays at 400/500.
 @import '@fontsource/dm-sans/400.css';
 @import '@fontsource/dm-sans/500.css';
 @import '@fontsource/dm-sans/600.css';
-@import '@fontsource/roboto/300.css';
+@import '@fontsource/dm-sans/700.css';
 @import '@fontsource/roboto/400.css';
 @import '@fontsource/roboto/500.css';
+@import '@fontsource/roboto/600.css';
+@import '@fontsource/roboto/700.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
-@import '@fontsource/crimson-pro/400.css';
-@import '@fontsource/crimson-pro/600.css';
-@import '@fontsource/crimson-pro/700.css';
 
 // ─── Shared Components ────────────────────────────────────────────────────────
 
@@ -163,8 +172,14 @@ textarea,
 }
 
 // ─── Dark Theme ───────────────────────────────────────────────────────────────
-.dark-theme {
+// Only the app host takes the dark surface: components such as the fullscreen
+// channel panel and the playback diagnostic's alternative sources carry
+// `dark-theme` for its tokens while painting their own surfaces.
+body.dark-theme {
     background: var(--mat-sys-surface) !important;
+}
+
+.dark-theme {
     color-scheme: dark;
 
     // Refined scrollbar for dark mode
@@ -236,9 +251,13 @@ textarea,
 // Failures (settings could not be saved/loaded) must not read as the usual
 // neutral confirmation toast.
 .mat-mdc-snack-bar-container.settings-snackbar--error {
-    --mdc-snackbar-container-color: var(--mat-sys-error-container);
-    --mdc-snackbar-supporting-text-color: var(--mat-sys-on-error-container);
-    --mat-snack-bar-button-color: var(--mat-sys-on-error-container);
+    @include mat.snack-bar-overrides(
+        (
+            container-color: var(--mat-sys-error-container),
+            supporting-text-color: var(--mat-sys-on-error-container),
+            button-color: var(--mat-sys-on-error-container),
+        )
+    );
 }
 
 // WCAG-friendly visually-hidden helper — content stays in the

@@ -8,6 +8,7 @@
         "esModuleInterop": true,
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
+        "isolatedModules": true,
         "importHelpers": true,
         "target": "es2015",
         "module": "esnext",
@@ -31,13 +32,28 @@
             "@iptvnator/portal/shared/util": [
                 "libs/portal/shared/util/src/index.ts"
             ],
+            "@iptvnator/portal/shared/util/logger": [
+                "libs/portal/shared/util/src/lib/logger.ts"
+            ],
+            "@iptvnator/portal/shared/util/tokens": [
+                "libs/portal/shared/util/src/tokens.ts"
+            ],
             "@iptvnator/epg/data-access": ["libs/epg/data-access/src/index.ts"],
+            "@iptvnator/playback/data-access": [
+                "libs/playback/data-access/src/index.ts"
+            ],
             "@iptvnator/playback/util": ["libs/playback/util/src/index.ts"],
             "@iptvnator/playlist/shared/ui": [
                 "libs/playlist/shared/ui/src/index.ts"
             ],
+            "@iptvnator/playlist/shared/ui/stalker-connection-editor": [
+                "libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/stalker-playlist-connection-editor.token.ts"
+            ],
             "@iptvnator/playlist/shared/util": [
                 "libs/playlist/shared/util/src/index.ts"
+            ],
+            "@iptvnator/playlist/shared/util/playlist-file-import": [
+                "libs/playlist/shared/util/src/lib/playlist-file-import.service.ts"
             ],
             "@iptvnator/ui/epg": ["libs/ui/epg/src/index.ts"],
             "@iptvnator/ui/epg/date": ["libs/ui/epg/src/lib/epg-date.ts"],
@@ -75,8 +91,29 @@
             "@iptvnator/workspace/shell/util": [
                 "libs/workspace/shell/util/src/index.ts"
             ],
+            "@iptvnator/workspace/shell/util/settings-context": [
+                "libs/workspace/shell/util/src/lib/settings-context.service.ts"
+            ],
+            "@iptvnator/workspace/shell/util/settings-search": [
+                "libs/workspace/shell/util/src/lib/settings-search/index.ts"
+            ],
             "@iptvnator/pipes": ["libs/ui/pipes/src/index.ts"],
+            "@iptvnator/pipes/date-format": [
+                "libs/ui/pipes/src/lib/date-format.util.ts"
+            ],
             "@iptvnator/ui/components": ["libs/ui/components/src/index.ts"],
+            "@iptvnator/ui/components/confirm-dialog": [
+                "libs/ui/components/src/lib/confirm-dialog/dialog.service.ts"
+            ],
+            "@iptvnator/ui/components/parental-lock-pin-dialog": [
+                "libs/ui/components/src/lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component.ts"
+            ],
+            "@iptvnator/ui/components/password-visibility-toggle": [
+                "libs/ui/components/src/lib/password-visibility-toggle/password-visibility-toggle.directive.ts"
+            ],
+            "@iptvnator/ui/components/window-controls": [
+                "libs/ui/components/src/lib/window-controls/window-controls.component.ts"
+            ],
             "@iptvnator/m3u-state": ["libs/m3u-state/src/index.ts"],
             "@iptvnator/shared/m3u-utils": [
                 "libs/shared/m3u-utils/src/index.ts"
@@ -87,6 +124,9 @@
                 "libs/shared/host-health/src/index.ts"
             ],
             "@iptvnator/services": ["libs/services/src/index.ts"],
+            "@iptvnator/services/playlist-backup": [
+                "libs/services/src/lib/playlist-backup.service.ts"
+            ],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
             ],
@@ -108,6 +148,9 @@
             ],
             "@iptvnator/shared/database/path-utils": [
                 "libs/shared/database/src/lib/path-utils.ts"
+            ],
+            "@iptvnator/shared/database/connection-observer": [
+                "libs/shared/database/src/lib/connection-observer.ts"
             ],
             "@iptvnator/workspace/dashboard/feature": [
                 "libs/workspace/dashboard/feature/src/index.ts"

@@ -14,6 +14,7 @@ import {
 } from '@iptvnator/m3u-state';
 import { TranslatePipe } from '@ngx-translate/core';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 
 type PlaylistFilterId = 'all' | 'm3u' | 'xtream' | 'stalker';
 
@@ -55,17 +56,17 @@ export class WorkspaceSourcesFiltersPanelComponent {
         },
         {
             id: 'm3u',
-            icon: 'playlist_play',
+            icon: SOURCE_TYPE_ICONS.m3u,
             translationKey: 'HOME.PLAYLIST_TYPES.M3U',
         },
         {
             id: 'xtream',
-            icon: 'cloud',
+            icon: SOURCE_TYPE_ICONS.xtream,
             translationKey: 'HOME.PLAYLIST_TYPES.XTREAM',
         },
         {
             id: 'stalker',
-            icon: 'router',
+            icon: SOURCE_TYPE_ICONS.stalker,
             translationKey: 'HOME.PLAYLIST_TYPES.STALKER',
         },
     ];

@@ -510,9 +510,9 @@ describe('DownloadQueueComponent', () => {
         expect(row(3).querySelector('.download-queue__progress')).toBeNull();
         expect(
             Array.from(
-                fixture.nativeElement.querySelectorAll<HTMLElement>(
-                    '.download-queue__progress'
-                )
+                (
+                    fixture.nativeElement as HTMLElement
+                ).querySelectorAll<HTMLElement>('.download-queue__progress')
             ).map((bar) => bar.getAttribute('aria-label'))
         ).toEqual([
             'Download progress for Download 1',

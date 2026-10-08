@@ -30,7 +30,7 @@ type BadgeStatus =
         TranslatePipe,
     ],
     templateUrl: './epg-source-status.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './epg-source-status.component.scss',
 })
 export class EpgSourceStatusComponent implements OnInit {

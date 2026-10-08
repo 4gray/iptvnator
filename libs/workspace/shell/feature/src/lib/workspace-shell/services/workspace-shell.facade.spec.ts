@@ -4,7 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import {
     PlaylistRefreshActionService,
     type XtreamRefreshPreparationState,
@@ -105,6 +105,13 @@ describe('WorkspaceShellFacade', () => {
         serverUrl?: string;
         macAddress?: string;
     };
+    const createPlaylistMeta = (_id: string, title: string): PlaylistMeta => ({
+        _id,
+        title,
+        count: 0,
+        importDate: '2026-01-01T00:00:00.000Z',
+        autoRefresh: false,
+    });
 
     let facade: WorkspaceShellFacade;
     let searchSync: WorkspaceShellSearchSyncService;
@@ -123,7 +130,7 @@ describe('WorkspaceShellFacade', () => {
     let navigationTrigger: 'imperative' | 'popstate';
     let router: {
         url: string;
-        events: ReturnType<typeof of>;
+        events: Observable<NavigationEnd>;
         navigate: jest.Mock;
         navigateByUrl: jest.Mock;
         parseUrl: jest.Mock;
@@ -173,15 +180,29 @@ describe('WorkspaceShellFacade', () => {
             supportsDownloads: true,
         };
 
-        activePlaylistSignal = signal({
-            _id: 'pl-1',
+        activePlaylistSignal = signal<PlaylistSignalMeta | null>({
+            ...createPlaylistMeta('pl-1', 'Playlist A'),
             serverUrl: 'http://example.com',
-            title: 'Playlist A',
-            recentlyViewed: ['recent-1'],
+            recentlyViewed: [
+                {
+                    source: 'm3u',
+                    id: 'recent-1',
+                    url: 'https://example.com/recent-1.m3u8',
+                    title: 'Recent 1',
+                    category_id: 'live',
+                    added_at: '2026-01-01T00:00:00.000Z',
+                },
+            ],
         });
-        playlistsSignal = signal([
-            { _id: 'pl-1', serverUrl: 'http://example.com' },
-            { _id: 'pl-2', macAddress: '00:11:22:33' },
+        playlistsSignal = signal<PlaylistSignalMeta[]>([
+            {
+                ...createPlaylistMeta('pl-1', 'Playlist A'),
+                serverUrl: 'http://example.com',
+            },
+            {
+                ...createPlaylistMeta('pl-2', 'Playlist B'),
+                macAddress: '00:11:22:33',
+            },
         ]);
         downloadsActiveCountSignal = signal(0);
         refreshPreparationSignal = signal<XtreamRefreshPreparationState | null>(
@@ -345,7 +366,7 @@ describe('WorkspaceShellFacade', () => {
                                     'WORKSPACE.SHELL.XTREAM_IMPORT_PROGRESS' &&
                                 params
                             ) {
-                                return `${params.type} imported: ${params.current} / ${params.total}`;
+                                return `${params['type']} imported: ${params['current']} / ${params['total']}`;
                             }
 
                             if (
@@ -353,7 +374,7 @@ describe('WorkspaceShellFacade', () => {
                                     'WORKSPACE.SHELL.XTREAM_REFRESH_PROGRESS' &&
                                 params
                             ) {
-                                return `Local records processed: ${params.current} / ${params.total}`;
+                                return `Local records processed: ${params['current']} / ${params['total']}`;
                             }
 
                             return key;
@@ -756,7 +777,6 @@ describe('WorkspaceShellFacade', () => {
                 exact: true,
             },
         ]);
-        expect(facade.brandLink()).toBe('/workspace/sources');
     });
 
     it('hides the Electron-only global search rail link in the web runtime', () => {
@@ -1152,7 +1172,7 @@ describe('WorkspaceShellFacade', () => {
         expect(dialog.open).not.toHaveBeenCalled();
 
         resolveSupport();
-        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(dialog.open).toHaveBeenCalledTimes(1);
     });

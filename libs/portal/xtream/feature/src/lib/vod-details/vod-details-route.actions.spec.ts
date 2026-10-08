@@ -26,6 +26,7 @@ import {
 } from '@iptvnator/services';
 import {
     PlaybackPositionData,
+    VideoPlayer,
     XtreamCategory,
     XtreamVodDetails,
     XtreamVodStream,
@@ -312,11 +313,15 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                         isAvailable: false,
                         buildLink: jest.fn(),
                         matchRecommendations: jest.fn(),
+                        visible: <T>(items: T[]) => items,
                     },
                 },
                 {
                     provide: SettingsStore,
-                    useValue: { theme: signal('dark') },
+                    useValue: {
+                        theme: signal('dark'),
+                        player: signal(VideoPlayer.Html5Player),
+                    },
                 },
                 { provide: MatSnackBar, useValue: { open: jest.fn() } },
                 { provide: Location, useValue: { back: jest.fn() } },
@@ -462,7 +467,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         fixture.detectChanges();
         const host = fixture.nativeElement as HTMLElement;
         host.querySelector<HTMLButtonElement>(
-            'button.play-btn--resume'
+            '[data-testid="vod-primary-action"]'
         )?.click();
         fixture.detectChanges();
         host.querySelector<HTMLButtonElement>(
@@ -782,7 +787,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
 
         const host = fixture.nativeElement as HTMLElement;
         const primary = host.querySelector<HTMLButtonElement>(
-            'button.play-btn--resume'
+            '[data-testid="vod-primary-action"]'
         );
         expect(primary?.disabled).toBe(true);
         expect(primary?.textContent).toContain('Opening in MPV...');

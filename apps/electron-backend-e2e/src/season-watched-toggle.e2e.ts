@@ -107,6 +107,29 @@ async function openSeriesDetail(
     return clickedTitle;
 }
 
+/** Opens the series "…" menu and returns the row with the given test id. */
+async function seriesMenuRow(page: Page, rowTestId: string) {
+    const trigger = page.locator('[data-testid="series-more-menu"]');
+    await expect(trigger).toBeVisible({ timeout: 20_000 });
+    const row = page.locator(`[data-test-id="${rowTestId}"]`);
+    if (!(await row.isVisible().catch(() => false))) {
+        await trigger.click();
+    }
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    return row;
+}
+
+/** Closes an open menu without choosing a row. */
+async function closeSeriesMenu(page: Page): Promise<void> {
+    // The panel, not the backdrop: a backdrop locator can match a second
+    // overlay and then fail the strict check, leaving the menu open.
+    const panel = page.locator('[data-test-id="vod-more-menu"]');
+    if (await panel.isVisible().catch(() => false)) {
+        await page.keyboard.press('Escape');
+    }
+    await expect(panel).toBeHidden({ timeout: 10_000 });
+}
+
 test.describe('Electron Season Watched Toggle', () => {
     test('@xtream @persistence @electron marks a season watched via the batch IPC, survives an app restart, and clears again', async ({
         dataDir,
@@ -137,13 +160,14 @@ test.describe('Electron Season Watched Toggle', () => {
             // Season 1 auto-selects fully unwatched: the toggle offers to mark
             // all 8 episodes and neither the DOM nor SQLite knows any watched
             // episode yet.
-            const seasonToggle = app.mainWindow.getByTestId(
+            let seasonToggle = await seriesMenuRow(
+                app.mainWindow,
                 'toggle-season-watched'
             );
-            await expect(seasonToggle).toBeVisible({ timeout: 20_000 });
             await expect(seasonToggle).toContainText(
                 `Mark season as watched (${seasonEpisodeCount})`
             );
+            await closeSeriesMenu(app.mainWindow);
 
             const episodeCards = app.mainWindow.locator('.episode-card');
             const watchedCards = app.mainWindow.locator(
@@ -157,16 +181,26 @@ test.describe('Electron Season Watched Toggle', () => {
                 await readEpisodePositions(app.mainWindow, playlistId)
             ).toEqual([]);
 
+            seasonToggle = await seriesMenuRow(
+                app.mainWindow,
+                'toggle-season-watched'
+            );
             await seasonToggle.click();
 
-            // The batch save flips the button, marks every card, and fills
+            // The batch save flips the row, marks every card, and fills
             // the per-episode toggles; the untouched second season stays
             // unmarked while the selected season's tab shows the check.
-            await expect(seasonToggle).toContainText(
-                'Mark season as unwatched',
-                { timeout: 15_000 }
+            await expect(watchedCards).toHaveCount(seasonEpisodeCount, {
+                timeout: 15_000,
+            });
+            seasonToggle = await seriesMenuRow(
+                app.mainWindow,
+                'toggle-season-watched'
             );
-            await expect(watchedCards).toHaveCount(seasonEpisodeCount);
+            await expect(seasonToggle).toContainText(
+                'Mark season as unwatched'
+            );
+            await closeSeriesMenu(app.mainWindow);
             await expect(
                 app.mainWindow.locator(watchedEpisodeToggleSelector)
             ).toHaveCount(seasonEpisodeCount);
@@ -217,7 +251,8 @@ test.describe('Electron Season Watched Toggle', () => {
                 seriesTitle
             );
 
-            const restartedToggle = app.mainWindow.getByTestId(
+            let restartedToggle = await seriesMenuRow(
+                app.mainWindow,
                 'toggle-season-watched'
             );
             const restartedWatchedCards = app.mainWindow.locator(
@@ -226,10 +261,10 @@ test.describe('Electron Season Watched Toggle', () => {
             // With season 1 completed, the fresh mount auto-selects the
             // earliest season with unwatched episodes (issue #1441): season 2
             // opens unwatched while season 1's tab keeps the check.
-            await expect(restartedToggle).toBeVisible({ timeout: 20_000 });
             await expect(restartedToggle).toContainText(
                 `Mark season as watched (${seasonEpisodeCount})`
             );
+            await closeSeriesMenu(app.mainWindow);
             await expect(restartedWatchedCards).toHaveCount(0, {
                 timeout: 10_000,
             });
@@ -241,6 +276,10 @@ test.describe('Electron Season Watched Toggle', () => {
 
             // Season 1 itself was re-read from SQLite fully watched.
             await restartedSeasonTabs.first().click();
+            restartedToggle = await seriesMenuRow(
+                app.mainWindow,
+                'toggle-season-watched'
+            );
             await expect(restartedToggle).toContainText(
                 'Mark season as unwatched',
                 { timeout: 15_000 }
@@ -253,11 +292,17 @@ test.describe('Electron Season Watched Toggle', () => {
             // Unmark: the clear batch removes every row again, in the DOM and
             // in SQLite.
             await restartedToggle.click();
-            await expect(restartedToggle).toContainText(
-                `Mark season as watched (${seasonEpisodeCount})`,
-                { timeout: 15_000 }
+            await expect(restartedWatchedCards).toHaveCount(0, {
+                timeout: 15_000,
+            });
+            restartedToggle = await seriesMenuRow(
+                app.mainWindow,
+                'toggle-season-watched'
             );
-            await expect(restartedWatchedCards).toHaveCount(0);
+            await expect(restartedToggle).toContainText(
+                `Mark season as watched (${seasonEpisodeCount})`
+            );
+            await closeSeriesMenu(app.mainWindow);
             await expect(
                 app.mainWindow.locator(watchedEpisodeToggleSelector)
             ).toHaveCount(0);
@@ -274,14 +319,11 @@ test.describe('Electron Season Watched Toggle', () => {
             // the same batch IPC — one action, 24 full-progress rows across
             // seasons 1–3 (no second restart: durability of the channel is
             // already proven above).
-            const seriesMenuTrigger =
-                app.mainWindow.getByTestId('series-watch-menu');
-            await expect(seriesMenuTrigger).toBeVisible();
-            await seriesMenuTrigger.click();
-            const seriesToggle = app.mainWindow.getByTestId(
+            await closeSeriesMenu(app.mainWindow);
+            const seriesToggle = await seriesMenuRow(
+                app.mainWindow,
                 'toggle-series-watched'
             );
-            await expect(seriesToggle).toBeVisible();
             await expect(seriesToggle).toContainText(
                 `Mark series as watched (${seasonCount * seasonEpisodeCount})`
             );
@@ -299,15 +341,15 @@ test.describe('Electron Season Watched Toggle', () => {
                 app.mainWindow,
                 playlistId
             );
-            expect(
-                new Set(seriesRows.map((row) => row.seasonNumber))
-            ).toEqual(new Set([1, 2, 3]));
-            expect(
-                seriesRows.every((row) => row.positionSeconds > 0)
-            ).toBe(true);
+            expect(new Set(seriesRows.map((row) => row.seasonNumber))).toEqual(
+                new Set([1, 2, 3])
+            );
+            expect(seriesRows.every((row) => row.positionSeconds > 0)).toBe(
+                true
+            );
 
             // Unwatch-all clears all 24 rows again through the clear batch.
-            await seriesMenuTrigger.click();
+            await seriesMenuRow(app.mainWindow, 'toggle-series-watched');
             await expect(seriesToggle).toContainText(
                 'Mark series as unwatched'
             );

@@ -4,7 +4,7 @@
     [isLoading]="isInitialSearchLoading()"
     [showResultsCount]="true"
     [showSearchInput]="!isWorkspaceLayout"
-    [showBackButton]="isWorkspaceLayout"
+    [backAvailable]="isWorkspaceLayout"
     [showDetails]="showingDetails"
     [nearEndHasMore]="searchHasMore()"
     [nearEndAppending]="isAppendingSearchResults()"
@@ -24,8 +24,11 @@
             [vodDetailsItem]="inlineDetail().vodDetailsItem"
             [isFavorite]="isSelectedVodFavorite()"
             [playbackPosition]="selectedVodPlaybackPosition()"
+            [playbackDurationSeconds]="selectedVodPlaybackDuration()"
+            [sourceLabel]="sourceLabel()"
             [inlinePlayback]="inlinePlayback()"
             [externalPlayback]="externalPlayback.activeSession()"
+            [playbackStartPending]="playbackStartPending()"
             (playClicked)="onVodPlay($event)"
             (resumeClicked)="onVodResume($event)"
             (inlineTimeUpdated)="handleInlineTimeUpdate($event)"
@@ -36,6 +39,8 @@
             "
             (favoriteToggled)="onVodFavoriteToggled($event)"
             (backClicked)="onVodBack()"
+            (externalPlayRequested)="vodDetailActions.openExternal($event)"
+            (resetProgressRequested)="vodDetailActions.resetProgress($event)"
         />
     }
 

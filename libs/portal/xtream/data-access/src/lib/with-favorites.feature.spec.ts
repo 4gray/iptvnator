@@ -12,7 +12,10 @@ jest.mock('@iptvnator/portal/shared/util', () => ({
     }),
 }));
 
-const TestFavoritesStore = signalStore(withFavorites());
+const TestFavoritesStore = signalStore(
+    { protectedState: false },
+    withFavorites()
+);
 
 describe('withFavorites', () => {
     const originalElectron = window.electron;
@@ -196,9 +199,9 @@ describe('withFavorites', () => {
         await expect(
             store.toggleFavorite('not-a-number', 'playlist-1', 'movie')
         ).resolves.toBe(false);
-        await expect(store.toggleFavorite(0, 'playlist-1', 'movie')).resolves.toBe(
-            false
-        );
+        await expect(
+            store.toggleFavorite(0, 'playlist-1', 'movie')
+        ).resolves.toBe(false);
         await expect(store.toggleFavorite(290, '', 'movie')).resolves.toBe(
             false
         );

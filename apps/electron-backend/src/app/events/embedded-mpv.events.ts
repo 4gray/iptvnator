@@ -33,6 +33,10 @@ import {
     embeddedMpvNativeService,
 } from '../services/embedded-mpv-native.service';
 import { readEmbeddedMpvSessionOptions } from '../services/embedded-mpv-session-options';
+import {
+    waitForLoginShellPath,
+    whenLoginShellPathSettled,
+} from '../startup/login-shell-path';
 
 export default class EmbeddedMpvEvents {
     static bootstrapEmbeddedMpvEvents(): Electron.IpcMain {
@@ -64,9 +68,35 @@ function handleEmbeddedMpv<Args extends unknown[]>(
     });
 }
 
-handleEmbeddedMpv(EMBEDDED_MPV_SUPPORT, () => getService().getSupport());
+/**
+ * On Linux, support (and prepare, which checks support first) may run
+ * `mpv --version` by bare name and cache the result, so it must see the
+ * login shell PATH. Only that probe waits; nothing else here spawns by name.
+ */
+async function afterLoginShellPathIfProbing<T>(check: () => T): Promise<T> {
+    if (
+        !getService().willProbeLinuxMpvExecutable() ||
+        (await waitForLoginShellPath())
+    ) {
+        return check();
+    }
+    // The lookup ran out of budget, so this probe sees the inherited PATH: a
+    // missing mpv is answered as inconclusive, never as a verdict the
+    // renderer may persist. Once the shell does answer, it is probed again.
+    getService().markLinuxMpvExecutableProbeProvisional();
+    void whenLoginShellPathSettled().then(() =>
+        getService().forgetLinuxMpvExecutableProbe()
+    );
+    return check();
+}
 
-handleEmbeddedMpv(EMBEDDED_MPV_PREPARE, () => getService().prepareAddon());
+handleEmbeddedMpv(EMBEDDED_MPV_SUPPORT, () =>
+    afterLoginShellPathIfProbing(() => getService().getSupport())
+);
+
+handleEmbeddedMpv(EMBEDDED_MPV_PREPARE, () =>
+    afterLoginShellPathIfProbing(() => getService().prepareAddon())
+);
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_CREATE_SESSION,

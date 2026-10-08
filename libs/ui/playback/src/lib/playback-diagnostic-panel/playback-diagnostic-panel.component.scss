@@ -41,7 +41,7 @@
     background: rgb(255 148 35 / 15%);
     color: #ffb24c;
     font-size: 0.78rem;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: 0;
     line-height: 1.1;
     text-transform: uppercase;
@@ -66,7 +66,7 @@
     margin: 20px 0 0;
     color: #fff;
     font-size: 1.65rem;
-    font-weight: 760;
+    font-weight: 700;
     letter-spacing: 0;
     line-height: 1.05;
 }
@@ -98,7 +98,7 @@
     background: rgb(255 255 255 / 5%);
     color: rgb(255 255 255 / 68%);
     font-size: 0.78rem;
-    font-weight: 620;
+    font-weight: 600;
     line-height: 1.3;
     overflow-wrap: anywhere;
 }
@@ -229,7 +229,9 @@
 }
 
 .web-player-diagnostic__player-card mat-spinner {
-    --mdc-circular-progress-active-indicator-color: currentColor;
+    // Plain token instead of mat.progress-spinner-overrides(): the component
+    // spec loads this file as raw CSS, so it must stay free of Sass modules.
+    --mat-progress-spinner-active-indicator-color: currentColor;
 }
 
 .web-player-diagnostic__player-card:focus-visible,
@@ -265,7 +267,7 @@
 .web-player-diagnostic__player-label {
     overflow: hidden;
     font-size: 0.95rem;
-    font-weight: 760;
+    font-weight: 700;
     line-height: 1.05;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -287,7 +289,7 @@
     min-width: 0;
     color: currentColor;
     font-size: 0.78rem;
-    font-weight: 680;
+    font-weight: 600;
     line-height: 1.1;
     opacity: 0.82;
     overflow-wrap: anywhere;
@@ -323,7 +325,7 @@
     cursor: pointer;
     font: inherit;
     font-size: 0.86rem;
-    font-weight: 640;
+    font-weight: 600;
     line-height: 1.2;
 }
 

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
+import { TranslateModule } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { XtreamConnectionTestService } from '@iptvnator/services';
 import { XtreamCodeImportComponent } from './xtream-code-import.component';
@@ -196,5 +197,119 @@ describe('XtreamCodeImportComponent', () => {
         await pending;
         expect(component.form.value.serverUrl).toBe('https://example.com');
         expect(component.connectionTest.result()).toBeNull();
+    });
+});
+
+describe('XtreamCodeImportComponent form', () => {
+    function render() {
+        TestBed.configureTestingModule({
+            imports: [XtreamCodeImportComponent, TranslateModule.forRoot()],
+            providers: [
+                { provide: Store, useValue: { dispatch: jest.fn() } },
+                {
+                    provide: XtreamConnectionTestService,
+                    useValue: { test: jest.fn() },
+                },
+            ],
+        });
+        const fixture = TestBed.createComponent(XtreamCodeImportComponent);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        return { fixture, root, component: fixture.componentInstance };
+    }
+
+    function fieldText(root: HTMLElement, inputId: string): string {
+        return (
+            root
+                .querySelector(`#${inputId}`)
+                ?.closest('mat-form-field')
+                ?.textContent?.replace(/\s+/g, ' ')
+                .trim() ?? ''
+        );
+    }
+
+    it('labels the name field like the other add-source forms', () => {
+        const { root } = render();
+
+        expect(fieldText(root, 'title')).toContain(
+            'HOME.XTREAM_PLAYLIST.TITLE'
+        );
+    });
+
+    it('masks the password until the visibility toggle is pressed', () => {
+        const { fixture, root } = render();
+        const password = root.querySelector('#password') as HTMLInputElement;
+        const toggle = password
+            .closest('mat-form-field')
+            ?.querySelector('button') as HTMLButtonElement;
+
+        expect(password.type).toBe('password');
+        expect(toggle.type).toBe('button');
+        expect(toggle.getAttribute('aria-label')).toBe('HOME.SHOW_PASSWORD');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+
+        toggle.click();
+        fixture.detectChanges();
+        expect(password.type).toBe('text');
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        expect(toggle.getAttribute('aria-label')).toBe('HOME.SHOW_PASSWORD');
+
+        toggle.click();
+        fixture.detectChanges();
+        expect(password.type).toBe('password');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('masks the password again when the form is cleared', () => {
+        const { fixture, root, component } = render();
+        const password = root.querySelector('#password') as HTMLInputElement;
+        const toggle = password
+            .closest('mat-form-field')
+            ?.querySelector('button') as HTMLButtonElement;
+
+        toggle.click();
+        fixture.detectChanges();
+        expect(password.type).toBe('text');
+
+        component.clearForm();
+        fixture.detectChanges();
+
+        expect(password.type).toBe('password');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('shows a neutral server hint until the URL is invalid', () => {
+        const { fixture, root, component } = render();
+
+        expect(fieldText(root, 'serverUrl')).toContain(
+            'HOME.XTREAM_PLAYLIST.URL_HINT'
+        );
+        expect(root.querySelector('mat-error')).toBeNull();
+
+        component.form.controls.serverUrl.setValue('ftp://panel.example');
+        component.form.controls.serverUrl.markAsTouched();
+        fixture.detectChanges();
+
+        const error = root.querySelector('mat-error');
+        expect(error?.textContent?.trim()).toBe(
+            'HOME.XTREAM_PLAYLIST.URL_VALIDATION_ERROR'
+        );
+        expect(fieldText(root, 'serverUrl')).not.toContain(
+            'SETTINGS.EPG_URL_ERROR'
+        );
+    });
+
+    it('explains a URL that carries inline credentials as invalid', () => {
+        const { fixture, root, component } = render();
+
+        component.form.controls.serverUrl.setValue(
+            'https://user:pass@panel.example'
+        );
+        component.form.controls.serverUrl.markAsTouched();
+        fixture.detectChanges();
+
+        expect(root.querySelector('mat-error')?.textContent?.trim()).toBe(
+            'HOME.XTREAM_PLAYLIST.URL_VALIDATION_ERROR'
+        );
     });
 });

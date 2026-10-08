@@ -28,7 +28,7 @@ import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import type { PlaybackDiagnosticCode } from '@iptvnator/playback/util';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
-import type { PlayerMediaTitle } from '../player-controls';
+import type { PlayerMediaTitle, PlayerUpNextItem } from '../player-controls';
 import {
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
@@ -224,6 +224,28 @@ export class PortalInlinePlayerComponent {
     readonly upNextRailItems = computed<UpNextRailItem[]>(
         () => this.upNextEpisodes() ?? []
     );
+    /** The rail entry after the playing one, across season boundaries. */
+    private readonly upNextRailNext = computed<UpNextRailItem | null>(() => {
+        const items = this.upNextEpisodes() ?? [];
+        const playing = items.findIndex((item) => item.isPlaying);
+        const next = playing >= 0 ? items[playing + 1] : undefined;
+        return next && this.playback()?.contentInfo?.contentType === 'episode'
+            ? next
+            : null;
+    });
+    /** The episode after the playing one, for the controls' "Up next" card. */
+    readonly playerUpNext = computed<PlayerUpNextItem | null>(() => {
+        const next = this.upNextRailNext();
+        if (!next || this.settingsStore.playerUpNextCard?.() === false) {
+            return null;
+        }
+        return {
+            label: next.label,
+            title: next.title,
+            thumbnailUrl: next.thumbnailUrl,
+            progressPercent: next.progressPercent,
+        };
+    });
 
     private readonly fullscreenEpisodePanelTemplate = viewChild<
         TemplateRef<FullscreenChannelPanelContext>
@@ -323,6 +345,14 @@ export class PortalInlinePlayerComponent {
     }
 
     onNextEpisodeRequested(): void {
+        // Season-local navigation ends at a season's last episode; the Up
+        // next card can still offer the next season's first, which only
+        // the rail selection path knows how to play.
+        const next = this.upNextRailNext();
+        if (this.seriesNavigation()?.canNext === false && next) {
+            this.upNextEpisodeSelected.emit(next);
+            return;
+        }
         this.nextEpisodeRequested.emit();
     }
 
