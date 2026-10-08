@@ -197,6 +197,27 @@ test('follows variables a weight refers to, through chains and files', () => {
     );
 });
 
+test('reports a definition once however many references reach it', () => {
+    const mono = "'JetBrains Mono'";
+    for (const [source, expected] of [
+        ['$w: 650; .a { font-weight: $w; } .b { font-weight: $w; }', '650'],
+        [
+            '$w: calc(400 + 100); .a { font-weight: $w; } .b { font-weight: $w; }',
+            'calc(400 + 100)',
+        ],
+        [
+            `$w: calc(400 + 100); .a { font-family: ${mono}; font-weight: $w; } .b { font-weight: $w; }`,
+            'calc(400 + 100)',
+        ],
+    ]) {
+        assert.deepEqual(
+            offScale('libs/a.scss', source),
+            [`1 $w: ${expected}`],
+            source
+        );
+    }
+});
+
 test('checks Angular style bindings and literal DOM writes', () => {
     const template = [
         '<p [style.font-weight]="active() ? 650 : 400">a</p>',
@@ -4944,7 +4965,8 @@ test('follows a weight variable in either reading of a keyframe that does not ho
     const roboto = '@keyframes k { to { font-family: Roboto; } }';
     const report = (body) =>
         findOffScaleWeights('libs/s11/g.scss', body).findings.map(
-            ({ name, value, cap }) => `${name}: ${value} cap ${cap}`
+            ({ name, value, cap }) =>
+                `${name}: ${value}${cap ? ` cap ${cap}` : ''}`
         );
     for (const [source, expected] of [
         // Mono once it has run: the variable meets the cap where it is set.
@@ -4959,6 +4981,11 @@ test('follows a weight variable in either reading of a keyframe that does not ho
         [
             `$w: 700; ${roboto} .x { animation: k 1ms; font: $w 12px/1 ${mono}; }`,
             ['$w: 700 cap 500'],
+        ],
+        // A computed weight is one finding, whichever reading reaches it.
+        [
+            `$w: calc(400 + 100); ${roboto} .x { font-family: ${mono}; animation: k 1ms; font-weight: $w; }`,
+            ['$w: calc(400 + 100)'],
         ],
         // Mono only while it runs.
         [
