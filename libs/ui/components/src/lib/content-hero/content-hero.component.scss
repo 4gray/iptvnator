@@ -50,7 +50,11 @@
     width: 100%;
     // Room for a 16:9 backdrop above the content, capped so the episodes or
     // cast row still starts inside the first screen of a desktop window.
-    min-height: min(480px, 60vh);
+    // `--hero-tail` (set by the detail shell) continues the artwork below
+    // the content, under the first section's heading, so the fade into the
+    // page has room and never ends as a band at the hero's edge.
+    min-height: calc(min(520px, 60vh) + var(--hero-tail, 0px));
+    padding-bottom: var(--hero-tail, 0px);
     box-sizing: border-box;
     // `overflow: hidden` clips the scaled blurred backdrop fallback.
     overflow: hidden;
@@ -138,11 +142,13 @@
                 color-mix(in srgb, var(--surface-bg) 45%, transparent) 64%,
                 color-mix(in srgb, var(--surface-bg) 15%, transparent) 100%
             ),
+            // Ends on the exact page surface, not an alpha of it: the
+            // section below starts on the same colour, so there is no seam.
             linear-gradient(
                 180deg,
-                color-mix(in srgb, var(--surface-bg) 25%, transparent) 0%,
-                transparent 30%,
-                transparent 60%,
+                color-mix(in srgb, var(--surface-bg) 20%, transparent) 0%,
+                transparent 28%,
+                color-mix(in srgb, var(--surface-bg) 55%, transparent) 62%,
                 var(--surface-bg) 100%
             );
     }
@@ -156,7 +162,7 @@
         width: 100%;
         max-width: var(--content-max-width);
         margin: 0 auto;
-        padding: 48px 32px 24px;
+        padding: 48px 32px 32px;
         box-sizing: border-box;
 
         &--skeleton {

@@ -50,14 +50,22 @@
 // ============================================================================
 
 .shell__hero {
+    // The hero's artwork runs on under the first section's heading: the hero
+    // grows by the tail and the sections below are pulled up over it, so the
+    // fade into the page surface ends behind the heading, not at a hard edge.
+    --hero-tail: 140px;
+
     display: grid;
     grid-template-rows: 1fr;
+    margin-bottom: calc(-1 * var(--hero-tail));
     transition:
         grid-template-rows 300ms ease,
-        opacity 250ms ease;
+        opacity 250ms ease,
+        margin-bottom 300ms ease;
 
     &--collapsed {
         grid-template-rows: 0fr;
+        margin-bottom: 0;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
@@ -66,6 +74,7 @@
         transition:
             grid-template-rows 300ms ease,
             opacity 250ms ease,
+            margin-bottom 300ms ease,
             visibility 0s linear 300ms;
     }
 }
@@ -73,6 +82,16 @@
 .shell__hero-inner {
     min-height: 0;
     overflow: hidden;
+    // Keeps the hero's layered scrim and content in their own stacking
+    // context, so the sections pulled up over the tail paint above them.
+    isolation: isolate;
+}
+
+.shell__player,
+.shell__episodes,
+.shell__about,
+.shell__extras {
+    position: relative;
 }
 
 // ============================================================================
