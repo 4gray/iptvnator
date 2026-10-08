@@ -31,6 +31,20 @@ const MAX_CONCURRENT_LOOKUPS = 2;
  */
 export const DASHBOARD_SERIES_EPISODES_MAX_AGE_MS = 60 * 60 * 1000;
 
+/**
+ * How long a failed lookup, and a source whose lookups keep failing, are
+ * left alone. Lookup rounds follow the user (each dashboard entry is one),
+ * so without this a portal that is down or expired would be asked for
+ * every series on every visit.
+ */
+export const DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS = 5 * 60 * 1000;
+
+/**
+ * Failures in a row after which a source's remaining lookups are skipped
+ * for the retry delay: the portal, not the series, is the problem.
+ */
+const SOURCE_FAILURES_TO_TRIP = 2;
+
 export function dashboardSeriesEpisodesKey(
     playlistId: string,
     seriesId: number
@@ -69,7 +83,10 @@ export function sameDashboardSeriesEpisodesRequests(
  * only the portal's `get_series_info` names. Lists are kept per session and
  * source. A failed lookup, or a list older than
  * DASHBOARD_SERIES_EPISODES_MAX_AGE_MS, is tried again in a later lookup
- * round. Lookups run in the background, so a failure is logged, never shown.
+ * round, once DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS has passed since the
+ * failure. A source that fails SOURCE_FAILURES_TO_TRIP lookups in a row is
+ * not asked for the rest of its series until then either. Lookups run in
+ * the background, so a failure is logged, never shown.
  */
 @Injectable({ providedIn: 'root' })
 export class DashboardSeriesEpisodesService {
@@ -85,6 +102,13 @@ export class DashboardSeriesEpisodesService {
     /** The password of each series' last attempt: a corrected one retries a failure. */
     private readonly passwords = new Map<string, string>();
     private readonly loadedAt = new Map<string, number>();
+    /** When each series' last lookup failed, until one succeeds. */
+    private readonly failedAt = new Map<string, number>();
+    /** Each source's failures in a row, and when the last one happened. */
+    private readonly sourceFailures = new Map<
+        string,
+        { count: number; at: number }
+    >();
     private readonly inFlight = new Set<string>();
     private active = 0;
 
@@ -93,10 +117,11 @@ export class DashboardSeriesEpisodesService {
     /**
      * Queues every series whose list is missing or comes from another
      * source. A failed lookup, or a list past its age, is asked again only
-     * in a later `round` (the caller's deliberate lookup rounds): the same
-     * round asking again, for more series, never repeats a request. A
-     * failed lookup is also asked again at once with a corrected password.
-     * A list being refreshed stands until the new one arrives.
+     * in a later `round` (the caller's deliberate lookup rounds) and after
+     * the retry delay: the same round asking again, for more series, never
+     * repeats a request. A failed lookup is also asked again at once with a
+     * corrected password. A list being refreshed stands until the new one
+     * arrives.
      */
     request(
         requests: readonly DashboardSeriesEpisodesRequest[],
@@ -123,17 +148,27 @@ export class DashboardSeriesEpisodesService {
             );
             const passwordChanged =
                 this.passwords.get(key) !== request.credentials.password;
+            const correctedPassword =
+                sameSource && entry?.status === 'failed' && passwordChanged;
+            const retryDue =
+                now - (this.failedAt.get(key) ?? -Infinity) >=
+                DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS;
             const due =
                 !entry ||
                 !sameSource ||
-                (entry.status === 'failed' && passwordChanged) ||
+                correctedPassword ||
                 (laterRound &&
+                    retryDue &&
                     (entry.status === 'failed' ||
                         (entry.status === 'loaded' &&
                             now - (this.loadedAt.get(key) ?? 0) >=
                                 DASHBOARD_SERIES_EPISODES_MAX_AGE_MS)));
             if (!due) {
                 continue;
+            }
+            if (correctedPassword) {
+                // A corrected password is a deliberate retry of the source.
+                this.sourceFailures.delete(source);
             }
             if (!sameSource || entry?.status !== 'loaded') {
                 next.set(key, { status: 'loading' });
@@ -172,15 +207,24 @@ export class DashboardSeriesEpisodesService {
         const source = sourceOf(request);
         let seasons: Readonly<Record<string, XtreamSerieEpisode[]>> | null =
             null;
-        try {
-            const details = await this.api.getSeriesInfo(
-                request.credentials,
-                request.seriesId,
-                { suppressErrorLog: true }
-            );
-            seasons = details?.episodes ?? {};
-        } catch (error) {
-            this.logger.warn('Could not load the episodes of a series', error);
+        if (this.isTripped(source)) {
+            // The source failed its last lookups: asking for more series
+            // would only repeat the answer.
+            this.logger.debug('Skipped a series lookup on a failing source');
+        } else {
+            try {
+                const details = await this.api.getSeriesInfo(
+                    request.credentials,
+                    request.seriesId,
+                    { suppressErrorLog: true }
+                );
+                seasons = details?.episodes ?? {};
+            } catch (error) {
+                this.logger.warn(
+                    'Could not load the episodes of a series',
+                    error
+                );
+            }
         }
         this.inFlight.delete(`${key}#${source}`);
         // The series was asked for from another source meanwhile.
@@ -189,14 +233,38 @@ export class DashboardSeriesEpisodesService {
         }
         if (seasons) {
             this.loadedAt.set(key, Date.now());
+            this.failedAt.delete(key);
+            this.sourceFailures.delete(source);
             this.entries.update((entries) =>
                 new Map(entries).set(key, { status: 'loaded', seasons })
             );
-        } else if (this.entries().get(key)?.status !== 'loaded') {
+            return;
+        }
+        this.recordFailure(key, source);
+        // A failed refresh keeps the list it had.
+        if (this.entries().get(key)?.status !== 'loaded') {
             this.entries.update((entries) =>
                 new Map(entries).set(key, { status: 'failed' })
             );
         }
-        // A failed refresh keeps the list it had.
+    }
+
+    private isTripped(source: string): boolean {
+        const failures = this.sourceFailures.get(source);
+        return (
+            !!failures &&
+            failures.count >= SOURCE_FAILURES_TO_TRIP &&
+            Date.now() - failures.at < DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS
+        );
+    }
+
+    private recordFailure(key: string, source: string): void {
+        const now = Date.now();
+        this.failedAt.set(key, now);
+        const failures = this.sourceFailures.get(source);
+        this.sourceFailures.set(source, {
+            count: (failures?.count ?? 0) + 1,
+            at: now,
+        });
     }
 }

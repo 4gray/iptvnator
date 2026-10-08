@@ -198,7 +198,11 @@ and that pause holds the slide.
     1. The hero slides — built by `DashboardHeroSlidesPresenter`, see
        [Cinematic Hero](#cinematic-hero).
     2. `continueWatchingCards` — maps `continueWatchingItems()` to movie/series
-       cover cards. A movie stays until its position reaches
+       cover cards. The list and its loading gate are built by
+       `createDashboardContinueWatching` (`dashboard-continue-watching.ts`)
+       from the history and the playback positions `DashboardDataService`
+       holds, which exposes them as `continueWatchingItems()` and
+       `continueWatchingSettled()`. A movie stays until its position reaches
        `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`). The
        threshold is 90%, the Plex/Jellyfin/Emby/Kodi default, so stopping
        during the end credits finishes a title, as does "Mark watched". A
@@ -236,11 +240,16 @@ and that pause holds the slide.
        dropped). Lookups are background requests (`suppressErrorLog`: a
        failure is logged, never a toast). Each `reloadPlaybackPositions()`
        that lands (dashboard entry, a changed history, "Mark watched") is a
-       lookup round: a failed lookup is tried again (at once, too, when the
-       playlist's password is corrected), and a list older than
-       `DASHBOARD_SERIES_EPISODES_MAX_AGE_MS` (1 h) is fetched again so
+       lookup round: a failed lookup is tried again once
+       `DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS` (5 min) has passed (at
+       once when the playlist's password is corrected), and a list older
+       than `DASHBOARD_SERIES_EPISODES_MAX_AGE_MS` (1 h) is fetched again so
        newly added episodes show up, the old list standing until the new
-       one arrives (a failed refresh keeps it). Within one round, more
+       one arrives (a failed refresh keeps it, and waits for the same delay).
+       A source that failed two lookups in a row is not asked for its other
+       series until the delay has passed either: a portal that is down or
+       expired costs two requests per delay, not one per series per dashboard
+       visit. Within one round, more
        series to look past never repeat a request, and the request list
        compares by value, so playlist store churn elsewhere in the app does
        not trigger lookups. Finished titles

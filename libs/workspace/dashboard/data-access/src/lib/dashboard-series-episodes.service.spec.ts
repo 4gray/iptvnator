@@ -3,6 +3,7 @@ import { XtreamApiService } from '@iptvnator/portal/xtream/data-access';
 import type { XtreamSerieDetails } from '@iptvnator/shared/interfaces';
 import {
     DASHBOARD_SERIES_EPISODES_MAX_AGE_MS,
+    DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS,
     DashboardSeriesEpisodesService,
     dashboardSeriesEpisodesKey,
     sameDashboardSeriesEpisodesRequests,
@@ -114,7 +115,7 @@ describe('DashboardSeriesEpisodesService', () => {
             jest.spyOn(Date, 'now').mockImplementation(() => now);
         });
 
-        it('retries a failed lookup only in a later round', async () => {
+        it('retries a failed lookup only in a later round, after the retry delay', async () => {
             getSeriesInfo.mockRejectedValueOnce(
                 new Error('Portal is not responding')
             );
@@ -129,11 +130,127 @@ describe('DashboardSeriesEpisodesService', () => {
                 suppressErrorLog: true,
             });
 
-            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            // A later round too soon after the failure: the portal is left
+            // alone, whatever the user does on the dashboard.
             service.request([request(900)], 2);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+
+            now += DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS;
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            service.request([request(900)], 3);
             expect(getSeriesInfo).toHaveBeenCalledTimes(3);
             await flush();
             expect(status(900)).toBe('loaded');
+        });
+
+        it('stops asking a source after two failures in a row, until the retry delay has passed', async () => {
+            getSeriesInfo
+                .mockRejectedValueOnce(new Error('Portal is not responding'))
+                .mockRejectedValueOnce(new Error('Portal is not responding'));
+            service.request([1, 2, 3, 4].map(request), 1);
+            await flush();
+
+            // The first two answered for the portal: the rest are not asked.
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect([1, 2, 3, 4].map(status)).toEqual([
+                'failed',
+                'failed',
+                'failed',
+                'failed',
+            ]);
+
+            // Another source is unaffected.
+            const other: DashboardSeriesEpisodesRequest = {
+                playlistId: 'xtream-2',
+                seriesId: 5,
+                credentials: {
+                    ...credentials,
+                    serverUrl: 'http://other.example',
+                },
+            };
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(51) });
+            service.request([other], 1);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(3);
+            expect(
+                service
+                    .episodes()
+                    .get(dashboardSeriesEpisodesKey('xtream-2', 5))?.status
+            ).toBe('loaded');
+
+            // A later round before the delay: still left alone.
+            service.request([1, 2, 3, 4].map(request), 2);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(3);
+
+            now += DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS;
+            getSeriesInfo.mockResolvedValue({ episodes: seasons(9) });
+            service.request([1, 2, 3, 4].map(request), 3);
+            await flush();
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(7);
+            expect([1, 2, 3, 4].map(status)).toEqual([
+                'loaded',
+                'loaded',
+                'loaded',
+                'loaded',
+            ]);
+        });
+
+        it('asks a source that stopped answering again at once with a corrected password', async () => {
+            getSeriesInfo
+                .mockRejectedValueOnce(new Error('Wrong password'))
+                .mockRejectedValueOnce(new Error('Wrong password'));
+            service.request([1, 2, 3].map(request), 1);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(status(3)).toBe('failed');
+
+            const corrected = (seriesId: number) => ({
+                ...request(seriesId),
+                credentials: { ...credentials, password: 'corrected' },
+            });
+            getSeriesInfo.mockResolvedValue({ episodes: seasons(9) });
+            service.request([1, 2, 3].map(corrected), 1);
+            await flush();
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(5);
+            expect([1, 2, 3].map(status)).toEqual([
+                'loaded',
+                'loaded',
+                'loaded',
+            ]);
+        });
+
+        it('leaves a list whose refresh failed alone until the retry delay has passed', async () => {
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            service.request([request(900)], 1);
+            await flush();
+
+            now += DASHBOARD_SERIES_EPISODES_MAX_AGE_MS;
+            getSeriesInfo.mockRejectedValueOnce(new Error('Too many requests'));
+            service.request([request(900)], 2);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+
+            // Still past its age, but the refresh just failed.
+            service.request([request(900)], 3);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901),
+            });
+
+            now += DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS;
+            getSeriesInfo.mockResolvedValueOnce({
+                episodes: seasons(901, 902),
+            });
+            service.request([request(900)], 4);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(3);
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901, 902),
+            });
         });
 
         it('retries a failed lookup at once with a corrected password, without refetching loaded lists', async () => {
