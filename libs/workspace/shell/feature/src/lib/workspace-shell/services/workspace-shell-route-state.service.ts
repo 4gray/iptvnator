@@ -77,10 +77,10 @@ export class WorkspaceShellRouteStateService {
             this.catalogIndex.loading() ||
             this.catalogIndex.rowsPlaylistId() !== playlistId
         ) {
-            const last = this.lastM3uCatalogSections;
-            return last?.playlistId === playlistId
-                ? last.sections
-                : NO_M3U_CATALOG_SECTIONS;
+            return (
+                this.knownM3uCatalogSections.get(playlistId) ??
+                NO_M3U_CATALOG_SECTIONS
+            );
         }
 
         const counts = this.catalogIndex.index().counts;
@@ -88,14 +88,20 @@ export class WorkspaceShellRouteStateService {
             movies: counts.movie > 0,
             series: counts.episode > 0,
         };
-        this.lastM3uCatalogSections = { playlistId, sections };
+        this.knownM3uCatalogSections.set(playlistId, sections);
         return sections;
     }
 
-    private lastM3uCatalogSections: {
-        readonly playlistId: string;
-        readonly sections: M3uCatalogSections;
-    } | null = null;
+    /**
+     * What each playlist was last seen to hold. Kept per playlist, not just
+     * for the latest one: Favorites and Recent do not load the rows, so a
+     * playlist entered there shows its sections only if they are
+     * remembered from an earlier visit.
+     */
+    private readonly knownM3uCatalogSections = new Map<
+        string,
+        M3uCatalogSections
+    >();
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),

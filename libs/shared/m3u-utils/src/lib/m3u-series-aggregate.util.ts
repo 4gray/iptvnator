@@ -7,8 +7,12 @@ import {
     M3uSeriesEpisode,
 } from './m3u-series-model';
 import {
-    mintM3uEpisodeId,
+    fileNameOf,
+    placeNumberedEpisode,
     placeUnnumberedEpisode,
+} from './m3u-series-placement.util';
+import {
+    mintM3uEpisodeId,
     regroupM3uSeriesByYear,
     remintM3uEpisodeIds,
 } from './m3u-series-remake-split.util';
@@ -83,7 +87,11 @@ export function buildM3uSeriesCatalog<T extends M3uArtworkBearing>(
         // matter — remakes — and are separated afterwards, once the whole
         // catalog is known; that cannot be decided one row at a time.
         const baseKey = `${playlistId}\u0000${tag ?? ''}\u0000${keys.base}`;
-        const year = keys.trailingYear;
+        // Normalization drops bracketed text before it looks for a year, so
+        // "Charmed (1998)" and "Charmed (2018)" would arrive as one yearless
+        // title and never reach the remake split. The bracketed year is the
+        // commonest spelling of all, so it is read here.
+        const year = keys.trailingYear ?? bracketedYearOf(title);
         const key = `${baseKey}\u0000${year ?? ''}`;
 
         let series = accumulators.get(key);
@@ -94,7 +102,7 @@ export function buildM3uSeriesCatalog<T extends M3uArtworkBearing>(
                 title,
                 rawTitle: parsed.seriesTitle,
                 languageTag: tag,
-                yearHint: keys.trailingYear,
+                yearHint: year,
                 groups: [],
                 groupCounts: new Map(),
                 seasons: new Map(),
@@ -105,7 +113,7 @@ export function buildM3uSeriesCatalog<T extends M3uArtworkBearing>(
 
         recordGroup(series, channel.group?.title ?? '');
         series.posterUrl ??= channel.tvg?.logo || null;
-        series.yearHint ??= keys.trailingYear;
+        series.yearHint ??= year;
 
         if (parsed.unnumbered) {
             unnumbered.push([series, channel]);
@@ -124,6 +132,13 @@ export function buildM3uSeriesCatalog<T extends M3uArtworkBearing>(
         remintM3uEpisodeIds(series);
         return finalize(series);
     });
+}
+
+const BRACKETED_YEAR = /[([]\s*((?:19|20)\d{2})\s*[)\]]/;
+
+function bracketedYearOf(title: string): number | null {
+    const match = BRACKETED_YEAR.exec(title);
+    return match ? Number(match[1]) : null;
 }
 
 /** The key of a row filed under its whole name rather than a title. */
@@ -182,20 +197,7 @@ function addEpisode<T extends M3uArtworkBearing>(
         series.seasons.set(seasonNumber, season);
     }
 
-    const existing = season.get(episodeNumber);
-    if (existing) {
-        // A duplicate season×episode is the same episode at another
-        // quality. Keeping the first and parking the rest is what lets the
-        // id be derived from the coordinates rather than from a URL that
-        // providers rotate on every refresh.
-        season.set(episodeNumber, {
-            ...existing,
-            alternatives: [...existing.alternatives, channel],
-        });
-        return;
-    }
-
-    season.set(episodeNumber, {
+    placeNumberedEpisode(season, {
         id: mintM3uEpisodeId(series.key, { seasonNumber, episodeNumber }),
         seasonNumber,
         episodeNumber,
@@ -236,17 +238,10 @@ function addUnnumberedEpisode<T extends M3uArtworkBearing>(
         id: 0,
         seasonNumber: 1,
         episodeNumber: 0,
-        rowKey: fileNameOf(channel.url),
         title: null,
         channel,
         alternatives: [],
     });
-}
-
-/** The last path segment, lowercased, without query or fragment. */
-function fileNameOf(url: string | null | undefined): string {
-    const path = (url ?? '').split(/[?#]/)[0].replace(/\/+$/, '');
-    return path.slice(path.lastIndexOf('/') + 1).toLowerCase();
 }
 
 function finalize<T extends M3uArtworkBearing>(

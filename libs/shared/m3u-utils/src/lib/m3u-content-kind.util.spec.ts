@@ -206,6 +206,26 @@ describe('classifyM3uEntry', () => {
             ).toBe('movie');
         });
 
+        it('keeps a broadcast stream in a folder merely named series live', () => {
+            expect(
+                classifyM3uEntry({
+                    ...entry('http://h.example/hls/series/index.m3u8'),
+                    tvg: { id: 'series.tv' },
+                })
+            ).toBe('live');
+            // Without a broadcast claim the segment still means an episode,
+            // whatever the container.
+            expect(
+                classifyM3uEntry(entry('http://h.example/series/u/p/7.m3u8'))
+            ).toBe('episode');
+            expect(
+                classifyM3uEntry({
+                    ...entry('http://h.example/series/u/p/7.mkv'),
+                    tvg: { id: 'x' },
+                })
+            ).toBe('episode');
+        });
+
         it('ignores a blank guide id', () => {
             expect(
                 classifyM3uEntry({

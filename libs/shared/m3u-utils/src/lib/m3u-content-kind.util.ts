@@ -159,13 +159,20 @@ export function classifyM3uEntry(
         return 'live';
     }
 
+    const extension = getPlaybackMediaExtensionFromUrl(url);
+
     if (path.includes(SERIES_SEGMENT)) {
-        return 'episode';
+        // A folder can be called `series` as it can be called `movies`. A
+        // streaming container there that also states a broadcast is a
+        // channel ("/hls/series/index.m3u8" with a guide id), not an
+        // episode; everything else under the segment is one.
+        return STREAMING_EXTENSIONS.has(extension) &&
+            hasBroadcastEvidence(channel)
+            ? 'live'
+            : 'episode';
     }
 
     const name = channel.name;
-
-    const extension = getPlaybackMediaExtensionFromUrl(url);
 
     if (
         path.includes(XTREAM_MOVIE_SEGMENT) ||

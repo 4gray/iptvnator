@@ -1818,6 +1818,20 @@ watched marks (the same limit Stalker positions have there).
   rows of one series that share a file name are keyed on their whole URL:
   a rotated token then drops the mark instead of moving it to another row.
   `mintM3uEpisodeId` is the only place an episode id is derived.
+- No episode row with its own URL is hidden behind another
+  (`m3u-series-placement.util.ts`). The first row at a season×episode
+  holds the coordinate and the id derived from it; a later row there with
+  another URL (a second quality, a "Part 2", a trailer, a show whose title
+  merely normalizes the same) is listed beside it under the same number
+  with a `rowKey` id. `alternatives` holds only the same URL listed again.
+  A year written in brackets ("Charmed (2018)") counts as the stated year,
+  so remakes spelled that way reach the remake split.
+- `/series/` means an episode unless the row is a streaming container that
+  also states a broadcast — a channel in a folder named `series`.
+- The player asks ONE rule whether a row opens as a film
+  (`isM3uMovieRow`): the classifier while the split is in effect, the
+  original `isLikelyM3uMovie` otherwise. Next/previous in the audio player
+  steps through the list the viewer sees (`resolveAdjacentChannel`).
 - Inline episode playback carries `contentInfo` (the episode's id and
   coordinates), which is what makes the shared inline player offer its
   fullscreen episode panel; a pick there arrives as `upNextEpisodeSelected`.

@@ -178,16 +178,60 @@ describe('buildM3uSeriesCatalog', () => {
         expect(series[0].primaryGroup).toBe('Pazartesi Dizileri');
     });
 
-    it('parks a duplicate season/episode as an alternative', () => {
-        // Same episode at another quality. It must not become a second
-        // episode, and it must not vanish.
+    it('lists a second row at a season/episode instead of hiding it', () => {
+        // Another quality, a "Part 2", a trailer: whatever it is, it has its
+        // own URL and is no longer in the channel list. Parked as an
+        // alternative it would play nowhere.
         const series = buildM3uSeriesCatalog(
             [row('SHOW S1 E1', 'HD'), row('SHOW S1 E1 FHD', 'FHD')],
+            'pl-1'
+        );
+        const episodes = series[0].seasons.get(1) ?? [];
+
+        expect(episodes.map((episode) => episode.channel.name)).toEqual([
+            'SHOW S1 E1',
+            'SHOW S1 E1 FHD',
+        ]);
+        expect(episodes.map((episode) => episode.episodeNumber)).toEqual([
+            1, 1,
+        ]);
+        expect(new Set(episodes.map((episode) => episode.id)).size).toBe(2);
+    });
+
+    it('keeps the id of the first row when a second one joins its coordinate', () => {
+        const alone = buildM3uSeriesCatalog([row('SHOW S1 E1')], 'pl-1');
+        const joined = buildM3uSeriesCatalog(
+            [row('SHOW S1 E1'), row('SHOW S1 E1 FHD')],
+            'pl-1'
+        );
+
+        expect(joined[0].seasons.get(1)?.[0].id).toBe(
+            alone[0].seasons.get(1)?.[0].id
+        );
+    });
+
+    it('parks only the same URL listed twice', () => {
+        const series = buildM3uSeriesCatalog(
+            [row('SHOW S1 E1'), row('SHOW S1 E1')],
             'pl-1'
         );
 
         expect(series[0].episodeCount).toBe(1);
         expect(series[0].seasons.get(1)?.[0].alternatives).toHaveLength(1);
+    });
+
+    it('separates remakes whose year is written in brackets', () => {
+        // The commonest spelling. Read as one yearless title, the two shows
+        // shared every coordinate and their watch history.
+        const series = buildM3uSeriesCatalog(
+            [row('Charmed (1998) S01E01'), row('Charmed (2018) S01E01')],
+            'pl-1'
+        );
+
+        expect(series.map((entry) => entry.yearHint).sort()).toEqual([
+            1998, 2018,
+        ]);
+        expect(series.every((entry) => entry.episodeCount === 1)).toBe(true);
     });
 
     it('defaults a seasonless daily serial to season one', () => {

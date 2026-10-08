@@ -440,7 +440,7 @@ export class VideoPlayerComponent
         return (
             this.settingsStore.m3uVodDetails?.() !== false &&
             this.tmdbEnrichment.isEnabled() &&
-            isM3uMovieRow(channel)
+            isM3uMovieRow(channel, this.catalogIndex.splitsCatalog())
         );
     }
     /** Full multi-day programme window for the active channel (timeline). */

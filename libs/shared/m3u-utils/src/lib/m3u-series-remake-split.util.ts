@@ -4,6 +4,10 @@ import {
     M3uSeriesAccumulator,
     M3uSeriesEpisode,
 } from './m3u-series-model';
+import {
+    placeNumberedEpisode,
+    placeUnnumberedEpisode,
+} from './m3u-series-placement.util';
 
 /**
  * The stage that decides which same-titled series are actually remakes.
@@ -186,82 +190,25 @@ function mergeParts<T extends M3uArtworkBearing>(
                     (part.groupCounts.get(group) ?? 0)
             );
         }
+        // Rows keep the rule they were filed by: "Show" and "Show 2025"
+        // each list their first unnumbered row at slot 1, and two parts can
+        // state the same coordinate for different files. Neither hides the
+        // other.
         for (const [number, episodes] of part.seasons) {
-            for (const [episodeNumber, episode] of episodes) {
-                addMergedEpisode(merged, number, episodeNumber, episode);
+            let season = merged.seasons.get(number);
+            if (!season) {
+                season = new Map();
+                merged.seasons.set(number, season);
+            }
+            for (const episode of episodes.values()) {
+                if (episode.unnumbered) {
+                    placeUnnumberedEpisode(season, episode);
+                } else {
+                    placeNumberedEpisode(season, episode);
+                }
             }
         }
     }
 
     return merged;
-}
-
-function addMergedEpisode<T extends M3uArtworkBearing>(
-    merged: M3uSeriesAccumulator<T>,
-    seasonNumber: number,
-    episodeNumber: number,
-    episode: M3uSeriesEpisode<T>
-): void {
-    let season = merged.seasons.get(seasonNumber);
-    if (!season) {
-        season = new Map();
-        merged.seasons.set(seasonNumber, season);
-    }
-
-    const existing = season.get(episodeNumber);
-    if (!existing) {
-        season.set(episodeNumber, episode);
-        return;
-    }
-
-    // A slot held by, or wanted by, a row with no number is not a
-    // coordinate two rows agree on: "Show" and "Show 2025" each list their
-    // first unnumbered row at slot 1. Parking one under the other would
-    // hide a different file, so the unnumbered one moves instead and the
-    // numbered episode keeps the coordinate it states.
-    if (episode.rowKey !== undefined) {
-        placeUnnumberedEpisode(season, episode);
-        return;
-    }
-    if (existing.rowKey !== undefined) {
-        season.set(episodeNumber, episode);
-        placeUnnumberedEpisode(season, existing);
-        return;
-    }
-
-    season.set(episodeNumber, {
-        ...existing,
-        alternatives: [
-            ...existing.alternatives,
-            episode.channel,
-            ...episode.alternatives,
-        ],
-    });
-}
-
-/**
- * Lists an unnumbered row at the next free slot of its season. The same
- * URL again is the same row and is parked.
- */
-export function placeUnnumberedEpisode<T extends M3uArtworkBearing>(
-    season: Map<number, M3uSeriesEpisode<T>>,
-    episode: M3uSeriesEpisode<T>
-): void {
-    let last = 0;
-    for (const [number, existing] of season) {
-        if (existing.channel.url === episode.channel.url) {
-            season.set(number, {
-                ...existing,
-                alternatives: [
-                    ...existing.alternatives,
-                    episode.channel,
-                    ...episode.alternatives,
-                ],
-            });
-            return;
-        }
-        last = Math.max(last, number);
-    }
-
-    season.set(last + 1, { ...episode, episodeNumber: last + 1 });
 }

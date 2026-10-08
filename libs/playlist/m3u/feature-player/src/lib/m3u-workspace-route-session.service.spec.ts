@@ -312,6 +312,36 @@ describe('M3uWorkspaceRouteSession', () => {
         expect(playlistsService.getPlaylist).toHaveBeenCalledTimes(1);
     });
 
+    it('still publishes a load when the section changes while it is in flight', async () => {
+        // All channels and Movies share one load. Moving between them while
+        // it is in flight starts no new request, so dropping the response
+        // because the section moved on would leave the playlist loading
+        // for good.
+        const response = new Subject<Playlist>();
+        playlistsService.getPlaylist.mockReturnValue(response.asObservable());
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        router.url = `/workspace/playlists/${PLAYLIST_ID}/vod`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        await flushEffects();
+
+        response.next({
+            playlist: { items: [PRIMARY_CHANNEL] },
+        } as Playlist);
+        response.complete();
+        await flushEffects();
+
+        expect(playlistsService.getPlaylist).toHaveBeenCalledTimes(1);
+        expect(store.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setChannels({
+                channels: [PRIMARY_CHANNEL],
+                playlistId: PLAYLIST_ID,
+            })
+        );
+    });
+
     it('ignores stale playlist responses after a newer route request wins', async () => {
         const firstResponse = new Subject<Playlist>();
         const secondResponse = new Subject<Playlist>();

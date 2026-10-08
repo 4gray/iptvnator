@@ -16,22 +16,23 @@ export interface M3uSeriesEpisode<T> {
      */
     readonly id: number;
     /**
-     * Set only for a row the parser read no number from: the file name its
-     * URL ends in. Such a row's `episodeNumber` is just its slot in the
-     * list, which moves when the provider reorders rows or adds a numbered
-     * episode, so its id is keyed on this instead.
+     * Set when the id cannot come from the coordinates: the file name the
+     * row's URL ends in. That is a row with no number, whose
+     * `episodeNumber` is just its slot in the list, and a second row at a
+     * coordinate another row already holds.
      */
     readonly rowKey?: string;
+    /** True when `episodeNumber` is a slot, not a number the row states. */
+    readonly unnumbered?: boolean;
     readonly seasonNumber: number;
     readonly episodeNumber: number;
     /** The tail the provider wrote after the marker, when there was one. */
     readonly title: string | null;
     readonly channel: T;
     /**
-     * Further rows that resolved to the same season×episode — typically the
-     * same episode at another quality. The first one wins; the rest are kept
-     * so a future quality picker has somewhere to read them from, and so
-     * they are not silently lost.
+     * The same URL listed again. A row with another URL is never kept
+     * here: nothing plays an alternative, so it is listed as an entry of
+     * its own instead.
      */
     readonly alternatives: readonly T[];
 }

@@ -105,7 +105,7 @@ export class M3uWorkspaceRouteSession {
                 this.playlistsService.getPlaylist(playlistId)
             );
 
-            if (!this.isCurrentLoadRequest(requestId, playlistId, section)) {
+            if (!this.isCurrentLoadRequest(requestId, playlistId)) {
                 return;
             }
 
@@ -140,7 +140,7 @@ export class M3uWorkspaceRouteSession {
                 })
             );
         } catch {
-            if (!this.isCurrentLoadRequest(requestId, playlistId, section)) {
+            if (!this.isCurrentLoadRequest(requestId, playlistId)) {
                 return;
             }
 
@@ -164,13 +164,17 @@ export class M3uWorkspaceRouteSession {
 
     private isCurrentLoadRequest(
         requestId: number,
-        playlistId: string,
-        section: M3uLoadedSection
+        playlistId: string
     ): boolean {
+        // Not "still on the SAME section": the loaded sections share one
+        // load, so moving from All channels to Movies while it is in flight
+        // starts no new request, and rejecting the response for the section
+        // it was asked from would leave the playlist loading forever.
+        // Leaving the loaded sections bumps `loadRequestId`.
         return (
             requestId === this.loadRequestId &&
             this.currentPlaylistId === playlistId &&
-            this.currentSection === section
+            this.isLoadedSection(this.currentSection)
         );
     }
 }

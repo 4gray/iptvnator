@@ -137,6 +137,26 @@ describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
         expect(sections(state)).toEqual(['series']);
     });
 
+    it('remembers what each playlist held, not only the latest one', () => {
+        // Favorites and Recent do not load the rows, so a playlist entered
+        // there has its sections only from an earlier visit — which must
+        // survive a visit to another playlist in between.
+        counts.set({ movie: 3, episode: 0 });
+        const state = service();
+        expect(sections(state)).toEqual(['vod']);
+
+        state.currentUrl.set('/workspace/playlists/pl-b/all');
+        rowsPlaylistId.set('pl-b');
+        counts.set({ movie: 0, episode: 4 });
+        expect(sections(state)).toEqual(['series']);
+
+        state.currentUrl.set('/workspace/playlists/pl-a/favorites');
+        rowsPlaylistId.set(null);
+        counts.set({ movie: 0, episode: 0 });
+
+        expect(sections(state)).toEqual(['vod']);
+    });
+
     it('offers nothing when the sections are turned off', () => {
         counts.set({ movie: 3, episode: 5 });
         catalogTabs.set(false);
