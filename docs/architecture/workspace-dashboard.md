@@ -108,6 +108,16 @@ Render rules:
 `clamp(320px, 42vh, 520px)` so the first rail starts above the fold, and uses
 `--app-content-bg` as its scrim so it dissolves into the page in both themes.
 
+Height: that clamp is a floor, not a fixed height. Every slide's content is
+laid out in the same grid cell at the bottom of the banner, so it is as tall
+as its tallest slide whichever one is shown, and an unusually full slide or a
+long translation grows it instead of being cut. Only the active slide is
+shown; the others are `inert` and `visibility: hidden`. When only the shown
+slide was in flow, each automatic rotation between slides of different
+heights resized the banner and moved every rail below it, every 8 s on an idle
+dashboard. Late data (TMDB extras, the live slide's first EPG answer, the next
+programme) can still grow the tallest slide, once, when it arrives.
+
 Slides (`pickDashboardHeroSources`, at most four, stable order, each title
 once):
 
@@ -161,9 +171,11 @@ Semantics: the page has one stable, visually hidden `h1` ("Dashboard",
 `dashboard-page-heading`); each slide title is an `h2`, like the rail titles.
 Slide changes are announced by one polite live region
 (`dashboard-hero-announcement`, position and title) that lives outside the
-re-created slide and is silent while the slides rotate on their own. A
+slides and is silent while the slides rotate on their own. A
 slide's progress bar is named after its title (a live slide: the programme)
-and a title's reads "N% watched". The dots are 24px targets (WCAG 2.5.8).
+and a title's reads "N% watched". The dots are 26 × 24px targets (WCAG 2.5.8)
+of one fixed width; the active pill is the same 18px bar with its
+`clip-path` opened, so a slide change moves no dot.
 
 Rotation is the active dot's CSS fill animation (8 s); its `animationend`
 advances. The fill animates `transform` only (a bar sliding in under the
@@ -176,10 +188,13 @@ region: ←/→ switch slides and Enter follows the primary action. The active s
 by id, so a late live slide never moves the user off the current one. Test
 hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
 `dashboard-hero-dot`, `dashboard-hero-pause`,
-`dashboard-hero-primary-action`, `dashboard-hero-secondary-action`.
+`dashboard-hero-primary-action`, `dashboard-hero-secondary-action`. The
+slide hooks mark the shown slide only; the inert slides carry none.
 `dashboard-hero-rotation.e2e.ts` drives the real fill animation (with a
 shortened `--hero-rotation-ms`) to prove its `animationend` still advances
-and that pause holds the slide.
+and that pause holds the slide. `dashboard-hero-legibility.e2e.ts` sums the
+layout shifts of one unattended rotation: under 0.001 in all, and none
+inside the hero.
 
 ## Rail Contract
 
