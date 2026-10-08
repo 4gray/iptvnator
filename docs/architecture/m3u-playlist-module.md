@@ -1747,8 +1747,11 @@ and 40,330 episode rows. `buildM3uCatalogIndex` (`libs/shared/m3u-utils`)
 splits the array by derived content kind and `buildM3uSeriesCatalog`
 collapses the episode rows into 1,953 series. Both are memoised
 `computed()`s on `M3uCatalogIndexService` (`libs/m3u-state`), keyed
-implicitly on the channel array reference — there is no schema change and no
-Electron-only path, so the PWA behaves identically.
+implicitly on the channel array reference — there is no schema change, and
+the catalog itself behaves identically in the PWA. Episode progress is the
+exception: it goes through `PlaybackPositionService`, whose storage is the
+Electron SQLite bridge, so in the PWA episodes neither resume nor keep
+watched marks (the same limit Stalker positions have there).
 
 - `classifyM3uEntry` resolves every ambiguity toward `live`, because a
   hidden channel leaves the sidebar, numbering and zapping while a film left
@@ -1792,14 +1795,25 @@ Electron-only path, so the PWA behaves identically.
 - A title whose rows state at most one year is one series under a year-free
   key. When a second year appears (a remake), the earliest year keeps that
   key, so a refresh that adds the remake leaves the original's ids and watch
-  history in place; only an original added after its remake moves the
-  remake's ids, since the previous catalog is not stored.
+  history in place. Known limit, because the previous catalog is not
+  stored: an original added AFTER its remake takes the year-free key, so it
+  inherits the remake's watched marks and resume points while the remake
+  starts empty; and once a second year appears, rows with no year become
+  their own series, losing progress on any coordinate only they carried.
 - Episode progress reaches storage at most once per 15 s per episode; the
   held-back tick is written when the player closes, another episode starts,
   another series opens, or the page is destroyed.
 - The series detail page feeds the portals' own `PortalDetailShellComponent`
   / `SeasonContainerComponent` / `PortalInlinePlayerComponent` through an
   adapter in the feature library. Nothing shared is forked.
+- With MPV or VLC saved as the player, an episode click launches it through
+  `PORTAL_PLAYER.openResolvedPlayback` at the episode's resume offset instead
+  of mounting the inline player, which has no engine for them. DASH episodes
+  stay inline under every setting, as on the `:view` route. The external
+  launch writes no progress: the M3U payload carries no content info for
+  the player's position reports to be attributed to.
+- The season and series watched toggles persist through the batch
+  position IPC, one transaction per direction.
 
 ## Adding New Features
 

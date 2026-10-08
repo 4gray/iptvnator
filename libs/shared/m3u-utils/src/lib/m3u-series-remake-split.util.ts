@@ -55,8 +55,13 @@ export function regroupM3uSeriesByYear<T extends M3uArtworkBearing>(
             // arrival in a refresh would re-mint the original's episode ids
             // and orphan every watched mark and resume point stored under
             // them. The rarer reverse order — an older original added after
-            // its remake — still moves the remake's ids; keeping both
-            // stable would need the previous catalog, which is not stored.
+            // its remake — is worse than a move: the original takes the
+            // year-free key, so it shows the remake's watched marks and
+            // resume points, and the remake starts empty. Rows with no year
+            // also leave the merged series once a second year appears, so
+            // coordinates only they carried lose their progress. Keeping
+            // every case stable would need the previous catalog, which is
+            // not stored.
             const original = earliestStatedYear(yeared);
             result.push(
                 ...parts.map((part) =>
