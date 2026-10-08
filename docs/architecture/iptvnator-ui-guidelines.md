@@ -212,6 +212,20 @@ directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
 The shared live-layout sidebar reserves 8 px at its right edge so the inward
 half of the 12 px resize handle cannot cover the channel scrollbar.
 
+## Resizable Sidebar Widths
+
+Workspace context panels and Favorites share one `sidebar-width` key (its
+legacy aliases map onto it) but have different limits. `ResizableDirective`
+renders the stored width clamped to the host's own limits and never writes
+that clamped value back: only a drag that changes the width persists, so a
+narrow sidebar such as Settings cannot shrink the width a wider one saved.
+
+A drag starts from the host's computed CSS `width`, the box that `style.width`
+sizes, not from `offsetWidth`. Hosts may be `content-box` (the workspace
+context panels and the Favorites sidebar) or `border-box` (live-layout and
+groups rails); starting from the border box widened a padded `content-box`
+host by its padding and border on the first move.
+
 ## Keyboard Scrolling and Channel Focus
 
 `ChannelScrollFocusDirective` belongs on the actual channel scroll owner,
