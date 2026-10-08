@@ -192,4 +192,34 @@ describe('SeasonContainerComponent episode list', () => {
 
         expect(restarted.map((episode) => episode.id)).toEqual(['101']);
     });
+    it('drops a season description that repeats the series description', () => {
+        const series = 'The series plot. It goes on.';
+        fixture.componentRef.setInput('seriesDescription', series);
+        fixture.componentRef.setInput('seasonDescriptions', {
+            '1': 'The series plot.',
+            '2': 'A season of its own.',
+        });
+        setRequiredInputs({
+            '1': [createEpisode()],
+            '2': [createEpisode({ id: '201' })],
+        });
+        component.selectSeason('1');
+        fixture.detectChanges();
+
+        expect(component.selectedSeasonDescription()).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="season-description"]'
+            )
+        ).toBeNull();
+
+        component.selectSeason('2');
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="season-description"]'
+            )?.textContent
+        ).toContain('A season of its own.');
+    });
 });

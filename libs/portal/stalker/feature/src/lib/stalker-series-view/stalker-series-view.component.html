@@ -170,6 +170,7 @@
                 [seriesId]="toSeriesId(serial.id)"
                 [playlistId]="stalkerStore.currentPlaylist()?._id ?? ''"
                 [seriesTitle]="serial.info.name"
+                [seriesDescription]="serial.info.description"
                 [playbackPositions]="episodePlaybackPositions()"
                 [openingEpisodeId]="openingEpisodeId()"
                 [activeEpisodeId]="activeEpisodeId()"

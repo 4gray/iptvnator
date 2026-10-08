@@ -39,6 +39,7 @@ import {
     createSeasonAutoSelectState,
     findSeasonOfEpisode,
 } from './season-auto-select.state';
+import { repeatsSeriesDescription } from './season-description.util';
 import { SeasonDownloadPresenter } from './season-download-presenter';
 import { SeasonTabsComponent } from './season-tabs.component';
 import { SeasonWatchPresenter } from './season-watch-presenter';
@@ -87,6 +88,8 @@ export class SeasonContainerComponent implements OnInit {
     readonly seriesId = input.required<number>();
     readonly playlistId = input.required<string>();
     readonly seriesTitle = input<string>('');
+    /** The hero's description: a season synopsis repeating it is not shown again. */
+    readonly seriesDescription = input<string | null | undefined>(null);
     readonly isLoading = input<boolean>(false);
     readonly playbackPositions = input<Map<number, PlaybackPositionData>>(
         new Map()
@@ -221,7 +224,11 @@ export class SeasonContainerComponent implements OnInit {
         if (!selected) {
             return null;
         }
-        return this.seasonDescriptions()?.[selected] ?? null;
+        const description = this.seasonDescriptions()?.[selected] ?? null;
+        return description &&
+            !repeatsSeriesDescription(description, this.seriesDescription())
+            ? description
+            : null;
     });
 
     /** Poster URLs whose image request failed; the cover column then folds. */

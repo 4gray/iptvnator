@@ -159,7 +159,7 @@
     display: flex;
     align-items: flex-start;
     gap: 14px;
-    margin-bottom: 14px;
+    margin: -4px 0 18px;
 
     &__cover {
         display: block;
@@ -172,11 +172,13 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     }
 
+    // Only a season synopsis of its own reaches here: one that repeats the
+    // hero's series description is dropped by the container.
     &__description {
         flex: 1 1 auto;
         min-width: 0;
-        max-width: 760px;
-        font-size: 12.5px;
+        max-width: 72ch;
+        font-size: 13px;
         line-height: 1.55;
         color: var(--text-secondary);
     }
