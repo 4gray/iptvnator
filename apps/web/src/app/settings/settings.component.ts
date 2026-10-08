@@ -296,6 +296,16 @@ export class SettingsComponent
             }
             this.settingsCtx.setDirtySections(sections);
         });
+        // The frame-copy opt-in may not be what the engine runs (it was not
+        // available at launch): the restart notice compares against that.
+        effect(() => {
+            if (this.embeddedMpv.support()) {
+                this.form.setRunningValue(
+                    'embeddedMpvFrameCopy',
+                    this.embeddedMpv.frameCopyActive()
+                );
+            }
+        });
         effect(() => {
             const status = this.appUpdate.status()?.status;
             this.settingsCtx.setVersion(this.appUpdate.version() || null);

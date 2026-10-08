@@ -505,6 +505,26 @@ describe('SettingsComponent form', () => {
             ]);
             expect(notice()).not.toBeNull();
 
+            // Saving the launch value back withdraws the notice: nothing
+            // waits for a restart any more.
+            component.settingsForm.get('startupWindowMode')?.setValue('normal');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(component.form.restartPendingControls()).toEqual([]);
+            expect(notice()).toBeNull();
+
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('fullscreen');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(notice()).not.toBeNull();
+
             (
                 notice()?.querySelector(
                     '[data-test-id="settings-restart-later"]'
@@ -513,6 +533,69 @@ describe('SettingsComponent form', () => {
             fixture.detectChanges();
 
             expect(notice()).toBeNull();
+        });
+
+        it('keeps the launch values across settings visits', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            settingsStore.updateSettings.mockImplementation((settings) => {
+                settingsStore._setSettings(settings);
+                return Promise.resolve(undefined);
+            });
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('maximized');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            expect(component.form.restartPendingControls()).toEqual([
+                'startupWindowMode',
+            ]);
+
+            // Leave settings and come back: the page and its form are new,
+            // but the app still runs with the launch value.
+            fixture.destroy();
+            fixture = TestBed.createComponent(SettingsComponent);
+            component = fixture.componentInstance;
+            stubSettingsSideEffects(component);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(component.form.restartPendingControls()).toEqual([
+                'startupWindowMode',
+            ]);
+
+            // Saving the launch value back withdraws the notice here too.
+            component.settingsForm.get('startupWindowMode')?.setValue('normal');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            expect(component.form.restartPendingControls()).toEqual([]);
+        });
+
+        it('compares the frame-copy opt-in against the engine the app runs', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            // Stored true, but the engine could not honour it at launch.
+            component.form.setRunningValue('embeddedMpvFrameCopy', false);
+            component.settingsForm.get('embeddedMpvFrameCopy')?.setValue(true);
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+
+            expect(component.form.restartPendingControls()).toEqual([
+                'embeddedMpvFrameCopy',
+            ]);
+
+            // A staged, unsaved edit back to the launch value changes nothing:
+            // the saved setting still needs the restart.
+            component.settingsForm.get('embeddedMpvFrameCopy')?.setValue(false);
+            component.form.setRunningValue('embeddedMpvFrameCopy', false);
+            expect(component.form.restartPendingControls()).toEqual([
+                'embeddedMpvFrameCopy',
+            ]);
+
+            // The engine catches up (a later probe reports frame copy): the
+            // notice goes without another save.
+            component.form.setRunningValue('embeddedMpvFrameCopy', true);
+            expect(component.form.restartPendingControls()).toEqual([]);
         });
 
         it('discard reverts a staged cover size (regression: eager persist made it stick)', () => {

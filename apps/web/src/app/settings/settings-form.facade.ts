@@ -1,4 +1,10 @@
-import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import {
+    DestroyRef,
+    inject,
+    Injectable,
+    signal,
+    untracked,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder } from '@angular/forms';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -20,6 +26,7 @@ import {
     diffSettingsValues,
     SETTINGS_RESTART_CONTROLS,
 } from './settings-change-tracking';
+import { SettingsLaunchValuesService } from './settings-launch-values.service';
 import {
     applyEpgUrlsToFormArray,
     createEpgUrlControl,
@@ -40,6 +47,7 @@ export class SettingsFormFacade {
     private readonly destroyRef = inject(DestroyRef);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly formBuilder = inject(FormBuilder);
+    private readonly launchValues = inject(SettingsLaunchValuesService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsService = inject(SettingsService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
@@ -61,7 +69,7 @@ export class SettingsFormFacade {
      */
     readonly changedPaths = signal<readonly string[]>([]);
 
-    /** Controls whose saved change waits for a restart (cleared on Later). */
+    /** Controls whose saved value differs from what the running app uses. */
     readonly restartPendingControls = signal<readonly string[]>([]);
 
     private savedSnapshot: unknown = {};
@@ -105,6 +113,22 @@ export class SettingsFormFacade {
             this.setEpgUrls(currentSettings.epgUrl);
         }
         this.takeSavedSnapshot();
+        // The app launched with the stored values; recorded once per app run,
+        // not per settings visit, so a later visit compares against launch.
+        this.launchValues.captureOnce(
+            (control) => this.form.get(control)?.value
+        );
+        this.refreshRestartPending();
+    }
+
+    /**
+     * What the running app actually uses for a restart control when that
+     * differs from the stored value (a frame-copy opt-in the engine could
+     * not honour). Re-evaluates the pending notice.
+     */
+    setRunningValue(control: string, value: unknown): void {
+        this.launchValues.set(control, value);
+        this.refreshRestartPending();
     }
 
     bindDashboardControlsEnabledState(): void {
@@ -187,11 +211,6 @@ export class SettingsFormFacade {
             this.form,
             this.settingsStore.getSettings()
         );
-        // Read before the write: a successful save resets the diff.
-        const restartControls = this.changedPaths()
-            .map((path) => path.split('.')[0])
-            .filter((control) => control in SETTINGS_RESTART_CONTROLS);
-
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
             await this.settingsStore.updateSettings(settings, {
@@ -205,14 +224,7 @@ export class SettingsFormFacade {
         }
         if (!cleanupError) {
             onSaved();
-            if (restartControls.length > 0) {
-                this.restartPendingControls.set([
-                    ...new Set([
-                        ...this.restartPendingControls(),
-                        ...restartControls,
-                    ]),
-                ]);
-            }
+            this.refreshRestartPending();
         }
 
         if (window.electron) {
@@ -241,6 +253,30 @@ export class SettingsFormFacade {
         this.settingsService.changeTheme(
             this.form.value.theme ?? Theme.SystemTheme
         );
+    }
+
+    /**
+     * Restart controls whose SAVED value the running app does not use yet.
+     * Compares the last saved snapshot, never the draft form: a staged but
+     * unsaved edit must not raise or clear the reminder. Called from an
+     * effect (the engine probe), so the current list is read untracked and
+     * only a changed list is written: a fresh array on every run would
+     * re-trigger that effect for ever.
+     */
+    private refreshRestartPending(): void {
+        const running = this.launchValues.get();
+        const saved = (this.savedSnapshot ?? {}) as Record<string, unknown>;
+        const pending = Object.keys(SETTINGS_RESTART_CONTROLS).filter(
+            (control) =>
+                control in running && saved[control] !== running[control]
+        );
+        const current = untracked(this.restartPendingControls);
+        if (
+            current.length !== pending.length ||
+            current.some((control, index) => control !== pending[index])
+        ) {
+            this.restartPendingControls.set(pending);
+        }
     }
 
     private takeSavedSnapshot(): void {
