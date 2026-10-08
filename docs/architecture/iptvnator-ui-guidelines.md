@@ -65,6 +65,7 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-widget-border` / `--app-rail-border` — hairlines
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
+- `--app-success-color` — done/watched status (episode watched toggle)
 
 Angular Material mixins and Material-component overrides may use the tokens
 owned by that component. Outside a Material-owned component, prefer the
@@ -158,8 +159,11 @@ VOD and series detail screens share `app-portal-detail-shell` and
 kind label ("Movie · playlist") → title → chips → description (three lines,
 "More") → resume bar → action row → credits, with the poster bottom-aligned
 on the left and the backdrop filling the hero behind a two-layer scrim built
-from `--app-content-bg`. The hero keeps `min(480px, 60vh)` of stage for a
-16:9 backdrop. Without one, or when the provider sends the poster as the
+from `--app-content-bg`. The hero keeps `min(520px, 60vh)` of stage for a
+16:9 backdrop. The shell gives it a 140px `--hero-tail` and pulls the first
+section up over it, so the artwork continues under that section's heading and
+the vertical scrim ends on the exact page surface there, never as a band at
+the hero's edge. Without one, or when the provider sends the poster as the
 backdrop, the hero is compact (`hero--compact`, sized by its content) over
 the blurred poster. The layout is decided once per title, so a backdrop that
 TMDB enrichment adds a moment later fills the compact hero instead of
@@ -599,7 +603,7 @@ A title's watch progress (its resume share, `progressPercent`) has exactly one
 colour per context, and never a literal of its own:
 
 - **App chrome** — dashboard rail cards and the hero, catalog grids and season
-  episodes (`app-progress-capsule`, and the season list rows' own fill):
+  episodes (`app-progress-capsule`, and the episode items' own 3px bar):
   `--app-progress-color`, declared per theme in `apps/web/src/m3-theme.scss`
   as that theme's `--app-selection-color`, and declared again inside
   `.dark-theme` because a derived custom property resolves where it is
@@ -735,17 +739,34 @@ If the label is too long for the rail, shorten the label key instead of shrinkin
 The action row never wraps on a desktop window: the primary, the Trailer
 button, then the 44px icon buttons and the "…" menu. Season and series
 actions (mark watched, download season, reset progress) live in that menu
-and drive the season container's presenters; the container's header is
-"Episodes" with the season pills and the episode count, plus the grid/list
-toggle. The checked toggle uses `--app-selection-surface` and
-`--app-selection-color`; hover uses the app's neutral surface treatment.
+and drive the season container's presenters.
 
-Episode cards are flat: a 16:9 thumbnail (with a light hairline so its edge
-survives the light theme) and a 3px watched bar at its bottom edge, "N. Title", the plot clamped to two lines and a "42 min ·
-18m left / watched" line. List rows keep a subtle neutral fill. The selected
-season's cover and synopsis sit in a compact strip under the header only
-when present. Keep these treatments in the shared season components so
-Xtream and Stalker share the same behavior.
+Every section below the hero (Episodes, Cast & crew, Similar) uses
+`app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular
+counter, a lead slot (the season pills or dropdown, a 30px pill) and an end
+slot (the list/grid toggle, rail arrows). Sections sit 56px apart, with 16px
+between a header and its content and 56px after the last one. The Episodes
+counter reads "N episodes · M watched". The list/grid switch is a segmented
+track whose checked segment is a neutral raised fill with heading ink; the
+list is the default view.
+
+Episodes render through `app-episode-item` as a flat list row or grid card,
+never a bordered box. A row is a number column, a 168px 16:9 thumbnail (with
+a light hairline border so its edge survives the light theme), the title with
+a "46 min · 12 Jan" meta line (time left once started) and the plot clamped to
+two lines at 74ch, and a 112px action slot. Rows are separated by a hairline
+that gives way around a hovered, focused or highlighted row. Watched episodes
+carry a check badge on the thumbnail and muted text, and never a bar; a
+started one gets a 3px bar and the time left. Mark watched, download and "…"
+(Episode details, Play from beginning) are always laid out and only fade in on
+`:hover`/`:focus-within`, so nothing shifts. The whole item is one stretched
+button: Tab focuses it and Enter plays. The playing episode, else the most
+recently watched unfinished one, is highlighted. Without distinct stills the
+thumbnails show a dimmed fallback, not a column of bright posters. The
+selected season's cover and synopsis sit in a compact strip under the header
+only when present; a synopsis that repeats the series description (or is cut
+short from it) is dropped. Keep these treatments in the shared season
+components so Xtream and Stalker share the same behavior.
 
 Browser regression coverage measures the composited neutral edges and selected
 toggle fill, in addition to capturing light/dark grid and list screenshots.
