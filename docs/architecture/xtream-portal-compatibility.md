@@ -405,3 +405,40 @@ deduplicated list, `hasMoreContent` derives from accumulated length vs
 and the facade maps page 0 to the skeleton and later pages to the tail
 spinner. These catalog/search surfaces use incremental loading instead of
 page buttons.
+
+## Forced external launches from detail pages
+
+The "…" menu's MPV/VLC launch follows the shared rules in
+[Forced External Launches From Detail Pages](./embedded-inline-playback.md#forced-external-launches-from-detail-pages).
+The movie page's pin and reset rules are in
+[VOD Multi-Source](./vod-multi-source.md#menu-launch-and-reset-follow-the-primary-button).
+
+The series page keeps its launch state at module level in
+`serial-details-external-launch.ts`, so it outlives a recreated page:
+
+- The owner is `playlist:series` (`launchOwner()`). It changes when the page
+  shows another series and is null once the page is gone.
+- Forced launches of one owner run on one chain. A later launch waits for the
+  earlier one to settle, closes the owner's running episode session and then
+  launches. Each step rechecks the owner, and a launch that resolves after the
+  page left the owner closes the session it opened.
+- The duplicate guard is keyed by page token plus episode. The token
+  (`pageToken()`) is owner, page instance and visit, so a launch left behind
+  by an earlier visit of the same series does not swallow a launch from the
+  reopened page; that launch queues on the owner's chain.
+- While a forced launch of the owner is pending (`forcedLaunchPending`), a
+  start that does not force a player is queued instead of started. One choice
+  is kept per owner, the latest wins, and it carries the host and `start` of
+  the page that made it. Once the chain settles, the player the launch opened
+  is closed first while the owner stays pending. The choice is dropped when
+  that page no longer shows the owner or the close was not confirmed.
+- The pending flag also disables the menu's external-player row and the
+  season and series watched actions, and counts as active playback for "Reset
+  progress".
+- The launch-position marker and a launch-failure message apply only while
+  the page token is unchanged.
+
+Regression coverage: `serial-details-external-launch.spec.ts` (chain,
+duplicate guard, queued choice), `serial-details-playback.service.spec.ts`
+(page token) and, for the external-player and reset rows,
+`libs/ui/components/src/lib/detail-ui/series-hero.state.spec.ts`.

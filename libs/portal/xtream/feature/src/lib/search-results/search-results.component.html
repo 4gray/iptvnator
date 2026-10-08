@@ -3,7 +3,7 @@
     [resultsCount]="xtreamStore.searchResults().length"
     [isLoading]="xtreamStore.isSearching()"
     [showCloseButton]="false"
-    [showBackButton]="showBackButton"
+    [backAvailable]="backAvailable"
     [showResultsCount]="!isGlobalSearch || !groupByPlaylist()"
     [showSearchInput]="showInlineSearchInput"
     [minSearchLength]="minSearchLength"

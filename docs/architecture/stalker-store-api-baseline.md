@@ -93,6 +93,9 @@ During refactor:
 - `clearSelectedItem(): void`
 - `setCategories(type: 'vod' | 'series' | 'itv' | 'radio', categories: StalkerCategoryItem[]): void`
 - `resetCategories(): void`
+  Clears only; it starts no request (called on portal switches and route teardown).
+- `reloadCategories(): void`
+  Refetches the current portal's categories after a reset that keeps the owner.
 - `setItvChannels(channels: StalkerItvChannel[]): void`
 - `setRadioChannels(channels: StalkerItvChannel[]): void`
 - `setSearchPhrase(phrase: string): void`

@@ -66,7 +66,9 @@ export class SettingsSearchFacade {
     });
 
     constructor() {
-        void this.settingsSearch.ensureEmbeddedMpvSupportLoaded();
+        inject(DestroyRef).onDestroy(
+            this.settingsSearch.followEmbeddedMpvSupport()
+        );
 
         effect(() => {
             if (!this.isSearching()) {

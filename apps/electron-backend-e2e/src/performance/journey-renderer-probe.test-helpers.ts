@@ -17,9 +17,9 @@ export interface FakeEntry {
     entryType: string;
     hadRecentInput?: boolean;
     sources?: {
-        currentRect: { height: number; y: number };
+        currentRect: { height: number; width?: number; x?: number; y: number };
         node: unknown;
-        previousRect: { height: number; y: number };
+        previousRect: { height: number; width?: number; x?: number; y: number };
     }[];
     startTime: number;
     value?: number;

@@ -93,10 +93,9 @@ The shell is intentionally split into four persistent regions:
     4. No brand mark: it only repeated the first workspace link (Dashboard,
        or Sources when the dashboard is off).
 2. Top header:
-    1. Leading Back slot, shown while the current page registers a target
-       with `WorkspaceBackNavigationService` (detail pages today). At
-       ≤640 px it takes the context drawer toggle's place. See
-       [Portal Detail Navigation](./portal-detail-navigation.md).
+    1. Leading Back slot: the current page's registered Back, else browser
+       history while an in-app previous page exists, else nothing. See
+       [Header Back](#header-back).
     2. Playlist switcher.
     3. Route-aware search input and command palette trigger.
     4. Add source action.
@@ -129,6 +128,96 @@ services:
 When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
 for the template unless the template contract itself intentionally changes.
+
+## Header Back
+
+The header's leading slot is the workspace's one page-level Back. Pages do not
+render an arrow of their own: they register a `WorkspaceBackTarget`
+(`@iptvnator/portal/shared/util`) with `WorkspaceBackNavigationService`
+(`@iptvnator/portal/shared/data-access`), normally through
+`registerWorkspaceBack()`, which registers for the calling component's
+lifetime while its optional `available` predicate holds. The newest
+registration wins, and each release removes only its own target. The button
+(`data-test-id="workspace-header-back"`) sits beside the macOS traffic lights,
+never scrolls, and has Electron `no-drag` hit testing. A target supplies its
+label (else the translated "Back"), whether Escape on the page runs it, and
+`run()`.
+
+| Page | Registered by | Back runs | ≤640 px |
+| --- | --- | --- | --- |
+| Portal, collection, offline and recording details | `PortalDetailShellComponent` while `backAvailable()` | the host's `backClicked` | replaces the drawer toggle |
+| Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's history Back; parent: the catalog section Discover lists (`vod` for movies, `series` for TV), the portal's default section for actor | (no drawer) |
+| In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | history Back; parent: the portal's default section | (no drawer) |
+| Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | history Back; parent: the first workspace view (`WorkspaceStartupPreferencesService.resolveDashboardPath()`: the dashboard, or sources when it is hidden) | beside the drawer toggle |
+
+Detail-page semantics (Escape, browse and watch) are in
+[Portal Detail Navigation](./portal-detail-navigation.md#detail-scroll-and-focus).
+
+**History fallback.** Without a registration, the header shows Back while the
+previous history entry is an in-app one, and runs `Location.back()`. The
+service reads that from the Navigation API: the previous entry must be
+same-document (`NavigationHistoryEntry.sameDocument`), so the router pushed it
+after this document loaded. Entries from before a reload or from another page
+of the origin never count, and the fallback can neither leave nor reload the
+app. `currententrychange` keeps it current through pushes, replacements,
+traversals and guard-cancelled Back navigations that the router rewrites.
+Without the Navigation API (older Safari and Firefox, jsdom) there is no
+fallback; registered pages are unaffected. The fallback reads "Back" and
+advertises no Escape, because no page handles one for it. Pages that set
+`backAvailable=false`, such as M3U details, therefore show it too when they
+were reached by navigation.
+
+**Parent fallback.** "Parent" in the table above: a registered page whose
+Back is history Back calls `WorkspaceBackNavigationService.back(resolveParent)`
+instead of `Location.back()`. It runs `Location.back()` while the previous
+entry is an in-app one, by the same Navigation API test as the history
+fallback. Without the API (older Safari and Firefox) the router's history
+depth decides (`trackRouterHistoryDepth`): the document's first navigation is
+depth 0, a push adds one, a replacement keeps it and a traversal restores the
+depth recorded for its entry. The lazy workspace shell creates the service
+after the first navigation began, so the tracker adopts the router's current
+or last navigation: a first one is depth 0, a later one leaves the depth
+unknown. A traversal to an entry from before a reload
+leaves the depth unknown and keeps `Location.back()`, which then has a
+previous entry. Otherwise the page opened
+the session (a deep link, a reload or a restored view), where
+`Location.back()` does nothing in Electron and leaves the app in a browser.
+The service then navigates to the page's parent with `replaceUrl`, so history
+Back cannot return to the page just left; with nothing in-app before it, the
+parent shows no history fallback. The resolver returns a URL or router commands, may be asynchronous, and
+returns null when the page knows no parent, which keeps `Location.back()`.
+Portal pages build their parent with `workspacePortalCommands()`
+(`@iptvnator/portal/shared/util`) from the route's `:id`; without a section,
+the portal route's `redirectTo` picks the default section within the same
+navigation, so the replacement still applies. Detail pages keep their own
+return logic (`backClicked`).
+
+When there is nowhere to go, the slot is empty rather than a disabled arrow.
+Sessions often start on a page that never navigates (an M3U playlist or live
+TV), where a disabled arrow would stay for the whole session. The cost is one
+shift of the switcher and search when Back first appears or leaves, which
+happens only at the start of the history and together with a route change.
+There is no Forward button: Stalker inline details are store state, not
+history entries, so Forward would skip them.
+
+**Phone width.** `phoneDrawerToggle` sets how Back shares the leading slot with
+the context drawer toggle. `replace` (the default) takes the toggle's slot: a
+detail page's drawer belongs to the list that Back returns to. `beside` keeps
+both: the settings drawer holds the page's own sections. `yield` hides Back
+while the toggle shows: the history fallback must not cost a category list its
+only way into the drawer, and two navigation icons do not fit beside the
+switcher. System and browser Back still work there.
+
+**Left in place.** These controls stay inside their surface on purpose:
+
+1. Downloads offline and recording detail error states keep their labelled
+   "Back to Downloads" button beside Retry or Remove. It is the error state's
+   recovery action, not page chrome; the header shows the same Back.
+2. Back controls internal to a surface, which leave a panel rather than the
+   page: the Embedded MPV dock panel and the alternative-sources panel inside
+   the VOD "…" menu.
+3. The M3U player sidebar's Home button, which renders only outside the
+   workspace shell.
 
 ## Context Panel Rules
 
@@ -326,7 +415,32 @@ The Electron window hides the native title bar on all desktop platforms
 (`titleBarStyle: 'hidden'` in `apps/electron-backend/src/app/app.ts`):
 
 1. macOS keeps the native traffic lights (`titleBarOverlay: true`,
-   `trafficLightPosition`); the renderer draws no window buttons.
+   `trafficLightPosition` from `MACOS_TRAFFIC_LIGHTS_POSITION` in
+   `@iptvnator/shared/interfaces`); the renderer draws no window buttons.
+   The lights sit in the header band (`--workspace-header-band`, 56 px) over
+   the rail and the header's leading padding. The macOS rail
+   (`.app-rail.is-macos`) starts its first link below the band: level with
+   the content area and the dashboard hero, with its hover surface clear of
+   the lights. The header's content starts 84 window pixels from the
+   window's left edge (60 px rail plus 24 px padding). macOS 26 ends the
+   lights at 76 (earlier releases at 68), which is where Back's left edge
+   sits at 100 % because of its 8 px pull-in.
+
+   App zoom (see "Zoom level") scales CSS pixels but not the lights. On
+   macOS, `TrafficLightsClearanceDirective` on `.workspace-shell` reads the
+   page zoom factor (`outerWidth / innerWidth`, refreshed on `resize`) and
+   publishes the clearance in CSS pixels as `--traffic-lights-clear-x` (84
+   window pixels) and `--traffic-lights-clear-y` (48: the lights' bottom
+   plus a gap). Zoomed out, the band grows to the vertical clearance, so the
+   lights never overlap the content area. The header's leading padding grows
+   to the horizontal clearance, less the rail column
+   (`--workspace-header-lights-inset`). At 100 % both match the default
+   layout. Off macOS nothing is published and the defaults apply. The phone
+   layout, which puts the rail in a row above the header, ignores the
+   inset. `window-controls.e2e.ts` ("macOS traffic lights") checks the rail
+   alignment, the first header control (the switcher on the first page,
+   which has no history fallback yet, then a detail page's Back) and the
+   content top at default and minimum zoom.
 2. Windows and Linux use renderer-drawn window controls
    (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
    `frame` is intentionally left untouched so native resize borders and
@@ -438,15 +552,24 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
 3. `fullscreen` is the `BrowserWindow` constructor option: on Windows/Linux
    the window is created hidden and enters fullscreen before its first
    paint. macOS ignores the option while the window is hidden (an NSWindow
-   only toggles fullscreen once it is on screen), so `ready-to-show` repeats
+   only toggles fullscreen once it is on screen), so the first show repeats
    the request with `setFullScreen(true)` right after `show()` wherever
    `isFullScreen()` is still false — never unconditionally, or the
    platforms that honoured the option would animate a second toggle. The
    saved bounds stay spread into the options — they are the normal bounds
    the window returns to, and the close handler keeps persisting
-   `getNormalBounds()`. `maximized` calls `maximize()` inside
-   `ready-to-show` right before `show()`, never earlier: `maximize()` on a
-   hidden window shows it, and a blank window would flash.
+   `getNormalBounds()`. `maximized` calls `maximize()` right before the
+   first `show()`, never earlier: `maximize()` on a hidden window shows it,
+   and a blank window would flash. That first show happens at
+   `ready-to-show` or the main frame's `did-finish-load`, whichever comes
+   first (`services/main-window-first-show.ts`): on Linux a hidden window
+   whose startup scripts ran before its first frame gets the next one about
+   a second later, so `ready-to-show` alone left the window off screen and
+   the splash's animation frame waiting. At `did-finish-load` the inline
+   splash is parsed, and the window's `backgroundColor` is the splash colour
+   (`MAIN_WINDOW_BACKGROUND_COLOR`, keep it in sync with `#initial-splash`
+   in `apps/web/src/index.html`), so showing before the first paint does
+   not flash.
 4. `iptvnator --fullscreen` (read via `app.commandLine.hasSwitch`, so it can
    sit anywhere in argv; the playlist-path extractor already skips every
    `-`-prefixed argument) forces `fullscreen` for that launch only and is

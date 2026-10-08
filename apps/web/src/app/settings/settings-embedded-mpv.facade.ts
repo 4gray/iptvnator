@@ -1,6 +1,15 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import {
+    computed,
+    DestroyRef,
+    inject,
+    Injectable,
+    signal,
+} from '@angular/core';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { EmbeddedMpvSupport } from '@iptvnator/shared/interfaces';
+import {
+    EmbeddedMpvSupport,
+    watchEmbeddedMpvSupport,
+} from '@iptvnator/shared/interfaces';
 
 /**
  * Probes the desktop backend for embedded MPV support so the playback
@@ -9,6 +18,7 @@ import { EmbeddedMpvSupport } from '@iptvnator/shared/interfaces';
 @Injectable()
 export class SettingsEmbeddedMpvFacade {
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private stopSupportWatch: (() => void) | undefined;
 
     readonly support = signal<EmbeddedMpvSupport | null>(null);
 
@@ -24,6 +34,14 @@ export class SettingsEmbeddedMpvFacade {
         () => this.support()?.engine === 'frame-copy'
     );
 
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.stopSupportWatch?.());
+    }
+
+    /**
+     * Resolves with the first answer. An inconclusive one keeps being asked
+     * for while the page is open, so the option appears without reopening it.
+     */
     async load(): Promise<void> {
         if (!this.runtime.isElectron) {
             this.support.set({
@@ -43,15 +61,27 @@ export class SettingsEmbeddedMpvFacade {
             return;
         }
 
-        try {
-            this.support.set(await window.electron.getEmbeddedMpvSupport());
-        } catch (error) {
-            this.support.set({
-                supported: false,
-                platform: window.electron.platform,
-                reason: error instanceof Error ? error.message : String(error),
-            });
-        }
+        this.stopSupportWatch?.();
+        await new Promise<void>((answered) => {
+            this.stopSupportWatch = watchEmbeddedMpvSupport(
+                () => window.electron.getEmbeddedMpvSupport(),
+                (support) => {
+                    this.support.set(support);
+                    answered();
+                },
+                (error) => {
+                    this.support.set({
+                        supported: false,
+                        platform: window.electron.platform,
+                        reason:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                    });
+                    answered();
+                }
+            );
+        });
     }
 
     /**

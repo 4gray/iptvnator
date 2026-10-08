@@ -638,6 +638,18 @@ test.describe('Electron Workspace Search', () => {
             await expect(
                 xtreamSearchResultCards(app.mainWindow).first()
             ).toBeVisible({ timeout: 20000 });
+
+            // The search page's Back is the header's leading button, not an
+            // arrow beside its title, and it returns to the dashboard.
+            const headerBack = app.mainWindow.getByTestId(
+                'workspace-header-back'
+            );
+            await expect(headerBack).toBeVisible();
+            await expect(
+                app.mainWindow.getByRole('button', { name: 'Back', exact: true })
+            ).toHaveCount(1);
+            await headerBack.click();
+            await expectPathname(app.mainWindow, /\/workspace\/dashboard$/);
         } finally {
             await closeElectronApp(app);
         }

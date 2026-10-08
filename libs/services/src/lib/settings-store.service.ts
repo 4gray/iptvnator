@@ -41,6 +41,7 @@ import {
     DEFAULT_SETTINGS,
     scheduleEmbeddedMpvPrepare,
     SettingsStorageState,
+    verifySavedEmbeddedMpvPlayer,
 } from './settings-store.defaults';
 
 export type { SettingsStorageFailure } from './settings-store.defaults';
@@ -324,39 +325,14 @@ export const SettingsStore = signalStore(
             },
 
             async sanitizeEmbeddedMpvSelection() {
-                if (store.player() !== VideoPlayer.EmbeddedMpv) {
-                    return;
-                }
-
-                if (
-                    typeof window === 'undefined' ||
-                    !window.electron?.getEmbeddedMpvSupport
-                ) {
-                    await this.updateSettings({
-                        player: DEFAULT_SETTINGS.player,
-                    });
-                    return;
-                }
-
-                try {
-                    const support =
-                        await window.electron.getEmbeddedMpvSupport();
-                    if (!support.supported) {
-                        await this.updateSettings({
+                const isSaved = () =>
+                    store.player() === VideoPlayer.EmbeddedMpv;
+                if (isSaved()) {
+                    await verifySavedEmbeddedMpvPlayer(isSaved, () =>
+                        this.updateSettings({
                             player: DEFAULT_SETTINGS.player,
-                        });
-                        return;
-                    }
-
-                    scheduleEmbeddedMpvPrepare();
-                } catch (error) {
-                    console.warn(
-                        'Failed to verify embedded MPV support; reverting to the default inline player.',
-                        error
+                        })
                     );
-                    await this.updateSettings({
-                        player: DEFAULT_SETTINGS.player,
-                    });
                 }
             },
         };

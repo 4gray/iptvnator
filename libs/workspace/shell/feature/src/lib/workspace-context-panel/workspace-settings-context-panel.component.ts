@@ -1,16 +1,22 @@
-import { Location } from '@angular/common';
 import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
-import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import {
+    registerWorkspaceBack,
+    WorkspaceBackNavigationService,
+} from '@iptvnator/portal/shared/data-access';
+import {
+    WorkspaceShellContextDrawerService,
+    WorkspaceStartupPreferencesService,
+} from '@iptvnator/workspace/shell/util';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 
 @Component({
     selector: 'app-workspace-settings-context-panel',
     imports: [MatIconModule, RouterLink, RouterLinkActive, TranslateModule],
     styleUrls: ['./workspace-settings-context-panel.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <h2 class="panel-title">{{ 'SETTINGS.TITLE' | translate }}</h2>
         <div class="settings-panel-body">
@@ -18,7 +24,7 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings
                 @for (section of ctx.sections(); track section.id) {
                     <!-- replaceUrl keeps a single settings entry in the
                          browser history: switching sections must not turn
-                         "Back" (footer or browser) into a walk through every
+                         "Back" (header or browser) into a walk through every
                          visited section page before finally leaving. -->
                     <a
                         class="nav-item settings-section-item"
@@ -51,21 +57,14 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings
                 }
             </div>
         </div>
-        <div class="settings-panel-footer">
-            <button
-                type="button"
-                class="nav-item settings-back-button"
-                (click)="onBack()"
-            >
-                <mat-icon>arrow_back</mat-icon>
-                <span>{{ 'SETTINGS.BACK_TO_HOME' | translate }}</span>
-            </button>
-        </div>
     `,
 })
 export class WorkspaceSettingsContextPanelComponent {
     readonly ctx = inject(SettingsContextService);
-    private readonly location = inject(Location);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
+    private readonly startupPreferences = inject(
+        WorkspaceStartupPreferencesService
+    );
     // Root-provided; optional keeps standalone unit tests light. Section
     // links are real navigations now, so the phone drawer's NavigationEnd
     // auto-close fires too — the explicit close just makes the drawer react
@@ -77,11 +76,22 @@ export class WorkspaceSettingsContextPanelComponent {
         }
     );
 
-    onSectionClicked() {
-        this.contextDrawer?.close();
+    constructor() {
+        // The panel exists exactly while the settings route shows, so it
+        // offers the page's Back in the header. On a phone the toggle for
+        // this drawer stays beside it: the drawer holds the sections.
+        // Opened as the session's first page, Back leads to the first
+        // workspace view (the dashboard, or sources when it is hidden).
+        registerWorkspaceBack({
+            phoneDrawerToggle: 'beside',
+            run: () =>
+                this.backNavigation.back(() =>
+                    this.startupPreferences.resolveDashboardPath()
+                ),
+        });
     }
 
-    onBack() {
-        this.location.back();
+    onSectionClicked() {
+        this.contextDrawer?.close();
     }
 }

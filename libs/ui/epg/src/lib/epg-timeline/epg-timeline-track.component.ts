@@ -5,8 +5,8 @@ import {
     computed,
     HostBinding,
     input,
+    linkedSignal,
     output,
-    signal,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
@@ -22,6 +22,8 @@ import {
 } from './epg-timeline.utils';
 
 interface PopoverState {
+    /** The render item it describes. */
+    readonly key: string;
     readonly title: string;
     readonly desc: string | null;
     readonly startMs: number;
@@ -60,7 +62,20 @@ export class EpgTimelineTrackComponent {
     readonly infoClick = output<TimelineBlock>();
     readonly groupExpand = output<TimelineRenderGroup>();
 
-    readonly popover = signal<PopoverState | null>(null);
+    /**
+     * Cleared when its block leaves the rendered items: the ribbon window can
+     * remove a focused block on scroll, and a removed node fires no
+     * `focusout`, so the tooltip would stay on a programme no longer shown.
+     */
+    readonly popover = linkedSignal<TimelineRenderItem[], PopoverState | null>({
+        source: this.items,
+        computation: (items, previous) => {
+            const shown = previous?.value;
+            return shown && items.some((item) => item.key === shown.key)
+                ? shown
+                : null;
+        },
+    });
 
     @HostBinding('style.width.px') get hostWidth(): number {
         return this.trackWidthPx();
@@ -116,6 +131,7 @@ export class EpgTimelineTrackComponent {
         const below = rect.bottom + 8;
         const flipAbove = below + estHeight > window.innerHeight;
         this.popover.set({
+            key: item.key,
             title: item.block.program.title,
             desc: item.block.program.desc,
             startMs: item.block.startMs,
@@ -128,9 +144,7 @@ export class EpgTimelineTrackComponent {
                     rect.left + rect.width / 2 - width / 2
                 )
             ),
-            top: flipAbove
-                ? Math.max(12, rect.top - estHeight - 8)
-                : below,
+            top: flipAbove ? Math.max(12, rect.top - estHeight - 8) : below,
         });
     }
 

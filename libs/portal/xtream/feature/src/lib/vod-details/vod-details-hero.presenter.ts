@@ -10,17 +10,20 @@ import {
     type RemainingTimeLabel,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import type {
-    PlaybackPositionData,
-    TmdbCountryFacet,
-    TmdbEnrichedCastMember,
-    TmdbGenreFacet,
-    XtreamVodInfo,
+import {
+    youtubeEmbedUrl,
+    type PlaybackPositionData,
+    type TmdbCountryFacet,
+    type TmdbEnrichedCastMember,
+    type TmdbGenreFacet,
+    type XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
 import type { CrossPortalSimilarItem } from '@iptvnator/services';
 import {
     castMembersFromNames,
     splitPeopleNames,
+    TrailerDialogService,
     type DetailActionButtonState,
     type SimilarRailItem,
 } from '@iptvnator/ui/components';
@@ -54,17 +57,21 @@ interface VodDetailsHeroBindings {
     readonly formatPosition: () => string;
     readonly similarItems: Signal<readonly SimilarCatalogItem[]>;
     readonly similarInPortals: Signal<readonly CrossPortalSimilarItem[]>;
+    readonly openSimilar: (item: SimilarCatalogItem) => void;
+    readonly openSimilarInPortals: (item: CrossPortalSimilarItem) => void;
 }
 
 /**
  * Presentation of the Xtream movie hero: the kind label, the chips, the
- * primary button's two lines, the resume bar, the credits and the Similar
- * rail, all derived from the route's selected movie.
+ * primary button's two lines, the resume bar, the credits, the trailer and
+ * the Similar rail, all derived from the route's selected movie.
  */
 @Injectable()
 export class VodDetailsHeroPresenter {
     private readonly translate = inject(TranslateService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly trailerDialog = inject(TrailerDialogService);
     private readonly bindings = signal<VodDetailsHeroBindings | null>(null);
 
     bind(bindings: VodDetailsHeroBindings): void {
@@ -207,6 +214,45 @@ export class VodDetailsHeroPresenter {
         );
         return [...local, ...crossPortal];
     });
+
+    readonly trailerEmbedUrl = computed(() =>
+        youtubeEmbedUrl(this.info()?.youtube_trailer)
+    );
+    /** Settings → Playback → Play trailers in details background. */
+    readonly trailerBackdropUrl = computed(() =>
+        this.settingsStore.detailTrailerBackdrop?.() === true
+            ? this.trailerEmbedUrl()
+            : null
+    );
+
+    openTrailer(): void {
+        const embedUrl = this.trailerEmbedUrl();
+        const title = this.info()?.name;
+        if (embedUrl) {
+            this.trailerDialog.open({ embedUrl, title: title ?? '' });
+        }
+    }
+
+    openSimilarRailItem(item: SimilarRailItem): void {
+        const bindings = this.bindings();
+        const local = bindings
+            ?.similarItems()
+            .find((candidate) => `c${candidate.id}` === item.key);
+        if (local) {
+            bindings?.openSimilar(local);
+            return;
+        }
+        const crossPortal = bindings
+            ?.similarInPortals()
+            .find(
+                (candidate) =>
+                    `x${candidate.match.playlistId}-${candidate.match.xtreamId}` ===
+                    item.key
+            );
+        if (crossPortal) {
+            bindings?.openSimilarInPortals(crossPortal);
+        }
+    }
 
     private label(label: RemainingTimeLabel | null): string | null {
         return label ? this.translate.instant(label.key, label.params) : null;

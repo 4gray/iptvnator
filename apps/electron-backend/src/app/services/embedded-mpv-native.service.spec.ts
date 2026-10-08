@@ -414,6 +414,56 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             expect(service.willProbeLinuxMpvExecutable()).toBe(true);
         });
 
+        it('reports a missing mpv as inconclusive only while its probe is provisional', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            mockSpawnSync.mockReturnValue({ status: 1 });
+            mockRuntimeUsable();
+
+            // The login shell has not answered: mpv is looked up on the
+            // inherited PATH.
+            service.markLinuxMpvExecutableProbeProvisional();
+            expect(service.getSupport()).toEqual(
+                expect.objectContaining({
+                    supported: false,
+                    inconclusive: true,
+                })
+            );
+            expect(service.prepareAddon()).toEqual(
+                expect.objectContaining({
+                    supported: false,
+                    inconclusive: true,
+                })
+            );
+
+            // It answered: the next probe is a verdict again.
+            service.forgetLinuxMpvExecutableProbe();
+            const settled = service.getSupport();
+            expect(settled.supported).toBe(false);
+            expect(settled.reason).toContain('mpv executable');
+            expect(settled.inconclusive).toBeUndefined();
+        });
+
+        it('keeps every other answer final while the mpv probe is provisional', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            mockSpawnSync.mockReturnValue({ status: 0 });
+            mockRuntimeUsable();
+            service.markLinuxMpvExecutableProbeProvisional();
+
+            const found = service.getSupport();
+            expect(found.supported).toBe(true);
+            expect(found.inconclusive).toBeUndefined();
+
+            // mpv is there, the addon is not: the PATH cannot change that.
+            addon.isSupported.mockReturnValue(false);
+            const unsupported = service.getSupport();
+            expect(unsupported.supported).toBe(false);
+            expect(unsupported.inconclusive).toBeUndefined();
+        });
+
         it('predicts no probe for the frame-copy engine or native Wayland', () => {
             Object.defineProperty(process, 'platform', { value: 'linux' });
             process.env.DISPLAY = ':0';

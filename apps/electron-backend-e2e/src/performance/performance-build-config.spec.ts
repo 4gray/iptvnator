@@ -10,6 +10,7 @@ import { JOURNEY_CD_TICK_COUNTER_KEY } from './journey-renderer-probe';
 
 interface TargetConfiguration {
     configurations?: Record<string, Record<string, unknown>>;
+    defaultConfiguration?: string;
     dependsOn?: unknown;
     executor?: unknown;
     options?: Record<string, unknown>;
@@ -162,13 +163,109 @@ test('only the web performance build installs the tick counter the journeys read
     for (const [name, configuration] of Object.entries(
         webProject.targets['build'].configurations ?? {}
     )) {
-        if (name === 'electron-performance') continue;
+        if (
+            name === 'electron-performance' ||
+            name === 'electron-performance-zoneless'
+        ) {
+            continue;
+        }
         assert.doesNotMatch(
             JSON.stringify(configuration['fileReplacements'] ?? []),
             /environment\.performance/,
             name
         );
     }
+});
+
+// @ngrx/store-devtools must not reach the production, PWA or performance
+// bundles (renderer.initialBytes): the default providers file is empty and
+// only the development configurations swap in the devtools.
+test('only development web builds provide the NgRx store devtools', () => {
+    const environments = join(workspaceRoot, 'apps/web/src/environments');
+    const devtoolsReplacement = {
+        replace: 'apps/web/src/environments/store-devtools.providers.ts',
+        with: 'apps/web/src/environments/store-devtools.providers.dev.ts',
+    };
+    // electron-e2e-zoneless is electron-e2e plus the zoneless swap.
+    const developmentConfigurations = new Set([
+        'development',
+        'electron-e2e',
+        'electron-e2e-zoneless',
+    ]);
+
+    assert.match(
+        readFileSync(join(environments, 'store-devtools.providers.ts'), 'utf8'),
+        /export const storeDevtoolsProviders: EnvironmentProviders\[\] = \[\];/
+    );
+    // The replacement must still provide them, or development builds would
+    // lose the devtools while this test passed.
+    assert.match(
+        readFileSync(
+            join(environments, 'store-devtools.providers.dev.ts'),
+            'utf8'
+        ),
+        /storeDevtoolsProviders: EnvironmentProviders\[\] = \[\s*provideStoreDevtools\(/
+    );
+    assert.doesNotMatch(
+        readFileSync(
+            join(workspaceRoot, 'apps/web/src/app/app.config.ts'),
+            'utf8'
+        ),
+        /@ngrx\/store-devtools/
+    );
+    for (const [name, configuration] of Object.entries(
+        webProject.targets['build'].configurations ?? {}
+    )) {
+        const replacements = (configuration['fileReplacements'] ??
+            []) as unknown[];
+        if (developmentConfigurations.has(name)) {
+            assert.deepEqual(replacements[0], devtoolsReplacement, name);
+        } else {
+            assert.doesNotMatch(
+                JSON.stringify(replacements),
+                /store-devtools/,
+                name
+            );
+        }
+    }
+});
+
+// Plan item C6 measures zoneless change detection behind a build-time flag:
+// each *-zoneless configuration is its base configuration plus one swap of
+// the change-detection providers, and nothing else selects that swap.
+test('the zoneless flag is opt-in through the *-zoneless web configurations only', () => {
+    const configurations = webProject.targets['build'].configurations ?? {};
+    const zonelessReplacement = {
+        replace: 'apps/web/src/environments/change-detection.providers.ts',
+        with: 'apps/web/src/environments/change-detection.providers.zoneless.ts',
+    };
+
+    for (const base of ['electron-performance', 'electron-e2e']) {
+        const baseConfiguration = configurations[base];
+        const zoneless = configurations[`${base}-zoneless`];
+        assert.ok(zoneless, `web:build must define ${base}-zoneless`);
+        assert.ok(baseConfiguration, `web:build must define ${base}`);
+        const { fileReplacements: baseReplacements, ...baseRest } =
+            baseConfiguration;
+        const { fileReplacements, ...rest } = zoneless;
+        assert.deepEqual(rest, baseRest, base);
+        assert.deepEqual(fileReplacements, [
+            ...((baseReplacements as unknown[] | undefined) ?? []),
+            zonelessReplacement,
+        ]);
+    }
+    for (const [name, configuration] of Object.entries(configurations)) {
+        if (name.endsWith('-zoneless')) continue;
+        assert.doesNotMatch(
+            JSON.stringify(configuration['fileReplacements'] ?? []),
+            /change-detection\.providers/,
+            name
+        );
+    }
+    assert.equal(
+        webProject.targets['build'].defaultConfiguration,
+        'production'
+    );
 });
 
 test('the resolved web build cache output is the renderer directory', () => {
