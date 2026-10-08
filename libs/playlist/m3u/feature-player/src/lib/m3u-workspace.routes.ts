@@ -1,9 +1,12 @@
 import { Route } from '@angular/router';
-import { M3uCatalogRouteComponent } from './m3u-catalog/m3u-catalog-route.component';
 import { M3uCollectionRouteComponent } from './m3u-collection-route/m3u-collection-route.component';
-import { M3uSeriesDetailRouteComponent } from './m3u-series-detail/m3u-series-detail-route.component';
 import { provideM3uWorkspaceRouteSession } from './m3u-workspace-route-session.service';
 import { VideoPlayerComponent } from './video-player/video-player.component';
+
+const loadCatalogRoute = () =>
+    import('./m3u-catalog/m3u-catalog-route.component').then(
+        (m) => m.M3uCatalogRouteComponent
+    );
 
 export function createM3uWorkspaceRoutes(): Route[] {
     return [
@@ -25,19 +28,26 @@ export function createM3uWorkspaceRoutes(): Route[] {
                 // Declared before the `:view` catch-all, which renders the player.
                 // They reuse the portals' own section tokens so the rail tooltips,
                 // the search mode and the section memory already know them.
+                //
+                // Loaded on demand: most M3U playlists are live-only, and
+                // opening one should not fetch the catalog grid or the
+                // series aggregation it never shows.
                 {
                     path: 'vod',
-                    component: M3uCatalogRouteComponent,
+                    loadComponent: loadCatalogRoute,
                     data: { kind: 'movie' },
                 },
                 {
                     path: 'series',
-                    component: M3uCatalogRouteComponent,
+                    loadComponent: loadCatalogRoute,
                     data: { kind: 'episode' },
                 },
                 {
                     path: 'series/:seriesId',
-                    component: M3uSeriesDetailRouteComponent,
+                    loadComponent: () =>
+                        import('./m3u-series-detail/m3u-series-detail-route.component').then(
+                            (m) => m.M3uSeriesDetailRouteComponent
+                        ),
                     data: { kind: 'episode' },
                 },
                 {

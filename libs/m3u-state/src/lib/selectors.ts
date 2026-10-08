@@ -42,6 +42,12 @@ export const selectChannels = createSelector(
     fromPlaylistState.selectChannelsReducer
 );
 
+/** The playlist the stored channel rows were read from, if known. */
+export const selectChannelsPlaylistId = createSelector(
+    selectPlaylistState,
+    fromPlaylistState.selectChannelsPlaylistIdReducer
+);
+
 export const selectPlaylistsLoadingFlag = createSelector(
     selectPlaylistState,
     fromPlaylistState.selectPlaylistsLoadingFlagReducer

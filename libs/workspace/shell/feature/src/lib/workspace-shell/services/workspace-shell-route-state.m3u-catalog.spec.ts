@@ -17,6 +17,7 @@ import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.s
  */
 describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
     const loading = signal(false);
+    const rowsPlaylistId = signal<string | null>('pl-a');
     const counts = signal({ movie: 0, episode: 0 });
     const catalogTabs = signal<boolean | undefined>(true);
     const router = {
@@ -37,6 +38,7 @@ describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
 
     beforeEach(() => {
         loading.set(false);
+        rowsPlaylistId.set('pl-a');
         counts.set({ movie: 0, episode: 0 });
         catalogTabs.set(true);
         router.url = '/workspace/playlists/pl-a/all';
@@ -79,6 +81,7 @@ describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
                     provide: M3uCatalogIndexService,
                     useValue: {
                         loading,
+                        rowsPlaylistId,
                         index: () => ({ counts: counts() }),
                     },
                 },
@@ -114,6 +117,24 @@ describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
         state.currentUrl.set('/workspace/playlists/pl-b/all');
 
         expect(sections(state)).toEqual([]);
+    });
+
+    it('never reads the rows of one playlist as the counts of another', () => {
+        // Off an M3U route the rail follows the active playlist, which can
+        // change while the store still holds the last opened playlist's
+        // rows — not loading, just not this playlist's.
+        counts.set({ movie: 3, episode: 5 });
+        const state = service();
+        expect(sections(state)).toEqual(['vod', 'series']);
+
+        state.currentUrl.set('/workspace/playlists/pl-b/all');
+
+        expect(sections(state)).toEqual([]);
+
+        rowsPlaylistId.set('pl-b');
+        counts.set({ movie: 0, episode: 2 });
+
+        expect(sections(state)).toEqual(['series']);
     });
 
     it('offers nothing when the sections are turned off', () => {

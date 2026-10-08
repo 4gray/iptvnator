@@ -23,7 +23,9 @@ class RouteStubComponent {
 function withStubPages(routes: Route[]): Route[] {
     return routes.map((route) => ({
         ...route,
-        ...(route.component ? { component: RouteStubComponent } : {}),
+        ...(route.component || route.loadComponent
+            ? { component: RouteStubComponent, loadComponent: undefined }
+            : {}),
         ...(route.children ? { children: withStubPages(route.children) } : {}),
     }));
 }
@@ -105,6 +107,20 @@ describe('createM3uWorkspaceRoutes', () => {
         expect(detail.route.snapshot.params).toEqual(
             expect.objectContaining({ id: 'pl-1', seriesId: '42' })
         );
+    });
+
+    it('loads the catalog pages on demand', async () => {
+        // Most M3U playlists are live-only; opening one must not fetch the
+        // catalog grid or the series aggregation.
+        const { createM3uWorkspaceRoutes } =
+            await import('./m3u-workspace.routes');
+        const pages = createM3uWorkspaceRoutes()[0].children ?? [];
+
+        for (const path of ['vod', 'series', 'series/:seriesId']) {
+            const route = pages.find((page) => page.path === path);
+            expect(route?.loadComponent).toEqual(expect.any(Function));
+            expect(route?.component).toBeUndefined();
+        }
     });
 
     it('redirects the bare playlist route to all', async () => {

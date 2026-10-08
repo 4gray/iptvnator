@@ -68,7 +68,15 @@ export class WorkspaceShellRouteStateService {
         // for the same playlist the links would blink out on every reload,
         // including on the Movies page itself; another playlist's answer is
         // never reused.
-        if (this.catalogIndex.loading()) {
+        //
+        // The same holds when the rows are another playlist's: on the
+        // dashboard or in settings the rail follows the ACTIVE playlist,
+        // which can be switched there while the rows stay those of the last
+        // playlist an M3U route loaded.
+        if (
+            this.catalogIndex.loading() ||
+            this.catalogIndex.rowsPlaylistId() !== playlistId
+        ) {
             const last = this.lastM3uCatalogSections;
             return last?.playlistId === playlistId
                 ? last.sections

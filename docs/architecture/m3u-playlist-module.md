@@ -1775,6 +1775,13 @@ watched marks (the same limit Stalker positions have there).
 - The live views render `M3uCatalogIndexService.liveChannels` rather than the
   whole array, so the sections are a SPLIT and not an addition. It falls back
   to the complete list when the split is off or the playlist is live-only.
+- The store records which playlist its channel rows were read from
+  (`channelsPlaylistId`, set by `setChannels({ channels, playlistId })`).
+  Off an M3U route the rail follows the ACTIVE playlist, which can change
+  without any rows being loaded, so the rail counts the catalog only when
+  the rows are that playlist's.
+- The Movies, Series and series-detail pages are `loadComponent` routes:
+  a live-only playlist never fetches the catalog grid or the series code.
 - The rail offers each catalog section only when the playlist has rows of
   that kind (`counts.movie` / `counts.episode`) AND `Settings.m3uCatalogTabs`
   is not explicitly `false` — a playlist with films but no series is

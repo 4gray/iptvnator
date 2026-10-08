@@ -7,7 +7,11 @@ import {
     M3uContentKind,
     buildM3uCatalogIndex,
 } from '@iptvnator/shared/m3u-utils';
-import { selectChannels, selectChannelsLoading } from './selectors';
+import {
+    selectChannels,
+    selectChannelsLoading,
+    selectChannelsPlaylistId,
+} from './selectors';
 
 const EMPTY_INDEX: M3uCatalogIndex<Channel> = buildM3uCatalogIndex<Channel>([]);
 
@@ -48,6 +52,17 @@ export class M3uCatalogIndexService {
      */
     readonly loading: Signal<boolean> = this.store.selectSignal(
         selectChannelsLoading
+    );
+
+    /**
+     * The playlist the indexed rows were read from, or null when unknown.
+     *
+     * The rail reads this before trusting the counts: outside an M3U route
+     * the active playlist can change while the rows stay those of the last
+     * playlist opened.
+     */
+    readonly rowsPlaylistId: Signal<string | null> = this.store.selectSignal(
+        selectChannelsPlaylistId
     );
 
     /** Index of whatever the store holds, current or not. */

@@ -125,6 +125,7 @@ export class M3uWorkspaceRouteSession {
                     this.store.dispatch(
                         ChannelActions.setChannels({
                             channels,
+                            playlistId,
                         })
                     ),
                 () => ({ items: channels.length })

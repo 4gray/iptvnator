@@ -279,7 +279,12 @@ describe('M3uWorkspaceRouteSession', () => {
                 PLAYLIST_ID
             );
             expect(store.dispatch).toHaveBeenCalledWith(
-                ChannelActions.setChannels({ channels: [PRIMARY_CHANNEL] })
+                // The id says whose rows these are: the rail must not
+                // count them as another playlist's.
+                ChannelActions.setChannels({
+                    channels: [PRIMARY_CHANNEL],
+                    playlistId: PLAYLIST_ID,
+                })
             );
         }
     );
@@ -349,7 +354,12 @@ describe('M3uWorkspaceRouteSession', () => {
         );
 
         expect(setChannelsCalls).toEqual([
-            [ChannelActions.setChannels({ channels: [NEXT_CHANNEL] })],
+            [
+                ChannelActions.setChannels({
+                    channels: [NEXT_CHANNEL],
+                    playlistId: NEXT_PLAYLIST_ID,
+                }),
+            ],
         ]);
         expect(store.dispatch).toHaveBeenCalledWith(
             FavoritesActions.hydrateFavorites({
