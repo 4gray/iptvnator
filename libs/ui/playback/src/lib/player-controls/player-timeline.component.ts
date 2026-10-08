@@ -3,9 +3,11 @@ import {
     Component,
     ElementRef,
     afterRenderEffect,
+    effect,
     inject,
     input,
     output,
+    signal,
     viewChild,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
@@ -54,16 +56,39 @@ export class PlayerTimelineComponent {
     private readonly bar = viewChild<ElementRef<HTMLElement>>('bar');
     private readonly labelElement =
         viewChild<ElementRef<HTMLElement>>('labelElement');
+    /**
+     * Bumped when the bar or the player resizes: the label's pixel `left`
+     * is stale then, even with its anchor and text unchanged (a paused
+     * player, the keyboard holding the slider, a narrowed window).
+     */
+    private readonly resized = signal(0);
 
     constructor() {
+        effect((onCleanup) => {
+            const bar = this.bar()?.nativeElement;
+            if (!bar || typeof ResizeObserver === 'undefined') {
+                return;
+            }
+            const observer = new ResizeObserver(() =>
+                this.resized.update((count) => count + 1)
+            );
+            observer.observe(bar);
+            const player = this.host.closest('.player-controls-host');
+            if (player) {
+                observer.observe(player);
+            }
+            onCleanup(() => observer.disconnect());
+        });
         // The stylesheet centres the label on its anchor; once laid out, it
         // is moved by its measured width to stay inside the player, which a
         // long programme or chapter title would otherwise overflow.
         afterRenderEffect({
             earlyRead: () => {
                 const percent = this.label().percent();
-                // A new title or time changes the width to clamp.
+                // A new title or time changes the width to clamp, and a
+                // resize the room it is clamped into.
                 this.label().text();
+                this.resized();
                 const label = this.labelElement()?.nativeElement;
                 const bar = this.bar()?.nativeElement;
                 if (percent === null || !label || !bar) {

@@ -466,7 +466,10 @@ describe('PlayerControlsComponent dock', () => {
 
             try {
                 bar.dispatchEvent(
-                    new MouseEvent('pointermove', { clientX: 70, bubbles: true })
+                    new MouseEvent('pointermove', {
+                        clientX: 70,
+                        bubbles: true,
+                    })
                 );
                 fixture.detectChanges();
                 const label = query(
@@ -477,11 +480,29 @@ describe('PlayerControlsComponent dock', () => {
                 expect(label.style.transform).toBe('none');
 
                 bar.dispatchEvent(
-                    new MouseEvent('pointermove', { clientX: 730, bubbles: true })
+                    new MouseEvent('pointermove', {
+                        clientX: 730,
+                        bubbles: true,
+                    })
                 );
                 fixture.detectChanges();
                 // Its right edge 8px in from the player's right edge.
                 expect(label.style.left).toBe(`${800 - 8 - 390 - 70}px`);
+
+                // The player narrows with the anchor and text unchanged (a
+                // paused player, the slider held): the label is re-placed.
+                host.getBoundingClientRect = () =>
+                    ({ left: 0, right: 600, width: 600 }) as DOMRect;
+                bar.getBoundingClientRect = () =>
+                    ({ left: 70, width: 460 }) as DOMRect;
+                resizeTo(600);
+                expect(
+                    (
+                        query(
+                            '[data-test-id="player-controls-timeline-label"]'
+                        ) as HTMLElement
+                    ).style.left
+                ).toBe(`${600 - 8 - 390 - 70}px`);
             } finally {
                 if (offsetWidth) {
                     Object.defineProperty(

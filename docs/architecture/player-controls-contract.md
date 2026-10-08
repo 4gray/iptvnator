@@ -407,7 +407,9 @@ stylesheet centres it on its anchor; once laid out,
 `PlayerTimelineComponent` moves it by its measured width
 (`clampTimelineLabelLeft`, an `afterRenderEffect`) so it stays 8px inside
 the player (`.player-controls-host`) — past the bar's ends when needed, as
-the bar is narrower than the player. `xtream-catchup-timeline-label.e2e.ts`
+the bar is narrower than the player. A `ResizeObserver` on the bar and the
+player re-places it when only the size changes (a paused player whose
+slider the keyboard holds, in a narrowed window). `xtream-catchup-timeline-label.e2e.ts`
 tabs to the bar with a 120-character programme title at 1280 and 800px, in
 both themes and in de and ru.
 
