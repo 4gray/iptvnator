@@ -344,6 +344,31 @@ describe('buildM3uSeriesCatalog', () => {
         expect(new Set(Object.values(before)).size).toBe(3);
     });
 
+    it('keeps unnumbered rows apart when year variants of a title merge', () => {
+        // "Show" and "Show 2025" are one series, and each variant lists its
+        // first unnumbered row at slot 1. Merging by slot hid one of them.
+        const file = (name: string, n: number) => ({
+            ...row(name),
+            url: `http://h.example/series/u/p/file-${n}.mp4`,
+        });
+        const series = buildM3uSeriesCatalog(
+            [file('Show', 1), file('Show 2025', 2), file('Show 2025', 3)],
+            'pl-1'
+        );
+
+        expect(series).toHaveLength(1);
+        const episodes = series[0].seasons.get(1) ?? [];
+        expect(episodes.map((episode) => episode.channel.url).sort()).toEqual([
+            file('Show', 1).url,
+            file('Show 2025', 2).url,
+            file('Show 2025', 3).url,
+        ]);
+        expect(new Set(episodes.map((episode) => episode.id)).size).toBe(3);
+        expect(episodes.map((episode) => episode.episodeNumber)).toEqual([
+            1, 2, 3,
+        ]);
+    });
+
     it('keeps a row whose name carries no marker at all', () => {
         // Classified as an episode by its /series/ path but named in a way
         // the parser does not recognise. Dropping it would make provider

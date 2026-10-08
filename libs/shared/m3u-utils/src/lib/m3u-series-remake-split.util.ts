@@ -177,17 +177,70 @@ function addMergedEpisode<T extends M3uArtworkBearing>(
     }
 
     const existing = season.get(episodeNumber);
-    season.set(
-        episodeNumber,
-        existing
-            ? {
-                  ...existing,
-                  alternatives: [
-                      ...existing.alternatives,
-                      episode.channel,
-                      ...episode.alternatives,
-                  ],
-              }
-            : episode
-    );
+    if (!existing) {
+        season.set(episodeNumber, episode);
+        return;
+    }
+
+    // A slot held by, or wanted by, a row with no number is not a
+    // coordinate two rows agree on: "Show" and "Show 2025" each list their
+    // first unnumbered row at slot 1. Parking one under the other would
+    // hide a different file, so the unnumbered one moves instead and the
+    // numbered episode keeps the coordinate it states.
+    if (episode.rowKey !== undefined) {
+        placeUnnumberedEpisode(season, episode);
+        return;
+    }
+    if (existing.rowKey !== undefined) {
+        season.set(episodeNumber, episode);
+        placeUnnumberedEpisode(season, existing);
+        return;
+    }
+
+    season.set(episodeNumber, {
+        ...existing,
+        alternatives: [
+            ...existing.alternatives,
+            episode.channel,
+            ...episode.alternatives,
+        ],
+    });
+}
+
+/**
+ * Lists an unnumbered row at the next free slot of its season. The same
+ * URL again is the same row and is parked; a `rowKey` another row already
+ * holds is told apart by its occurrence, so the two keep separate ids.
+ */
+export function placeUnnumberedEpisode<T extends M3uArtworkBearing>(
+    season: Map<number, M3uSeriesEpisode<T>>,
+    episode: M3uSeriesEpisode<T>
+): void {
+    let last = 0;
+    const takenRowKeys = new Set<string>();
+    for (const [number, existing] of season) {
+        if (existing.channel.url === episode.channel.url) {
+            season.set(number, {
+                ...existing,
+                alternatives: [
+                    ...existing.alternatives,
+                    episode.channel,
+                    ...episode.alternatives,
+                ],
+            });
+            return;
+        }
+        if (existing.rowKey !== undefined) {
+            takenRowKeys.add(existing.rowKey);
+        }
+        last = Math.max(last, number);
+    }
+
+    const base = episode.rowKey ?? '';
+    let rowKey = base;
+    for (let repeat = 2; takenRowKeys.has(rowKey); repeat += 1) {
+        rowKey = `${base}\u0000${repeat}`;
+    }
+
+    season.set(last + 1, { ...episode, episodeNumber: last + 1, rowKey });
 }

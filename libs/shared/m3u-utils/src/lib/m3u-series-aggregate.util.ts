@@ -8,6 +8,7 @@ import {
 } from './m3u-series-model';
 import {
     mintM3uEpisodeId,
+    placeUnnumberedEpisode,
     regroupM3uSeriesByYear,
     remintM3uEpisodeIds,
 } from './m3u-series-remake-split.util';
@@ -256,34 +257,13 @@ function addUnnumberedEpisode<T extends M3uArtworkBearing>(
         series.seasons.set(1, season);
     }
 
-    let last = 0;
-    const takenRowKeys = new Set<string>();
-    for (const [number, existing] of season) {
-        if (existing.channel.url === channel.url) {
-            season.set(number, {
-                ...existing,
-                alternatives: [...existing.alternatives, channel],
-            });
-            return;
-        }
-        if (existing.rowKey !== undefined) {
-            takenRowKeys.add(existing.rowKey);
-        }
-        last = Math.max(last, number);
-    }
-
-    // Two rows can end in the same file name under different directories;
-    // the later one is told apart by its occurrence.
-    const fileName = fileNameOf(channel.url);
-    let rowKey = fileName;
-    for (let repeat = 2; takenRowKeys.has(rowKey); repeat += 1) {
-        rowKey = `${fileName}\u0000${repeat}`;
-    }
-
-    const episode = { seasonNumber: 1, episodeNumber: last + 1, rowKey };
-    season.set(episode.episodeNumber, {
-        ...episode,
-        id: mintM3uEpisodeId(series.key, episode),
+    // The id is minted with every other one, once the series key is final
+    // (`remintM3uEpisodeIds`): only then is the row's `rowKey` settled.
+    placeUnnumberedEpisode(season, {
+        id: 0,
+        seasonNumber: 1,
+        episodeNumber: 0,
+        rowKey: fileNameOf(channel.url),
         title: null,
         channel,
         alternatives: [],
