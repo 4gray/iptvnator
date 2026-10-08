@@ -557,8 +557,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "عند انقطاع بث قيد التشغيل، يعيد المشغّل المدمج تحميله بفواصل زمنية متزايدة، حتى 6 محاولات، قبل أن يتوقف. أما البث الذي لم يبدأ أصلًا فلا يزال يحتاج إلى إعادة المحاولة يدويًا.",
         "VOD_AUTO_FAILOVER": "التبديل التلقائي للمصدر عند فشل التشغيل",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "عند فشل تشغيل فيلم وتوفّر الفيلم نفسه في قائمة تشغيل أخرى، يتم التبديل إليها تلقائيًا مع الاحتفاظ بموضع التشغيل. الخيار معطّل افتراضيًا، ويُعلَن عن التبديل دائمًا لأن المصدر الآخر قد يحمل دبلجة مختلفة.",
-        "M3U_CATALOG_TABS": "Movies and series sections",
-        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel.",
+        "M3U_CATALOG_TABS": "أقسام الأفلام والمسلسلات",
+        "M3U_CATALOG_TABS_DESCRIPTION": "عرض قسمين منفصلين للأفلام والمسلسلات في قوائم التشغيل التي تحتوي على أفلام أو حلقات، بدلًا من عرض كل عنصر كقناة مباشرة.",
         "NAV_PARENTAL": "الرقابة الأبوية",
         "PARENTAL_LOCK": {
             "TITLE": "الرقابة الأبوية",
@@ -874,11 +874,11 @@
             "SAVE": "حفظ"
         },
         "CATALOG": {
-            "NO_MOVIES": "No movies in this playlist",
-            "NO_SERIES": "No series in this playlist",
-            "EMPTY_HINT": "This playlist only contains live channels.",
-            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
-            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
+            "NO_MOVIES": "لا توجد أفلام في قائمة التشغيل هذه",
+            "NO_SERIES": "لا توجد مسلسلات في قائمة التشغيل هذه",
+            "EMPTY_HINT": "تحتوي قائمة التشغيل هذه على قنوات مباشرة فقط.",
+            "EMPTY_HINT_MOVIES": "أفلام قائمة التشغيل هذه معروضة في قسم الأفلام.",
+            "EMPTY_HINT_SERIES": "مسلسلات قائمة التشغيل هذه معروضة في قسم المسلسلات."
         }
     },
     "TOP_MENU": {
@@ -1398,8 +1398,8 @@
             "PROGRESS_RESET": "تمت إعادة ضبط التقدم",
             "HIDDEN_FROM_CONTINUE_WATCHING": "تم الإخفاء من «متابعة المشاهدة»"
         },
-        "SEASON_COUNT_ONE": "1 season",
-        "SEASON_COUNT_OTHER": "{{count}} seasons"
+        "SEASON_COUNT_ONE": "موسم واحد",
+        "SEASON_COUNT_OTHER": "{{count}} مواسم"
     },
     "INFORMATION": "معلومات",
     "DOWNLOADS": {

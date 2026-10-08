@@ -557,8 +557,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "재생 중인 스트림이 끊기면 내장 플레이어가 점점 길어지는 간격으로 최대 6회까지 다시 불러온 뒤 포기합니다. 한 번도 시작되지 않은 스트림은 여전히 수동으로 다시 시도해야 합니다.",
         "VOD_AUTO_FAILOVER": "재생 오류 시 소스 자동 전환",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "영화 재생에 실패했을 때 같은 작품이 다른 재생목록에 있으면 재생 위치를 유지한 채 자동으로 전환합니다. 기본값은 꺼짐이며, 다른 소스는 더빙이 다를 수 있으므로 전환 시 항상 알려 드립니다.",
-        "M3U_CATALOG_TABS": "Movies and series sections",
-        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel.",
+        "M3U_CATALOG_TABS": "영화 및 시리즈 섹션",
+        "M3U_CATALOG_TABS_DESCRIPTION": "영화나 에피소드가 포함된 재생목록에서 모든 항목을 라이브 채널로 표시하는 대신 영화와 시리즈 섹션을 따로 표시합니다.",
         "NAV_PARENTAL": "자녀 보호",
         "PARENTAL_LOCK": {
             "TITLE": "자녀 보호",
@@ -874,11 +874,11 @@
             "SAVE": "저장"
         },
         "CATALOG": {
-            "NO_MOVIES": "No movies in this playlist",
-            "NO_SERIES": "No series in this playlist",
-            "EMPTY_HINT": "This playlist only contains live channels.",
-            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
-            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
+            "NO_MOVIES": "이 재생목록에는 영화가 없습니다",
+            "NO_SERIES": "이 재생목록에는 시리즈가 없습니다",
+            "EMPTY_HINT": "이 재생목록에는 라이브 채널만 있습니다.",
+            "EMPTY_HINT_MOVIES": "이 재생목록의 영화는 영화 섹션에 표시됩니다.",
+            "EMPTY_HINT_SERIES": "이 재생목록의 시리즈는 시리즈 섹션에 표시됩니다."
         }
     },
     "TOP_MENU": {
@@ -1398,8 +1398,8 @@
             "PROGRESS_RESET": "진행 상태를 초기화했습니다",
             "HIDDEN_FROM_CONTINUE_WATCHING": "‘이어서 보기’에서 숨겼습니다"
         },
-        "SEASON_COUNT_ONE": "1 season",
-        "SEASON_COUNT_OTHER": "{{count}} seasons"
+        "SEASON_COUNT_ONE": "시즌 1개",
+        "SEASON_COUNT_OTHER": "시즌 {{count}}개"
     },
     "INFORMATION": "정보",
     "DOWNLOADS": {

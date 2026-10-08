@@ -557,8 +557,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "ملي شي بث خدام كيتقطع، المشغل المدمج كيعاود يشرجو بفواصل كتزيد شوية بشوية، حتى 6 محاولات، قبل ما يوقف. البث اللي عمرو ما بدا كيبقى محتاج تحاول مرة أخرى يدوياً.",
         "VOD_AUTO_FAILOVER": "بدل المصدر أوتوماتيكياً عند خطأ فالتشغيل",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "ملي شي فيلم ما يتشغلش وكان نفس الفيلم كاين ف قائمة تشغيل أخرى، التطبيق كيبدل ليها أوتوماتيكياً وكيحافظ على التوقيت. معطل افتراضياً؛ التبديل ديما كيتعلن حيت مصدر آخر يمكن يكون فيه دوبلاج مختلف.",
-        "M3U_CATALOG_TABS": "Movies and series sections",
-        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel.",
+        "M3U_CATALOG_TABS": "أقسام الأفلام والسلاسل",
+        "M3U_CATALOG_TABS_DESCRIPTION": "بيّن أقسام منفصلة ديال الأفلام والسلاسل فقوائم التشغيل اللي فيها أفلام ولا حلقات، بلاصة ما يتعرض كلشي بحال قناة مباشرة.",
         "NAV_PARENTAL": "الرقابة الأبوية",
         "PARENTAL_LOCK": {
             "TITLE": "الرقابة الأبوية",
@@ -874,11 +874,11 @@
             "SAVE": "حفظ"
         },
         "CATALOG": {
-            "NO_MOVIES": "No movies in this playlist",
-            "NO_SERIES": "No series in this playlist",
-            "EMPTY_HINT": "This playlist only contains live channels.",
-            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
-            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
+            "NO_MOVIES": "ما كاين حتى فيلم فهاد قائمة التشغيل",
+            "NO_SERIES": "ما كاينة حتى سلسلة فهاد قائمة التشغيل",
+            "EMPTY_HINT": "هاد قائمة التشغيل فيها غير القنوات المباشرة.",
+            "EMPTY_HINT_MOVIES": "الأفلام ديال هاد قائمة التشغيل كاينين فقسم الأفلام.",
+            "EMPTY_HINT_SERIES": "السلاسل ديال هاد قائمة التشغيل كاينين فقسم السلاسل."
         }
     },
     "TOP_MENU": {
@@ -1398,8 +1398,8 @@
             "PROGRESS_RESET": "ترجّع التقدم",
             "HIDDEN_FROM_CONTINUE_WATCHING": "تخبّى من «كمّل المشاهدة»"
         },
-        "SEASON_COUNT_ONE": "1 season",
-        "SEASON_COUNT_OTHER": "{{count}} seasons"
+        "SEASON_COUNT_ONE": "موسم واحد",
+        "SEASON_COUNT_OTHER": "{{count}} مواسم"
     },
     "INFORMATION": "معلومات",
     "DOWNLOADS": {

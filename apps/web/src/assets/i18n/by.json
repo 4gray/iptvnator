@@ -557,8 +557,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Калі паток, які прайграецца, абрываецца, убудаваны прайгравальнік перазагружае яго з усё большымі паўзамі, да 6 спроб, перш чым спыніцца. Паток, які так і не запусціўся, па-ранейшаму патрабуе ручнога «Паўтарыць».",
         "VOD_AUTO_FAILOVER": "Аўтапераключэнне крыніцы пры памылцы прайгравання",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Калі фільм не прайграецца, а той жа фільм ёсць у іншым плэйлісце, аўтаматычна пераключацца на яго, захоўваючы пазіцыю прайгравання. Па змаўчанні выключана; пра пераключэнне заўсёды паведамляецца, бо ў іншай крыніцы можа быць іншая агучка.",
-        "M3U_CATALOG_TABS": "Movies and series sections",
-        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel.",
+        "M3U_CATALOG_TABS": "Раздзелы фільмаў і серыялаў",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Паказваць асобныя раздзелы «Фільмы» і «Серыялы» для плэйлістоў з фільмамі або эпізодамі, замест таго каб паказваць кожны запіс як жывы канал.",
         "NAV_PARENTAL": "Бацькоўскі кантроль",
         "PARENTAL_LOCK": {
             "TITLE": "Бацькоўскі кантроль",
@@ -874,11 +874,11 @@
             "SAVE": "Захаваць"
         },
         "CATALOG": {
-            "NO_MOVIES": "No movies in this playlist",
-            "NO_SERIES": "No series in this playlist",
-            "EMPTY_HINT": "This playlist only contains live channels.",
-            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
-            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
+            "NO_MOVIES": "У гэтым плэйлісце няма фільмаў",
+            "NO_SERIES": "У гэтым плэйлісце няма серыялаў",
+            "EMPTY_HINT": "Гэты плэйліст змяшчае толькі жывыя каналы.",
+            "EMPTY_HINT_MOVIES": "Фільмы гэтага плэйліста паказаны ў раздзеле «Фільмы».",
+            "EMPTY_HINT_SERIES": "Серыялы гэтага плэйліста паказаны ў раздзеле «Серыялы»."
         }
     },
     "TOP_MENU": {
@@ -1398,8 +1398,8 @@
             "PROGRESS_RESET": "Прагрэс скінуты",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Схавана з «Працягнуць прагляд»"
         },
-        "SEASON_COUNT_ONE": "1 season",
-        "SEASON_COUNT_OTHER": "{{count}} seasons"
+        "SEASON_COUNT_ONE": "1 сезон",
+        "SEASON_COUNT_OTHER": "Сезонаў: {{count}}"
     },
     "INFORMATION": "Інфармацыя",
     "DOWNLOADS": {

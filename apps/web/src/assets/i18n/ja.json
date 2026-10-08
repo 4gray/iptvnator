@@ -557,8 +557,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "再生中のストリームが切断されると、埋め込みプレーヤーは間隔を延ばしながら最大 6 回まで再読み込みを試み、その後あきらめます。一度も開始しなかったストリームには、引き続き手動の再試行が必要です。",
         "VOD_AUTO_FAILOVER": "再生エラー時にソースを自動切り替え",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "映画の再生に失敗したとき、同じ作品が別のプレイリストにもある場合は自動的にそちらへ切り替え、再生位置を引き継ぎます。標準では無効です。別のソースでは吹き替えが異なる場合があるため、切り替え時は必ず通知されます。",
-        "M3U_CATALOG_TABS": "Movies and series sections",
-        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel.",
+        "M3U_CATALOG_TABS": "映画とシリーズのセクション",
+        "M3U_CATALOG_TABS_DESCRIPTION": "映画やエピソードを含むプレイリストで、すべての項目をライブチャンネルとして表示する代わりに、映画とシリーズのセクションを分けて表示します。",
         "NAV_PARENTAL": "ペアレンタルロック",
         "PARENTAL_LOCK": {
             "TITLE": "ペアレンタルロック",
@@ -874,11 +874,11 @@
             "SAVE": "保存"
         },
         "CATALOG": {
-            "NO_MOVIES": "No movies in this playlist",
-            "NO_SERIES": "No series in this playlist",
-            "EMPTY_HINT": "This playlist only contains live channels.",
-            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
-            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
+            "NO_MOVIES": "このプレイリストには映画がありません",
+            "NO_SERIES": "このプレイリストにはシリーズがありません",
+            "EMPTY_HINT": "このプレイリストにはライブチャンネルのみが含まれています。",
+            "EMPTY_HINT_MOVIES": "このプレイリストの映画は「映画」に表示されます。",
+            "EMPTY_HINT_SERIES": "このプレイリストのシリーズは「シリーズ」に表示されます。"
         }
     },
     "TOP_MENU": {
@@ -1398,8 +1398,8 @@
             "PROGRESS_RESET": "再生位置をリセットしました",
             "HIDDEN_FROM_CONTINUE_WATCHING": "「続きを見る」から隠しました"
         },
-        "SEASON_COUNT_ONE": "1 season",
-        "SEASON_COUNT_OTHER": "{{count}} seasons"
+        "SEASON_COUNT_ONE": "1 シーズン",
+        "SEASON_COUNT_OTHER": "{{count}} シーズン"
     },
     "INFORMATION": "情報",
     "DOWNLOADS": {
