@@ -110,6 +110,14 @@ export class DashboardSeriesEpisodesService {
         { count: number; at: number }
     >();
     private readonly inFlight = new Set<string>();
+    /**
+     * A request that arrived with another password while its series was in
+     * flight: asked again once the attempt with the old one has failed.
+     */
+    private readonly followUps = new Map<
+        string,
+        DashboardSeriesEpisodesRequest
+    >();
     private active = 0;
 
     readonly episodes = this.entries.asReadonly();
@@ -139,6 +147,9 @@ export class DashboardSeriesEpisodesService {
             const entry = next.get(key);
             const sameSource = this.sources.get(key) === source;
             if (sameSource && this.inFlight.has(`${key}#${source}`)) {
+                if (this.passwords.get(key) !== request.credentials.password) {
+                    this.followUps.set(key, request);
+                }
                 continue;
             }
             const laterRound = round > (this.rounds.get(key) ?? -1);
@@ -229,12 +240,18 @@ export class DashboardSeriesEpisodesService {
         this.inFlight.delete(`${key}#${source}`);
         // The series was asked for from another source meanwhile.
         if (this.sources.get(key) !== source) {
+            this.followUps.delete(key);
             return;
         }
+        const followUp = this.followUps.get(key);
+        this.followUps.delete(key);
         if (seasons) {
             this.loadedAt.set(key, Date.now());
             this.failedAt.delete(key);
             this.sourceFailures.delete(source);
+            if (followUp) {
+                this.passwords.set(key, followUp.credentials.password);
+            }
             this.entries.update((entries) =>
                 new Map(entries).set(key, { status: 'loaded', seasons })
             );
@@ -246,6 +263,10 @@ export class DashboardSeriesEpisodesService {
             this.entries.update((entries) =>
                 new Map(entries).set(key, { status: 'failed' })
             );
+        }
+        if (followUp) {
+            // The password was corrected while the old one was being tried.
+            this.request([followUp], this.rounds.get(key));
         }
     }
 

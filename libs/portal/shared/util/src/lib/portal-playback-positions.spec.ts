@@ -3,6 +3,7 @@ import {
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
     PORTAL_WATCHED_PROGRESS_PERCENT,
+    stampPlaybackPositionNow,
 } from './portal-playback-positions';
 
 function row(
@@ -33,5 +34,23 @@ describe('portal playback positions', () => {
         expect(isPortalPlaybackInProgress(row(5400))).toBe(false);
         // A few seconds in is not worth resuming.
         expect(isPortalPlaybackInProgress(row(5))).toBe(false);
+    });
+
+    it('dates a row a page writes itself, and leaves a dated row alone', () => {
+        jest.useFakeTimers().setSystemTime(new Date('2026-10-08T09:00:00Z'));
+        try {
+            const tick = row(600);
+            expect(stampPlaybackPositionNow(tick)).toEqual({
+                ...tick,
+                updatedAt: '2026-10-08T09:00:00.000Z',
+            });
+            // The caller's row is not modified.
+            expect(tick.updatedAt).toBeUndefined();
+
+            const stored = { ...row(600), updatedAt: '2026-10-03 08:00:00' };
+            expect(stampPlaybackPositionNow(stored)).toBe(stored);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 });

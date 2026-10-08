@@ -486,7 +486,9 @@ Current contract:
 - the CTA shows the action label plus a compact episode target such as
   `S01E02 · Episode title`
 - if the newest activity is an episode left unfinished, resume it with its
-  saved offset (recency reads SQLite `updated_at`, UTC without a zone, as UTC)
+  saved offset (recency reads SQLite `updated_at`, UTC without a zone, as UTC;
+  both hosts date the rows they write themselves with
+  `stampPlaybackPositionNow`, so the episode just played ranks newest)
 - if the newest episode entry is a successful external-player launch marker
   with no meaningful progress yet, target it with `Play episode N` instead of
   falling back to the first episode

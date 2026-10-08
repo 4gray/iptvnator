@@ -19,7 +19,9 @@ export interface PortalPlaybackPositions {
         playlistId: string,
         seriesXtreamId: number
     ): Promise<PlaybackPositionData[]>;
-    getAllPlaybackPositions(playlistId: string): Promise<PlaybackPositionData[]>;
+    getAllPlaybackPositions(
+        playlistId: string
+    ): Promise<PlaybackPositionData[]>;
     clearPlaybackPosition(
         playlistId: string,
         contentXtreamId: number,
@@ -93,4 +95,19 @@ export function isPortalPlaybackInProgress(
         position.positionSeconds > 10 &&
         percent < PORTAL_WATCHED_PROGRESS_PERCENT
     );
+}
+
+/**
+ * Rows a page writes itself (player ticks, external-player updates, watched
+ * toggles) carry no `updatedAt`, while the stored rows do: without one the
+ * row just written would rank as the oldest, not the newest, and the series
+ * would go on from the wrong episode. The store stamps its own time on save,
+ * so this only orders a page's in-memory copy; a dated row keeps its date.
+ */
+export function stampPlaybackPositionNow(
+    position: PlaybackPositionData
+): PlaybackPositionData {
+    return position.updatedAt
+        ? position
+        : { ...position, updatedAt: new Date().toISOString() };
 }

@@ -1,5 +1,8 @@
 import { signal } from '@angular/core';
-import type { SeriesResumeTarget } from '@iptvnator/portal/shared/util';
+import {
+    stampPlaybackPositionNow,
+    type SeriesResumeTarget,
+} from '@iptvnator/portal/shared/util';
 import type {
     ExternalPlayerSession,
     PlaybackPositionData,
@@ -113,7 +116,10 @@ export class SerialDetailsPlaybackPositionState {
 
     update(position: PlaybackPositionData): void {
         const updated = new Map(this.positions());
-        updated.set(position.contentXtreamId, stampWrittenNow(position));
+        updated.set(
+            position.contentXtreamId,
+            stampPlaybackPositionNow(position)
+        );
         this.positions.set(updated);
     }
 
@@ -123,7 +129,10 @@ export class SerialDetailsPlaybackPositionState {
         }
         const updated = new Map(this.positions());
         for (const position of positions) {
-            updated.set(position.contentXtreamId, stampWrittenNow(position));
+            updated.set(
+                position.contentXtreamId,
+                stampPlaybackPositionNow(position)
+            );
         }
         this.positions.set(updated);
     }
@@ -189,16 +198,4 @@ export class SerialDetailsPlaybackPositionState {
     private createKey(playlistId: string, seriesXtreamId: number): string {
         return `${playlistId}:${seriesXtreamId}`;
     }
-}
-
-/**
- * Rows the page writes (player ticks, external-player updates, toggles) carry
- * no `updatedAt`, while the stored rows do: without one the episode just
- * played would rank as the oldest, not the newest. The store stamps its own
- * time on save, so the copy here only orders the page's rows.
- */
-function stampWrittenNow(position: PlaybackPositionData): PlaybackPositionData {
-    return position.updatedAt
-        ? position
-        : { ...position, updatedAt: new Date().toISOString() };
 }

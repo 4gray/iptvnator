@@ -221,6 +221,61 @@ describe('DashboardSeriesEpisodesService', () => {
             ]);
         });
 
+        it('tries a password corrected while the lookup was in flight once the old one fails', async () => {
+            const corrected = (seriesId: number) => ({
+                ...request(seriesId),
+                credentials: { ...credentials, password: 'corrected' },
+            });
+            const stale = deferred<XtreamSerieDetails>();
+            getSeriesInfo.mockReturnValueOnce(stale.promise);
+            service.request([request(900)], 1);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(1);
+
+            // The playlist is edited while the lookup is out.
+            service.request([corrected(900)], 1);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(1);
+
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            stale.reject(new Error('Wrong password'));
+            await flush();
+
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(getSeriesInfo).toHaveBeenLastCalledWith(
+                corrected(900).credentials,
+                900,
+                { suppressErrorLog: true }
+            );
+            expect(status(900)).toBe('loaded');
+
+            // A list that loaded anyway needs no second lookup.
+            const pending = deferred<XtreamSerieDetails>();
+            getSeriesInfo.mockReturnValueOnce(pending.promise);
+            service.request(
+                [
+                    {
+                        ...request(910),
+                        credentials: { ...credentials, password: 'corrected' },
+                    },
+                ],
+                1
+            );
+            service.request(
+                [
+                    {
+                        ...request(910),
+                        credentials: { ...credentials, password: 'newer' },
+                    },
+                ],
+                1
+            );
+            pending.resolve({
+                episodes: seasons(911),
+            } as unknown as XtreamSerieDetails);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(3);
+            expect(status(910)).toBe('loaded');
+        });
+
         it('leaves a list whose refresh failed alone until the retry delay has passed', async () => {
             getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
             service.request([request(900)], 1);

@@ -56,16 +56,17 @@ import {
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import {
+    consumeStalkerReturnMarker,
+    createDiscoverFacetNavigation,
+    createLogger,
     isLiveExternalPlayerSession,
-    replaceOwnedExternalSession,
     isPortalPlaybackWatched,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
-    createLogger,
-    consumeStalkerReturnMarker,
-    createDiscoverFacetNavigation,
+    replaceOwnedExternalSession,
     resolveStalkerBackNavigation,
+    stampPlaybackPositionNow,
 } from '@iptvnator/portal/shared/util';
 import {
     getVodSeasonLoadStates,
@@ -2109,6 +2110,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         legacyPosition: PlaybackPositionData | undefined,
         clearedLegacy: boolean
     ): void {
+        // Dated like the stored rows, so the episode just played ranks as
+        // the newest activity for the quick start and the season tabs.
+        const saved = stampPlaybackPositionNow(position);
         const removedTrackingIds = new Set([position.contentXtreamId]);
         if (clearedLegacy && legacyPosition) {
             removedTrackingIds.add(legacyPosition.contentXtreamId);
@@ -2122,9 +2126,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 (candidate) =>
                     !removedTrackingIds.has(candidate.contentXtreamId)
             ),
-            position,
+            saved,
         ]);
-        this.updateEpisodePlaybackPosition(position);
+        this.updateEpisodePlaybackPosition(saved);
     }
 
     private clearSeriesPosition(
