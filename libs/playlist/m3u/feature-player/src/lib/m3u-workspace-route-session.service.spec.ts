@@ -144,10 +144,33 @@ describe('M3uWorkspaceRouteSession', () => {
         expect(store.dispatch).toHaveBeenCalledWith(
             ChannelActions.resetActiveChannel()
         );
+        // Entering another playlist on a section that reads no channels
+        // drops the previous playlist's rows, so the rail cannot count
+        // their films and series as this playlist's.
+        expect(store.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setChannels({ channels: [] })
+        );
+        expect(playlistsService.getPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('keeps the loaded rows when the same playlist moves to favorites', async () => {
+        playlistsService.getPlaylist.mockReturnValue(
+            of({ playlist: { items: [PRIMARY_CHANNEL] } } as Playlist)
+        );
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+        store.dispatch.mockClear();
+
+        router.url = `/workspace/playlists/${PLAYLIST_ID}/favorites`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        await flushEffects();
+
         expect(store.dispatch).toHaveBeenCalledWith(
             ChannelActions.setChannelsLoading({ loading: false })
         );
-        expect(playlistsService.getPlaylist).not.toHaveBeenCalled();
+        expect(store.dispatch).not.toHaveBeenCalledWith(
+            ChannelActions.setChannels({ channels: [] })
+        );
     });
 
     it('configures playlist-level user agent overrides when loading channels', async () => {

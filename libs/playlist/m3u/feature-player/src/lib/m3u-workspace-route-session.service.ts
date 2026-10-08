@@ -78,8 +78,15 @@ export class M3uWorkspaceRouteSession {
 
         if (!shouldLoadPlaylist) {
             this.loadRequestId += 1;
+            // A section that does not read the channel array leaves the
+            // previous playlist's rows behind. Nothing here consumes them,
+            // but the shell rail counts the catalog from them and would
+            // offer this playlist Movies/Series it does not have. The next
+            // loaded section reloads anyway, because the playlist changed.
             this.store.dispatch(
-                ChannelActions.setChannelsLoading({ loading: false })
+                playlistChanged
+                    ? ChannelActions.setChannels({ channels: [] })
+                    : ChannelActions.setChannelsLoading({ loading: false })
             );
             return;
         }

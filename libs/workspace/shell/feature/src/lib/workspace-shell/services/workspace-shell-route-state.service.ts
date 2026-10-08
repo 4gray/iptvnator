@@ -13,6 +13,7 @@ import { filter, startWith } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     buildPortalRailLinks,
+    M3uCatalogSections,
     PortalRailLink,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -27,6 +28,11 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { getProviderFromPlaylist } from './helpers/workspace-shell-route-utils';
 import { translateRailLinks } from './helpers/workspace-shell-search-labels';
+
+const NO_M3U_CATALOG_SECTIONS: M3uCatalogSections = {
+    movies: false,
+    series: false,
+};
 
 @Injectable()
 export class WorkspaceShellRouteStateService {
@@ -53,14 +59,35 @@ export class WorkspaceShellRouteStateService {
      * ordinary. Reading the index costs nothing here: it is the same memo
      * the catalog routes read, so the build is shared rather than repeated.
      */
-    private readonly m3uCatalogSections = computed(() => {
+    private m3uCatalogSectionsFor(playlistId: string): M3uCatalogSections {
         if (this.settingsStore.m3uCatalogTabs?.() === false) {
-            return { movies: false, series: false };
+            return NO_M3U_CATALOG_SECTIONS;
+        }
+
+        // The index is empty while a playlist loads. Without the last answer
+        // for the same playlist the links would blink out on every reload,
+        // including on the Movies page itself; another playlist's answer is
+        // never reused.
+        if (this.catalogIndex.loading()) {
+            const last = this.lastM3uCatalogSections;
+            return last?.playlistId === playlistId
+                ? last.sections
+                : NO_M3U_CATALOG_SECTIONS;
         }
 
         const counts = this.catalogIndex.index().counts;
-        return { movies: counts.movie > 0, series: counts.episode > 0 };
-    });
+        const sections = {
+            movies: counts.movie > 0,
+            series: counts.episode > 0,
+        };
+        this.lastM3uCatalogSections = { playlistId, sections };
+        return sections;
+    }
+
+    private lastM3uCatalogSections: {
+        readonly playlistId: string;
+        readonly sections: M3uCatalogSections;
+    } | null = null;
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -258,7 +285,9 @@ export class WorkspaceShellRouteStateService {
                 playlistId: context.playlistId,
                 supportsDownloads: this.runtime.supportsDownloads,
                 workspace: true,
-                m3uCatalogSections: this.m3uCatalogSections(),
+                m3uCatalogSections: this.m3uCatalogSectionsFor(
+                    context.playlistId
+                ),
             }).primary,
             context.provider,
             (key, params) => this.translateText(key, params)
@@ -278,7 +307,9 @@ export class WorkspaceShellRouteStateService {
                 playlistId: context.playlistId,
                 supportsDownloads: this.runtime.supportsDownloads,
                 workspace: true,
-                m3uCatalogSections: this.m3uCatalogSections(),
+                m3uCatalogSections: this.m3uCatalogSectionsFor(
+                    context.playlistId
+                ),
             }).secondary.filter((link) => link.section !== 'downloads'),
             context.provider,
             (key, params) => this.translateText(key, params)
