@@ -17,7 +17,7 @@ import { filter, firstValueFrom } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from '@iptvnator/services';
 
-type M3uLoadedSection = 'all' | 'groups';
+type M3uLoadedSection = 'all' | 'groups' | 'vod' | 'series';
 
 @Injectable()
 export class M3uWorkspaceRouteSession {
@@ -78,8 +78,15 @@ export class M3uWorkspaceRouteSession {
 
         if (!shouldLoadPlaylist) {
             this.loadRequestId += 1;
+            // A section that does not read the channel array leaves the
+            // previous playlist's rows behind. Nothing here consumes them,
+            // but the shell rail counts the catalog from them and would
+            // offer this playlist Movies/Series it does not have. The next
+            // loaded section reloads anyway, because the playlist changed.
             this.store.dispatch(
-                ChannelActions.setChannelsLoading({ loading: false })
+                playlistChanged
+                    ? ChannelActions.setChannels({ channels: [] })
+                    : ChannelActions.setChannelsLoading({ loading: false })
             );
             return;
         }
@@ -98,7 +105,7 @@ export class M3uWorkspaceRouteSession {
                 this.playlistsService.getPlaylist(playlistId)
             );
 
-            if (!this.isCurrentLoadRequest(requestId, playlistId, section)) {
+            if (!this.isCurrentLoadRequest(requestId, playlistId)) {
                 return;
             }
 
@@ -118,6 +125,7 @@ export class M3uWorkspaceRouteSession {
                     this.store.dispatch(
                         ChannelActions.setChannels({
                             channels,
+                            playlistId,
                         })
                     ),
                 () => ({ items: channels.length })
@@ -132,7 +140,7 @@ export class M3uWorkspaceRouteSession {
                 })
             );
         } catch {
-            if (!this.isCurrentLoadRequest(requestId, playlistId, section)) {
+            if (!this.isCurrentLoadRequest(requestId, playlistId)) {
                 return;
             }
 
@@ -146,18 +154,27 @@ export class M3uWorkspaceRouteSession {
     private isLoadedSection(
         section: string | null
     ): section is M3uLoadedSection {
-        return section === 'all' || section === 'groups';
+        return (
+            section === 'all' ||
+            section === 'groups' ||
+            section === 'vod' ||
+            section === 'series'
+        );
     }
 
     private isCurrentLoadRequest(
         requestId: number,
-        playlistId: string,
-        section: M3uLoadedSection
+        playlistId: string
     ): boolean {
+        // Not "still on the SAME section": the loaded sections share one
+        // load, so moving from All channels to Movies while it is in flight
+        // starts no new request, and rejecting the response for the section
+        // it was asked from would leave the playlist loading forever.
+        // Leaving the loaded sections bumps `loadRequestId`.
         return (
             requestId === this.loadRequestId &&
             this.currentPlaylistId === playlistId &&
-            this.currentSection === section
+            this.isLoadedSection(this.currentSection)
         );
     }
 }

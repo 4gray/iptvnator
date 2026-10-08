@@ -43,6 +43,21 @@ describe('stripCountryPrefix', () => {
             expect(stripCountryPrefix('US: CNN')).toBe('CNN');
         });
 
+        it('strips a colon tag welded to the name', () => {
+            // Panels routinely omit the space. Requiring it meant the
+            // setting did nothing on playlists that write it this way.
+            expect(stripCountryPrefix('TR:TRT 1 HD')).toBe('TRT 1 HD');
+            expect(stripCountryPrefix('DE:NAT GEO WILD UHD')).toBe(
+                'NAT GEO WILD UHD'
+            );
+        });
+
+        it('keeps franchise titles whose colon prefix is too long', () => {
+            expect(stripCountryPrefix('NCIS:Los Angeles')).toBe(
+                'NCIS:Los Angeles'
+            );
+        });
+
         it('strips compound quality/provider tags', () => {
             expect(stripCountryPrefix('4K-DE - The Pitt (2025)')).toBe(
                 'The Pitt (2025)'

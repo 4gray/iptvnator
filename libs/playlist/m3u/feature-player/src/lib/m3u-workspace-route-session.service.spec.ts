@@ -48,11 +48,21 @@ async function flushEffects(): Promise<void> {
     await Promise.resolve();
 }
 
+/**
+ * Every section the URL can name, the catalog pair included.
+ *
+ * The helper stands in for `PlaylistContextFacade`, so a section missing
+ * here is a section the suite cannot reach — which is how `vod` and
+ * `series` stayed untested while the service already loaded them.
+ */
+type M3uTestSection =
+    'all' | 'favorites' | 'groups' | 'recent' | 'series' | 'vod' | null;
+
 function getM3uRouteContext(url: string): {
     inWorkspace: boolean;
     playlistId: string | null;
     provider: 'playlists' | null;
-    section: 'all' | 'favorites' | 'groups' | 'recent' | null;
+    section: M3uTestSection;
 } {
     const match = url.match(
         /^\/workspace\/playlists\/([^/]+)\/([^/?]+)(?:\/|$)/
@@ -62,9 +72,7 @@ function getM3uRouteContext(url: string): {
         inWorkspace: true,
         playlistId: match?.[1] ?? null,
         provider: match ? 'playlists' : null,
-        section:
-            (match?.[2] as 'all' | 'favorites' | 'groups' | 'recent' | null) ??
-            null,
+        section: (match?.[2] as M3uTestSection) ?? null,
     };
 }
 
@@ -136,10 +144,33 @@ describe('M3uWorkspaceRouteSession', () => {
         expect(store.dispatch).toHaveBeenCalledWith(
             ChannelActions.resetActiveChannel()
         );
+        // Entering another playlist on a section that reads no channels
+        // drops the previous playlist's rows, so the rail cannot count
+        // their films and series as this playlist's.
+        expect(store.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setChannels({ channels: [] })
+        );
+        expect(playlistsService.getPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('keeps the loaded rows when the same playlist moves to favorites', async () => {
+        playlistsService.getPlaylist.mockReturnValue(
+            of({ playlist: { items: [PRIMARY_CHANNEL] } } as Playlist)
+        );
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+        store.dispatch.mockClear();
+
+        router.url = `/workspace/playlists/${PLAYLIST_ID}/favorites`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        await flushEffects();
+
         expect(store.dispatch).toHaveBeenCalledWith(
             ChannelActions.setChannelsLoading({ loading: false })
         );
-        expect(playlistsService.getPlaylist).not.toHaveBeenCalled();
+        expect(store.dispatch).not.toHaveBeenCalledWith(
+            ChannelActions.setChannels({ channels: [] })
+        );
     });
 
     it('configures playlist-level user agent overrides when loading channels', async () => {
@@ -226,6 +257,91 @@ describe('M3uWorkspaceRouteSession', () => {
         ).toBe(false);
     });
 
+    it.each(['vod', 'series'])(
+        'loads channels for the %s catalog section',
+        async (section) => {
+            // The catalog routes derive everything they show from the
+            // channel array, so a section the loader does not recognise
+            // opens permanently empty.
+            router.url = `/workspace/playlists/${PLAYLIST_ID}/${section}`;
+            playlistsService.getPlaylist.mockReturnValue(
+                of({
+                    playlist: {
+                        items: [PRIMARY_CHANNEL],
+                    },
+                } as Playlist)
+            );
+
+            TestBed.inject(M3uWorkspaceRouteSession);
+            await flushEffects();
+
+            expect(playlistsService.getPlaylist).toHaveBeenCalledWith(
+                PLAYLIST_ID
+            );
+            expect(store.dispatch).toHaveBeenCalledWith(
+                // The id says whose rows these are: the rail must not
+                // count them as another playlist's.
+                ChannelActions.setChannels({
+                    channels: [PRIMARY_CHANNEL],
+                    playlistId: PLAYLIST_ID,
+                })
+            );
+        }
+    );
+
+    it('does not reload the playlist when moving between loaded sections', async () => {
+        // Moving from the live list to Movies must not re-dispatch
+        // `setChannels`: the catalog index memoises on the array reference,
+        // so a needless dispatch rebuilds the whole index on every tab
+        // change.
+        playlistsService.getPlaylist.mockReturnValue(
+            of({
+                playlist: {
+                    items: [PRIMARY_CHANNEL],
+                },
+            } as Playlist)
+        );
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        router.url = `/workspace/playlists/${PLAYLIST_ID}/vod`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        await flushEffects();
+
+        expect(playlistsService.getPlaylist).toHaveBeenCalledTimes(1);
+    });
+
+    it('still publishes a load when the section changes while it is in flight', async () => {
+        // All channels and Movies share one load. Moving between them while
+        // it is in flight starts no new request, so dropping the response
+        // because the section moved on would leave the playlist loading
+        // for good.
+        const response = new Subject<Playlist>();
+        playlistsService.getPlaylist.mockReturnValue(response.asObservable());
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        router.url = `/workspace/playlists/${PLAYLIST_ID}/vod`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        await flushEffects();
+
+        response.next({
+            playlist: { items: [PRIMARY_CHANNEL] },
+        } as Playlist);
+        response.complete();
+        await flushEffects();
+
+        expect(playlistsService.getPlaylist).toHaveBeenCalledTimes(1);
+        expect(store.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setChannels({
+                channels: [PRIMARY_CHANNEL],
+                playlistId: PLAYLIST_ID,
+            })
+        );
+    });
+
     it('ignores stale playlist responses after a newer route request wins', async () => {
         const firstResponse = new Subject<Playlist>();
         const secondResponse = new Subject<Playlist>();
@@ -268,7 +384,12 @@ describe('M3uWorkspaceRouteSession', () => {
         );
 
         expect(setChannelsCalls).toEqual([
-            [ChannelActions.setChannels({ channels: [NEXT_CHANNEL] })],
+            [
+                ChannelActions.setChannels({
+                    channels: [NEXT_CHANNEL],
+                    playlistId: NEXT_PLAYLIST_ID,
+                }),
+            ],
         ]);
         expect(store.dispatch).toHaveBeenCalledWith(
             FavoritesActions.hydrateFavorites({

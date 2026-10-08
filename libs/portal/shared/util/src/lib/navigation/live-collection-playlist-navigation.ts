@@ -12,6 +12,13 @@ import {
 export const OPEN_M3U_CHANNEL_URL_STATE_KEY = 'openM3uChannelUrl';
 
 /**
+ * Optional companion to `OPEN_M3U_CHANNEL_URL_STATE_KEY`: the id of the exact
+ * row to open. A playlist can list one URL several times under different
+ * titles, artwork or headers, and a URL alone selects the first of them.
+ */
+export const OPEN_M3U_CHANNEL_ID_STATE_KEY = 'openM3uChannelId';
+
+/**
  * The fields a live collection row needs to be located inside its owning
  * playlist. Both `UnifiedCollectionItem` and `UnifiedFavoriteChannel` satisfy
  * it, so the EPG-panel chip (resolved from the active item) and the row

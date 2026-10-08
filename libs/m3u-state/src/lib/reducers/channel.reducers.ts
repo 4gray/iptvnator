@@ -35,6 +35,7 @@ export const channelReducers = [
             ...state,
             channelsLoading: false,
             channels: action.channels,
+            channelsPlaylistId: action.playlistId ?? null,
         };
     }),
 ];

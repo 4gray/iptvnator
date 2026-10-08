@@ -115,8 +115,14 @@
                 "libs/ui/components/src/lib/window-controls/window-controls.component.ts"
             ],
             "@iptvnator/m3u-state": ["libs/m3u-state/src/index.ts"],
+            "@iptvnator/m3u-state/series-catalog": [
+                "libs/m3u-state/src/lib/m3u-series-catalog.service.ts"
+            ],
             "@iptvnator/shared/m3u-utils": [
                 "libs/shared/m3u-utils/src/index.ts"
+            ],
+            "@iptvnator/shared/m3u-utils/series": [
+                "libs/shared/m3u-utils/src/series.ts"
             ],
             "@iptvnator/shared/testing": ["libs/shared/testing/src/index.ts"],
             "@iptvnator/shared/logging": ["libs/shared/logging/src/index.ts"],

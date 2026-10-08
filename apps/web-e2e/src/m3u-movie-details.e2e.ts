@@ -110,6 +110,20 @@ async function enableTmdb(page: Page): Promise<void> {
     await saveSettings(page);
 }
 
+/**
+ * These cases open films and episodes FROM the channel list. By default an
+ * M3U playlist that holds them splits them into its Movies and Series
+ * sections (covered by m3u-catalog.e2e.ts), so the split is switched off
+ * here — which is also the proof that the setting restores this flow whole.
+ */
+async function keepFilmsInChannelList(page: Page): Promise<void> {
+    await page.goto('/workspace/settings/general');
+    const toggle = page.locator('[data-test-id="m3u-catalog-tabs"]');
+    await expect(toggle.locator('input')).toBeChecked();
+    await toggle.locator('input').uncheck();
+    await saveSettings(page);
+}
+
 async function importPlaylist(
     page: Page,
     content = MOVIE_PLAYLIST,
@@ -247,6 +261,7 @@ for (const [player, selector] of [
             await serveTmdb(page);
             await configureMetadata(page, metadata);
             await selectPlayer(page, player);
+            await keepFilmsInChannelList(page);
             await importPlaylist(
                 page,
                 [
@@ -304,6 +319,7 @@ test('@web @m3u @tmdb recognized movies open the VOD detail view', async ({
     await serveSeekableClip(page);
     await selectPlayer(page);
     await enableTmdb(page);
+    await keepFilmsInChannelList(page);
     await importPlaylist(page);
 
     // Record every engine that is ever attached. A polling assertion cannot
@@ -369,6 +385,7 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
     await serveSeekableClip(page);
     await selectPlayer(page);
     await enableTmdb(page);
+    await keepFilmsInChannelList(page);
     await importPlaylist(page);
 
     // A volume persisted before the movie was ever opened must reach the
@@ -443,7 +460,9 @@ for (const theme of ['light', 'dark']) {
         const channels = Array.from(
             { length: 60 },
             (_, index) =>
-                `#EXTINF:-1 group-title="News",Station ${index + 1}\n${FIXTURE_HOST}/live-${index}.webm`
+                // The guide id keeps a file-backed station in the channel
+                // list; without one the row is a film.
+                `#EXTINF:-1 tvg-id="station-${index + 1}" group-title="News",Station ${index + 1}\n${FIXTURE_HOST}/live-${index}.webm`
         );
         await importPlaylist(page, ['#EXTM3U', ...channels].join('\n'), 60);
         await page.evaluate(

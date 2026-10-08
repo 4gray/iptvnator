@@ -29,10 +29,8 @@ import {
     applyChannelNameStrip,
     getM3uArchiveDays,
     getM3uCatchupWindowEndSeconds,
-    extractDrmFromRaw,
     isDashChannel,
     isDashStreamUrl,
-    isLikelyM3uMovie,
     isLikelyM3uVod,
     isM3uCatchupPlaybackSupported,
     resolveM3uCatchupUrl,
@@ -59,7 +57,6 @@ import {
     EpgActions,
     PlaylistActions,
     buildExternalPlayerPayload,
-    resolveExternalPlayerHttpHeaders,
     resolveChannelEpgLookupKey,
     selectActive,
     selectActiveEpgProgram,
@@ -78,6 +75,7 @@ import {
     combineLatest,
     filter,
     map,
+    merge,
     of,
     startWith,
     switchMap,
@@ -149,6 +147,15 @@ import { M3uEpgGuideSourceService } from '../epg-guide/m3u-epg-guide-source.serv
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
+import { isM3uCollectionView } from './m3u-collection-view.util';
+import { isM3uMovieRow } from './m3u-movie-row.util';
+import { readStoredM3uVolume } from '../m3u-stored-volume.util';
+import {
+    findM3uChannelOpenTarget,
+    isM3uChannelOpenTarget,
+} from './m3u-channel-open-target.util';
 
 const M3U_EPG_GUIDE_HEADER_ACTION_ID = 'm3u-epg-guide';
 const M3U_SIDEBAR_STORAGE_KEY = 'm3u-sidebar-width';
@@ -156,23 +163,6 @@ const M3U_GROUPS_SIDEBAR_STORAGE_KEY = 'm3u-groups-sidebar-width';
 const M3U_SIDEBAR_MIN_WIDTH = 200;
 const M3U_SIDEBAR_MAX_WIDTH = 600;
 const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
-
-/**
- * Shared `volume` bus the player engines and the audio player persist to.
- *
- * The empty cases must be rejected BEFORE `Number()` sees them: it maps both
- * `null` (nothing stored yet) and `''` to 0, which would silently start every
- * first-run playback muted.
- */
-function readStoredVolume(): number {
-    const stored = localStorage.getItem('volume')?.trim();
-    if (!stored) {
-        return 1;
-    }
-
-    const parsed = Number(stored);
-    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : 1;
-}
 
 /**
  * PageUp/PageDown switch channels unless the key would scroll something the
@@ -249,6 +239,7 @@ export class VideoPlayerComponent
     private readonly parentalLock = inject(ParentalLockService);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
+    private readonly catalogIndex = inject(M3uCatalogIndexService);
     private readonly epgService = inject(EpgService);
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
@@ -315,8 +306,22 @@ export class VideoPlayerComponent
      * With external MPV/VLC configured, only DASH rows remain inline; a
      * non-DASH selection would replace this host with the external-player UI.
      */
+    /**
+     * Rows the fullscreen panel's Favorites and Recently viewed views
+     * resolve against: everything that can play without replacing the
+     * fullscreen host.
+     */
     readonly fullscreenPanelChannels = computed(() =>
         this.channels().filter((channel) => this.keepsInlinePlayer(channel))
+    );
+    /**
+     * Rows its All and Groups views list — the same split the sidebar
+     * applies, so the panel is not a way back to the unsplit catalog.
+     */
+    readonly fullscreenPanelLiveChannels = computed(() =>
+        (this.catalogIndex.liveChannels() as Channel[]).filter((channel) =>
+            this.keepsInlinePlayer(channel)
+        )
     );
     readonly archiveContextKey = computed(() =>
         JSON.stringify([
@@ -330,9 +335,13 @@ export class VideoPlayerComponent
     /** Guide mode: sidebar and timeline give way to the multi-channel grid. */
     readonly guideOpen = signal(false);
     readonly guideDockCollapsed = signal(restoreEpgGuideDockCollapsed());
-    /** Rows the guide may show: everything that keeps the live host mounted. */
+    /**
+     * Rows the guide may show: the live split, as the sidebar lists it, minus
+     * whatever replaces the live host. Reading the unsplit array put every
+     * episode row — tens of thousands on a large VOD playlist — in the guide.
+     */
     readonly guideChannels = computed(() =>
-        this.channels().filter(
+        (this.catalogIndex.liveChannels() as Channel[]).filter(
             (channel) =>
                 channel.radio !== 'true' && !this.opensMovieDetail(channel)
         )
@@ -415,7 +424,7 @@ export class VideoPlayerComponent
         return (
             this.settingsStore.m3uVodDetails?.() !== false &&
             this.tmdbEnrichment.isEnabled() &&
-            isLikelyM3uMovie(channel)
+            isM3uMovieRow(channel, this.catalogIndex.splitsCatalog())
         );
     }
     /** Full multi-day programme window for the active channel (timeline). */
@@ -520,41 +529,12 @@ export class VideoPlayerComponent
             return null;
         }
 
-        // Embedded MPV requests bypass the Electron webRequest override, so
-        // the playlist-level custom headers must ride in the payload; channel
-        // #EXTVLCOPT values still win.
-        const effective = resolveExternalPlayerHttpHeaders(
-            playbackTarget,
-            this.activePlaylistMeta()
-        );
-        const headers: Record<string, string> = {};
-        if (effective['user-agent']) {
-            headers['User-Agent'] = effective['user-agent'];
-        }
-        if (effective.referer) {
-            headers['Referer'] = effective.referer;
-        }
-        if (effective.origin) {
-            headers['Origin'] = effective.origin;
-        }
-
-        return {
-            streamUrl: `${playbackTarget.url}${playbackTarget.epgParams ?? ''}`,
-            title:
-                activeChannel.name?.trim() ||
-                activeChannel.tvg?.name ||
-                playbackTarget.url,
-            thumbnail: activeChannel.tvg?.logo ?? null,
+        return buildM3uPlaybackPayload({
+            channel: activeChannel,
+            target: playbackTarget,
+            playlistMeta: this.activePlaylistMeta(),
             isLive: !this.activePlaybackUrl() && !isLikelyM3uVod(activeChannel),
-            headers: Object.keys(headers).length > 0 ? headers : undefined,
-            userAgent: effective['user-agent'],
-            referer: effective.referer,
-            origin: effective.origin,
-            // Playlists imported before the DRM feature carry no drm field
-            // yet, but their raw KODIPROP block survived in the stored items
-            // — extract lazily so they work without a re-import.
-            drm: playbackTarget.drm ?? extractDrmFromRaw(playbackTarget.raw),
-        };
+        });
     }
     readonly sidebarStorageKey = computed(() =>
         this.activeView() === 'groups'
@@ -578,10 +558,42 @@ export class VideoPlayerComponent
     readonly isSidebarCollapsed =
         this.liveSidebarStateService.isCollapsedFor('m3u');
 
-    /** Channels list */
-    readonly channels$: Observable<Channel[]> = this.store.select(
-        selectChannels
-    ) as Observable<Channel[]>;
+    /**
+     * Channels the live views render.
+     *
+     * The catalog index drops films and episodes once they have their own
+     * sections; without that the split would be additive and the live list
+     * would still carry everything. Remote up/down reads the same list, so
+     * zapping walks channels rather than wandering into a film.
+     */
+    readonly channels$: Observable<Channel[]> = merge(
+        this.store.select(selectChannels),
+        // So flipping the setting re-renders the rail instead of waiting
+        // for the next playlist load.
+        toObservable(this.catalogIndex.splitsCatalog)
+    ).pipe(
+        // `merge` rather than `combineLatest`: the store emits
+        // synchronously on subscribe, and remote up/down reads this stream
+        // with `take(1)`. An operator that waited for a second source would
+        // leave that path with nothing to read.
+        map(() => this.catalogIndex.liveChannels() as Channel[])
+    );
+
+    /**
+     * What the sidebar's channel list is handed.
+     *
+     * Only the live views get the split list. Favorites and Recently
+     * viewed resolve their stored rows AGAINST this array — a row the
+     * array does not contain is dropped rather than shown — so handing
+     * them the live list makes a film someone deliberately favourited
+     * disappear from the one place they put it, while it stays persisted
+     * and still counts as a favourite everywhere else.
+     */
+    readonly sidebarChannels = computed<Channel[]>(() =>
+        isM3uCollectionView(this.activeView())
+            ? this.channels()
+            : (this.catalogIndex.liveChannels() as Channel[])
+    );
 
     /** Current epg program */
     readonly epgProgram = this.store.selectSignal(selectCurrentEpgProgram);
@@ -759,7 +771,7 @@ export class VideoPlayerComponent
      */
     readonly volume = linkedSignal({
         source: () => this.activeChannel(),
-        computation: () => readStoredVolume(),
+        computation: () => readStoredM3uVolume(),
     });
 
     constructor() {
@@ -892,6 +904,11 @@ export class VideoPlayerComponent
                     ? state.openM3uChannelUrl.trim()
                     : '';
             const targetUrl = globalSearchTargetUrl || recentTargetUrl;
+            const targetId =
+                globalSearchTargetUrl &&
+                typeof state?.openM3uChannelId === 'string'
+                    ? state.openM3uChannelId
+                    : '';
             const canOpenGlobalSearchTarget =
                 !!globalSearchTargetUrl && currentView === 'all';
             const canOpenRecentTarget =
@@ -905,13 +922,15 @@ export class VideoPlayerComponent
                 return;
             }
 
-            if (activeChannel?.url === targetUrl) {
+            if (isM3uChannelOpenTarget(activeChannel, targetUrl, targetId)) {
                 this.clearConsumedChannelOpenState();
                 return;
             }
 
-            const matchedChannel = channels.find(
-                (channel) => channel.url === targetUrl
+            const matchedChannel = findM3uChannelOpenTarget(
+                channels,
+                targetUrl,
+                targetId
             );
             if (!matchedChannel) {
                 return;
@@ -1306,6 +1325,7 @@ export class VideoPlayerComponent
             const nextState = { ...historyState };
             delete nextState['openRecentChannelUrl'];
             delete nextState['openM3uChannelUrl'];
+            delete nextState['openM3uChannelId'];
             window.history.replaceState(nextState, document.title);
         } catch {
             // no-op
@@ -1600,7 +1620,7 @@ export class VideoPlayerComponent
      * remounted player would otherwise start at the pre-adjustment value.
      */
     refreshVolumeFromBus(): void {
-        this.volume.set(readStoredVolume());
+        this.volume.set(readStoredM3uVolume());
     }
 
     private setVolume(next: number): void {

@@ -13,10 +13,14 @@ import { filter, startWith } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     buildPortalRailLinks,
+    M3uCatalogSections,
     PortalRailLink,
 } from '@iptvnator/portal/shared/util';
-import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    M3uCatalogIndexService,
+    selectAllPlaylistsMeta,
+} from '@iptvnator/m3u-state';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     parseWorkspaceShellRoute,
     WorkspacePortalContext,
@@ -24,6 +28,11 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { getProviderFromPlaylist } from './helpers/workspace-shell-route-utils';
 import { translateRailLinks } from './helpers/workspace-shell-search-labels';
+
+const NO_M3U_CATALOG_SECTIONS: M3uCatalogSections = {
+    movies: false,
+    series: false,
+};
 
 @Injectable()
 export class WorkspaceShellRouteStateService {
@@ -36,6 +45,33 @@ export class WorkspaceShellRouteStateService {
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly catalogIndex = inject(M3uCatalogIndexService);
+
+    /**
+     * Which catalog sections the M3U rail should offer.
+     *
+     * Two conditions, both necessary. The setting is the user's opt-out, and
+     * the index is what proves this particular playlist has anything to put
+     * there — most M3U playlists are live-only, and a rail with permanently
+     * empty sections is a regression rather than a feature. The kinds are
+     * counted separately because a playlist with films and no series is
+     * ordinary. Reading the index costs nothing here: it is the same memo
+     * the catalog routes read, so the build is shared rather than repeated.
+     */
+    private m3uCatalogSectionsFor(playlistId: string): M3uCatalogSections {
+        if (this.settingsStore.m3uCatalogTabs?.() === false) {
+            return NO_M3U_CATALOG_SECTIONS;
+        }
+
+        // What the playlist holds, or last held: the index remembers each
+        // playlist's answer for the moments the rows are not this
+        // playlist's (while it loads, on Favorites and Recent, and off an
+        // M3U route, where the rail follows the active playlist).
+        return (
+            this.catalogIndex.sectionsOf(playlistId) ?? NO_M3U_CATALOG_SECTIONS
+        );
+    }
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -195,8 +231,7 @@ export class WorkspaceShellRouteStateService {
             case 'settings':
                 return {
                     aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE',
-                    tooltip:
-                        'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
+                    tooltip: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
                 };
             case 'sources':
             case 'collection':
@@ -234,6 +269,9 @@ export class WorkspaceShellRouteStateService {
                 playlistId: context.playlistId,
                 supportsDownloads: this.runtime.supportsDownloads,
                 workspace: true,
+                m3uCatalogSections: this.m3uCatalogSectionsFor(
+                    context.playlistId
+                ),
             }).primary,
             context.provider,
             (key, params) => this.translateText(key, params)
@@ -253,6 +291,9 @@ export class WorkspaceShellRouteStateService {
                 playlistId: context.playlistId,
                 supportsDownloads: this.runtime.supportsDownloads,
                 workspace: true,
+                m3uCatalogSections: this.m3uCatalogSectionsFor(
+                    context.playlistId
+                ),
             }).secondary.filter((link) => link.section !== 'downloads'),
             context.provider,
             (key, params) => this.translateText(key, params)

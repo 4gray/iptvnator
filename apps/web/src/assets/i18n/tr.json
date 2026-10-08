@@ -557,6 +557,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Oynatılan bir yayın kesildiğinde gömülü oynatıcı, vazgeçmeden önce yayını giderek artan gecikmelerle en fazla 6 kez yeniden yüklemeyi dener. Hiç başlamamış bir yayın için yine de Tekrar dene’ye el ile basmanız gerekir.",
         "VOD_AUTO_FAILOVER": "Oynatma hatasında kaynağı otomatik değiştir",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Bir film oynatılamadığında ve aynı film başka bir oynatma listesinde de varsa, otomatik olarak o listeye geçilir ve oynatma konumu korunur. Varsayılan olarak kapalıdır; başka bir kaynakta dublaj farklı olabileceği için geçiş her zaman bildirilir.",
+        "M3U_CATALOG_TABS": "Filmler ve diziler bölümleri",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Film veya bölüm içeren listeler için her satırı canlı kanal gibi göstermek yerine ayrı Filmler ve Diziler bölümleri göster.",
         "NAV_PARENTAL": "Ebeveyn kilidi",
         "PARENTAL_LOCK": {
             "TITLE": "Ebeveyn kilidi",
@@ -870,6 +872,13 @@
             "SEARCH_PLACEHOLDER": "Grupları ara...",
             "NO_RESULTS": "Eşleşen grup bulunamadı",
             "SAVE": "Kaydet"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Bu listede film yok",
+            "NO_SERIES": "Bu listede dizi yok",
+            "EMPTY_HINT": "Bu liste yalnızca canlı kanallar içeriyor.",
+            "EMPTY_HINT_MOVIES": "Bu listenin filmleri Filmler bölümünde.",
+            "EMPTY_HINT_SERIES": "Bu listenin dizileri Diziler bölümünde."
         }
     },
     "TOP_MENU": {
@@ -1388,7 +1397,9 @@
             "TRAILER_UNMUTE": "Fragman sesini aç",
             "PROGRESS_RESET": "İlerleme sıfırlandı",
             "HIDDEN_FROM_CONTINUE_WATCHING": "“İzlemeye devam et”ten gizlendi"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 sezon",
+        "SEASON_COUNT_OTHER": "{{count}} sezon"
     },
     "INFORMATION": "Bilgi",
     "DOWNLOADS": {

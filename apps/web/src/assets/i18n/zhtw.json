@@ -557,6 +557,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "播放中的串流中斷時，內嵌播放器會以逐漸拉長的間隔重新載入，最多嘗試 6 次後放棄。從未成功啟動的串流仍需手動重試。",
         "VOD_AUTO_FAILOVER": "播放發生錯誤時自動切換來源",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "當電影無法播放，且其他播放清單中也有同一部影片時，會自動切換過去並保留播放進度。預設為關閉；由於其他來源可能使用不同的配音，每次切換都會提示您。",
+        "M3U_CATALOG_TABS": "電影與影集分區",
+        "M3U_CATALOG_TABS_DESCRIPTION": "對包含電影或影集的播放清單另外顯示「電影」與「影集」分區，而不是將每個項目都列為直播頻道。",
         "NAV_PARENTAL": "家長監護",
         "PARENTAL_LOCK": {
             "TITLE": "家長監護",
@@ -870,6 +872,13 @@
             "SEARCH_PLACEHOLDER": "搜尋群組...",
             "NO_RESULTS": "找不到符合的群組",
             "SAVE": "儲存"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "此播放清單中沒有電影",
+            "NO_SERIES": "此播放清單中沒有影集",
+            "EMPTY_HINT": "此播放清單只包含直播頻道。",
+            "EMPTY_HINT_MOVIES": "此播放清單的電影列在「電影」中。",
+            "EMPTY_HINT_SERIES": "此播放清單的影集列在「影集」中。"
         }
     },
     "TOP_MENU": {
@@ -1388,7 +1397,9 @@
             "TRAILER_UNMUTE": "取消預告片靜音",
             "PROGRESS_RESET": "進度已重設",
             "HIDDEN_FROM_CONTINUE_WATCHING": "已從「繼續觀看」隱藏"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 季",
+        "SEASON_COUNT_OTHER": "{{count}} 季"
     },
     "INFORMATION": "資訊",
     "DOWNLOADS": {
