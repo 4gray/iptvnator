@@ -598,7 +598,7 @@ channel-list-container/
 
 ### Loading States
 
-- `M3uWorkspaceRouteSession` owns route-driven channel loading for every section that reads the channel array: `all`, `groups`, `vod` and `series`. The catalog sections derive everything they show from that array, so a section missing from `isLoadedSection` opens permanently empty. Moving between two loaded sections does not re-dispatch `setChannels` — the catalog index memoises on the array reference, so a needless dispatch would rebuild it on every tab change.
+- `M3uWorkspaceRouteSession` owns route-driven channel loading for every section that reads the channel array: `all`, `groups`, `vod` and `series`. The catalog sections derive everything they show from that array, so a section missing from `isLoadedSection` opens permanently empty. Moving between two loaded sections does not re-dispatch `setChannels` — the catalog index memoises on the array reference, so a needless dispatch would rebuild it on every tab change. That holds because ONE session, provided on a componentless parent of every M3U child route, serves all sections: route-level injectors outlive the route once created, so a session per route left one more live session per section visited and made each section's first visit re-read and re-parse the whole playlist. Changing playlist on a section that reads no channels (`favorites`, `recent`) clears the stored rows, so the rail never counts one playlist's catalog as another's.
 - The route session sets `channelsLoading` before `getPlaylist()` resolves and clears it when `ChannelActions.setChannels` lands.
 - The route session dispatches reducer-only `FavoritesActions.hydrateFavorites`
   after that persisted read. Hydration must not use the persistence-bearing
@@ -1783,8 +1783,9 @@ watched marks (the same limit Stalker positions have there).
   live sidebar keeps reading the stored rows, as it did before the split.
 - A movie card hands its row to the `all` route as navigation state
   (`openM3uChannelUrl` plus `openM3uChannelId`), which is the path global
-  search already uses; that route provides a fresh route session, so a
-  dispatch made before navigating would be discarded. The id selects the
+  search already uses; state survives the reset and reload a cold or
+  cross-playlist entry performs, which a dispatch made before navigating
+  would not. The id selects the
   clicked row when several share one URL, and a stale id falls back to the
   URL (`findM3uChannelOpenTarget`).
 - Series episode ids are derived from `series key × season × episode`, never
