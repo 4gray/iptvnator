@@ -4,9 +4,7 @@ import {
     computed,
     effect,
     inject,
-    linkedSignal,
     signal,
-    untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
@@ -50,7 +48,6 @@ import {
     toTimestamp,
 } from './dashboard-mappers';
 import {
-    isPortalPlaybackWatched,
     PORTAL_PLAYBACK_POSITIONS,
     WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
@@ -68,19 +65,7 @@ import {
     isTypeInKind as isTypeInKindUtil,
     type DashboardContentKind,
 } from './dashboard-navigation.util';
-import {
-    CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS,
-    dashboardRecentItemKey,
-    planDashboardSeriesLookups,
-    resolveDashboardSeriesContinuation,
-    selectSeriesContinuationCandidates,
-} from './dashboard-series-continuation.util';
-import {
-    DashboardSeriesEpisodesService,
-    dashboardSeriesEpisodesKey,
-    sameDashboardSeriesEpisodesRequests,
-    type DashboardSeriesEpisodesRequest,
-} from './dashboard-series-episodes.service';
+import { createDashboardContinueWatching } from './dashboard-continue-watching';
 
 export type { DashboardContentKind };
 
@@ -334,160 +319,22 @@ export class DashboardDataService {
      */
     private readonly playbackPositionsReloads = signal(0);
 
-    private readonly seriesEpisodes = inject(DashboardSeriesEpisodesService);
-    private readonly seriesLookupWaitOver = signal(false);
-    private seriesLookupWaitStarted = false;
-
-    /** Xtream series whose newest episode is watched or an extra. */
-    private readonly seriesContinuationCandidates = computed(() =>
-        selectSeriesContinuationCandidates(
-            this.globalRecentVodItems(),
-            (item) => this.storedPlaybackPositionForItem(item)
-        )
-    );
-
-    /**
-     * Which candidates to look up, and what each continues with
-     * (`planDashboardSeriesLookups`): newest first until the rail's titles
-     * are known, so a finished series frees its slot for an older one.
-     */
-    private readonly seriesLookupPlan = computed(() => {
-        const episodes = this.seriesEpisodes.episodes();
-        const rowsBySeries = this.seriesEpisodePositionsMap();
-        return planDashboardSeriesLookups({
-            items: this.globalRecentVodItems(),
-            candidates: this.seriesContinuationCandidates(),
-            listedWithoutLookup: (item) => this.isListedWithoutLookup(item),
-            resolve: (candidate) =>
-                resolveDashboardSeriesContinuation(
-                    candidate,
-                    rowsBySeries.get(
-                        seriesPlaybackPositionMapKey(
-                            candidate.item.playlist_id,
-                            candidate.seriesXtreamId
-                        )
-                    ) ?? [candidate.newest],
-                    episodes.get(
-                        dashboardSeriesEpisodesKey(
-                            candidate.item.playlist_id,
-                            candidate.seriesXtreamId
-                        )
-                    )
-                ),
-        });
+    /** The Continue Watching rail's list and loading gate. */
+    private readonly continueWatching = createDashboardContinueWatching({
+        items: this.globalRecentVodItems,
+        historyLoaded: this.globalRecentLoaded,
+        playlists: this.playlists,
+        storedPosition: (item) => this.storedPlaybackPositionForItem(item),
+        episodeRows: (playlistId, seriesXtreamId) =>
+            this.seriesEpisodePositionsMap().get(
+                seriesPlaybackPositionMapKey(playlistId, seriesXtreamId)
+            ),
+        positionsLoadedFor: this.playbackPositionPlaylistIds,
+        positionReloads: this.playbackPositionsReloads,
     });
 
-    /**
-     * The episode lists to fetch: the plan's candidates, with credentials.
-     * Equal lists keep the previous value, so playlist store churn
-     * (favourites, refreshes, M3U playback) does not run the lookup effect
-     * again.
-     */
-    private readonly seriesEpisodeRequests = computed<
-        DashboardSeriesEpisodesRequest[]
-    >(
-        () => {
-            const playlists = new Map(this.playlists().map((p) => [p._id, p]));
-            const requests: DashboardSeriesEpisodesRequest[] = [];
-            for (const { item, seriesXtreamId } of this.seriesLookupPlan()
-                .window) {
-                const playlist = playlists.get(item.playlist_id);
-                if (
-                    playlist?.serverUrl &&
-                    playlist.username &&
-                    playlist.password
-                ) {
-                    requests.push({
-                        playlistId: item.playlist_id,
-                        seriesId: seriesXtreamId,
-                        credentials: {
-                            serverUrl: playlist.serverUrl,
-                            username: playlist.username,
-                            password: playlist.password,
-                        },
-                    });
-                }
-            }
-            return requests;
-        },
-        { equal: sameDashboardSeriesEpisodesRequests }
-    );
-
-    private readonly seriesLookupsSettled = computed(() => {
-        const episodes = this.seriesEpisodes.episodes();
-        return this.seriesEpisodeRequests().every(
-            ({ playlistId, seriesId }) => {
-                const status = episodes.get(
-                    dashboardSeriesEpisodesKey(playlistId, seriesId)
-                )?.status;
-                return status === 'loaded' || status === 'failed';
-            }
-        );
-    });
-
-    /** What each looked-up series continues with, by recent item key. */
-    private readonly seriesContinuations = computed(
-        () => this.seriesLookupPlan().continuations
-    );
-
-    /**
-     * Continue Watching tells unfinished titles from finished ones by their
-     * playback positions, so it waits until the history and the positions of
-     * every playlist in it have loaded once, and until the episode lists of
-     * series whose newest episode is watched or an extra are in (for at most
-     * CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS): rendering every title first
-     * and dropping the finished ones a moment later would shift the page.
-     * Stays true afterwards; later reloads update the rail in place.
-     */
-    readonly continueWatchingSettled = linkedSignal<boolean, boolean>({
-        source: () => {
-            const loaded = this.playbackPositionPlaylistIds();
-            return (
-                this.globalRecentLoaded() &&
-                this.globalRecentVodItems().every(
-                    (item) => loaded?.has(item.playlist_id) ?? false
-                ) &&
-                (this.seriesLookupsSettled() || this.seriesLookupWaitOver())
-            );
-        },
-        computation: (settled, previous) => previous?.value === true || settled,
-    }).asReadonly();
-
-    /**
-     * Recent movies and series the user has not finished, newest first. A
-     * movie leaves once its position reaches the watched threshold, whether
-     * playback got there or the user marked it. A series whose newest
-     * episode is watched, or is an extra, stays with the episode it
-     * continues with and leaves once none follows the one watched last
-     * (extras aside); one that cannot be looked up keeps its place. The full
-     * history stays on the global recent page.
-     */
-    readonly continueWatchingItems = computed<GlobalRecentItem[]>(() => {
-        if (!this.continueWatchingSettled()) {
-            return [];
-        }
-        const continuations = this.seriesContinuations();
-        return this.globalRecentVodItems().filter((item) => {
-            const continuation = continuations.get(
-                dashboardRecentItemKey(item)
-            );
-            return continuation
-                ? continuation.kind !== 'finished'
-                : this.isListedWithoutLookup(item);
-        });
-    });
-
-    /**
-     * A title Continue Watching lists without an episode lookup: a movie
-     * not watched yet, or a series, which keeps its place until a lookup
-     * says it is finished.
-     */
-    private isListedWithoutLookup(item: GlobalRecentItem): boolean {
-        return (
-            resolvePortalActivityWatchKind(item) === 'series' ||
-            !isPortalPlaybackWatched(this.storedPlaybackPositionForItem(item))
-        );
-    }
+    readonly continueWatchingSettled = this.continueWatching.settled;
+    readonly continueWatchingItems = this.continueWatching.items;
 
     /**
      * The position a dashboard card shows and resumes: the stored one, or
@@ -497,9 +344,7 @@ export class DashboardDataService {
     getPlaybackPositionForItem(
         item: PortalActivityItem
     ): PlaybackPositionData | null {
-        const continuation = this.seriesContinuations().get(
-            dashboardRecentItemKey(item)
-        );
+        const continuation = this.continueWatching.continuationFor(item);
         return continuation?.kind === 'continue'
             ? continuation.position
             : this.storedPlaybackPositionForItem(item);
@@ -686,28 +531,6 @@ export class DashboardDataService {
             this.playlistsLoaded();
             this.finishInitialGlobalRecentLoadIfReady();
             this.finishInitialGlobalFavoritesLoadIfReady();
-        });
-
-        // A series whose newest episode is watched, or is an extra, goes on
-        // with an episode only the portal's episode list names. Runs when the
-        // list of series to look up changes, and on each positions reload:
-        // the deliberate moments a failed lookup is tried again.
-        effect(() => {
-            const requests = this.seriesEpisodeRequests();
-            const round = this.playbackPositionsReloads();
-            if (requests.length === 0) {
-                return;
-            }
-            untracked(() => {
-                this.seriesEpisodes.request(requests, round);
-                if (!this.seriesLookupWaitStarted) {
-                    this.seriesLookupWaitStarted = true;
-                    setTimeout(
-                        () => this.seriesLookupWaitOver.set(true),
-                        CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS
-                    );
-                }
-            });
         });
 
         // Before the inventory has loaded "no Xtream playlists" is not known
