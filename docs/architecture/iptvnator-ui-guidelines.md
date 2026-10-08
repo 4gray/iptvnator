@@ -212,6 +212,14 @@ directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
 The shared live-layout sidebar reserves 8 px at its right edge so the inward
 half of the 12 px resize handle cannot cover the channel scrollbar.
 
+## Resizable Sidebar Widths
+
+Workspace context panels and Favorites share one `sidebar-width` key (its
+legacy aliases map onto it) but have different limits. `ResizableDirective`
+renders the stored width clamped to the host's own limits and never writes
+that clamped value back: only a drag that changes the width persists, so a
+narrow sidebar such as Settings cannot shrink the width a wider one saved.
+
 ## Keyboard Scrolling and Channel Focus
 
 `ChannelScrollFocusDirective` belongs on the actual channel scroll owner,
