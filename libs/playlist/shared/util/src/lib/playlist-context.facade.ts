@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
+    M3uCatalogIndexService,
     PlaylistActions,
     selectActivePlaylistId,
     selectAllPlaylistsMeta,
@@ -87,6 +88,7 @@ export class PlaylistContextFacade {
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly catalogIndex = inject(M3uCatalogIndexService);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
 
@@ -348,13 +350,18 @@ export class PlaylistContextFacade {
                 provider
             );
             // A remembered Movies/Series is only worth restoring while the
-            // rail still offers the catalog: with the setting off the viewer
-            // would land on a section that has no link back.
+            // rail still offers it: with the setting off, or once a refresh
+            // has emptied the section, the viewer would land on a page that
+            // has no link back.
             const catalogSectionOff =
                 this.isPlaylistBoundSection(
                     normalizedPlaylistSection ?? '',
                     provider
-                ) && this.settingsStore.m3uCatalogTabs?.() === false;
+                ) &&
+                !this.offersCatalogSection(
+                    targetPlaylistId,
+                    normalizedPlaylistSection ?? ''
+                );
             if (normalizedPlaylistSection && !catalogSectionOff) {
                 return normalizedPlaylistSection;
             }
@@ -384,6 +391,17 @@ export class PlaylistContextFacade {
         provider: PortalProvider
     ): boolean {
         return provider === 'playlists' && M3U_CATALOG_SECTIONS.has(section);
+    }
+
+    private offersCatalogSection(playlistId: string, section: string): boolean {
+        if (this.settingsStore.m3uCatalogTabs?.() === false) {
+            return false;
+        }
+
+        // Unknown until the playlist has been opened this session; then the
+        // memory is trusted and the page's empty state covers a miss.
+        const known = this.catalogIndex.sectionsOf(playlistId);
+        return !known || (section === 'vod' ? known.movies : known.series);
     }
 
     private supportsSectionNavigation(provider: PortalProvider): boolean {

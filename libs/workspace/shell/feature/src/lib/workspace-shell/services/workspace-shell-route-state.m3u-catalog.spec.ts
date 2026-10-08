@@ -18,6 +18,7 @@ import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.s
 describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
     const loading = signal(false);
     const rowsPlaylistId = signal<string | null>('pl-a');
+    const known = new Map<string, { movies: boolean; series: boolean }>();
     const counts = signal({ movie: 0, episode: 0 });
     const catalogTabs = signal<boolean | undefined>(true);
     const router = {
@@ -39,6 +40,7 @@ describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
     beforeEach(() => {
         loading.set(false);
         rowsPlaylistId.set('pl-a');
+        known.clear();
         counts.set({ movie: 0, episode: 0 });
         catalogTabs.set(true);
         router.url = '/workspace/playlists/pl-a/all';
@@ -80,9 +82,20 @@ describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
                 {
                     provide: M3uCatalogIndexService,
                     useValue: {
-                        loading,
-                        rowsPlaylistId,
-                        index: () => ({ counts: counts() }),
+                        // The service's own rule, restated over the
+                        // spec's signals; m3u-catalog-index.service.spec
+                        // holds the tests of the rule itself.
+                        sectionsOf: (playlistId: string) => {
+                            if (!loading() && rowsPlaylistId() === playlistId) {
+                                const sections = {
+                                    movies: counts().movie > 0,
+                                    series: counts().episode > 0,
+                                };
+                                known.set(playlistId, sections);
+                                return sections;
+                            }
+                            return known.get(playlistId) ?? null;
+                        },
                     },
                 },
             ],

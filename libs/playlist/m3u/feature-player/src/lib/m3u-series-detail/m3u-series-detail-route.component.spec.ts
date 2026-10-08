@@ -92,6 +92,8 @@ class StubInlinePlayerComponent {
     readonly closed = output<void>();
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly upNextEpisodeSelected = output<{ episode: unknown }>();
+    readonly volume = input(1);
+    readonly externalFallbackRequested = output<unknown>();
 }
 
 const row = (name: string) =>
@@ -152,6 +154,7 @@ describe('M3uSeriesDetailRouteComponent', () => {
     const portalPlayer = {
         isEmbeddedPlayer: jest.fn(() => true),
         openResolvedPlayback: jest.fn().mockResolvedValue(undefined),
+        openExternalPlayback: jest.fn().mockResolvedValue(undefined),
     };
     const positionBridge = {
         supportsStorage: true,
@@ -358,6 +361,63 @@ describe('M3uSeriesDetailRouteComponent', () => {
         fixture.detectChanges();
         await settle();
         expect(component.playback()).toBeNull();
+    });
+
+    it('hands the player the volume the viewer last set', async () => {
+        // The inline player defaults to full volume; a viewer who muted
+        // the M3U player must not have an episode start loud.
+        localStorage.setItem('volume', '0.25');
+        try {
+            const fixture = await render();
+            const component = fixture.componentInstance as unknown as {
+                seasons(): Record<string, unknown[]>;
+                onEpisodeClicked(episode: unknown): void;
+            };
+            component.onEpisodeClicked(component.seasons()['1'][0]);
+            fixture.detectChanges();
+
+            expect(
+                fixture.debugElement
+                    .query(By.directive(StubInlinePlayerComponent))
+                    .componentInstance.volume()
+            ).toBe(0.25);
+        } finally {
+            localStorage.removeItem('volume');
+        }
+    });
+
+    it('launches the external player the failure overlay asks for', async () => {
+        portalPlayer.openExternalPlayback
+            .mockReset()
+            .mockResolvedValue(undefined);
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): Record<string, unknown> | null;
+        };
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+        fixture.detectChanges();
+        const trackLaunch = jest.fn();
+
+        fixture.debugElement
+            .query(By.directive(StubInlinePlayerComponent))
+            .componentInstance.externalFallbackRequested.emit({
+                player: 'vlc',
+                playback: component.playback(),
+                trackLaunch,
+            });
+
+        // Without the episode identity: an external launch is untracked.
+        expect(portalPlayer.openExternalPlayback).toHaveBeenCalledWith(
+            expect.not.objectContaining({ contentInfo: expect.anything() }),
+            'vlc'
+        );
+        expect(portalPlayer.openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'SHOW S1 E1' }),
+            'vlc'
+        );
+        expect(trackLaunch).toHaveBeenCalledTimes(1);
     });
 
     it('tells the inline player which episode is playing', async () => {

@@ -151,6 +151,7 @@ import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 import { isM3uCollectionView } from './m3u-collection-view.util';
 import { isM3uMovieRow } from './m3u-movie-row.util';
+import { readStoredM3uVolume } from '../m3u-stored-volume.util';
 import {
     findM3uChannelOpenTarget,
     isM3uChannelOpenTarget,
@@ -162,23 +163,6 @@ const M3U_GROUPS_SIDEBAR_STORAGE_KEY = 'm3u-groups-sidebar-width';
 const M3U_SIDEBAR_MIN_WIDTH = 200;
 const M3U_SIDEBAR_MAX_WIDTH = 600;
 const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
-
-/**
- * Shared `volume` bus the player engines and the audio player persist to.
- *
- * The empty cases must be rejected BEFORE `Number()` sees them: it maps both
- * `null` (nothing stored yet) and `''` to 0, which would silently start every
- * first-run playback muted.
- */
-function readStoredVolume(): number {
-    const stored = localStorage.getItem('volume')?.trim();
-    if (!stored) {
-        return 1;
-    }
-
-    const parsed = Number(stored);
-    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : 1;
-}
 
 /**
  * PageUp/PageDown switch channels unless the key would scroll something the
@@ -787,7 +771,7 @@ export class VideoPlayerComponent
      */
     readonly volume = linkedSignal({
         source: () => this.activeChannel(),
-        computation: () => readStoredVolume(),
+        computation: () => readStoredM3uVolume(),
     });
 
     constructor() {
@@ -1636,7 +1620,7 @@ export class VideoPlayerComponent
      * remounted player would otherwise start at the pre-adjustment value.
      */
     refreshVolumeFromBus(): void {
-        this.volume.set(readStoredVolume());
+        this.volume.set(readStoredM3uVolume());
     }
 
     private setVolume(next: number): void {

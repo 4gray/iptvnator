@@ -4,6 +4,7 @@ import {
     computed,
     effect,
     inject,
+    linkedSignal,
     signal,
     untracked,
 } from '@angular/core';
@@ -32,7 +33,9 @@ import {
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import { isDashChannel } from '@iptvnator/shared/m3u-utils';
 import { M3uSeries } from '@iptvnator/shared/m3u-utils/series';
+import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
+import { readStoredM3uVolume } from '../m3u-stored-volume.util';
 import { toSeasonRecord } from './m3u-series-episode.adapter';
 import { M3uSeriesMetadataService } from './m3u-series-metadata.service';
 import { M3uSeriesPositionsService } from './m3u-series-positions.service';
@@ -306,6 +309,30 @@ export class M3uSeriesDetailRouteComponent {
      * before the credits is not resuming, and the watched badge on the row
      * already says it was finished.
      */
+    /**
+     * The level the viewer left the M3U player at, re-read for each episode
+     * as the `:view` player re-reads it per channel; the inline player's
+     * own default is full volume.
+     */
+    protected readonly volume = linkedSignal({
+        source: () => this.playing(),
+        computation: () => readStoredM3uVolume(),
+    });
+
+    /**
+     * "Open in MPV/VLC" from the player's failure overlay. Sent without the
+     * episode identity: an external launch stays untracked, like one made
+     * from the episode card.
+     */
+    protected onExternalFallbackRequested(
+        request: PlaybackFallbackRequest
+    ): void {
+        const { contentInfo: _untracked, ...playback } = request.playback;
+        request.trackLaunch(
+            this.portalPlayer.openExternalPlayback(playback, request.player)
+        );
+    }
+
     /** An episode chosen in the player's fullscreen panel. */
     protected onPanelEpisodeSelected(item: { episode: unknown }): void {
         this.onEpisodeClicked(item.episode as XtreamSerieEpisode);

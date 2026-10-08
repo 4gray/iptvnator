@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { M3uCatalogIndexService } from './m3u-catalog-index.service';
-import { selectChannelsLoading } from './selectors';
+import { selectChannelsLoading, selectChannelsPlaylistId } from './selectors';
 
 const channel = (url: string, name: string, group: string) =>
     ({ url, name, group: { title: group } }) as unknown as Channel;
@@ -20,10 +20,12 @@ describe('M3uCatalogIndexService', () => {
     const channels = signal<Channel[]>([]);
 
     const loading = signal(false);
+    const rowsPlaylistId = signal<string | null>('pl-a');
 
     beforeEach(() => {
         channels.set([]);
         loading.set(false);
+        rowsPlaylistId.set('pl-a');
         TestBed.configureTestingModule({
             providers: [
                 {
@@ -32,7 +34,9 @@ describe('M3uCatalogIndexService', () => {
                         selectSignal: (selector: unknown) =>
                             selector === selectChannelsLoading
                                 ? loading
-                                : channels,
+                                : selector === selectChannelsPlaylistId
+                                  ? rowsPlaylistId
+                                  : channels,
                     },
                 },
             ],
@@ -114,6 +118,74 @@ describe('M3uCatalogIndexService', () => {
 
         expect(service.index()).not.toBe(before);
         expect(service.index().counts.movie).toBe(1);
+    });
+
+    describe('sectionsOf', () => {
+        it('answers from the rows while they belong to that playlist', () => {
+            channels.set([LIVE, MOVIE]);
+            const service = TestBed.inject(M3uCatalogIndexService);
+
+            expect(service.sectionsOf('pl-a')).toEqual({
+                movies: true,
+                series: false,
+            });
+        });
+
+        it('does not know a playlist it has not seen', () => {
+            channels.set([LIVE, MOVIE]);
+
+            expect(
+                TestBed.inject(M3uCatalogIndexService).sectionsOf('pl-b')
+            ).toBeNull();
+        });
+
+        it('keeps the last answer while the same playlist reloads', () => {
+            // The index is empty during a load; without the last answer the
+            // rail links blink out on every reload.
+            channels.set([LIVE, MOVIE, EPISODE]);
+            const service = TestBed.inject(M3uCatalogIndexService);
+            service.sectionsOf('pl-a');
+
+            loading.set(true);
+
+            expect(service.sectionsOf('pl-a')).toEqual({
+                movies: true,
+                series: true,
+            });
+        });
+
+        it('never gives one playlist the answer of another', () => {
+            // Off an M3U route the active playlist can change while the
+            // rows stay those of the last playlist opened.
+            channels.set([LIVE, MOVIE]);
+            const service = TestBed.inject(M3uCatalogIndexService);
+            service.sectionsOf('pl-a');
+
+            expect(service.sectionsOf('pl-b')).toBeNull();
+
+            rowsPlaylistId.set('pl-b');
+            channels.set([LIVE, EPISODE]);
+
+            expect(service.sectionsOf('pl-b')).toEqual({
+                movies: false,
+                series: true,
+            });
+            // ...and pl-a is still remembered once the rows have moved on.
+            expect(service.sectionsOf('pl-a')).toEqual({
+                movies: true,
+                series: false,
+            });
+        });
+
+        it('follows a refresh that empties a section', () => {
+            channels.set([LIVE, MOVIE]);
+            const service = TestBed.inject(M3uCatalogIndexService);
+            expect(service.sectionsOf('pl-a')?.movies).toBe(true);
+
+            channels.set([LIVE]);
+
+            expect(service.sectionsOf('pl-a')?.movies).toBe(false);
+        });
     });
 
     it('survives an empty playlist', () => {

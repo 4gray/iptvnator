@@ -39,9 +39,13 @@
                 [seriesTitle]="seriesTitle()"
                 [seriesEpisodes]="seasons()"
                 [episodePlaybackPositions]="playbackPositions()"
+                [volume]="volume()"
                 (closed)="onPlayerClosed()"
                 (timeUpdate)="onTimeUpdate($event)"
                 (upNextEpisodeSelected)="onPanelEpisodeSelected($event)"
+                (externalFallbackRequested)="
+                    onExternalFallbackRequested($event)
+                "
             />
         }
     </div>

@@ -1780,6 +1780,12 @@ watched marks (the same limit Stalker positions have there).
   Off an M3U route the rail follows the ACTIVE playlist, which can change
   without any rows being loaded, so the rail counts the catalog only when
   the rows are that playlist's.
+  `M3uCatalogIndexService.sectionsOf(playlistId)` is the one answer to
+  "does this playlist have films / series": from the rows while they are
+  that playlist's, from the last such answer otherwise (loading, Favorites
+  and Recent, off-route), never from another playlist. The rail reads it
+  for its links and section memory reads it before restoring a remembered
+  `vod`/`series`, together with the setting.
 - The Movies, Series and series-detail pages are `loadComponent` routes:
   a live-only playlist never fetches the catalog grid or the series code.
 - The rail offers each catalog section only when the playlist has rows of
@@ -1836,6 +1842,9 @@ watched marks (the same limit Stalker positions have there).
   coordinates), which is what makes the shared inline player offer its
   fullscreen episode panel; a pick there arrives as `upNextEpisodeSelected`.
   An external-player launch carries none and stays untracked.
+  The series page also hands the inline player the stored M3U volume and
+  answers its `externalFallbackRequested` (the failure overlay's "open in
+  MPV/VLC"), again without the episode identity.
 - A title whose rows state at most one year is one series under a year-free
   key. When a second year appears (a remake), the earliest year keeps that
   key, so a refresh that adds the remake leaves the original's ids and watch

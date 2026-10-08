@@ -15,6 +15,11 @@ import {
 
 const EMPTY_INDEX: M3uCatalogIndex<Channel> = buildM3uCatalogIndex<Channel>([]);
 
+export interface M3uCatalogSectionFlags {
+    readonly movies: boolean;
+    readonly series: boolean;
+}
+
 /**
  * Owns the derived catalog index for the loaded M3U playlist.
  *
@@ -64,6 +69,34 @@ export class M3uCatalogIndexService {
     readonly rowsPlaylistId: Signal<string | null> = this.store.selectSignal(
         selectChannelsPlaylistId
     );
+
+    private readonly knownSections = new Map<string, M3uCatalogSectionFlags>();
+
+    /**
+     * Which catalog sections a playlist has rows for, or null when it has
+     * not been seen this session.
+     *
+     * Answered from the rows while they are this playlist's, and from the
+     * last such answer otherwise: while it loads (the index is empty then,
+     * and the rail links would blink out on every reload), on Favorites and
+     * Recent (which do not load the rows), and off an M3U route, where the
+     * active playlist can change while the rows stay another's. One
+     * playlist's answer is never given for another.
+     *
+     * The rail reads it to decide its links, and section memory reads it so
+     * a remembered Movies or Series is not restored once a refresh has
+     * emptied it.
+     */
+    sectionsOf(playlistId: string): M3uCatalogSectionFlags | null {
+        if (!this.loading() && this.rowsPlaylistId() === playlistId) {
+            const { movie, episode } = this.storedIndex().counts;
+            const sections = { movies: movie > 0, series: episode > 0 };
+            this.knownSections.set(playlistId, sections);
+            return sections;
+        }
+
+        return this.knownSections.get(playlistId) ?? null;
+    }
 
     /** Index of whatever the store holds, current or not. */
     private readonly storedIndex: Signal<M3uCatalogIndex<Channel>> = computed(

@@ -64,44 +64,14 @@ export class WorkspaceShellRouteStateService {
             return NO_M3U_CATALOG_SECTIONS;
         }
 
-        // The index is empty while a playlist loads. Without the last answer
-        // for the same playlist the links would blink out on every reload,
-        // including on the Movies page itself; another playlist's answer is
-        // never reused.
-        //
-        // The same holds when the rows are another playlist's: on the
-        // dashboard or in settings the rail follows the ACTIVE playlist,
-        // which can be switched there while the rows stay those of the last
-        // playlist an M3U route loaded.
-        if (
-            this.catalogIndex.loading() ||
-            this.catalogIndex.rowsPlaylistId() !== playlistId
-        ) {
-            return (
-                this.knownM3uCatalogSections.get(playlistId) ??
-                NO_M3U_CATALOG_SECTIONS
-            );
-        }
-
-        const counts = this.catalogIndex.index().counts;
-        const sections = {
-            movies: counts.movie > 0,
-            series: counts.episode > 0,
-        };
-        this.knownM3uCatalogSections.set(playlistId, sections);
-        return sections;
+        // What the playlist holds, or last held: the index remembers each
+        // playlist's answer for the moments the rows are not this
+        // playlist's (while it loads, on Favorites and Recent, and off an
+        // M3U route, where the rail follows the active playlist).
+        return (
+            this.catalogIndex.sectionsOf(playlistId) ?? NO_M3U_CATALOG_SECTIONS
+        );
     }
-
-    /**
-     * What each playlist was last seen to hold. Kept per playlist, not just
-     * for the latest one: Favorites and Recent do not load the rows, so a
-     * playlist entered there shows its sections only if they are
-     * remembered from an earlier visit.
-     */
-    private readonly knownM3uCatalogSections = new Map<
-        string,
-        M3uCatalogSections
-    >();
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
