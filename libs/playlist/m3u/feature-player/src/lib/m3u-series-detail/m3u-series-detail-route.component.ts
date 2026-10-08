@@ -31,7 +31,8 @@ import {
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
-import { M3uSeries } from '@iptvnator/shared/m3u-utils';
+import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
+import { isDashChannel, M3uSeries } from '@iptvnator/shared/m3u-utils';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 import { toSeasonRecord } from './m3u-series-episode.adapter';
 import { M3uSeriesMetadataService } from './m3u-series-metadata.service';
@@ -104,6 +105,7 @@ export class M3uSeriesDetailRouteComponent {
     private readonly catalog = inject(M3uCatalogIndexService);
     private readonly positions = inject(M3uSeriesPositionsService);
     private readonly metadata = inject(M3uSeriesMetadataService);
+    private readonly portalPlayer = inject(PORTAL_PLAYER);
 
     private readonly playlist = this.store.selectSignal(selectActivePlaylist);
 
@@ -283,6 +285,26 @@ export class M3uSeriesDetailRouteComponent {
      */
     protected onEpisodeClicked(episode: XtreamSerieEpisode): void {
         const saved = this.playbackPositions().get(Number(episode.id));
+        const channel = this.channelOf(episode);
+        if (channel && this.playsExternally(channel)) {
+            this.onPlayerClosed();
+            void this.portalPlayer
+                .openResolvedPlayback(
+                    buildM3uPlaybackPayload({
+                        channel,
+                        target: channel,
+                        playlistMeta: this.playlist(),
+                        isLive: false,
+                        startTime: resumeOffsetOf(saved),
+                    }),
+                    true
+                )
+                .catch((error) =>
+                    console.warn('External episode launch failed', error)
+                );
+            return;
+        }
+
         this.playing.set({
             episode,
             startTime: resumeOffsetOf(saved),
@@ -310,6 +332,17 @@ export class M3uSeriesDetailRouteComponent {
      * behind an episode is found by it rather than by a parallel lookup
      * table that could drift out of step with the catalog.
      */
+    /**
+     * MPV and VLC have no inline engine: mounting the inline player for them
+     * gives an empty stage and launches nothing. They get the episode the
+     * way the `:view` player hands them a channel. DASH stays inline under
+     * every setting, as it does there — the external players cannot carry
+     * its KODIPROP keys.
+     */
+    private playsExternally(channel: Channel): boolean {
+        return !this.portalPlayer.isEmbeddedPlayer() && !isDashChannel(channel);
+    }
+
     private channelOf(episode: XtreamSerieEpisode): Channel | null {
         const series = this.series();
         if (!series) {

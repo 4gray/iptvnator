@@ -184,8 +184,11 @@ export class M3uSeriesPositionsService implements OnDestroy {
      *
      * The grid already decided what each episode's row should become — a
      * full-progress position, or nothing — so this only persists the
-     * decision and reloads. Reloading rather than trusting the local patch
-     * keeps the grid honest if any single write failed.
+     * decision and reloads. The writes go through the batch IPC, one SQLite
+     * transaction per direction, as the Xtream toggle does: a whole-series
+     * toggle on a 400-episode show would otherwise be 400 sequential worker
+     * round-trips. Reloading rather than trusting the local patch keeps the
+     * grid honest when a batch is refused.
      */
     async applyToggle(
         playlistId: string,
@@ -199,20 +202,32 @@ export class M3uSeriesPositionsService implements OnDestroy {
         }
 
         const requests = 'requests' in request ? request.requests : [request];
-
+        const saves: PlaybackPositionData[] = [];
+        const clears: { contentXtreamId: number; contentType: 'episode' }[] =
+            [];
         for (const item of requests) {
             if (item.nextPosition) {
-                await this.bridge.savePlaybackPosition(
-                    playlistId,
-                    item.nextPosition
-                );
+                saves.push(item.nextPosition);
             } else {
-                await this.bridge.clearPlaybackPosition(
+                clears.push({
+                    contentXtreamId: item.contentXtreamId,
+                    contentType: 'episode',
+                });
+            }
+        }
+
+        try {
+            if (saves.length > 0) {
+                await this.bridge.savePlaybackPositionsBatch(playlistId, saves);
+            }
+            if (clears.length > 0) {
+                await this.bridge.clearPlaybackPositionsBatch(
                     playlistId,
-                    item.contentXtreamId,
-                    'episode'
+                    clears
                 );
             }
+        } catch (error) {
+            console.warn('Failed to apply the watched toggle', error);
         }
 
         await this.load(playlistId, seriesId);

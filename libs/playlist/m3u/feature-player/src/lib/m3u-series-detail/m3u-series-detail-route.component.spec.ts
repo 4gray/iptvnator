@@ -17,6 +17,7 @@ import {
     PlaybackPositionRuntimeBridgeService,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
+import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils';
 import type { M3uSeriesDetailRouteComponent as ComponentType } from './m3u-series-detail-route.component';
@@ -99,10 +100,23 @@ const row = (name: string) =>
         tvg: { logo: 'http://logo/show.png' },
     }) as unknown as Channel;
 
+const dashRow = (name: string) =>
+    ({
+        ...row(name),
+        url: `http://h.example/series/u/p/${encodeURIComponent(name)}.mpd`,
+    }) as unknown as Channel;
+
 const CATALOG = buildM3uSeriesCatalog(
-    [row('SHOW S1 E1'), row('SHOW S1 E2'), row('SHOW S2 E1')],
+    [
+        row('SHOW S1 E1'),
+        row('SHOW S1 E2'),
+        row('SHOW S2 E1'),
+        dashRow('DASH SHOW S1 E1'),
+    ],
     'pl-1'
 );
+const SHOW = CATALOG.find((series) => series.title === 'SHOW')!;
+const DASH_SHOW = CATALOG.find((series) => series.title === 'DASH SHOW')!;
 
 describe('M3uSeriesDetailRouteComponent', () => {
     let M3uSeriesDetailRouteComponent: typeof ComponentType;
@@ -112,13 +126,19 @@ describe('M3uSeriesDetailRouteComponent', () => {
             await import('./m3u-series-detail-route.component'));
     });
 
-    const params = new BehaviorSubject({ get: () => String(CATALOG[0].id) });
+    const params = new BehaviorSubject({ get: () => String(SHOW.id) });
     const navigate = jest.fn();
+    const portalPlayer = {
+        isEmbeddedPlayer: jest.fn(() => true),
+        openResolvedPlayback: jest.fn().mockResolvedValue(undefined),
+    };
     const positionBridge = {
         supportsStorage: true,
         getSeriesPlaybackPositions: jest.fn().mockResolvedValue([]),
         savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
         clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
+        savePlaybackPositionsBatch: jest.fn().mockResolvedValue(undefined),
+        clearPlaybackPositionsBatch: jest.fn().mockResolvedValue(undefined),
     };
 
     async function render(): Promise<ComponentFixture<ComponentType>> {
@@ -126,6 +146,7 @@ describe('M3uSeriesDetailRouteComponent', () => {
             imports: [M3uSeriesDetailRouteComponent],
             providers: [
                 { provide: Router, useValue: { navigate } },
+                { provide: PORTAL_PLAYER, useValue: portalPlayer },
                 {
                     provide: ActivatedRoute,
                     useValue: {
@@ -182,8 +203,12 @@ describe('M3uSeriesDetailRouteComponent', () => {
 
     beforeEach(() => {
         TestBed.resetTestingModule();
-        params.next({ get: () => String(CATALOG[0].id) });
+        params.next({ get: () => String(SHOW.id) });
         navigate.mockReset();
+        portalPlayer.isEmbeddedPlayer.mockReset().mockReturnValue(true);
+        portalPlayer.openResolvedPlayback
+            .mockReset()
+            .mockResolvedValue(undefined);
         positionBridge.getSeriesPlaybackPositions
             .mockReset()
             .mockResolvedValue([]);
@@ -203,7 +228,7 @@ describe('M3uSeriesDetailRouteComponent', () => {
         return {
             contentXtreamId: episodeId,
             contentType: 'episode' as const,
-            seriesXtreamId: CATALOG[0].id,
+            seriesXtreamId: SHOW.id,
             seasonNumber: 1,
             episodeNumber: 1,
             positionSeconds,
@@ -261,6 +286,52 @@ describe('M3uSeriesDetailRouteComponent', () => {
         expect(component.playback()?.streamUrl).toContain('/series/');
     });
 
+    it('hands the episode to MPV or VLC instead of an empty inline stage', async () => {
+        // The inline player has no engine for an external player: before
+        // this, the page switched to Watch and nothing played anywhere.
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
+        const first = SHOW.seasons.get(1)?.[0];
+        positionBridge.getSeriesPlaybackPositions.mockResolvedValue([
+            savedPosition(Number(first?.id), 640, 2400),
+        ]);
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): unknown;
+        };
+
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+
+        expect(component.playback()).toBeNull();
+        expect(portalPlayer.openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                isLive: false,
+                startTime: 640,
+                streamUrl: expect.stringContaining('/series/'),
+            }),
+            true
+        );
+    });
+
+    it('keeps a DASH episode inline even with an external player saved', async () => {
+        // The external players cannot carry KODIPROP keys; the `:view`
+        // player keeps DASH inline under every setting, and so does this.
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
+        params.next({ get: () => String(DASH_SHOW.id) });
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): { streamUrl: string } | null;
+        };
+
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+
+        expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
+        expect(component.playback()?.streamUrl).toContain('.mpd');
+    });
+
     it('moves the session key with the episode', async () => {
         // The key identifies the mounted content: if it did not move, the
         // engine would keep playing the previous episode's stream.
@@ -283,7 +354,7 @@ describe('M3uSeriesDetailRouteComponent', () => {
     it('opens an episode at the offset storage remembers', async () => {
         // Without this the resume feature is inert: the badges show
         // progress while every click still starts the episode at zero.
-        const first = CATALOG[0].seasons.get(1)?.[0];
+        const first = SHOW.seasons.get(1)?.[0];
         positionBridge.getSeriesPlaybackPositions.mockResolvedValue([
             savedPosition(Number(first?.id), 640, 2400),
         ]);
@@ -301,7 +372,7 @@ describe('M3uSeriesDetailRouteComponent', () => {
     });
 
     it('starts a finished episode over rather than at the credits', async () => {
-        const first = CATALOG[0].seasons.get(1)?.[0];
+        const first = SHOW.seasons.get(1)?.[0];
         positionBridge.getSeriesPlaybackPositions.mockResolvedValue([
             savedPosition(Number(first?.id), 2396, 2400),
         ]);
@@ -322,7 +393,7 @@ describe('M3uSeriesDetailRouteComponent', () => {
         // The offset is captured at selection. Reading it live from the
         // positions map would let this episode's own progress ticks feed
         // the player a `startTime` that chases playback and re-seeks it.
-        const first = CATALOG[0].seasons.get(1)?.[0];
+        const first = SHOW.seasons.get(1)?.[0];
         positionBridge.getSeriesPlaybackPositions.mockResolvedValue([
             savedPosition(Number(first?.id), 640, 2400),
         ]);

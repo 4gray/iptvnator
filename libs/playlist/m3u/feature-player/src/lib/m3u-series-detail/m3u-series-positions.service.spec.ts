@@ -20,6 +20,8 @@ describe('M3uSeriesPositionsService', () => {
         getSeriesPlaybackPositions: jest.fn(),
         savePlaybackPosition: jest.fn(),
         clearPlaybackPosition: jest.fn(),
+        savePlaybackPositionsBatch: jest.fn(),
+        clearPlaybackPositionsBatch: jest.fn(),
     };
 
     let service: M3uSeriesPositionsService;
@@ -28,6 +30,12 @@ describe('M3uSeriesPositionsService', () => {
         bridge.getSeriesPlaybackPositions.mockReset().mockResolvedValue([]);
         bridge.savePlaybackPosition.mockReset().mockResolvedValue(undefined);
         bridge.clearPlaybackPosition.mockReset().mockResolvedValue(undefined);
+        bridge.savePlaybackPositionsBatch
+            .mockReset()
+            .mockResolvedValue(undefined);
+        bridge.clearPlaybackPositionsBatch
+            .mockReset()
+            .mockResolvedValue(undefined);
 
         TestBed.configureTestingModule({
             providers: [
@@ -221,14 +229,34 @@ describe('M3uSeriesPositionsService', () => {
             ],
         });
 
-        expect(bridge.savePlaybackPosition).toHaveBeenCalledWith(
+        // One batch per direction, not one awaited IPC per episode.
+        expect(bridge.savePlaybackPositionsBatch).toHaveBeenCalledWith('pl-1', [
+            expect.objectContaining({ contentXtreamId: 11 }),
+        ]);
+        expect(bridge.clearPlaybackPositionsBatch).toHaveBeenCalledWith(
             'pl-1',
-            expect.objectContaining({ contentXtreamId: 11 })
+            [{ contentXtreamId: 12, contentType: 'episode' }]
         );
-        expect(bridge.clearPlaybackPosition).toHaveBeenCalledWith(
+        expect(bridge.savePlaybackPosition).not.toHaveBeenCalled();
+        expect(bridge.clearPlaybackPosition).not.toHaveBeenCalled();
+    });
+
+    it('still reloads when a batch write is refused', async () => {
+        await service.load('pl-1', 500);
+        bridge.getSeriesPlaybackPositions.mockClear();
+        bridge.savePlaybackPositionsBatch.mockRejectedValue(
+            new Error('db gone')
+        );
+
+        await expect(
+            service.applyToggle('pl-1', 500, {
+                contentXtreamId: 11,
+                nextPosition: position(11, 1200),
+            })
+        ).resolves.toBeUndefined();
+        expect(bridge.getSeriesPlaybackPositions).toHaveBeenCalledWith(
             'pl-1',
-            12,
-            'episode'
+            500
         );
     });
 
