@@ -17,7 +17,21 @@ import { buildM3uSeriesCatalog } from './m3u-series-aggregate.util';
  * is worse than no spec. The ceiling is still tight enough to fail on the
  * regressions that actually matter — an extra pass over the rows, a per-row
  * `new URL`, or a channel→kind map.
+ *
+ * The cost is this process's CPU time, not wall-clock time. Nx runs test
+ * targets in parallel and jest runs suites in parallel workers, so on a
+ * loaded runner a wall-clock sample mostly measures time spent waiting for
+ * a core: the same build measured 454 ms against a 300 ms budget under
+ * three parallel targets and passed alone. CPU time excludes that wait and
+ * still grows with every extra pass the code makes.
  */
+function cpuMs(work: () => void): number {
+    const started = process.cpuUsage();
+    work();
+    const { user, system } = process.cpuUsage(started);
+    return (user + system) / 1000;
+}
+
 describe('buildM3uCatalogIndex performance', () => {
     const rows = createSyntheticCatalogRows();
 
@@ -27,9 +41,12 @@ describe('buildM3uCatalogIndex performance', () => {
         // Median of three: the first run pays for JIT warm-up on the
         // regexes, and a single sample would bake that into the budget.
         for (let run = 0; run < 3; run += 1) {
-            const started = performance.now();
-            const index = buildM3uCatalogIndex(rows);
-            samples.push(performance.now() - started);
+            let index = buildM3uCatalogIndex([]);
+            samples.push(
+                cpuMs(() => {
+                    index = buildM3uCatalogIndex(rows);
+                })
+            );
 
             // Read the result so the build cannot be optimised away.
             expect(index.counts.live + index.counts.movie).toBeGreaterThan(0);
@@ -53,9 +70,12 @@ describe('buildM3uCatalogIndex performance', () => {
         const samples: number[] = [];
 
         for (let run = 0; run < 3; run += 1) {
-            const started = performance.now();
-            const series = buildM3uSeriesCatalog(episodes, 'perf');
-            samples.push(performance.now() - started);
+            let series = buildM3uSeriesCatalog([], 'perf');
+            samples.push(
+                cpuMs(() => {
+                    series = buildM3uSeriesCatalog(episodes, 'perf');
+                })
+            );
             expect(series.length).toBeGreaterThan(0);
         }
 
