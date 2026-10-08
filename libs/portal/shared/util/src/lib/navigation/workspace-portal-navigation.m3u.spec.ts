@@ -32,6 +32,17 @@ describe('getUnifiedCollectionNavigation for M3U', () => {
         }
     );
 
+    it('names the exact row when the item knows its channel id', () => {
+        // Two rows can share a stream URL; by URL alone the player opens
+        // the first of them, whichever was clicked.
+        expect(
+            getUnifiedCollectionNavigation(item({ channelId: 'row-2' }))?.state
+        ).toEqual({
+            openM3uChannelUrl: 'http://h.example/movie/1.mkv',
+            openM3uChannelId: 'row-2',
+        });
+    });
+
     it('refuses a row with no stream URL', () => {
         // Nothing to select on arrival, so navigating would strand the
         // viewer on an unrelated list.

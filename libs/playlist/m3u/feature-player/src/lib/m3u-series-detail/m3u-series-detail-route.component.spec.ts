@@ -112,6 +112,18 @@ const CATALOG = buildM3uSeriesCatalog(
         row('SHOW S1 E2'),
         row('SHOW S2 E1'),
         dashRow('DASH SHOW S1 E1'),
+        // One URL, two rows: a provider reuses a stream address and tells
+        // the episodes apart by their own headers.
+        {
+            ...row('TWIN S1 E1'),
+            url: 'http://h.example/series/u/p/twin.mp4',
+            http: { 'user-agent': 'first' },
+        } as unknown as Channel,
+        {
+            ...row('TWIN S1 E2'),
+            url: 'http://h.example/series/u/p/twin.mp4',
+            http: { 'user-agent': 'second' },
+        } as unknown as Channel,
     ],
     'pl-1'
 );
@@ -291,6 +303,21 @@ describe('M3uSeriesDetailRouteComponent', () => {
 
         expect(component.playback()?.isLive).toBe(false);
         expect(component.playback()?.streamUrl).toContain('/series/');
+    });
+
+    it('plays the row of the episode clicked when two rows share a URL', async () => {
+        params.next({ get: () => String(seriesTitled('TWIN').id) });
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): { title: string; userAgent?: string } | null;
+        };
+
+        component.onEpisodeClicked(component.seasons()['1'][1]);
+
+        expect(component.playback()?.title).toBe('TWIN S1 E2');
+        expect(component.playback()?.userAgent).toBe('second');
     });
 
     it('hands the episode to MPV or VLC instead of an empty inline stage', async () => {

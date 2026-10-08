@@ -10,7 +10,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { M3uSeriesCatalogService } from '@iptvnator/m3u-state/series-catalog';
 import {
@@ -79,6 +79,7 @@ export class M3uCatalogRouteComponent {
     private readonly catalog = inject(M3uCatalogIndexService);
     private readonly seriesCatalog = inject(M3uSeriesCatalogService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly translate = inject(TranslateService);
 
     /** `movie` or `episode`, supplied by the route definition. */
     protected readonly kind = signal<M3uContentKind>(
@@ -141,7 +142,10 @@ export class M3uCatalogRouteComponent {
     protected readonly categoryItems = computed(() =>
         this.groups().map((group) => ({
             id: group.title,
-            name: group.title,
+            // Rows with no `group-title` are an ordinary group, not missing
+            // data: name it as the channel list does.
+            name:
+                group.title || this.translate.instant('CHANNELS.UNGROUPED'),
             count: group.count,
         }))
     );

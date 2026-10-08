@@ -348,9 +348,12 @@ export class M3uSeriesDetailRouteComponent {
             return null;
         }
 
+        // By the episode's own id, which the adapter carried over: two rows
+        // can share a URL and differ in headers, DRM or artwork, and a URL
+        // match would then play the first of them for either card.
         for (const episodes of series.seasons.values()) {
             for (const candidate of episodes) {
-                if (candidate.channel.url === episode.direct_source) {
+                if (String(candidate.id) === String(episode.id)) {
                     return candidate.channel;
                 }
             }

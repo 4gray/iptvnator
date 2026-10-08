@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject } from 'rxjs';
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
@@ -97,6 +97,10 @@ describe('M3uCatalogRouteComponent', () => {
                     provide: SettingsStore,
                     useValue: { stripCountryPrefix: () => false },
                 },
+                {
+                    provide: TranslateService,
+                    useValue: { instant: (key: string) => key },
+                },
             ],
         }).overrideComponent(M3uCatalogRouteComponent, {
             add: { imports: [MockPipe(TranslatePipe, (value) => `${value}`)] },
@@ -128,6 +132,22 @@ describe('M3uCatalogRouteComponent', () => {
         expect(component.categoryItems().map((item) => item.name)).toEqual([
             'Films',
             'Classics',
+        ]);
+    });
+
+    it('names the group of rows that state no group-title', async () => {
+        channels.set([
+            DUNE,
+            channel('http://h.example/movie/u/p/9.mkv', 'Loose Film', ''),
+        ]);
+        const fixture = await render('movie');
+        const component = fixture.componentInstance as unknown as {
+            categoryItems(): { id: string; name: string }[];
+        };
+
+        expect(component.categoryItems()).toEqual([
+            expect.objectContaining({ id: 'Films', name: 'Films' }),
+            expect.objectContaining({ id: '', name: 'CHANNELS.UNGROUPED' }),
         ]);
     });
 

@@ -188,6 +188,39 @@ describe('M3uSeriesPositionsService', () => {
             ]);
         });
 
+        it('is dropped when its episode is toggled, so it cannot undo the toggle', async () => {
+            bridge.savePlaybackPosition.mockClear();
+
+            await service.applyToggle('pl-1', 500, {
+                contentXtreamId: 11,
+                nextPosition: position(11, 1200),
+            } as never);
+
+            // The 15 s tick is older than the decision; the reload after the
+            // batch would otherwise write it over the watched mark.
+            expect(saved()).toEqual([]);
+            expect(bridge.savePlaybackPositionsBatch).toHaveBeenCalledTimes(1);
+        });
+
+        it('is written before a toggle of another episode', async () => {
+            bridge.savePlaybackPosition.mockClear();
+            const order: string[] = [];
+            bridge.savePlaybackPosition.mockImplementation(async () => {
+                order.push('tick');
+            });
+            bridge.clearPlaybackPositionsBatch.mockImplementation(async () => {
+                order.push('batch');
+            });
+
+            await service.applyToggle('pl-1', 500, {
+                contentXtreamId: 12,
+                nextPosition: null,
+            } as never);
+
+            expect(saved()).toEqual([[11, 15]]);
+            expect(order).toEqual(['tick', 'batch']);
+        });
+
         it('is written once, not again on the next flush', async () => {
             service.releaseProgressThrottle();
             service.releaseProgressThrottle();

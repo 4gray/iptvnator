@@ -202,6 +202,18 @@ export class M3uSeriesPositionsService implements OnDestroy {
         }
 
         const requests = 'requests' in request ? request.requests : [request];
+
+        // The tick the throttle is holding back is OLDER than this decision.
+        // The reload below flushes whatever is pending, so a held-back tick
+        // of a toggled episode would land after the batch and undo it.
+        // Another episode's tick is unrelated and is written first.
+        const pendingId = this.pending?.position.contentXtreamId;
+        if (requests.some((item) => item.contentXtreamId === pendingId)) {
+            this.pending = null;
+        } else {
+            await this.flushProgress();
+        }
+
         const saves: PlaybackPositionData[] = [];
         const clears: { contentXtreamId: number; contentType: 'episode' }[] =
             [];

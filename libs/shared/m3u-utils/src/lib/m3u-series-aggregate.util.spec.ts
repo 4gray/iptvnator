@@ -249,6 +249,39 @@ describe('buildM3uSeriesCatalog', () => {
         expect(series[0].title).toBe('SHOW');
     });
 
+    it('keeps a row whose marker the parser reads no episode from', () => {
+        // "Season 1" is a marker, but there is no episode number in it. The
+        // row is already out of the channel list, so skipping it here would
+        // leave a playable entry nowhere.
+        const series = buildM3uSeriesCatalog(
+            [row('Dark Season 1'), row('Dark - Staffel 2'), row('Season 1')],
+            'pl-1'
+        );
+
+        expect(series.map((entry) => entry.title).sort()).toEqual([
+            'Dark - Staffel 2',
+            'Dark Season 1',
+        ]);
+    });
+
+    it('does not put such a row on top of an episode of the real series', () => {
+        // Normalized, "Dark Season 1" keys as "dark" and would take S1E1.
+        const series = buildM3uSeriesCatalog(
+            [row('Dark S01E01'), row('Dark Season 1')],
+            'pl-1'
+        );
+
+        expect(
+            Object.fromEntries(
+                series.map((entry) => [entry.title, entry.episodeCount])
+            )
+        ).toEqual({ Dark: 1, 'Dark Season 1': 1 });
+        expect(
+            series.find((entry) => entry.title === 'Dark')?.seasons.get(1)?.[0]
+                .channel.name
+        ).toBe('Dark S01E01');
+    });
+
     it('keeps a row whose name carries no marker at all', () => {
         // Classified as an episode by its /series/ path but named in a way
         // the parser does not recognise. Dropping it would make provider

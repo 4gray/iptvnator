@@ -499,9 +499,16 @@ export function getUnifiedCollectionNavigation(
             return null;
         }
 
+        // The id names the exact row: two rows can share a stream URL, and
+        // by URL alone the player opens the first of them.
         return {
             link: ['/workspace', 'playlists', item.playlistId, 'all'],
-            state: { openM3uChannelUrl: streamUrl },
+            state: {
+                openM3uChannelUrl: streamUrl,
+                ...(item.channelId
+                    ? { openM3uChannelId: item.channelId }
+                    : {}),
+            },
         };
     }
 
