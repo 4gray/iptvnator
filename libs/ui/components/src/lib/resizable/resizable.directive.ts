@@ -253,9 +253,22 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     private startResize(clientX: number): void {
         this.isResizing.set(true);
         this.startX = clientX;
-        this.startWidth = this.el.nativeElement.offsetWidth;
+        this.startWidth = this.renderedWidth();
         this.widthBeforeResize = this.currentWidth();
         this.resizeStart.emit();
+    }
+
+    /**
+     * The rendered width in the box `style.width` sizes: the content box for
+     * a content-box host, the border box for a border-box one. `offsetWidth`
+     * always includes padding and border, so starting from it widened padded
+     * hosts by that amount on the first move.
+     */
+    private renderedWidth(): number {
+        const width = parseFloat(
+            window.getComputedStyle(this.el.nativeElement).width
+        );
+        return Number.isFinite(width) ? width : this.currentWidth();
     }
 
     private onMouseMove(e: MouseEvent): void {

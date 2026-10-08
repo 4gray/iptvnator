@@ -15,6 +15,8 @@ import {
  * The workspace context panels share one stored width but clamp it to their
  * own limits. Opening a narrower panel used to save its clamped width, so a
  * categories panel widened past Settings' 400px maximum came back at 400.
+ * The drag also lands on 520 only if the padded panel does not jump wider
+ * when the drag starts.
  */
 
 const SHARED_WIDTH_KEY = 'sidebar-width';
@@ -38,8 +40,9 @@ async function dragPanelTo(
     if (!box) throw new Error('The panel has no resize handle');
     const startX = Math.round(box.x + box.width / 2);
     const y = Math.round(box.y + box.height / 2);
-    // The directive starts a drag from offsetWidth (border box included).
-    const delta = width - (await panel.evaluate((el) => el.offsetWidth));
+    // A drag starts from the CSS width, so the panel's padding and border
+    // must not count toward the distance.
+    const delta = width - (await renderedWidth(panel));
 
     await page.mouse.move(startX, y);
     await page.mouse.down();

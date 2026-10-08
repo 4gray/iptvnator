@@ -23,6 +23,18 @@ class Host {
     handlePosition: 'right' | 'left' = 'right';
 }
 
+/** A content-box element's border box: its width plus padding and border. */
+function borderBoxWidth(el: HTMLElement): number {
+    const style = getComputedStyle(el);
+    return [
+        style.width,
+        style.paddingLeft,
+        style.paddingRight,
+        style.borderLeftWidth,
+        style.borderRightWidth,
+    ].reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
+}
+
 describe('ResizableDirective', () => {
     const fixtures: ComponentFixture<Host>[] = [];
 
@@ -33,10 +45,11 @@ describe('ResizableDirective', () => {
         fixtures.push(fixture);
 
         const aside: HTMLElement = fixture.nativeElement.querySelector('aside');
-        // jsdom has no layout; a drag starts from the rendered width.
+        // jsdom has no layout. Give offsetWidth the border box a browser
+        // reports, so a drag that starts from it is caught widening.
         Object.defineProperty(aside, 'offsetWidth', {
             configurable: true,
-            get: () => parseInt(aside.style.width, 10) || 0,
+            get: () => borderBoxWidth(aside),
         });
         return aside;
     }
@@ -63,6 +76,7 @@ describe('ResizableDirective', () => {
     afterEach(() => {
         fixtures.splice(0).forEach((fixture) => fixture.destroy());
         localStorage.clear();
+        jest.restoreAllMocks();
     });
 
     it('clamps a shared width for rendering without writing it back', () => {
@@ -138,6 +152,32 @@ describe('ResizableDirective', () => {
         expect(aside.style.width).toBe('450px');
         expect(localStorage.getItem('live-channels-sidebar-width')).toBe('450');
         expect(localStorage.getItem('sidebar-width')).toBeNull();
+    });
+
+    it('drags a padded host from its CSS width, not its border box', () => {
+        localStorage.setItem('sidebar-width', '300');
+        const panel = render({ maxWidth: 560 });
+        panel.style.padding = '0 10px 0 12px';
+        panel.style.borderRight = '1px solid';
+        expect(panel.offsetWidth).toBe(323);
+
+        drag(panel, 100, 140);
+
+        expect(panel.style.width).toBe('340px');
+        expect(localStorage.getItem('sidebar-width')).toBe('340');
+    });
+
+    it('drags from the width it set when the CSS width is not a length', () => {
+        localStorage.setItem('sidebar-width', '300');
+        const aside = render();
+        jest.spyOn(window, 'getComputedStyle').mockReturnValue({
+            width: 'auto',
+        } as CSSStyleDeclaration);
+
+        drag(aside, 100, 140);
+
+        expect(aside.style.width).toBe('340px');
+        expect(localStorage.getItem('sidebar-width')).toBe('340');
     });
 
     it('does not persist the clamped width when the handle is only clicked', () => {
