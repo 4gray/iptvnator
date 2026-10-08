@@ -35,11 +35,42 @@ export interface M3uClassifiableEntry {
     readonly url?: string | null;
     readonly name?: string | null;
     readonly radio?: string | null;
+    /** Read only for the guide id; a file has no programme schedule. */
+    readonly tvg?: { readonly id?: string | null } | null;
+    /** A catch-up window only exists for a broadcast. */
+    readonly catchup?: unknown;
 }
 
 const SERIES_SEGMENT = '/series/';
 const LIVE_SEGMENT = '/live/';
-const MOVIE_SEGMENTS = ['/movie/', '/movies/', '/vod/'];
+/**
+ * The Xtream export path. It names VOD on its own, whatever the container:
+ * some panels serve HLS films under it.
+ */
+const XTREAM_MOVIE_SEGMENT = '/movie/';
+/**
+ * Folder names, not a panel API. A provider can call a genre channel's
+ * folder `movies` (`/movies/action/index.m3u8`), so under these a streaming
+ * container stays live.
+ */
+const LOOSE_MOVIE_SEGMENTS = ['/movies/', '/vod/'];
+/** How live is packaged: a file named like this is a stream, not a film. */
+const STREAMING_EXTENSIONS = new Set(['m3u8', 'm3u', 'ts']);
+/**
+ * HTTP-FLV is a live delivery protocol (common in Chinese playlists): a bare
+ * `.flv` is evidence of a stream, not of a file. Under a movie path it is
+ * still a film.
+ */
+const LIVE_FILE_EXTENSIONS = new Set(['flv']);
+
+/**
+ * Whether the row states a broadcast: a guide id or a catch-up window. A
+ * film or an episode file has neither, so either is enough to keep a row
+ * with nothing but a container extension in the live list.
+ */
+function hasBroadcastEvidence(channel: M3uClassifiableEntry): boolean {
+    return Boolean(channel.tvg?.id?.trim()) || Boolean(channel.catchup);
+}
 
 /**
  * The path, lowercased, with query and fragment removed — without building a
@@ -109,14 +140,27 @@ export function classifyM3uEntry(
 
     const name = channel.name;
 
-    if (MOVIE_SEGMENTS.some((segment) => path.includes(segment))) {
+    const extension = getPlaybackMediaExtensionFromUrl(url);
+
+    if (
+        path.includes(XTREAM_MOVIE_SEGMENT) ||
+        (LOOSE_MOVIE_SEGMENTS.some((segment) => path.includes(segment)) &&
+            !STREAMING_EXTENSIONS.has(extension))
+    ) {
         return hasStrongEpisodeCode(name) ? 'episode' : 'movie';
     }
 
     // No path evidence left; the container is the remaining signal. A `.ts`,
     // `.m3u8` or extension-less URL is how live is delivered, so it falls
-    // through to live below.
-    if (isVodContainerExtension(getPlaybackMediaExtensionFromUrl(url))) {
+    // through to live below. A container alone is weak evidence — 24/7 loop
+    // channels are served as `.mp4`, HTTP-FLV live as `.flv` — and a hidden
+    // live channel is the costly mistake, so a row that states a broadcast,
+    // or uses a live file protocol, stays live.
+    if (
+        isVodContainerExtension(extension) &&
+        !LIVE_FILE_EXTENSIONS.has(extension) &&
+        !hasBroadcastEvidence(channel)
+    ) {
         // The SAME strong-code rule as under `/movie/`. Accepting weak
         // markers here would give one name two different answers depending
         // on a path that said nothing at all: "KILL BILL: BÖLÜM 2" would be

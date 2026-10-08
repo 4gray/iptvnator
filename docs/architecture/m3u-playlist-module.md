@@ -1750,6 +1750,15 @@ collapses the episode rows into 1,953 series. Both are memoised
 implicitly on the channel array reference — there is no schema change and no
 Electron-only path, so the PWA behaves identically.
 
+- `classifyM3uEntry` resolves every ambiguity toward `live`, because a
+  hidden channel leaves the sidebar, numbering and zapping while a film left
+  live only keeps the old behaviour. Path evidence first: `/live/` is live,
+  `/series/` an episode, the Xtream `/movie/` segment a film whatever the
+  container. The folder names `/movies/` and `/vod/` count only for a file,
+  not for a streaming container (`.m3u8`, `.m3u`, `.ts`). A container
+  extension with no path evidence makes a film only when the row states no
+  broadcast — no `tvg-id`, no catch-up window — and is not `.flv`, which is
+  HTTP-FLV live delivery.
 - The live views render `M3uCatalogIndexService.liveChannels` rather than the
   whole array, so the sections are a SPLIT and not an addition. It falls back
   to the complete list when the split is off or the playlist is live-only.

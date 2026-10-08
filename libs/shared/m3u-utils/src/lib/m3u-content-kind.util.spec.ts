@@ -142,6 +142,69 @@ describe('classifyM3uEntry', () => {
             ).toBe('live');
         });
 
+        // A container extension alone used to hide a working channel from
+        // the live list, numbering and zapping. These shapes are live.
+        it('keeps HTTP-FLV live without path evidence', () => {
+            expect(
+                classifyM3uEntry(entry('http://pull.cdn.example/xx/cctv1.flv'))
+            ).toBe('live');
+        });
+
+        it('still files an .flv under the Xtream movie path as a film', () => {
+            expect(
+                classifyM3uEntry(entry('http://h.example/movie/u/p/7.flv'))
+            ).toBe('movie');
+        });
+
+        it('keeps a container-only row with a guide id live', () => {
+            // A 24/7 loop channel served as .mp4 still carries its EPG id;
+            // a film file has no programme schedule.
+            expect(
+                classifyM3uEntry({
+                    ...entry('http://h.example/loops/cartoons.mp4'),
+                    tvg: { id: 'cartoons.us' },
+                })
+            ).toBe('live');
+        });
+
+        it('keeps a container-only row with a catch-up window live', () => {
+            expect(
+                classifyM3uEntry({
+                    ...entry('http://h.example/loops/news.mp4'),
+                    catchup: { type: 'append', days: '3' },
+                })
+            ).toBe('live');
+        });
+
+        it('ignores a blank guide id', () => {
+            expect(
+                classifyM3uEntry({
+                    ...entry('http://h.example/films/Dune.mp4', 'Dune'),
+                    tvg: { id: '  ' },
+                })
+            ).toBe('movie');
+        });
+
+        it('keeps a stream in a folder merely named movies live', () => {
+            expect(
+                classifyM3uEntry(
+                    entry('http://h.example/movies/action/index.m3u8')
+                )
+            ).toBe('live');
+            expect(
+                classifyM3uEntry(entry('http://h.example/vod/action/stream.ts'))
+            ).toBe('live');
+        });
+
+        it('still reads a file under a movies folder as a film', () => {
+            expect(
+                classifyM3uEntry(entry('http://h.example/movies/Dune.mkv'))
+            ).toBe('movie');
+            expect(classifyM3uEntry(entry('http://h.example/vod/u/p/42'))).toBe(
+                'movie'
+            );
+        });
+
         it('falls back to live for unusable input', () => {
             expect(classifyM3uEntry(null)).toBe('live');
             expect(classifyM3uEntry(undefined)).toBe('live');
