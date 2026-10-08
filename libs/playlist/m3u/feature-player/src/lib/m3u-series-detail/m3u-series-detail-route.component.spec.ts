@@ -115,8 +115,15 @@ const CATALOG = buildM3uSeriesCatalog(
     ],
     'pl-1'
 );
-const SHOW = CATALOG.find((series) => series.title === 'SHOW')!;
-const DASH_SHOW = CATALOG.find((series) => series.title === 'DASH SHOW')!;
+function seriesTitled(title: string) {
+    const series = CATALOG.find((candidate) => candidate.title === title);
+    if (!series) {
+        throw new Error(`fixture series ${title} is missing`);
+    }
+    return series;
+}
+const SHOW = seriesTitled('SHOW');
+const DASH_SHOW = seriesTitled('DASH SHOW');
 
 describe('M3uSeriesDetailRouteComponent', () => {
     let M3uSeriesDetailRouteComponent: typeof ComponentType;

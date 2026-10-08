@@ -83,6 +83,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         keywords: ['channel name', 'country', 'prefix', 'tag'],
     },
     {
+        id: 'm3u-catalog-tabs',
+        section: 'general',
+        labelKey: 'SETTINGS.M3U_CATALOG_TABS',
+        descriptionKey: 'SETTINGS.M3U_CATALOG_TABS_DESCRIPTION',
+        keywords: ['m3u', 'movies', 'series', 'vod', 'episodes', 'catalog'],
+    },
+    {
         id: 'portal-connectivity-guard',
         section: 'general',
         labelKey: 'SETTINGS.PORTAL_CONNECTIVITY_GUARD',
