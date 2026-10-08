@@ -149,14 +149,18 @@ export function createDashboardContinueWatching(
             const playlists = new Map(
                 deps.playlists().map((playlist) => [playlist._id, playlist])
             );
+            const { window, continuations } = lookupPlan();
             const next: DashboardSeriesEpisodesRequest[] = [];
-            for (const { item, seriesXtreamId } of lookupPlan().window) {
+            for (const { item, seriesXtreamId } of window) {
                 const playlist = playlists.get(item.playlist_id);
                 if (
                     playlist?.serverUrl &&
                     playlist.username &&
                     playlist.password
                 ) {
+                    const continuation = continuations.get(
+                        dashboardRecentItemKey(item)
+                    );
                     next.push({
                         playlistId: item.playlist_id,
                         seriesId: seriesXtreamId,
@@ -165,6 +169,11 @@ export function createDashboardContinueWatching(
                             username: playlist.username,
                             password: playlist.password,
                         },
+                        // The list predates the episode played last.
+                        ...(continuation?.kind === 'unknown' &&
+                        continuation.stale
+                            ? { refresh: true }
+                            : {}),
                     });
                 }
             }

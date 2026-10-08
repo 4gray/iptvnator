@@ -276,6 +276,33 @@ describe('DashboardSeriesEpisodesService', () => {
             expect(status(910)).toBe('loaded');
         });
 
+        it('fetches a list again when asked to, once per retry delay, in a later round', async () => {
+            getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
+            service.request([request(900)], 1);
+            await flush();
+
+            // The list predates the episode played last, but just loaded.
+            const refresh = { ...request(900), refresh: true };
+            service.request([refresh], 2);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(1);
+
+            now += DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS;
+            // Without the hint the list is still current at this age.
+            service.request([request(900)], 3);
+            expect(getSeriesInfo).toHaveBeenCalledTimes(1);
+
+            getSeriesInfo.mockResolvedValueOnce({
+                episodes: seasons(901, 902),
+            });
+            service.request([refresh], 4);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(entry(900)).toEqual({
+                status: 'loaded',
+                seasons: seasons(901, 902),
+            });
+        });
+
         it('leaves a list whose refresh failed alone until the retry delay has passed', async () => {
             getSeriesInfo.mockResolvedValueOnce({ episodes: seasons(901) });
             service.request([request(900)], 1);
@@ -429,7 +456,7 @@ describe('DashboardSeriesEpisodesService', () => {
 });
 
 describe('sameDashboardSeriesEpisodesRequests', () => {
-    it('tells request lists apart by series, order and credentials only', () => {
+    it('tells request lists apart by series, order, credentials and refresh hint only', () => {
         const same = sameDashboardSeriesEpisodesRequests;
 
         expect(same([request(1), request(2)], [request(1), request(2)])).toBe(
@@ -442,6 +469,12 @@ describe('sameDashboardSeriesEpisodesRequests', () => {
         expect(
             same([request(1)], [{ ...request(1), playlistId: 'xtream-2' }])
         ).toBe(false);
+        expect(same([request(1)], [{ ...request(1), refresh: true }])).toBe(
+            false
+        );
+        expect(same([{ ...request(1), refresh: false }], [request(1)])).toBe(
+            true
+        );
         for (const field of ['serverUrl', 'username', 'password'] as const) {
             expect(
                 same(

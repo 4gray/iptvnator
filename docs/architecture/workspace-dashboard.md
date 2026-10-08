@@ -226,7 +226,9 @@ and that pause holds the slide.
        badge but no progress, remaining time or "Mark watched". The series
        leaves once no unwatched episode follows the one watched last, even
        if an earlier one was skipped or extras are left. Until its list is
-       in (loading, failed, empty, or not holding the episodes played), for
+       in (loading, failed, empty, or not holding the episode played last:
+       a list cached before that episode is fetched again in the next
+       round), for
        series that cannot be looked up (Stalker), and for series never
        looked up, a series keeps its newest episode rather than vanish on a
        guess. `planDashboardSeriesLookups` picks the series to look up:

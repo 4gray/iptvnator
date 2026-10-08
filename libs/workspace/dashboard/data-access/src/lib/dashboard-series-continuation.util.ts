@@ -8,6 +8,7 @@ import {
     resolvePortalActivityWatchKind,
     type PlaybackPositionData,
     type PortalRecentItem,
+    type XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
 import type { DashboardSeriesEpisodes } from './dashboard-series-episodes.service';
 
@@ -34,11 +35,12 @@ export const CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS = 2000;
  * - `finished`: no unwatched episode follows the one watched last, even if
  *   an earlier one was skipped or extras are left;
  * - `unknown`: its episode list is missing (loading, failed, empty) or does
- *   not hold the episodes played. The series then keeps its newest episode
- *   rather than vanish on a guess.
+ *   not hold the episode played last (`stale`: the list predates it, so it
+ *   is fetched again). The series then keeps its newest episode rather than
+ *   vanish on a guess.
  */
 export type DashboardSeriesContinuation =
-    | { readonly kind: 'unknown' }
+    | { readonly kind: 'unknown'; readonly stale?: boolean }
     | { readonly kind: 'finished' }
     | { readonly kind: 'continue'; readonly position: PlaybackPositionData };
 
@@ -161,6 +163,14 @@ export function resolveDashboardSeriesContinuation(
     if (episodes?.status !== 'loaded') {
         return { kind: 'unknown' };
     }
+    // A list cached before the newest episode was played cannot say what
+    // follows it: the provider may list more by now.
+    const listed = listedEpisodeIds(episodes.seasons);
+    if (!listed.includes(candidate.newest.contentXtreamId)) {
+        return listed.length > 0
+            ? { kind: 'unknown', stale: true }
+            : { kind: 'unknown' };
+    }
     let nextUp: SeriesNextUp | null;
     try {
         nextUp = getSeriesNextUp({
@@ -192,6 +202,21 @@ export function resolveDashboardSeriesContinuation(
         kind: 'continue',
         position: nextEpisodeRow(candidate, episodeId, entry),
     };
+}
+
+/** Every episode id the list names; a malformed season names none. */
+function listedEpisodeIds(
+    seasons: Readonly<Record<string, readonly XtreamSerieEpisode[]>>
+): number[] {
+    const ids: number[] = [];
+    for (const episodes of Object.values(seasons)) {
+        if (Array.isArray(episodes)) {
+            for (const episode of episodes) {
+                ids.push(Number(episode?.id));
+            }
+        }
+    }
+    return ids;
 }
 
 /** The row an episode not started yet stands for: 0:00 and no progress. */

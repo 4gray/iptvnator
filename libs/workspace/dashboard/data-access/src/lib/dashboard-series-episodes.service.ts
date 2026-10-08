@@ -19,6 +19,12 @@ export interface DashboardSeriesEpisodesRequest {
     readonly playlistId: string;
     readonly seriesId: number;
     readonly credentials: XtreamCredentials;
+    /**
+     * The loaded list predates the episode played last: fetch it again in
+     * the next round, once DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS has
+     * passed since it loaded, instead of waiting for its age.
+     */
+    readonly refresh?: boolean;
 }
 
 /** At most this many lookups run at once, so a visit cannot flood the portal. */
@@ -57,7 +63,7 @@ function sourceOf(request: DashboardSeriesEpisodesRequest): string {
     return `${request.credentials.serverUrl}::${request.credentials.username}`;
 }
 
-/** Same series, same credentials, same order. */
+/** Same series, same credentials, same refresh hint, same order. */
 export function sameDashboardSeriesEpisodesRequests(
     requestsA: readonly DashboardSeriesEpisodesRequest[],
     requestsB: readonly DashboardSeriesEpisodesRequest[]
@@ -71,7 +77,8 @@ export function sameDashboardSeriesEpisodesRequests(
                 a.seriesId === b.seriesId &&
                 a.credentials.serverUrl === b.credentials.serverUrl &&
                 a.credentials.username === b.credentials.username &&
-                a.credentials.password === b.credentials.password
+                a.credentials.password === b.credentials.password &&
+                !!a.refresh === !!b.refresh
             );
         })
     );
@@ -164,6 +171,7 @@ export class DashboardSeriesEpisodesService {
             const retryDue =
                 now - (this.failedAt.get(key) ?? -Infinity) >=
                 DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS;
+            const listAge = now - (this.loadedAt.get(key) ?? 0);
             const due =
                 !entry ||
                 !sameSource ||
@@ -172,8 +180,10 @@ export class DashboardSeriesEpisodesService {
                     retryDue &&
                     (entry.status === 'failed' ||
                         (entry.status === 'loaded' &&
-                            now - (this.loadedAt.get(key) ?? 0) >=
-                                DASHBOARD_SERIES_EPISODES_MAX_AGE_MS)));
+                            listAge >=
+                                (request.refresh
+                                    ? DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS
+                                    : DASHBOARD_SERIES_EPISODES_MAX_AGE_MS))));
             if (!due) {
                 continue;
             }

@@ -441,7 +441,7 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
         ]);
         await stabilize();
         await settle();
-        expect(fixture.componentInstance.quickStartAction()?.action.kind).toBe(
+        expect(fixture.componentInstance.quickStartAction()?.action?.kind).toBe(
             SERIES_QUICK_START_ACTION_KIND.PlayNext
         );
 

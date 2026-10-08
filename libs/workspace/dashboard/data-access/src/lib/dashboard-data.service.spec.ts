@@ -1704,6 +1704,25 @@ describe('DashboardDataService', () => {
                 });
             });
 
+            it('asks for the list again when it predates the episode watched last', async () => {
+                // The cached list ends before the newest episode played: it
+                // cannot tell "finale" from "a 5th episode is out now".
+                answerEpisodes(200, [201, 202, 203]);
+
+                await loadDashboard();
+
+                expect(titles()).toEqual(['The Penguin']);
+                expect(
+                    service.getPlaybackPositionForItem(
+                        service.continueWatchingItems()[0]
+                    )
+                ).toMatchObject({ contentXtreamId: 204 });
+                expect(seriesEpisodesMock.request).toHaveBeenLastCalledWith(
+                    [expect.objectContaining({ seriesId: 200, refresh: true })],
+                    expect.any(Number)
+                );
+            });
+
             it('waits for the episode list on first open, for a bounded time', async () => {
                 jest.useFakeTimers();
                 try {

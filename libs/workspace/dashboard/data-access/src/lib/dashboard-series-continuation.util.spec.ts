@@ -303,6 +303,20 @@ describe('resolveDashboardSeriesContinuation', () => {
         });
     });
 
+    it('does not call a series finished on a list cached before its newest episode', () => {
+        // Episodes 1-2 were listed and watched; episode 3 came out and was
+        // watched while that list stood. The provider may list a 4th by now.
+        const rows = [1, 2, 3].map((id) => row(id, WATCHED));
+
+        expect(
+            resolveDashboardSeriesContinuation(
+                candidate(rows[2]),
+                rows,
+                loaded({ '1': [episode(1, 1, 1), episode(2, 1, 2)] })
+            )
+        ).toEqual({ kind: 'unknown', stale: true });
+    });
+
     it('does not know while the episode list is missing, empty or malformed', () => {
         const rows = [row(4, WATCHED)];
         const resolve = (episodes: DashboardSeriesEpisodes | null) =>
@@ -316,10 +330,11 @@ describe('resolveDashboardSeriesContinuation', () => {
         expect(resolve({ status: 'loading' })).toEqual({ kind: 'unknown' });
         expect(resolve({ status: 'failed' })).toEqual({ kind: 'unknown' });
         expect(resolve(loaded({}))).toEqual({ kind: 'unknown' });
-        // The list does not hold the episode played (renumbered ids).
+        // The list does not hold the episode played (renumbered ids): it
+        // is stale, so the caller fetches it again.
         expect(
             resolve(loaded({ '1': [episode(7, 1, 1), episode(8, 1, 2)] }))
-        ).toEqual({ kind: 'unknown' });
+        ).toEqual({ kind: 'unknown', stale: true });
         expect(
             resolve(
                 loaded({ '1': 'not a list' } as unknown as Record<
