@@ -15,7 +15,10 @@ import {
     type StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import { TmdbEnrichmentService } from '@iptvnator/services';
-import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import type {
+    PlaybackPositionData,
+    XtreamSerieEpisode,
+} from '@iptvnator/shared/interfaces';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
 import { STALKER_SERIES_RESUME_TARGET } from './stalker-series-resume';
 
@@ -182,6 +185,40 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
     });
 
     afterEach(() => fixture.destroy());
+
+    it('plays an episode from the beginning despite its saved offset', async () => {
+        getSeriesPlaybackPositions.mockImplementation(async () => [
+            {
+                playlistId: 'stalker-1',
+                contentXtreamId: trackingIdOf('1', 2),
+                contentType: 'episode',
+                seriesXtreamId: 30001,
+                seasonNumber: 1,
+                episodeNumber: 2,
+                positionSeconds: 300,
+                durationSeconds: 1800,
+            } satisfies PlaybackPositionData,
+        ]);
+        await stabilize();
+        const episode = fixture.componentInstance
+            .mappedSeasons()
+            ?.['1']?.find((item) => Number(item.episode_num) === 2);
+        expect(episode).toBeDefined();
+
+        fixture.componentInstance.onEpisodeRestartRequested(
+            episode as XtreamSerieEpisode
+        );
+        await settle();
+
+        expect(resolveVodPlayback).toHaveBeenCalledWith(
+            '/media/file_30001.mpg',
+            'Regular Series',
+            'poster.jpg',
+            2,
+            trackingIdOf('1', 2),
+            0
+        );
+    });
 
     it('resumes the handoff episode at its saved offset once the series positions are read', async () => {
         // Position saved under the episode's own tracking id — resolved

@@ -1376,6 +1376,7 @@
             "EPISODES": "الحلقات",
             "EPISODE_NUMBER": "الحلقة {{episode}}",
             "RESET_PROGRESS": "إعادة ضبط التقدم",
+            "PLAY_FROM_BEGINNING": "التشغيل من البداية",
             "OTHER_SOURCES": "مصادر أخرى",
             "OPEN_IN_EXTERNAL_PLAYER": "فتح في مشغّل خارجي",
             "SHOW_IN_CATEGORY": "عرض في الفئة",

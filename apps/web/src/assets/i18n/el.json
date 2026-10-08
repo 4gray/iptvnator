@@ -1376,6 +1376,7 @@
             "EPISODES": "Επεισόδια",
             "EPISODE_NUMBER": "Επεισόδιο {{episode}}",
             "RESET_PROGRESS": "Επαναφορά προόδου",
+            "PLAY_FROM_BEGINNING": "Αναπαραγωγή από την αρχή",
             "OTHER_SOURCES": "Άλλες πηγές",
             "OPEN_IN_EXTERNAL_PLAYER": "Άνοιγμα σε εξωτερικό player",
             "SHOW_IN_CATEGORY": "Εμφάνιση στην κατηγορία",

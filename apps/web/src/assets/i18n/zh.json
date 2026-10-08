@@ -1376,6 +1376,7 @@
             "EPISODES": "剧集",
             "EPISODE_NUMBER": "第 {{episode}} 集",
             "RESET_PROGRESS": "重置进度",
+            "PLAY_FROM_BEGINNING": "从头播放",
             "OTHER_SOURCES": "其他来源",
             "OPEN_IN_EXTERNAL_PLAYER": "在外部播放器中打开",
             "SHOW_IN_CATEGORY": "在分类中显示",

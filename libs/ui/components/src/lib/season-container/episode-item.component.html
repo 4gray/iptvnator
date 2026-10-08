@@ -1,0 +1,155 @@
+@let item = episode();
+@let details = info();
+<!-- The whole item plays: a click anywhere outside the actions, or Enter
+     once Tab has landed here. -->
+<button
+    type="button"
+    class="episode-item__target"
+    data-testid="episode-play-target"
+    [attr.aria-label]="
+        ('XTREAM.PLAY_EPISODE' | translate: { episode: item.episode_num }) +
+        ': ' +
+        item.title
+    "
+    [attr.aria-disabled]="launching() || null"
+    (click)="play()"
+></button>
+
+@if (layout() === 'list') {
+    <span class="episode-item__number" aria-hidden="true">{{
+        item.episode_num
+    }}</span>
+}
+
+<div
+    class="episode-item__thumb episode-card__thumbnail"
+    [class.episode-item__thumb--fallback]="!showStill() || !stillUrl()"
+    aria-hidden="true"
+>
+    @if (stillUrl(); as url) {
+        <img [src]="url" alt="" loading="lazy" (error)="onStillError(url)" />
+    }
+    @if (layout() === 'grid') {
+        <span class="episode-item__chip">{{ item.episode_num }}</span>
+    }
+    @if (watched()) {
+        <span class="episode-item__badge" data-testid="episode-watched-badge">
+            <mat-icon>check</mat-icon>
+        </span>
+    }
+    @if (progressPercent() > 0) {
+        <span class="episode-item__progress">
+            <i [style.width.%]="progressPercent()"></i>
+        </span>
+    }
+    <span class="episode-item__play">
+        <span class="episode-item__play-disc">
+            @if (launching()) {
+                <mat-progress-spinner mode="indeterminate" diameter="18" />
+            } @else {
+                <mat-icon>{{
+                    playing() ? 'equalizer' : 'play_arrow'
+                }}</mat-icon>
+            }
+        </span>
+    </span>
+</div>
+
+<div class="episode-item__text">
+    <div class="episode-item__title-row">
+        <h4 class="episode-item__title">{{ item.title }}</h4>
+        @if (timeLabel() || airDate()) {
+            <small class="episode-item__meta">
+                @if (timeLabel(); as time) {
+                    {{ time.key | translate: time.params }}
+                }
+                @if (timeLabel() && airDate()) {
+                    ·
+                }
+                {{ airDate() }}
+            </small>
+        }
+    </div>
+    @if (details?.plot) {
+        <p class="episode-item__description">{{ details?.plot }}</p>
+    }
+</div>
+
+<div class="episode-item__actions">
+    <button
+        type="button"
+        class="episode-item__action episode-item__watched-toggle"
+        data-testid="episode-watched-toggle"
+        [class.episode-item__watched-toggle--watched]="watched()"
+        [class.episode-card__watched-toggle--watched]="watched()"
+        [attr.aria-pressed]="watched()"
+        [attr.aria-label]="
+            (watched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
+                | translate
+        "
+        [matTooltip]="
+            (watched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
+                | translate
+        "
+        (click)="watchedToggled.emit($event)"
+    >
+        <mat-icon>{{
+            watched() ? 'check_circle' : 'check_circle_outline'
+        }}</mat-icon>
+    </button>
+    @if (downloadPresenter.presentationVisible()) {
+        @let download = downloadPresenter.rowFor(item).presentation;
+        @let downloadLabel =
+            download.action === 'play'
+                ? ('DOWNLOADS.PLAY_LOCAL' | translate) + ': ' + item.title
+                : (download.ariaKey | translate: { title: item.title });
+        <button
+            type="button"
+            class="episode-item__action download-btn"
+            [class.episode-item__action--success]="download.action === 'play'"
+            [class.download-btn--completed]="download.action === 'play'"
+            [class.download-btn--paused]="download.action === 'resume'"
+            [class.download-btn--downloading]="download.disabled"
+            [disabled]="download.disabled"
+            [attr.data-test-id]="'episode-download-' + item.id"
+            [attr.aria-label]="downloadLabel"
+            [matTooltip]="downloadLabel"
+            (click)="downloadPresenter.runEpisodeAction($event, item)"
+        >
+            <mat-icon>{{ download.icon }}</mat-icon>
+        </button>
+    }
+    <button
+        type="button"
+        class="episode-item__action"
+        data-testid="episode-more-button"
+        [attr.aria-label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
+        [matTooltip]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
+        [matMenuTriggerFor]="episodeMenu"
+        (click)="$event.stopPropagation()"
+    >
+        <mat-icon>more_horiz</mat-icon>
+    </button>
+    <mat-menu #episodeMenu="matMenu" xPosition="before">
+        @if (inProgress()) {
+            <button
+                mat-menu-item
+                data-testid="episode-play-from-beginning"
+                (click)="restartRequested.emit()"
+            >
+                <mat-icon>replay</mat-icon>
+                <span>{{
+                    'PORTALS.DETAIL.PLAY_FROM_BEGINNING' | translate
+                }}</span>
+            </button>
+        }
+        <button
+            mat-menu-item
+            data-testid="episode-info-button"
+            (click)="infoRequested.emit($event)"
+        >
+            <mat-icon>info_outline</mat-icon>
+            <span>{{ 'PORTALS.EPISODE_INFO' | translate }}</span>
+        </button>
+    </mat-menu>
+</div>

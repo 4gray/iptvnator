@@ -847,16 +847,23 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * offset for an episode whose position row the page could not attach
      * (matched by coordinates only), so it resumes where the card said.
      */
+    /** `fromStart` ignores the saved position (the episode menu's "Play from beginning"). */
     onEpisodeClicked(
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
-        forcePlayer?: ExternalPlayerName
+        forcePlayer?: ExternalPlayerName,
+        fromStart = false
     ) {
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
             // choice waits for it, like the Reset and watched rows do.
             this.watchToggle.holdChoice(() =>
-                this.onEpisodeClicked(episode, startTimeOverride, forcePlayer)
+                this.onEpisodeClicked(
+                    episode,
+                    startTimeOverride,
+                    forcePlayer,
+                    fromStart
+                )
             );
             return;
         }
@@ -865,17 +872,27 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             // The launch cannot be cancelled: the choice replaces its player
             // once it settled.
             this.launchQueue.hold(seriesKey, () =>
-                this.startEpisode(episode, startTimeOverride, forcePlayer)
+                this.startEpisode(
+                    episode,
+                    startTimeOverride,
+                    forcePlayer,
+                    fromStart
+                )
             );
             return;
         }
-        this.startEpisode(episode, startTimeOverride, forcePlayer);
+        this.startEpisode(episode, startTimeOverride, forcePlayer, fromStart);
+    }
+
+    onEpisodeRestartRequested(episode: XtreamSerieEpisode): void {
+        this.onEpisodeClicked(episode, undefined, undefined, true);
     }
 
     private startEpisode(
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
-        forcePlayer?: ExternalPlayerName
+        forcePlayer?: ExternalPlayerName,
+        fromStart = false
     ): void {
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
@@ -894,9 +911,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             ? `${item.info.name} - ${mappedEpisode.title || `Episode ${episodeState.episodeNumber}`}`
             : item.info.name;
         const trackingId = Number(mappedEpisode.id);
-        const startTime =
-            this.episodePlaybackPositions().get(trackingId)?.positionSeconds ??
-            startTimeOverride;
+        const startTime = fromStart
+            ? 0
+            : (this.episodePlaybackPositions().get(trackingId)
+                  ?.positionSeconds ?? startTimeOverride);
 
         void this.startPlayback(
             command,

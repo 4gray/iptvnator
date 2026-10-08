@@ -276,6 +276,10 @@ export class SerialDetailsComponent implements OnDestroy {
         this.playback.playEpisode(episode);
     }
 
+    playEpisodeFromStart(episode: XtreamSerieEpisode): void {
+        this.playback.playEpisode(episode, undefined, true);
+    }
+
     playQuickStartEpisode(): void {
         this.playback.playQuickStartEpisode();
     }

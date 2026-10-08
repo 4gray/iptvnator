@@ -1376,6 +1376,7 @@
             "EPISODES": "Bölümler",
             "EPISODE_NUMBER": "Bölüm {{episode}}",
             "RESET_PROGRESS": "İlerlemeyi sıfırla",
+            "PLAY_FROM_BEGINNING": "Baştan oynat",
             "OTHER_SOURCES": "Diğer kaynaklar",
             "OPEN_IN_EXTERNAL_PLAYER": "Harici oynatıcıda aç",
             "SHOW_IN_CATEGORY": "Kategoride göster",

@@ -31,6 +31,7 @@ export class StubSeasonContainerComponent {
     readonly seasonWatchBatchRunning = input(false);
     readonly seasonSelected = output<string>();
     readonly episodeClicked = output<unknown>();
+    readonly episodeRestartRequested = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
     readonly seasonPlaybackToggleRequested = output<unknown>();
     readonly selectedSeason = signal<string | undefined>(undefined);

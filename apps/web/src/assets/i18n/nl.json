@@ -1376,6 +1376,7 @@
             "EPISODES": "Afleveringen",
             "EPISODE_NUMBER": "Aflevering {{episode}}",
             "RESET_PROGRESS": "Voortgang wissen",
+            "PLAY_FROM_BEGINNING": "Vanaf het begin afspelen",
             "OTHER_SOURCES": "Andere bronnen",
             "OPEN_IN_EXTERNAL_PLAYER": "Openen in externe speler",
             "SHOW_IN_CATEGORY": "Tonen in categorie",

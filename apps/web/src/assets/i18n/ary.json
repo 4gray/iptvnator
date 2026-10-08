@@ -1376,6 +1376,7 @@
             "EPISODES": "الحلقات",
             "EPISODE_NUMBER": "الحلقة {{episode}}",
             "RESET_PROGRESS": "رجّع التقدم",
+            "PLAY_FROM_BEGINNING": "شغّل من اللول",
             "OTHER_SOURCES": "مصادر أخرى",
             "OPEN_IN_EXTERNAL_PLAYER": "حلّ فمشغّل خارجي",
             "SHOW_IN_CATEGORY": "ورّي فالفئة",

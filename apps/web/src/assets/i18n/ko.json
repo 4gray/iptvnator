@@ -1376,6 +1376,7 @@
             "EPISODES": "에피소드",
             "EPISODE_NUMBER": "{{episode}}화",
             "RESET_PROGRESS": "진행 상태 초기화",
+            "PLAY_FROM_BEGINNING": "처음부터 재생",
             "OTHER_SOURCES": "다른 소스",
             "OPEN_IN_EXTERNAL_PLAYER": "외부 플레이어로 열기",
             "SHOW_IN_CATEGORY": "카테고리에서 보기",

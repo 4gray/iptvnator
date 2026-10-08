@@ -19,14 +19,12 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { type SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
     createLogger,
-    getPortalPlaybackProgressPercent,
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
 } from '@iptvnator/portal/shared/util';
 import {
     PlaybackPositionData,
     XtreamSerieEpisode,
-    XtreamSerieEpisodeInfo,
 } from '@iptvnator/shared/interfaces';
 import { DetailSectionHeaderComponent } from '../detail-ui/detail-section-header.component';
 import { ExpandableTextComponent } from '../expandable-text/expandable-text.component';
@@ -35,8 +33,7 @@ import {
     EpisodeInfoDialogComponent,
     buildEpisodeInfoDialogData,
 } from './episode-info-dialog.component';
-import { formatEpisodePositionText } from './episode-progress.util';
-import { buildEpisodeSubline } from './episode-subline.util';
+import { EpisodeItemComponent } from './episode-item.component';
 import {
     type SeasonAutoSelectState,
     createSeasonAutoSelectState,
@@ -65,6 +62,7 @@ export type EpisodeViewMode = 'grid' | 'list';
     providers: [SeasonDownloadPresenter, SeasonWatchPresenter],
     imports: [
         DetailSectionHeaderComponent,
+        EpisodeItemComponent,
         ExpandableTextComponent,
         MatButtonModule,
         MatButtonToggleModule,
@@ -117,6 +115,8 @@ export class SeasonContainerComponent implements OnInit {
     readonly hasUnloadedSeasons = input(false);
 
     readonly episodeClicked = output<XtreamSerieEpisode>();
+    /** "Play from beginning" in an episode's menu: start at 0, not the saved position. */
+    readonly episodeRestartRequested = output<XtreamSerieEpisode>();
     readonly playbackToggleRequested =
         output<SeasonContainerPlaybackToggleRequest>();
     readonly seasonPlaybackToggleRequested =
@@ -124,7 +124,7 @@ export class SeasonContainerComponent implements OnInit {
     readonly seriesPlaybackToggleRequested =
         output<SeasonContainerSeriesPlaybackToggleRequest>();
     readonly seasonSelected = output<string>();
-    readonly viewMode = signal<EpisodeViewMode>('grid');
+    readonly viewMode = signal<EpisodeViewMode>('list');
 
     readonly sortedSeasonKeys = computed(() =>
         Object.keys(this.seasons()).sort((a, b) => Number(a) - Number(b))
@@ -176,20 +176,44 @@ export class SeasonContainerComponent implements OnInit {
     });
 
     /**
-     * Show thumbnails in the list view only when episodes have genuinely
-     * distinct stills (TMDB or per-episode provider art). When every episode
-     * carries the same image (providers often repeat the series poster) a
-     * column of identical pictures is worse than the plain number square.
+     * True when the season's episodes carry genuinely distinct stills (TMDB
+     * or per-episode provider art). When every episode repeats one image
+     * (providers often send the series poster) the thumbnails fall back to a
+     * dimmed tile instead of a column of identical bright posters.
      */
-    readonly listThumbnailsEnabled = computed(() => {
+    readonly distinctStills = computed(() => {
         const episodes = this.selectedSeasonEpisodes();
         const images = episodes
-            .map((episode) => this.getEpisodeInfo(episode)?.movie_image)
+            .map((episode) => resolveEpisodeInfo(episode)?.movie_image)
             .filter((image): image is string => !!image);
         if (images.length === 0) {
             return false;
         }
         return episodes.length === 1 || new Set(images).size > 1;
+    });
+
+    /**
+     * The highlighted "now playing / continue" episode of the season: the
+     * one playing (inline or external), else the most recently watched
+     * episode that is not finished.
+     */
+    readonly currentEpisodeId = computed<number | null>(() => {
+        const playing = this.playingEpisodeId() ?? this.activeEpisodeId();
+        if (playing !== null) {
+            return playing;
+        }
+        let best: { id: number; updatedAt: string } | null = null;
+        for (const episode of this.selectedSeasonEpisodes()) {
+            const position = this.getEpisodePosition(episode);
+            if (!isPortalPlaybackInProgress(position)) {
+                continue;
+            }
+            const updatedAt = position?.updatedAt ?? '';
+            if (!best || updatedAt > best.updatedAt) {
+                best = { id: this.getEpisodeContentId(episode), updatedAt };
+            }
+        }
+        return best?.id ?? null;
     });
 
     readonly selectedSeasonDescription = computed(() => {
@@ -325,6 +349,10 @@ export class SeasonContainerComponent implements OnInit {
         this.episodeClicked.emit(episode);
     }
 
+    restartEpisode(episode: XtreamSerieEpisode) {
+        this.episodeRestartRequested.emit(episode);
+    }
+
     openEpisodeInfo(event: Event, episode: XtreamSerieEpisode) {
         event.stopPropagation();
         this.dialog
@@ -373,18 +401,8 @@ export class SeasonContainerComponent implements OnInit {
         });
     }
 
-    getEpisodeInfo(
-        episode: XtreamSerieEpisode
-    ): XtreamSerieEpisodeInfo | undefined {
-        return resolveEpisodeInfo(episode);
-    }
-
     isEpisodeWatched(episode: XtreamSerieEpisode): boolean {
         return isPortalPlaybackWatched(this.getEpisodePosition(episode));
-    }
-
-    isEpisodeInProgress(episode: XtreamSerieEpisode): boolean {
-        return isPortalPlaybackInProgress(this.getEpisodePosition(episode));
     }
 
     isEpisodeLaunching(episode: XtreamSerieEpisode): boolean {
@@ -399,30 +417,11 @@ export class SeasonContainerComponent implements OnInit {
         return this.playingEpisodeId() === this.getEpisodeContentId(episode);
     }
 
-    getEpisodeProgress(episode: XtreamSerieEpisode): number {
-        return getPortalPlaybackProgressPercent(
-            this.getEpisodePosition(episode)
-        );
-    }
-
-    /** "42 min · 18m left", "42 min · watched", "42 min" — or null. */
-    getEpisodeSubline(episode: XtreamSerieEpisode): string | null {
-        return buildEpisodeSubline(
-            this.getEpisodeInfo(episode),
-            this.getEpisodePosition(episode),
-            this.translate
-        );
-    }
-
-    getEpisodePositionText(episode: XtreamSerieEpisode): string | null {
-        return formatEpisodePositionText(this.getEpisodePosition(episode));
-    }
-
     getEpisodeContentId(episode: XtreamSerieEpisode): number {
         return Number(episode.id);
     }
 
-    private getEpisodePosition(
+    getEpisodePosition(
         episode: XtreamSerieEpisode
     ): PlaybackPositionData | undefined {
         return this.playbackPositions().get(this.getEpisodeContentId(episode));

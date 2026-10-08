@@ -1376,6 +1376,7 @@
             "EPISODES": "Серии",
             "EPISODE_NUMBER": "Серия {{episode}}",
             "RESET_PROGRESS": "Сбросить прогресс",
+            "PLAY_FROM_BEGINNING": "Смотреть с начала",
             "OTHER_SOURCES": "Другие источники",
             "OPEN_IN_EXTERNAL_PLAYER": "Открыть во внешнем плеере",
             "SHOW_IN_CATEGORY": "Показать в категории",

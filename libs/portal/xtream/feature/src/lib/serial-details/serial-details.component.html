@@ -193,6 +193,7 @@
             [seasonPosters]="seasonPosters()"
             [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
             (episodeClicked)="playEpisode($event)"
+            (episodeRestartRequested)="playEpisodeFromStart($event)"
             (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
             (seasonPlaybackToggleRequested)="
                 handleSeasonPlaybackToggleRequested($event)

@@ -1376,6 +1376,7 @@
             "EPISODES": "Episoden",
             "EPISODE_NUMBER": "Episode {{episode}}",
             "RESET_PROGRESS": "Fortschritt zurücksetzen",
+            "PLAY_FROM_BEGINNING": "Von Anfang an abspielen",
             "OTHER_SOURCES": "Andere Quellen",
             "OPEN_IN_EXTERNAL_PLAYER": "In externem Player öffnen",
             "SHOW_IN_CATEGORY": "In Kategorie anzeigen",

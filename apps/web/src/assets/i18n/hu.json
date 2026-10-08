@@ -1376,6 +1376,7 @@
             "EPISODES": "Epizódok",
             "EPISODE_NUMBER": "{{episode}}. epizód",
             "RESET_PROGRESS": "Haladás törlése",
+            "PLAY_FROM_BEGINNING": "Lejátszás az elejétől",
             "OTHER_SOURCES": "Más források",
             "OPEN_IN_EXTERNAL_PLAYER": "Megnyitás külső lejátszóban",
             "SHOW_IN_CATEGORY": "Megjelenítés a kategóriában",

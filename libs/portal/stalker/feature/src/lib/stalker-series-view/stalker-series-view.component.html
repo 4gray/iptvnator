@@ -192,6 +192,7 @@
                 [hasUnloadedSeasons]="hasUnloadedVodSeasons()"
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
+                (episodeRestartRequested)="onEpisodeRestartRequested($event)"
                 (playbackToggleRequested)="
                     handlePlaybackToggleRequestedFromUi($event)
                 "
