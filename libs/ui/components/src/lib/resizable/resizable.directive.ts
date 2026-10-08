@@ -23,6 +23,11 @@ const SIDEBAR_WIDTH_KEY_ALIASES = new Set([
     'iptvnator_video_sidebar_width',
 ]);
 
+function parseStoredWidth(value: string): number | null {
+    const width = parseInt(value, 10);
+    return Number.isNaN(width) ? null : width;
+}
+
 /**
  * ResizableDirective - Makes an element horizontally resizable by dragging its edge.
  *
@@ -72,6 +77,7 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
     private isResizing = signal(false);
     private startX = 0;
     private startWidth = 0;
+    private widthBeforeResize = 0;
     private currentWidth = signal(0);
 
     // Event listener references for cleanup
@@ -164,39 +170,41 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
         this.renderer.appendChild(this.el.nativeElement, handle);
     }
 
+    /**
+     * Sidebars sharing a key have different limits, so the stored width is
+     * clamped for rendering only: writing it back would hand every other
+     * sidebar the narrowest (or widest) limit. Only a user resize persists.
+     */
     private loadPersistedWidth(): void {
+        const storedWidth = this.readStoredWidth();
+        this.setWidthImmediate(
+            storedWidth === null
+                ? this.defaultWidth()
+                : this.clampWidth(storedWidth)
+        );
+    }
+
+    /** The unclamped stored width, migrating a legacy key's raw value. */
+    private readStoredWidth(): number | null {
         const { key, legacyKeys } = this.resolveStorageKey();
-        let widthToApply = this.defaultWidth();
-
-        if (key) {
-            let stored = localStorage.getItem(key);
-            let sourceLegacyKey: string | null = null;
-
-            if (!stored) {
-                for (const legacyKey of legacyKeys) {
-                    const legacyValue = localStorage.getItem(legacyKey);
-                    if (legacyValue) {
-                        stored = legacyValue;
-                        sourceLegacyKey = legacyKey;
-                        break;
-                    }
-                }
-            }
-
-            if (stored) {
-                const width = parseInt(stored, 10);
-                if (!isNaN(width)) {
-                    widthToApply = this.clampWidth(width);
-                    localStorage.setItem(key, widthToApply.toString());
-                    if (sourceLegacyKey && sourceLegacyKey !== key) {
-                        localStorage.removeItem(sourceLegacyKey);
-                    }
-                }
-            }
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            return parseStoredWidth(stored);
         }
 
-        // Apply width immediately without transition to avoid flash
-        this.setWidthImmediate(widthToApply);
+        for (const legacyKey of legacyKeys) {
+            const legacyValue = localStorage.getItem(legacyKey);
+            if (!legacyValue) continue;
+
+            const width = parseStoredWidth(legacyValue);
+            if (width !== null) {
+                localStorage.setItem(key, legacyValue);
+                localStorage.removeItem(legacyKey);
+            }
+            return width;
+        }
+
+        return null;
     }
 
     /** Set width immediately without CSS transition */
@@ -246,6 +254,7 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
         this.isResizing.set(true);
         this.startX = clientX;
         this.startWidth = this.el.nativeElement.offsetWidth;
+        this.widthBeforeResize = this.currentWidth();
         this.resizeStart.emit();
     }
 
@@ -284,7 +293,11 @@ export class ResizableDirective implements OnInit, AfterViewInit, OnDestroy {
 
         this.isResizing.set(false);
         this.removeGlobalListeners();
-        this.persistWidth();
+        // A click on the handle is not a resize: persisting would save the
+        // width this sidebar clamped instead of the shared one.
+        if (this.currentWidth() !== this.widthBeforeResize) {
+            this.persistWidth();
+        }
         this.resizeEnd.emit(this.currentWidth());
     }
 
