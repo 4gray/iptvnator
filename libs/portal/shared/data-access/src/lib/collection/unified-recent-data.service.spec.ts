@@ -227,6 +227,9 @@ describe('UnifiedRecentDataService', () => {
                 {
                     _id: 'm3u-1',
                     title: 'M3U List',
+                    count: 0,
+                    importDate: '2026-01-01T00:00:00.000Z',
+                    autoRefresh: false,
                     recentlyViewed: [
                         {
                             source: 'm3u',
@@ -234,7 +237,9 @@ describe('UnifiedRecentDataService', () => {
                             url: movie.url,
                             title: 'Some Film',
                             channel_id: 'channel-3',
-                            category_id: 'vod',
+                            // Every M3U recent row is persisted as `live`;
+                            // the kind comes from the channel behind it.
+                            category_id: 'live',
                             added_at: '2026-03-26T11:00:00.000Z',
                         },
                     ],

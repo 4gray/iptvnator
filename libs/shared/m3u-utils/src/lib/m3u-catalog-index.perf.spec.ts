@@ -2,6 +2,7 @@ import {
     M3U_CATALOG_INDEX_BUDGET_MS,
     M3U_SERIES_CATALOG_BUDGET_MS,
     REAL_PLAYLIST_ROW_COUNT,
+    SyntheticCatalogRow,
     createSyntheticCatalogRows,
 } from './m3u-catalog-index.spec-data';
 import { buildM3uCatalogIndex } from './m3u-catalog-index.util';
@@ -41,7 +42,7 @@ describe('buildM3uCatalogIndex performance', () => {
         // Median of three: the first run pays for JIT warm-up on the
         // regexes, and a single sample would bake that into the budget.
         for (let run = 0; run < 3; run += 1) {
-            let index = buildM3uCatalogIndex([]);
+            let index = buildM3uCatalogIndex<SyntheticCatalogRow>([]);
             samples.push(
                 cpuMs(() => {
                     index = buildM3uCatalogIndex(rows);
@@ -70,7 +71,10 @@ describe('buildM3uCatalogIndex performance', () => {
         const samples: number[] = [];
 
         for (let run = 0; run < 3; run += 1) {
-            let series = buildM3uSeriesCatalog([], 'perf');
+            let series = buildM3uSeriesCatalog<SyntheticCatalogRow>(
+                [],
+                'perf'
+            );
             samples.push(
                 cpuMs(() => {
                     series = buildM3uSeriesCatalog(episodes, 'perf');
