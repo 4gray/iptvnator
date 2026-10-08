@@ -409,6 +409,7 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
         activeChannel$.next(newsChannel);
         channels.set([newsChannel, sportsChannel]);
         channels$.next([newsChannel, sportsChannel]);
+        liveChannels.set([newsChannel, sportsChannel]);
         routeParams$.next({ id: playlistId(), view: 'groups' });
         fixture.detectChanges();
         // The rail sits behind an `@defer`; TestBed leaves such a block on its
@@ -428,6 +429,22 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
         expect(component.guideOpen()).toBe(true);
         expect(guideSource.scopeId()).toBe('group:Sports');
     });
+    it('lists only the live split in the programme guide', () => {
+        // The unsplit array put every episode row in the guide — tens of
+        // thousands on a large VOD playlist.
+        const live = makeSidebarChannel('live-1');
+        const episode = makeSidebarChannel(
+            'episode-1',
+            'http://h/series/u/p/1.mkv'
+        );
+        channels.set([live, episode]);
+        channels$.next([live, episode]);
+        liveChannels.set([live]);
+        fixture.detectChanges();
+
+        expect(component.guideChannels()).toEqual([live]);
+    });
+
     it.each(['all', 'groups'])('hands the %s view the live split', (view) => {
         const live = makeSidebarChannel('live-1');
         const movie = makeSidebarChannel('movie-1', 'http://h/movie.mkv');

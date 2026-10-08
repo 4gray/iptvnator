@@ -351,9 +351,13 @@ export class VideoPlayerComponent
     /** Guide mode: sidebar and timeline give way to the multi-channel grid. */
     readonly guideOpen = signal(false);
     readonly guideDockCollapsed = signal(restoreEpgGuideDockCollapsed());
-    /** Rows the guide may show: everything that keeps the live host mounted. */
+    /**
+     * Rows the guide may show: the live split, as the sidebar lists it, minus
+     * whatever replaces the live host. Reading the unsplit array put every
+     * episode row — tens of thousands on a large VOD playlist — in the guide.
+     */
     readonly guideChannels = computed(() =>
-        this.channels().filter(
+        (this.catalogIndex.liveChannels() as Channel[]).filter(
             (channel) =>
                 channel.radio !== 'true' && !this.opensMovieDetail(channel)
         )
