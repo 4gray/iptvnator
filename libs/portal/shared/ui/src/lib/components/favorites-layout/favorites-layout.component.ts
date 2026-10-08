@@ -56,7 +56,7 @@ export interface FavoriteLayoutItem {
         './favorites-layout.component.scss',
         '../../styles/portal-sidebar.scss',
     ],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CategoryViewComponent,
         ContentCardComponent,

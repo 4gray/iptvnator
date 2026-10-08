@@ -46,7 +46,11 @@ import {
     EpgTimelineEmptyStateComponent,
 } from './epg-timeline-empty-state.component';
 import { TimelineScrollController } from './epg-timeline-scroll.controller';
-import { TimelineZoomController } from './epg-timeline-zoom.controller';
+import { TimelineWindowController } from './epg-timeline-window.controller';
+import {
+    TimelineZoomController,
+    timelineZoomLabelKey,
+} from './epg-timeline-zoom.controller';
 import { EpgTimelineTrackComponent } from './epg-timeline-track.component';
 import {
     buildTimelineAxis,
@@ -127,11 +131,11 @@ export class EpgTimelineComponent {
     readonly zoomMax = TIMELINE_ZOOM_MAX;
     readonly skeletonWidths = [120, 170, 150, 200, 140, 180];
 
-    private readonly nowMs = signal(Date.now());
+    readonly nowMs = signal(Date.now());
     readonly selectedKey = signal<string | null>(null);
     /** Day centred in the ribbon, seeded from the controlled `selectedDate` so
      * a non-today date survives (re)mount and follows host changes. */
-    private readonly viewDayKey = linkedSignal(() => {
+    readonly viewDayKey = linkedSignal(() => {
         const key = this.selectedDate()?.trim();
         return key ? key : getTodayEpgDateKey();
     });
@@ -141,6 +145,7 @@ export class EpgTimelineComponent {
         ribbon: () => this.ribbon()?.nativeElement,
         scale: () => this.scale(),
         setScale: (scale) => this.scale.set(scale),
+        centreOn: (offsetMin) => this.ribbonWindow.centreOnMinute(offsetMin),
     });
 
     /** Ribbon scrolling + channel-select auto-focus, extracted from the view. */
@@ -200,6 +205,8 @@ export class EpgTimelineComponent {
         buildTimelineTicks(this.axis(), timelineTickStepForScale(this.scale()))
     );
     readonly dividers = computed(() => buildTimelineDayDividers(this.axis()));
+    /** Only the ribbon content near the visible range is rendered. */
+    readonly ribbonWindow = new TimelineWindowController(this);
     readonly trackWidthPx = computed(() => {
         const axis = this.axis();
         return (
@@ -215,16 +222,9 @@ export class EpgTimelineComponent {
     readonly zoomLevel = computed(() =>
         timelineZoomLevelForScale(this.scale())
     );
-    readonly zoomLabelKey = computed(() => {
-        switch (this.zoomLevel()) {
-            case 'day':
-                return 'EPG.TIMELINE.ZOOM_DAY';
-            case 'hours':
-                return 'EPG.TIMELINE.ZOOM_HOURS';
-            default:
-                return 'EPG.TIMELINE.ZOOM_DETAIL';
-        }
-    });
+    readonly zoomLabelKey = computed(() =>
+        timelineZoomLabelKey(this.zoomLevel())
+    );
     /** `zoom_out` reads as "overview"; both finer bands share `zoom_in`. */
     readonly zoomIcon = computed(() =>
         this.zoomLevel() === 'day' ? 'zoom_out' : 'zoom_in'
@@ -348,6 +348,7 @@ export class EpgTimelineComponent {
         const axis = this.axis();
         const centreMs = (group.startMs + group.stopMs) / 2;
         const offsetMin = (centreMs - axis.startMs) / TIMELINE_MINUTE_MS;
+        this.ribbonWindow.centreOnMinute(offsetMin);
         this.scroll.scrollToOffset(offsetMin, 0.5);
     }
 

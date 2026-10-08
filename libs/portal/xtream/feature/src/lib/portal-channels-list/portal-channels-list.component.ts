@@ -334,6 +334,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                             true
                         );
                     });
+                    this.cdr.markForCheck();
                 });
             // A toggle in another list instance (the sidebar and the
             // fullscreen channel panel render this component side by side)
@@ -771,6 +772,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 this.epgQueueService.invalidate(streamId);
                 this.epgPrograms.delete(streamId);
                 this.currentProgramsProgress.delete(streamId);
+                this.cdr.markForCheck();
                 this.loadEpgForVisibleChannels(this.channelsToPreview());
             });
     }

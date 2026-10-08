@@ -17,6 +17,8 @@ import {
     expect,
     importM3uPlaylistFromNativeDialog,
     launchElectronApp,
+    goToDashboard,
+    openGlobalRecent,
     openWorkspaceSection,
     openPlaylistFavorites,
     openSources,
@@ -41,8 +43,158 @@ import {
     getXtreamTitle,
     pickDistinctTitles,
 } from './portal-mock-fixtures';
+import { readVisibleSidebarCategoryNames } from './sidebar-categories.e2e-support';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
 
 test.describe('Electron Favorites', () => {
+    for (const origin of ['favorites', 'recent', 'dashboard'] as const) {
+        test(`@stalker @electron portal handoff from ${origin} restores the owning categories after opening a different source`, async ({
+            dataDir,
+            request,
+        }) => {
+            await resetMockServers(request, ['stalker']);
+            const vod = await fetchStalkerCategoryFixture(request, 'vod');
+            const [title] = pickDistinctTitles(vod.items, getStalkerTitle);
+            const app = await launchElectronApp(dataDir);
+            const page = app.mainWindow;
+            await routePlayableStreams(page);
+            try {
+                await addStalkerPortal(page, { name: 'Portal A' });
+                await waitForStalkerCatalog(page);
+                await clickCategoryById(page, vod.categoryId);
+                const portalPath = new URL(page.url()).pathname.replace(
+                    /\/vod(?:\/[^/]+)?$/,
+                    `/vod/${vod.categoryId}`
+                );
+                const categoriesA = await readVisibleSidebarCategoryNames(page);
+                await clickGridListCardByTitle(page, title);
+                await addCurrentDetailToFavorites(page);
+                if (origin !== 'favorites') {
+                    await startAndConfirmPlayback(page, () =>
+                        page.locator('button.play-btn').first().click()
+                    );
+                }
+                await goBackFromDetail(page);
+                if (origin !== 'favorites') {
+                    // Represent an already saved viewing position. The short
+                    // media fixture ends before the player's 15 s save interval.
+                    const playlistId = /\/stalker\/([^/]+)/.exec(
+                        portalPath
+                    )?.[1];
+                    const contentId = Number(
+                        vod.items.find(
+                            (item) => getStalkerTitle(item) === title
+                        )?.id
+                    );
+                    expect(playlistId).toBeTruthy();
+                    await page.evaluate(
+                        async ({ playlistId, contentId }) => {
+                            await window.electron.dbSavePlaybackPosition(
+                                playlistId!,
+                                {
+                                    contentXtreamId: contentId,
+                                    contentType: 'vod',
+                                    playlistType: 'stalker',
+                                    positionSeconds: 2,
+                                    durationSeconds: 6,
+                                }
+                            );
+                        },
+                        { playlistId, contentId }
+                    );
+                }
+
+                await openSources(page);
+                await addStalkerPortal(page, {
+                    name: 'Portal B',
+                    macAddress: '00:1A:79:00:00:03',
+                });
+                await waitForStalkerCatalog(page);
+                const categoriesB = await readVisibleSidebarCategoryNames(page);
+                expect(categoriesB).not.toEqual(categoriesA);
+
+                if (origin === 'dashboard') {
+                    await goToDashboard(page);
+                    await page
+                        .locator(
+                            '[data-test-id="dashboard-continue-watching-rail-card"]'
+                        )
+                        .filter({ hasText: title })
+                        .first()
+                        .click();
+                } else {
+                    if (origin === 'favorites')
+                        await openWorkspaceSection(page, 'Global favorites');
+                    else await openGlobalRecent(page);
+                    await switchUnifiedCollectionScope(page, 'All playlists');
+                    await contentCardByTitle(page, title).first().click();
+                }
+                await expect(page.locator('app-content-hero')).toContainText(
+                    title
+                );
+                if (origin !== 'favorites') {
+                    await startAndConfirmPlayback(
+                        page,
+                        () =>
+                            page
+                                .getByRole('button', { name: /^Continue/ })
+                                .first()
+                                .click(),
+                        0.5
+                    );
+                    await page
+                        .getByRole('button', {
+                            name: 'Close player',
+                            exact: true,
+                        })
+                        .click();
+                }
+                await page
+                    .getByRole('button', {
+                        name: 'View in portal',
+                        exact: true,
+                    })
+                    .click();
+                await expect
+                    .poll(() => new URL(page.url()).pathname)
+                    .toBe(portalPath);
+                await expect(page.locator('app-content-hero')).toContainText(
+                    title
+                );
+                await expect
+                    .poll(() => readVisibleSidebarCategoryNames(page))
+                    .toEqual(categoriesA);
+
+                await goBackFromDetail(page);
+                await expectPathname(
+                    page,
+                    origin === 'favorites'
+                        ? /\/workspace\/global-favorites$/
+                        : /\/workspace\/global-recent$/
+                );
+                await expect(page.locator('app-content-hero')).toContainText(
+                    title
+                );
+                for (const [name, expected] of [
+                    ['Portal B', categoriesB],
+                    ['Portal A', categoriesA],
+                ] as const) {
+                    await openSources(page);
+                    await sourceRowByTitle(page, name).first().click();
+                    await waitForStalkerCatalog(page);
+                    await expect
+                        .poll(() => readVisibleSidebarCategoryNames(page))
+                        .toEqual(expected);
+                }
+            } finally {
+                await closeElectronApp(app);
+            }
+        });
+    }
+
     test('@persistence @m3u @electron shows M3U favorites in playlist and all-playlists scope, and preserves them after restart', async ({
         dataDir,
     }) => {

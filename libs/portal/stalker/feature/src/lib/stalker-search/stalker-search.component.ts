@@ -4,13 +4,10 @@ import {
     computed,
     effect,
     inject,
-    linkedSignal,
-    resource,
     signal,
     untracked,
     viewChild,
 } from '@angular/core';
-import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -18,38 +15,34 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
-    executeStalkerRequest,
     StalkerPortalRepairService,
     StalkerSessionService,
-    stalkerWithheldRowKey,
-    withoutWithheldStalkerItems,
 } from '@iptvnator/portal/stalker/data-access';
 import {
     DataService,
     ParentalLockService,
     PlaylistsService,
-    resetHostConnectivityGuard,
 } from '@iptvnator/services';
 import {
     ALL_CATEGORIES_WITHHELD,
     PlaybackPositionData,
     ResolvedPortalPlayback,
-    StalkerPortalActions,
     VodDetailsItem,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import { StalkerInlineDetailComponent } from '../stalker-inline-detail/stalker-inline-detail.component';
-import { StalkerContentTypes } from '@iptvnator/portal/stalker/data-access';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     isWorkspaceLayoutRoute,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     queryParamSignal,
+    workspacePortalCommands,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
@@ -71,40 +64,13 @@ import {
 import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { createStalkerVodDetailActions } from '../stalker-vod-detail-actions';
-import { isStalkerSearchRequestCurrent } from './stalker-search-request.util';
+import { StalkerSearchPagingController } from './stalker-search-paging.controller';
+import type { StalkerSearchContentType } from './stalker-search-results.util';
 
 interface StalkerFilter {
     key: StalkerSearchContentType;
     label: string;
     translationKey: string;
-}
-
-type StalkerSearchContentType = 'vod' | 'series';
-
-interface StalkerSearchResponse {
-    js?: {
-        data?: StalkerVodSource[];
-        total_items?: number;
-    };
-    message?: string;
-    status?: number;
-}
-
-/** Portals can shift items between pages mid-append — drop duplicate ids. */
-function dedupeSearchResults(items: StalkerVodSource[]): StalkerVodSource[] {
-    const seenIds = new Set<string>();
-    return items.filter((item) => {
-        const id =
-            item.id === undefined || item.id === null ? null : String(item.id);
-        if (id === null) {
-            return true;
-        }
-        if (seenIds.has(id)) {
-            return false;
-        }
-        seenIds.add(id);
-        return true;
-    });
 }
 
 @Component({
@@ -124,18 +90,9 @@ function dedupeSearchResults(items: StalkerVodSource[]): StalkerVodSource[] {
 })
 export class StalkerSearchComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
-    private readonly location = inject(Location);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly dataService = inject(DataService);
     private readonly parentalLock = inject(ParentalLockService);
-    /** Lock version the accumulated results were built under. */
-    private searchResultsLockVersion: number | null = null;
-    /**
-     * Withheld row ids seen for the current search identity. A page adding
-     * only new withheld ids is still progress and is skipped automatically;
-     * a page adding nothing new is the end of the results.
-     */
-    private searchWithheldKey = '';
-    private readonly searchWithheldIds = new Set<string>();
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistService = inject(PlaylistsService);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
@@ -235,309 +192,28 @@ export class StalkerSearchComponent {
         () => this.favoritesRefresh.refreshVersion()
     );
 
-    /**
-     * Portal page for the current term+filter+portal; resets when any of
-     * them changes. The playlist belongs to the identity: Angular reuses the
-     * search route across `/stalker/A/search` -> `/stalker/B/search`, and a
-     * surviving page number would append portal B's later page onto portal
-     * A's accumulated results while skipping B's first page.
-     */
-    readonly searchPage = linkedSignal({
-        source: () => ({
-            term: this.searchTerm(),
-            type: this.selectedFilterType(),
-            playlistId: this.currentPlaylist()?._id ?? null,
-        }),
-        computation: () => 1,
+    /** Result paging: the portal page, the accumulated list and its flags. */
+    readonly paging = new StalkerSearchPagingController({
+        searchTerm: this.searchTerm,
+        selectedFilterType: this.selectedFilterType,
+        currentPlaylist: this.currentPlaylist,
+        dataService: this.dataService,
+        parentalLock: this.parentalLock,
+        stalkerSession: this.stalkerSession,
+        portalRepair: this.portalRepair,
+        logger: this.logger,
+        closeWithheldDetail: (withheldCategoryIds) =>
+            this.closeWithheldDetail(withheldCategoryIds),
     });
-    /** Pages accumulated into one continuous, deduplicated result list. */
-    private readonly accumulatedSearchResults = signal<StalkerVodSource[]>([]);
-    readonly searchResults = this.accumulatedSearchResults.asReadonly();
-    readonly searchHasMore = signal(false);
-    /**
-     * A failed append page. The next near-end RETRIES that page instead of
-     * advancing — incrementing past it would silently omit its results.
-     */
-    readonly searchAppendError = signal(false);
-
-    readonly searchResultsResource = resource({
-        params: () => ({
-            contentType: this.selectedFilterType(),
-            search: this.searchTerm(),
-            page: this.searchPage(),
-            playlistId: this.currentPlaylist()?._id ?? null,
-            action: StalkerPortalActions.GetOrderedList,
-            // Lock/unlock re-fires the search: withheld rows are dropped at
-            // page time, so the results must be rebuilt when they change.
-            parentalLockVersion: this.parentalLock.version(),
-        }),
-        loader: async ({ params }) => {
-            if (params.search.length < 3) {
-                this.resetSearchAccumulator();
-                return [];
-            }
-            const playlist = this.currentPlaylist();
-            if (!playlist) {
-                // A reused route can land on a deleted/unresolved portal —
-                // the previous portal's cards must not keep rendering.
-                this.resetSearchAccumulator();
-                return [];
-            }
-            const { portalUrl, macAddress } = playlist;
-            if (!portalUrl || !macAddress) {
-                this.resetSearchAccumulator();
-                return [];
-            }
-            const contentType = params.contentType;
-            // The dedicated search route has no category guard, so it filters
-            // the portal's rows itself: a locked genre's title must not reach
-            // the grid, its detail or playback through search.
-            const withheldCategoryIds: ReadonlySet<string> =
-                !this.parentalLock.active()
-                    ? new Set<string>()
-                    : this.parentalLock.withholdsEverything?.()
-                      ? ALL_CATEGORIES_WITHHELD
-                      : new Set(
-                            this.parentalLock.lockedStalkerIds(
-                                playlist._id,
-                                contentType
-                            )
-                        );
-            const lockVersionChanged =
-                this.searchResultsLockVersion !== null &&
-                this.searchResultsLockVersion !== params.parentalLockVersion;
-            this.searchResultsLockVersion = params.parentalLockVersion;
-            if (lockVersionChanged) {
-                this.applyRelockToResults(withheldCategoryIds, contentType);
-            }
-            if (lockVersionChanged && params.page > 1) {
-                // A lock flip past page 1: rebuild from page 1 rather than
-                // appending to pages accumulated under the old lock state.
-                this.searchPage.set(1);
-                return this.accumulatedSearchResults();
-            }
-            const withheldKey = JSON.stringify([
-                params.playlistId,
-                contentType,
-                params.search,
-                params.parentalLockVersion,
-            ]);
-            if (params.page === 1 || this.searchWithheldKey !== withheldKey) {
-                this.searchWithheldKey = withheldKey;
-                this.searchWithheldIds.clear();
-            }
-
-            // Mirror the catalog request shape: many Ministra portals
-            // return an empty list for get_ordered_list without the
-            // category/genre/sortby params the STB client always sends.
-            // `max_page_items` is a HINT — plenty of portals ignore it and
-            // return their own page size, which is why paging cannot rely
-            // on it (progress and `total_items` decide hasMore instead).
-            const requestParams: Record<string, string | number> = {
-                action: StalkerContentTypes[contentType].getContentAction,
-                type: contentType,
-                sortby: 'added',
-                search: params.search,
-                p: params.page,
-                max_page_items: 100,
-                category: '*',
-                ...(contentType === 'vod' ? { genre: '0' } : {}),
-            };
-
-            // A stale response (term/filter/page/portal — or the parental
-            // lock — moved on while this page was in flight) must not clobber
-            // the accumulated list: the request is not aborted, and a
-            // pre-relock response was filtered with the pre-relock set.
-            const isCurrent = (): boolean =>
-                isStalkerSearchRequestCurrent(params, {
-                    search: this.searchTerm(),
-                    contentType: this.selectedFilterType(),
-                    page: this.searchPage(),
-                    playlistId: this.currentPlaylist()?._id ?? null,
-                    parentalLockVersion: this.parentalLock.version(),
-                });
-
-            try {
-                // executeStalkerRequest owns the portal-mode decision (shared
-                // predicate with URL fallback for legacy rows) and the lazy
-                // portal repair, so search cannot drift from the catalog
-                // paths.
-                const response =
-                    await executeStalkerRequest<StalkerSearchResponse>(
-                        {
-                            dataService: this.dataService,
-                            stalkerSession: this.stalkerSession,
-                            portalRepair: this.portalRepair,
-                        },
-                        playlist,
-                        requestParams
-                    );
-                const rawItems = (response.js?.data || []).map(
-                    (item: StalkerVodSource) =>
-                        this.processItemUrls(item, portalUrl)
-                );
-                const items = withoutWithheldStalkerItems(
-                    rawItems,
-                    contentType,
-                    withheldCategoryIds
-                );
-                // Before the withheld-id bookkeeping: a stale page must not
-                // pre-record ids into a set a newer relock request cleared,
-                // or that request's page counts no new withheld rows and
-                // stops paging short of later visible matches.
-                if (!isCurrent()) {
-                    return items;
-                }
-                let newWithheldCount = 0;
-                if (items.length < rawItems.length) {
-                    const kept = new Set(items);
-                    for (const item of rawItems) {
-                        const id = stalkerWithheldRowKey(item);
-                        if (
-                            !kept.has(item) &&
-                            !this.searchWithheldIds.has(id)
-                        ) {
-                            this.searchWithheldIds.add(id);
-                            newWithheldCount += 1;
-                        }
-                    }
-                }
-
-                const merged = this.applySearchPageSuccess(
-                    params.page,
-                    items,
-                    response.js?.total_items,
-                    // A page made only of withheld rows still is a page the
-                    // portal served; judge progress on what it sent.
-                    rawItems.length > 0 &&
-                        (items.length > 0 || newWithheldCount > 0)
-                );
-                this.advancePastWithheldPage(
-                    params.page,
-                    items.length,
-                    newWithheldCount,
-                    isCurrent
-                );
-                return merged;
-            } catch (error) {
-                this.logger.warn('Stalker search page failed', {
-                    page: params.page,
-                    error,
-                });
-                if (!isCurrent()) {
-                    return this.accumulatedSearchResults();
-                }
-
-                return this.applySearchPageFailure(params.page);
-            }
-        },
-    });
-
-    /**
-     * Empties the accumulator and every paging flag — used whenever there is
-     * no searchable portal (short term, missing playlist, malformed row).
-     */
-    resetSearchAccumulator(): void {
-        this.accumulatedSearchResults.set([]);
-        this.searchHasMore.set(false);
-        this.searchAppendError.set(false);
-    }
-
-    /** Merges a successful portal page into the accumulated result list. */
-    applySearchPageSuccess(
-        page: number,
-        items: StalkerVodSource[],
-        totalItems: number | undefined,
-        pageHadRows: boolean = items.length > 0
-    ): StalkerVodSource[] {
-        const previous = page === 1 ? [] : this.accumulatedSearchResults();
-        const merged =
-            page === 1 ? items : dedupeSearchResults([...previous, ...items]);
-        // Paging continues only while pages make progress — with OR without
-        // a reported total. Dedup after mid-list portal mutations can leave
-        // the unique list permanently shorter than total_items, and a
-        // repeated page dedupes to no growth; either way a no-progress
-        // append is the practical end of the results. A page whose rows were
-        // all withheld by the parental lock counts as progress too.
-        const withheldRows = pageHadRows && items.length === 0;
-        const madeProgress =
-            page === 1 || merged.length > previous.length || withheldRows;
-        this.searchHasMore.set(
-            madeProgress &&
-                (typeof totalItems === 'number' && totalItems >= 0
-                    ? merged.length < totalItems
-                    : pageHadRows)
-        );
-        this.searchAppendError.set(false);
-        this.accumulatedSearchResults.set(merged);
-        return merged;
-    }
-
-    /**
-     * A failed FRESH search (page 1) must not keep rendering the previous
-     * query's cards; a failed append keeps the accumulated pages and flags
-     * the error so the next near-end retries this page instead of advancing.
-     */
-    applySearchPageFailure(page: number): StalkerVodSource[] {
-        if (page === 1) {
-            this.accumulatedSearchResults.set([]);
-            this.searchHasMore.set(false);
-            this.searchAppendError.set(false);
-            return [];
-        }
-
-        this.searchAppendError.set(true);
-        return this.accumulatedSearchResults();
-    }
-
-    /**
-     * Result-set identity for the layout's near-end latch and auto-fill
-     * budget — term, filter, and portal, mirroring the paging identity.
-     */
-    readonly searchScrollResetKey = computed(() =>
-        [
-            this.searchTerm(),
-            this.selectedFilterType(),
-            this.currentPlaylist()?._id ?? '',
-        ].join('|')
-    );
-
-    readonly isInitialSearchLoading = computed(
-        () => this.searchResultsResource.isLoading() && this.searchPage() === 1
-    );
-    readonly isAppendingSearchResults = computed(
-        () => this.searchResultsResource.isLoading() && this.searchPage() > 1
-    );
+    readonly searchResults = this.paging.searchResults;
+    readonly searchHasMore = this.paging.searchHasMore;
+    readonly searchAppendError = this.paging.searchAppendError;
+    readonly searchScrollResetKey = this.paging.searchScrollResetKey;
+    readonly isInitialSearchLoading = this.paging.isInitialSearchLoading;
+    readonly isAppendingSearchResults = this.paging.isAppendingSearchResults;
 
     loadMoreSearchResults(): void {
-        if (this.searchResultsResource.isLoading() || !this.searchHasMore()) {
-            return;
-        }
-
-        if (this.searchAppendError()) {
-            // Retry the SAME page — advancing would permanently omit it.
-            void this.retrySearchPage();
-            return;
-        }
-
-        this.searchPage.update((page) => page + 1);
-    }
-
-    /**
-     * Two failed search pages are exactly what opens the main process'
-     * connectivity guard, so the reset has to precede the reload — otherwise
-     * this retry fast-fails without contacting a portal that may have
-     * recovered, and keeps repeating the same error until the window expires.
-     */
-    private async retrySearchPage(): Promise<void> {
-        // Clear the flag synchronously: awaiting first would leave this branch
-        // re-enterable, and the next `nearEnd` event would fire a second retry.
-        this.searchAppendError.set(false);
-        await resetHostConnectivityGuard(
-            this.dataService,
-            this.currentPlaylist()?.portalUrl
-        );
-        this.searchResultsResource.reload();
+        this.paging.loadMoreSearchResults();
     }
 
     readonly isSelectedVodFavorite = signal<boolean>(false);
@@ -714,58 +390,10 @@ export class StalkerSearchComponent {
     }
 
     /**
-     * The infinite scroll gives up after a few loads that add no height, so
-     * a run of pages made only of parental-locked rows must advance by
-     * itself until a visible row (or the real end) is reached. Only a page
-     * that added withheld ids not seen before counts — a stalled portal
-     * repeating the same locked rows must still end the loop.
-     */
-    advancePastWithheldPage(
-        page: number,
-        visibleCount: number,
-        newWithheldCount: number,
-        isCurrent: () => boolean
-    ): void {
-        if (
-            visibleCount > 0 ||
-            newWithheldCount === 0 ||
-            !this.searchHasMore()
-        ) {
-            return;
-        }
-        queueMicrotask(() => {
-            if (isCurrent()) {
-                this.searchPage.set(page + 1);
-            }
-        });
-    }
-
-    /**
      * Closes the open detail when its genre is withheld by the parental
      * lock (Lock now, idle relock): the title, its playback actions and the
      * store's selected item must not outlive the list row.
      */
-    /**
-     * A lock change reached the results on screen, which were read under
-     * the old lock state: close an open detail of a now-withheld genre (the
-     * list hiding it is not enough) and drop the withheld rows NOW, before
-     * the replacement page is awaited — on page 1 too, or they stay
-     * clickable while (or, if it hangs, after) that request is pending.
-     */
-    applyRelockToResults(
-        withheldCategoryIds: ReadonlySet<string>,
-        contentType: Parameters<typeof withoutWithheldStalkerItems>[1]
-    ): void {
-        this.closeWithheldDetail(withheldCategoryIds);
-        this.accumulatedSearchResults.set(
-            withoutWithheldStalkerItems(
-                this.accumulatedSearchResults(),
-                contentType,
-                withheldCategoryIds
-            )
-        );
-    }
-
     closeWithheldDetail(withheldCategoryIds: ReadonlySet<string>): void {
         const details = this.itemDetails();
         if (!details) {
@@ -791,9 +419,14 @@ export class StalkerSearchComponent {
         this.stalkerStore.setSelectedItem(null);
     }
 
-    /** Leave the search page (e.g. back to the actor page that opened it) */
+    /**
+     * Leave the search page (e.g. back to the actor page that opened it); the
+     * portal's default section when the page opened the session.
+     */
     goBack(): void {
-        this.location.back();
+        this.backNavigation.back(() =>
+            workspacePortalCommands(this.activatedRoute, 'stalker')
+        );
     }
 
     onVodBack(): void {
@@ -869,41 +502,6 @@ export class StalkerSearchComponent {
             this.vodDetailsItem(),
             this.selectedFilterType() === 'series' ? 'series' : 'vod'
         );
-    }
-
-    private processItemUrls(
-        item: StalkerVodSource,
-        portalUrl: string
-    ): StalkerVodSource {
-        const processed = { ...item };
-
-        if (processed.screenshot_uri) {
-            processed.screenshot_uri = this.makeAbsoluteUrl(
-                portalUrl,
-                processed.screenshot_uri
-            );
-        }
-
-        return processed;
-    }
-
-    private makeAbsoluteUrl(baseUrl: string, relativePath: string): string {
-        if (!relativePath) return '';
-        if (
-            relativePath.startsWith('http://') ||
-            relativePath.startsWith('https://')
-        ) {
-            return relativePath;
-        }
-        try {
-            const url = new URL(baseUrl);
-            const path = relativePath.startsWith('/')
-                ? relativePath
-                : `/${relativePath}`;
-            return `${url.origin}${path}`;
-        } catch {
-            return relativePath;
-        }
     }
 
     readonly vodDetailActions = createStalkerVodDetailActions({

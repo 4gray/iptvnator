@@ -117,6 +117,27 @@ export function resolveCurrentPortalPlaylistId(
     return extractPortalPlaylistId(routerUrl, provider);
 }
 
+/**
+ * Router commands for the workspace portal that `route` belongs to (the `:id`
+ * param of an ancestor), or for one of its sections. Without a section the
+ * portal's route config redirects to its default section. Null outside a
+ * portal route.
+ */
+export function workspacePortalCommands(
+    route: ActivatedRoute,
+    provider: PortalProvider,
+    section?: PortalRailSection
+): string[] | null {
+    const playlistId = resolveCurrentRouteParam(route, 'id');
+    if (!playlistId) {
+        return null;
+    }
+
+    return section
+        ? ['/workspace', provider, playlistId, section]
+        : ['/workspace', provider, playlistId];
+}
+
 function resolveCurrentRouteParam(
     route: ActivatedRoute,
     key: string

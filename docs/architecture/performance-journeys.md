@@ -19,9 +19,9 @@ live in `tools/performance/`.
 | J4 `search`      | six-character query typed into global search | results list settled                                                          |
 
 J1 is instrumented: `renderer.initialBytes` from the built output, and the
-runtime counters of the launch benchmark below. J2 and J3 are instrumented by
-their own specs (below). J4 follows the plan in `.plans/` and is added in its
-own thread; each thread names its journey and counter in the PR description.
+runtime counters of the launch benchmark below. J2, J3 and J4 are
+instrumented by their own specs (below). Each thread names its journey and
+counter in the PR description.
 
 ## Running the journeys
 
@@ -89,7 +89,14 @@ main-process counters below, which exist only with `IPTVNATOR_PERF_CAPTURE=1`:
   show a blank window and freeze its `ready-to-show` counter before its own
   document exists. Electron emits the event again for the real document's
   first paint because the window is still hidden, which is the moment
-  production sees. The gate also keeps the listener the app registers with
+  production sees. The app also shows its window at the main frame's
+  `did-finish-load` when that comes first (see
+  [When the window is shown](#when-the-window-is-shown)), so the gate keeps
+  the `did-finish-load` listeners registered before the gated load (the
+  app's) away from the `about:blank` load as well
+  (`evidence.rendererGateDidFinishLoadHeldOnBlank`, 1 per launch); Electron's
+  own listener that resolves `loadURL('about:blank')` is registered later
+  and still runs. The gate also keeps the listener the app registers with
   `ipcMain.handle('performance:read-counters')`, so the test can call it from
   the main process.
 - `journey-renderer-probe.ts` is registered with `addInitScript` on that
@@ -168,8 +175,8 @@ closed or closed before the cutoff. J2's probe has no settle window
 most 20): the time after the first card, the value and, for each source the
 browser attributes the shift to, the node (`tag.class[data-test-id]`; a
 component host such as `lib-dashboard-rail` takes its first child's test id)
-and its vertical move. A late shift can therefore be traced to its component
-from the summary alone.
+and its move (`deltaX`, `deltaY`, `deltaWidth`, `deltaHeight`). A late shift
+can therefore be traced to its component from the summary alone.
 
 First local measurement (macOS, 2026-09-29, `master` with #1738): all
 windows closed on `quiet`, `renderer.layoutShiftScore` stayed 0, and
@@ -199,6 +206,12 @@ the playlist inventory has loaded. After the fix (macOS, 2026-09-30): both
 counters were 0 in all 12 iterations of two runs, every window closed on
 `quiet` and `lateShifts` was empty.
 
+On the runner the flicker was only visible on J1's fast path: on the slow
+path the window got its first frame only after the hero had already
+changed, so the settle window opened after the shifts (see
+[When the window is shown](#when-the-window-is-shown)). With both fixes,
+all 18 iterations of three runner runs read 0 (`stable: true`).
+
 #### Idle window
 
 After the settle point J1 leaves the dashboard alone for
@@ -208,7 +221,8 @@ window, and `evidence.idle.domMutations` the mutation records in the whole
 document. The [idle work audit](idle-work-audit-2026-09.md) found Eager
 components re-rendering on every such tick in a dev build; this counter
 measures the ticks in the optimized build, so plan item C6 can show what
-zoneless change detection removes.
+zoneless change detection removes; its checklist is the
+[zoneless migration](zoneless-migration.md).
 
 The window opens when the settle window closes, so startup data still
 landing is not idle work, and it is timed by a renderer `setTimeout`. The
@@ -291,10 +305,12 @@ registers the `performance:read-counters` IPC handler. Without the flag
 nothing is counted, no listener is attached and the handler does not exist;
 the preload never exposes the channel. SQL statements are counted only with
 `IPTVNATOR_PERF_COUNT_SQL=1` as well, because the hook wraps every statement
-execution: the launch journey sets both (the flags are built in
-`journey-launch-environment.ts`), while J2's launches and the M3U, refresh
-and Xtream benchmarks do not set the SQL flag and keep measuring unwrapped
-statements. A harness test fails if any other source sets the SQL flag. After the renderer probe completes,
+execution: the launch journey and J4, which reports
+`renderer.sqlStatementsPerSearch`, set both (the flags are built in
+`journey-launch-environment.ts`), while J2's and J3's launches and the M3U,
+refresh and Xtream benchmarks do not set the SQL flag and keep measuring
+unwrapped statements. A harness test fails if any other source sets the SQL
+flag. After the renderer probe completes,
 `journey-main-counters.ts` calls the handler through `electronApp.evaluate`
 and the gate's tap.
 
@@ -468,6 +484,76 @@ waits for the playlist migrations, the inventory read and
 `reconcileEpgSources`. No baseline yet: the counter is promoted only after a
 PR that lowers it also lowers `spawnToFirstCardMs` (Principle 3).
 
+### When the window is shown
+
+J1 on the CI runner was bimodal from the first runner measurements (#1717)
+until 2026-10-01: 6 of 14 `master` runs between 2026-09-30 and 2026-10-01
+mixed two paths. On the slow path the first card came with 18 bridge
+calls and 1,018 DOM mutations, about 940 ms after the load event. On the
+fast path it came with 15 calls and 559 mutations, 280-500 ms after it.
+The race also marked `renderer.ipcSerialDepthToFirstCard` (9 vs 6),
+`renderer.cdTicksToFirstCard` (31 vs 21), `renderer.cdTicksIdle30s`,
+`main.sqlStatementsBeforeReadyToShow` (119 vs 93) and
+`renderer.layoutShiftScoreSettled` as `stable: false`.
+
+The three extra calls (`downloadsGetDefaultFolder` and two
+`dbGetGlobalRecentlyAdded`, after `dbGetAllGlobalFavorites`) were not what
+the card waited for. They only had time to finish before the card. What
+ordered the card was when the hidden window got a frame. In every one of
+the 48 iterations of those eight runs (two of them #1782's), `ready-to-show`
+came within 180 ms of the load event on the fast path (usually about 15 ms),
+and 4-5 ms after the first card on the slow path. The app showed its window only on
+`ready-to-show`, and `main.ts` removes the splash in a
+`requestAnimationFrame`, which the journey's end condition waits for. On
+the slow path the dashboard had rendered and its data had arrived, but the
+window was still hidden, no frame came, and the splash stayed.
+
+A minimal Electron 43.3.0 app under Xvfb in a Debian container reproduces
+it deterministically. It has the same hidden window, splash and
+`requestAnimationFrame` removal, plus a 3.5 MB module script before the
+first frame. Its window got no frame for about a second after load, and the
+`requestAnimationFrame` and `ready-to-show` both landed at about 1.25 s, in
+5 of 5 launches. Without the large script, `ready-to-show` came at load. A
+`backgroundColor` alone changed nothing. Showing the window at
+`did-finish-load` made the `requestAnimationFrame` run on time in 5 of 5.
+#1782's skeleton gates do not touch this ordering: its own run 36917107231
+still had one fast iteration among slow ones.
+
+The fix is in the app, so it applies to users and not only to the
+journey. `apps/electron-backend/src/app/services/main-window-first-show.ts`
+shows the window at `ready-to-show` or the main frame's `did-finish-load`,
+whichever comes first. The window's `backgroundColor` is the splash colour,
+so showing it before the first paint does not flash. `ready-to-show` still
+fires after the early show (on the runner 10-190 ms after load), so
+`main.sqlStatementsBeforeReadyToShow` keeps its meaning.
+
+Validation (Principle 3, the same journey on the same runner): three
+dispatched runs of the fix (36928706097, 36928716010, 36928725392) and the
+run of the commit that added the baselines (36930457538) took the fast path
+in all 24 iterations, with 15 calls and 559 mutations each.
+
+| Runs                                                        | Slow iterations | `spawnToFirstCardMs.p50`  | load → card                   |
+| ----------------------------------------------------------- | --------------- | ------------------------- | ----------------------------- |
+| `master` and #1782, 2026-09-30 to 10-01 (8 runs, see above) | 29 of 40        | 1,478-1,613 ms (one 760)  | ~940 ms slow, 280-500 ms fast |
+| this fix (4 runs)                                           | 0 of 20         | 988, 1,139, 923, 1,205 ms | 360-515 ms                    |
+
+The eight earlier runs are `master` 36768881838, 36814964563, 36842198653,
+36861129953, 36861409057 and 36915979562, and #1782's 36816552353 and
+36917107231. The runner's own speed moves `spawnToDidFinishLoadMs.p50` between 430 and
+710 ms from run to run, so compare load → card rather than absolute numbers.
+The one fast master run (36915979562, P50 760 ms) had a fast runner and four
+fast iterations.
+
+The fix first merged (#1788) into #1782's branch after #1782 had already
+reached `master`, so it landed again on its own. Measured again on `master`
+at bc5a7fcbf, which by then carried the redesigned dashboard hero (#1792):
+three dispatched runs (37192092882, 37192097790, 37192103151) took the fast
+path in all 18 iterations, with 15 calls and 558 mutations each, 466-528 ms
+from load to the first card and `spawnToFirstCardMs.p50` 1,149, 1,122 and
+1,170 ms. `master` without the fix was still bimodal then: its last six push
+runs before 2738bc28a had 30 of 36 iterations on the slow path (18 calls,
+1,031-1,033 mutations, about 940 ms from load to the card).
+
 ### Summary schema
 
 ```json
@@ -543,9 +629,10 @@ PR that lowers it also lowers `spawnToFirstCardMs` (Principle 3).
 numbers so `tools/performance/check-journey-ratchet.mjs` can compare them with
 `tools/performance/journey-baselines.json`. The summary writer checks only
 that every measured iteration reports the same counter names with finite
-values, so a new counter needs no schema change. A J1 runtime baseline is added
-once its counter is deterministic on the CI runner; the launch counters are
-not yet (see [Ratchet](#ratchet)), so the summary is evidence only.
+values, so a new counter needs no schema change. A runtime baseline is added
+once its counter is deterministic on the CI runner; the enforced ones and the
+reasons for the others are under
+[Enforced journey counters](#enforced-journey-counters).
 
 J3 adds the `journeys.playback` entry with the same shape and no schema
 version change: `counters` and `wallClock` hold only plain numbers, and its
@@ -553,6 +640,13 @@ iterations carry `evidence.media` (the video element at `playing`) and
 `evidence.epochs.loadedMetadata` / `.playing`. The renderer probe blob gained
 a `media` field (`null` for J1 and J2), which the probe's
 `schemaVersion` 1 readers ignore.
+
+J4 adds the `journeys.search` entry, again with the same shape. Its
+iterations carry `evidence.perKeystroke` (one entry per typed key, see
+[J4](#j4-search-type-a-query-until-the-results-settle)), which the CI job
+summary prints as a table for the first measured iteration. J4 has its own
+renderer probe (`search-journey-probe.ts`, `schemaVersion` 1); the shared
+probe is unchanged.
 
 ## J2 `open-source`: open a source to a browsable list
 
@@ -634,7 +728,7 @@ strings and stream paths carry credentials and are never stored.
 | `renderer.ipcCallsToFirstPage`     | Bridge `start` trace events between the start and end sentinels, counted by a second `journey-main-ipc-capture.ts` instance installed with `startSentinelId`. Calls before the start marker are tallied separately (`callsBeforeStart`); a start marker that is missing, repeated or received after the end sentinel fails the iteration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `renderer.domMutationsToFirstPage` | `MutationRecord`s from the click until the terminal batch. Records produced before the click (hover, settling) are taken from the observer at the start and counted under `evidence.settle` instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `renderer.cdTicksToFirstPage`      | `ApplicationRef` ticks from the click until the terminal batch: the counter's running total read in the capture-phase click listener, before the app handles the click, subtracted from its value at the terminal batch (see [Change-detection ticks](#change-detection-ticks)). |
-| `renderer.layoutShiftScore`        | Sum of all `layout-shift` entries from the click until the post-paint cutoff, rounded to three decimals. Unlike J1 it includes entries with `hadRecentInput === true`: the journey is a response to the click and runs inside the 500 ms input window, so the CLS filter would always read 0. The split is under `evidence.layoutShift`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `renderer.layoutShiftScore`        | Sum of all `layout-shift` entries from the click until the post-paint cutoff, rounded to three decimals. Unlike J1 it includes entries with `hadRecentInput === true`: the journey is a response to the click and runs inside the 500 ms input window, so the CLS filter would always read 0. The split is under `evidence.layoutShift`, and `evidence.layoutShift.shifts` lists the first 20 counted shifts (`shiftCount` is the total) with their value, `hadRecentInput`, time since the click and the nodes that moved (`tag.class[data-test-id]` and their `deltaX`, `deltaY`, `deltaWidth` and `deltaHeight`, as J1's late shifts).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `renderer.longTasks`               | `longtask` entries over 50 ms whose time range overlaps the window from the click to the cutoff. The task that dispatches the click began before the event's timestamp and still counts; buffered J1 tasks that ended before the click are dropped. Evidence until it is shown to be stable on the CI runner, as for J1.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `main.mockHttpRequestsToSettled`   | Requests the proxy received from the click until, after the terminal batch, no new request had arrived for 1 s and none was in flight (a response slower than that, and what it triggers, stays inside the window). The window ends at the ledger position read by that accepted quiet sample; a request arriving after it was never seen in flight, so it goes to `evidence.httpRequestsAfterSettledByRoute` instead of the counter. The ledger is read 1 s after that sample, so that late traffic is actually observed. The window starts at the renderer's click stamp, the same boundary as every other J2 counter, not when Playwright began its actionability checks; the proxy stamps requests with the test process's wall clock, and both processes read the same host clock. Bounding by the terminal would compare the test process's clock with the renderer's, so the count up to the terminal epoch is evidence only (`evidence.httpRequestsToFirstPage`); `evidence.httpRequestsByRoute` names the requests. |
 
@@ -779,8 +873,168 @@ mutations come from the EPG timeline rendering about 240 programme blocks
 from the `get_simple_data_table` response before the first frame. Whether
 that response and its render land before `playing` is a race on a slower
 machine, so check the runner's `counterStability` before trusting the
-mutation and request counts. No J3 baseline exists yet; J3 counters join the
-ratchet once three runner runs agree.
+mutation and request counts. On the runner `renderer.httpRequestsToPlaying`
+and `renderer.layoutShiftScore` are enforced as guards; see
+[Enforced journey counters](#enforced-journey-counters).
+
+## J4 `search`: type a query until the results settle
+
+`search.journey.ts` follows J3: the profile is seeded once through the "Add
+playlist" dialogs (`seedLaunchJourneyProfile` with `SEARCH_JOURNEY_SEED`),
+every iteration copies it, spawns a fresh process through `runLaunchJourney`
+and hands the running app to `measureSearchJourney` in
+`src/journeys/search-journey-app.ts`. One warm-up and five measured
+iterations. Unlike J2 and J3 the launch runs with the main-process counters
+(`mainCounters: true`, so `IPTVNATOR_PERF_CAPTURE` and
+`IPTVNATOR_PERF_COUNT_SQL`), because SQL statements are a J4 counter; every
+statement then runs through the counting hook.
+
+**Profile.** J1's M3U source plus an Xtream portal ("Journey search portal")
+on the mock's existing `large:large` scenario: 60 categories of 200 items,
+so 4,000 live channels, 4,000 movies and 4,000 series. No fixture was added
+for the journey. The query is `system`, which matches 170 series titles of
+that deterministic catalog: more than global search's first page of 100, so
+the page is full and more results are available. Six characters take the
+title FTS path of `globalSearch`
+(`apps/electron-backend/src/app/database/operations/content.operations.ts`);
+the M3U arm runs as well, because live content is included, but none of the
+four fixture channels matches. Poster artwork points at `picsum.photos` and
+is cancelled in the main process as in J3
+(`src/performance/journey-external-artwork.ts`, shared by both journeys);
+the count is kept as `evidence.externalArtworkCancelled`. The mock is not
+put behind the request ledger: global search reads only the local database.
+
+**What typing does.** The header search box
+(`app-workspace-shell-header .search-field input[type="search"]`) applies
+its term after `SEARCH_INPUT_DEBOUNCE_MS` (350 ms,
+`WorkspaceShellSearchSyncService`) and writes it to the URL as `q`. On
+`/workspace/search` (`app.routes.ts`, Electron only) `SearchResultsComponent`
+adopts `q` and runs `executeSearch` after its own 300 ms debounce, which
+calls the `dbGlobalSearch` bridge method once with a limit of 101.
+
+**Start.** After J1 has ended, the test clicks the rail's **Global search**
+link and focuses the header search box (not measured), installs the IPC
+capture with a start sentinel, arms the probe
+(`src/performance/search-journey-probe.ts`) and waits until the app has
+been quiet for 1 s: no DOM mutation, no new or pending bridge call, and an
+unchanged `main.sqlStatements` total (30 s timeout, which fails the
+iteration). J1's capture is detached. The test then types the query with one
+`keyboard.type` call per character on a fixed schedule, 100 ms apart from
+the first key (well below the 350 ms debounce, as steady typing would be),
+and samples the main process just before each key. The probe's
+capture-phase `keydown` listener on `window` stamps every key in the search
+box before the app sees it; the first one starts the journey and sends
+`cancelSourceProbe('__iptvnator-journey-search-start__')`. The record
+rejects an iteration whose DOM mutations, bridge calls or SQL statements
+moved between the quiet snapshot and the first key.
+
+**End.** "No DOM mutation for 200 ms after the last keystroke" alone would
+end inside the 650 ms of debounce, before any query ran: nothing in the DOM
+changes while the term waits. So after the sixth key the probe waits for
+the results of the final term to be shown (the path ends with
+`/workspace/search`, the URL `q` is the query, no `.loading-state` is
+rendered and an `app-content-card` in the results container is visible). The
+mutation batch that first meets that condition opens a 200 ms quiet window,
+and every later batch restarts it. When the window elapses the journey has
+settled: the settled moment is the last mutation batch, the counters stop at
+the confirmation, and the probe sends
+`cancelSourceProbe('__iptvnator-journey-search-end__')`. Without a settle
+within 15 s of the last key the probe marks the iteration invalid
+(`settle-timeout`).
+
+The DOM alone cannot tell the final term's results from an earlier term's
+that are still shown while the final term debounces, so the main process
+also checks. A listener on the renderer-API trace channel stamps every
+`dbGlobalSearch` event on arrival, with the term and result length that the
+preload's summaries carry. The record requires that the last query started
+between the start and end sentinels is for the final term and completed
+before the end sentinel (`final-query-not-run`, `final-query-incomplete`).
+The final query's start shows the loading state, which keeps the quiet
+window closed until its results replace the old ones.
+`evidence.finalQuery` keeps its term, result length and duration. The
+record also rejects an iteration in which two keydowns were more than
+250 ms apart (`typing-cadence`; the gaps are `evidence.keyIntervalsMs`).
+At that point a late key on a busy machine could let the 350 ms debounce
+apply an intermediate term, which steady typing does not.
+
+A settle that times out fails the iteration with what the probe and the
+main process saw: the URL `q`, the input's value, the results view, the
+bridge calls, renderer console errors, the SQL totals before each key, and
+the traced `dbGlobalSearch` calls with their terms and result lengths.
+
+### Counters
+
+| Counter                            | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderer.ipcCallsPerSearch`       | Bridge `start` trace events between the start and end sentinels, as `renderer.ipcCallsToFirstPage` in J2. `evidence.ipcCallsByMethod` names them.                                                                                                                                                                                                                                                                                                                                              |
+| `renderer.sqlStatementsPerSearch`  | `main.sqlStatements` (main thread and database worker, see [Main-process counters](#main-process-counters)) read in the main process when the start sentinel and the end sentinel arrive (a listener on the trace channel calls the counters handler through the gate, which reads the registry synchronously), so the count covers exactly the IPC capture's window and never work just before the first key or after the settle. The worker reports its count before the response it belongs to, so the statements of a query are counted before its results reach the renderer. The two values are `evidence.sqlAtSentinels`; statements from the end sentinel until 500 ms after the test read the summary are kept as `evidence.sqlStatementsAfterSettled`. |
+| `renderer.ipcSerialDepthToResults` | `computeJourneyIpcSerialDepth` over the capture's timeline between the sentinels (see [Serial IPC depth](#serial-ipc-depth)); `evidence.ipcSerialDepth.chain` and `evidence.ipcTimeline` show the calls.                                                                                                                                                                                                                                                                                       |
+| `renderer.domMutationsToResults`   | `MutationRecord`s from the first keydown until the quiet window was confirmed (by definition none arrive inside it).                                                                                                                                                                                                                                                                                                                                                                           |
+| `renderer.cdTicksToResults`        | `ApplicationRef` ticks from the first keydown (read in the capture-phase listener, before the app handles the key) until the confirmation (see [Change-detection ticks](#change-detection-ticks)).                                                                                                                                                                                                                                                                                             |
+| `renderer.layoutShiftScore`        | All `layout-shift` entries from the first keydown until the confirmation, including `hadRecentInput` ones (typing is input, as in J2 and J3), rounded to three decimals; the split is under `evidence.layoutShift`.                                                                                                                                                                                                                                                                            |
+| `renderer.longTasks`               | `longtask` entries over 50 ms whose time range overlaps the window from the first keydown to the confirmation. Evidence until shown to be stable on the runner.                                                                                                                                                                                                                                                                                                                                |
+
+`evidence.perKeystroke` breaks the journey down by key: for each typed
+character, what happened from that key until the next one (the last entry:
+until the settle). `domMutations` and `cdTicks` are split at the renderer's
+keydown stamps. `ipcCalls`, `queryCalls` (`dbGlobalSearch` calls) and
+`sqlStatements` are differences of the main-process samples taken just
+before each key, so their boundaries sit a few milliseconds before the
+renderer's. A search with working debounce shows zeros for the first five
+keys and one query after the last; a search that queried on every key from
+the second character on would show a `dbGlobalSearch` call and its
+statements in each of those entries, even when a later key superseded the
+result.
+
+No counter is listed under `unavailable`. HTTP requests are not a J4
+counter: global search does not touch the network.
+
+### Wall-clock
+
+| Entry                                    | Derivation                                                                                                                               |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `firstKeystrokeToFirstResultMs.p50/.p90` | First mutation batch with a visible result card (for any term) minus the first keydown.                                                  |
+| `lastKeystrokeToSettledMs.p50/.p90`      | Settled moment (the last mutation batch before the 200 ms quiet window) minus the last keydown. The quiet window itself is not included. |
+
+Both are taken in the renderer. With the current debounces both include
+the 650 ms the term waits (350 ms in the shell, then 300 ms in the results
+component); the first also includes the 500 ms of typing.
+
+### First measurement
+
+Local, macOS, 2026-10-04, three full `perf:journeys` runs plus repeated J4
+runs. In the runs where J4 completed (the first and third full runs), every
+counter was identical in all ten measured iterations except one:
+`renderer.ipcCallsPerSearch` 1 (`dbGlobalSearch`),
+`renderer.sqlStatementsPerSearch` 2, `renderer.ipcSerialDepthToResults` 1,
+`renderer.domMutationsToResults` 402 (100 cards on the first page),
+`renderer.layoutShiftScore` 0 and `renderer.longTasks` 0.
+`renderer.cdTicksToResults` read 14 in all five iterations of the third run
+and 13, 18, 13, 15, 13 in the first, so check the runner's
+`counterStability` before trusting it. P50/P90
+`lastKeystrokeToSettledMs` 686/692 ms and `firstKeystrokeToFirstResultMs`
+1,178/1,184 ms in the third run (699/720 and 1,193/1,210 in the first).
+
+Per keystroke, the first five keys caused one change-detection tick each
+and nothing else: no bridge call, no SQL statement and no DOM mutation.
+All of the work followed the sixth key. Search therefore does not run a
+query per keystroke. The debounce does dominate the wall clock: about
+650 ms of the 686 ms from the last key to settled is the two stacked
+debounces (350 ms in the shell, then 300 ms in the results component). The
+query itself, from the bridge call to the rendered first page, takes the
+remaining 30-40 ms.
+
+About one launch in sixty showed the empty-results view: the single
+`dbGlobalSearch` call went out with the same arguments (`system`, all three
+types, hidden categories included, limit 101) and the main process answered
+with an empty array in about 20 ms, with no renderer error. The database
+was unchanged from passing launches (the same 119 statements before the
+first key, the usual 2 for the query, none afterwards), and every failure
+traced was the first launch after seeding. The journey fails such an
+iteration instead of measuring it, so a full run occasionally fails J4.
+The cause is in the app, not the harness, and is not fixed here. No J4
+baseline exists yet; J4 counters join the ratchet once three runner runs
+agree.
 
 ## `renderer.initialBytes`
 
@@ -811,6 +1065,17 @@ pnpm run perf:initial-bytes                      # human-readable breakdown
 pnpm --silent run perf:initial-bytes -- --json   # machine-readable; --silent keeps pnpm's headers out of stdout
 node tools/performance/measure-initial-bytes.mjs --summary dist/performance/journey-summary.json
 ```
+
+Development-only code must stay out of the counter by construction, not by a
+runtime flag: `if (!AppConfig.production)` keeps the imported module in
+`main.js` because the optimizer does not fold the property read. The NgRx
+store devtools therefore come from
+`apps/web/src/environments/store-devtools.providers.ts`, an empty list in
+every build, which only the `development`, `electron-e2e` and
+`electron-e2e-zoneless` configurations replace with
+`store-devtools.providers.dev.ts`; a build-config test in
+`performance-build-config.spec.ts` keeps it that way. Removing the static
+import lowered the counter by 12,565 bytes.
 
 `--summary` writes the journey summary shape (`journeys.<journey>.counters`)
 that the ratchet checker consumes. `--dist <dir>` points the script at another
@@ -858,7 +1123,10 @@ that file:
 - a measurement below its baseline passes and prints a "tighten" hint;
 - a measured counter without a baseline is noted, not failed;
 - checking nothing fails: an empty baselines file, or `--only` naming an
-  entry that does not exist, cannot exit 0.
+  entry that does not exist, cannot exit 0;
+- an optional `note` (a string) is printed with the entry's failure; journey
+  entries use it to mark a guard that is not validated against wall-clock
+  (see [Enforced journey counters](#enforced-journey-counters)).
 
 `--only <journey>/<counter>` (repeatable) restricts the check to the named
 baselines. A script that measures one counter writes its own summary file
@@ -956,25 +1224,85 @@ Pushes to `master` and manual dispatches always run it. The job is warn-only (`c
 weeks (plan item B3): a regression marks the job failed without failing the
 workflow. Making it required is a maintainer decision.
 
-No J1 runtime counter is enforced yet. Three dispatched runs on 2026-09-27
-(CI runs 36271875209, 36271879955 and 36271884616) reported the same summary
-values, `renderer.ipcCallsToFirstCard` 16 and
-`renderer.domMutationsToFirstCard` 939, but the third run marked both
-`stable: false`: its warm-up and one measured iteration reached the first
-card in about 750 ms with 13 bridge calls and 576 mutations, the others in
-about 1,400 ms with 16 and 939. The three extra calls
-(`downloadsGetDefaultFolder` and two `dbGetGlobalRecentlyAdded`) land before
-or after the first card depending on that race, so neither counter is
-promoted until the race is understood and the counters are deterministic.
-`renderer.layoutShiftScore` (0) and `renderer.longTasks` (2) were identical
-in all eighteen runner iterations; the `spawnToFirstCardMs` P50 ranged from
-1,401 to 1,674 ms. All four stay evidence for now. Runner counters also
-differ from a Mac (12 and 571 there, the fast path without the Linux-only
-`getWindowState` call), so take J1 baseline values from the runner only.
-`renderer.layoutShiftScoreSettled` has no baseline either: the runner read
-it as `stable: false` because the dashboard hero flicker it reported was a
-race there (see [Settle window](#settle-window)). That flicker is fixed; add
-the runner's number once runner runs read it as `stable` too.
+After the `Run the performance journeys` step, the job runs
+`check-journey-ratchet.mjs --only …` on the summary that step wrote, for the
+journey entries of `journey-baselines.json` (every entry except
+`renderer.initialBytes`, which the `Initial bytes ratchet` job checks). A
+`performance-tools` test keeps that `--only` list equal to those entries, so
+a baseline cannot be added without being enforced. The step is in the job,
+not in the composite action, so the weekly tightening still measures a run
+that would fail it. While the job is warn-only, a regression fails the job
+and not the workflow.
+
+#### Enforced journey counters
+
+Two J1 entries are validated (Principle 3) and carry no note:
+`launch/renderer.ipcCallsToFirstCard` 15 and
+`launch/renderer.domMutationsToFirstCard` 558 (#1828, `evidenceRun`
+37192092882). #1828 removed the launch race (the window shown at
+`did-finish-load`, see [When the window is shown](#when-the-window-is-shown)):
+three dispatched runs on `master` read 15 / 558 in all 18 iterations, and
+load to the first card went from about 940 ms to 466-528 ms. Slow-path
+summaries (18 / 1,018 or more) fail the check.
+
+A counter is enforced once it was identical in every measured iteration of
+every recent `master` run. The other entries were identical in all 55
+measured iterations of the 11 `master` runs from 2026-10-03 08:25 to
+2026-10-04 06:55 (CI runs 37109621784 to 37184230956), with `slack` 0:
+
+| Entry                                        | Value | Week (69 runs since 2026-09-27)                                           |
+| -------------------------------------------- | ----- | ------------------------------------------------------------------------- |
+| `launch/main.modulesRegisteredBeforeWindow`  | 2     | identical                                                                 |
+| `launch/renderer.layoutShiftScore`           | 0     | identical                                                                 |
+| `launch/renderer.layoutShiftScoreSettled`    | 0     | 0.235 in some iterations of 8 runs up to 2026-10-02 (hero flicker, #1782) |
+| `open-source/main.mockHttpRequestsToSettled` | 1     | identical                                                                 |
+| `open-source/renderer.ipcCallsToFirstPage`   | 17    | identical                                                                 |
+| `open-source/renderer.layoutShiftScore`      | 0.233 | 0.221, then 0.222; 0.233 since #1814, never mixed within a run            |
+| `playback/renderer.httpRequestsToPlaying`    | 2     | identical                                                                 |
+| `playback/renderer.layoutShiftScore`         | 0.001 | identical                                                                 |
+
+`open-source/renderer.layoutShiftScore` read 0.222 in that window and 0.233
+in every iteration of every `master` run from 84aef83a6 (#1814, page Back
+buttons moved into the header) on, so its value is 0.233 with `evidenceRun`
+37372780064 (b78224376). The 0.011 that #1814 added is not explained yet;
+lowering it back is a separate change.
+
+Being deterministic is not the same as being validated. Principle 3 of the
+plan promotes a counter to a guardrail once a PR has shown that lowering it
+lowered the journey's wall-clock. None of these counters has that evidence
+yet: `main.modulesRegisteredBeforeWindow` waits for the deferred IPC
+registration (plan item C4), the layout-shift scores measure visual
+stability rather than time, and no PR has moved a J2 or J3 counter. Each
+entry therefore carries
+`"note": "guard only, not validated: …"`. A guard stops a regression of a
+deterministic number, and the checker prints the note with a failure; it
+says nothing about whether lowering that number makes the journey faster.
+When a PR shows that link, it drops the note and names the evidence in
+`evidencePr`. `renderer.initialBytes` predates the note and carries none;
+this document records no wall-clock change for it either.
+
+Not enforced, with the reason:
+
+- J1 `renderer.ipcSerialDepthToFirstCard` (6): bimodal on `master` until
+  #1828 (9 or 6) and identical in its three dispatched runs; a candidate
+  once `master` runs agree.
+- J1 `main.sqlStatementsBeforeReadyToShow`: 93 or 95 even without the launch
+  race, because the download and recording recovery races `ready-to-show`
+  (plan item A2).
+- Every `renderer.longTasks` (J1 2 or 1, J2 0 with one 1 earlier in the
+  week, J3 1 or 2): a long task is a task over 50 ms, so the count follows
+  runner speed, not work.
+- Every `cdTicks` counter: the zoneless migration (plan item C6) changes
+  them.
+- J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
+  recent commits.
+- J3 `renderer.ipcCallsToPlaying` (4 or 5) and
+  `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199): not identical,
+  and the EPG rendering work changes the mutation count.
+- J4: not measured yet.
+
+Runner counters differ from a Mac (the Linux-only `getWindowState` call, for
+one), so take every journey baseline value from the runner only.
 
 ### Weekly tightening
 
@@ -999,7 +1327,11 @@ its job; its entries are then unmeasured in that run. A final job runs
   `check-baseline-direction.mjs` without `--allow-increase`, which both the
   script and the job check;
 - a lowered entry gets `updatedAt`, `measuredWith` and `evidenceRun` (the
-  workflow run URL); `evidencePr` is set to the tightening PR once it exists.
+  workflow run URL); `evidencePr` is set to the tightening PR once it exists;
+  every other field, including a `note`, is kept, so a guard stays marked as
+  not validated after it is lowered;
+- a counter already at 0 is never lowered; a layout-shift score is lowered
+  to the three-decimal value the summary reports.
 
 When the file changed and the run is on `master`, the job pushes
 `automation/performance-ratchet` and opens (or updates) a pull request with
@@ -1018,8 +1350,10 @@ dispatches workflows that exist on the default branch, so before the first
 merge of a new or renamed workflow add a temporary `push` trigger for the
 branch and drop it before review, as #1760 did. Review the pull request like a manual
 tightening: if `master` moved since the measured commit, the
-`Initial bytes ratchet` job on the pull request is what shows that the new
-value still holds (the concurrent-merge effect above).
+`Initial bytes ratchet` job (for `renderer.initialBytes`) and the
+`Performance journeys` job (for the journey counters) on the pull request
+are what show that the new values still hold (the concurrent-merge effect
+above).
 
 ## Charset parse benchmark
 
@@ -1066,7 +1400,13 @@ reports slow imports of non-Latin playlists.
 3. Cover the extraction and the failure modes with `node --test` and register
    the test file in `tools/performance/project.json`.
 4. Validate the counter before it becomes a guardrail: one PR must show that
-   lowering it moved wall-clock in the same journey.
+   lowering it moved wall-clock in the same journey. A counter that is
+   deterministic but not validated may be enforced as a guard: its baseline
+   entry carries a `note` saying so (see
+   [Enforced journey counters](#enforced-journey-counters)).
+5. A journey counter's baseline is enforced only when it is also in the
+   `--only` list of the `Performance journeys` job in `ci.yml`; the
+   `performance-tools` tests fail when the two differ.
 
 ## Adding a journey
 
@@ -1079,8 +1419,10 @@ reports slow imports of non-Latin playlists.
 2. Give the journey its own probe options (`cardSelector`,
    `companionSelectors`, `routeFragment`, `startClick` for a click start,
    `media` for a media-event end such as J3's `playing`) or extend
-   `journey-renderer-probe.ts` when the end condition is neither. Use a state
-   key and sentinel ids of its own. Keep the probe self-contained: Playwright
+   `journey-renderer-probe.ts` when the end condition is neither. A journey
+   whose start or end does not fit that probe gets a probe of its own, as
+   J4's typed start and quiet-window end do (`search-journey-probe.ts`). Use
+   a state key and sentinel ids of its own. Keep the probe self-contained: Playwright
    serializes it with `toString()`. A click-started journey settles with
    `waitForJourneyClickQuiet` from `journey-click-settle.ts`.
 3. Map the measurement to a `JourneyIterationRecord` in a

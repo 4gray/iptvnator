@@ -98,7 +98,7 @@ jobs:
                   fetch-depth: 0
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -140,7 +140,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -296,8 +296,8 @@ jobs:
         if: needs.performance-journeys-scope.outputs.run == 'true'
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
-        # (launch, open-source, playback) is six fresh Electron processes plus
-        # one seeding run.
+        # (launch, open-source, playback, search) is six fresh Electron
+        # processes plus one seeding run.
         timeout-minutes: 30
         # Warn-only for the first two weeks of plan item B3: a failure is
         # visible on the run but does not fail the workflow.
@@ -310,7 +310,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -324,7 +324,35 @@ jobs:
             # Electron dependency check, the xvfb run, the summary lookup and
             # the job-summary report; shared with performance-ratchet.yml.
             - name: Run the performance journeys
+              id: journeys
               uses: ./.github/actions/performance-journeys
+
+            # Only the counters identical in every measured iteration of
+            # recent master runs; their entries say whether a counter is
+            # validated against wall-clock or a guard only (see Ratchet in
+            # docs/architecture/performance-journeys.md). Here and not in the
+            # composite action, so the weekly tightening still measures a run
+            # that would fail it. tools/performance tests keep this list equal
+            # to the journey entries of journey-baselines.json. It also runs
+            # when a later step of the action (the job-summary report) failed
+            # after the summary was written, so the counters are still checked.
+            - name: Check the journey counters against the baselines
+              if: ${{ !cancelled() && steps.journeys.outputs.summary != '' }}
+              env:
+                  SUMMARY: ${{ steps.journeys.outputs.summary }}
+              run: >-
+                  node tools/performance/check-journey-ratchet.mjs
+                  --summary "$SUMMARY"
+                  --only launch/renderer.ipcCallsToFirstCard
+                  --only launch/renderer.domMutationsToFirstCard
+                  --only launch/main.modulesRegisteredBeforeWindow
+                  --only launch/renderer.layoutShiftScore
+                  --only launch/renderer.layoutShiftScoreSettled
+                  --only open-source/main.mockHttpRequestsToSettled
+                  --only open-source/renderer.ipcCallsToFirstPage
+                  --only open-source/renderer.layoutShiftScore
+                  --only playback/renderer.httpRequestsToPlaying
+                  --only playback/renderer.layoutShiftScore
 
             - name: Upload journey summaries
               if: always()
@@ -349,7 +377,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7

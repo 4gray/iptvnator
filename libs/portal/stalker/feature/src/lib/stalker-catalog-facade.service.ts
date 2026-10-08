@@ -27,6 +27,7 @@ import {
     resolvePortalWatchState,
 } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
 @Injectable()
 export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
@@ -52,6 +53,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     private positionsLoadGeneration = 0;
 
     readonly provider = 'stalker' as const;
+    readonly routeReady = inject(StalkerWorkspaceRouteSession).isReady;
     readonly contentType = this.stalkerStore.selectedContentType;
     readonly selectedCategory = this.stalkerStore.getSelectedCategory;
     readonly paginatedContent = computed(

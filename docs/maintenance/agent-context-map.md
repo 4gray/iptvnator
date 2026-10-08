@@ -15,6 +15,7 @@ are not prerequisites for reading repository contracts.
 | Angular conventions; docs and skills maintenance; local review before a pull request | [Agent workflow](../development/agent-workflow.md) | Use the area's skill below |
 | Unit, E2E, lint and coverage; `tools/coverage`, `tools/typecheck` | [Validation map](../architecture/validation-map.md) | Use the area's validation section |
 | Performance journeys, counters, benchmark probes and the CI ratchet; `apps/electron-backend-e2e/src/journeys`, `apps/electron-backend-e2e/src/performance`, `tools/performance` | [Performance journeys](../architecture/performance-journeys.md) | Read the contract directly |
+| Zoneless change detection, `ChangeDetectionStrategy.Eager` components, `NgZone` usage | [Zoneless migration](../architecture/zoneless-migration.md) | Read the checklist directly |
 | Electron entry/events/preload and CDP; `apps/electron-backend` | [Debugging and trace flags](../development/electron-debugging.md), [Electron security](../architecture/electron-security.md) | Use the available global electron skill for automation |
 | Releases, notes, screenshots, native assets, Linux manager metadata; `tools/release` | [Release pipeline](../architecture/release-pipeline.md), [note format](../../.changes/README.md) | [Release notes](../../.codex/skills/release-notes/SKILL.md), [release cut](../../.codex/skills/release-cut/SKILL.md) |
 

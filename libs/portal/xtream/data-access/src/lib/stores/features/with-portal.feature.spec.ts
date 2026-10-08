@@ -33,18 +33,30 @@ const SERVER_EPOCH = 1_788_723_000;
 
 const TestPortalStore = signalStore(withPortal());
 
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((resolvePromise) => {
+        resolve = resolvePromise;
+    });
+    return { promise, resolve };
+}
+
 describe('withPortal', () => {
     let store: InstanceType<typeof TestPortalStore>;
     let apiService: {
         getAccountInfo: jest.Mock;
     };
     let rememberServerTimezone: jest.Mock;
+    let getPlaylist: jest.Mock;
+    let createPlaylist: jest.Mock;
 
     beforeEach(() => {
         apiService = {
             getAccountInfo: jest.fn(),
         };
         rememberServerTimezone = jest.fn().mockResolvedValue(undefined);
+        getPlaylist = jest.fn();
+        createPlaylist = jest.fn().mockResolvedValue(undefined);
 
         TestBed.configureTestingModule({
             providers: [
@@ -56,7 +68,8 @@ describe('withPortal', () => {
                 {
                     provide: XTREAM_DATA_SOURCE,
                     useValue: {
-                        getPlaylist: jest.fn(),
+                        getPlaylist,
+                        createPlaylist,
                         rememberServerTimezone,
                     },
                 },
@@ -65,6 +78,103 @@ describe('withPortal', () => {
 
         store = TestBed.inject(TestPortalStore);
         store.setCurrentPlaylist(PLAYLIST);
+    });
+
+    describe('playlist loading', () => {
+        beforeEach(() => {
+            store.setPlaylistId(PLAYLIST.id);
+        });
+
+        it('refreshes the selected playlist from storage while its owner is unchanged', async () => {
+            const refreshed = { ...PLAYLIST, name: 'Renamed portal' };
+            getPlaylist.mockResolvedValue(refreshed);
+
+            await store.fetchPlaylist();
+
+            expect(store.currentPlaylist()).toEqual(refreshed);
+        });
+
+        it('ignores a playlist response after switching to another portal', async () => {
+            const answer = deferred<XtreamPlaylistData>();
+            getPlaylist.mockReturnValue(answer.promise);
+            const pending = store.fetchPlaylist();
+            const other = { ...PLAYLIST, id: 'playlist-2' };
+            store.setPlaylistId(other.id);
+            store.setCurrentPlaylist(other);
+
+            answer.resolve(PLAYLIST);
+            await pending;
+
+            expect(store.playlistId()).toBe(other.id);
+            expect(store.currentPlaylist()).toEqual(other);
+        });
+
+        it.each(['setCurrentPlaylist', 'updatePlaylist'] as const)(
+            'keeps same-id connection edits made with %s while a playlist load is pending',
+            async (updateMethod) => {
+                const answer = deferred<XtreamPlaylistData>();
+                getPlaylist.mockReturnValue(answer.promise);
+                const pending = store.fetchPlaylist();
+                const edited = {
+                    ...PLAYLIST,
+                    serverUrl: 'https://moved.example.com',
+                    userAgent: 'New player',
+                };
+                store[updateMethod](edited);
+
+                answer.resolve(PLAYLIST);
+                await pending;
+
+                expect(store.currentPlaylist()).toEqual(edited);
+            }
+        );
+
+        it('does not repopulate a reset portal from a pending playlist load', async () => {
+            const answer = deferred<XtreamPlaylistData>();
+            getPlaylist.mockReturnValue(answer.promise);
+            const pending = store.fetchPlaylist();
+            store.resetPortal();
+
+            answer.resolve(PLAYLIST);
+            await pending;
+
+            expect(store.playlistId()).toBeNull();
+            expect(store.currentPlaylist()).toBeNull();
+        });
+
+        it('keeps a newer refresh when two reads of the same playlist finish out of order', async () => {
+            const first = deferred<XtreamPlaylistData>();
+            const second = deferred<XtreamPlaylistData>();
+            getPlaylist
+                .mockReturnValueOnce(first.promise)
+                .mockReturnValueOnce(second.promise);
+            const firstPending = store.fetchPlaylist();
+            const secondPending = store.fetchPlaylist();
+            const refreshed = { ...PLAYLIST, name: 'Renamed portal' };
+            second.resolve(refreshed);
+            await secondPending;
+            first.resolve(PLAYLIST);
+            await firstPending;
+
+            expect(store.currentPlaylist()).toEqual(refreshed);
+        });
+
+        it('does not restore the old portal after pending playlist creation completes', async () => {
+            const creation = deferred<void>();
+            getPlaylist.mockResolvedValue(null);
+            createPlaylist.mockReturnValue(creation.promise);
+            const pending = store.fetchPlaylist();
+            await Promise.resolve();
+            expect(createPlaylist).toHaveBeenCalledWith(PLAYLIST);
+            const other = { ...PLAYLIST, id: 'playlist-2' };
+            store.setPlaylistId(other.id);
+            store.setCurrentPlaylist(other);
+
+            creation.resolve();
+            await pending;
+
+            expect(store.currentPlaylist()).toEqual(other);
+        });
     });
 
     function respondWith(serverInfo: Record<string, unknown> | undefined) {

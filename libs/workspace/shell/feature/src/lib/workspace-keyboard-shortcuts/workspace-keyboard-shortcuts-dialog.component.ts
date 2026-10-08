@@ -19,7 +19,7 @@ export interface WorkspaceKeyboardShortcutsDialogData {
     selector: 'app-workspace-keyboard-shortcuts-dialog',
     imports: [MatButtonModule, MatDialogModule, MatIconModule, TranslatePipe],
     templateUrl: './workspace-keyboard-shortcuts-dialog.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-keyboard-shortcuts-dialog.component.scss',
 })
 export class WorkspaceKeyboardShortcutsDialogComponent {

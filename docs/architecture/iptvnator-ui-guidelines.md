@@ -195,7 +195,10 @@ Page-level Back lives only in the workspace header's leading slot (see
 [Header Back](./workspace-shell.md#header-back)). A routed page, or the shell
 it renders in, registers it with `registerWorkspaceBack()` instead of drawing
 an arrow, so Back keeps one position and one look on every page and never
-floats over a scroll owner. Without a registration the header falls back to
+floats over a scroll owner. A page whose Back is history Back calls
+`WorkspaceBackNavigationService.back()` with its parent route rather than
+`Location.back()`, so Back still leads somewhere when the page opened the
+session. Without a registration the header falls back to
 browser history while an in-app previous page exists, and shows nothing
 otherwise. An arrow that returns within a menu, dialog or player panel is not
 page navigation and stays in that surface; an error state may repeat the
@@ -208,6 +211,20 @@ inputs, overlays, and resize handles—requires `app-region: no-drag`. The share
 directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
 The shared live-layout sidebar reserves 8 px at its right edge so the inward
 half of the 12 px resize handle cannot cover the channel scrollbar.
+
+## Resizable Sidebar Widths
+
+Workspace context panels and Favorites share one `sidebar-width` key (its
+legacy aliases map onto it) but have different limits. `ResizableDirective`
+renders the stored width clamped to the host's own limits and never writes
+that clamped value back: only a drag that changes the width persists, so a
+narrow sidebar such as Settings cannot shrink the width a wider one saved.
+
+A drag starts from the host's computed CSS `width`, the box that `style.width`
+sizes, not from `offsetWidth`. Hosts may be `content-box` (the workspace
+context panels and the Favorites sidebar) or `border-box` (live-layout and
+groups rails); starting from the border box widened a padded `content-box`
+host by its padding and border on the first move.
 
 ## Keyboard Scrolling and Channel Focus
 
@@ -382,6 +399,18 @@ remain local when the meaning is explicit.
   layouts keep the full EPG-only panel.
 - Keep the EPG content mounted while collapsed so current-program state can
   continue updating.
+- The ribbon renders only the blocks, ticks and day dividers within half a
+  viewport of the visible range (`TimelineWindowController` in
+  `epg-timeline-window.controller.ts`); the track keeps the full schedule's
+  width, so positions, the scrollbar and scroll-to-now are unchanged. A
+  channel's full schedule is often a few hundred programmes, and rendering
+  them all competed with the stream's first frame (J3 in
+  [performance journeys](performance-journeys.md#j3-playback-start-playback-to-the-first-frame)).
+  Tests and features must not assume an off-screen programme is in the DOM:
+  scroll the ribbon to it first. Keyboard access must keep working: focusing
+  a block scrolls it into view, which renders its neighbours before the next
+  Tab (`epg-timeline-interaction.e2e.ts` walks past the rendered range both
+  ways).
 
 ### Collapsible Live Sidebar
 

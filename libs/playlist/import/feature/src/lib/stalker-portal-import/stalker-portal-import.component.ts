@@ -28,6 +28,7 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     legacyTransformStalkerPortalUrl,
     normalizeStalkerPortalInputUrl,
+    parseStalkerDate,
     STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
     StalkerPortalDiscoveryService,
     normalizeStalkerPortalIdentity,
@@ -75,7 +76,7 @@ interface StalkerSettledIdentity {
     ],
     selector: 'app-stalker-portal-import',
     templateUrl: './stalker-portal-import.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {
@@ -462,10 +463,13 @@ export class StalkerPortalImportComponent {
                     };
                 }
 
-                if (stalkerAccountInfo?.expireDate) {
-                    const expireDate = new Date(
-                        stalkerAccountInfo.expireDate * 1000
-                    );
+                // The raw value may be a date string or an "unlimited"
+                // sentinel (-1, "0"), so read it like every other consumer.
+                const expiresAt = parseStalkerDate(
+                    stalkerAccountInfo?.expireDate
+                );
+                if (expiresAt) {
+                    const expireDate = new Date(expiresAt * 1000);
                     this.snackBar.open(
                         this.translate.instant(
                             'HOME.STALKER_PORTAL.VALIDATED_EXPIRES',

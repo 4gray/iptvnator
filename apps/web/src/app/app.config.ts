@@ -8,12 +8,7 @@ import {
     FullscreenOverlayContainer,
     OverlayContainer,
 } from '@angular/cdk/overlay';
-import {
-    ApplicationConfig,
-    inject,
-    importProvidersFrom,
-    provideZoneChangeDetection,
-} from '@angular/core';
+import { ApplicationConfig, inject, importProvidersFrom } from '@angular/core';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
@@ -21,7 +16,6 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { provideEffects } from '@ngrx/effects';
 import { provideRouterStore, routerReducer } from '@ngrx/router-store';
 import { provideStore } from '@ngrx/store';
-import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { PlaylistEffects, playlistReducer } from '@iptvnator/m3u-state';
@@ -38,7 +32,8 @@ import {
     DataService,
 } from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
-import { AppConfig } from '../environments/environment';
+import { changeDetectionProviders } from '../environments/change-detection.providers';
+import { storeDevtoolsProviders } from '../environments/store-devtools.providers';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
 import { ExternalPlaybackService } from './services/external-playback.service';
@@ -110,7 +105,7 @@ export function DataFactory() {
 
 export const appConfig: ApplicationConfig = {
     providers: [
-        provideZoneChangeDetection({ eventCoalescing: true }),
+        ...changeDetectionProviders,
         provideRouter(routes, withComponentInputBinding()),
         provideAnimations(),
         // CDK overlays (menus, tooltips, dialogs) live in a container under
@@ -126,7 +121,7 @@ export const appConfig: ApplicationConfig = {
         }),
         provideEffects([PlaylistEffects]),
         provideRouterStore(),
-        ...(AppConfig.production ? [] : [provideStoreDevtools({ maxAge: 25 })]),
+        ...storeDevtoolsProviders,
         provideServiceWorker('ngsw-worker.js', {
             enabled: shouldEnableServiceWorker(),
             registrationStrategy: 'registerWhenStable:30000',
