@@ -228,7 +228,8 @@ export class DashboardSeriesEpisodesService {
         const source = sourceOf(request);
         let seasons: Readonly<Record<string, XtreamSerieEpisode[]>> | null =
             null;
-        if (this.isTripped(source)) {
+        const skipped = this.isTripped(source);
+        if (skipped) {
             // The source failed its last lookups: asking for more series
             // would only repeat the answer.
             this.logger.debug('Skipped a series lookup on a failing source');
@@ -247,6 +248,7 @@ export class DashboardSeriesEpisodesService {
                 );
             }
         }
+        const now = Date.now();
         this.inFlight.delete(`${key}#${source}`);
         // The series was asked for from another source meanwhile.
         if (this.sources.get(key) !== source) {
@@ -256,7 +258,7 @@ export class DashboardSeriesEpisodesService {
         const followUp = this.followUps.get(key);
         this.followUps.delete(key);
         if (seasons) {
-            this.loadedAt.set(key, Date.now());
+            this.loadedAt.set(key, now);
             this.failedAt.delete(key);
             this.sourceFailures.delete(source);
             if (followUp) {
@@ -267,7 +269,13 @@ export class DashboardSeriesEpisodesService {
             );
             return;
         }
-        this.recordFailure(key, source);
+        if (skipped) {
+            // Due again with the source, whose cooldown a skip must not
+            // extend: a round after it could never reach a recovered portal.
+            this.failedAt.set(key, this.sourceFailures.get(source)?.at ?? now);
+        } else {
+            this.recordFailure(key, source);
+        }
         // A failed refresh keeps the list it had.
         if (this.entries().get(key)?.status !== 'loaded') {
             this.entries.update((entries) =>

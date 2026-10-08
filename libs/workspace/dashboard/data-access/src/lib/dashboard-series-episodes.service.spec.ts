@@ -196,6 +196,37 @@ describe('DashboardSeriesEpisodesService', () => {
             ]);
         });
 
+        it('lets a recovered source be asked again even when lookups were skipped meanwhile', async () => {
+            getSeriesInfo
+                .mockRejectedValueOnce(new Error('Portal is not responding'))
+                .mockRejectedValueOnce(new Error('Portal is not responding'));
+            service.request([1, 2].map(request), 1);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+
+            // A series becomes eligible while the source is left alone: it
+            // is skipped, and that must not push the source's cooldown out.
+            now += DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS * 0.8;
+            service.request([1, 2, 3].map(request), 2);
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(2);
+            expect(status(3)).toBe('failed');
+
+            // The portal is back: the next round after the delay asks for
+            // every series, the skipped one included.
+            now += DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS * 0.4;
+            getSeriesInfo.mockResolvedValue({ episodes: seasons(9) });
+            service.request([1, 2, 3].map(request), 3);
+            await flush();
+            await flush();
+            expect(getSeriesInfo).toHaveBeenCalledTimes(5);
+            expect([1, 2, 3].map(status)).toEqual([
+                'loaded',
+                'loaded',
+                'loaded',
+            ]);
+        });
+
         it('asks a source that stopped answering again at once with a corrected password', async () => {
             getSeriesInfo
                 .mockRejectedValueOnce(new Error('Wrong password'))
