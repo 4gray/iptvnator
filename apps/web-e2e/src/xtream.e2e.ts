@@ -663,9 +663,9 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
     await expect(seasonToggle).toContainText('Mark season as watched (8)');
     await closeSeriesMenu(page);
 
-    const episodeCards = page.locator('.episode-card');
+    const episodeCards = page.locator('.episode-item');
     await expect(episodeCards).toHaveCount(8, { timeout: 10_000 });
-    const watchedCards = page.locator('.episode-card--watched');
+    const watchedCards = page.locator('.episode-item--watched');
     await expect(watchedCards).toHaveCount(0);
 
     seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
@@ -680,7 +680,7 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
     await closeSeriesMenu(page);
     await expect(
         page.locator(
-            '[data-testid="episode-watched-toggle"].episode-card__watched-toggle--watched'
+            '[data-testid="episode-watched-toggle"].episode-item__watched-toggle--watched'
         )
     ).toHaveCount(8);
 
@@ -854,7 +854,7 @@ test('@xtream series watched toggle — marks every season from the header menu,
     await expect(page.locator('.season-tabs__done')).toHaveCount(3, {
         timeout: 15_000,
     });
-    await expect(page.locator('.episode-card--watched')).toHaveCount(8);
+    await expect(page.locator('.episode-item--watched')).toHaveCount(8);
 
     // The action now offers unwatch-all.
     seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
@@ -878,7 +878,7 @@ test('@xtream series watched toggle — marks every season from the header menu,
     await expect(page.locator('.season-tabs__done')).toHaveCount(0, {
         timeout: 15_000,
     });
-    await expect(page.locator('.episode-card--watched')).toHaveCount(0);
+    await expect(page.locator('.episode-item--watched')).toHaveCount(0);
     seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText('Mark series as watched (24)');
 });
@@ -999,11 +999,12 @@ for (const theme of ['light', 'dark']) {
         const favorite = shell
             .locator('[data-testid="series-favorite-toggle"]')
             .first();
-        const card = shell.locator('.episode-card').first();
-        // The card is flat; its visible edge is the artwork's hairline.
-        const artwork = card.locator('.episode-card__thumbnail');
+        // List is the default view: borderless rows whose visible edge is
+        // the thumbnail's hairline.
+        const row = shell.locator('.episode-list-item').first();
+        const rowArtwork = row.locator('.episode-item__thumb');
         const toggle = shell.locator('mat-button-toggle-group');
-        await expect(card).toBeVisible();
+        await expect(row).toBeVisible();
         await expect(shell.locator('.hero__content')).toHaveCSS('opacity', '1');
         await page.mouse.move(0, 0);
         // A subtle edge must survive compositing on the actual theme surface.
@@ -1011,7 +1012,7 @@ for (const theme of ['light', 'dark']) {
         await expect
             .poll(() => rasterizedBorderContrast(favorite))
             .toBeGreaterThan(1.1);
-        for (const surface of [artwork, toggle]) {
+        for (const surface of [rowArtwork, toggle]) {
             await expect
                 .poll(async () => (await surfaceContrast(surface)).border)
                 .toBeGreaterThan(1.15);
@@ -1021,41 +1022,47 @@ for (const theme of ['light', 'dark']) {
             .poll(async () => (await surfaceContrast(selected)).fill)
             .toBeGreaterThan(1.1);
         await shell.screenshot({
-            path: testInfo.outputPath(`series-grid-${theme}.png`),
+            path: testInfo.outputPath(`series-list-${theme}.png`),
             animations: 'disabled',
         });
-        await card.hover();
-        await expect
-            .poll(async () => (await surfaceContrast(artwork)).border)
-            .toBeGreaterThan(1.15);
+        // Hover reveals the reserved actions without moving the text.
+        const title = row.locator('.episode-item__title');
+        const before = await title.boundingBox();
+        await row.hover();
+        await expect(row.locator('.episode-item__actions')).toHaveCSS(
+            'opacity',
+            '1'
+        );
+        expect(await title.boundingBox()).toEqual(before);
+        await row.screenshot({
+            path: testInfo.outputPath(`series-row-hover-${theme}.png`),
+            animations: 'disabled',
+        });
         await page
-            .getByRole('radio', { name: 'List view', exact: true })
+            .getByRole('radio', { name: 'Grid view', exact: true })
             .click();
-        const row = shell.locator('.episode-list-item').first();
-        await expect(row).toBeVisible();
+        const card = shell.locator('.episode-card').first();
+        const artwork = card.locator('.episode-card__thumbnail');
+        await expect(card).toBeVisible();
         await page.mouse.move(0, 0);
         await expect
-            .poll(async () => (await surfaceContrast(row)).border)
+            .poll(async () => (await surfaceContrast(artwork)).border)
             .toBeGreaterThan(1.15);
         await expect
             .poll(async () => (await surfaceContrast(selected)).fill)
             .toBeGreaterThan(1.1);
         await shell.screenshot({
-            path: testInfo.outputPath(`series-list-${theme}.png`),
+            path: testInfo.outputPath(`series-grid-${theme}.png`),
             animations: 'disabled',
         });
-        await row.hover();
-        await expect
-            .poll(async () => (await surfaceContrast(row)).border)
-            .toBeGreaterThan(1.15);
         await page
-            .getByRole('radio', { name: 'List view', exact: true })
+            .getByRole('radio', { name: 'Grid view', exact: true })
             .focus();
-        await page.keyboard.press('ArrowLeft');
+        await page.keyboard.press('ArrowRight');
         await expect(
-            page.getByRole('radio', { name: 'Grid view', exact: true })
+            page.getByRole('radio', { name: 'List view', exact: true })
         ).toBeChecked();
-        await expect(card).toBeVisible();
+        await expect(row).toBeVisible();
     });
 
     test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({

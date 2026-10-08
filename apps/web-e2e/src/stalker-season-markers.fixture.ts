@@ -133,30 +133,30 @@ export async function verifyStalkerSeasonMarkers(
         );
         await expect(
             page.getByRole('heading', {
-                name: `1. Season ${season} premiere`,
+                name: `Season ${season} premiere`,
                 exact: true,
             })
         ).toBeVisible();
         await expect(page.getByTestId('season-description')).toContainText(
             `Season ${season} overview`
         );
-        await expect(page.locator('.episode-card')).toContainText(
+        await expect(page.locator('.episode-item')).toContainText(
             `Season ${season} episode plot`
         );
-        await expect(page.locator('.episode-card img')).toHaveAttribute(
+        await expect(page.locator('.episode-item img')).toHaveAttribute(
             'src',
             new RegExp(`/season-${season}\\.jpg$`)
         );
         await page.locator('[data-testid="series-more-menu"]').click();
         await page.locator('[data-test-id="toggle-season-watched"]').click();
-        await expect(page.locator('.episode-card--watched')).toHaveCount(1);
+        await expect(page.locator('.episode-item--watched')).toHaveCount(1);
         await page.getByRole('button', { name: 'Back', exact: true }).click();
     }
     await page.getByText(titles[0], { exact: true }).first().click();
     await expect(
         page.getByRole('tab', { name: 'Season 2', exact: true })
     ).toBeVisible();
-    await expect(page.locator('.episode-card--watched')).toHaveCount(1);
+    await expect(page.locator('.episode-item--watched')).toHaveCount(1);
     expect(seasonRequests).toEqual(expect.arrayContaining([2, 3]));
     expect(seasonRequests).not.toContain(1);
     expect(searchLanguages).toEqual(expect.arrayContaining(['en-US', 'ru-RU']));

@@ -251,38 +251,32 @@ export async function expectSeriesSurfacesInBothThemes(
                 )
             )
             .toBeGreaterThan(1.1);
-        // The flat card's visible edge is its artwork's hairline.
-        for (const selector of [
-            '.episode-card__thumbnail',
-            'mat-button-toggle-group',
-        ]) {
-            await expect
+        // Rows and cards are flat: their visible edge is the artwork's
+        // hairline. The list is the default view.
+        const edgeOf = (selector: string) =>
+            expect
                 .poll(
                     async () =>
                         (await surfaceContrast(shell.locator(selector).first()))
                             .border
                 )
                 .toBeGreaterThan(1.15);
-        }
-        await page
-            .getByRole('radio', { name: 'List view', exact: true })
-            .click();
-        await expect
-            .poll(
-                async () =>
-                    (
-                        await surfaceContrast(
-                            shell.locator('.episode-list-item').first()
-                        )
-                    ).border
-            )
-            .toBeGreaterThan(1.15);
+        await edgeOf('.episode-list-item .episode-item__thumb');
+        await edgeOf('mat-button-toggle-group');
         await shell.screenshot({
             path: testInfo.outputPath(`stalker-series-list-${theme}.png`),
             animations: 'disabled',
         });
         await page
             .getByRole('radio', { name: 'Grid view', exact: true })
+            .click();
+        await edgeOf('.episode-card .episode-item__thumb');
+        await shell.screenshot({
+            path: testInfo.outputPath(`stalker-series-grid-${theme}.png`),
+            animations: 'disabled',
+        });
+        await page
+            .getByRole('radio', { name: 'List view', exact: true })
             .click();
     }
 }
