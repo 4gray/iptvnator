@@ -1292,6 +1292,7 @@
         "SEASON_TAB": "الموسم {{number}}",
         "EPISODE_COUNT_ONE": "حلقة وحدة",
         "EPISODE_COUNT_OTHER": "{{count}} حلقات",
+        "EPISODES_WATCHED_COUNT": "{{count}} تشافو",
         "BACK_TO_PLAYING_EPISODE": "رجوع للحلقة اللي كتشغل",
         "GRID_VIEW": "عرض الشبكة",
         "LIST_VIEW": "عرض اللائحة",

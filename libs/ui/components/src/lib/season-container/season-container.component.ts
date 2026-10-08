@@ -28,6 +28,7 @@ import {
     XtreamSerieEpisode,
     XtreamSerieEpisodeInfo,
 } from '@iptvnator/shared/interfaces';
+import { DetailSectionHeaderComponent } from '../detail-ui/detail-section-header.component';
 import { ExpandableTextComponent } from '../expandable-text/expandable-text.component';
 import {
     EPISODE_INFO_PLAY,
@@ -63,6 +64,7 @@ export type EpisodeViewMode = 'grid' | 'list';
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [SeasonDownloadPresenter, SeasonWatchPresenter],
     imports: [
+        DetailSectionHeaderComponent,
         ExpandableTextComponent,
         MatButtonModule,
         MatButtonToggleModule,

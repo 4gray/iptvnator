@@ -125,17 +125,33 @@
     animation: shell-fade-in 250ms ease 100ms both;
 }
 
+// Section rhythm: 56px between sections (Episodes → Cast & crew → Similar)
+// and after the last one, 16px between a section's header and its content
+// (app-detail-section-header).
 .shell__extras {
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
     max-width: var(--content-max-width);
     margin: 0 auto;
-    padding: 8px 32px 40px;
+    padding: 0 32px 56px;
 
     &:empty {
         display: none;
     }
+
+    // The hosts project one wrapper with their rails; a rail without items
+    // renders nothing and must not leave a 56px hole.
+    ::ng-deep > [detail-extras] {
+        display: flex;
+        flex-direction: column;
+        gap: 56px;
+
+        > :empty {
+            display: none;
+        }
+    }
+}
+
+.shell__episodes:not(:empty) ~ .shell__extras {
+    margin-top: 56px;
 }
 
 @keyframes shell-fade-in {
@@ -159,7 +175,7 @@
     }
 
     .shell__extras {
-        padding: 0 20px 32px;
+        padding: 0 20px 40px;
     }
 }
 

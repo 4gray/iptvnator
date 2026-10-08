@@ -1292,6 +1292,7 @@
         "SEASON_TAB": "Stagione {{number}}",
         "EPISODE_COUNT_ONE": "1 episodio",
         "EPISODE_COUNT_OTHER": "{{count}} episodi",
+        "EPISODES_WATCHED_COUNT": "{{count}} visti",
         "BACK_TO_PLAYING_EPISODE": "Torna all'episodio in riproduzione",
         "GRID_VIEW": "Vista griglia",
         "LIST_VIEW": "Vista elenco",

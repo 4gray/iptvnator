@@ -1292,6 +1292,7 @@
         "SEASON_TAB": "{{number}}. évad",
         "EPISODE_COUNT_ONE": "1 epizód",
         "EPISODE_COUNT_OTHER": "{{count}} epizód",
+        "EPISODES_WATCHED_COUNT": "{{count}} megnézve",
         "BACK_TO_PLAYING_EPISODE": "Vissza a lejátszás alatt álló epizódhoz",
         "GRID_VIEW": "Rácsnézet",
         "LIST_VIEW": "Listanézet",

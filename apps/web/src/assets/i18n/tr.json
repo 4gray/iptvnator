@@ -1292,6 +1292,7 @@
         "SEASON_TAB": "{{number}}. Sezon",
         "EPISODE_COUNT_ONE": "1 bölüm",
         "EPISODE_COUNT_OTHER": "{{count}} bölüm",
+        "EPISODES_WATCHED_COUNT": "{{count}} izlendi",
         "BACK_TO_PLAYING_EPISODE": "Oynatılan bölüme dön",
         "GRID_VIEW": "Izgara görünümü",
         "LIST_VIEW": "Liste görünümü",

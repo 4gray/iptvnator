@@ -1,12 +1,30 @@
 <section class="seasons-section">
-    <!-- "Episodes · Season 1 · Season 2 · 8 episodes": the season pills sit
-         in the header; season and series actions live in the hero's menu. -->
-    <header class="episodes-header">
-        <h3 class="episodes-header__title" data-test-id="episodes-heading">
-            {{ 'PORTALS.DETAIL.EPISODES' | translate }}
-        </h3>
+    <!-- "Episodes · Season 1 · 8 episodes · 3 watched": the season picker
+         sits in the shared section header; season and series actions live
+         in the hero's menu. -->
+    @let episodeCount = selectedSeasonEpisodes().length;
+    @let watchedCount = watchedCounts()[selectedSeason() ?? ''] ?? 0;
+    <app-detail-section-header
+        class="episodes-header"
+        titleTestId="episodes-heading"
+        [title]="'PORTALS.DETAIL.EPISODES' | translate"
+        [count]="
+            !hasSeasons() || !episodeCount
+                ? null
+                : ((episodeCount === 1
+                      ? 'PORTALS.EPISODE_COUNT_ONE'
+                      : 'PORTALS.EPISODE_COUNT_OTHER'
+                  ) | translate: { count: episodeCount }) +
+                  (watchedCount
+                      ? ' · ' +
+                        ('PORTALS.EPISODES_WATCHED_COUNT'
+                            | translate: { count: watchedCount })
+                      : '')
+        "
+    >
         @if (hasSeasons()) {
             <app-season-tabs
+                section-header-lead
                 class="episodes-header__tabs"
                 [seasonKeys]="sortedSeasonKeys()"
                 [selectedSeason]="selectedSeason()"
@@ -17,19 +35,9 @@
                 (seasonSelected)="selectSeason($event)"
                 (backToPlayingRequested)="scrollToPlayingEpisode()"
             />
-            @if (selectedSeasonEpisodes().length; as count) {
-                <span class="episodes-header__count">
-                    {{
-                        (count === 1
-                            ? 'PORTALS.EPISODE_COUNT_ONE'
-                            : 'PORTALS.EPISODE_COUNT_OTHER'
-                        ) | translate: { count }
-                    }}
-                </span>
-            }
         }
         @if (hasSeasons() && !showSeasonEmptyState()) {
-            <div class="view-toggle">
+            <div class="view-toggle" section-header-end>
                 <mat-button-toggle-group
                     [value]="viewMode()"
                     (change)="setViewMode($event.value)"
@@ -52,7 +60,7 @@
                 </mat-button-toggle-group>
             </div>
         }
-    </header>
+    </app-detail-section-header>
 
     @if (
         hasSeasons() &&

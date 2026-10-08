@@ -1292,6 +1292,7 @@
         "SEASON_TAB": "Сезон {{number}}",
         "EPISODE_COUNT_ONE": "1 эпизод",
         "EPISODE_COUNT_OTHER": "{{count}} эпизодов",
+        "EPISODES_WATCHED_COUNT": "{{count}} просмотрено",
         "BACK_TO_PLAYING_EPISODE": "Вернуться к воспроизводимому эпизоду",
         "GRID_VIEW": "Вид сеткой",
         "LIST_VIEW": "Вид списком",

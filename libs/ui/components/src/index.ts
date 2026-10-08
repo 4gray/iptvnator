@@ -41,6 +41,7 @@ export * from './lib/detail-ui/detail-credits.component';
 export * from './lib/detail-ui/detail-icon-button.component';
 export * from './lib/detail-ui/detail-action-button.component';
 export * from './lib/detail-ui/detail-rail.component';
+export * from './lib/detail-ui/detail-section-header.component';
 export * from './lib/detail-ui/meta-chip.component';
 export * from './lib/detail-ui/similar-rail.component';
 export * from './lib/detail-ui/trailer-dialog.component';

@@ -1292,6 +1292,7 @@
         "SEASON_TAB": "الموسم {{number}}",
         "EPISODE_COUNT_ONE": "حلقة واحدة",
         "EPISODE_COUNT_OTHER": "{{count}} حلقات",
+        "EPISODES_WATCHED_COUNT": "{{count}} تمت مشاهدتها",
         "BACK_TO_PLAYING_EPISODE": "العودة إلى الحلقة قيد التشغيل",
         "GRID_VIEW": "عرض شبكي",
         "LIST_VIEW": "عرض قائمة",
