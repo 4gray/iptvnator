@@ -18,32 +18,63 @@ type CompositedLayer = {
     width: number;
 };
 
-/** The composited layers of the page after the next two frames. */
+type CompositedLayerWithReasons = CompositedLayer & {
+    /** `LayerTree.compositingReasons` ids, e.g. `BackdropFilter`. */
+    reasons: string[];
+};
+
+/**
+ * The composited layers of the page with their compositing reasons. Blink
+ * fills the layer debug info (reasons, owner nodes) in its first
+ * layerization after the domain is enabled, so the snapshot is retried
+ * until a layer reports a reason.
+ */
 async function compositedLayers(
     cdp: CDPSession,
     page: Page
-): Promise<CompositedLayer[]> {
+): Promise<CompositedLayerWithReasons[]> {
     let layers: CompositedLayer[] = [];
     const onChange = (event: { layers?: CompositedLayer[] }) => {
         layers = event.layers ?? [];
     };
     cdp.on('LayerTree.layerTreeDidChange', onChange);
-    try {
-        await cdp.send('LayerTree.enable');
+    let withReasons: CompositedLayerWithReasons[] = [];
+    const snapshot = async () => {
         await page.evaluate(
             () =>
                 new Promise((resolve) =>
-                    requestAnimationFrame(() =>
-                        requestAnimationFrame(resolve)
-                    )
+                    requestAnimationFrame(() => requestAnimationFrame(resolve))
                 )
         );
-        await expect.poll(() => layers.length).toBeGreaterThan(0);
+        const result: CompositedLayerWithReasons[] = [];
+        for (const layer of layers) {
+            let reasons: string[] = [];
+            try {
+                const answer = (await cdp.send('LayerTree.compositingReasons', {
+                    layerId: layer.layerId,
+                })) as { compositingReasonIds?: string[] };
+                reasons = answer.compositingReasonIds ?? [];
+            } catch {
+                // The layer went away between the snapshot and the query.
+            }
+            result.push({ ...layer, reasons });
+        }
+        return result;
+    };
+    try {
+        await cdp.send('LayerTree.enable');
+        await expect
+            .poll(async () => {
+                withReasons = await snapshot();
+                return withReasons.filter((layer) => layer.reasons.length > 0)
+                    .length;
+            })
+            .toBeGreaterThan(0);
         await cdp.send('LayerTree.disable');
     } finally {
         cdp.off('LayerTree.layerTreeDidChange', onChange);
     }
-    return layers;
+    return withReasons;
 }
 
 test.describe('Dashboard compositing', () => {
@@ -53,9 +84,15 @@ test.describe('Dashboard compositing', () => {
     // the size of the whole content area: ~24 MB of tile memory each at 2x,
     // a dozen on the dashboard, which took the renderer past Chromium's tile
     // budget ("tile memory limits exceeded") and left blank tiles while
-    // scrolling. The corner is painted instead. Mask layers have no DOM node,
-    // so a drawing layer without one that spans half the content area is
-    // one of them.
+    // scrolling. The corner is painted instead. A mask layer is synthesized,
+    // not painted for an element: it has no owner node and no compositing
+    // reason, unlike every content layer (a content layer's owner node can
+    // also be missing when its first paint chunk belongs to an anonymous
+    // box, so the node alone does not identify a mask). Blink synthesizes
+    // them while layerizing, before any GPU work: under `--disable-gpu` (the
+    // Linux CI launch, software compositing and raster) the controls are
+    // still composited and the old radius still produced seven masks, so the
+    // check guards the same path everywhere.
     test('does not synthesize content-area-sized clip masks for the composited rail and hero controls', async ({
         dataDir,
         request,
@@ -91,16 +128,26 @@ test.describe('Dashboard compositing', () => {
             const layers = await compositedLayers(cdp, page);
             await cdp.detach();
 
+            // The effects really are composited here: without this the
+            // mask check below would pass on a page with nothing to clip.
+            expect(
+                layers.filter((layer) =>
+                    layer.reasons.includes('BackdropFilter')
+                ).length
+            ).toBeGreaterThan(0);
+
             const contentArea = content.width * content.height;
             const clipMasks = layers.filter(
                 (layer) =>
                     layer.drawsContent &&
                     !layer.backendNodeId &&
+                    layer.reasons.length === 0 &&
                     layer.width * layer.height >= contentArea / 2
             );
             expect(
                 clipMasks.map(
-                    (layer) => `${layer.layerId}: ${layer.width}x${layer.height}`
+                    (layer) =>
+                        `${layer.layerId}: ${layer.width}x${layer.height}`
                 )
             ).toEqual([]);
         } finally {

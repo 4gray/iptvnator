@@ -122,7 +122,10 @@ mask is the size of the whole clipped area, about 24 MB of tile memory at 2x
 on a 16" display. A dozen of them took the dashboard past Chromium's 512 MB
 tile budget (`tile memory limits exceeded`, blank tiles while scrolling).
 `apps/electron-backend-e2e/src/dashboard-compositing.e2e.ts` guards it: no
-element-less drawing layer may span half the content area.
+drawing layer without an owner node and without a compositing reason (a
+synthesized mask, unlike any content layer) may span half the content area,
+and the backdrop-filtered controls must really be composited, so the check
+cannot pass on a page with nothing to clip.
 
 `WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
 kept as a thin template-facing API and delegates ownership to component-scoped
