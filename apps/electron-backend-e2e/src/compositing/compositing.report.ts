@@ -151,6 +151,10 @@ test('compositing report', async ({ dataDir, request }) => {
 
     try {
         await routeDeterministicArtwork(page);
+        // The same motion on every machine: with the OS set to reduced
+        // motion the hero neither rotates nor renders its pause button, and
+        // the crossfade reading would measure a different animation set.
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
         await setWindowContentSize(app);
         await sleep(500);
         const cdp = await app.electronApp.context().newCDPSession(page);
