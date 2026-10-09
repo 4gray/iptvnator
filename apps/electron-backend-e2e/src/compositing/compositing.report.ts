@@ -60,6 +60,8 @@ import {
  */
 const WINDOW = { height: 1000, width: 1600 };
 const LARGEST_LAYERS = 8;
+/** The hero backdrop's zoom transition (`transform 8s` in its stylesheet). */
+const HERO_ZOOM_MS = 8_000;
 const TILE_WARNING = /tile memory limits exceeded/;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -83,8 +85,7 @@ async function readGpuCompositing(app: LaunchedElectronApp): Promise<string> {
 async function readRoute(
     cdp: CDPSession,
     page: Page,
-    route: string,
-    tileWarnings: number
+    route: string
 ): Promise<CompositingRouteReading> {
     const area = await measureContentArea(page);
     const layers = await collectCompositedLayers(cdp, page);
@@ -117,7 +118,7 @@ async function readRoute(
         route,
         tileMB: memory.tileMB,
         tileResources: memory.resourceCount,
-        tileWarnings,
+        tileWarnings: 0,
         totalLayers: layers.length,
         url: new URL(page.url()).pathname.replace(/^.*\/dist\/apps\/web/, ''),
     };
@@ -156,13 +157,13 @@ test('compositing report', async ({ dataDir, request }) => {
         let warningsAtLastReading = 0;
         const measure = async (route: string, settleMs: number) => {
             await sleep(settleMs);
-            const reading = await readRoute(
-                cdp,
-                page,
-                route,
-                tileWarnings - warningsAtLastReading
-            );
-            warningsAtLastReading = tileWarnings;
+            const reading = await readRoute(cdp, page, route);
+            // One boundary for the delta and the checkpoint, taken after the
+            // sampling: a warning logged while the layers or the dump were
+            // read belongs to this route, not to no route.
+            const warningsNow = tileWarnings;
+            reading.tileWarnings = warningsNow - warningsAtLastReading;
+            warningsAtLastReading = warningsNow;
             routes.push(reading);
             console.log(
                 `[compositing] ${route}: tile ${reading.tileMB ?? '-'} MB, ${reading.drawingLayers}/${reading.totalLayers} layers, ${reading.clipMasks.length} masks, ${reading.tileWarnings} warnings`
@@ -204,14 +205,21 @@ test('compositing report', async ({ dataDir, request }) => {
                 timeout: 20_000,
             })
             .toBeGreaterThanOrEqual(2);
-        // Off the hero (hovering pauses it) and past the first slide's zoom.
+        // Idle means no motion: rotation paused (it would advance after 8 s,
+        // into another slide's zoom), the current slide's zoom finished and
+        // the tile pool settled. The pointer stays off the hero.
+        const pause = page.getByTestId('dashboard-hero-pause');
+        await pause.click();
+        await expect(pause).toHaveAttribute('aria-pressed', 'true');
         await page.mouse.move(1, 1);
-        await measure('dashboard', 9_000);
+        await measure('dashboard', HERO_ZOOM_MS + TILE_POOL_SETTLE_MS);
 
         const dots = page.getByTestId('dashboard-hero-dot');
         const active = await dots.evaluateAll((all) =>
             all.findIndex((dot) => dot.getAttribute('aria-current') === 'true')
         );
+        // Deliberately mid-motion: the outgoing and incoming slides are
+        // both composited while the crossfade and the zoom run.
         await dots.nth((active + 1) % (await dots.count())).click();
         await page.mouse.move(1, 1);
         await measure('dashboard-crossfade', 0);

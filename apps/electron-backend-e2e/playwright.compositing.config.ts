@@ -14,6 +14,7 @@ process.env['XTREAM_MOCK_PORT'] = xtreamMockPort;
 
 export default defineConfig({
     fullyParallel: false,
+    outputDir: '../../dist/test-results/electron-backend-e2e/compositing',
     reporter: [['list']],
     retries: 0,
     testDir: './src/compositing',
