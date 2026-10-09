@@ -119,7 +119,9 @@ async function showSlide(page: Page, index: number): Promise<Locator> {
             page.evaluate(() =>
                 [
                     document.querySelector('.hero__backdrop--active'),
-                    document.querySelector('.hero__content'),
+                    document.querySelector(
+                        '[data-test-id=dashboard-hero-slide]'
+                    ),
                 ].every(
                     (element) =>
                         element &&
@@ -135,9 +137,16 @@ async function showSlide(page: Page, index: number): Promise<Locator> {
     return page.getByTestId('dashboard-hero-slide');
 }
 
-/** Sum of non-input layout shifts while the hero runs through every slide
- * on its own, at a shortened interval. */
-async function rotationLayoutShift(page: Page): Promise<number> {
+interface RotationShift {
+    /** Sum of the non-input layout-shift scores. */
+    score: number;
+    /** What moved and by how much, e.g. `LIB-DASHBOARD-RAIL 0,7`. */
+    sources: string[];
+}
+
+/** Non-input layout shifts while the hero runs through every slide on its
+ * own, at a shortened interval. */
+async function rotationLayoutShift(page: Page): Promise<RotationShift> {
     const hero = page.getByTestId('dashboard-hero');
     const dots = page.getByTestId('dashboard-hero-dot');
     const count = await dots.count();
@@ -147,18 +156,38 @@ async function rotationLayoutShift(page: Page): Promise<number> {
             '--hero-rotation-ms',
             '600ms'
         );
-        const shifts: number[] = [];
+        const shifts: RotationShift = { score: 0, sources: [] };
         new PerformanceObserver((list) => {
             for (const entry of list.getEntries() as (PerformanceEntry & {
                 value: number;
                 hadRecentInput: boolean;
+                sources: {
+                    node: Node | null;
+                    previousRect: DOMRectReadOnly;
+                    currentRect: DOMRectReadOnly;
+                }[];
             })[]) {
-                if (!entry.hadRecentInput) {
-                    shifts.push(entry.value);
+                if (entry.hadRecentInput) {
+                    continue;
+                }
+                shifts.score += entry.value;
+                for (const {
+                    node,
+                    previousRect,
+                    currentRect,
+                } of entry.sources) {
+                    const name =
+                        node instanceof Element
+                            ? [node.nodeName, ...node.classList].join('.')
+                            : (node?.nodeName ?? 'removed');
+                    const dx = Math.round(currentRect.x - previousRect.x);
+                    const dy = Math.round(currentRect.y - previousRect.y);
+                    shifts.sources.push(`${name} ${dx},${dy}`);
                 }
             }
         }).observe({ type: 'layout-shift' });
-        (window as unknown as { __heroShifts: number[] }).__heroShifts = shifts;
+        (window as unknown as { __heroShifts: RotationShift }).__heroShifts =
+            shifts;
     });
     // Back to the first slide after one full cycle, then a quiet moment.
     const first = await dots.evaluateAll((all) =>
@@ -172,19 +201,37 @@ async function rotationLayoutShift(page: Page): Promise<number> {
         );
     }
     await page.waitForTimeout(500);
-    return page.evaluate(() =>
-        (window as unknown as { __heroShifts: number[] }).__heroShifts.reduce(
-            (sum, value) => sum + value,
-            0
-        )
+    return page.evaluate(
+        () =>
+            (window as unknown as { __heroShifts: RotationShift }).__heroShifts
     );
 }
 
-/** Adds what a TMDB-enriched slide shows: a rating chip and an overview. */
+/** One unattended rotation moves next to nothing on the page, and nothing
+ * at all inside the hero. */
+async function expectStableRotation(
+    page: Page,
+    label: string,
+    results: string[]
+): Promise<void> {
+    const shift = await rotationLayoutShift(page);
+    const sources = shift.sources.join('; ');
+    results.push(
+        `${label} rotation layout shift ${shift.score.toFixed(5)} [${sources}]`
+    );
+    expect(shift.score, `${label}: ${sources}`).toBeLessThan(0.001);
+    expect(
+        shift.sources.filter((source) => source.includes('hero__')),
+        `${label}: nothing in the hero moves`
+    ).toEqual([]);
+}
+
+/** Adds what a TMDB-enriched slide shows: a rating chip and an overview.
+ * Once per slide: a slide keeps its content while another one is shown. */
 async function enrichSlide(slide: Locator): Promise<void> {
     await slide.evaluate((content, overview) => {
         const chip = content.querySelector('.hero__pill');
-        if (chip) {
+        if (chip && !content.querySelector('.meta-chip--rating')) {
             const rating = chip.cloneNode() as HTMLElement;
             rating.classList.add('meta-chip--rating');
             rating.textContent = '★ 7.4';
@@ -287,15 +334,16 @@ test.describe('Dashboard hero legibility', () => {
             ).toHaveCount(1);
 
             // An unattended rotation, counted like the launch journey's
-            // settled layout-shift counter (non-input shifts only). Slides of
-            // different heights still resize the hero by a few pixels and
-            // move the rails below (0.005 here, 0.013 before this change);
-            // a scrim or heading that reflowed the slide would add lines.
-            const shift = await rotationLayoutShift(page);
-            results.push(`rotation layout shift ${shift.toFixed(3)}`);
-            expect(shift).toBeLessThan(0.02);
+            // settled layout-shift counter (non-input shifts only), moves
+            // nothing. The hero lays out every slide and is as tall as the
+            // tallest; with only the shown slide in flow, slides of different
+            // heights resized it and moved every rail below by 7px (a score
+            // of 0.005). Every rotation dot keeps its width, so the active
+            // one no longer pushes its neighbours either.
+            await expectStableRotation(page, 'wide', results);
 
-            await page.getByTestId('dashboard-hero-pause').click();
+            const pause = page.getByTestId('dashboard-hero-pause');
+            await pause.click();
             const kinds = await slideKinds(page);
             for (const theme of ['light', 'dark'] as const) {
                 await applyTheme(page, theme);
@@ -304,7 +352,7 @@ test.describe('Dashboard hero legibility', () => {
                     // The narrow layout is the dashboard container's
                     // ≤720px query, not the window width.
                     const narrow = await page
-                        .locator('.hero__content')
+                        .getByTestId('dashboard-hero-slide')
                         .evaluate(
                             (content) =>
                                 getComputedStyle(content).maxWidth === 'none'
@@ -342,6 +390,12 @@ test.describe('Dashboard hero legibility', () => {
                     }
                 }
             }
+
+            // Again at the narrow width, where slides wrap the most, now that
+            // every slide also carries a rating and a two-line overview.
+            await pause.click();
+            await expect(pause).toHaveAttribute('aria-pressed', 'false');
+            await expectStableRotation(page, 'narrow enriched', results);
         } finally {
             const report = testInfo.outputPath('contrast.txt');
             writeFileSync(report, results.join('\n'));

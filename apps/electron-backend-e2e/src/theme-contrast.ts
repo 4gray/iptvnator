@@ -228,7 +228,15 @@ export async function measureBackdropTextContrast(
         }
         const range = document.createRange();
         range.selectNodeContents(element);
-        const box = range.getBoundingClientRect();
+        // The line boxes, cut to the element's own box: a line-clamped or
+        // ellipsized text has line boxes past it that never show, and those
+        // would measure whatever sits there (the next row's pills).
+        const lines = range.getBoundingClientRect();
+        const own = element.getBoundingClientRect();
+        const left = Math.max(lines.left, own.left);
+        const top = Math.max(lines.top, own.top);
+        const right = Math.min(lines.right, own.right);
+        const bottom = Math.min(lines.bottom, own.bottom);
         const style = (element as HTMLElement).style;
         const previous = style.getPropertyValue('color');
         style.setProperty('color', 'transparent', 'important');
@@ -238,10 +246,10 @@ export async function measureBackdropTextContrast(
             // Whole pixels inside the line boxes, clear of glyph edges that
             // spill past them.
             clip: {
-                x: Math.ceil(box.left),
-                y: Math.ceil(box.top),
-                width: Math.max(1, Math.floor(box.width) - 1),
-                height: Math.max(1, Math.floor(box.height) - 1),
+                x: Math.ceil(left),
+                y: Math.ceil(top),
+                width: Math.max(1, Math.floor(right - left) - 1),
+                height: Math.max(1, Math.floor(bottom - top) - 1),
             },
         };
     });
