@@ -55,7 +55,9 @@ export class EmbeddedMpvOverlayVisibilityService {
         const backdropPresent =
             this.overlayContainer
                 .getContainerElement()
-                .querySelector('.cdk-overlay-backdrop') !== null;
+                .querySelector(
+                    '.cdk-overlay-backdrop, .mat-mdc-select-panel, .mat-mdc-menu-panel, .mat-mdc-autocomplete-panel'
+                ) !== null;
         const next =
             dialogOpen || backdropPresent || this.externalModalSurfaces > 0;
         // Plain set, no read-back guard: signals already skip notification

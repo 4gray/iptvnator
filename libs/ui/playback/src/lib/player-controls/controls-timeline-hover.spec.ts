@@ -28,6 +28,23 @@ describe('projectPointerToSeconds', () => {
 });
 
 describe('ControlsTimelineHover', () => {
+    it('projects hover into a live buffer with a nonzero start', () => {
+        const start = signal(60);
+        const hover = new ControlsTimelineHover({
+            start,
+            duration: signal(90),
+            interactive: signal(true),
+        });
+        const bar = document.createElement('div');
+        bar.getBoundingClientRect = () => ({ left: 0, width: 400 }) as DOMRect;
+        hover.move({ clientX: 200, pointerType: 'mouse' } as PointerEvent, bar);
+        expect(hover.seconds()).toBe(75);
+        expect(hover.percent()).toBe(50);
+        start.set(70);
+        hover.move({ clientX: 200, pointerType: 'mouse' } as PointerEvent, bar);
+        expect(hover.seconds()).toBe(80);
+        expect(hover.percent()).toBe(50);
+    });
     function createHover(duration = 600, interactive = true) {
         const durationSignal = signal(duration);
         const interactiveSignal = signal(interactive);

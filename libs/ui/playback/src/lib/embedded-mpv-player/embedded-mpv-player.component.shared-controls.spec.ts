@@ -194,6 +194,43 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         ).toBe(true);
     });
 
+    it('shows floating playback only with the native capability and bridge, and uses the current session', async () => {
+        const descriptor = Object.getOwnPropertyDescriptor(window, 'electron');
+        const open = jest.fn().mockResolvedValue(true);
+        jest.spyOn(
+            EmbeddedMpvSessionController.prototype,
+            'startSession'
+        ).mockReturnValue(() => undefined);
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: { openEmbeddedMpvFloatingPlayer: open },
+        });
+        try {
+            const { fixture, controller } = render('native');
+            const floatingButton = () =>
+                Array.from(
+                    fixture.nativeElement.querySelectorAll(
+                        'button'
+                    ) as NodeListOf<HTMLButtonElement>
+                ).find((button) =>
+                    button.textContent?.includes('picture_in_picture_alt')
+                );
+            expect(floatingButton()).toBeUndefined();
+            controller.support.set({
+                ...support('native'),
+                platform: 'win32',
+                floatingWindow: true,
+            });
+            fixture.detectChanges();
+            expect(floatingButton()).toBeDefined();
+            floatingButton()?.click();
+            await fixture.whenStable();
+            expect(open).toHaveBeenCalledWith('session-1');
+        } finally {
+            restoreProperty(window, 'electron', descriptor);
+        }
+    });
+
     it('preserves the host previous and next episode guards', () => {
         const { fixture, component } = render();
         const controls = sharedControls(fixture);

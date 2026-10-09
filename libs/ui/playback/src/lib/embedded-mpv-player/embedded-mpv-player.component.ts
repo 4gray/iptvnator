@@ -1,3 +1,4 @@
+import { measureNativeViewport } from './embedded-mpv-viewport';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -25,6 +26,13 @@ import {
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import {
+    embeddedMpvSeekWindow,
+    playbackIsLive,
+    clampPlaybackSeek,
+    secondsBehindSeekEnd,
+} from '@iptvnator/shared/interfaces/playback-seek-policy';
+import { supportsNativeFloatingPlayer } from '@iptvnator/shared/interfaces/playback-floating-policy';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type {
     PlayerMediaTitle,
@@ -142,6 +150,22 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     );
 
     readonly support = this.controller.support;
+    readonly canFloat = computed(
+        () =>
+            supportsNativeFloatingPlayer(
+                this.support()?.platform,
+                this.support()?.engine,
+                this.support()?.floatingWindow === true
+            ) &&
+            typeof window.electron?.openEmbeddedMpvFloatingPlayer === 'function'
+    );
+
+    async openFloatingPlayer(): Promise<void> {
+        const id = this.session()?.id;
+        if (!id || !this.canFloat()) return;
+        if (document.fullscreenElement) await document.exitFullscreen();
+        await window.electron.openEmbeddedMpvFloatingPlayer?.(id);
+    }
     readonly session = this.controller.session;
     readonly stalled = this.controller.stalled;
 
@@ -155,6 +179,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly isSupported = computed(() => this.support()?.supported ?? false);
     readonly isFrameCopyEngine = computed(
         () => this.support()?.engine === 'frame-copy'
+    );
+    readonly usesNativeOverlayDock = computed(
+        () => this.support()?.platform === 'win32' && !this.isFrameCopyEngine()
     );
     readonly capabilities = computed(
         () =>
@@ -187,14 +214,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      */
     readonly reconnectInfo = computed(() => this.session()?.reconnect ?? null);
     readonly isReconnecting = computed(() => this.reconnectInfo() !== null);
-    readonly isLivePlayback = computed(() => {
-        const playback = this.playback();
-        if (typeof playback.isLive === 'boolean') {
-            return playback.isLive;
-        }
-
-        return !playback.contentInfo;
-    });
+    readonly isLivePlayback = computed(() => playbackIsLive(this.playback()));
     /**
      * A live stream that ended and is not being reconnected: a broadcast
      * never ends on its own, so this is a loss the viewer must be able to
@@ -203,10 +223,19 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly isLiveEnded = computed(
         () => this.isLivePlayback() && this.session()?.status === 'ended'
     );
-    readonly canSeek = computed(
-        () =>
-            !this.isLivePlayback() && (this.session()?.durationSeconds ?? 0) > 0
+    readonly seekWindow = computed(() =>
+        embeddedMpvSeekWindow(this.session(), this.playback())
     );
+    readonly canSeek = computed(() => this.seekWindow().canSeek);
+    readonly timelineBehind = computed(() =>
+        secondsBehindSeekEnd(this.seekWindow(), this.timelineValue())
+    );
+    readonly timelineProgress = computed(() => {
+        const { seekStart, seekEnd } = this.seekWindow();
+        return seekEnd > seekStart
+            ? ((this.timelineValue() - seekStart) / (seekEnd - seekStart)) * 100
+            : 0;
+    });
     readonly canFullscreen = computed(
         () =>
             typeof document !== 'undefined' &&
@@ -290,11 +319,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      * the release (`change`) event instead of firing per drag pixel.
      */
     readonly scrubPosition = signal<number | null>(null);
-    readonly timelineValue = computed(
-        () =>
+    readonly timelineValue = computed(() => {
+        const position =
             this.scrubPosition() ??
-            Math.max(0, this.session()?.positionSeconds ?? 0)
-    );
+            Math.max(0, this.session()?.positionSeconds ?? 0);
+        return clampPlaybackSeek(this.seekWindow(), position) ?? position;
+    });
     readonly controlsAreVisible = computed(
         () =>
             this.showControls() &&
@@ -356,6 +386,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private mutedVolume = 0;
     private recordingMessageTimer: number | null = null;
     private lastEndedSessionId: string | null = null;
+    private lastObservedVolume: number | null = null;
     private readonly recordingTick = signal(Date.now());
     private readonly recordingMessage = signal<string | null>(null);
     private readonly legacyInteractions: EmbeddedMpvLegacyInteractions;
@@ -500,7 +531,26 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             // Control menus render as horizontal panels inside the
             // fixed-height dock strip below the video host, so open menus
             // never require shrinking the native MPV view.
-            return measureBounds(host);
+            const bounds = measureNativeViewport(host);
+            if (this.usesNativeOverlayDock()) {
+                const root = this.playerRoot()?.nativeElement;
+                const dockHeight = root
+                    ? Number.parseFloat(
+                          getComputedStyle(root).getPropertyValue(
+                              '--embedded-mpv-controls-height'
+                          )
+                      )
+                    : 64;
+                return {
+                    ...bounds,
+                    controlsInsetBottom: this.controlsAreVisible()
+                        ? Number.isFinite(dockHeight)
+                            ? dockHeight
+                            : 64
+                        : 0,
+                };
+            }
+            return bounds;
         });
 
         this.shortcuts.attach({
@@ -547,6 +597,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         effect(() => {
             this.overlayVisibility.overlayActive();
+            this.controlsAreVisible();
             this.controller.triggerBoundsSync();
         });
 
@@ -566,6 +617,14 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             // hovering would re-run this body and re-emit timeUpdate (which
             // could feed back into playback inputs and restart the stream).
             untracked(() => {
+                if (
+                    this.lastObservedVolume !== null &&
+                    session.volume !== this.lastObservedVolume &&
+                    (session.status === 'playing' ||
+                        session.status === 'paused')
+                )
+                    localStorage.setItem('volume', String(session.volume));
+                this.lastObservedVolume = session.volume;
                 this.volume.set(session.volume);
                 this.timeUpdate.emit({
                     currentTime: session.positionSeconds,
@@ -664,6 +723,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     async seekBy(deltaSeconds: number): Promise<void> {
         this.legacyInteractions.revealControls();
+        if (!this.canSeek() || !Number.isFinite(deltaSeconds)) return;
         const ok = await this.controller.seekBy(deltaSeconds);
         if (ok) {
             this.feedback.flash(
@@ -697,8 +757,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     async onTimelineCommit(event: Event): Promise<void> {
-        const target = Number((event.target as HTMLInputElement).value);
+        const target = clampPlaybackSeek(
+            this.seekWindow(),
+            Number((event.target as HTMLInputElement).value)
+        );
         this.scrubPosition.set(null);
+        if (target === null) return;
         await this.controller.seekTo(target);
     }
 

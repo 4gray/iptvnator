@@ -4,7 +4,12 @@ import {
     toNativeViewBounds,
 } from './embedded-mpv-bounds.util';
 
-const CSS_BOUNDS: EmbeddedMpvBounds = { x: 372, y: 60, width: 578, height: 330 };
+const CSS_BOUNDS: EmbeddedMpvBounds = {
+    x: 372,
+    y: 60,
+    width: 578,
+    height: 330,
+};
 
 function context(
     overrides: Partial<NativeViewBoundsContext> = {}
@@ -121,7 +126,12 @@ describe('toNativeViewBounds', () => {
     });
 
     it('treats non-finite or non-positive factors as 100%', () => {
-        for (const zoomFactor of [Number.NaN, 0, -1, Number.POSITIVE_INFINITY]) {
+        for (const zoomFactor of [
+            Number.NaN,
+            0,
+            -1,
+            Number.POSITIVE_INFINITY,
+        ]) {
             expect(
                 toNativeViewBounds(
                     CSS_BOUNDS,
@@ -129,5 +139,42 @@ describe('toNativeViewBounds', () => {
                 )
             ).toBe(CSS_BOUNDS);
         }
+    });
+
+    it('scales the controls drawing cutout without reducing the render height', () => {
+        const result = toNativeViewBounds(
+            { ...CSS_BOUNDS, controlsInsetBottom: 64 },
+            context({ zoomFactor: 1.25, displayScaleFactor: 1.5 })
+        );
+        expect(result.controlsInsetBottom).toBe(120);
+        expect(result.height).toBe(
+            toNativeViewBounds(
+                CSS_BOUNDS,
+                context({ zoomFactor: 1.25, displayScaleFactor: 1.5 })
+            ).height
+        );
+    });
+
+    it('scales scroll clipping insets without changing the viewport geometry', () => {
+        const result = toNativeViewBounds(
+            {
+                ...CSS_BOUNDS,
+                clipInsetTop: 30,
+                clipInsetLeft: 10,
+                clipInsetRight: 5,
+                clipInsetBottom: 20,
+            },
+            context({ zoomFactor: 1.25, displayScaleFactor: 1.6 })
+        );
+        expect(result).toEqual({
+            ...toNativeViewBounds(
+                CSS_BOUNDS,
+                context({ zoomFactor: 1.25, displayScaleFactor: 1.6 })
+            ),
+            clipInsetTop: 60,
+            clipInsetLeft: 20,
+            clipInsetRight: 10,
+            clipInsetBottom: 40,
+        });
     });
 });

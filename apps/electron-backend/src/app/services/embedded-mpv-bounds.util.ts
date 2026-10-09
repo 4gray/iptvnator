@@ -44,6 +44,25 @@ export function toNativeViewBounds(
         y: top,
         width: Math.max(1, right - left),
         height: Math.max(1, bottom - top),
+        ...Object.fromEntries(
+            (
+                [
+                    'clipInsetTop',
+                    'clipInsetRight',
+                    'clipInsetBottom',
+                    'clipInsetLeft',
+                ] as const
+            )
+                .filter((key) => bounds[key] !== undefined)
+                .map((key) => [key, Math.round((bounds[key] ?? 0) * scale)])
+        ),
+        ...(bounds.controlsInsetBottom !== undefined
+            ? {
+                  controlsInsetBottom: Math.round(
+                      bounds.controlsInsetBottom * scale
+                  ),
+              }
+            : {}),
     };
 }
 

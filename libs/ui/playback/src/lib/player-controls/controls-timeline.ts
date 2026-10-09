@@ -8,6 +8,8 @@ import type {
     PlayerControlsState,
     PlayerTimelineSegment,
 } from './player-controls.model';
+import { secondsBehindSeekEnd } from '@iptvnator/shared/interfaces/playback-seek-policy';
+import { formatRemainingTime } from './controls-format.utils';
 
 /**
  * Owns the scrub state and timeline projections for the controls bar: the
@@ -24,8 +26,31 @@ export class ControlsTimeline {
         > = signal(null)
     ) {}
 
+    readonly start = computed(() =>
+        this.state().canSeek ? (this.state().seekStart ?? 0) : 0
+    );
+
+    /** Remaining time is a VOD label; live seek bounds are not a duration. */
+    readonly remaining = computed(() =>
+        this.state().isLive
+            ? null
+            : formatRemainingTime(this.value(), this.duration())
+    );
+    readonly behind = computed(() =>
+        secondsBehindSeekEnd(
+            {
+                canSeek: this.state().canSeek,
+                seekStart: this.start(),
+                seekEnd: this.duration(),
+            },
+            this.value()
+        )
+    );
+
     readonly duration = computed(() => {
-        const duration = this.state().durationSeconds;
+        const duration = this.state().canSeek
+            ? (this.state().seekEnd ?? this.state().durationSeconds)
+            : this.state().durationSeconds;
         return typeof duration === 'number' && Number.isFinite(duration)
             ? Math.max(0, duration)
             : 0;
@@ -39,16 +64,28 @@ export class ControlsTimeline {
     );
 
     readonly progress = computed(() => {
-        const duration = this.duration();
+        const duration = this.duration() - this.start();
         return this.state().canSeek && duration > 0
-            ? (this.value() / duration) * 100
+            ? ((this.value() - this.start()) / duration) * 100
             : 0;
     });
 
     /** The drawn track: host segments over the duration, else one segment. */
-    readonly segments = computed<TimelineSegmentView[]>(() =>
-        normalizeTimelineSegments(this.hostSegments(), this.duration())
-    );
+    readonly segments = computed<TimelineSegmentView[]>(() => {
+        const start = this.start();
+        const relative = this.hostSegments()?.map((segment) => ({
+            ...segment,
+            startSeconds: segment.startSeconds - start,
+            endSeconds: segment.endSeconds - start,
+        }));
+        return normalizeTimelineSegments(relative, this.duration() - start).map(
+            (segment) => ({
+                ...segment,
+                startSeconds: segment.startSeconds + start,
+                endSeconds: segment.endSeconds + start,
+            })
+        );
+    });
 
     /** Played share of one segment for the current (scrub or playback) value. */
     fillPercent(segment: TimelineSegmentView): number {
@@ -66,12 +103,13 @@ export class ControlsTimeline {
         if (!Number.isFinite(value)) {
             return null;
         }
+        if (!this.state().canSeek) return Math.max(0, value);
 
-        const duration = this.state().durationSeconds;
+        const duration = this.state().seekEnd ?? this.state().durationSeconds;
         const upperBound =
             typeof duration === 'number' && Number.isFinite(duration)
                 ? Math.max(0, duration)
                 : Number.POSITIVE_INFINITY;
-        return Math.min(Math.max(0, value), upperBound);
+        return Math.min(Math.max(this.start(), value), upperBound);
     }
 }

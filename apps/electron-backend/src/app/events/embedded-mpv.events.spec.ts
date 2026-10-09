@@ -4,6 +4,12 @@ jest.mock('electron', () => ({
     },
 }));
 
+const mockMainWindow = { webContents: {} };
+jest.mock('../app', () => ({
+    __esModule: true,
+    default: { mainWindow: mockMainWindow },
+}));
+
 const mockEmbeddedMpvService = {
     createSession: jest.fn(),
     prepareAddon: jest.fn(),
@@ -12,6 +18,7 @@ const mockEmbeddedMpvService = {
     forgetLinuxMpvExecutableProbe: jest.fn(),
     markLinuxMpvExecutableProbeProvisional: jest.fn(),
     setPaused: jest.fn(),
+    openFloatingPlayer: jest.fn(),
 };
 const mockSessionOptions = {
     extraOptions: ['network-timeout=10', 'hwdec=no'],
@@ -44,10 +51,10 @@ import './embedded-mpv.events';
 
 function getIpcMainHandler(
     channel: string
-): (...args: unknown[]) => Promise<unknown> {
+): (...args: unknown[]) => unknown {
     const handleMock = ipcMain.handle as unknown as jest.Mock;
     const calls = handleMock.mock.calls as Array<
-        [string, (...args: unknown[]) => Promise<unknown>]
+        [string, (...args: unknown[]) => unknown]
     >;
     const match = calls.find(
         ([registeredChannel]) => registeredChannel === channel
@@ -65,6 +72,7 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
         mockEmbeddedMpvService.createSession.mockReset();
         mockEmbeddedMpvService.getSupport.mockReset();
         mockEmbeddedMpvService.setPaused.mockReset();
+        mockEmbeddedMpvService.openFloatingPlayer.mockReset();
     });
 
     describe('support checks and the login shell PATH', () => {
@@ -221,6 +229,38 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
             mockSessionOptions
         );
     });
+
+    it('opens the floating session only from the main application renderer', () => {
+        mockEmbeddedMpvService.openFloatingPlayer.mockReturnValue(true);
+        expect(
+            getIpcMainHandler('EMBEDDED_MPV_FLOATING_OPEN')(
+                { sender: mockMainWindow.webContents },
+                'session-1'
+            )
+        ).toBe(true);
+        expect(mockEmbeddedMpvService.openFloatingPlayer).toHaveBeenCalledWith(
+            'session-1'
+        );
+    });
+
+    it.each([
+        [{ sender: {} }, 'session-1'],
+        [{ sender: mockMainWindow.webContents }, null],
+        [{ sender: mockMainWindow.webContents }, 42],
+    ])(
+        'rejects an unrelated renderer or malformed floating request',
+        (event, sessionId) => {
+            expect(
+                getIpcMainHandler('EMBEDDED_MPV_FLOATING_OPEN')(
+                    event,
+                    sessionId
+                )
+            ).toBe(false);
+            expect(
+                mockEmbeddedMpvService.openFloatingPlayer
+            ).not.toHaveBeenCalled();
+        }
+    );
 
     it('forwards arguments to the native service and returns its result', async () => {
         const session = { id: 'session-1', status: 'paused' };

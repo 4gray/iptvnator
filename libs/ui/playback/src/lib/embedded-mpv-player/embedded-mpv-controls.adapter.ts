@@ -13,9 +13,13 @@ import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
     RecordingStartMetadata,
-    RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import {
+    embeddedMpvSeekWindow,
+    playbackIsLive,
+    clampPlaybackSeek,
+} from '@iptvnator/shared/interfaces/playback-seek-policy';
 import { TranslateService } from '@ngx-translate/core';
 import { merge } from 'rxjs';
 import {
@@ -128,7 +132,12 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
 
         return {
             ...DEFAULT_PLAYER_CAPABILITIES,
-            seek: !isLive,
+            seek:
+                !isLive ||
+                embeddedMpvSeekWindow(
+                    this.controller.session(),
+                    context.playback()
+                ).canSeek,
             volume: true,
             audioTracks: true,
             subtitles: optionalCapabilities?.subtitles ?? false,
@@ -170,7 +179,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             positionSeconds: Math.max(0, session?.positionSeconds ?? 0),
             durationSeconds,
             isLive,
-            canSeek: !isLive && (durationSeconds ?? 0) > 0,
+            ...embeddedMpvSeekWindow(session, playback),
             volume: session?.volume ?? readStoredVolume(),
             audioTracks: (session?.audioTracks ?? []).map((track, index) => ({
                 id: track.id,
@@ -232,8 +241,14 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
 
     readonly commands: PlayerControlsCommands = {
         togglePlay: () => void this.controller.togglePaused(),
-        seekTo: (seconds) => void this.controller.seekTo(seconds),
-        seekBy: (deltaSeconds) => void this.controller.seekBy(deltaSeconds),
+        seekTo: (seconds) => {
+            const target = clampPlaybackSeek(this.stateSeekWindow(), seconds);
+            if (target !== null) void this.controller.seekTo(target);
+        },
+        seekBy: (deltaSeconds) => {
+            if (this.state().canSeek && Number.isFinite(deltaSeconds))
+                void this.controller.seekBy(deltaSeconds);
+        },
         setVolume: (value) => void this.controller.applyVolume(value),
         setAudioTrack: (id) => void this.controller.setAudioTrack(id),
         setSubtitleTrack: (id) => void this.controller.setSubtitleTrack(id),
@@ -292,10 +307,15 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
     }
 
     private isLivePlayback(playback: ResolvedPortalPlayback): boolean {
-        if (typeof playback.isLive === 'boolean') {
-            return playback.isLive;
-        }
-        return !playback.contentInfo;
+        return playbackIsLive(playback);
+    }
+
+    private stateSeekWindow() {
+        const context = this.configuredContext();
+        return embeddedMpvSeekWindow(
+            this.controller.session(),
+            context?.playback() ?? { isLive: true }
+        );
     }
 
     private mapStatus(

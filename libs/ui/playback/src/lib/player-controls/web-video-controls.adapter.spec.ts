@@ -204,7 +204,11 @@ describe('WebVideoControlsAdapter', () => {
     });
 
     it('delegates play/pause/seek/volume/speed commands to the element', () => {
-        const video = createVideo({ duration: 100, paused: true });
+        const video = createVideo({
+            duration: 100,
+            paused: true,
+            seekableLength: 1,
+        });
         adapter.attach(video, { isLive: () => false });
 
         adapter.commands.togglePlay();
@@ -228,7 +232,7 @@ describe('WebVideoControlsAdapter', () => {
     });
 
     it('clamps seekTo to the finite duration', () => {
-        const video = createVideo({ duration: 60 });
+        const video = createVideo({ duration: 60, seekableLength: 1 });
         adapter.attach(video, { isLive: () => false });
 
         adapter.commands.seekTo(999);
@@ -248,6 +252,37 @@ describe('WebVideoControlsAdapter', () => {
         expect(caps.volume).toBe(true);
         expect(caps.playbackSpeed).toBe(true);
         expect(caps.fullscreen).toBe(true);
+    });
+
+    it('allows buffered live seeking only within the current contiguous range', () => {
+        const video = createVideo({ duration: Infinity, currentTime: 75 });
+        Object.defineProperty(video, 'seekable', {
+            configurable: true,
+            value: {
+                length: 2,
+                start: (i: number) => [10, 60][i],
+                end: (i: number) => [30, 90][i],
+            },
+        });
+        adapter.attach(video, { isLive: () => true });
+        expect(adapter.capabilities().seek).toBe(true);
+        expect(adapter.state()).toMatchObject({
+            canSeek: true,
+            seekStart: 60,
+            seekEnd: 90,
+        });
+        adapter.commands.seekTo(0);
+        expect(video.currentTime).toBe(60);
+        adapter.commands.seekBy(100);
+        expect(video.currentTime).toBe(90);
+    });
+
+    it('rejects seek commands when the element reports no seekable range', () => {
+        const video = createVideo({ duration: 120 });
+        adapter.attach(video, { isLive: () => false });
+        adapter.commands.seekTo(42);
+        adapter.commands.seekBy(10);
+        expect(video.currentTime).toBe(0);
     });
 
     it('enables audioTracks only when more than one track is exposed', () => {

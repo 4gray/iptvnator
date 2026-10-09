@@ -559,6 +559,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('CLOSE_EXTERNAL_PLAYER_SESSION', sessionId),
     getEmbeddedMpvSupport: (): Promise<EmbeddedMpvSupport> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SUPPORT'),
+    openEmbeddedMpvFloatingPlayer: (sessionId: string): Promise<boolean> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_FLOATING_OPEN', sessionId),
     prepareEmbeddedMpv: (): Promise<EmbeddedMpvSupport> =>
         ipcRenderer.invoke('EMBEDDED_MPV_PREPARE'),
     createEmbeddedMpvSession: (
@@ -1187,11 +1189,14 @@ const electronApi: ElectronBridgeApi = {
 // the next resize. Applied at DOMContentLoaded, never earlier — see
 // preload-zoom-level.ts for the Linux/Windows ready-to-show trap.
 applyPersistedZoomLevel({
-    requestPersistedZoomLevel: () => ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
+    requestPersistedZoomLevel: () =>
+        ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
     ...frameZoomPorts,
     whenDocumentParsed: (apply) => {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', apply, { once: true });
+            document.addEventListener('DOMContentLoaded', apply, {
+                once: true,
+            });
         } else {
             apply();
         }

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'"
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>IPTVnator Picture in Picture</title>
+        <link rel="stylesheet" href="overlay.css" />
+        <link
+            rel="stylesheet"
+            href="material-icons/material-design-icons.css"
+        />
+        <script src="overlay.js" defer></script>
+    </head>
+    <body>
+        <header id="drag-handle">
+            <span>IPTVnator</span>
+            <nav aria-label="Window controls">
+                <button id="minimize" title="Minimize" aria-label="Minimize">
+                    <span class="material-icons" aria-hidden="true"
+                        >remove</span
+                    >
+                </button>
+                <button
+                    id="restore"
+                    title="Return to app"
+                    aria-label="Return to app"
+                >
+                    <span class="material-icons" aria-hidden="true"
+                        >picture_in_picture_alt</span
+                    >
+                </button>
+                <button
+                    id="close"
+                    title="Close floating window and return to app"
+                    aria-label="Close floating window and return to app"
+                >
+                    <span class="material-icons" aria-hidden="true">close</span>
+                </button>
+            </nav>
+        </header>
+        <main aria-label="Playback controls">
+            <button
+                id="back"
+                class="skip"
+                title="Back 10 seconds"
+                aria-label="Back 10 seconds"
+                hidden
+            >
+                <span class="material-icons" aria-hidden="true">replay_10</span>
+            </button>
+            <button id="pause" title="Play / pause" aria-label="Play / pause">
+                <span id="play-icon" class="material-icons" aria-hidden="true"
+                    >play_arrow</span
+                >
+                <span
+                    id="pause-icon"
+                    class="material-icons"
+                    aria-hidden="true"
+                    hidden
+                    >pause</span
+                >
+            </button>
+            <button
+                id="forward"
+                class="skip"
+                title="Forward 10 seconds"
+                aria-label="Forward 10 seconds"
+                hidden
+            >
+                <span class="material-icons" aria-hidden="true"
+                    >forward_10</span
+                >
+            </button>
+        </main>
+        <footer>
+            <input
+                id="timeline"
+                aria-label="Playback position"
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                hidden
+            />
+            <div class="bottom-row">
+                <output id="time" aria-live="off">Loading</output>
+                <div class="volume-controls">
+                    <button id="mute" title="Mute" aria-label="Mute">
+                        <span
+                            id="speaker-waves"
+                            class="material-icons"
+                            aria-hidden="true"
+                            >volume_up</span
+                        >
+                        <span
+                            id="speaker-muted"
+                            class="material-icons"
+                            aria-hidden="true"
+                            hidden
+                            >volume_off</span
+                        >
+                    </button>
+                    <input
+                        id="volume"
+                        aria-label="Volume"
+                        type="range"
+                        min="0"
+                        max="100"
+                        value="100"
+                    />
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

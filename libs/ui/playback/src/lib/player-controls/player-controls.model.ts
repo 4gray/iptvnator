@@ -106,6 +106,9 @@ export interface PlayerControlsState {
     durationSeconds: number | null;
     isLive: boolean;
     canSeek: boolean;
+    /** Absolute bounds of the current contiguous seek window. */
+    seekStart?: number;
+    seekEnd?: number;
     volume: number; // 0..1
     audioTracks: PlayerTrack[];
     subtitleTracks: PlayerTrack[];

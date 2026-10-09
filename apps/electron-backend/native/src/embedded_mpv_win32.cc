@@ -102,6 +102,17 @@ public:
         return true;
     }
 
+    bool reparent(uintptr_t parentHandle)
+    {
+        const auto parent = reinterpret_cast<HWND>(parentHandle);
+        if (!window_ || !IsWindow(parent)) return false;
+        SetLastError(0);
+        const auto previous = SetParent(window_, parent);
+        if (!previous && GetLastError() != 0) return false;
+        parentWindow_ = parent;
+        return true;
+    }
+
     void setBounds(const Bounds& bounds)
     {
         if (!window_) {
@@ -122,6 +133,27 @@ public:
             height,
             SWP_NOACTIVATE | SWP_SHOWWINDOW
         );
+
+        // Clip drawing behind the DOM dock without changing MPV's render size.
+        // SetWindowRgn owns the region after success; resetting restores video.
+        const int inset = std::isfinite(bounds.controlsInsetBottom)
+            ? static_cast<int>(std::lround(std::clamp(
+                bounds.controlsInsetBottom, 0.0, static_cast<double>(height))))
+            : 0;
+        const auto clippedInset = [](double value, int extent) {
+            return std::isfinite(value)
+                ? static_cast<int>(std::lround(std::clamp(value, 0.0, static_cast<double>(extent)))) : 0;
+        };
+        const int left = clippedInset(bounds.clipInsetLeft, width);
+        const int top = clippedInset(bounds.clipInsetTop, height);
+        const int right = std::max(left, width - clippedInset(bounds.clipInsetRight, width));
+        const int bottom = std::max(top, height - std::max(inset, clippedInset(bounds.clipInsetBottom, height)));
+        HRGN region = inset > 0 || left > 0 || top > 0 || right < width || bottom < height
+            ? CreateRectRgn(left, top, right, bottom)
+            : nullptr;
+        if (!SetWindowRgn(window_, region, TRUE) && region) {
+            DeleteObject(region);
+        }
     }
 
     std::string wid() const

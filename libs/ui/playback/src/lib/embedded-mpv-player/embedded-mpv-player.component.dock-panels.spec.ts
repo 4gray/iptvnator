@@ -31,7 +31,16 @@ class DockPanelsHostComponent {
 }
 
 const HOST_RECT = { left: 4, top: 8, width: 1280, height: 720 };
-const FULL_BOUNDS = { x: 4, y: 8, width: 1280, height: 720 };
+const FULL_BOUNDS = {
+    x: 4,
+    y: 8,
+    width: 1280,
+    height: 720,
+    clipInsetTop: 0,
+    clipInsetLeft: 0,
+    clipInsetRight: 260,
+    clipInsetBottom: 0,
+};
 const HOST_STUB = {
     getBoundingClientRect: () => HOST_RECT,
 } as unknown as HTMLElement;
@@ -157,6 +166,27 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         expect(boundsProvider()(HOST_STUB)).toEqual(FULL_BOUNDS);
     });
 
+    it('keeps Windows video geometry unchanged when the controls overlay toggles', () => {
+        controller.support.update((support) => ({
+            ...support,
+            supported: true,
+            platform: 'win32',
+        }));
+        player.controlsVisible.set(true);
+        fixture.detectChanges();
+        const visible = boundsProvider()(HOST_STUB);
+        expect(visible).toEqual({ ...FULL_BOUNDS, controlsInsetBottom: 64 });
+        player.controlsVisible.set(false);
+        fixture.detectChanges();
+        expect(boundsProvider()(HOST_STUB)).toEqual({
+            ...FULL_BOUNDS,
+            controlsInsetBottom: 0,
+        });
+        player.menus.open('audio');
+        fixture.detectChanges();
+        expect(boundsProvider()(HOST_STUB)).toEqual(visible);
+    });
+
     it('morphs the dock row into a horizontal audio panel with menu roles', () => {
         query('[data-embedded-mpv-menu-button="audio"]').nativeElement.click();
         fixture.detectChanges();
@@ -180,6 +210,45 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         );
         expect(chips[1].nativeElement.tabIndex).toBe(-1);
         expect(chips[1].nativeElement.getAttribute('title')).toContain('deu');
+    });
+
+    it('offers the same buffered live seek window and clamps scrub commands', async () => {
+        fixture.componentInstance.playback = {
+            streamUrl: 'https://example.test/live.ts',
+            title: 'Buffered live fixture',
+            isLive: true,
+        };
+        fixture.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        configureReadyController();
+        controller.session.update((session) =>
+            session
+                ? {
+                      ...session,
+                      positionSeconds: 75,
+                      durationSeconds: null,
+                      seekableRanges: [{ start: 60, end: 90 }],
+                  }
+                : null
+        );
+        fixture.detectChanges();
+        expect(player.seekWindow()).toEqual({
+            canSeek: true,
+            seekStart: 60,
+            seekEnd: 90,
+        });
+        expect(player.timelineBehind()).toBe(15);
+        const seek = jest
+            .spyOn(controller, 'seekTo')
+            .mockResolvedValue(undefined);
+        await player.onTimelineCommit({
+            target: { value: '0' },
+        } as unknown as Event);
+        expect(seek).toHaveBeenCalledWith(60);
+        controller.session.update((session) =>
+            session ? { ...session, seekableRanges: [] } : null
+        );
+        expect(player.canSeek()).toBe(false);
     });
 
     it('selects an audio chip, closes the panel, and restores the row', async () => {

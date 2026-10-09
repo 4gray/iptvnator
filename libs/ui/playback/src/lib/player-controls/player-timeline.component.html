@@ -52,7 +52,7 @@
             class="player-controls__slider player-controls__slider--timeline"
             [style.--slider-progress.%]="timeline().progress()"
             type="range"
-            min="0"
+            [min]="timeline().start()"
             [max]="timeline().duration()"
             [value]="timeline().value()"
             [disabled]="!canSeek()"

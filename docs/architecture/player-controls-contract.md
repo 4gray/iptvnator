@@ -7,6 +7,71 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+### Picture-in-picture support
+
+| Renderer | Floating implementation | Control ownership |
+| --- | --- | --- |
+| HTML5, Video.js, ArtPlayer | Chromium element PiP on the attached video | Browser window controls; the shared adapter owns entry, exit and source teardown |
+| Embedded MPV, Windows native-view | App-owned resizable, always-on-top window with the existing native session | Material icon hover controls, volume, pause, guarded seeking and return to the app |
+| Embedded MPV frame-copy | No PiP capability advertised | Shared inline controls over the canvas |
+| External VLC / MPV | Separate installed application | External application controls |
+
+The browser PiP adapter already exists in the upstream foundation. The Windows
+floating window is an additional implementation, not a replacement for it.
+Both paths use renderer capabilities and authoritative media metadata. A live
+label stays visible for buffered live media; its seek-end is a range boundary,
+not a VOD duration. A pointer release or cancellation ends floating timeline
+scrubbing even when the slider value never changed.
+
+For each browser renderer, exercise VOD entry/exit, pause/resume and source
+replacement with an active PiP window. Browser PiP requires a loaded, decodable
+video and the browser API; it cannot repair a decoder error. Native Windows
+validation additionally checks the retained session, resizing, hover/focus
+visibility, a slider-thumb click without movement, and return-to-app cleanup.
+Test live media with and without a real seekable range. Windows is the only
+platform used for this alpha contribution's feature testing; macOS and Linux
+runtime behavior is unverified.
+
+Seek decisions live in the pure shared `playback-seek-policy` functions.
+Adapters project browser ranges or MPV snapshots into that policy; native,
+frame-copy and floating MPV controls use the same metadata classification.
+Live seeking requires an actual contiguous range containing the playhead,
+never an estimated buffer or finite duration. Timelines use absolute range
+bounds and progress relative to the range start. Commands recheck availability
+and clamp absolute targets; MPV VOD skips retain native relative command queuing.
+Older MPV snapshots without a seekability field retain duration-based VOD
+compatibility, while an explicit false disables seeking.
+
+Buffered-live skip requests retain their outstanding absolute targets. An
+intermediate acknowledgement retires earlier requests while preserving the latest
+intent, so rapid skips accumulate. The history is bounded to 128 targets and
+expires after two seconds without another request. Absolute timeline seeks and
+source replacement clear it; unrelated playback discontinuities use the new
+observed position. VOD keeps MPV's native relative-seek command queuing.
+
+`supportsNativeFloatingPlayer` is the shared pure gate for native Windows MPV
+window reparenting. Browser element PiP keeps its separate API and lifecycle
+adapter; neither renderer advertises the other's window implementation.
+
+The policy layer imports no Angular, Electron or DOM runtime. Adapters read
+renderer state and execute commands; presentation components consume capability
+and state projections. Native HWND ownership and browser PiP lifecycle remain
+separate responsibilities rather than being forced into a common window API.
+
+Import the policies through
+`@iptvnator/shared/interfaces/playback-seek-policy` and
+`@iptvnator/shared/interfaces/playback-floating-policy`. These narrow public
+entries keep playback policy code with the lazy renderer consumers; the eagerly
+loaded shared-interfaces root barrel does not re-export them.
+
+Regression coverage combines the pure seek/floating policy matrix, browser
+adapter command guards, moving-buffer timeline tests, native dock integration,
+and floating-window command tests. Electron smoke checks should exercise a
+local HEVC clip in native MPV (pause, repeated skips, return with the same
+session) and browser element PiP (actual entry/exit). Provider testing then
+covers live without cache ranges, buffered live, and VOD; verify both offered
+controls and actual results. Frame-copy advertises no native floating window.
+
 The shared-controls preference checkbox is visible only when HTML5, Video.js
 or ArtPlayer is selected in Settings → Playback.
 
@@ -70,7 +135,10 @@ element picture-in-picture through the adapter's attached `<video>`. Shared
 ArtPlayer keeps its vendor `pip` option disabled so the shared button is the
 only PiP button. Preference-off native/vendor controls keep their own UI;
 exact-owner PiP teardown also applies in that mode.
-Embedded MPV advertises no PiP capability and its command is a no-op.
+Embedded MPV's shared frame-copy controls advertise no browser PiP capability
+and its command is a no-op. Windows native-view builds with `reparentSession`
+instead expose an app-owned floating-window action in the native controls dock;
+its lifecycle is documented in [embedded-mpv-native.md](./embedded-mpv-native.md).
 
 `Settings.webPlayerSharedControls` is default-ON: an absent stored value means
 the user never chose and gets the shared controls; only an explicit boolean

@@ -33,6 +33,17 @@ describe('EmbeddedMpvOverlayVisibilityService', () => {
         expect(service.overlayActive()).toBe(false);
     });
 
+    it('detects a picker without a backdrop and releases when it closes', async () => {
+        const panel = document.createElement('div');
+        panel.className = 'mat-mdc-select-panel';
+        container.append(panel);
+        await Promise.resolve();
+        expect(service.overlayActive()).toBe(true);
+        panel.remove();
+        await Promise.resolve();
+        expect(service.overlayActive()).toBe(false);
+    });
+
     it('treats a registered external modal surface like an open dialog', () => {
         // e.g. the workspace's phone context drawer — a plain DOM panel the
         // CDK-container observer can never see, but which must hide the

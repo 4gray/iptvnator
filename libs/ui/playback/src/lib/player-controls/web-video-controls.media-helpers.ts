@@ -1,4 +1,33 @@
 import type { PlayerStatus } from './player-controls.model';
+import {
+    playbackSeekWindow,
+    type PlaybackSeekWindow,
+} from '@iptvnator/shared/interfaces/playback-seek-policy';
+
+export function readVideoSeekWindow(
+    video: HTMLVideoElement | null,
+    options: WebVideoMetadataOptions
+): PlaybackSeekWindow {
+    const ranges: { start: number; end: number }[] = [];
+    try {
+        for (let i = 0; i < (video?.seekable.length ?? 0); i++) {
+            if (video)
+                ranges.push({
+                    start: video.seekable.start(i),
+                    end: video.seekable.end(i),
+                });
+        }
+    } catch {
+        // Incomplete media range metadata cannot authorize live seeking.
+    }
+    return playbackSeekWindow({
+        isLive: readVideoIsLive(video, options),
+        position: video?.currentTime ?? 0,
+        duration: readVideoDuration(video, options),
+        seekable: hasSeekableRange(video),
+        ranges,
+    });
+}
 
 const HAVE_FUTURE_DATA = 3;
 const NETWORK_EMPTY = 0;

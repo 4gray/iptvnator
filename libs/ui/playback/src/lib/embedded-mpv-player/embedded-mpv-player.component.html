@@ -1,6 +1,7 @@
 <div
     #playerRoot
     class="embedded-mpv-player"
+    [class.embedded-mpv-player--overlay-dock]="usesNativeOverlayDock()"
     [class.embedded-mpv-player--fullscreen]="isFullscreen()"
     [class.embedded-mpv-player--controls-enabled]="
         !isFrameCopyEngine() && showControls() && isSupported()
@@ -234,17 +235,10 @@
                 <div class="embedded-mpv-player__timeline">
                     <input
                         class="embedded-mpv-player__slider"
-                        [style.--slider-progress.%]="
-                            canSeek()
-                                ? (timelineValue() /
-                                      ((session()?.durationSeconds ?? 0) ||
-                                          1)) *
-                                  100
-                                : 0
-                        "
+                        [style.--slider-progress.%]="timelineProgress()"
                         type="range"
-                        min="0"
-                        [max]="session()?.durationSeconds ?? 0"
+                        [min]="seekWindow().seekStart"
+                        [max]="seekWindow().seekEnd"
                         [value]="timelineValue()"
                         [disabled]="!canSeek()"
                         [attr.aria-valuetext]="formatTime(timelineValue())"
@@ -252,15 +246,13 @@
                         (change)="onTimelineCommit($event)"
                     />
                     <div class="embedded-mpv-player__time">
-                        <span>{{ formatTime(timelineValue()) }}</span>
-                        @if (canSeek()) {
-                            <span>{{
-                                formatTime(
-                                    $safeNavigationMigration(
-                                        session()?.durationSeconds
-                                    )
-                                )
-                            }}</span>
+                        <span>{{
+                            isLivePlayback() && canSeek()
+                                ? '−' + formatTime(timelineBehind())
+                                : formatTime(timelineValue())
+                        }}</span>
+                        @if (canSeek() && !isLivePlayback()) {
+                            <span>{{ formatTime(seekWindow().seekEnd) }}</span>
                         } @else if (isLivePlayback()) {
                             <span
                                 class="embedded-mpv-player__live-badge"
@@ -490,6 +482,25 @@
                         </button>
                     }
 
+                    @if (canFloat()) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="embedded-mpv-player__control-button"
+                            (click)="openFloatingPlayer()"
+                            [disabled]="!session()"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
+                                    | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
+                                    | translate
+                            "
+                        >
+                            <mat-icon>picture_in_picture_alt</mat-icon>
+                        </button>
+                    }
                     <button
                         mat-icon-button
                         type="button"

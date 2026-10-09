@@ -79,6 +79,19 @@
     bottom: var(--embedded-mpv-controls-height);
 }
 
+.embedded-mpv-player--overlay-dock .embedded-mpv-player__viewport {
+    bottom: 0;
+}
+
+// Release the native controls dock when controls disappear so MPV fits and
+// centers the video against the whole player, both inline and fullscreen.
+.embedded-mpv-player--controls-enabled:not(
+        .embedded-mpv-player--controls-visible
+    )
+    .embedded-mpv-player__viewport {
+    bottom: 0;
+}
+
 .embedded-mpv-player__loader {
     position: absolute;
     inset: 0;
@@ -186,6 +199,7 @@
 }
 
 .embedded-mpv-player__controls {
+    box-sizing: border-box;
     position: absolute;
     right: 0;
     bottom: 0;

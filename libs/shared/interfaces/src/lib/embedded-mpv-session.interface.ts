@@ -9,6 +9,13 @@ export interface EmbeddedMpvBounds {
     y: number;
     width: number;
     height: number;
+    /** Windows native drawing cutout for an overlaid controls dock, in CSS pixels. */
+    controlsInsetBottom?: number;
+    /** Drawing-only clipping to the DOM scroll viewport; never changes render size. */
+    clipInsetTop?: number;
+    clipInsetRight?: number;
+    clipInsetBottom?: number;
+    clipInsetLeft?: number;
 }
 
 export interface EmbeddedMpvCapabilities {
@@ -36,6 +43,8 @@ export type EmbeddedMpvSubtitleStyle = PlayerSubtitleStyle;
 export type EmbeddedMpvEngine = 'native' | 'frame-copy';
 
 export interface EmbeddedMpvSupport {
+    /** Windows native-view surface can move to an app-owned floating window. */
+    floatingWindow?: boolean;
     supported: boolean;
     platform: string;
     reason?: string;
@@ -136,6 +145,8 @@ export interface EmbeddedMpvRecordingStartOptions {
 }
 
 export interface EmbeddedMpvSession {
+    seekable?: boolean;
+    seekableRanges?: { start: number; end: number }[];
     id: string;
     title: string;
     streamUrl: string;

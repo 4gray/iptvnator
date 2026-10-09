@@ -116,6 +116,8 @@ struct SessionSnapshot {
     SessionStatus status = SessionStatus::Idle;
     double positionSeconds = 0.0;
     double durationSeconds = -1.0;
+    bool seekable = false;
+    std::vector<std::pair<double, double>> seekableRanges;
     double volumePercent = 100.0;
     std::string streamUrl;
     std::string error;
@@ -441,6 +443,11 @@ Bounds readBounds(const Napi::Object& object)
         readOptionalNumber(object, "y", 0),
         readOptionalNumber(object, "width", 1),
         readOptionalNumber(object, "height", 1),
+        readOptionalNumber(object, "controlsInsetBottom", 0),
+        readOptionalNumber(object, "clipInsetTop", 0),
+        readOptionalNumber(object, "clipInsetRight", 0),
+        readOptionalNumber(object, "clipInsetBottom", 0),
+        readOptionalNumber(object, "clipInsetLeft", 0),
     };
 }
 
@@ -1538,6 +1545,8 @@ void runEventLoop(std::shared_ptr<Session> session)
                 }
                 const std::string name(property->name);
                 if (property->format == MPV_FORMAT_NONE) {
+                    if (name == "seekable") session->snapshot.seekable = false;
+                    if (name == "demuxer-cache-state") session->snapshot.seekableRanges.clear();
                     session->snapshot.clearUnavailableStreamProperty(name);
                     break;
                 }
@@ -1550,6 +1559,22 @@ void runEventLoop(std::shared_ptr<Session> session)
                 } else if (name == "duration" && property->format == MPV_FORMAT_DOUBLE) {
                     session->snapshot.durationSeconds =
                         *static_cast<double*>(property->data);
+                } else if (name == "seekable" && property->format == MPV_FORMAT_FLAG) {
+                    session->snapshot.seekable = *static_cast<int*>(property->data) != 0;
+                } else if (name == "demuxer-cache-state" && property->format == MPV_FORMAT_NODE) {
+                    session->snapshot.seekableRanges.clear();
+                    const auto* ranges = getNodeMapValue(*static_cast<mpv_node*>(property->data), "seekable-ranges");
+                    if (ranges && ranges->format == MPV_FORMAT_NODE_ARRAY && ranges->u.list) {
+                        for (int index = 0; index < ranges->u.list->num; ++index) {
+                            const auto& range = ranges->u.list->values[index];
+                            const auto* start = getNodeMapValue(range, "start");
+                            const auto* end = getNodeMapValue(range, "end");
+                            if (start && end && start->format == MPV_FORMAT_DOUBLE && end->format == MPV_FORMAT_DOUBLE &&
+                                std::isfinite(start->u.double_) && std::isfinite(end->u.double_) && end->u.double_ > start->u.double_) {
+                                session->snapshot.seekableRanges.emplace_back(start->u.double_, end->u.double_);
+                            }
+                        }
+                    }
                 } else if (name == "pause" && property->format == MPV_FORMAT_FLAG) {
                     const bool paused = *static_cast<int*>(property->data) != 0;
                     if (
@@ -1920,6 +1945,8 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         session->handle, 22, "audio-params/samplerate", MPV_FORMAT_INT64);
 
     session->running.store(true);
+    mpv_observe_property(session->handle, 23, "seekable", MPV_FORMAT_FLAG);
+    mpv_observe_property(session->handle, 24, "demuxer-cache-state", MPV_FORMAT_NODE);
     session->eventThread = std::thread(runEventLoop, session);
     session->host.setBounds(bounds);
     traceMpvCommon("session event loop started");
@@ -2064,6 +2091,9 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
         session->snapshot.streamUrl = streamUrl;
         session->snapshot.error.clear();
         session->snapshot.status = SessionStatus::Loading;
+        session->snapshot.seekable = false;
+        session->snapshot.seekableRanges.clear();
+        session->snapshot.durationSeconds = -1.0;
         session->snapshot.recordingActive = false;
         session->snapshot.recordingTargetPath.clear();
         session->snapshot.recordingStartedAt.clear();
@@ -2091,6 +2121,27 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
 
     return env.Undefined();
 }
+
+#ifdef _WIN32
+Napi::Value ReparentSession(const Napi::CallbackInfo& info)
+{
+    const auto env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsBuffer()) {
+        throw Napi::TypeError::New(env, "Expected session id and window handle.");
+    }
+    const auto buffer = info[1].As<Napi::Buffer<uint8_t>>();
+    if (buffer.Length() != sizeof(uintptr_t)) {
+        throw Napi::TypeError::New(env, "Invalid window handle size.");
+    }
+    uintptr_t handle = 0;
+    std::memcpy(&handle, buffer.Data(), sizeof(handle));
+    const auto session = getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
+    if (!session->host.reparent(handle)) {
+        throw Napi::Error::New(env, "Could not move the MPV video surface.");
+    }
+    return env.Undefined();
+}
+#endif
 
 Napi::Value SetBounds(const Napi::CallbackInfo& info)
 {
@@ -2599,6 +2650,17 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
     auto result = Napi::Object::New(env);
     result.Set("status", toStatusString(snapshot.status));
     result.Set("positionSeconds", Napi::Number::New(env, snapshot.positionSeconds));
+#ifdef _WIN32
+    result.Set("seekable", Napi::Boolean::New(env, snapshot.seekable));
+#endif
+    auto seekRanges = Napi::Array::New(env, snapshot.seekableRanges.size());
+    for (size_t index = 0; index < snapshot.seekableRanges.size(); ++index) {
+        auto range = Napi::Object::New(env);
+        range.Set("start", Napi::Number::New(env, snapshot.seekableRanges[index].first));
+        range.Set("end", Napi::Number::New(env, snapshot.seekableRanges[index].second));
+        seekRanges.Set(index, range);
+    }
+    result.Set("seekableRanges", seekRanges);
     if (snapshot.durationSeconds < 0) {
         result.Set("durationSeconds", env.Null());
     } else {
@@ -2697,6 +2759,9 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("createSession", Napi::Function::New(env, CreateSession));
     exports.Set("loadPlayback", Napi::Function::New(env, LoadPlayback));
     exports.Set("setBounds", Napi::Function::New(env, SetBounds));
+#ifdef _WIN32
+    exports.Set("reparentSession", Napi::Function::New(env, ReparentSession));
+#endif
     exports.Set("setPaused", Napi::Function::New(env, SetPaused));
     exports.Set("seek", Napi::Function::New(env, Seek));
     exports.Set("seekBy", Napi::Function::New(env, SeekBy));

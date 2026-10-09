@@ -76,6 +76,8 @@ jest.mock('../app', () => ({
 }));
 
 interface MockSnapshot {
+    seekable?: boolean;
+    seekableRanges?: Array<{ start: number; end: number }>;
     status: EmbeddedMpvSessionStatus;
     positionSeconds: number;
     durationSeconds: number | null;
@@ -274,6 +276,43 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         } finally {
             delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
         }
+    });
+
+    it('preserves unknown seekability from an older native snapshot', () => {
+        startSession('older', snapshot('paused', { durationSeconds: 120 }));
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('paused', { durationSeconds: 120 })
+        );
+        expect(service.setVolume('older', 0.5)?.seekable).toBeUndefined();
+    });
+
+    it('initializes floating controls even when a paused snapshot has not changed', async () => {
+        startSession(
+            'paused',
+            snapshot('paused', { durationSeconds: 120, positionSeconds: 40 })
+        );
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('paused', { durationSeconds: 120, positionSeconds: 40 })
+        );
+        jest.spyOn(service, 'getSupport').mockReturnValue({
+            ...service.getSupport(),
+            floatingWindow: true,
+        });
+        const floating = (
+            service as unknown as {
+                floatingPlayer: {
+                    open: (id: string) => Promise<boolean>;
+                    update: (id: string, state: unknown) => void;
+                };
+            }
+        ).floatingPlayer;
+        jest.spyOn(floating, 'open').mockResolvedValue(true);
+        const update = jest.spyOn(floating, 'update');
+        await service.openFloatingPlayer('paused');
+        expect(update).toHaveBeenCalledWith(
+            'paused',
+            expect.objectContaining({ paused: true, position: 40 })
+        );
     });
 
     it('requires the base embedded-MPV opt-in for unpackaged runs', () => {
@@ -695,11 +734,60 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         expect(service.setVolume('s1', 1)).not.toHaveProperty('stats');
     });
 
+    it('disposes sessions when the main renderer is destroyed', () => {
+        startSession('s1', snapshot('playing'));
+        const close = mainWindowWebContentsOnMock.mock.calls.find(
+            ([name]) => name === 'destroyed'
+        )?.[1];
+        expect(close).toBeDefined();
+        close();
+        expect(addon.disposeSession).toHaveBeenCalledWith('s1');
+        expect(service.disposeSession('s1')).toBeNull();
+    });
+
+    it('keeps fractional buffered-live positions seekable and accumulates rapid skips', () => {
+        const bufferedSnapshot = (
+            positionSeconds: number,
+            status: 'playing' | 'paused' = 'playing'
+        ) =>
+            snapshot(status, {
+                positionSeconds,
+                seekable: true,
+                seekableRanges: [{ start: 25.5, end: 100 }],
+            });
+        startSession('s1', snapshot('playing', { positionSeconds: 75.6 }));
+        addon.getSessionSnapshot.mockReturnValue(bufferedSnapshot(75.6));
+        service.loadPlayback('s1', {
+            streamUrl: 'https://example.com/live.ts',
+            title: 'Buffered live fixture',
+            isLive: true,
+        });
+        service.seekBy('s1', -10);
+        addon.getSessionSnapshot.mockReturnValue(bufferedSnapshot(75.7));
+        service.seekBy('s1', -10);
+        expect(addon.seek.mock.calls.at(-2)?.[1]).toBeCloseTo(65.6);
+        expect(addon.seek.mock.calls.at(-1)?.[1]).toBeCloseTo(55.6);
+        addon.getSessionSnapshot.mockReturnValue(bufferedSnapshot(65.7));
+        service.seekBy('s1', -10);
+        // The first seek's acknowledgement must not lose the second skip.
+        expect(addon.seek.mock.calls.at(-1)?.[1]).toBeCloseTo(45.6);
+        addon.getSessionSnapshot.mockReturnValue(
+            bufferedSnapshot(25.6, 'paused')
+        );
+        service.seekBy('s1', 10);
+        expect(addon.seek).toHaveBeenLastCalledWith('s1', 35.6);
+    });
+
     it('seekBy forwards the delta to the addon as a relative seek and refreshes the snapshot', () => {
         startSession('s1', snapshot('playing', { positionSeconds: 10 }));
         addon.getSessionSnapshot.mockReturnValue(
-            snapshot('playing', { positionSeconds: 15.4 })
+            snapshot('playing', { positionSeconds: 15.4, durationSeconds: 120 })
         );
+        service.loadPlayback('s1', {
+            streamUrl: 'https://example.test/movie.mp4',
+            title: 'VOD',
+            isLive: false,
+        });
 
         const updated = service.seekBy('s1', 5);
 
@@ -712,8 +800,13 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         delete addon.seekBy;
         startSession('s1', snapshot('playing', { positionSeconds: 10 }));
         addon.getSessionSnapshot.mockReturnValue(
-            snapshot('playing', { positionSeconds: 12.5 })
+            snapshot('playing', { positionSeconds: 12.5, durationSeconds: 120 })
         );
+        service.loadPlayback('s1', {
+            streamUrl: 'https://example.test/movie.mp4',
+            title: 'VOD',
+            isLive: false,
+        });
 
         service.seekBy('s1', -30);
         expect(addon.seek).toHaveBeenCalledWith('s1', 0);

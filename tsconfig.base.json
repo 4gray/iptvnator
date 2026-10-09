@@ -133,6 +133,12 @@
             "@iptvnator/shared/interfaces/ipc-commands": [
                 "libs/shared/interfaces/src/lib/ipc-commands.ts"
             ],
+            "@iptvnator/shared/interfaces/playback-seek-policy": [
+                "libs/shared/interfaces/src/lib/playback-seek-policy.ts"
+            ],
+            "@iptvnator/shared/interfaces/playback-floating-policy": [
+                "libs/shared/interfaces/src/lib/playback-floating-policy.ts"
+            ],
             "@iptvnator/shared/interfaces/zoom-level": [
                 "libs/shared/interfaces/src/lib/zoom-level.util.ts"
             ],

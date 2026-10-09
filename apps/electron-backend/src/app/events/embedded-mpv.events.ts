@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import App from '../app';
 import {
     EMBEDDED_MPV_ADD_SUBTITLE,
     EMBEDDED_MPV_CREATE_SESSION,
@@ -97,6 +98,15 @@ handleEmbeddedMpv(EMBEDDED_MPV_SUPPORT, () =>
 handleEmbeddedMpv(EMBEDDED_MPV_PREPARE, () =>
     afterLoginShellPathIfProbing(() => getService().prepareAddon())
 );
+
+ipcMain.handle('EMBEDDED_MPV_FLOATING_OPEN', (event, sessionId: unknown) => {
+    if (
+        event.sender !== App.mainWindow?.webContents ||
+        typeof sessionId !== 'string'
+    )
+        return false;
+    return getService().openFloatingPlayer(sessionId);
+});
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_CREATE_SESSION,

@@ -51,7 +51,12 @@ function boundsDiffer(a: EmbeddedMpvBounds, b: EmbeddedMpvBounds): boolean {
         Math.abs(a.x - b.x) > POSITION_POLL_EPSILON_PX ||
         Math.abs(a.y - b.y) > POSITION_POLL_EPSILON_PX ||
         Math.abs(a.width - b.width) > POSITION_POLL_EPSILON_PX ||
-        Math.abs(a.height - b.height) > POSITION_POLL_EPSILON_PX
+        Math.abs(a.height - b.height) > POSITION_POLL_EPSILON_PX ||
+        (a.controlsInsetBottom ?? 0) !== (b.controlsInsetBottom ?? 0) ||
+        (a.clipInsetTop ?? 0) !== (b.clipInsetTop ?? 0) ||
+        (a.clipInsetLeft ?? 0) !== (b.clipInsetLeft ?? 0) ||
+        (a.clipInsetRight ?? 0) !== (b.clipInsetRight ?? 0) ||
+        (a.clipInsetBottom ?? 0) !== (b.clipInsetBottom ?? 0)
     );
 }
 
@@ -205,9 +210,7 @@ export class EmbeddedMpvSessionController {
                 if (untracked(() => this.isFrameCopyEngine())) {
                     return;
                 }
-                if (
-                    boundsDiffer(this.boundsProvider(host), lastSyncedBounds)
-                ) {
+                if (boundsDiffer(this.boundsProvider(host), lastSyncedBounds)) {
                     scheduleBoundsSync();
                 }
             }, POSITION_POLL_INTERVAL_MS)
