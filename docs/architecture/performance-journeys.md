@@ -1392,6 +1392,68 @@ threshold on Node 22 and inside Electron 43, so D2 regex prefilters were not
 applied. Rerun the benchmark after changing either parser or when a user
 reports slow imports of non-Latin playlists.
 
+## Compositing budget
+
+Chromium rasterizes every composited layer into tiles and gives a desktop
+renderer 512 MB of tile memory (1 GB on a display at least 3500 device pixels
+wide). Tiles needed for the visible frame that do not fit log
+`cc/tiles/tile_manager.cc: WARNING: tile memory limits exceeded, some content
+may not draw` and leave blank tiles while scrolling. On a 2x display a layer
+the size of the content area costs about 24 MB, so a dozen full-size layers
+spend the budget. The expensive layers are rarely the obvious ones: a
+`border-radius` on a scroller makes Blink clip every composited effect inside
+it (`backdrop-filter`, `filter` with a render surface, a running transform or
+opacity animation, `isolation: isolate`, `will-change`) through a mask layer
+synthesized per effect, each the size of the whole clipped area, because its
+shader path for rounded clips needs four equal radii on macOS and a
+translation-only transform between the clip and the effect
+(`PropertyTreeManager::ShaderBasedRRect`). The workspace shell therefore
+paints its content corner instead of clipping it
+([workspace shell](workspace-shell.md#content-surface-corner)).
+
+Two instruments share `src/performance/compositing-probe.ts`, which reads
+the layer tree over the Chrome DevTools Protocol (`LayerTree`: bounds in
+device pixels, compositing reasons and owner nodes, available only after
+Blink's first layerization with the domain enabled) and the renderer's
+`cc/tile_memory` from a memory-infra dump (`Tracing.requestMemoryDump`). A
+synthesized clip mask is a drawing layer with no owner node and no
+compositing reason; a content layer always carries a reason, and may lack an
+owner node when its first paint chunk belongs to an anonymous box.
+
+- `src/compositing.e2e.ts` is the deterministic guard, run with the Electron
+  E2E suite on every platform: on Live TV, a movie detail, a series detail
+  and the dashboard no synthesized mask may span half the content area, and
+  the backdrop-filtered controls must really be composited layers, so the
+  check cannot pass on a page with nothing to clip. Blink synthesizes the
+  masks before any GPU work; under `--disable-gpu` (the Linux CI launch) the
+  old scroller radius still produced seven.
+- `pnpm run perf:compositing` (`electron-backend-e2e:compositing-report`,
+  `playwright.compositing.config.ts`, Xtream mock on `127.0.0.1:3233`,
+  override with `IPTVNATOR_COMPOSITING_XTREAM_MOCK_PORT`) measures. One fresh
+  profile is seeded through the app's dialogs with a live, a movie and a
+  series favourite, artwork is served from memory, and the window is 1600x1000
+  CSS pixels. For Live TV, the movie and series details, the dashboard (idle,
+  during a crossfade, scrolled) and settings it records tile and image
+  memory, composited layer counts, the eight largest layers with their
+  owners and reasons, synthesized masks and the `tile memory limits
+  exceeded` lines on stderr, into
+  `dist/performance/compositing/<YYYYMMDDTHHMMSSZ>/summary.json` and a table on
+  the console. The pool keeps freed tiles for a few seconds, so each reading
+  waits `TILE_POOL_SETTLE_MS` after its route settles.
+
+Megabytes depend on the window size, the device scale factor and the GPU
+path, so they are evidence for a PR, not a ratchet: the Linux runner at 1x
+cannot reproduce a 2x laptop. Layer and mask counts on the fixed mock are
+comparable across machines; wiring them into the [ratchet](#ratchet) needs a
+baseline measured on the canonical runner first. A PR that adds or changes
+`backdrop-filter`, `filter`, `will-change`, `isolation`, a transform or
+opacity animation, a `mask` or `clip-path`, or a `border-radius` on an
+element with `overflow`, runs the report before and after and quotes the
+affected routes. Reference, 2026-10-09 on a 16" MacBook Pro at 2x before and
+after the painted corner: dashboard idle 537 to 242 MB, during a slide switch
+598 to 303 MB, scrolled 655 to 165 MB; movie detail 110 to 89 MB; series
+detail 187 to 143 MB.
+
 ## Adding a counter
 
 1. Produce the value from the built output or from a deterministic probe, not

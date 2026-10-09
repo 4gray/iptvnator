@@ -42,3 +42,6 @@ not UI or util.
 Run the focused component/unit target and the closest Playwright workflow for a
 visible change. Electron CDP is a fallback for Electron-only gaps, not a
 replacement for an available E2E flow. Record any uncovered visual state.
+A change that adds `backdrop-filter`, `filter`, animations or a rounded
+scroller also runs `pnpm run perf:compositing` (see the theme/style skill's
+Rendering Cost section) and quotes the numbers.
