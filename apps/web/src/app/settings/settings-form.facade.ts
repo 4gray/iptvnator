@@ -238,7 +238,12 @@ export class SettingsFormFacade {
         if (cleanupError) throw cleanupError;
     }
 
+    /** Later: the reminder stays away until one of those settings changes. */
     dismissRestartNotice(): void {
+        const saved = (this.savedSnapshot ?? {}) as Record<string, unknown>;
+        for (const control of this.restartPendingControls()) {
+            this.launchValues.dismiss(control, saved[control]);
+        }
         this.restartPendingControls.set([]);
     }
 
@@ -268,7 +273,9 @@ export class SettingsFormFacade {
         const saved = (this.savedSnapshot ?? {}) as Record<string, unknown>;
         const pending = Object.keys(SETTINGS_RESTART_CONTROLS).filter(
             (control) =>
-                control in running && saved[control] !== running[control]
+                control in running &&
+                saved[control] !== running[control] &&
+                !this.launchValues.isDismissed(control, saved[control])
         );
         const current = untracked(this.restartPendingControls);
         if (

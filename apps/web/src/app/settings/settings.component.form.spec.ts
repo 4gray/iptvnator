@@ -449,9 +449,9 @@ describe('SettingsComponent form', () => {
 
             // A plain "s" or a chord with Shift is not the shortcut.
             expect(press({}).defaultPrevented).toBe(false);
-            expect(press({ metaKey: true, shiftKey: true }).defaultPrevented).toBe(
-                false
-            );
+            expect(
+                press({ metaKey: true, shiftKey: true }).defaultPrevented
+            ).toBe(false);
             expect(settingsStore.updateSettings).not.toHaveBeenCalled();
 
             // The phone drawer makes the page inert: the chord is not ours.
@@ -533,6 +533,24 @@ describe('SettingsComponent form', () => {
             fixture.detectChanges();
 
             expect(notice()).toBeNull();
+
+            // Later holds: an unrelated save does not bring the reminder back.
+            component.settingsForm.get('theme')?.setValue(Theme.LightTheme);
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(notice()).toBeNull();
+
+            // A different restart value is news again.
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('maximized');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(notice()).not.toBeNull();
         });
 
         it('keeps the launch values across settings visits', async () => {
