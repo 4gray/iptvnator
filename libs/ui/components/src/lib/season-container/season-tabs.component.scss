@@ -102,7 +102,6 @@
             height: 16px;
         }
     }
-
 }
 
 // The season menu: two columns per row, the season name and its
@@ -112,8 +111,7 @@
     --mat-menu-container-color: var(--mat-sys-surface-container-high);
     min-width: 280px;
     max-width: min(360px, calc(100vw - 24px));
-    border: 1px solid
-        color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 10%, transparent);
     border-radius: 10px;
 
     .mat-mdc-menu-content {
