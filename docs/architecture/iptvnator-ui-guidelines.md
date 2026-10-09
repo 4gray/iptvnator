@@ -181,7 +181,10 @@ keys, Escape, hosts the alternative-sources panel), `app-detail-credits`
 `app-detail-rail`/`app-similar-rail` (hidden scrollbar, prev/next arrows,
 title + year) and `TrailerDialogService`. The dashboard hero reuses the same
 light primary (`light-primary-button` in `libs/ui/styles/_detail-view-actions.scss`)
-and chip. Series titles drop their season marker (`splitSeasonSuffix`) into a
+and chip, and the same kind of tail: its artwork runs 160px under the first
+rail, whose heading keeps a trace of it, and reaches the page colour before
+that rail's cards (their scroll-edge fades are drawn in the page colour), with
+no tail in the narrow layout. Series titles drop their season marker (`splitSeasonSuffix`) into a
 "Season N" chip. Rows a provider cannot serve are left out of the menu, never
 disabled. The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
 only carries the page shell, meta items and the episodes section.

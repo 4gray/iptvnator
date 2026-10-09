@@ -45,6 +45,11 @@
         var(--app-on-surface, #e6e1e5) 12%,
         transparent
     );
+    // The artwork continues this far below the slide, under the first
+    // rail's heading and the top of its cards, so the fade into the page
+    // ends there instead of at the hero's edge. The rails page pulls the
+    // next rail up by the same amount.
+    --hero-tail: 160px;
 
     position: relative;
     // A floor, not a fixed height: the slide sits in normal flow at the
@@ -54,12 +59,14 @@
     flex-direction: column;
     justify-content: flex-end;
     box-sizing: border-box;
-    min-height: clamp(320px, 42vh, 520px);
+    min-height: calc(clamp(320px, 42vh, 520px) + var(--hero-tail));
+    padding-bottom: var(--hero-tail);
     // Flush with the content area's top and sides; the rails page's own
     // top padding and gutters are cancelled. The negative bottom margin
-    // tucks the first rail into the fade (the gradient does the spacing).
+    // tucks the first rail into the fade (the gradient does the spacing)
+    // and over the tail.
     margin: calc(-1 * var(--dashboard-top-gutter, 24px))
-        calc(-1 * var(--hero-inset)) -12px;
+        calc(-1 * var(--hero-inset)) calc(-12px - var(--hero-tail));
     overflow: hidden;
     isolation: isolate;
     color: var(--hero-heading);
@@ -212,13 +219,21 @@
                 calc(var(--hero-text-edge) + 18%),
             transparent 100%
         ),
+        // Clear over the art, then a long fade that is mostly done where
+        // the slide ends, leaves a trace of the art behind the first rail's
+        // heading and reaches the exact page colour before its cards (whose
+        // scroll-edge fades are drawn in that colour).
         linear-gradient(
-            180deg,
-            color-mix(in srgb, var(--hero-scrim) 30%, transparent) 0%,
-            transparent 22%,
-            transparent 55%,
-            var(--hero-scrim) 100%
-        );
+                180deg,
+                color-mix(in srgb, var(--hero-scrim) 30%, transparent) 0%,
+                transparent 20%,
+                transparent calc(100% - var(--hero-tail) - 160px),
+                color-mix(in srgb, var(--hero-scrim) 70%, transparent)
+                    calc(100% - var(--hero-tail)),
+                color-mix(in srgb, var(--hero-scrim) 92%, transparent)
+                    calc(100% - var(--hero-tail) + 50px),
+                var(--hero-scrim) calc(100% - var(--hero-tail) * 0.4)
+            );
 }
 
 // ── Slide content ──────────────────────────────────────────────────────────
@@ -472,7 +487,7 @@
 .hero__controls {
     position: absolute;
     right: var(--hero-inset);
-    bottom: 34px;
+    bottom: calc(34px + var(--hero-tail));
     z-index: 1;
     display: flex;
     align-items: center;
@@ -678,6 +693,12 @@
 
 // ── Narrow content area ────────────────────────────────────────────────────
 @container dashboard (max-width: 720px) {
+    // The slide carries its own scrim block here; a tail below it would
+    // show the art again under that block's hard bottom edge.
+    .hero {
+        --hero-tail: 0px;
+    }
+
     .hero__content {
         margin-right: var(--hero-inset);
         // Clears the rotation controls, which move to the top here.
