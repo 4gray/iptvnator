@@ -276,8 +276,7 @@ export function readTileMemoryFromTrace(
     return best;
 }
 
-/** One detailed memory-infra dump of the page's renderer. */
-export async function captureTileMemory(
+async function captureTileMemoryOnce(
     cdp: CDPSession
 ): Promise<TileMemoryReading> {
     const events: TraceEvent[] = [];
@@ -299,12 +298,32 @@ export async function captureTileMemory(
         await cdp.send('Tracing.requestMemoryDump', {
             levelOfDetail: 'detailed',
         });
+        // The dump's trace events reach the buffer shortly after the
+        // request resolves; ending the trace at once can miss them.
+        await new Promise((resolve) => setTimeout(resolve, 250));
         await cdp.send('Tracing.end');
         await complete;
     } finally {
         cdp.off('Tracing.dataCollected', onData);
     }
     return readTileMemoryFromTrace(events);
+}
+
+/**
+ * One detailed memory-infra dump of the page's renderer. A dump that
+ * carries no renderer tile memory (a process can skip a dump it is busy
+ * for) is retried a few times before the reading stays null.
+ */
+export async function captureTileMemory(
+    cdp: CDPSession,
+    attempts = 3
+): Promise<TileMemoryReading> {
+    let reading = await captureTileMemoryOnce(cdp);
+    for (let attempt = 1; attempt < attempts && reading.tileMB === null;) {
+        reading = await captureTileMemoryOnce(cdp);
+        attempt += 1;
+    }
+    return reading;
 }
 
 const artworkCache = new Map<string, Buffer>();
