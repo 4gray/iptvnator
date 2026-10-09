@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "Kontrola rodzicielska wyłączona",
             "PIN_CHANGED_TOAST": "Kod PIN zmieniony",
             "LOCKED_TOAST": "Zablokowano"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "Nie znaleziono",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "Zainstaluj brakujące odtwarzacze lokalnie, a następnie dodaj je do PATH lub ustaw poniżej ścieżkę do ich pliku wykonywalnego. Otwórz ponownie tę listę, aby sprawdzić jeszcze raz."
     },
     "THEMES": {
         "DARK_THEME": "Ciemny",

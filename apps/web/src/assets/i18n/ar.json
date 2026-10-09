@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "تم تعطيل الرقابة الأبوية",
             "PIN_CHANGED_TOAST": "تم تغيير رمز PIN",
             "LOCKED_TOAST": "تم القفل"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "غير موجود",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "ثبّت المشغلات الناقصة محليًا، ثم أضفها إلى PATH أو حدّد مسار ملفاتها التنفيذية أدناه. افتح هذا المحدّد مجددًا لإعادة الفحص."
     },
     "THEMES": {
         "DARK_THEME": "داكن",

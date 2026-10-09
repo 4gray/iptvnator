@@ -911,6 +911,10 @@ export interface ElectronBridgeApi {
     updateSettings: (settings: Partial<Settings>) => Promise<void>;
     getAiSettings: () => Promise<ElectronBridgeAiSettings>;
     setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
+    getExternalPlayerAvailability?: (paths?: {
+        mpv?: string;
+        vlc?: string;
+    }) => Promise<{ mpv: boolean | null; vlc: boolean | null }>;
     setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
     stalkerRequest: (
         payload: ElectronBridgeStalkerRequestPayload

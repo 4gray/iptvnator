@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "الرقابة الأبوية تطفات",
             "PIN_CHANGED_TOAST": "رمز PIN تبدّل",
             "LOCKED_TOAST": "تقفل"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "ما تلقاش",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "ثبّت المشغلات الناقصين فالجهاز، وزيدهم لـ PATH ولا حدّد المسار ديال الملف التنفيذي لتحت. عاود حلّ هاد الاختيار باش يتفحص من جديد."
     },
     "THEMES": {
         "DARK_THEME": "داكن",

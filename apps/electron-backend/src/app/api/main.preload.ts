@@ -727,6 +727,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_CHANNEL_SEARCH', { searchTerm, limit }),
     setMpvPlayerPath: (mpvPlayerPath: string) =>
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
+    getExternalPlayerAvailability: (paths?: { mpv?: string; vlc?: string }) =>
+        ipcRenderer.invoke('GET_EXTERNAL_PLAYER_AVAILABILITY', paths),
     setVlcPlayerPath: (vlcPlayerPath: string) =>
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
     updateSettings: (settings: Partial<Settings>) =>
@@ -1187,11 +1189,14 @@ const electronApi: ElectronBridgeApi = {
 // the next resize. Applied at DOMContentLoaded, never earlier — see
 // preload-zoom-level.ts for the Linux/Windows ready-to-show trap.
 applyPersistedZoomLevel({
-    requestPersistedZoomLevel: () => ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
+    requestPersistedZoomLevel: () =>
+        ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
     ...frameZoomPorts,
     whenDocumentParsed: (apply) => {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', apply, { once: true });
+            document.addEventListener('DOMContentLoaded', apply, {
+                once: true,
+            });
         } else {
             apply();
         }

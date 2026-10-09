@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "Controle parental desativado",
             "PIN_CHANGED_TOAST": "PIN alterado",
             "LOCKED_TOAST": "Bloqueado"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "Não encontrado",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "Instale os leitores em falta neste computador e adicione-os a PATH ou defina abaixo o caminho do executável. Volte a abrir este seletor para verificar novamente."
     },
     "THEMES": {
         "DARK_THEME": "Escuro",

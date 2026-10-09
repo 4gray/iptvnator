@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "Kindersicherung deaktiviert",
             "PIN_CHANGED_TOAST": "PIN geändert",
             "LOCKED_TOAST": "Gesperrt"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "Nicht gefunden",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "Installiere fehlende Player lokal und füge sie zu PATH hinzu oder lege unten ihren Programmpfad fest. Öffne diese Auswahl erneut, um noch einmal zu prüfen."
     },
     "THEMES": {
         "DARK_THEME": "Dunkel",

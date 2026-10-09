@@ -3,6 +3,8 @@ import {
     Component,
     input,
     output,
+    signal,
+    effect,
     ViewEncapsulation,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -75,6 +77,65 @@ export class SettingsPlaybackSectionComponent {
      */
     readonly supportsVodMultiSource = input(false);
     readonly selectRecordingFolder = output<void>();
+    readonly externalAvailability = signal<{
+        mpv: boolean | null;
+        vlc: boolean | null;
+    }>({
+        mpv: null,
+        vlc: null,
+    });
+    private availabilityRequest = 0;
+
+    constructor() {
+        effect((onCleanup) => {
+            const form = this.form();
+            if (
+                !this.supportsExternalPlayerPathSettings() ||
+                !window.electron?.getExternalPlayerAvailability
+            )
+                return;
+            void this.refreshExternalAvailability();
+            let timer: ReturnType<typeof setTimeout>;
+            const subscription = form.valueChanges.subscribe(() => {
+                this.availabilityRequest++;
+                clearTimeout(timer);
+                timer = setTimeout(
+                    () => void this.refreshExternalAvailability(),
+                    300
+                );
+            });
+            onCleanup(() => {
+                clearTimeout(timer);
+                subscription.unsubscribe();
+                this.availabilityRequest++;
+            });
+        });
+    }
+
+    async refreshExternalAvailability(): Promise<void> {
+        const probe = window.electron?.getExternalPlayerAvailability;
+        if (!probe) return;
+        const request = ++this.availabilityRequest;
+        const value = this.form().getRawValue();
+        try {
+            const result = await probe({
+                mpv: value.mpvPlayerPath ?? '',
+                vlc: value.vlcPlayerPath ?? '',
+            });
+            if (request === this.availabilityRequest)
+                this.externalAvailability.set(result);
+        } catch {
+            if (request === this.availabilityRequest)
+                this.externalAvailability.set({ mpv: null, vlc: null });
+        }
+    }
+
+    externalPlayerUnavailable(player: VideoPlayer): boolean {
+        return (
+            (player === VideoPlayer.MPV || player === VideoPlayer.VLC) &&
+            this.externalAvailability()[player] === false
+        );
+    }
 
     isWebPlayerSelected(): boolean {
         return reportsPlaybackFailures(this.form().value.player);

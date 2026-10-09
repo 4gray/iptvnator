@@ -989,6 +989,7 @@ export async function enableRemoteControl(
 
 export async function saveSettings(page: Page): Promise<void> {
     const saveButton = page.getByTestId('save-settings');
+    const dialogSaveButton = page.getByTestId('unsaved-dialog-save');
 
     // The save control is a native form submit (`<button type="submit">`
     // inside `<form (ngSubmit)="onSubmit()">`). Clicking it makes Chromium
@@ -1000,7 +1001,12 @@ export async function saveSettings(page: Page): Promise<void> {
     // timeout ("waiting for scheduled navigations to finish"). We never depend
     // on a navigation here, so opt out of the barrier and instead assert the
     // deterministic post-save state below.
-    await saveButton.click({ noWaitAfter: true });
+    if (await dialogSaveButton.isVisible()) {
+        await dialogSaveButton.click();
+        await expect(dialogSaveButton).toBeHidden();
+    } else {
+        await saveButton.click({ noWaitAfter: true });
+    }
     // `onSubmit()` calls `applyChangedSettings()` -> `markAsPristine()` once the
     // settings write resolves, which hides the whole unsaved-changes bar.
     // Awaiting that is a stronger, race-free confirmation that the save

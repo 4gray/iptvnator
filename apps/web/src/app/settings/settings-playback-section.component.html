@@ -22,15 +22,32 @@
                 <mat-select
                     formControlName="player"
                     data-test-id="select-video-player"
+                    (openedChange)="$event && refreshExternalAvailability()"
                 >
                     @for (player of players(); track player.id) {
                         <mat-option
                             [value]="player.id"
+                            [disabled]="externalPlayerUnavailable(player.id)"
                             [attr.data-test-id]="player.id"
                             >{{ player.labelKey | translate }}
+                            @if (externalPlayerUnavailable(player.id)) {
+                                ·
+                                {{
+                                    'SETTINGS.EXTERNAL_PLAYER_UNAVAILABLE'
+                                        | translate
+                                }}
+                            }
                         </mat-option>
                     }
                 </mat-select>
+                @if (
+                    externalAvailability().mpv === false ||
+                    externalAvailability().vlc === false
+                ) {
+                    <mat-hint>{{
+                        'SETTINGS.EXTERNAL_PLAYER_INSTALL_HINT' | translate
+                    }}</mat-hint>
+                }
             </mat-form-field>
         </div>
     </div>
@@ -463,7 +480,10 @@
     }
 
     @if (
-        supportsExternalPlayerPathSettings() && form().value.player === 'mpv'
+        supportsExternalPlayerPathSettings() &&
+        (form().value.player === 'mpv' ||
+            externalAvailability().mpv === false ||
+            form().controls.mpvPlayerPath.dirty)
     ) {
         <div class="setting-item" data-setting-id="mpv-player-path">
             <div class="setting-item__meta">
@@ -538,7 +558,10 @@
     }
 
     @if (
-        supportsExternalPlayerPathSettings() && form().value.player === 'vlc'
+        supportsExternalPlayerPathSettings() &&
+        (form().value.player === 'vlc' ||
+            externalAvailability().vlc === false ||
+            form().controls.vlcPlayerPath.dirty)
     ) {
         <div class="setting-item" data-setting-id="vlc-player-path">
             <div class="setting-item__meta">

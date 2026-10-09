@@ -581,7 +581,9 @@
             "DISABLED_TOAST": "Szülői felügyelet kikapcsolva",
             "PIN_CHANGED_TOAST": "PIN-kód módosítva",
             "LOCKED_TOAST": "Zárolva"
-        }
+        },
+        "EXTERNAL_PLAYER_UNAVAILABLE": "Nem található",
+        "EXTERNAL_PLAYER_INSTALL_HINT": "Telepítse helyben a hiányzó lejátszókat, majd adja hozzá őket a PATH-hoz, vagy adja meg alább a futtatható fájl elérési útját. Az újabb ellenőrzéshez nyissa meg újra ezt a választót."
     },
     "THEMES": {
         "DARK_THEME": "Sötét",

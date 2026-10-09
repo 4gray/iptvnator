@@ -64,6 +64,109 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.componentRef.setInput('streamFormatEnum', StreamFormat);
     });
 
+    it.each(['mpv', 'vlc'] as const)(
+        'keeps the %s path editor mounted after a successful probe while editing',
+        (player) => {
+            fixture.componentRef.setInput(
+                'supportsExternalPlayerPathSettings',
+                true
+            );
+            fixture.componentInstance.externalAvailability.set({
+                mpv: false,
+                vlc: false,
+            });
+            fixture.detectChanges();
+            const input = fixture.nativeElement.querySelector(
+                `#${player}PlayerPath`
+            );
+            const control =
+                fixture.componentInstance.form().controls[
+                    `${player}PlayerPath`
+                ];
+            control.markAsDirty();
+            control.setValue('D:\\Players\\portable');
+            fixture.componentInstance.externalAvailability.set({
+                mpv: true,
+                vlc: true,
+            });
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector(`#${player}PlayerPath`)
+            ).toBe(input);
+        }
+    );
+
+    it('rejects an old probe response immediately after the paths change', async () => {
+        const previous = Object.getOwnPropertyDescriptor(window, 'electron');
+        let resolveProbe!: (result: { mpv: boolean; vlc: boolean }) => void;
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: {
+                getExternalPlayerAvailability: jest.fn(
+                    () =>
+                        new Promise((resolve) => {
+                            resolveProbe = resolve;
+                        })
+                ),
+            },
+        });
+        try {
+            fixture.componentRef.setInput(
+                'supportsExternalPlayerPathSettings',
+                true
+            );
+            fixture.detectChanges();
+            fixture.componentInstance
+                .form()
+                .controls.mpvPlayerPath.setValue('D:\\New\\mpv.exe');
+            resolveProbe({ mpv: true, vlc: true });
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(fixture.componentInstance.externalAvailability()).toEqual({
+                mpv: null,
+                vlc: null,
+            });
+        } finally {
+            if (previous) Object.defineProperty(window, 'electron', previous);
+            else Reflect.deleteProperty(window, 'electron');
+        }
+    });
+
+    it('disables only confirmed missing players and exposes configuration', () => {
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            true
+        );
+        fixture.componentInstance.externalAvailability.set({
+            mpv: false,
+            vlc: true,
+        });
+        fixture.detectChanges();
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(VideoPlayer.MPV)
+        ).toBe(true);
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(VideoPlayer.VLC)
+        ).toBe(false);
+        expect(
+            fixture.nativeElement.querySelector('#mpvPlayerPath')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.textContent).toContain(
+            'SETTINGS.EXTERNAL_PLAYER_INSTALL_HINT'
+        );
+    });
+
+    it('keeps unknown availability and built-in players selectable', () => {
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(VideoPlayer.MPV)
+        ).toBe(false);
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(
+                VideoPlayer.VideoJs
+            )
+        ).toBe(false);
+    });
+
     it('hides the external-player double-click option when managed external players are unsupported', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);

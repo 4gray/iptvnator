@@ -16,6 +16,7 @@ import {
     normalizePlayerPathForStore,
     resolveExternalPlayerLaunchContext as resolveLaunchContext,
 } from './external-player-launch-context';
+import { externalPlayerAvailable } from './external-player-availability';
 import {
     externalPlayerSessions,
     traceExternalPlayer,
@@ -49,11 +50,12 @@ export {
 async function waitForPathIfBareName(
     player: ExternalPlayerName,
     configuredPath: string | undefined
-): Promise<void> {
+): Promise<boolean> {
     const context = resolveLaunchContext(player, configuredPath);
     if (context.mode !== 'flatpak-host' && !/[\\/]/.test(context.playerPath)) {
-        await waitForLoginShellPath();
+        return (await waitForLoginShellPath()) !== false;
     }
+    return true;
 }
 
 export default class PlayerEvents {
@@ -61,6 +63,32 @@ export default class PlayerEvents {
         return ipcMain;
     }
 }
+
+ipcMain.handle(
+    'GET_EXTERNAL_PLAYER_AVAILABILITY',
+    async (_event, paths?: { mpv?: string; vlc?: string }) => {
+        const mpv =
+            typeof paths?.mpv === 'string'
+                ? paths.mpv
+                : store.get(MPV_PLAYER_PATH);
+        const vlc =
+            typeof paths?.vlc === 'string'
+                ? paths.vlc
+                : store.get(VLC_PLAYER_PATH);
+        const [mpvAvailable, vlcAvailable] = await Promise.all([
+            externalPlayerAvailable('mpv', mpv, {
+                waitForSearchPath: waitForLoginShellPath,
+            }),
+            externalPlayerAvailable('vlc', vlc, {
+                waitForSearchPath: waitForLoginShellPath,
+            }),
+        ]);
+        return {
+            mpv: mpvAvailable,
+            vlc: vlcAvailable,
+        };
+    }
+);
 
 ipcMain.handle(
     'OPEN_MPV_PLAYER',
