@@ -524,6 +524,13 @@ describe('SeasonContainerComponent', () => {
         expect(query('.episode-item__thumb--fallback')).toBe(0);
         expect(query('.episode-item__number')).toBe(2);
 
+        // One episode's own still, the other without any → the lone still
+        // is kept; only a repeated image counts as none
+        setRequiredInputs(withImages('still-1.jpg', ''));
+        fixture.detectChanges();
+        expect(component.distinctStills()).toBe(true);
+        expect(query('.episode-item__thumb--fallback')).toBe(1);
+
         // Same poster on every episode → dimmed fallback tiles (the plots
         // keep the rows full; without them the season would render bare)
         setRequiredInputs(withImages('poster.jpg', 'poster.jpg'));

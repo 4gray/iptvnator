@@ -207,19 +207,19 @@ export class SeasonContainerComponent implements OnInit {
 
     /**
      * True when the season's episodes carry genuinely distinct stills (TMDB
-     * or per-episode provider art). When every episode repeats one image
-     * (providers often send the series poster) the thumbnails fall back to a
-     * dimmed tile instead of a column of identical bright posters.
+     * or per-episode provider art). When one image repeats across episodes
+     * (providers often send the series poster as every still) the
+     * thumbnails fall back to a dimmed tile instead of a column of identical
+     * bright posters. A still that only one episode carries is its own, not
+     * a repeat: the other episodes simply have none.
      */
     readonly distinctStills = computed(() => {
-        const episodes = this.selectedSeasonEpisodes();
-        const images = episodes
+        const images = this.selectedSeasonEpisodes()
             .map((episode) => resolveEpisodeInfo(episode)?.movie_image)
             .filter((image): image is string => !!image);
-        if (images.length === 0) {
-            return false;
-        }
-        return episodes.length === 1 || new Set(images).size > 1;
+        // One image on one episode is a still; one image on several is a
+        // repeat; two or more different images are stills.
+        return images.length === 1 || new Set(images).size > 1;
     });
 
     private readonly stillContext = computed(() => ({

@@ -136,6 +136,24 @@ describe('SeasonContainerComponent metadata state', () => {
         expect(all('.view-toggle')).toHaveLength(1);
     });
 
+    it('keeps full rows and the grid toggle for a lone episode still', () => {
+        // No plots, one genuine still among three episodes: the UI contract
+        // keeps full rows when only some stills are missing.
+        setRequiredInputs({
+            '1': [
+                createEpisode(1, { movie_image: 'https://img.test/e1.jpg' }),
+                createEpisode(2),
+                createEpisode(3),
+            ],
+        });
+        fixture.detectChanges();
+
+        expect(component.metaState()).toBe('full');
+        expect(all('.episode-item__thumb')).toHaveLength(3);
+        expect(all('.episode-item__thumb--fallback')).toHaveLength(2);
+        expect(all('.view-toggle')).toHaveLength(1);
+    });
+
     it('renders a season the provider already describes at once, metadata or not', () => {
         fixture.componentRef.setInput('metadataLoading', true);
         setRequiredInputs({
