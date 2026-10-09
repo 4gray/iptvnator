@@ -11,21 +11,51 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { episodeRuntimeSeconds } from './episode-progress.util';
 
+/** An i18n key with its parameters, as the meta line's time part. */
+export interface EpisodeTimeLabel {
+    readonly key: string;
+    readonly params: Record<string, number | string>;
+}
+
+/** "5:00" / "1:05:00" from a number of seconds. */
+function formatClock(totalSeconds: number): string {
+    const seconds = Math.max(0, Math.floor(totalSeconds));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const rest = seconds % 60;
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return hours > 0
+        ? `${hours}:${pad(minutes)}:${pad(rest)}`
+        : `${minutes}:${pad(rest)}`;
+}
+
 /**
  * The time part of an episode's meta line: the time left for a started
- * episode, otherwise its runtime. Null when the provider sent neither.
+ * episode, otherwise its runtime. A started episode whose duration nobody
+ * knows (no provider or TMDB runtime, no duration saved with the position)
+ * still shows where it resumes. Null when there is nothing to say.
  */
 export function episodeTimeLabel(
     info: XtreamSerieEpisodeInfo | undefined,
     position: PlaybackPositionData | undefined
-): RemainingTimeLabel | null {
+): EpisodeTimeLabel | null {
     if (isPortalPlaybackInProgress(position)) {
-        const remaining = formatRemainingLabel(position);
+        const remaining: RemainingTimeLabel | null =
+            formatRemainingLabel(position);
         if (remaining) {
             return remaining;
         }
     }
-    return formatDurationLabel(episodeRuntimeSeconds(info));
+    const runtime = formatDurationLabel(episodeRuntimeSeconds(info));
+    if (runtime) {
+        return runtime;
+    }
+    return position && isPortalPlaybackInProgress(position)
+        ? {
+              key: 'PORTALS.DETAIL.RESUME_AT',
+              params: { time: formatClock(position.positionSeconds) },
+          }
+        : null;
 }
 
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/;

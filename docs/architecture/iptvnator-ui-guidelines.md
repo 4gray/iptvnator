@@ -761,7 +761,8 @@ list is the default view.
 Episodes render through `app-episode-item` as a flat list row or grid card,
 never a bordered box. A row is a number column, a 168px 16:9 thumbnail (with
 a light hairline border so its edge survives the light theme), the title with
-a "46 min · 12 Jan" meta line (time left once started) and the plot clamped to
+a "46 min · 12 Jan" meta line (time left once started, "Resume at 12:34" when
+no runtime is known) and the plot clamped to
 two lines at 74ch, and a 112px action slot. Rows are separated by a hairline
 that gives way around a hovered, focused or highlighted row. Watched episodes
 carry a check badge on the thumbnail and muted text, and never a bar; a
@@ -773,7 +774,9 @@ recently watched unfinished one, is highlighted. Without distinct stills the
 thumbnails show a dimmed fallback, not a column of bright posters. The season
 picker never shows a season poster: chips up to four seasons, a menu button
 from five whose rows read "Season N" and "N episodes · M watched" (the second
-part left out at zero). The selected season's synopsis sits under the header,
+part left out at zero, and no count at all for a lazy Stalker VOD season the
+portal has not answered yet — `seasonLoadStates`). The selected season's
+synopsis sits under the header,
 offset 52px to the number column and 24px above the list, only when present;
 one that repeats the series description (or is cut short from it) is dropped,
 and without one no row renders.

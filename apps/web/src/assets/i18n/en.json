@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} h {{minutes}} min",
             "DURATION_MINUTES": "{{minutes}} min",
             "WATCHED": "watched",
+            "RESUME_AT": "Resume at {{time}}",
             "TRAILER_MUTE": "Mute trailer",
             "TRAILER_UNMUTE": "Unmute trailer",
             "PROGRESS_RESET": "Progress reset",

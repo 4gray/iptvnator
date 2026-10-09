@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} ó {{minutes}} p",
             "DURATION_MINUTES": "{{minutes}} perc",
             "WATCHED": "megnézve",
+            "RESUME_AT": "Folytatás innen: {{time}}",
             "TRAILER_MUTE": "Előzetes némítása",
             "TRAILER_UNMUTE": "Előzetes hangjának bekapcsolása",
             "PROGRESS_RESET": "Haladás törölve",

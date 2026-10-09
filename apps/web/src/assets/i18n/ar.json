@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} س {{minutes}} د",
             "DURATION_MINUTES": "{{minutes}} د",
             "WATCHED": "تمت مشاهدته",
+            "RESUME_AT": "استئناف عند {{time}}",
             "TRAILER_MUTE": "كتم صوت الإعلان",
             "TRAILER_UNMUTE": "تشغيل صوت الإعلان",
             "PROGRESS_RESET": "تمت إعادة ضبط التقدم",

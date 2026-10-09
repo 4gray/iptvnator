@@ -211,6 +211,29 @@ describe('SeasonContainerComponent season picker', () => {
         expect(component.selectedSeason()).toBe('5');
     });
 
+    it('shows no count for a lazy season the portal has not answered yet', () => {
+        // Stalker VOD seasons start as empty lists and load on request: an
+        // unfetched season is unknown, not "0 episodes".
+        const seasons = seasonsOf(6, 2);
+        seasons['5'] = [];
+        seasons['6'] = [];
+        fixture.componentRef.setInput('hasUnloadedSeasons', true);
+        fixture.componentRef.setInput('seasonLoadStates', {
+            '5': 'unloaded',
+            '6': 'loading',
+        });
+        setRequiredInputs(seasons);
+        fixture.detectChanges();
+
+        const items = openMenu();
+        const countOf = (item: HTMLButtonElement) =>
+            item.querySelector('[data-testid="season-menu-count"]');
+        expect(countOf(items[0])?.textContent).toContain('2 episodes');
+        expect(countOf(items[4])).toBeNull();
+        expect(countOf(items[5])).toBeNull();
+        expect(items[4].textContent).toContain('Season 5');
+    });
+
     it('renders no synopsis row for a season without a plot', () => {
         fixture.componentRef.setInput('seasonPosters', postersFor(2));
         fixture.componentRef.setInput('seasonDescriptions', {

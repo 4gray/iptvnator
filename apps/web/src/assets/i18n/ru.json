@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} ч {{minutes}} мин",
             "DURATION_MINUTES": "{{minutes}} мин",
             "WATCHED": "просмотрено",
+            "RESUME_AT": "Продолжить с {{time}}",
             "TRAILER_MUTE": "Выключить звук трейлера",
             "TRAILER_UNMUTE": "Включить звук трейлера",
             "PROGRESS_RESET": "Прогресс сброшен",

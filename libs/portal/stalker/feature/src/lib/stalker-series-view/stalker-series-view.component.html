@@ -188,6 +188,7 @@
                 [isLoading]="episodeListLoading()"
                 [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
                 [hasUnloadedSeasons]="hasUnloadedVodSeasons()"
+                [seasonLoadStates]="vodSeasonLoadStates()"
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
                 (episodeRestartRequested)="onEpisodeRestartRequested($event)"

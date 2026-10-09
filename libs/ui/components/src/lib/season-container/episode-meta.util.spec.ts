@@ -38,6 +38,31 @@ describe('episodeTimeLabel', () => {
         expect(episodeTimeLabel({}, undefined)).toBeNull();
         expect(episodeTimeLabel(undefined, undefined)).toBeNull();
     });
+
+    it('shows where a started episode resumes when nobody knows its duration', () => {
+        const unknownDuration: PlaybackPositionData = {
+            contentXtreamId: 1,
+            contentType: 'episode',
+            positionSeconds: 754,
+        };
+        expect(episodeTimeLabel({}, unknownDuration)).toEqual({
+            key: 'PORTALS.DETAIL.RESUME_AT',
+            params: { time: '12:34' },
+        });
+        expect(
+            episodeTimeLabel({}, { ...unknownDuration, positionSeconds: 3725 })
+        ).toEqual({
+            key: 'PORTALS.DETAIL.RESUME_AT',
+            params: { time: '1:02:05' },
+        });
+        // A known runtime still wins over the bare position.
+        expect(
+            episodeTimeLabel({ duration_secs: 2760 }, unknownDuration)
+        ).toEqual({
+            key: 'PORTALS.DETAIL.DURATION_MINUTES',
+            params: { minutes: 46 },
+        });
+    });
 });
 
 describe('formatEpisodeAirDate', () => {

@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} godz. {{minutes}} min",
             "DURATION_MINUTES": "{{minutes}} min",
             "WATCHED": "obejrzane",
+            "RESUME_AT": "Wznów od {{time}}",
             "TRAILER_MUTE": "Wycisz zwiastun",
             "TRAILER_UNMUTE": "Włącz dźwięk zwiastuna",
             "PROGRESS_RESET": "Postęp zresetowany",

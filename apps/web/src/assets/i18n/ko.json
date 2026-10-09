@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}}시간 {{minutes}}분",
             "DURATION_MINUTES": "{{minutes}}분",
             "WATCHED": "시청함",
+            "RESUME_AT": "{{time}}부터 이어보기",
             "TRAILER_MUTE": "예고편 음소거",
             "TRAILER_UNMUTE": "예고편 소리 켜기",
             "PROGRESS_RESET": "진행 상태를 초기화했습니다",

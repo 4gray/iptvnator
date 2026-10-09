@@ -12,6 +12,9 @@ import { TranslateModule } from '@ngx-translate/core';
 /** Up to this many seasons the picker is a row of chips, beyond it a menu. */
 const MAX_SEASON_CHIPS = 4;
 
+/** A season whose episodes are not in yet: `loading` now, `unloaded` until asked. */
+export type SeasonCountLoadState = 'loading' | 'unloaded';
+
 /**
  * Season selector for the season container: a chip row ("Season 1 · 2 · 3")
  * for up to 4 seasons, a menu button beyond that, and a "back to playing
@@ -36,6 +39,14 @@ export class SeasonTabsComponent {
     readonly selectedSeason = input<string | undefined>(undefined);
     readonly episodeCounts = input<Record<string, number>>({});
     readonly watchedCounts = input<Record<string, number>>({});
+    /**
+     * Seasons whose episode list is still a portal request away (lazy
+     * Stalker VOD): their count is unknown, not zero, so the menu row shows
+     * none until the portal answers.
+     */
+    readonly seasonLoadStates = input<Readonly<
+        Record<string, SeasonCountLoadState>
+    > | null>(null);
     /** Season key of the episode currently playing inline, if any. */
     readonly playingSeasonKey = input<string | null>(null);
 
@@ -50,6 +61,11 @@ export class SeasonTabsComponent {
         const playing = this.playingSeasonKey();
         return playing !== null && playing !== this.selectedSeason();
     });
+
+    /** False while the season's episode list is still on its way. */
+    isCountKnown(seasonKey: string): boolean {
+        return !this.seasonLoadStates()?.[seasonKey];
+    }
 
     isSeasonCompleted(seasonKey: string): boolean {
         const total = this.episodeCounts()[seasonKey] ?? 0;

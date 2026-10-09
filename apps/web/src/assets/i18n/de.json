@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} h {{minutes}} min",
             "DURATION_MINUTES": "{{minutes}} min",
             "WATCHED": "gesehen",
+            "RESUME_AT": "Fortsetzen bei {{time}}",
             "TRAILER_MUTE": "Trailer stummschalten",
             "TRAILER_UNMUTE": "Trailer-Ton einschalten",
             "PROGRESS_RESET": "Fortschritt zurückgesetzt",

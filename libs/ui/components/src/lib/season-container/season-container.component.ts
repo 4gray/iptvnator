@@ -47,7 +47,10 @@ import {
 } from './season-auto-select.state';
 import { repeatsSeriesDescription } from './season-description.util';
 import { SeasonDownloadPresenter } from './season-download-presenter';
-import { SeasonTabsComponent } from './season-tabs.component';
+import {
+    type SeasonCountLoadState,
+    SeasonTabsComponent,
+} from './season-tabs.component';
 import { SeasonWatchPresenter } from './season-watch-presenter';
 import {
     type SeasonContainerPlaybackToggleRequest,
@@ -143,6 +146,10 @@ export class SeasonContainerComponent implements OnInit {
      * count from the series action label.
      */
     readonly hasUnloadedSeasons = input(false);
+    /** Per-season load state of those lazy seasons; their menu row shows no count. */
+    readonly seasonLoadStates = input<Readonly<
+        Record<string, SeasonCountLoadState>
+    > | null>(null);
 
     readonly episodeClicked = output<XtreamSerieEpisode>();
     /** "Play from beginning" in an episode's menu: start at 0, not the saved position. */

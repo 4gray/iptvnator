@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} u {{minutes}} min",
             "DURATION_MINUTES": "{{minutes}} min",
             "WATCHED": "bekeken",
+            "RESUME_AT": "Hervatten bij {{time}}",
             "TRAILER_MUTE": "Trailer dempen",
             "TRAILER_UNMUTE": "Trailergeluid aan",
             "PROGRESS_RESET": "Voortgang gewist",

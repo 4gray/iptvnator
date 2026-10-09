@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} 小時 {{minutes}} 分鐘",
             "DURATION_MINUTES": "{{minutes}} 分鐘",
             "WATCHED": "已觀看",
+            "RESUME_AT": "從 {{time}} 繼續",
             "TRAILER_MUTE": "預告片靜音",
             "TRAILER_UNMUTE": "取消預告片靜音",
             "PROGRESS_RESET": "進度已重設",

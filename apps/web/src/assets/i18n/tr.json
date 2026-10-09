@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} sa {{minutes}} dk",
             "DURATION_MINUTES": "{{minutes}} dk",
             "WATCHED": "izlendi",
+            "RESUME_AT": "{{time}} konumundan devam et",
             "TRAILER_MUTE": "Fragmanı sessize al",
             "TRAILER_UNMUTE": "Fragman sesini aç",
             "PROGRESS_RESET": "İlerleme sıfırlandı",

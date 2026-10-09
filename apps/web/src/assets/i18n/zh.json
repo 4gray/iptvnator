@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} 小时 {{minutes}} 分钟",
             "DURATION_MINUTES": "{{minutes}} 分钟",
             "WATCHED": "已观看",
+            "RESUME_AT": "从 {{time}} 继续",
             "TRAILER_MUTE": "预告片静音",
             "TRAILER_UNMUTE": "取消预告片静音",
             "PROGRESS_RESET": "进度已重置",

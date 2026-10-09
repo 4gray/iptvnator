@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}} ώ {{minutes}} λ",
             "DURATION_MINUTES": "{{minutes}} λεπ.",
             "WATCHED": "παρακολουθήθηκε",
+            "RESUME_AT": "Συνέχεια από {{time}}",
             "TRAILER_MUTE": "Σίγαση τρέιλερ",
             "TRAILER_UNMUTE": "Ενεργοποίηση ήχου τρέιλερ",
             "PROGRESS_RESET": "Η πρόοδος επαναφέρθηκε",

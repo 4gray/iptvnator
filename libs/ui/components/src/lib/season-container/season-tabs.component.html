@@ -34,24 +34,26 @@
                                     | translate: { number: seasonKey }
                             }}
                         </span>
-                        <small
-                            class="season-tabs__menu-count"
-                            data-testid="season-menu-count"
-                        >
-                            {{
-                                (episodeCount === 1
-                                    ? 'PORTALS.EPISODE_COUNT_ONE'
-                                    : 'PORTALS.EPISODE_COUNT_OTHER'
-                                ) | translate: { count: episodeCount }
-                            }}
-                            @if (watchedCount) {
-                                ·
+                        @if (isCountKnown(seasonKey)) {
+                            <small
+                                class="season-tabs__menu-count"
+                                data-testid="season-menu-count"
+                            >
                                 {{
-                                    'PORTALS.EPISODES_WATCHED_COUNT'
-                                        | translate: { count: watchedCount }
+                                    (episodeCount === 1
+                                        ? 'PORTALS.EPISODE_COUNT_ONE'
+                                        : 'PORTALS.EPISODE_COUNT_OTHER'
+                                    ) | translate: { count: episodeCount }
                                 }}
-                            }
-                        </small>
+                                @if (watchedCount) {
+                                    ·
+                                    {{
+                                        'PORTALS.EPISODES_WATCHED_COUNT'
+                                            | translate: { count: watchedCount }
+                                    }}
+                                }
+                            </small>
+                        }
                     </span>
                 </button>
             }

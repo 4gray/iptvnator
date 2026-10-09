@@ -1386,6 +1386,7 @@
             "DURATION_HOURS_MINUTES": "{{hours}}時間{{minutes}}分",
             "DURATION_MINUTES": "{{minutes}}分",
             "WATCHED": "視聴済み",
+            "RESUME_AT": "{{time}} から再開",
             "TRAILER_MUTE": "予告編をミュート",
             "TRAILER_UNMUTE": "予告編の音を出す",
             "PROGRESS_RESET": "再生位置をリセットしました",
