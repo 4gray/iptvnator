@@ -69,4 +69,16 @@ describe('formatEpisodeAirDate', () => {
         expect(formatEpisodeAirDate('  ', 'en', now)).toBe('');
         expect(formatEpisodeAirDate('soon', 'en', now)).toBe('');
     });
+
+    it('is empty for a provider placeholder or an impossible day', () => {
+        // Providers send "0000-00-00" for "no date"; the Date constructor
+        // would make a day in 1899 of it and roll Feb 31 into March.
+        expect(formatEpisodeAirDate('0000-00-00', 'en', now)).toBe('');
+        expect(formatEpisodeAirDate('0000-00-00 00:00:00', 'en', now)).toBe('');
+        expect(formatEpisodeAirDate('2025-02-31', 'en', now)).toBe('');
+        expect(formatEpisodeAirDate('2025-13-01', 'en', now)).toBe('');
+        expect(formatEpisodeAirDate('2024-02-29', 'en', now)).toBe(
+            'Feb 29, 2024'
+        );
+    });
 });

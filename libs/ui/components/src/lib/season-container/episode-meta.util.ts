@@ -31,10 +31,31 @@ export function episodeTimeLabel(
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/;
 
 /**
+ * A local calendar day from an ISO day, or null when the parts do not name
+ * one: the `Date` constructor would otherwise turn a provider's
+ * "0000-00-00" placeholder into a day in 1899 and roll "2025-02-31" over
+ * into March.
+ */
+function parseIsoDay(match: RegExpExecArray): Date | null {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (year < 1 || month < 1 || month > 12 || day < 1 || day > 31) {
+        return null;
+    }
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day
+        ? date
+        : null;
+}
+
+/**
  * "12 Jan" for an air date in the current year, "12 Jan 2019" otherwise.
  * An ISO day ("2019-01-12", the Xtream and TMDB form) is read as a local
  * calendar day, so it never shifts by one west of UTC. Empty when the
- * provider sent nothing parseable.
+ * provider sent nothing parseable, a placeholder or an impossible day.
  */
 export function formatEpisodeAirDate(
     releaseDate: string | undefined | null,
@@ -46,10 +67,8 @@ export function formatEpisodeAirDate(
         return '';
     }
     const iso = ISO_DAY.exec(value);
-    const date = iso
-        ? new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
-        : new Date(value);
-    if (Number.isNaN(date.getTime())) {
+    const date = iso ? parseIsoDay(iso) : new Date(value);
+    if (!date || Number.isNaN(date.getTime())) {
         return '';
     }
     return formatWithIntl(date, {

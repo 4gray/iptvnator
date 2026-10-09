@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 :host {
     display: block;
     min-width: 0;
@@ -108,7 +110,11 @@
 // "N episodes · M watched" count; the selected season gets a selection tint.
 // The panel lives in the overlay container, outside this host.
 ::ng-deep .season-tabs-menu.mat-mdc-menu-panel {
-    --mat-menu-container-color: var(--mat-sys-surface-container-high);
+    @include mat.menu-overrides(
+        (
+            container-color: var(--mat-sys-surface-container-high),
+        )
+    );
     min-width: 280px;
     max-width: min(360px, calc(100vw - 24px));
     border: 1px solid color-mix(in srgb, var(--app-on-surface) 10%, transparent);
