@@ -280,19 +280,16 @@ episode" chip appears when the playing episode is outside the opened
 season. Season descriptions come from `get_series_info` seasons (Xtream)
 or `TmdbEnrichmentService.getSeason` (Stalker).
 
-The tabs and description sit in a **season card** with an optional cover
-column: the selected season's own poster (`seasonPosters` input, keyed like
-`seasonDescriptions`; TMDB season poster first, provider `seasons[].cover_big`
-next — see "Season/Episode Enrichment" in `tmdb-metadata-enrichment.md`).
-The column is sized by `--season-cover-width` (96 / 120 / 144px for
-`Settings.coverSize` small / medium / large, `apps/web/src/_cover-size.scss`;
-medium matches the About block's poster) and is not rendered at all — the
-card collapses to one column and the tabs render exactly as before — when
-the selected season has no poster, when the item has a single season (that
-poster is the show poster a few hundred pixels below the hero), or when the
-image request failed. The hero poster never follows the season: the show
-keeps its identity element, the season gets its own picture next to its own
-text. The fullscreen episode panel shows the same poster as a compact season
+The season picker carries no artwork: chips up to four seasons, a menu
+button with "N episodes · M watched" rows from five. The selected season's
+synopsis sits under the header, offset to the episode number column, only
+when it is non-empty and does not repeat the series description. The season
+posters (`seasonPosters` input, keyed like `seasonDescriptions`; TMDB season
+poster first, provider `seasons[].cover_big` next — see "Season/Episode
+Enrichment" in `tmdb-metadata-enrichment.md`) are not drawn on the detail
+page; the container only uses them to recognise an episode still that is the
+season cover again. The hero poster never follows the season.
+The fullscreen episode panel shows the same poster as a compact season
 strip (poster, season name, episode count — `PORTALS.EPISODE_COUNT_ONE` /
 `PORTALS.EPISODE_COUNT_OTHER`) above its season tabs, under the
 same gates, from `PortalInlinePlayerComponent.seasonPosters` through

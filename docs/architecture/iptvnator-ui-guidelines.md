@@ -324,10 +324,7 @@ Movie and series covers render in three surfaces: the catalog grid
 recent card (`app-content-card`, same lib) and the dashboard rails. All of
 them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 `--cover-gap` tokens that `Settings.coverSize` writes onto `<html>` as
-`data-cover-size` (`apps/web/src/_cover-size.scss`). The same file carries
-`--season-cover-width` (96 / 120 / 144px) for the season cover beside the
-season tabs on series detail pages; medium equals the About block's 120px
-poster so browse and watch share one secondary-poster size.
+`data-cover-size` (`apps/web/src/_cover-size.scss`).
 
 ### Posters-only wall
 
@@ -765,10 +762,13 @@ started one gets a 3px bar and the time left. Mark watched, download and "…"
 `:hover`/`:focus-within`, so nothing shifts. The whole item is one stretched
 button: Tab focuses it and Enter plays. The playing episode, else the most
 recently watched unfinished one, is highlighted. Without distinct stills the
-thumbnails show a dimmed fallback, not a column of bright posters. The
-selected season's cover and synopsis sit in a compact strip under the header
-only when present; a synopsis that repeats the series description (or is cut
-short from it) is dropped. Keep these treatments in the shared season
+thumbnails show a dimmed fallback, not a column of bright posters. The season
+picker never shows a season poster: chips up to four seasons, a menu button
+from five whose rows read "Season N" and "N episodes · M watched" (the second
+part left out at zero). The selected season's synopsis sits under the header,
+offset 52px to the number column and 24px above the list, only when present;
+one that repeats the series description (or is cut short from it) is dropped,
+and without one no row renders. Keep these treatments in the shared season
 components so Xtream and Stalker share the same behavior.
 
 Browser regression coverage measures the composited neutral edges and selected

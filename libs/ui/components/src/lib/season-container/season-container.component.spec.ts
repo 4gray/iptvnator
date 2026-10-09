@@ -414,9 +414,9 @@ describe('SeasonContainerComponent', () => {
         expect(emittedSeasons).toEqual(['1', '2']);
     });
 
-    it('uses a dropdown selector when there are more than six seasons', () => {
+    it('uses a dropdown selector from five seasons on', () => {
         const seasons: Record<string, XtreamSerieEpisode[]> = {};
-        for (let index = 1; index <= 7; index++) {
+        for (let index = 1; index <= 5; index++) {
             seasons[String(index)] = [
                 createEpisode({ id: String(100 + index), season: index }),
             ];

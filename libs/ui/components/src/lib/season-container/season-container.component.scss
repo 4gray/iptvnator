@@ -153,35 +153,18 @@
     }
 }
 
-// The selected season's cover (--season-cover-width follows
-// Settings.coverSize) and synopsis under the header.
-.season-strip {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    margin: -4px 0 18px;
-
-    &__cover {
-        display: block;
-        flex: 0 0 auto;
-        width: calc(var(--season-cover-width, 120px) * 0.5);
-        aspect-ratio: 2 / 3;
-        object-fit: cover;
-        border-radius: 8px;
-        background: var(--app-widget-bg);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-    }
-
-    // Only a season synopsis of its own reaches here: one that repeats the
-    // hero's series description is dropped by the container.
-    &__description {
-        flex: 1 1 auto;
-        min-width: 0;
-        max-width: 72ch;
-        font-size: 13px;
-        line-height: 1.55;
-        color: var(--text-secondary);
-    }
+// The selected season's own synopsis under the header, offset past the
+// 36px number column and its gap so it lines up with the episode numbers.
+// One that repeats the hero's series description is dropped by the
+// container, and without a synopsis nothing renders.
+.season-description {
+    display: block;
+    max-width: 72ch;
+    margin: 4px 0 24px;
+    padding-left: 52px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-secondary);
 }
 
 // ============================================================================

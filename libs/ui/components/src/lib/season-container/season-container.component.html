@@ -30,7 +30,6 @@
                 [selectedSeason]="selectedSeason()"
                 [episodeCounts]="episodeCounts()"
                 [watchedCounts]="watchedCounts()"
-                [seasonPosters]="seasonPosters()"
                 [playingSeasonKey]="playingSeasonKey()"
                 (seasonSelected)="selectSeason($event)"
                 (backToPlayingRequested)="scrollToPlayingEpisode()"
@@ -62,35 +61,15 @@
         }
     </app-detail-section-header>
 
-    @if (
-        hasSeasons() &&
-        (selectedSeasonPosterUrl() || selectedSeasonDescription())
-    ) {
-        <!-- The selected season's own cover and synopsis, compact, under
-             the header. Without either the row is not rendered at all. -->
-        <div class="season-strip">
-            @if (selectedSeasonPosterUrl(); as posterUrl) {
-                <img
-                    class="season-strip__cover"
-                    data-testid="season-cover"
-                    [src]="posterUrl"
-                    [alt]="
-                        'PORTALS.SEASON_TAB'
-                            | translate: { number: selectedSeason() }
-                    "
-                    loading="lazy"
-                    (error)="onSeasonPosterError(posterUrl)"
-                />
-            }
-            @if (selectedSeasonDescription(); as description) {
-                <app-expandable-text
-                    class="season-strip__description"
-                    data-testid="season-description"
-                    [text]="description"
-                    [clampLines]="2"
-                />
-            }
-        </div>
+    @if (hasSeasons() && selectedSeasonDescription(); as description) {
+        <!-- The selected season's own synopsis, aligned with the number
+             column. No cover beside it, and no row at all without one. -->
+        <app-expandable-text
+            class="season-description"
+            data-testid="season-description"
+            [text]="description"
+            [clampLines]="2"
+        />
     }
 
     <div class="content-container">

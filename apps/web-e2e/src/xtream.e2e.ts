@@ -738,7 +738,7 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
 // cannot fold the column (the app hides a cover whose image failed).
 // ---------------------------------------------------------------------------
 
-test('@xtream season cover — shows the provider season cover and follows the selected tab', async ({
+test('@xtream season header — chips, no season cover, synopsis on the number column', async ({
     page,
     request,
 }) => {
@@ -780,22 +780,38 @@ test('@xtream season cover — shows the provider season cover and follows the s
     await expect(seriesCard).toBeVisible({ timeout: 10_000 });
     await seriesCard.click();
 
-    // Season 1 is auto-selected; its provider cover sits beside the tabs.
-    // The mock seeds season art as `season-<id>-<n>` (cover) and
-    // `season-big-<id>-<n>` (cover_big); the app prefers cover_big.
-    const cover = page.locator('[data-testid="season-cover"]');
-    await expect(cover).toBeVisible({ timeout: 15_000 });
-    await expect(cover).toHaveAttribute(
-        'src',
-        new RegExp(`season(-big)?-${targetSeries.series_id}-1/`)
-    );
+    // The mock seeds season art (`season-<id>-<n>`) and a synopsis per
+    // season. Three seasons → chips; the art is never shown in the header
+    // or beside the synopsis.
+    const description = page.getByTestId('season-description');
+    await expect(description).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('.season-tabs__pill')).toHaveCount(3);
+    await expect(page.getByTestId('season-dropdown')).toHaveCount(0);
+    await expect(page.locator('[data-testid="season-cover"]')).toHaveCount(0);
+    await expect(
+        page.locator('app-season-container img[src*="/season-"]')
+    ).toHaveCount(0);
 
-    // The cover follows the selected tab.
+    // Offset to the episode number column, 24px above the list.
+    const geometry = await description.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const list = element.parentElement?.querySelector('.episodes-list');
+        return {
+            paddingLeft: style.paddingLeft,
+            gapToList: list
+                ? list.getBoundingClientRect().top -
+                  element.getBoundingClientRect().bottom
+                : null,
+        };
+    });
+    expect(geometry.paddingLeft).toBe('52px');
+    expect(geometry.gapToList).toBeCloseTo(24, 0);
+
     await page.locator('.season-tabs__pill').nth(1).click();
-    await expect(cover).toHaveAttribute(
-        'src',
-        new RegExp(`season(-big)?-${targetSeries.series_id}-2/`)
-    );
+    await expect(description).toBeVisible();
+    await expect(
+        page.locator('app-season-container img[src*="/season-"]')
+    ).toHaveCount(0);
 });
 
 // ---------------------------------------------------------------------------

@@ -105,7 +105,8 @@ export class SeasonContainerComponent implements OnInit {
     readonly seasonDescriptions = input<Record<string, string> | null>(null);
     /**
      * Per-season poster URLs (TMDB season poster, provider season cover),
-     * keyed by season key. Rendered as the season cover beside the tabs.
+     * keyed by season key. Never rendered here: an episode "still" that is
+     * only the season cover again counts as no still.
      */
     readonly seasonPosters = input<Record<string, string> | null>(null);
     /** True while a host is persisting a season-level watched toggle. */
@@ -231,26 +232,6 @@ export class SeasonContainerComponent implements OnInit {
             : null;
     });
 
-    /** Poster URLs whose image request failed; the cover column then folds. */
-    private readonly failedSeasonPosters = signal<ReadonlySet<string>>(
-        new Set()
-    );
-
-    /**
-     * The selected season's cover. Withheld for one-season items — that
-     * poster is the show poster again, a few hundred pixels below the hero —
-     * and for a URL whose image failed, so a dead provider link never leaves
-     * a broken-image frame beside the tabs.
-     */
-    readonly selectedSeasonPosterUrl = computed(() => {
-        const selected = this.selectedSeason();
-        if (!selected || this.sortedSeasonKeys().length < 2) {
-            return null;
-        }
-        const url = this.seasonPosters()?.[selected] ?? null;
-        return url && !this.failedSeasonPosters().has(url) ? url : null;
-    });
-
     constructor() {
         this.downloadPresenter.connect({
             adapter: this.downloadAdapter,
@@ -331,10 +312,6 @@ export class SeasonContainerComponent implements OnInit {
 
     selectSeason(seasonKey: string) {
         this.selectedSeason.set(seasonKey);
-    }
-
-    onSeasonPosterError(url: string): void {
-        this.failedSeasonPosters.update((failed) => new Set(failed).add(url));
     }
 
     scrollToPlayingEpisode(): void {
