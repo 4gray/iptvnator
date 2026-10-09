@@ -74,13 +74,55 @@ app-workspace-shell-context-sidebar {
     background: var(--app-content-bg, var(--mat-sys-surface));
 }
 
+// The content surface's rounded top-left corner is painted, not clipped.
+//
+// A `border-radius` on the scroller itself clips every composited layer inside
+// it (backdrop filters, running transform animations, isolated groups) through
+// a mask layer Blink synthesizes per composited effect: its shader path for
+// rounded clips needs four equal radii on macOS and a translation-only
+// transform between the clip and the effect, and the fallback mask is the size
+// of the whole clipped area (about 24 MB of tile memory at 2x on a 16" display,
+// one per rail chevron and hero control). Twelve of them put the dashboard over
+// Chromium's 512 MB tile budget ("tile memory limits exceeded", blank tiles
+// while scrolling). The frame keeps the radius for the shadow only and never
+// clips; the scroller clips to a rectangle; the frame's corner piece covers the
+// 16px notch in the body colour. The scroller is a stacking context, so nothing
+// scrolled under the corner can paint over the piece.
+.workspace-content-frame {
+    --workspace-content-radius: 16px;
+
+    position: relative;
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    border-radius: var(--workspace-content-radius) 0 0 0;
+    box-shadow: -4px 8px 20px var(--app-content-shadow, rgba(0, 0, 0, 0.18));
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        width: var(--workspace-content-radius);
+        height: var(--workspace-content-radius);
+        border-top-left-radius: var(--workspace-content-radius);
+        // The body colour outside the quarter circle: a transparent rounded
+        // box's spread shadow, clipped to the box.
+        box-shadow: 0 0 0 var(--workspace-content-radius)
+            var(--app-rail-bg, var(--mat-sys-surface-container-low));
+        clip-path: inset(0);
+        pointer-events: none;
+    }
+}
+
 .workspace-content {
+    position: relative;
+    z-index: 0;
     min-width: 0;
     min-height: 0;
     overflow: auto;
     background: var(--app-content-bg, var(--mat-sys-surface));
-    border-radius: 16px 0 0 0;
-    box-shadow: -4px 8px 20px var(--app-content-shadow, rgba(0, 0, 0, 0.18));
 }
 
 @media (max-width: 780px) {
@@ -134,9 +176,13 @@ app-workspace-shell-context-sidebar {
         background: rgba(0, 0, 0, 0.4);
     }
 
-    .workspace-content {
+    .workspace-content-frame {
         border-radius: 0;
         box-shadow: none;
+
+        &::before {
+            display: none;
+        }
     }
 
     .workspace-now-playing {

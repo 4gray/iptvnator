@@ -1017,6 +1017,10 @@ Avoid these:
 - making entire panes scroll when only the list should scroll
 - using dark translucent fills unchanged in light theme
 - solving cramped sidebars with smaller fonts instead of shorter labels
+- rounding a scroller's corners (`border-radius` with `overflow`) when it holds
+  composited effects such as `backdrop-filter`: each effect gets a clip mask
+  the size of the scroller; paint the corner instead (see the content surface
+  corner in the [workspace shell contract](workspace-shell.md#content-surface-corner))
 
 ## Definition Of Done For UI Changes
 
