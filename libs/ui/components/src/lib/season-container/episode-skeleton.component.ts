@@ -14,8 +14,9 @@ const DEFAULT_SKELETON_ROWS = 6;
  * geometry of the full-density rows (or grid cards) they precede, so the
  * real items swap in without moving anything: a 168×94 thumbnail, a 90px
  * title and 110px meta line, two description lines. No hover state, no
- * actions. Bare mode is never anticipated — it is decided once the data is
- * final.
+ * actions (the slot is reserved, and at phone width it is the row the
+ * real actions take under the text). Bare mode is never anticipated — it
+ * is decided once the data is final.
  */
 @Component({
     selector: 'app-episode-skeleton',
@@ -40,6 +41,9 @@ const DEFAULT_SKELETON_ROWS = 6;
                         class="episode-skeleton__line episode-skeleton__line--short"
                     ></span>
                 </span>
+                @if (layout() === 'list') {
+                    <span class="episode-skeleton__actions"></span>
+                }
             </div>
         }
     `,

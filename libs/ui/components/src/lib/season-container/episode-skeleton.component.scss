@@ -129,6 +129,11 @@
     }
 }
 
+// The reserved action slot: empty at the real row's 34px button height.
+.episode-skeleton__actions {
+    height: 34px;
+}
+
 // Narrow details pane: the real row's 24px / 112px columns.
 @container detail (max-width: 640px) {
     .episode-skeleton:not(.episode-skeleton--card) {
@@ -137,6 +142,36 @@
 
         .episode-skeleton__line--short {
             display: none;
+        }
+    }
+}
+
+// Phone width: the real row's 96px thumbnail and the action row under the
+// text, so finished rows land exactly where the placeholders were.
+@container detail (max-width: 480px) {
+    .episode-skeleton:not(.episode-skeleton--card) {
+        grid-template-columns: 24px 96px minmax(0, 1fr);
+        grid-template-areas:
+            'number thumb text'
+            'number thumb actions';
+        row-gap: 2px;
+        padding: 8px 8px 8px 4px;
+
+        .episode-skeleton__number {
+            grid-area: number;
+        }
+
+        .episode-skeleton__thumb {
+            grid-area: thumb;
+        }
+
+        .episode-skeleton__text {
+            grid-area: text;
+            align-self: end;
+        }
+
+        .episode-skeleton__actions {
+            grid-area: actions;
         }
     }
 }

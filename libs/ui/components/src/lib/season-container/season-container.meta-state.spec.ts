@@ -209,6 +209,18 @@ describe('SeasonContainerComponent metadata state', () => {
         expect(component.metaState()).toBe('bare');
     });
 
+    it('reserves the action row only in skeleton list rows', () => {
+        fixture.componentRef.setInput('metadataLoading', true);
+        setRequiredInputs(bareSeason());
+        fixture.detectChanges();
+
+        expect(all('.episode-skeleton__actions')).toHaveLength(3);
+
+        component.setViewMode('grid');
+        fixture.detectChanges();
+        expect(all('.episode-skeleton__actions')).toHaveLength(0);
+    });
+
     it('follows the saved grid view with skeleton cards', () => {
         component.setViewMode('grid');
         fixture.componentRef.setInput('metadataLoading', true);
