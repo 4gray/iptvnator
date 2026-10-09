@@ -62,6 +62,8 @@ const WINDOW = { height: 1000, width: 1600 };
 const LARGEST_LAYERS = 8;
 /** The hero backdrop's zoom transition (`transform 8s` in its stylesheet). */
 const HERO_ZOOM_MS = 8_000;
+/** Into the 700 ms crossfade, where the animations are frozen for sampling. */
+const CROSSFADE_SAMPLE_MS = 300;
 const TILE_WARNING = /tile memory limits exceeded/;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -141,11 +143,13 @@ test('compositing report', async ({ dataDir, request }) => {
     });
     const page = app.mainWindow;
     let tileWarnings = 0;
+    // A chunk can end mid-line: only complete lines are counted, the rest
+    // waits for the next chunk.
+    let stderrRemainder = '';
     app.electronApp.process().stderr?.on('data', (chunk: Buffer) => {
-        tileWarnings += chunk
-            .toString()
-            .split('\n')
-            .filter((line) => TILE_WARNING.test(line)).length;
+        const lines = (stderrRemainder + chunk.toString()).split('\n');
+        stderrRemainder = lines.pop() ?? '';
+        tileWarnings += lines.filter((line) => TILE_WARNING.test(line)).length;
     });
     const routes: CompositingRouteReading[] = [];
 
@@ -223,10 +227,24 @@ test('compositing report', async ({ dataDir, request }) => {
             all.findIndex((dot) => dot.getAttribute('aria-current') === 'true')
         );
         // Deliberately mid-motion: the outgoing and incoming slides are
-        // both composited while the crossfade and the zoom run.
+        // both composited while the crossfade and the zoom run. The page's
+        // animations are frozen at a known point of the 700 ms fade while
+        // the layers and the memory are read, so the reading does not
+        // depend on how long the sampling takes.
         await dots.nth((active + 1) % (await dots.count())).click();
         await page.mouse.move(1, 1);
-        await measure('dashboard-crossfade', 0);
+        await sleep(CROSSFADE_SAMPLE_MS);
+        await cdp.send('Animation.enable');
+        await cdp.send('Animation.setPlaybackRate', { playbackRate: 0 });
+        try {
+            await measure('dashboard-crossfade', 0);
+        } finally {
+            await cdp.send('Animation.setPlaybackRate', { playbackRate: 1 });
+            await cdp.send('Animation.disable');
+        }
+        // The incoming slide's zoom runs on after the freeze; the scrolled
+        // reading is taken once it has finished.
+        await sleep(HERO_ZOOM_MS);
 
         await page.mouse.move(WINDOW.width / 2, WINDOW.height / 2);
         for (let step = 0; step < 8; step += 1) {

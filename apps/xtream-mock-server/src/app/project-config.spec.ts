@@ -30,6 +30,9 @@ describe('Xtream mock Nx serve environment', () => {
 describe('Playwright mock-server launch', () => {
     const appsDirectory = join(process.cwd(), 'apps');
     const expectedMockLaunches: Record<string, string[]> = {
+        'apps/electron-backend-e2e/playwright.compositing.config.ts': [
+            'xtream',
+        ],
         'apps/electron-backend-e2e/playwright.config.ts': ['stalker', 'xtream'],
         'apps/electron-backend-e2e/playwright.journeys.config.ts': ['xtream'],
         'apps/electron-backend-e2e/playwright.xtream-performance.config.ts': [

@@ -135,7 +135,13 @@ export async function collectCompositedLayers(
     };
     cdp.on('LayerTree.layerTreeDidChange', onChange);
     let withReasons: CompositedLayerWithReasons[] = [];
-    const snapshot = async () => {
+    /**
+     * Reads every layer's reasons; null when a layer went away between the
+     * snapshot and its query (the tree changed under us). A vanished layer
+     * must not be kept with empty reasons: without an owner node it would
+     * pass for a synthesized mask.
+     */
+    const snapshot = async (): Promise<CompositedLayerWithReasons[] | null> => {
         await page.evaluate(
             () =>
                 new Promise((resolve) =>
@@ -144,16 +150,17 @@ export async function collectCompositedLayers(
         );
         const result: CompositedLayerWithReasons[] = [];
         for (const layer of layers) {
-            let reasons: string[] = [];
             try {
                 const answer = (await cdp.send('LayerTree.compositingReasons', {
                     layerId: layer.layerId,
                 })) as { compositingReasonIds?: string[] };
-                reasons = answer.compositingReasonIds ?? [];
+                result.push({
+                    ...layer,
+                    reasons: answer.compositingReasonIds ?? [],
+                });
             } catch {
-                // The layer went away between the snapshot and the query.
+                return null;
             }
-            result.push({ ...layer, reasons });
         }
         return result;
     };
@@ -161,7 +168,8 @@ export async function collectCompositedLayers(
         await cdp.send('LayerTree.enable');
         await expect
             .poll(async () => {
-                withReasons = await snapshot();
+                const sample = await snapshot();
+                withReasons = sample ?? [];
                 return withReasons.filter((layer) => layer.reasons.length > 0)
                     .length;
             })
