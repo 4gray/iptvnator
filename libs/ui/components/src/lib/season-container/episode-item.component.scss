@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 // ============================================================================
 // Episode item — list row and grid card of the season container
 // ============================================================================
@@ -145,7 +147,11 @@
     }
 
     mat-progress-spinner {
-        --mat-progress-spinner-active-indicator-color: #0a0e14;
+        @include mat.progress-spinner-overrides(
+            (
+                active-indicator-color: #0a0e14,
+            )
+        );
     }
 }
 
@@ -313,7 +319,11 @@
     text-align: center;
 
     mat-progress-spinner {
-        --mat-progress-spinner-active-indicator-color: var(--ep-accent);
+        @include mat.progress-spinner-overrides(
+            (
+                active-indicator-color: var(--ep-accent),
+            )
+        );
     }
 }
 
