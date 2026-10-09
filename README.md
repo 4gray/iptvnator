@@ -399,6 +399,9 @@ $ pnpm run perf:journeys
 The journeys, their counters and the summary written under
 `dist/performance/journeys/` are described in
 [docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
+`pnpm run perf:compositing` measures the renderer's tile memory and composited
+layers on the dashboard, the detail pages, Live TV and settings (the
+"compositing budget" section of the same document).
 
 ## Disclaimer
 

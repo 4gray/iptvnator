@@ -68,6 +68,16 @@
                 "command": "playwright test --config=playwright.journeys.config.ts"
             }
         },
+        "compositing-report": {
+            "dependsOn": ["electron-backend:build-e2e"],
+            "executor": "nx:run-commands",
+            "cache": false,
+            "parallelism": false,
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "command": "playwright test --config=playwright.compositing.config.ts"
+            }
+        },
         "packaged-frame-copy-smoke": {
             "dependsOn": ["test-packaged-frame-copy-fixtures"],
             "executor": "nx:run-commands",

@@ -277,6 +277,7 @@ pnpm run perf:initial-bytes         # breakdown only
 pnpm run perf:initial-bytes:check   # measure, then compare with the committed baseline
 pnpm nx test performance-tools
 pnpm run perf:journeys              # J1 launch, J2 open-source and J3 playback journeys, one dist/performance/journeys/<timestamp>/summary.json
+pnpm run perf:compositing           # tile memory and composited layers per route, dist/performance/compositing/<timestamp>/summary.json
 ```
 
 `perf:initial-bytes` reads the built `dist/apps/web/index.html` and sums the
@@ -306,7 +307,10 @@ not through `pnpm exec`: under `pnpm nx`, a nested `pnpm exec` can run from the
 workspace root instead of the target `cwd` and miss cwd-relative specs, globs
 and configs. The contract, what
 counts and how to add a counter or a journey are in the
-[performance journeys](performance-journeys.md) document.
+[performance journeys](performance-journeys.md) document. `perf:compositing`
+measures tile memory and composited layers on the artwork-heavy routes; the
+deterministic guard is `compositing.e2e.ts` in the Electron E2E suite
+([compositing budget](performance-journeys.md#compositing-budget)).
 
 ## Logging
 

@@ -57,6 +57,20 @@ consumers currently use relative `@use` paths to the needed partial.
   cap in rules that set that family. Read the
   guidelines' Typography section before changing bundled fonts.
 
+## Rendering Cost
+
+- A composited layer the size of the content area costs about 24 MB of
+  tile memory at 2x against Chromium's 512 MB budget; contract in
+  `docs/architecture/performance-journeys.md` (Compositing budget).
+- No `border-radius`, `mask` or `clip-path` on a scroller or another
+  ancestor of `backdrop-filter`, render-surface `filter`, running
+  animations, `isolation: isolate` or `will-change`: Blink then clips each
+  through a mask layer the size of the clipped area. Paint the corner, as
+  `.workspace-content-frame` does.
+- Adding or changing those properties: run `pnpm run perf:compositing`
+  before and after, quote the numbers in the PR, and extend
+  `compositing.e2e.ts` in `apps/electron-backend-e2e` for a new route.
+
 ## Validation
 
 Run the affected consumer's Nx lint/test/build target. Inspect light and dark
