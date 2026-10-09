@@ -111,6 +111,8 @@
                     testId="series-quick-start"
                     (pressed)="playQuickStartEpisode()"
                 />
+            } @else if (episodeListLoading()) {
+                <app-detail-action-skeleton />
             }
             @if (heroPresenter.trailerEmbedUrl()) {
                 <app-detail-action-button
@@ -183,16 +185,7 @@
                 [seasonPosters]="seasonPosters()"
                 [downloadsEnabled]="!providerOnly()"
                 [downloadAdapter]="episodeDownloadAdapter()"
-                [isLoading]="
-                    (isVodSeries()
-                        ? isVodSeriesSeasonsLoading()
-                        : isSerialSeasonsLoading()) ||
-                    isCurrentSeasonLoading(
-                        $safeNavigationMigration(
-                            seasonContainer?.selectedSeason()
-                        )
-                    )
-                "
+                [isLoading]="episodeListLoading()"
                 [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
                 [hasUnloadedSeasons]="hasUnloadedVodSeasons()"
                 (seasonSelected)="onSeasonSelected($event)"

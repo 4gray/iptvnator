@@ -226,5 +226,14 @@
         (backClicked)="goBack()"
     />
 } @else {
-    <app-portal-detail-shell [isLoading]="true" (backClicked)="goBack()" />
+    <app-portal-detail-shell [isLoading]="true" (backClicked)="goBack()">
+        <!-- The episodes section's place under the hero skeleton, so the
+             page does not grow downwards when the series arrives. -->
+        <section detail-episodes data-test-id="episodes-skeleton-section">
+            <app-detail-section-header
+                [title]="'PORTALS.DETAIL.EPISODES' | translate"
+            />
+            <app-episode-skeleton [layout]="savedEpisodeViewMode" [count]="4" />
+        </section>
+    </app-portal-detail-shell>
 }

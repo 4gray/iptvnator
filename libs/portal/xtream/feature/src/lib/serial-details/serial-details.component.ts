@@ -19,7 +19,9 @@ import {
     DetailCreditsComponent,
     DetailIconButtonComponent,
     DetailMetaTemplateDirective,
+    DetailSectionHeaderComponent,
     DetailTagsTemplateDirective,
+    EpisodeSkeletonComponent,
     MetaChipComponent,
     PortalDetailShellComponent,
     SeasonContainerComponent,
@@ -29,6 +31,7 @@ import {
     SimilarRailComponent,
     ViewInPortalActionComponent,
     VodMoreMenuComponent,
+    readSavedEpisodeViewMode,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import {
@@ -95,7 +98,9 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         DetailCreditsComponent,
         DetailIconButtonComponent,
         DetailMetaTemplateDirective,
+        DetailSectionHeaderComponent,
         DetailTagsTemplateDirective,
+        EpisodeSkeletonComponent,
         MetaChipComponent,
         PortalDetailShellComponent,
         PortalInlinePlayerComponent,
@@ -175,6 +180,8 @@ export class SerialDetailsComponent implements OnDestroy {
     readonly seasonDescriptions = this.seasons.descriptions;
     readonly seasonPosters = this.seasons.posters;
     readonly seasonMetadataLoading = this.seasons.metadataLoading;
+    /** Layout of the loading shell's episode placeholders. */
+    readonly savedEpisodeViewMode = readSavedEpisodeViewMode();
 
     /** Clickable year/genre/country chips (Discover pages) */
     readonly discover = this.navigation.discover;

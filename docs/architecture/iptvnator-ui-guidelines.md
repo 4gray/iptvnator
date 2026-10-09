@@ -689,6 +689,14 @@ page down. For the same reason it stays until every source that can fill it
 has loaded, not only the first one. Use the same rules for any page that
 stacks independently loading blocks.
 
+The movie and series detail hero has an immediate skeleton too, built from
+the shared shimmer (`libs/ui/components/src/lib/styles/_skeleton-shimmer.scss`)
+at the loaded hero's geometry: stage height, bottom-aligned eyebrow, title,
+one row of chips, two description lines, the action row and two credit lines.
+The Xtream series page adds an episodes section skeleton under it, and the
+Stalker series hero holds the Play button's place
+(`app-detail-action-skeleton`) while its seasons load.
+
 ### Reload with content on screen: non-destructive indicator
 
 A reload of a list that is already rendered (the collection page's

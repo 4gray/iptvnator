@@ -26,6 +26,7 @@ import {
 import {
     CastCrewRowComponent,
     DetailActionButtonComponent,
+    DetailActionSkeletonComponent,
     DetailActionsTemplateDirective,
     DetailCreditsComponent,
     DetailMetaTemplateDirective,
@@ -142,6 +143,7 @@ interface StalkerSeriesPlaybackRequestContext {
         FavoritesButtonComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
+        DetailActionSkeletonComponent,
         DetailActionsTemplateDirective,
         DetailCreditsComponent,
         DetailMetaTemplateDirective,
@@ -276,6 +278,19 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * coherence gates instead (see the constructor).
      */
     private readonly selectedSeasonKey = signal<string | null>(null);
+
+    /**
+     * True while the episode list itself is on its way: the season list
+     * (VOD or regular series) or the selected lazy VOD season. The season
+     * container shows skeleton rows, the hero a placeholder for Play.
+     */
+    readonly episodeListLoading = computed(
+        () =>
+            (this.isVodSeries()
+                ? this.isVodSeriesSeasonsLoading()
+                : this.isSerialSeasonsLoading()) ||
+            this.isCurrentSeasonLoading(this.selectedSeasonKey() ?? undefined)
+    );
 
     /**
      * True while TMDB may still fill the selected season's episodes: the

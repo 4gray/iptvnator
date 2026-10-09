@@ -60,6 +60,17 @@ const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
 
 export type EpisodeViewMode = 'grid' | 'list';
 
+/** The viewer's saved list/grid choice for episodes; list by default. */
+export function readSavedEpisodeViewMode(): EpisodeViewMode {
+    try {
+        return localStorage.getItem(EPISODE_VIEW_MODE_KEY) === 'grid'
+            ? 'grid'
+            : 'list';
+    } catch {
+        return 'list';
+    }
+}
+
 @Component({
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
@@ -317,12 +328,7 @@ export class SeasonContainerComponent implements OnInit {
     }
 
     ngOnInit() {
-        const savedMode = localStorage.getItem(
-            EPISODE_VIEW_MODE_KEY
-        ) as EpisodeViewMode;
-        if (savedMode === 'grid' || savedMode === 'list') {
-            this.viewMode.set(savedMode);
-        }
+        this.viewMode.set(readSavedEpisodeViewMode());
     }
 
     setViewMode(mode: EpisodeViewMode) {
