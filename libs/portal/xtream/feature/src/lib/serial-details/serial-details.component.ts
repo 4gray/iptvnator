@@ -174,6 +174,7 @@ export class SerialDetailsComponent implements OnDestroy {
     private readonly seasons = inject(SerialDetailsSeasonsService);
     readonly seasonDescriptions = this.seasons.descriptions;
     readonly seasonPosters = this.seasons.posters;
+    readonly seasonMetadataLoading = this.seasons.metadataLoading;
 
     /** Clickable year/genre/country chips (Discover pages) */
     readonly discover = this.navigation.discover;

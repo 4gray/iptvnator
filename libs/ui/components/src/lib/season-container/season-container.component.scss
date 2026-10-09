@@ -2,14 +2,6 @@
     width: 100%;
 }
 
-.loading-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 30px 0;
-    width: 100%;
-}
-
 .empty-state-panel {
     display: grid;
     justify-items: center;
@@ -195,6 +187,11 @@
         height: 1px;
         background: color-mix(in srgb, var(--app-on-surface) 7%, transparent);
         pointer-events: none;
+    }
+
+    // Bare rows have no thumbnail: the hairline starts past the number.
+    &--bare > app-episode-item + app-episode-item::before {
+        left: 48px;
     }
 
     > app-episode-item:hover::before,

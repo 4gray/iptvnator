@@ -159,4 +159,57 @@ describe('EpisodeItemComponent', () => {
         expect(q('.episode-item__thumb img')).toBeNull();
         expect(q('.episode-item__thumb--fallback')).not.toBeNull();
     });
+    describe('bare row', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput(
+                'episode',
+                episode({ plot: '', movie_image: '' })
+            );
+            fixture.componentRef.setInput('bare', true);
+        });
+
+        it('drops the thumbnail and the description', () => {
+            fixture.componentRef.setInput(
+                'episode',
+                episode({ plot: 'A plot' })
+            );
+            fixture.detectChanges();
+
+            expect(el().classList).toContain('episode-item--bare');
+            expect(q('.episode-item__thumb')).toBeNull();
+            expect(q('.episode-item__description')).toBeNull();
+            expect(q('.episode-item__number')?.textContent?.trim()).toBe('3');
+            expect(q('[data-testid="episode-more-button"]')).not.toBeNull();
+        });
+
+        it('puts the watched check inline, without a bar', () => {
+            fixture.componentRef.setInput('position', position(2760));
+            fixture.detectChanges();
+
+            expect(
+                q('.episode-item__title-row .episode-item__inline-check')
+            ).not.toBeNull();
+            expect(q('.episode-item__inline-progress')).toBeNull();
+        });
+
+        it('puts a 72px bar inline for a started episode', () => {
+            fixture.componentRef.setInput('position', position(900));
+            fixture.detectChanges();
+
+            expect(
+                (q('.episode-item__inline-progress i') as HTMLElement).style
+                    .width
+            ).toBe('33%');
+            expect(q('.episode-item__inline-check')).toBeNull();
+        });
+
+        it('shows the start in the number column while launching', () => {
+            fixture.componentRef.setInput('launching', true);
+            fixture.detectChanges();
+
+            expect(
+                q('.episode-item__number mat-progress-spinner')
+            ).not.toBeNull();
+        });
+    });
 });

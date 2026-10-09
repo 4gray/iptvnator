@@ -16,44 +16,61 @@
 ></button>
 
 @if (layout() === 'list') {
-    <span class="episode-item__number" aria-hidden="true">{{
-        item.episode_num
-    }}</span>
+    <span class="episode-item__number" aria-hidden="true">
+        <!-- A bare row has no play disc: the number column shows the start. -->
+        @if (bare() && launching()) {
+            <mat-progress-spinner mode="indeterminate" diameter="16" />
+        } @else if (bare() && playing()) {
+            <mat-icon class="episode-item__number-icon">equalizer</mat-icon>
+        } @else {
+            {{ item.episode_num }}
+        }
+    </span>
 }
 
-<div
-    class="episode-item__thumb episode-card__thumbnail"
-    [class.episode-item__thumb--fallback]="!showStill() || !stillUrl()"
-    aria-hidden="true"
->
-    @if (stillUrl(); as url) {
-        <img [src]="url" alt="" loading="lazy" (error)="onStillError(url)" />
-    }
-    @if (layout() === 'grid') {
-        <span class="episode-item__chip">{{ item.episode_num }}</span>
-    }
-    @if (watched()) {
-        <span class="episode-item__badge" data-testid="episode-watched-badge">
-            <mat-icon>check</mat-icon>
+@if (!bare()) {
+    <div
+        class="episode-item__thumb episode-card__thumbnail"
+        [class.episode-item__thumb--fallback]="!showStill() || !stillUrl()"
+        aria-hidden="true"
+    >
+        @if (stillUrl(); as url) {
+            <img
+                [src]="url"
+                alt=""
+                loading="lazy"
+                (error)="onStillError(url)"
+            />
+        }
+        @if (layout() === 'grid') {
+            <span class="episode-item__chip">{{ item.episode_num }}</span>
+        }
+        @if (watched()) {
+            <span
+                class="episode-item__badge"
+                data-testid="episode-watched-badge"
+            >
+                <mat-icon>check</mat-icon>
+            </span>
+        }
+        @if (progressPercent() > 0) {
+            <span class="episode-item__progress">
+                <i [style.width.%]="progressPercent()"></i>
+            </span>
+        }
+        <span class="episode-item__play">
+            <span class="episode-item__play-disc">
+                @if (launching()) {
+                    <mat-progress-spinner mode="indeterminate" diameter="18" />
+                } @else {
+                    <mat-icon>{{
+                        playing() ? 'equalizer' : 'play_arrow'
+                    }}</mat-icon>
+                }
+            </span>
         </span>
-    }
-    @if (progressPercent() > 0) {
-        <span class="episode-item__progress">
-            <i [style.width.%]="progressPercent()"></i>
-        </span>
-    }
-    <span class="episode-item__play">
-        <span class="episode-item__play-disc">
-            @if (launching()) {
-                <mat-progress-spinner mode="indeterminate" diameter="18" />
-            } @else {
-                <mat-icon>{{
-                    playing() ? 'equalizer' : 'play_arrow'
-                }}</mat-icon>
-            }
-        </span>
-    </span>
-</div>
+    </div>
+}
 
 <div class="episode-item__text">
     <div class="episode-item__title-row">
@@ -69,8 +86,22 @@
                 {{ airDate() }}
             </small>
         }
+        @if (bare()) {
+            <!-- No thumbnail to carry the state: it follows the meta. -->
+            @if (watched()) {
+                <mat-icon
+                    class="episode-item__inline-check"
+                    data-testid="episode-watched-badge"
+                    >check</mat-icon
+                >
+            } @else if (progressPercent() > 0) {
+                <span class="episode-item__inline-progress">
+                    <i [style.width.%]="progressPercent()"></i>
+                </span>
+            }
+        }
     </div>
-    @if (details?.plot) {
+    @if (!bare() && details?.plot) {
         <p class="episode-item__description">{{ details?.plot }}</p>
     }
 </div>

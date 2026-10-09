@@ -36,6 +36,8 @@ export type EpisodeItemLayout = 'list' | 'grid';
  * reserved slot above that button, so showing them never moves the text.
  * Watched episodes carry a check on the thumbnail and muted text, started
  * ones a progress bar and the time left; there is no bar on a watched one.
+ * A season without any stills or plots renders `bare` rows: no thumbnail,
+ * no description, the check or a 72px bar inline after the meta.
  */
 @Component({
     selector: 'app-episode-item',
@@ -53,6 +55,7 @@ export type EpisodeItemLayout = 'list' | 'grid';
         class: 'episode-item',
         '[class.episode-list-item]': "layout() === 'list'",
         '[class.episode-card]': "layout() === 'grid'",
+        '[class.episode-item--bare]': 'bare()',
         '[class.episode-item--watched]': 'watched()',
         '[class.episode-item--in-progress]': 'inProgress()',
         '[class.episode-item--current]': 'current()',
@@ -75,6 +78,11 @@ export class EpisodeItemComponent {
     readonly playing = input(false);
     /** The "now playing / continue" row of the season. */
     readonly current = input(false);
+    /**
+     * The season has neither stills nor plots: a 44px row without a
+     * thumbnail or description, the watched check or progress inline.
+     */
+    readonly bare = input(false);
 
     readonly played = output<void>();
     readonly restartRequested = output<void>();

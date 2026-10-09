@@ -277,6 +277,33 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     private readonly selectedSeasonKey = signal<string | null>(null);
 
+    /**
+     * True while TMDB may still fill the selected season's episodes: the
+     * show-level match is in flight, or — once matched — that season's
+     * fetch has not finished. The season container then keeps rows it would
+     * render bare as skeletons. Before the container reports its selection,
+     * the lowest season stands in.
+     */
+    readonly seasonMetadataLoading = computed(() => {
+        if (!this.tmdbEnrichment.isEnabled()) {
+            return false;
+        }
+        if (this.stalkerStore.selectedItemTmdbPending()) {
+            return true;
+        }
+        const tmdbId = this.displayItem()?.info?.tmdb_id;
+        const seasonKey =
+            this.selectedSeasonKey() ??
+            Object.keys(this.mappedSeasons()).sort(
+                (a, b) => Number(a) - Number(b)
+            )[0];
+        return (
+            !!tmdbId &&
+            !!seasonKey &&
+            !this.tmdbSeasons.isSeasonSettled(tmdbId, seasonKey)
+        );
+    });
+
     /** Season descriptions for the season tabs (TMDB overview per season). */
     readonly seasonDescriptions = computed<Record<string, string>>(() =>
         this.tmdbSeasons.descriptions(this.displayItem()?.info?.tmdb_id)

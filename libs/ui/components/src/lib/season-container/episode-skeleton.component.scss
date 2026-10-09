@@ -1,0 +1,142 @@
+@use '../styles/skeleton-shimmer' as shimmer;
+
+@include shimmer.keyframes;
+
+// Geometry mirrors episode-item.component.scss: change both together.
+
+:host {
+    display: block;
+}
+
+:host(.episodes-list) {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+:host(.episodes-grid) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+    gap: 20px 16px;
+}
+
+.episode-skeleton {
+    position: relative;
+    display: grid;
+    grid-template-columns: 36px 168px minmax(0, 1fr) 112px;
+    column-gap: 16px;
+    align-items: center;
+    padding: 10px 12px 10px 8px;
+
+    // Same hairline as the real rows, inset past the number column.
+    & + &::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        right: 12px;
+        left: 56px;
+        height: 1px;
+        background: color-mix(in srgb, var(--app-on-surface) 7%, transparent);
+    }
+
+    &__number {
+        justify-self: center;
+        width: 14px;
+        height: 14px;
+        @include shimmer.block(4px);
+    }
+
+    // The real thumbnail is 16:9 inside a 1px hairline.
+    &__thumb {
+        aspect-ratio: 16 / 9;
+        border: 1px solid transparent;
+        @include shimmer.block(6px);
+    }
+
+    // Starts the fourth column empty: the reserved action slot.
+    &__text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    // One title line (14.5px × 1.35) with the meta beside it.
+    &__title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 19.575px;
+    }
+
+    &__title {
+        width: 90px;
+        height: 12px;
+        @include shimmer.block(4px);
+    }
+
+    &__meta {
+        width: 110px;
+        height: 10px;
+        @include shimmer.block(4px);
+    }
+
+    // Two description lines of 12.5px × 1.45 (18.125px each), 4px under the
+    // title; each bar sits centred in its line box.
+    &__line {
+        --line-box: 18.125px;
+        --bar: 9px;
+
+        width: min(100%, 74ch);
+        height: var(--bar);
+        margin-block: calc((var(--line-box) - var(--bar)) / 2);
+        @include shimmer.block(4px);
+
+        .episode-skeleton__title-row + & {
+            margin-top: calc(4px + (var(--line-box) - var(--bar)) / 2);
+        }
+
+        &--short {
+            width: min(70%, 52ch);
+        }
+    }
+
+    // Grid card: the artwork on top, title and two lines under it.
+    &--card {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        padding: 0;
+
+        &::before {
+            display: none;
+        }
+
+        .episode-skeleton__thumb {
+            @include shimmer.block(10px);
+        }
+
+        .episode-skeleton__text {
+            margin-top: 10px;
+        }
+
+        .episode-skeleton__title-row {
+            height: 18.225px;
+        }
+
+        .episode-skeleton__line {
+            --line-box: 17.4px;
+            --bar: 8px;
+        }
+    }
+}
+
+// Narrow details pane: the real row's 24px / 112px columns.
+@container detail (max-width: 640px) {
+    .episode-skeleton:not(.episode-skeleton--card) {
+        grid-template-columns: 24px 112px minmax(0, 1fr) auto;
+        column-gap: 12px;
+
+        .episode-skeleton__line--short {
+            display: none;
+        }
+    }
+}

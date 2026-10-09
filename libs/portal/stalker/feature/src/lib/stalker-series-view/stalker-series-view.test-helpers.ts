@@ -26,6 +26,8 @@ export class StubSeasonContainerComponent {
     readonly seasonDescriptions = input<unknown>(null);
     readonly seriesDescription = input<unknown>(null);
     readonly seasonPosters = input<unknown>(null);
+    readonly seriesPosterUrl = input<unknown>(null);
+    readonly metadataLoading = input(false);
     readonly isLoading = input(false);
     readonly downloadsEnabled = input(true);
     readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);

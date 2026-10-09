@@ -304,11 +304,65 @@
 }
 
 .episode-item__number {
+    display: grid;
+    place-items: center;
     color: var(--ep-text-tertiary);
     font-size: 15px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     text-align: center;
+
+    mat-progress-spinner {
+        --mat-progress-spinner-active-indicator-color: var(--ep-accent);
+    }
+}
+
+.episode-item__number-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--ep-accent);
+    font-size: 18px;
+    line-height: 18px;
+}
+
+// Bare row: a season without stills or plots. No thumbnail or description,
+// a 44px line with the watched check or the progress inline.
+:host(.episode-list-item.episode-item--bare) {
+    grid-template-columns: 36px minmax(0, 1fr) 112px;
+    min-height: 44px;
+    padding: 0 12px 0 8px;
+
+    .episode-item__title {
+        font-size: 13.5px;
+        font-weight: 500;
+    }
+}
+
+.episode-item__inline-check {
+    flex: none;
+    align-self: center;
+    width: 13px;
+    height: 13px;
+    color: var(--ep-success);
+    font-size: 13px;
+    line-height: 13px;
+    font-weight: 700;
+}
+
+.episode-item__inline-progress {
+    flex: none;
+    align-self: center;
+    width: 72px;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+
+    i {
+        display: block;
+        height: 100%;
+        background: var(--ep-accent);
+    }
 }
 
 // ============================================================================
@@ -426,6 +480,10 @@
     :host(.episode-list-item) {
         grid-template-columns: 24px 112px minmax(0, 1fr) auto;
         column-gap: 12px;
+    }
+
+    :host(.episode-list-item.episode-item--bare) {
+        grid-template-columns: 24px minmax(0, 1fr) auto;
     }
 
     .episode-item__title-row {

@@ -768,7 +768,17 @@ from five whose rows read "Season N" and "N episodes · M watched" (the second
 part left out at zero). The selected season's synopsis sits under the header,
 offset 52px to the number column and 24px above the list, only when present;
 one that repeats the series description (or is cut short from it) is dropped,
-and without one no row renders. Keep these treatments in the shared season
+and without one no row renders.
+
+A season whose final episode data has no plot and no usable still (a still
+equal to the series poster or the season cover counts as none) renders bare:
+44px rows of number, title, meta and an inline check or 72px bar, the same
+action slot, and no grid toggle. Only some stills or plots missing keeps full
+rows (dimmed tile, line left out). While the provider list or a TMDB lookup
+that could still fill a bare-looking season is outstanding, the episodes are
+skeleton rows at the full row's geometry (`app-episode-skeleton`); a season
+the provider already describes renders at once. The state is decided from
+data, never a timeout (`episode-meta-state.util.ts`). Keep these treatments in the shared season
 components so Xtream and Stalker share the same behavior.
 
 Browser regression coverage measures the composited neutral edges and selected

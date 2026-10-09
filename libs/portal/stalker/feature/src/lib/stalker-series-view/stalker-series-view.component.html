@@ -171,6 +171,8 @@
                 [playlistId]="stalkerStore.currentPlaylist()?._id ?? ''"
                 [seriesTitle]="serial.info.name"
                 [seriesDescription]="serial.info.description"
+                [seriesPosterUrl]="serial.info.movie_image"
+                [metadataLoading]="seasonMetadataLoading()"
                 [playbackPositions]="episodePlaybackPositions()"
                 [openingEpisodeId]="openingEpisodeId()"
                 [activeEpisodeId]="activeEpisodeId()"
@@ -182,7 +184,9 @@
                 [downloadsEnabled]="!providerOnly()"
                 [downloadAdapter]="episodeDownloadAdapter()"
                 [isLoading]="
-                    isVodSeriesSeasonsLoading() ||
+                    (isVodSeries()
+                        ? isVodSeriesSeasonsLoading()
+                        : isSerialSeasonsLoading()) ||
                     isCurrentSeasonLoading(
                         $safeNavigationMigration(
                             seasonContainer?.selectedSeason()

@@ -44,6 +44,24 @@ export class SerialDetailsSeasonsService {
         buildSeasonPosters(this.selectedItem())
     );
 
+    /**
+     * True while TMDB may still fill the selected season's episodes (show
+     * match or season enrichment outstanding); the container then keeps
+     * rows it would otherwise render bare as skeletons. Before the
+     * container reports its selection, the lowest season stands in.
+     */
+    readonly metadataLoading = computed(() => {
+        const seasonKey =
+            this.selectedSeasonKey() ??
+            Object.keys(this.selectedItem()?.episodes ?? {}).sort(
+                (a, b) => Number(a) - Number(b)
+            )[0];
+        return (
+            !!seasonKey &&
+            this.xtreamStore.isTmdbEpisodeMetadataPending(seasonKey)
+        );
+    });
+
     constructor() {
         // TMDB season enrichment, keyed on (tmdb_id, selected season). With
         // season tabs the first seasonSelected fires as soon as seasons load —

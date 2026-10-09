@@ -182,6 +182,8 @@
             [playlistId]="currentPlaylistId()"
             [seriesTitle]="info.name"
             [seriesDescription]="info.plot"
+            [seriesPosterUrl]="info.cover"
+            [metadataLoading]="seasonMetadataLoading()"
             [playbackPositions]="episodePlaybackPositions()"
             [downloadAdapter]="episodeDownloadAdapter()"
             [downloadsEnabled]="!providerOnly()"

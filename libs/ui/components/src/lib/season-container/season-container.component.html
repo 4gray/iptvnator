@@ -35,7 +35,9 @@
                 (backToPlayingRequested)="scrollToPlayingEpisode()"
             />
         }
-        @if (hasSeasons() && !showSeasonEmptyState()) {
+        @if (
+            hasSeasons() && !showSeasonEmptyState() && metaState() !== 'bare'
+        ) {
             <div class="view-toggle" section-header-end>
                 <mat-button-toggle-group
                     [value]="viewMode()"
@@ -73,10 +75,11 @@
     }
 
     <div class="content-container">
-        @if (isLoading()) {
-            <div class="loading-container">
-                <mat-spinner diameter="40"></mat-spinner>
-            </div>
+        @if (metaState() === 'loading') {
+            <app-episode-skeleton
+                [layout]="effectiveViewMode()"
+                [count]="selectedSeasonEpisodes().length"
+            />
         } @else if (showSeriesEmptyState()) {
             <div class="empty-state-panel" role="status">
                 <div class="empty-state-panel__icon" aria-hidden="true">
@@ -106,15 +109,17 @@
             </div>
         } @else {
             <div
-                [class.episodes-grid]="viewMode() === 'grid'"
-                [class.episodes-list]="viewMode() === 'list'"
+                [class.episodes-grid]="effectiveViewMode() === 'grid'"
+                [class.episodes-list]="effectiveViewMode() === 'list'"
+                [class.episodes-list--bare]="metaState() === 'bare'"
             >
                 @for (episode of selectedSeasonEpisodes(); track $index) {
                     <app-episode-item
                         [episode]="episode"
-                        [layout]="viewMode()"
+                        [layout]="effectiveViewMode()"
+                        [bare]="metaState() === 'bare'"
                         [position]="getEpisodePosition(episode)"
-                        [showStill]="distinctStills()"
+                        [showStill]="hasUsableStill(episode)"
                         [launching]="isEpisodeLaunching(episode)"
                         [playing]="
                             isEpisodeActiveExternal(episode) ||

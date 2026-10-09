@@ -21,6 +21,9 @@ import {
     withPortal,
     withSearch,
     withSelection,
+    tmdbSeasonMetadataKey,
+    tmdbShowMetadataKey,
+    withTmdbEpisodeMetadata,
 } from './features';
 import {
     enrichSerialSeasonWithTmdb,
@@ -47,6 +50,7 @@ export const XtreamStore = signalStore(
     withFavorites(),
     withRecentItems(),
     withPlaybackPositions(),
+    withTmdbEpisodeMetadata(),
 
     withComputed((store) => ({
         /**
@@ -253,11 +257,14 @@ export const XtreamStore = signalStore(
                             ...serialDetails,
                             series_id: params.serialId,
                         });
-                        void enrichSerialSelectionWithTmdb(
-                            store,
-                            tmdbEnrichment,
-                            params.serialId,
-                            isCurrentRequest
+                        void store.trackTmdbEpisodeMetadata(
+                            tmdbShowMetadataKey(params.serialId),
+                            enrichSerialSelectionWithTmdb(
+                                store,
+                                tmdbEnrichment,
+                                params.serialId,
+                                isCurrentRequest
+                            )
                         );
                     })
                     .catch((error: unknown) => {
@@ -286,11 +293,49 @@ export const XtreamStore = signalStore(
                 if (!playlistId) {
                     return;
                 }
-                void enrichSerialSeasonWithTmdb(
+                const seriesId = (
+                    store.selectedItem() as { series_id?: string | number }
+                )?.series_id;
+                const work = enrichSerialSeasonWithTmdb(
                     store,
                     tmdbEnrichment,
                     seasonKey,
                     () => store.currentPlaylist()?.id === playlistId
+                );
+                void (seriesId === undefined
+                    ? work
+                    : store.trackTmdbEpisodeMetadata(
+                          tmdbSeasonMetadataKey(seriesId, seasonKey),
+                          work
+                      ));
+            },
+
+            /**
+             * True while a TMDB lookup that could still fill the selected
+             * series' `seasonKey` episodes is outstanding: the show-level
+             * match, or — once matched — that season's episode enrichment
+             * not yet settled. False with TMDB off or without a match.
+             */
+            isTmdbEpisodeMetadataPending(seasonKey: string): boolean {
+                const item = store.selectedItem() as {
+                    series_id?: string | number;
+                    info?: { tmdb_id?: number | null } | unknown[];
+                } | null;
+                const seriesId = item?.series_id;
+                if (seriesId === undefined || !tmdbEnrichment.isEnabled()) {
+                    return false;
+                }
+                const status = store.tmdbEpisodeMetadata();
+                if (status[tmdbShowMetadataKey(seriesId)] === 'pending') {
+                    return true;
+                }
+                const info = item?.info;
+                if (!info || Array.isArray(info) || !info.tmdb_id) {
+                    return false;
+                }
+                return (
+                    status[tmdbSeasonMetadataKey(seriesId, seasonKey)] !==
+                    'settled'
                 );
             },
         };

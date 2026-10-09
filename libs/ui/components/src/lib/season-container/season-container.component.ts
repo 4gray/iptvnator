@@ -13,7 +13,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { type SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
@@ -34,6 +33,12 @@ import {
     buildEpisodeInfoDialogData,
 } from './episode-info-dialog.component';
 import { EpisodeItemComponent } from './episode-item.component';
+import {
+    type EpisodeMetaState,
+    resolveEpisodeMetaState,
+    usableStillUrl,
+} from './episode-meta-state.util';
+import { EpisodeSkeletonComponent } from './episode-skeleton.component';
 import {
     type SeasonAutoSelectState,
     createSeasonAutoSelectState,
@@ -64,11 +69,11 @@ export type EpisodeViewMode = 'grid' | 'list';
     imports: [
         DetailSectionHeaderComponent,
         EpisodeItemComponent,
+        EpisodeSkeletonComponent,
         ExpandableTextComponent,
         MatButtonModule,
         MatButtonToggleModule,
         MatIcon,
-        MatProgressSpinnerModule,
         MatTooltipModule,
         SeasonTabsComponent,
         TranslateModule,
@@ -90,7 +95,16 @@ export class SeasonContainerComponent implements OnInit {
     readonly seriesTitle = input<string>('');
     /** The hero's description: a season synopsis repeating it is not shown again. */
     readonly seriesDescription = input<string | null | undefined>(null);
+    /** True while the provider's season or episode list is on its way. */
     readonly isLoading = input<boolean>(false);
+    /**
+     * True while the selected season's episode metadata is still being
+     * fetched after the provider list (TMDB enrichment): its rows stay
+     * skeletons so they do not change height when the data lands.
+     */
+    readonly metadataLoading = input<boolean>(false);
+    /** The series poster: an episode "still" that repeats it counts as none. */
+    readonly seriesPosterUrl = input<string | null | undefined>(null);
     readonly playbackPositions = input<Map<number, PlaybackPositionData>>(
         new Map()
     );
@@ -195,6 +209,28 @@ export class SeasonContainerComponent implements OnInit {
         }
         return episodes.length === 1 || new Set(images).size > 1;
     });
+
+    private readonly stillContext = computed(() => ({
+        distinctStills: this.distinctStills(),
+        posterUrls: [
+            this.seriesPosterUrl(),
+            this.seasonPosters()?.[this.selectedSeason() ?? ''],
+        ],
+    }));
+
+    /** Skeleton, full rows or bare rows; see `resolveEpisodeMetaState`. */
+    readonly metaState = computed<EpisodeMetaState>(() =>
+        resolveEpisodeMetaState(
+            this.selectedSeasonEpisodes(),
+            this.isLoading() || this.metadataLoading(),
+            this.stillContext()
+        )
+    );
+
+    /** Bare rows have no grid form: the view toggle hides and lists show. */
+    readonly effectiveViewMode = computed<EpisodeViewMode>(() =>
+        this.metaState() === 'bare' ? 'list' : this.viewMode()
+    );
 
     /**
      * The highlighted "now playing / continue" episode of the season: the
@@ -383,6 +419,10 @@ export class SeasonContainerComponent implements OnInit {
                 fallbackSeasonKey: this.selectedSeason(),
             }),
         });
+    }
+
+    hasUsableStill(episode: XtreamSerieEpisode): boolean {
+        return usableStillUrl(episode, this.stillContext()) !== null;
     }
 
     isEpisodeWatched(episode: XtreamSerieEpisode): boolean {

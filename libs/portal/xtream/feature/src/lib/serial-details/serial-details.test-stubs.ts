@@ -28,6 +28,8 @@ export class StubSeasonContainerComponent {
     readonly seasonDescriptions = input<unknown>(null);
     readonly seriesDescription = input<unknown>(null);
     readonly seasonPosters = input<unknown>(null);
+    readonly seriesPosterUrl = input<unknown>(null);
+    readonly metadataLoading = input(false);
     readonly seasonWatchBatchRunning = input(false);
     readonly episodeClicked = output<unknown>();
     readonly episodeRestartRequested = output<unknown>();

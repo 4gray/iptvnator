@@ -267,10 +267,10 @@ describe('SeasonContainerComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector(
-                '.loading-container mat-spinner'
-            )
-        ).not.toBeNull();
+            fixture.nativeElement.querySelectorAll(
+                '[data-testid="episode-skeleton"]'
+            ).length
+        ).toBeGreaterThan(0);
         expect(
             fixture.nativeElement.querySelector('.empty-state-panel')
         ).toBeNull();
@@ -503,11 +503,13 @@ describe('SeasonContainerComponent', () => {
     it('dims the thumbnails unless the episodes have distinct stills', () => {
         const withImages = (a: string, b: string) => ({
             '1': [
-                createEpisode({ info: { movie_image: a } as never }),
+                createEpisode({
+                    info: { movie_image: a, plot: 'One.' } as never,
+                }),
                 createEpisode({
                     id: '102',
                     episode_num: 2,
-                    info: { movie_image: b } as never,
+                    info: { movie_image: b, plot: 'Two.' } as never,
                 }),
             ],
         });
@@ -522,7 +524,8 @@ describe('SeasonContainerComponent', () => {
         expect(query('.episode-item__thumb--fallback')).toBe(0);
         expect(query('.episode-item__number')).toBe(2);
 
-        // Same poster on every episode → dimmed fallback tiles
+        // Same poster on every episode → dimmed fallback tiles (the plots
+        // keep the rows full; without them the season would render bare)
         setRequiredInputs(withImages('poster.jpg', 'poster.jpg'));
         fixture.detectChanges();
         expect(component.distinctStills()).toBe(false);
