@@ -30,6 +30,11 @@ export function withTmdbEpisodeMetadata() {
     return signalStoreFeature(
         withState<TmdbEpisodeMetadataState>({ tmdbEpisodeMetadata: {} }),
         withMethods((store) => {
+            // The latest tracked lookup per key: only it may settle the key,
+            // so a superseded one (the same series reopened) cannot clear a
+            // newer lookup's pending state.
+            const latest = new Map<string, number>();
+            let nextToken = 0;
             const mark = (key: string, status: TmdbEpisodeMetadataStatus) =>
                 patchState(store, {
                     tmdbEpisodeMetadata: {
@@ -38,13 +43,62 @@ export function withTmdbEpisodeMetadata() {
                     },
                 });
             return {
-                /** Marks `key` pending until `work` settles, either way. */
+                /**
+                 * Marks `key` pending until `work` settles, either way. With
+                 * `keepSettled`, a key that already settled stays settled:
+                 * season enrichment re-runs on every selection write and only
+                 * re-reads the cache, which must not turn rendered rows back
+                 * into skeletons.
+                 */
                 trackTmdbEpisodeMetadata(
                     key: string,
-                    work: Promise<void>
+                    work: Promise<void>,
+                    options: { keepSettled?: boolean } = {}
                 ): Promise<void> {
-                    mark(key, 'pending');
-                    return work.finally(() => mark(key, 'settled'));
+                    const token = ++nextToken;
+                    latest.set(key, token);
+                    if (
+                        !options.keepSettled ||
+                        store.tmdbEpisodeMetadata()[key] !== 'settled'
+                    ) {
+                        mark(key, 'pending');
+                    }
+                    return work.finally(() => {
+                        if (latest.get(key) === token) {
+                            latest.delete(key);
+                            mark(key, 'settled');
+                        }
+                    });
+                },
+
+                /**
+                 * Forgets a series' season statuses: a new visit loads fresh
+                 * provider data that its seasons must be enriched again.
+                 */
+                resetTmdbSeasonMetadata(seriesId: string | number): void {
+                    const prefix = tmdbSeasonMetadataKey(seriesId, '');
+                    // A lookup of the previous visit still in flight must not
+                    // settle the new visit's season.
+                    for (const key of [...latest.keys()]) {
+                        if (key.startsWith(prefix)) {
+                            latest.delete(key);
+                        }
+                    }
+                    const status = store.tmdbEpisodeMetadata();
+                    if (
+                        !Object.keys(status).some((key) =>
+                            key.startsWith(prefix)
+                        )
+                    ) {
+                        return;
+                    }
+                    const kept: Record<string, TmdbEpisodeMetadataStatus> = {};
+                    for (const [key, value] of Object.entries(status)) {
+                        if (!key.startsWith(prefix)) {
+                            kept[key] = value;
+                        }
+                    }
+                    patchState(store, { tmdbEpisodeMetadata: kept });
                 },
             };
         })

@@ -257,6 +257,7 @@ export const XtreamStore = signalStore(
                             ...serialDetails,
                             series_id: params.serialId,
                         });
+                        store.resetTmdbSeasonMetadata(params.serialId);
                         void store.trackTmdbEpisodeMetadata(
                             tmdbShowMetadataKey(params.serialId),
                             enrichSerialSelectionWithTmdb(
@@ -306,7 +307,8 @@ export const XtreamStore = signalStore(
                     ? work
                     : store.trackTmdbEpisodeMetadata(
                           tmdbSeasonMetadataKey(seriesId, seasonKey),
-                          work
+                          work,
+                          { keepSettled: true }
                       ));
             },
 

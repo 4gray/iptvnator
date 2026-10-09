@@ -183,4 +183,39 @@ describe('SeasonContainerComponent metadata state', () => {
         expect(all('app-episode-skeleton.episodes-grid')).toHaveLength(1);
         expect(all('.episode-skeleton--card')).toHaveLength(3);
     });
+    it('shows an empty season instead of skeletons while metadata is pending', () => {
+        // A host never enriches (and so never settles) a season without
+        // episodes: its pending flag would otherwise hold skeletons forever.
+        fixture.componentRef.setInput('metadataLoading', true);
+        setRequiredInputs({ '1': [] });
+        fixture.detectChanges();
+
+        expect(component.metaState()).not.toBe('loading');
+        expect(all('[data-testid="episode-skeleton"]')).toHaveLength(0);
+        expect(fixture.nativeElement.textContent).toContain(
+            'PORTALS.SEASON_EMPTY'
+        );
+    });
+
+    it('stops waiting for metadata after the cap and renders the provider rows', () => {
+        jest.useFakeTimers();
+        try {
+            fixture.componentRef.setInput('metadataLoading', true);
+            setRequiredInputs(bareSeason());
+            fixture.detectChanges();
+            expect(component.metaState()).toBe('loading');
+
+            jest.advanceTimersByTime(3999);
+            fixture.detectChanges();
+            expect(component.metaState()).toBe('loading');
+
+            jest.advanceTimersByTime(1);
+            fixture.detectChanges();
+            expect(component.metaState()).toBe('bare');
+            expect(all('[data-testid="episode-skeleton"]')).toHaveLength(0);
+            expect(all('.episode-item')).toHaveLength(3);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
 });

@@ -49,6 +49,10 @@ export function withStalkerSelection() {
         withState<StalkerSelectionState>(initialSelectionState),
         withMethods((store) => {
             const tmdbEnrichment = inject(TmdbEnrichmentService);
+            // Bumped on every selection: only the latest selection's TMDB
+            // match may clear `selectedItemTmdbPending`, also when the same
+            // item is reopened or an item carries no id.
+            let selectionToken = 0;
 
             return {
                 setSelectedContentType(
@@ -144,13 +148,7 @@ export function withStalkerSelection() {
                         selectedItem &&
                         (contentType === 'vod' || contentType === 'series')
                     ) {
-                        const stillSelected = () =>
-                            selectedId !== undefined &&
-                            store.selectedItem()?.id !== undefined &&
-                            store.selectedItem()?.id !== null &&
-                            normalizeStalkerEntityId(
-                                store.selectedItem()?.id as string | number
-                            ) === selectedId;
+                        const token = ++selectionToken;
                         patchState(store, {
                             selectedItemTmdbPending: tmdbEnrichment.isEnabled(),
                         });
@@ -165,7 +163,7 @@ export function withStalkerSelection() {
                             (enriched) =>
                                 patchState(store, { selectedItem: enriched })
                         ).finally(() => {
-                            if (stillSelected()) {
+                            if (token === selectionToken) {
                                 patchState(store, {
                                     selectedItemTmdbPending: false,
                                 });

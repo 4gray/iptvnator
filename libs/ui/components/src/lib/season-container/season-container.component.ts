@@ -39,6 +39,7 @@ import {
     usableStillUrl,
 } from './episode-meta-state.util';
 import { EpisodeSkeletonComponent } from './episode-skeleton.component';
+import { createCappedMetadataWait } from './metadata-wait.state';
 import {
     type SeasonAutoSelectState,
     createSeasonAutoSelectState,
@@ -229,11 +230,25 @@ export class SeasonContainerComponent implements OnInit {
         ],
     }));
 
+    /**
+     * Metadata only holds rows back when there are rows: a season without
+     * episodes is never enriched, so its host never reports it settled and
+     * it must reach the empty state. The wait is also capped in time.
+     */
+    private readonly metadataPending = createCappedMetadataWait(
+        computed(
+            () =>
+                this.metadataLoading() &&
+                this.selectedSeasonEpisodes().length > 0
+        ),
+        this.selectedSeason
+    );
+
     /** Skeleton, full rows or bare rows; see `resolveEpisodeMetaState`. */
     readonly metaState = computed<EpisodeMetaState>(() =>
         resolveEpisodeMetaState(
             this.selectedSeasonEpisodes(),
-            this.isLoading() || this.metadataLoading(),
+            this.isLoading() || this.metadataPending(),
             this.stillContext()
         )
     );
