@@ -85,7 +85,6 @@ picker), so each marks itself on the form's `events` through
 - [x] `apps/web/src/app/settings/settings-general-section.component.ts`
 - [x] `apps/web/src/app/settings/settings-playback-section.component.ts`
 - [x] `apps/web/src/app/settings/settings-remote-control-section.component.ts`
-- [x] `apps/web/src/app/settings/settings-reset-section.component.ts`
 - [x] `apps/web/src/app/settings/settings-tmdb-section.component.ts`
 - [x] `apps/web/src/app/settings/settings-unsaved-changes-dialog.component.ts`
 

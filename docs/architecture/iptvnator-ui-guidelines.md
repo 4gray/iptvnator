@@ -756,6 +756,37 @@ flat ancestor-color compositing is only appropriate outside that layered hero.
 ## Settings Surfaces
 
 Settings use the same system but are flatter than content-heavy views.
+Reference: `apps/web/src/app/settings/settings.component.scss` and the
+per-theme tokens in `apps/web/src/_settings-theme.scss`.
+
+### Structure
+
+- The sidebar is a 20px "Settings" title over four groups (App, Library,
+  Devices, Data), with About pinned to the footer beside the installed
+  version and an update badge. The active item is a soft selection fill with
+  tinted text and no border, so the list never shifts. Back lives in the
+  workspace header and Esc runs it. Section pages are defined once in
+  `SETTINGS_SECTION_DEFINITIONS` (`libs/workspace/shell/util`).
+- Each page is a title (26px) and one-line subtitle, then sections: a 14px
+  heading, an optional description and action buttons, and a card.
+- Rows (`.setting-item`) are a label column (13.5px title, description
+  capped at 56ch) and one right-aligned control column. Put every control in
+  that column, including segmented controls; the page is a size container
+  and rows stack under 600px of pane width. Keep `data-setting-id` on every row: settings search and the
+  command palette reveal rows by it, and the registry spec checks the index
+  against the templates.
+- Controls: `.settings-select` is a 220px outlined select without a floating
+  label (the row title names it; pass `aria-labelledby`); boolean settings
+  are `mat-slide-toggle` switches; segmented choices use `.theme-switcher`
+  as a pill; `.settings-chip` marks rows that apply after a restart or are
+  experimental; `.settings-callout` (`--info`, `--warn`) sits under the row
+  it explains inside `.setting-item__sub` and only while that choice is made.
+- Destructive actions keep the confirm dialog from the Dialogs section; the
+  row itself uses `.app-destructive-button` on a stroked button.
+- The save bar floats over the content column while the form is dirty with
+  the change count, Discard and Save (Cmd/Ctrl+S); the sidebar marks pages
+  with staged edits. A saved change that waits for a restart shows a sticky
+  notice at the top of the page.
 
 ### Light Theme
 

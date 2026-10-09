@@ -7,10 +7,10 @@ import {
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
 import { CoverSize, Language, Theme } from '@iptvnator/shared/interfaces';
 import {
@@ -25,10 +25,10 @@ import { markSectionForCheckOnFormEvents } from './settings-section-form-render'
     selector: 'app-settings-general-section',
     imports: [
         CommonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatSelectModule,
+        MatSlideToggleModule,
         ReactiveFormsModule,
         TranslateModule,
     ],

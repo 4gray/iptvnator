@@ -912,7 +912,7 @@ test('@xtream posters-only wall — hides VOD titles behind a hover caption afte
     const catalogUrl = page.url();
     await page.goto('/workspace/settings/general');
     const toggle = page.locator('[data-test-id="cover-titles-toggle"]');
-    await expect(toggle.locator('input')).toBeChecked();
+    await expect(toggle.getByRole('switch')).toBeChecked();
     await toggle.click();
     const saveButton = page.locator('[data-test-id="save-settings"]');
     await saveButton.click();

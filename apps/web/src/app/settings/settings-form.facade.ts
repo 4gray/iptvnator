@@ -1,4 +1,10 @@
-import { DestroyRef, inject, Injectable } from '@angular/core';
+import {
+    DestroyRef,
+    inject,
+    Injectable,
+    signal,
+    untracked,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder } from '@angular/forms';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -16,6 +22,11 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
 import { AppDateLocaleService } from '../app-date-locales';
+import {
+    diffSettingsValues,
+    SETTINGS_RESTART_CONTROLS,
+} from './settings-change-tracking';
+import { SettingsLaunchValuesService } from './settings-launch-values.service';
 import {
     applyEpgUrlsToFormArray,
     createEpgUrlControl,
@@ -36,6 +47,7 @@ export class SettingsFormFacade {
     private readonly destroyRef = inject(DestroyRef);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly formBuilder = inject(FormBuilder);
+    private readonly launchValues = inject(SettingsLaunchValuesService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsService = inject(SettingsService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
@@ -49,6 +61,24 @@ export class SettingsFormFacade {
 
     /** Form array with epg sources — absent when EPG is unsupported */
     readonly epgUrl = this.form.get('epgUrl') as FormArray;
+
+    /**
+     * Dotted paths of the staged values that differ from the saved ones.
+     * Drives the save bar's change count and the dirty marks in the nav;
+     * the form's own `dirty` flag stays what the save/leave guards read.
+     */
+    readonly changedPaths = signal<readonly string[]>([]);
+
+    /** Controls whose saved value differs from what the running app uses. */
+    readonly restartPendingControls = signal<readonly string[]>([]);
+
+    private savedSnapshot: unknown = {};
+
+    constructor() {
+        this.form.valueChanges
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(() => this.refreshChangedPaths());
+    }
 
     /** Trimmed, non-empty EPG source URLs currently in the form */
     get epgUrls(): string[] {
@@ -82,6 +112,23 @@ export class SettingsFormFacade {
             this.epgUrl.clear();
             this.setEpgUrls(currentSettings.epgUrl);
         }
+        this.takeSavedSnapshot();
+        // The app launched with the stored values; recorded once per app run,
+        // not per settings visit, so a later visit compares against launch.
+        this.launchValues.captureOnce(
+            (control) => this.form.get(control)?.value
+        );
+        this.refreshRestartPending();
+    }
+
+    /**
+     * What the running app actually uses for a restart control when that
+     * differs from the stored value (a frame-copy opt-in the engine could
+     * not honour). Re-evaluates the pending notice.
+     */
+    setRunningValue(control: string, value: unknown): void {
+        this.launchValues.set(control, value);
+        this.refreshRestartPending();
     }
 
     bindDashboardControlsEnabledState(): void {
@@ -164,7 +211,6 @@ export class SettingsFormFacade {
             this.form,
             this.settingsStore.getSettings()
         );
-
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
             await this.settingsStore.updateSettings(settings, {
@@ -176,7 +222,10 @@ export class SettingsFormFacade {
             // committed values, but retain the dirty form for cleanup retry.
             cleanupError = error;
         }
-        if (!cleanupError) onSaved();
+        if (!cleanupError) {
+            onSaved();
+            this.refreshRestartPending();
+        }
 
         if (window.electron) {
             window.electron.updateSettings(settings);
@@ -189,15 +238,62 @@ export class SettingsFormFacade {
         if (cleanupError) throw cleanupError;
     }
 
+    /** Later: the reminder stays away until one of those settings changes. */
+    dismissRestartNotice(): void {
+        const saved = (this.savedSnapshot ?? {}) as Record<string, unknown>;
+        for (const control of this.restartPendingControls()) {
+            this.launchValues.dismiss(control, saved[control]);
+        }
+        this.restartPendingControls.set([]);
+    }
+
     /** Applies the saved language/theme and resets the dirty state */
     applySavedSettings(): void {
         this.form.markAsPristine();
+        this.takeSavedSnapshot();
         // The switch re-renders every date with the new locale; its data is
         // a lazy chunk that must be registered first, and a newer choice
         // must win over an older one whose data arrives later.
         void this.dateLocales.use(this.form.value.language ?? Language.ENGLISH);
         this.settingsService.changeTheme(
             this.form.value.theme ?? Theme.SystemTheme
+        );
+    }
+
+    /**
+     * Restart controls whose SAVED value the running app does not use yet.
+     * Compares the last saved snapshot, never the draft form: a staged but
+     * unsaved edit must not raise or clear the reminder. Called from an
+     * effect (the engine probe), so the current list is read untracked and
+     * only a changed list is written: a fresh array on every run would
+     * re-trigger that effect for ever.
+     */
+    private refreshRestartPending(): void {
+        const running = this.launchValues.get();
+        const saved = (this.savedSnapshot ?? {}) as Record<string, unknown>;
+        const pending = Object.keys(SETTINGS_RESTART_CONTROLS).filter(
+            (control) =>
+                control in running &&
+                saved[control] !== running[control] &&
+                !this.launchValues.isDismissed(control, saved[control])
+        );
+        const current = untracked(this.restartPendingControls);
+        if (
+            current.length !== pending.length ||
+            current.some((control, index) => control !== pending[index])
+        ) {
+            this.restartPendingControls.set(pending);
+        }
+    }
+
+    private takeSavedSnapshot(): void {
+        this.savedSnapshot = this.form.getRawValue();
+        this.refreshChangedPaths();
+    }
+
+    private refreshChangedPaths(): void {
+        this.changedPaths.set(
+            diffSettingsValues(this.form.getRawValue(), this.savedSnapshot)
         );
     }
 

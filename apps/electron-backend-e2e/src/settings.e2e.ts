@@ -21,6 +21,7 @@ import {
     resetMockServers,
     restartElectronApp,
     saveSettings,
+    setSwitch,
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
@@ -94,7 +95,7 @@ test.describe('Electron Settings', () => {
                 'external-player-double-click-setting'
             );
             const doubleClickCheckbox = doubleClickSetting.locator(
-                'input[type="checkbox"]'
+                '[role="switch"]'
             );
 
             await expect(doubleClickSetting).toBeVisible();
@@ -122,7 +123,7 @@ test.describe('Electron Settings', () => {
             await openSettings(app.mainWindow);
             await openSettingsSection(app.mainWindow, 'playback');
             await expect(doubleClickSetting).toBeVisible();
-            await doubleClickCheckbox.check();
+            await setSwitch(doubleClickCheckbox, true);
             await saveSettings(app.mainWindow);
             await app.mainWindow.goBack();
             await app.mainWindow.waitForURL(/\/workspace\/playlists\/.+/);
@@ -241,12 +242,12 @@ test.describe('Electron Settings', () => {
             );
             const sharedControlsCheckbox = firstLaunch.mainWindow
                 .getByTestId('web-player-shared-controls-setting')
-                .locator('input[type="checkbox"]');
+                .locator('[role="switch"]');
             await expect(sharedControlsCheckbox).toBeVisible();
             // Shared controls default ON — persist the discriminating opt-out
             // so the relaunch proves an explicit false survives the
             // absent-means-true coercion.
-            await sharedControlsCheckbox.uncheck();
+            await setSwitch(sharedControlsCheckbox, false);
             await selectSettingsOption(
                 firstLaunch.mainWindow,
                 'select-stream-format',
@@ -254,9 +255,9 @@ test.describe('Electron Settings', () => {
             );
             await firstLaunch.mainWindow
                 .locator(
-                    'mat-checkbox[formcontrolname="showExternalPlaybackBar"] input[type="checkbox"]'
+                    'mat-slide-toggle[formcontrolname="showExternalPlaybackBar"] [role="switch"]'
                 )
-                .uncheck();
+                .click();
             await enableRemoteControl(firstLaunch.mainWindow, 8877);
             await openSettingsSection(firstLaunch.mainWindow, 'epg');
             await firstLaunch.mainWindow
@@ -289,20 +290,20 @@ test.describe('Electron Settings', () => {
             await expect(
                 secondLaunch.mainWindow
                     .getByTestId('web-player-shared-controls-setting')
-                    .locator('input[type="checkbox"]')
+                    .locator('[role="switch"]')
             ).not.toBeChecked();
             await expect(
                 secondLaunch.mainWindow.getByTestId('select-stream-format')
             ).toContainText('ts');
             await expect(
                 secondLaunch.mainWindow.locator(
-                    'mat-checkbox[formcontrolname="showExternalPlaybackBar"] input[type="checkbox"]'
+                    'mat-slide-toggle[formcontrolname="showExternalPlaybackBar"] [role="switch"]'
                 )
             ).not.toBeChecked();
             await openSettingsSection(secondLaunch.mainWindow, 'remote-control');
             await expect(
                 secondLaunch.mainWindow.locator(
-                    'mat-checkbox[formcontrolname="remoteControl"] input[type="checkbox"]'
+                    'mat-slide-toggle[formcontrolname="remoteControl"] [role="switch"]'
                 )
             ).toBeChecked();
             await expect(
@@ -333,9 +334,9 @@ test.describe('Electron Settings', () => {
             );
             const sharedControlsCheckbox = app.mainWindow
                 .getByTestId('web-player-shared-controls-setting')
-                .locator('input[type="checkbox"]');
+                .locator('[role="switch"]');
             await expect(sharedControlsCheckbox).toBeVisible();
-            await sharedControlsCheckbox.check();
+            await setSwitch(sharedControlsCheckbox, true);
             await saveSettings(app.mainWindow);
 
             await goToDashboard(app.mainWindow);
@@ -622,9 +623,9 @@ test.describe('Electron Settings', () => {
             await openSettingsSection(firstLaunch.mainWindow, 'dashboard');
             await firstLaunch.mainWindow
                 .locator(
-                    'mat-checkbox[formcontrolname="showDashboard"] input[type="checkbox"]'
+                    'mat-slide-toggle[formcontrolname="showDashboard"] [role="switch"]'
                 )
-                .uncheck();
+                .click();
             for (const toggleId of [
                 'toggle-dashboard-hero',
                 'toggle-dashboard-rail-continue-watching',
@@ -639,7 +640,7 @@ test.describe('Electron Settings', () => {
                 await expect(
                     firstLaunch.mainWindow
                         .getByTestId(toggleId)
-                        .locator('input[type="checkbox"]')
+                        .locator('[role="switch"]')
                 ).toBeDisabled();
             }
             await saveSettings(firstLaunch.mainWindow);
@@ -690,12 +691,14 @@ test.describe('Electron Settings', () => {
             await expect(
                 app.mainWindow
                     .getByTestId('toggle-show-dashboard')
-                    .locator('input[type="checkbox"]')
+                    .locator('[role="switch"]')
             ).toBeChecked();
-            await app.mainWindow
-                .getByTestId('toggle-dashboard-rail-recent-sources')
-                .locator('input[type="checkbox"]')
-                .uncheck();
+            await setSwitch(
+                app.mainWindow
+                    .getByTestId('toggle-dashboard-rail-recent-sources')
+                    .locator('[role="switch"]'),
+                false
+            );
             await saveSettings(app.mainWindow);
 
             await goToDashboard(app.mainWindow);
@@ -740,9 +743,9 @@ test.describe('Electron Settings', () => {
 
             const toggle = app.mainWindow
                 .getByTestId('toggle-dashboard-rail-tmdb-recommendations')
-                .locator('input[type="checkbox"]');
+                .locator('[role="switch"]');
             await expect(toggle).toBeChecked();
-            await toggle.uncheck();
+            await setSwitch(toggle, false);
             await saveSettings(app.mainWindow);
         } finally {
             app = await restartElectronApp(app, dataDir);
@@ -754,7 +757,7 @@ test.describe('Electron Settings', () => {
             await expect(
                 app.mainWindow
                     .getByTestId('toggle-dashboard-rail-tmdb-recommendations')
-                    .locator('input[type="checkbox"]')
+                    .locator('[role="switch"]')
             ).not.toBeChecked();
         } finally {
             await closeElectronApp(app);

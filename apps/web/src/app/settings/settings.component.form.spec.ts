@@ -9,6 +9,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsComponent } from './settings.component';
 import {
@@ -62,10 +63,10 @@ describe('SettingsComponent form', () => {
 
     it('stages the desktop portal pause setting until Save', async () => {
         const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
-            '[data-test-id="portal-connectivity-toggle"] input'
-        ) as HTMLInputElement;
+            '[data-test-id="portal-connectivity-toggle"] button[role="switch"]'
+        ) as HTMLButtonElement;
         expect(checkbox).not.toBeNull();
-        expect(checkbox.checked).toBe(true);
+        expect(checkbox.getAttribute('aria-checked')).toBe('true');
         checkbox.click();
         fixture.detectChanges();
         expect(
@@ -74,7 +75,7 @@ describe('SettingsComponent form', () => {
         expect(window.electron.updateSettings).not.toHaveBeenCalled();
         component.form.hydrateFromStore();
         fixture.detectChanges();
-        expect(checkbox.checked).toBe(true);
+        expect(checkbox.getAttribute('aria-checked')).toBe('true');
         checkbox.click();
         await component.form.save(() => undefined);
         expect(window.electron.updateSettings).toHaveBeenCalledWith(
@@ -84,10 +85,10 @@ describe('SettingsComponent form', () => {
 
     it('stages the posters-only cover wall until Save', async () => {
         const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
-            '[data-test-id="cover-titles-toggle"] input'
-        ) as HTMLInputElement;
+            '[data-test-id="cover-titles-toggle"] button[role="switch"]'
+        ) as HTMLButtonElement;
         expect(checkbox).not.toBeNull();
-        expect(checkbox.checked).toBe(true);
+        expect(checkbox.getAttribute('aria-checked')).toBe('true');
 
         checkbox.click();
         fixture.detectChanges();
@@ -375,6 +376,244 @@ describe('SettingsComponent form', () => {
 
             expect(component.settingsForm.pristine).toBe(true);
             expect(unsavedBar()).toBeNull();
+        });
+
+        it('counts the staged changes and marks their pages in the navigation', () => {
+            const settingsCtx = TestBed.inject(SettingsContextService);
+            const message = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    '[data-test-id="settings-unsaved-message"]'
+                )?.textContent;
+
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            fixture.detectChanges();
+
+            expect(component.changeCount()).toBe(1);
+            expect(component.unsavedMessageKey()).toBe(
+                'SETTINGS.UNSAVED_CHANGES_ONE'
+            );
+            expect(settingsCtx.dirtySections()).toEqual(new Set(['general']));
+
+            component.settingsForm
+                .get('dashboardRails.hero')
+                ?.setValue(!DEFAULT_DASHBOARD_RAILS.hero);
+            component.settingsForm.get('showCaptions')?.setValue(true);
+            fixture.detectChanges();
+
+            expect(component.changeCount()).toBe(3);
+            expect(component.unsavedMessageKey()).toBe(
+                'SETTINGS.UNSAVED_CHANGES_COUNT'
+            );
+            expect(message()).toContain('SETTINGS.UNSAVED_CHANGES_COUNT');
+            expect(settingsCtx.dirtySections()).toEqual(
+                new Set(['general', 'dashboard', 'playback'])
+            );
+
+            // Reverting by hand leaves the form dirty but counts nothing.
+            component.settingsForm.get('theme')?.setValue(Theme.SystemTheme);
+            component.settingsForm
+                .get('dashboardRails.hero')
+                ?.setValue(DEFAULT_DASHBOARD_RAILS.hero);
+            component.settingsForm.get('showCaptions')?.setValue(false);
+            fixture.detectChanges();
+
+            expect(component.changeCount()).toBe(0);
+            expect(component.unsavedMessageKey()).toBe(
+                'SETTINGS.UNSAVED_CHANGES'
+            );
+            expect(settingsCtx.dirtySections().size).toBe(0);
+            expect(unsavedBar()).not.toBeNull();
+        });
+
+        it('saves on Ctrl/Cmd+S while valid and dirty, and swallows the browser save otherwise', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            const press = (init: KeyboardEventInit) => {
+                const event = new KeyboardEvent('keydown', {
+                    key: 's',
+                    bubbles: true,
+                    cancelable: true,
+                    ...init,
+                });
+                document.dispatchEvent(event);
+                return event;
+            };
+
+            // Nothing staged: the page still keeps the browser dialog away.
+            expect(press({ ctrlKey: true }).defaultPrevented).toBe(true);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            fixture.detectChanges();
+
+            // A plain "s" or a chord with Shift is not the shortcut.
+            expect(press({}).defaultPrevented).toBe(false);
+            expect(
+                press({ metaKey: true, shiftKey: true }).defaultPrevented
+            ).toBe(false);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+            // The phone drawer makes the page inert: the chord is not ours.
+            const host = fixture.nativeElement as HTMLElement;
+            host.setAttribute('inert', '');
+            expect(press({ metaKey: true }).defaultPrevented).toBe(false);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+            host.removeAttribute('inert');
+
+            // Nor while a dialog (the leave dialog) or a select panel is open.
+            const backdrop = document.createElement('div');
+            backdrop.className = 'cdk-overlay-backdrop';
+            document.body.appendChild(backdrop);
+            expect(press({ metaKey: true }).defaultPrevented).toBe(false);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+            backdrop.remove();
+
+            expect(press({ metaKey: true }).defaultPrevented).toBe(true);
+            await fixture.whenStable();
+
+            expect(settingsStore.updateSettings).toHaveBeenCalledTimes(1);
+            expect(component.settingsForm.pristine).toBe(true);
+        });
+
+        it('notices a saved change that waits for a restart until dismissed', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            const notice = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    '[data-test-id="settings-restart-notice"]'
+                );
+
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            // A live change says nothing about restarting.
+            expect(notice()).toBeNull();
+
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('maximized');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(component.form.restartPendingControls()).toEqual([
+                'startupWindowMode',
+            ]);
+            expect(notice()).not.toBeNull();
+
+            // Saving the launch value back withdraws the notice: nothing
+            // waits for a restart any more.
+            component.settingsForm.get('startupWindowMode')?.setValue('normal');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(component.form.restartPendingControls()).toEqual([]);
+            expect(notice()).toBeNull();
+
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('fullscreen');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(notice()).not.toBeNull();
+
+            (
+                notice()?.querySelector(
+                    '[data-test-id="settings-restart-later"]'
+                ) as HTMLButtonElement
+            ).click();
+            fixture.detectChanges();
+
+            expect(notice()).toBeNull();
+
+            // Later holds: an unrelated save does not bring the reminder back.
+            component.settingsForm.get('theme')?.setValue(Theme.LightTheme);
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(notice()).toBeNull();
+
+            // A different restart value is news again.
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('maximized');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(notice()).not.toBeNull();
+        });
+
+        it('keeps the launch values across settings visits', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            settingsStore.updateSettings.mockImplementation((settings) => {
+                settingsStore._setSettings(settings);
+                return Promise.resolve(undefined);
+            });
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('maximized');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            expect(component.form.restartPendingControls()).toEqual([
+                'startupWindowMode',
+            ]);
+
+            // Leave settings and come back: the page and its form are new,
+            // but the app still runs with the launch value.
+            fixture.destroy();
+            fixture = TestBed.createComponent(SettingsComponent);
+            component = fixture.componentInstance;
+            stubSettingsSideEffects(component);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(component.form.restartPendingControls()).toEqual([
+                'startupWindowMode',
+            ]);
+
+            // Saving the launch value back withdraws the notice here too.
+            component.settingsForm.get('startupWindowMode')?.setValue('normal');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            expect(component.form.restartPendingControls()).toEqual([]);
+        });
+
+        it('compares the frame-copy opt-in against the engine the app runs', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            // Stored true, but the engine could not honour it at launch.
+            component.form.setRunningValue('embeddedMpvFrameCopy', false);
+            component.settingsForm.get('embeddedMpvFrameCopy')?.setValue(true);
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+
+            expect(component.form.restartPendingControls()).toEqual([
+                'embeddedMpvFrameCopy',
+            ]);
+
+            // A staged, unsaved edit back to the launch value changes nothing:
+            // the saved setting still needs the restart.
+            component.settingsForm.get('embeddedMpvFrameCopy')?.setValue(false);
+            component.form.setRunningValue('embeddedMpvFrameCopy', false);
+            expect(component.form.restartPendingControls()).toEqual([
+                'embeddedMpvFrameCopy',
+            ]);
+
+            // The engine catches up (a later probe reports frame copy): the
+            // notice goes without another save.
+            component.form.setRunningValue('embeddedMpvFrameCopy', true);
+            expect(component.form.restartPendingControls()).toEqual([]);
         });
 
         it('discard reverts a staged cover size (regression: eager persist made it stick)', () => {

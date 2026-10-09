@@ -972,18 +972,33 @@ export async function openSettingsSection(
     await page.waitForURL(new RegExp(`/workspace/settings/${sectionId}$`));
 }
 
+/**
+ * Material slide toggles render `aria-checked` after Angular's next change
+ * detection, later than Playwright's `check()` looks, which then reports
+ * that the click changed nothing. Click when needed and wait for the state.
+ */
+export async function setSwitch(
+    toggle: Locator,
+    checked: boolean
+): Promise<void> {
+    if ((await toggle.isChecked()) !== checked) {
+        await toggle.click();
+    }
+    await expect(toggle).toBeChecked({ checked });
+}
+
 export async function enableRemoteControl(
     page: Page,
     port: number
 ): Promise<void> {
     await openSettingsSection(page, 'remote-control');
 
-    const remoteControlCheckbox = page.locator(
-        'mat-checkbox[formcontrolname="remoteControl"] input[type="checkbox"]'
+    const remoteControlSwitch = page.locator(
+        'mat-slide-toggle[formcontrolname="remoteControl"] [role="switch"]'
     );
 
-    await remoteControlCheckbox.scrollIntoViewIfNeeded();
-    await remoteControlCheckbox.check();
+    await remoteControlSwitch.scrollIntoViewIfNeeded();
+    await setSwitch(remoteControlSwitch, true);
     await page.locator('#remoteControlPort').fill(String(port));
 }
 

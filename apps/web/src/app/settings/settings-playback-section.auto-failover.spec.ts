@@ -74,6 +74,7 @@ function createForm(player: VideoPlayer): FormGroup {
         webPlayerSharedControls: new FormControl(false),
         playerAmbientMode: new FormControl(false),
         detailTrailerBackdrop: new FormControl(false),
+        showCaptions: new FormControl(false),
         playerUpNextRail: new FormControl(true),
         playerUpNextCard: new FormControl(true),
         fullscreenChannelPanel: new FormControl(true),

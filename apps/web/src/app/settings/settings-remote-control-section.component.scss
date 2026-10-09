@@ -1,0 +1,45 @@
+// Remote control page: the address list with QR codes.
+app-settings-remote-control-section {
+    display: contents;
+}
+
+// ─── Remote control ────────────────────────────────────────────────────────
+.remote-control-urls {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.url-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.remote-control-url {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    color: var(--app-heading-color);
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.qr-code-container {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 0;
+}
+
+// Pane width, see settings.component.scss.
+@container (max-width: 600px) {
+    .remote-control-urls,
+    .qr-code-container,
+    .url-row {
+        align-items: flex-start;
+        justify-content: flex-start;
+    }
+}
