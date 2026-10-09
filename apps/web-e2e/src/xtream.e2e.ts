@@ -1092,6 +1092,21 @@ for (const theme of ['light', 'dark']) {
         expect(narrowActions?.y ?? 0).toBeGreaterThanOrEqual(
             (narrowTitle?.y ?? 0) + (narrowTitle?.height ?? 0)
         );
+        // A grid card at that width keeps its text under the artwork.
+        await page
+            .getByRole('radio', { name: 'Grid view', exact: true })
+            .click();
+        const narrowCard = shell.locator('.episode-card').first();
+        const cardArt = await narrowCard
+            .locator('.episode-item__thumb')
+            .boundingBox();
+        const cardTitle = await narrowCard
+            .locator('.episode-item__title')
+            .boundingBox();
+        expect(cardArt?.width ?? 0).toBeGreaterThan(200);
+        expect(cardTitle?.y ?? 0).toBeGreaterThanOrEqual(
+            (cardArt?.y ?? 0) + (cardArt?.height ?? 0)
+        );
     });
 
     test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({

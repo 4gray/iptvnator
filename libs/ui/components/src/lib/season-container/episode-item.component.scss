@@ -516,22 +516,26 @@
             'number actions';
     }
 
-    .episode-item__number {
-        grid-area: number;
-    }
+    // Only the list row declares these areas; a grid card keeps its
+    // stacked layout (thumbnail, text, actions pinned on the artwork).
+    :host(.episode-list-item) {
+        .episode-item__number {
+            grid-area: number;
+        }
 
-    .episode-item__thumb {
-        grid-area: thumb;
-    }
+        .episode-item__thumb {
+            grid-area: thumb;
+        }
 
-    .episode-item__text {
-        grid-area: text;
-        align-self: end;
-    }
+        .episode-item__text {
+            grid-area: text;
+            align-self: end;
+        }
 
-    .episode-item__actions {
-        grid-area: actions;
-        justify-content: flex-start;
-        margin-left: -8px;
+        .episode-item__actions {
+            grid-area: actions;
+            justify-content: flex-start;
+            margin-left: -8px;
+        }
     }
 }
