@@ -107,6 +107,23 @@ The shell is intentionally split into four persistent regions:
 4. Optional footer:
     1. External playback session bar when a docked session is visible.
 
+### Content surface corner
+
+`main.workspace-content` (the scroller) sits in `.workspace-content-frame`.
+The frame carries the surface's 16px top-left radius and its shadow and never
+clips; the scroller clips to a rectangle and is a stacking context; a 16px
+corner piece on the frame paints the notch in the body colour. The radius used
+to sit on the scroller, which made Blink clip every composited effect inside it
+(the rail chevrons' and hero controls' `backdrop-filter`, running transform
+animations, isolated groups) through a mask layer synthesized per effect: its
+shader path for rounded clips needs four equal radii on macOS and a
+translation-only transform between the clip and the effect, and the fallback
+mask is the size of the whole clipped area, about 24 MB of tile memory at 2x
+on a 16" display. A dozen of them took the dashboard past Chromium's 512 MB
+tile budget (`tile memory limits exceeded`, blank tiles while scrolling).
+`apps/electron-backend-e2e/src/dashboard-compositing.e2e.ts` guards it: no
+element-less drawing layer may span half the content area.
+
 `WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
 kept as a thin template-facing API and delegates ownership to component-scoped
 services:
