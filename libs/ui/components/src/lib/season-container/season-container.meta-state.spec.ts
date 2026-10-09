@@ -136,6 +136,23 @@ describe('SeasonContainerComponent metadata state', () => {
         expect(all('.view-toggle')).toHaveLength(1);
     });
 
+    it('renders a season the provider already describes at once, metadata or not', () => {
+        fixture.componentRef.setInput('metadataLoading', true);
+        setRequiredInputs({
+            '1': [1, 2].map((id) =>
+                createEpisode(id, {
+                    plot: `Plot ${id}`,
+                    movie_image: `https://img.test/e${id}.jpg`,
+                })
+            ),
+        });
+        fixture.detectChanges();
+
+        expect(component.metaState()).toBe('full');
+        expect(all('[data-testid="episode-skeleton"]')).toHaveLength(0);
+        expect(all('app-episode-item')).toHaveLength(2);
+    });
+
     it('shows one skeleton row per episode while the metadata loads, then the rows', () => {
         fixture.componentRef.setInput('metadataLoading', true);
         setRequiredInputs(bareSeason());

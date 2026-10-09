@@ -496,3 +496,42 @@
         line-clamp: 1;
     }
 }
+
+// Phone width: the thumbnail shrinks and the actions take a row of their
+// own under the text, so the title keeps the width instead of the slot.
+@container detail (max-width: 480px) {
+    :host(.episode-list-item) {
+        grid-template-columns: 24px 96px minmax(0, 1fr);
+        grid-template-areas:
+            'number thumb text'
+            'number thumb actions';
+        row-gap: 2px;
+        padding: 8px 8px 8px 4px;
+    }
+
+    :host(.episode-list-item.episode-item--bare) {
+        grid-template-columns: 24px minmax(0, 1fr);
+        grid-template-areas:
+            'number text'
+            'number actions';
+    }
+
+    .episode-item__number {
+        grid-area: number;
+    }
+
+    .episode-item__thumb {
+        grid-area: thumb;
+    }
+
+    .episode-item__text {
+        grid-area: text;
+        align-self: end;
+    }
+
+    .episode-item__actions {
+        grid-area: actions;
+        justify-content: flex-start;
+        margin-left: -8px;
+    }
+}

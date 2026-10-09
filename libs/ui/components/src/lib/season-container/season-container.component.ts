@@ -231,9 +231,10 @@ export class SeasonContainerComponent implements OnInit {
     }));
 
     /**
-     * Metadata only holds rows back when there are rows: a season without
-     * episodes is never enriched, so its host never reports it settled and
-     * it must reach the empty state. The wait is also capped in time.
+     * Metadata only holds rows back when there are rows that would render
+     * bare: a season without episodes is never enriched, so its host never
+     * reports it settled and it must reach the empty state. The wait is
+     * also capped in time.
      */
     private readonly metadataPending = createCappedMetadataWait(
         computed(
@@ -248,7 +249,7 @@ export class SeasonContainerComponent implements OnInit {
     readonly metaState = computed<EpisodeMetaState>(() =>
         resolveEpisodeMetaState(
             this.selectedSeasonEpisodes(),
-            this.isLoading() || this.metadataPending(),
+            { list: this.isLoading(), metadata: this.metadataPending() },
             this.stillContext()
         )
     );

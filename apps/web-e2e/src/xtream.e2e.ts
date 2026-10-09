@@ -1079,6 +1079,19 @@ for (const theme of ['light', 'dark']) {
             page.getByRole('radio', { name: 'List view', exact: true })
         ).toBeChecked();
         await expect(row).toBeVisible();
+
+        // Phone width: the title keeps readable room and the actions move
+        // under the text instead of squeezing it.
+        await page.setViewportSize({ width: 360, height: 740 });
+        await row.hover();
+        const narrowTitle = await title.boundingBox();
+        const narrowActions = await row
+            .locator('.episode-item__actions')
+            .boundingBox();
+        expect(narrowTitle?.width ?? 0).toBeGreaterThan(120);
+        expect(narrowActions?.y ?? 0).toBeGreaterThanOrEqual(
+            (narrowTitle?.y ?? 0) + (narrowTitle?.height ?? 0)
+        );
     });
 
     test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({

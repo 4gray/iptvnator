@@ -782,11 +782,16 @@ A season whose final episode data has no plot and no usable still (a still
 equal to the series poster or the season cover counts as none) renders bare:
 44px rows of number, title, meta and an inline check or 72px bar, the same
 action slot, and no grid toggle. Only some stills or plots missing keeps full
-rows (dimmed tile, line left out). While the provider list or a TMDB lookup
-that could still fill a bare-looking season is outstanding, the episodes are
-skeleton rows at the full row's geometry (`app-episode-skeleton`); a season
-the provider already describes renders at once. The state is decided from
-data, never a timeout (`episode-meta-state.util.ts`). Keep these treatments in the shared season
+rows (dimmed tile, line left out). While the provider list is outstanding,
+and while a TMDB lookup that could still fill a season that would otherwise
+render bare is outstanding, the episodes are skeleton rows at the full row's
+geometry (`app-episode-skeleton`); a season the provider already describes
+renders at once and the metadata lands in place. The state is decided from
+data (`episode-meta-state.util.ts`); the metadata wait is only capped
+(`EPISODE_METADATA_WAIT_MS`, 4s) because TMDB requests carry no timeout, and
+it never applies to a season without episodes, which no host enriches. At a
+pane width of 480px or less the thumbnail shrinks to 96px and the actions
+take their own row under the text. Keep these treatments in the shared season
 components so Xtream and Stalker share the same behavior.
 
 Browser regression coverage measures the composited neutral edges and selected

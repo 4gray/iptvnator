@@ -38,17 +38,27 @@ function hasPlot(episode: XtreamSerieEpisode): boolean {
     return !!resolveEpisodeInfo(episode)?.plot?.trim();
 }
 
+export interface EpisodeLoadingState {
+    /** The provider's season or episode list is still on its way. */
+    readonly list: boolean;
+    /** A TMDB lookup that could still fill the episodes is outstanding. */
+    readonly metadata: boolean;
+}
+
 /**
- * Decided from the data, never from timing: `loading` until the final
- * episode data is in, then `bare` only when no episode has a plot and none
- * has a usable still.
+ * Decided from the data, never from timing alone: `loading` while the
+ * provider list is outstanding; once it is in, `bare` only when no episode
+ * has a plot and none has a usable still — and `loading` instead of `bare`
+ * while metadata that could still fill those rows is outstanding. A season
+ * the provider already describes renders at once; the metadata then lands
+ * in place.
  */
 export function resolveEpisodeMetaState(
     episodes: readonly XtreamSerieEpisode[],
-    loading: boolean,
+    loading: EpisodeLoadingState,
     context: EpisodeStillContext
 ): EpisodeMetaState {
-    if (loading) {
+    if (loading.list) {
         return 'loading';
     }
     if (episodes.length === 0) {
@@ -57,5 +67,8 @@ export function resolveEpisodeMetaState(
     const bare = episodes.every(
         (episode) => !hasPlot(episode) && !usableStillUrl(episode, context)
     );
-    return bare ? 'bare' : 'full';
+    if (!bare) {
+        return 'full';
+    }
+    return loading.metadata ? 'loading' : 'bare';
 }

@@ -64,11 +64,34 @@ describe('usableStillUrl', () => {
 });
 
 describe('resolveEpisodeMetaState', () => {
-    it('stays loading until the final data is in, whatever it holds', () => {
-        expect(resolveEpisodeMetaState([episode(1)], true, context())).toBe(
+    const listLoading = { list: true, metadata: false };
+    const metadataLoading = { list: false, metadata: true };
+    const settled = { list: false, metadata: false };
+
+    it('stays loading while the provider list is outstanding, whatever it holds', () => {
+        expect(
+            resolveEpisodeMetaState([episode(1)], listLoading, context())
+        ).toBe('loading');
+        expect(resolveEpisodeMetaState([], listLoading, context())).toBe(
             'loading'
         );
-        expect(resolveEpisodeMetaState([], true, context())).toBe('loading');
+    });
+
+    it('waits for metadata only when the data would render bare', () => {
+        const bare = [episode(1, { movie_image: SERIES_POSTER })];
+        const described = [
+            episode(1, { plot: 'Plot', movie_image: 'https://img.test/1.jpg' }),
+        ];
+
+        expect(resolveEpisodeMetaState(bare, metadataLoading, context())).toBe(
+            'loading'
+        );
+        expect(
+            resolveEpisodeMetaState(described, metadataLoading, context())
+        ).toBe('full');
+        expect(resolveEpisodeMetaState([], metadataLoading, context())).toBe(
+            'full'
+        );
     });
 
     it('is bare when no episode has a plot or a usable still', () => {
@@ -77,7 +100,7 @@ describe('resolveEpisodeMetaState', () => {
             episode(2, { plot: '   ' }),
             episode(3),
         ];
-        expect(resolveEpisodeMetaState(episodes, false, context())).toBe(
+        expect(resolveEpisodeMetaState(episodes, settled, context())).toBe(
             'bare'
         );
     });
@@ -86,7 +109,7 @@ describe('resolveEpisodeMetaState', () => {
         expect(
             resolveEpisodeMetaState(
                 [episode(1, { plot: 'Something happens.' }), episode(2)],
-                false,
+                settled,
                 context()
             )
         ).toBe('full');
@@ -96,13 +119,13 @@ describe('resolveEpisodeMetaState', () => {
                     episode(1, { movie_image: 'https://img.test/e1.jpg' }),
                     episode(2),
                 ],
-                false,
+                settled,
                 context()
             )
         ).toBe('full');
     });
 
     it('is full for an empty season (the empty state owns that case)', () => {
-        expect(resolveEpisodeMetaState([], false, context())).toBe('full');
+        expect(resolveEpisodeMetaState([], settled, context())).toBe('full');
     });
 });
