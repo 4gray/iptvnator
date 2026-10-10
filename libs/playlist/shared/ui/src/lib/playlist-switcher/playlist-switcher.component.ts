@@ -435,7 +435,8 @@ export class PlaylistSwitcherComponent {
             const cached = this.portalStatusService.getCachedStatus(
                 playlist.serverUrl,
                 playlist.username,
-                playlist.password
+                playlist.password,
+                playlist.userAgent
             );
             if (cached !== null) {
                 next.set(playlist._id, cached);
@@ -460,7 +461,8 @@ export class PlaylistSwitcherComponent {
                     status = await this.portalStatusService.checkPortalStatus(
                         playlist.serverUrl,
                         playlist.username,
-                        playlist.password
+                        playlist.password,
+                        { userAgent: playlist.userAgent }
                     );
                 } catch {
                     status = 'unavailable';
