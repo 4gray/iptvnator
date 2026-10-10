@@ -1314,7 +1314,7 @@ Not enforced, with the reason:
   recent commits.
 - J3 `renderer.ipcCallsToPlaying` (4 or 5) and
   `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199 before #1817;
-  731 or 734 between runs since, 748 with a fifth call): not identical.
+  731, 732 or 734 since, 748 with a fifth call): not identical.
 - J3 `renderer.ipcSerialDepthToPlaying` (4 on the runner, 3 on a Mac):
   added after these runs and measured in one runner run so far; a
   candidate once `master` runs agree.
