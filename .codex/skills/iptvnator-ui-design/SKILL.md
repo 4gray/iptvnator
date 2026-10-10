@@ -36,6 +36,9 @@ not UI or util.
   instead of rebuilding those views.
 - Shared changes require checking every affected M3U, Xtream, Stalker,
   workspace, and collection consumer in light and dark themes.
+- `<mat-icon>` names must exist in the bundled Material Icons font;
+  `pnpm run styles:icon-ligatures:validate` checks them (UI guidelines, Icon
+  Names).
 
 ## Validation
 

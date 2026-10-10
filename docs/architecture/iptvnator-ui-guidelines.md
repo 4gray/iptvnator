@@ -881,6 +881,18 @@ text) and `subject` (pasted text in the add flow). Use
 `getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
 providers, and the Dashboard rail icon is never a provider icon.
 
+## Icon Names
+
+`<mat-icon>` draws its text through the ligatures of the Material Icons font
+from `material-design-icons-iconfont`, imported in `apps/web/src/styles.scss`.
+The font renders a name it does not know as plain text, so pick names from its
+`dist/fonts/MaterialIcons-Regular.json` codepoints file: newer Material Symbols
+names such as `file_off` or `arrow_outward` are not in it.
+`pnpm run styles:icon-ligatures:validate` (CI) checks static `<mat-icon>` text,
+the string results of its bindings, `icon` / `*Icon` inputs, and TypeScript
+values named `icon`, `*Icon`, `*_ICON`, `*Icons` or `*_ICONS`. Name a member
+that feeds an icon that way, so the check can see its values.
+
 ## Phone Layout
 
 `640px` is the phone breakpoint. Use `@media (max-width: 640px)` rather than
