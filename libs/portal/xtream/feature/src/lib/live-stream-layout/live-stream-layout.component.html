@@ -111,30 +111,27 @@
             <mat-menu #channelSortMenu="matMenu">
                 <button
                     mat-menu-item
+                    [appMenuItemRadio]="liveChannelSortMode() === 'server'"
                     (click)="setLiveChannelSortMode('server')"
                 >
+                    <mat-icon appMenuItemRadioCheck>check</mat-icon>
                     <span>{{ 'CHANNELS.SORT_SERVER_ORDER' | translate }}</span>
-                    @if (liveChannelSortMode() === 'server') {
-                        <mat-icon>check</mat-icon>
-                    }
                 </button>
                 <button
                     mat-menu-item
+                    [appMenuItemRadio]="liveChannelSortMode() === 'name-asc'"
                     (click)="setLiveChannelSortMode('name-asc')"
                 >
+                    <mat-icon appMenuItemRadioCheck>check</mat-icon>
                     <span>{{ 'WORKSPACE.SORT_NAME_ASC' | translate }}</span>
-                    @if (liveChannelSortMode() === 'name-asc') {
-                        <mat-icon>check</mat-icon>
-                    }
                 </button>
                 <button
                     mat-menu-item
+                    [appMenuItemRadio]="liveChannelSortMode() === 'name-desc'"
                     (click)="setLiveChannelSortMode('name-desc')"
                 >
+                    <mat-icon appMenuItemRadioCheck>check</mat-icon>
                     <span>{{ 'WORKSPACE.SORT_NAME_DESC' | translate }}</span>
-                    @if (liveChannelSortMode() === 'name-desc') {
-                        <mat-icon>check</mat-icon>
-                    }
                 </button>
             </mat-menu>
         </div>

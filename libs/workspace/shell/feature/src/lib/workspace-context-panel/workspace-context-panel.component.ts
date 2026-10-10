@@ -39,7 +39,11 @@ import {
     toParentalLockStalkerCategoryType,
     toParentalLockXtreamCategoryType,
 } from '@iptvnator/shared/interfaces';
-import { CategoryLockMenuComponent } from '@iptvnator/ui/components';
+import {
+    CategoryLockMenuComponent,
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
 import {
     WorkspaceCategoryViewItem,
     WorkspaceContextCategoryViewComponent,
@@ -81,6 +85,8 @@ interface WorkspaceCategoryLike {
         MatIcon,
         MatMenuModule,
         MatTooltip,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         TranslatePipe,
         WorkspaceContextCategoryViewComponent,
         WorkspaceContextErrorViewComponent,

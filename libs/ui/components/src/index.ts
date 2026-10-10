@@ -35,6 +35,7 @@ export * from './lib/window-controls/window-controls.component';
 
 export * from './lib/channel-scroll-focus/channel-scroll-focus.directive';
 export * from './lib/category-lock-menu/category-lock-menu.component';
+export * from './lib/menu-item-radio/menu-item-radio.directive';
 
 export * from './lib/detail-ui/cast-crew.util';
 export * from './lib/detail-ui/cast-crew-row.component';

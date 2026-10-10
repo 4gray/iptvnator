@@ -16,6 +16,10 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
+import {
     foldSearchText,
     sourceHealthType,
     PlaylistUpdateState,
@@ -58,6 +62,8 @@ interface SortOption {
         MatButtonModule,
         MatIconModule,
         MatMenuModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         RecentPlaylistsComponent,
         TranslatePipe,
     ],

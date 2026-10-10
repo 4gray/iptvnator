@@ -51,6 +51,8 @@
 }
 
 // ─── Refine controls — show current sort/filter state compactly ──────────────
+// A chip shows its icon and a short value at every width; screen readers
+// get the full "Sort: …" text from a visually hidden span.
 .active-refinements {
     grid-area: refinements;
     justify-self: end;
@@ -105,21 +107,9 @@
     white-space: nowrap;
 }
 
-.refinement-chip-label-compact {
-    display: none;
-}
-
-@container category-content (max-width: 1120px) {
-    .refinement-chip-label-full {
-        display: none;
-    }
-
-    .refinement-chip-label-compact {
-        display: inline;
-    }
-}
-
 .sort-refinement-chip {
+    // Contains the absolutely positioned visually hidden text.
+    position: relative;
     color: var(--mat-sys-on-surface-variant);
     cursor: default;
     user-select: none;
@@ -219,7 +209,6 @@
     .refine-action {
         justify-self: end;
     }
-
 }
 
 // ─── Grid scroll area ─────────────────────────────────────────────────────────

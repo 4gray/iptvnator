@@ -96,7 +96,7 @@ test.describe('Electron Remote Control', () => {
                         })
                         .click();
                     await page
-                        .getByRole('menuitem', { name: 'Name Z-A' })
+                        .getByRole('menuitemradio', { name: 'Name Z-A' })
                         .click();
                     await expect
                         .poll(() =>
@@ -135,7 +135,7 @@ test.describe('Electron Remote Control', () => {
                         })
                         .click();
                     await page
-                        .getByRole('menuitem', { name: 'Name A-Z' })
+                        .getByRole('menuitemradio', { name: 'Name A-Z' })
                         .click();
                 }
                 await fillWorkspaceSearch(page, '__no_playing_channel__');

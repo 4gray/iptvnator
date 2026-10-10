@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "Όνομα Z-A",
         "SORT_TOP_RATED": "Κορυφαία βαθμολογία",
         "SORT_LOWEST_RATED": "Χαμηλότερη βαθμολογία πρώτα",
+        "SORT_CHIP": {
+            "NEWEST": "Νεότερα",
+            "OLDEST": "Παλαιότερα",
+            "TOP_RATED": "Κορυφαία βαθμολογία",
+            "LOWEST_RATED": "Χαμηλότερη βαθμολογία"
+        },
         "REFINE_ACTION": "Βελτίωση",
         "REFINE_SORT_SECTION": "Ταξινόμηση κατά",
         "REFINE_RATING_SECTION": "Ελάχιστη βαθμολογία",
         "REFINE_CLEAR_RATING": "Εκκαθάριση φίλτρου βαθμολογίας {{value}}.0 και πάνω",
-        "FILTER_RATING": "Φιλτράρισμα κατά βαθμολογία",
         "FILTER_RATING_ANY": "Οποιαδήποτε βαθμολογία",
         "FILTER_RATING_MIN": "{{value}}.0 και πάνω",
         "SORT_LABEL": "Ταξινόμηση: ",

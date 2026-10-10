@@ -64,12 +64,14 @@
             </button>
             <mat-menu #favoritesSortMenu="matMenu">
                 @for (option of favSortOptions; track option.mode) {
-                    <button mat-menu-item (click)="setFavSortMode(option.mode)">
+                    <button
+                        mat-menu-item
+                        [appMenuItemRadio]="favSortMode() === option.mode"
+                        (click)="setFavSortMode(option.mode)"
+                    >
+                        <mat-icon appMenuItemRadioCheck>check</mat-icon>
                         <mat-icon>{{ option.icon }}</mat-icon>
                         <span>{{ option.translationKey | translate }}</span>
-                        @if (favSortMode() === option.mode) {
-                            <mat-icon class="sort-check">check</mat-icon>
-                        }
                     </button>
                 }
             </mat-menu>

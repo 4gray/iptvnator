@@ -384,7 +384,9 @@ async function openMoviesWithRatingFilter(page: Page): Promise<void> {
         timeout: 20_000,
     });
     await view.locator('.refine-action').click();
-    await page.getByRole('menuitem', { name: /^\s*5\.0 and higher/ }).click();
+    await page
+        .getByRole('menuitemradio', { name: /^\s*5\.0 and higher/ })
+        .click();
     await expect(view.locator('.rating-refinement-chip')).toBeVisible();
 }
 

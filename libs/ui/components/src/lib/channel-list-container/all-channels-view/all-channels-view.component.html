@@ -28,26 +28,32 @@
         </div>
 
         <mat-menu #channelSortMenu="matMenu">
-            <button mat-menu-item (click)="setAllChannelsSortMode('server')">
+            <button
+                mat-menu-item
+                [appMenuItemRadio]="allChannelsSortMode() === 'server'"
+                (click)="setAllChannelsSortMode('server')"
+            >
+                <mat-icon appMenuItemRadioCheck>check</mat-icon>
                 <mat-icon>drag_indicator</mat-icon>
                 <span>{{ 'CHANNELS.SORT_PLAYLIST_ORDER' | translate }}</span>
-                @if (allChannelsSortMode() === 'server') {
-                    <mat-icon>check</mat-icon>
-                }
             </button>
-            <button mat-menu-item (click)="setAllChannelsSortMode('name-asc')">
+            <button
+                mat-menu-item
+                [appMenuItemRadio]="allChannelsSortMode() === 'name-asc'"
+                (click)="setAllChannelsSortMode('name-asc')"
+            >
+                <mat-icon appMenuItemRadioCheck>check</mat-icon>
                 <mat-icon>sort_by_alpha</mat-icon>
                 <span>{{ 'WORKSPACE.SORT_NAME_ASC' | translate }}</span>
-                @if (allChannelsSortMode() === 'name-asc') {
-                    <mat-icon>check</mat-icon>
-                }
             </button>
-            <button mat-menu-item (click)="setAllChannelsSortMode('name-desc')">
+            <button
+                mat-menu-item
+                [appMenuItemRadio]="allChannelsSortMode() === 'name-desc'"
+                (click)="setAllChannelsSortMode('name-desc')"
+            >
+                <mat-icon appMenuItemRadioCheck>check</mat-icon>
                 <mat-icon>sort_by_alpha</mat-icon>
                 <span>{{ 'WORKSPACE.SORT_NAME_DESC' | translate }}</span>
-                @if (allChannelsSortMode() === 'name-desc') {
-                    <mat-icon>check</mat-icon>
-                }
             </button>
         </mat-menu>
     </header>

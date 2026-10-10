@@ -259,9 +259,14 @@ async function measureNameSort(
             'app-workspace-sources .sort-trigger'
         );
         await page
-            .getByRole('menuitem', { name: 'Name (A-Z)' })
+            .getByRole('menuitemradio', { name: 'Name (A-Z)' })
             .waitFor({ state: 'visible' });
-        await clickTextOption(page, '[role="menuitem"]', 'span', 'Name (A-Z)');
+        await clickTextOption(
+            page,
+            '[role="menuitemradio"]',
+            'span',
+            'Name (A-Z)'
+        );
         await page.waitForFunction(
             () =>
                 document
