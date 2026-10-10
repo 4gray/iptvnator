@@ -44,6 +44,9 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
     readonly isPaginatedContentLoading =
         this.xtreamStore.isPaginatedContentLoading;
     readonly selectedCategoryTitle = computed(() => {
+        if (!this.xtreamStore.selectedCategoryId()) {
+            return null;
+        }
         const category = this.selectedCategory();
         return String(category?.['name'] ?? category?.['title'] ?? '');
     });

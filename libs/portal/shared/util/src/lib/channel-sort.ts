@@ -28,18 +28,19 @@ export function persistPortalChannelSortMode(
     localStorage.setItem(storageKey, mode);
 }
 
-export function getPortalChannelSortModeLabel(
+/** Translation key of the sort mode's menu label. */
+export function getPortalChannelSortModeLabelKey(
     mode: PortalChannelSortMode
 ): string {
     if (mode === 'name-asc') {
-        return 'Name A-Z';
+        return 'WORKSPACE.SORT_NAME_ASC';
     }
 
     if (mode === 'name-desc') {
-        return 'Name Z-A';
+        return 'WORKSPACE.SORT_NAME_DESC';
     }
 
-    return 'Server Order';
+    return 'CHANNELS.SORT_SERVER_ORDER';
 }
 
 export function sortPortalChannelItems<T>(

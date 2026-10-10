@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Xtream плэйліст",
             "STALKER_PORTAL": "Stalker партал",
             "CHANNELS": "Каналаў",
+            "CHANNELS_COUNT": "{{count}} каналаў",
             "ADDED": "Дададзены",
             "SHOW_DETAILS": "Паказаць інфармацыю аб плэйлісце",
             "REMOVE": "Выдаліць плэйліст",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "MAC-адрас",
                 "PLAYLIST_EXPORT_SUCCESS": "Плэйліст быў паспяхова экспартаваны.",
                 "PLAYLIST_EXPORT_ERROR": "Памылка: не ўдалося экспартаваць плэйліст.",
+                "EXPORT_PLAYLIST_FAILED": "Не ўдалося экспартаваць плэйліст.",
                 "COPY_URL": "Капіяваць URL у буфер абмену",
                 "URL_COPIED": "URL скапіраваны ў буфер абмену"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "Абноўлены",
             "REFRESH": "Абнавіць плэйліст",
+            "REFRESH_FETCHING": "Атрыманне плэйліста…",
+            "REFRESH_READING_FILE": "Чытанне файла плэйліста…",
+            "REFRESH_PARSING": "Разбор плэйліста…",
+            "REFRESH_SAVING": "Захаванне плэйліста…",
             "REFRESH_XTREAM": "Абнавіць плэйліст Xtream з выдаленага сервера",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "Абнавіць плэйліст Xtream",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "Усе наяўныя плэйлісты",
             "PLAYLIST_UPDATE_SUCCESS": "Плэйліст быў паспяхова абноўлены!",
             "PLAYLIST_UPDATE_ERROR": "Памылка пры абнаўленні дэталяў плэйліста.",
+            "PLAYLIST_UPDATE_FAILED": "Не ўдалося абнавіць плэйліст.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Не ўдалося абнавіць плэйліст. Лакальны файл больш недаступны. Праверце шлях да файла або паўторна імпартуйце плэйліст.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Не ўдалося абнавіць плэйліст. Праграма больш не мае доступу да лакальнага файла.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Гатова! Плэйлісты былі паспяхова абноўлены",
@@ -166,6 +173,7 @@
             "ERROR_403": "Доступ забаронены (403): сервер адхіліў запыт. URL можа патрабаваць аўтэнтыфікацыі або плэйліст абмежаваны.",
             "ERROR_404": "Плэйліст не знойдзены (404): URL не паказвае на сапраўдны плэйліст. Калі ласка, праверце URL.",
             "ERROR_401": "Несанкцыянавана (401): для доступу да гэтага плэйліста патрабуецца аўтэнтыфікацыя.",
+            "ERROR_413": "Гэты файл занадта вялікі. Скарыстайцеся настольнай версіяй праграмы або версіяй на ўласным серверы.",
             "ERROR_INVALID_TLS": "Сертыфікат хоста гэтага плэйліста несапраўдны.",
             "ERROR_TLS_HOST_UNKNOWN": "Не ўдалося вызначыць хост плэйліста. Паспрабуйце паўтарыць уручную.",
             "TRUST_TLS_HOST": "Давяраць хосту",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "Імпартаваць",
         "EXPORT_DATA": "Экспартаваць",
         "EXPORTING_DATA": "Экспартаванне...",
+        "BACKUP_EXPORTED": "Рэзервовая копія плэйлістоў экспартавана.",
+        "BACKUP_EXPORT_FAILED": "Не ўдалося экспартаваць рэзервовую копію плэйлістоў.",
         "REMOVE_ALL": "Выдаліць усе плэйлісты і іх даныя",
         "REMOVE_ALL_BUTTON": "Выдаліць усё",
         "REMOVE_ALL_DESCRIPTION": "Выдаліць усе плэйлісты M3U, Xtream і Stalker, захаваныя ў праграме.",
@@ -483,6 +493,7 @@
             "CONFIRM": "Выдаліць усё"
         },
         "IMPORT_ERROR": "Памылка імпарту, калі ласка, паспрабуйце імпартаваць іншы файл.",
+        "BACKUP_IMPORT_SUMMARY": "Імпарт рэзервовай копіі завершаны: імпартавана — {{imported}}, аб'яднана — {{merged}}, прапушчана — {{skipped}}, не ўдалося — {{failed}}.",
         "PLAYLISTS_REMOVED": "Усе плэйлісты і іх даныя былі выдалены.",
         "MPV_PLAYER_PATH_LABEL": "Шлях да mpv",
         "MPV_PLAYER_PATH_DESCRIPTION": "Укажыце шлях да MPV. На macOS можна выкарыстоўваць пакет праграмы MPV, напрыклад /Applications/mpv.app, або шлях да выканальнага файла.",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "Наступная станцыя",
         "MUTE": "Адключыць гук",
         "UNMUTE": "Уключыць гук",
-        "VOLUME": "Гучнасць"
+        "VOLUME": "Гучнасць",
+        "RADIO": "Радыё",
+        "PAUSED_BADGE": "ПАЎЗА"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -850,6 +863,9 @@
         "SORT_BY_DATE": "Сартаваць па даце дадання (спачатку новыя)",
         "SORT_BY_RATING": "Сартаваць па рэйтынгу",
         "SORT_BY_NAME": "Сартаваць па назве (А-Я)",
+        "SORT_CHANNELS": "Сартаваць каналы",
+        "SORT_SERVER_ORDER": "Парадак сервера",
+        "SORT_PLAYLIST_ORDER": "Парадак плэйліста",
         "LOAD_MORE": "Загрузіць яшчэ",
         "REMAINING": "засталося",
         "LOADING": "Загрузка каналаў...",
@@ -1132,6 +1148,7 @@
         "DURATION": "Працягласць",
         "CAST": "Акцёрскі склад",
         "EPISODE_RUN_TIME": "Працягласць эпізоду",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}} хв/эпізод",
         "RATING": "Рэйтынг",
         "IMDB_RATING": "Рэйтынг IMDb",
         "KINOPOISK_RATING": "Рэйтынг Kinopoisk",
@@ -1213,8 +1230,10 @@
             "SEARCH_PLACEHOLDER": "Пошук катэгорый...",
             "NO_RESULTS": "Адпаведных катэгорый не знойдзена",
             "NO_CATEGORIES": "Няма даступных катэгорый",
-            "SAVE": "Захаваць"
-        }
+            "SAVE": "Захаваць",
+            "SAVE_FAILED": "Не ўдалося захаваць бачнасць катэгорый"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "Знойдзена {{count}} элементаў у {{playlists}} плэйлістах"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1223,6 +1242,10 @@
             "RETRY": "Паўтарыць зараз"
         },
         "ALL_CATEGORIES": "Усе катэгорыі",
+        "ALL_ITEMS": "Усе элементы",
+        "UNNAMED_CATEGORY": "Катэгорыя без назвы",
+        "NO_CATEGORIES": "Няма даступных катэгорый",
+        "UNTITLED": "Без назвы",
         "MY_FAVORITES": "Выбранае",
         "ADD_TO_FAVORITES": "Дадаць у выбранае",
         "REMOVE_FROM_FAVORITES": "Выдаліць з выбранага",
@@ -1422,6 +1445,16 @@
             "TRAILER_UNMUTE": "Уключыць гук трэйлера",
             "PROGRESS_RESET": "Прагрэс скінуты",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Схавана з «Працягнуць прагляд»"
+        },
+        "SCROLL_LEFT": "Пракруціць налева",
+        "SCROLL_RIGHT": "Пракруціць направа",
+        "EPISODE_NAVIGATION": "Навігацыя па эпізодах",
+        "INLINE_PLAYER": "Плэер",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Памылка запыту Xtream: {{message}}",
+            "XTREAM_CONNECTION": "Не ўдалося падключыцца да сервера Xtream",
+            "STALKER": "Памылка запыту Stalker: {{message}} (статус {{status}})",
+            "NOT_FOUND": "Не знойдзена"
         }
     },
     "INFORMATION": "Інфармацыя",
@@ -1673,6 +1706,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "Адкрыць у плэйлісце",
             "RAIL_ALL_CHANNELS": "Усе каналы",
             "RAIL_GROUPS": "Групы",
             "RAIL_CONTEXT_ACTIONS": "Кантэкстныя дзеянні",
@@ -2015,5 +2049,28 @@
         "UNLOCK_TO_SHOW": "Увядзіце PIN, каб паказаць",
         "HEADER_LOCK": "Заблакіраваць зараз (бацькоўскі кантроль)",
         "HEADER_UNLOCK": "Увядзіце бацькоўскі PIN"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "Адкрыццё ў {{player}}…",
+        "STOP": "Спыніць {{player}}",
+        "ERRORS": {
+            "START_FAILED": "Не ўдалося запусціць {{player}}. Пераканайцеся, што ён усталяваны і шлях да яго ў наладах указаны правільна.",
+            "PREVIOUS_CLOSING": "Папярэдні плэер яшчэ закрываецца. Паспрабуйце яшчэ раз крыху пазней.",
+            "CLOSED_UNEXPECTEDLY": "{{player}} нечакана закрыўся.",
+            "STREAM_OPEN_FAILED": "{{player}} не змог адкрыць паток. Магчыма, URL няправільны або сервер не адказвае.",
+            "UNSUPPORTED_PROTOCOL": "{{player}} не падтрымлівае пратакол гэтага патоку. Праверце URL патоку.",
+            "CONNECTION_FAILED": "{{player}} не можа падключыцца да сервера патоку. Праверце падключэнне да інтэрнэту.",
+            "ACCESS_DENIED": "Доступ забаронены. Магчыма, паток патрабуе сапраўдных уліковых даных або загалоўкаў.",
+            "STREAM_NOT_FOUND": "Паток не знойдзены. Магчыма, URL няправільны або больш не дзейнічае.",
+            "TIMED_OUT": "Час чакання злучэння скончыўся. Сервер не адказвае.",
+            "LAUNCH_FAILED": "Не ўдалося запусціць {{player}}.",
+            "UNKNOWN": "Памылка {{player}}: {{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "Відэа прайграецца ў акне знешняга плэера.",
+            "INSTALL_HINT": "Пераканайцеся, што MPV або VLC правільна ўсталяваны ў вашай сістэме.",
+            "INSTALL_INSTRUCTIONS": "Інструкцыі па ўсталяванні",
+            "DONT_SHOW_AGAIN": "Больш не паказваць"
+        }
     }
 }

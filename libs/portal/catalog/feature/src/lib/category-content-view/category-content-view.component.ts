@@ -19,7 +19,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     GridListComponent,
     InfiniteScrollDirective,
@@ -73,7 +73,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly router = inject(Router);
-    private readonly translate = inject(TranslateService);
     private readonly providerOnlyStalkerItemId = signal<string | null>(null);
     private readonly catalog = inject(
         PORTAL_CATALOG_FACADE
@@ -100,15 +99,20 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.catalog.provider === 'xtream' &&
             this.isPaginatedContentLoading()
     );
+    /** Key and params; the template pipe re-renders once translations load. */
     readonly categoryItemSubtitle = computed(() => {
         if (this.isXtreamLoadingSubtitle()) {
-            return this.translate.instant(
-                'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
-            );
+            return { key: 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING', params: {} };
         }
 
-        const itemCount = this.categoryItemCount();
-        return `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
+        const count = this.categoryItemCount();
+        return {
+            key:
+                count === 1
+                    ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
+                    : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER',
+            params: { count },
+        };
     });
     readonly canSortContent = computed(() => this.contentSortMode() !== null);
     readonly supportsRatingSort = computed(

@@ -210,15 +210,24 @@
                                 }
                             </h2>
                             <span class="category-subtitle">
-                                {{ group.count }}
-                                {{ group.count === 1 ? 'item' : 'items' }}
+                                {{
+                                    (group.count === 1
+                                        ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
+                                        : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER'
+                                    ) | translate: { count: group.count }
+                                }}
                             </span>
                         </div>
                         <button
                             mat-icon-button
                             [matMenuTriggerFor]="channelSortMenu"
-                            [matTooltip]="'Sort: ' + groupChannelSortLabel()"
-                            aria-label="Sort channels"
+                            [matTooltip]="
+                                ('WORKSPACE.SORT_LABEL' | translate) +
+                                (groupChannelSortLabelKey() | translate)
+                            "
+                            [attr.aria-label]="
+                                'CHANNELS.SORT_CHANNELS' | translate
+                            "
                         >
                             <mat-icon>sort_by_alpha</mat-icon>
                         </button>
@@ -242,7 +251,9 @@
                                 (click)="setGroupChannelSortMode('server')"
                             >
                                 <mat-icon>drag_indicator</mat-icon>
-                                <span>Playlist Order</span>
+                                <span>{{
+                                    'CHANNELS.SORT_PLAYLIST_ORDER' | translate
+                                }}</span>
                                 @if (groupChannelSortMode() === 'server') {
                                     <mat-icon>check</mat-icon>
                                 }
@@ -252,7 +263,9 @@
                                 (click)="setGroupChannelSortMode('name-asc')"
                             >
                                 <mat-icon>sort_by_alpha</mat-icon>
-                                <span>Name A-Z</span>
+                                <span>{{
+                                    'WORKSPACE.SORT_NAME_ASC' | translate
+                                }}</span>
                                 @if (groupChannelSortMode() === 'name-asc') {
                                     <mat-icon>check</mat-icon>
                                 }
@@ -262,7 +275,9 @@
                                 (click)="setGroupChannelSortMode('name-desc')"
                             >
                                 <mat-icon>sort_by_alpha</mat-icon>
-                                <span>Name Z-A</span>
+                                <span>{{
+                                    'WORKSPACE.SORT_NAME_DESC' | translate
+                                }}</span>
                                 @if (groupChannelSortMode() === 'name-desc') {
                                     <mat-icon>check</mat-icon>
                                 }

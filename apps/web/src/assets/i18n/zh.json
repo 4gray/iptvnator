@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Xtream 播放列表",
             "STALKER_PORTAL": "Stalker 门户",
             "CHANNELS": "频道",
+            "CHANNELS_COUNT": "{{count}} 个频道",
             "ADDED": "已添加的",
             "SHOW_DETAILS": "显示播放列表详情",
             "REMOVE": "移除播放列表",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "MAC 地址",
                 "PLAYLIST_EXPORT_SUCCESS": "播放列表已成功导出。",
                 "PLAYLIST_EXPORT_ERROR": "错误：播放列表导出失败。",
+                "EXPORT_PLAYLIST_FAILED": "播放列表导出失败。",
                 "COPY_URL": "复制 URL 到剪贴板",
                 "URL_COPIED": "URL 已复制到剪贴板"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "更新",
             "REFRESH": "刷新播放列表",
+            "REFRESH_FETCHING": "正在获取播放列表…",
+            "REFRESH_READING_FILE": "正在读取播放列表文件…",
+            "REFRESH_PARSING": "正在解析播放列表…",
+            "REFRESH_SAVING": "正在保存播放列表…",
             "REFRESH_XTREAM": "从远程刷新 Xtream 播放列表",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "刷新 Xtream 播放列表",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "所有可用的播放列表",
             "PLAYLIST_UPDATE_SUCCESS": "成功！播放列表已成功更新。",
             "PLAYLIST_UPDATE_ERROR": "更新播放列表详情时出错。",
+            "PLAYLIST_UPDATE_FAILED": "无法更新播放列表。",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "播放列表刷新失败。本地文件已不可用。请检查文件路径或重新导入播放列表。",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "播放列表刷新失败。应用程序无法再访问该本地文件。",
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！播放列表已成功更新",
@@ -166,6 +173,7 @@
             "ERROR_403": "拒绝访问 (403)：服务器拒绝了请求。该 URL 可能需要身份验证，或播放列表受到限制。",
             "ERROR_404": "未找到播放列表 (404)：该 URL 不指向有效的播放列表。请检查 URL。",
             "ERROR_401": "未授权 (401)：访问此播放列表需要进行身份验证。",
+            "ERROR_413": "此文件过大。请使用本应用的独立版或自托管版。",
             "ERROR_INVALID_TLS": "此播放列表主机的证书无效。",
             "ERROR_TLS_HOST_UNKNOWN": "无法确定播放列表主机。请手动重试。",
             "TRUST_TLS_HOST": "信任主机",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "导入",
         "EXPORT_DATA": "导出",
         "EXPORTING_DATA": "导出中…",
+        "BACKUP_EXPORTED": "播放列表备份已导出。",
+        "BACKUP_EXPORT_FAILED": "播放列表备份导出失败。",
         "REMOVE_ALL": "删除所有播放列表和播放列表数据",
         "REMOVE_ALL_BUTTON": "全部删除",
         "REMOVE_ALL_DESCRIPTION": "删除应用中存储的每个 M3U、Xtream 和 Stalker 播放列表。",
@@ -483,6 +493,7 @@
             "CONFIRM": "全部删除"
         },
         "IMPORT_ERROR": "导入错误，请尝试使用其他文件。",
+        "BACKUP_IMPORT_SUMMARY": "备份导入完成：已导入 {{imported}} 个，已合并 {{merged}} 个，已跳过 {{skipped}} 个，失败 {{failed}} 个。",
         "PLAYLISTS_REMOVED": "已移除所有播放列表和播放列表数据。",
         "MPV_PLAYER_PATH_LABEL": "mpv 路径",
         "MPV_PLAYER_PATH_DESCRIPTION": "设置 MPV 路径。在 macOS 上可以使用 MPV 应用包，例如 /Applications/mpv.app，也可以使用可执行文件路径。",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "下一个电台",
         "MUTE": "静音",
         "UNMUTE": "取消静音",
-        "VOLUME": "音量"
+        "VOLUME": "音量",
+        "RADIO": "电台",
+        "PAUSED_BADGE": "已暂停"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -850,6 +863,9 @@
         "SORT_BY_DATE": "按添加日期排序（最新优先）",
         "SORT_BY_RATING": "按评分排序",
         "SORT_BY_NAME": "按名称排序（A-Z）",
+        "SORT_CHANNELS": "排序频道",
+        "SORT_SERVER_ORDER": "服务器顺序",
+        "SORT_PLAYLIST_ORDER": "播放列表顺序",
         "LOAD_MORE": "加载更多",
         "REMAINING": "剩余",
         "LOADING": "正在加载频道…",
@@ -1132,6 +1148,7 @@
         "DURATION": "时长",
         "CAST": "演员表",
         "EPISODE_RUN_TIME": "单集时长",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}} 分钟/集",
         "RATING": "评分",
         "IMDB_RATING": "IMDb 评分",
         "KINOPOISK_RATING": "Kinopoisk 评分",
@@ -1213,8 +1230,10 @@
             "SEARCH_PLACEHOLDER": "搜索分类…",
             "NO_RESULTS": "未找到匹配的分类",
             "NO_CATEGORIES": "没有可用的分类",
-            "SAVE": "保存"
-        }
+            "SAVE": "保存",
+            "SAVE_FAILED": "保存分类可见性失败"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "在 {{playlists}} 个播放列表中找到 {{count}} 个项目"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1223,6 +1242,10 @@
             "RETRY": "立即重试"
         },
         "ALL_CATEGORIES": "所有分类",
+        "ALL_ITEMS": "所有项目",
+        "UNNAMED_CATEGORY": "未命名分类",
+        "NO_CATEGORIES": "没有可用的分类",
+        "UNTITLED": "未命名",
         "MY_FAVORITES": "我的收藏",
         "ADD_TO_FAVORITES": "添加到收藏夹",
         "REMOVE_FROM_FAVORITES": "从收藏中移除",
@@ -1422,6 +1445,16 @@
             "TRAILER_UNMUTE": "取消预告片静音",
             "PROGRESS_RESET": "进度已重置",
             "HIDDEN_FROM_CONTINUE_WATCHING": "已从“继续观看”中隐藏"
+        },
+        "SCROLL_LEFT": "向左滚动",
+        "SCROLL_RIGHT": "向右滚动",
+        "EPISODE_NAVIGATION": "剧集导航",
+        "INLINE_PLAYER": "播放器",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Xtream 请求失败：{{message}}",
+            "XTREAM_CONNECTION": "无法连接到 Xtream 服务器",
+            "STALKER": "Stalker 请求失败：{{message}}（状态 {{status}}）",
+            "NOT_FOUND": "未找到"
         }
     },
     "INFORMATION": "信息",
@@ -1673,6 +1706,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "在播放列表中打开",
             "RAIL_ALL_CHANNELS": "所有频道",
             "RAIL_GROUPS": "分组",
             "RAIL_CONTEXT_ACTIONS": "上下文操作",
@@ -2015,5 +2049,28 @@
         "UNLOCK_TO_SHOW": "输入 PIN 码以显示",
         "HEADER_LOCK": "立即锁定（家长控制）",
         "HEADER_UNLOCK": "输入家长 PIN 码"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "正在 {{player}} 中打开…",
+        "STOP": "停止 {{player}}",
+        "ERRORS": {
+            "START_FAILED": "无法启动 {{player}}。请确认已安装该播放器，且设置中的路径正确。",
+            "PREVIOUS_CLOSING": "上一个播放器仍在关闭。请稍后重试。",
+            "CLOSED_UNEXPECTEDLY": "{{player}} 意外关闭。",
+            "STREAM_OPEN_FAILED": "{{player}} 无法打开该流。URL 可能无效，或服务器没有响应。",
+            "UNSUPPORTED_PROTOCOL": "{{player}} 不支持此流协议。请检查流 URL。",
+            "CONNECTION_FAILED": "{{player}} 无法连接到流服务器。请检查您的网络连接。",
+            "ACCESS_DENIED": "拒绝访问。该流可能需要有效的凭据或请求头。",
+            "STREAM_NOT_FOUND": "未找到流。URL 可能不正确或已过期。",
+            "TIMED_OUT": "连接超时。服务器没有响应。",
+            "LAUNCH_FAILED": "无法启动 {{player}}。",
+            "UNKNOWN": "{{player}} 错误：{{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "视频正在外部播放器窗口中播放。",
+            "INSTALL_HINT": "请确保您的系统上已正确安装 MPV 或 VLC。",
+            "INSTALL_INSTRUCTIONS": "安装说明",
+            "DONT_SHOW_AGAIN": "不再显示"
+        }
     }
 }

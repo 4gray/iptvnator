@@ -39,7 +39,7 @@ import {
     createLivePanelsController,
     PORTAL_PLAYER,
     PortalChannelSortMode,
-    getPortalChannelSortModeLabel,
+    getPortalChannelSortModeLabelKey,
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
@@ -383,8 +383,8 @@ export class LiveStreamLayoutComponent
     readonly showReturnToLive = computed(
         () => this.activeCatchupProgram() !== null
     );
-    readonly liveChannelSortLabel = computed(() =>
-        getPortalChannelSortModeLabel(this.liveChannelSortMode())
+    readonly liveChannelSortLabelKey = computed(() =>
+        getPortalChannelSortModeLabelKey(this.liveChannelSortMode())
     );
     readonly liveRootItems = computed(
         () =>
@@ -396,10 +396,6 @@ export class LiveStreamLayoutComponent
     readonly liveRootItemCount = computed(
         () => this.xtreamStore.selectItemsFromSelectedCategory().length
     );
-    readonly liveRootSubtitle = computed(() => {
-        const count = this.liveRootItemCount();
-        return `${count} ${count === 1 ? 'channel' : 'channels'}`;
-    });
     readonly liveRootHasMore = this.xtreamStore.hasMoreContent;
 
     readonly selectedCategoryInfo = computed(() => {
@@ -415,8 +411,9 @@ export class LiveStreamLayoutComponent
         );
         const count = this.categoryItemCounts()?.get(categoryId) ?? 0;
 
+        // A null name falls back to a translated label in the template.
         return {
-            name: category?.category_name ?? category?.name ?? 'Channels',
+            name: category?.category_name ?? category?.name ?? null,
             count,
         };
     });

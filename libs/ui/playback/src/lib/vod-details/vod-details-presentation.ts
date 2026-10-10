@@ -1,6 +1,7 @@
 import {
     formatDurationLabel,
     formatRemainingLabel,
+    type ExternalPlaybackButtonLabel,
     parseDurationSeconds,
     shortCountryList,
     shortCountryName,
@@ -108,7 +109,7 @@ export function buildSimilarRailItems(
 
 export function buildPrimaryAction(
     input: {
-        externalLabel: string | null;
+        externalLabel: ExternalPlaybackButtonLabel | null;
         externalIcon: string;
         externalState: DetailActionButtonState;
         isOfflinePrimary: boolean;
@@ -122,7 +123,15 @@ export function buildPrimaryAction(
     const state = input.externalState;
     const icon = input.isOfflinePrimary ? 'play_circle' : input.externalIcon;
     if (input.externalLabel) {
-        return { label: input.externalLabel, meta: null, icon, state };
+        return {
+            label: translate(
+                input.externalLabel.key,
+                input.externalLabel.params
+            ),
+            meta: null,
+            icon,
+            state,
+        };
     }
     if (input.isOfflinePrimary) {
         return {

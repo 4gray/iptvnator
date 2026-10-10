@@ -289,7 +289,7 @@ describe('CategoryManagementDialogComponent', () => {
 
         expect(parentalLock.setXtreamLocks).not.toHaveBeenCalled();
         expect(snackBar.open).toHaveBeenCalledWith(
-            'Failed to save category visibility',
+            'XTREAM.CATEGORY_MANAGEMENT.SAVE_FAILED',
             'CLOSE',
             { duration: 3000 }
         );

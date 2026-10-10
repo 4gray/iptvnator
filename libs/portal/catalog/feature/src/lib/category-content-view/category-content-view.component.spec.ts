@@ -84,7 +84,7 @@ describe('CategoryContentViewComponent', () => {
         contentType: signal('vod'),
         selectedCategory: signal({ id: 1 }),
         paginatedContent: signal<unknown[]>([]),
-        selectedCategoryTitle: signal('Movies'),
+        selectedCategoryTitle: signal<string | null>('Movies'),
         categoryItemCount,
         selectedItem,
         hasMore,
@@ -112,6 +112,7 @@ describe('CategoryContentViewComponent', () => {
     beforeEach(async () => {
         routeReady.set(true);
         playlist.set(null);
+        catalog.selectedCategoryTitle.set('Movies');
         window.history.replaceState({}, '', window.location.href);
         catalog.provider = 'xtream';
         selectedItem.set(null);
@@ -229,6 +230,37 @@ describe('CategoryContentViewComponent', () => {
         expect(subtitle?.textContent?.trim()).toBe(
             'Fetching playlist data from source...'
         );
+    });
+
+    it('titles the every-item grid with the translated label', () => {
+        catalog.selectedCategoryTitle.set(null);
+        fixture.detectChanges();
+
+        const title = fixture.nativeElement.querySelector(
+            '.category-title'
+        ) as HTMLElement | null;
+
+        expect(title?.textContent?.trim()).toBe('PORTALS.ALL_ITEMS');
+    });
+
+    it('counts items with the translated singular and plural keys', () => {
+        isPaginatedContentLoading.set(false);
+        categoryItemCount.set(1);
+        fixture.detectChanges();
+
+        const subtitle = () =>
+            (
+                fixture.nativeElement.querySelector(
+                    '.category-subtitle'
+                ) as HTMLElement | null
+            )?.textContent?.trim();
+
+        expect(subtitle()).toBe('WORKSPACE.CONTEXT.ITEM_COUNT_ONE');
+
+        categoryItemCount.set(3);
+        fixture.detectChanges();
+
+        expect(subtitle()).toBe('WORKSPACE.CONTEXT.ITEM_COUNT_OTHER');
     });
 
     it('forwards query-param search updates to the catalog facade when supported', () => {

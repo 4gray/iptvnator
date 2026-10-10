@@ -1,6 +1,9 @@
 import { spawn } from 'child_process';
 import { createConnection } from 'net';
-import { PlayerContentInfo } from '@iptvnator/shared/interfaces';
+import {
+    PlayerContentInfo,
+    readExternalPlayerErrorCode,
+} from '@iptvnator/shared/interfaces';
 import {
     MPV_PLAYER_ARGUMENTS,
     MPV_PLAYER_PATH,
@@ -419,7 +422,8 @@ export async function openMpvPlayer({
                 stopPositionPolling();
                 externalPlayerSessions.markError(
                     processSessionId,
-                    `Failed to start MPV player: ${err.message}`
+                    `Failed to start MPV player: ${err.message}`,
+                    { code: 'start-failed' }
                 );
                 rejectLaunch(
                     buildPlayerStartError('MPV', err, mpvLaunchContext)
@@ -441,11 +445,13 @@ export async function openMpvPlayer({
                     );
                     sendPlayerErrorNotification(
                         'MPV',
-                        `MPV player closed unexpectedly (exit code: ${code})`
+                        `MPV player closed unexpectedly (exit code: ${code})`,
+                        'closed-unexpectedly'
                     );
                     externalPlayerSessions.markError(
                         processSessionId,
-                        `MPV player closed unexpectedly (exit code: ${code})`
+                        `MPV player closed unexpectedly (exit code: ${code})`,
+                        { code: 'closed-unexpectedly' }
                     );
                     resolveLaunch();
                     return;
@@ -520,6 +526,7 @@ export async function openMpvPlayer({
             session.id,
             error instanceof Error ? error.message : String(error),
             {
+                code: readExternalPlayerErrorCode(error) ?? undefined,
                 canClose:
                     freshTeardownUnconfirmed ||
                     (reuseState.teardownUnconfirmed &&

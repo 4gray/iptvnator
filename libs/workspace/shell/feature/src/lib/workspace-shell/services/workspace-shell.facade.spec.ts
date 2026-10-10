@@ -58,6 +58,7 @@ class MockXtreamStore {
         category_name?: string;
         name?: string;
     } | null>(null);
+    readonly selectedCategoryId = signal<number | null>(null);
     readonly vodStreams = signal<unknown[]>([{ id: 1 }]);
     readonly liveStreams = signal<unknown[]>([{ id: 2 }]);
     readonly serialStreams = signal<unknown[]>([{ id: 3 }]);
@@ -666,6 +667,27 @@ describe('WorkspaceShellFacade', () => {
         // stations — surface the same "loaded only" hint as degraded ITV.
         expect(facade.searchStatusLabel()).toBe(
             'WORKSPACE.SHELL.SEARCH_STATUS_LOADED_ONLY'
+        );
+    });
+
+    it('scopes Xtream search to the translated every-item label without a category', () => {
+        const xtreamStore = TestBed.inject(
+            XtreamStore
+        ) as unknown as MockXtreamStore;
+
+        facade.currentUrl.set('/workspace/xtreams/pl-1/vod?q=neo');
+        searchSync.syncSearchFromRoute();
+        TestBed.flushEffects();
+
+        expect(facade.searchScopeLabel()).toBe(
+            'WORKSPACE.SHELL.RAIL_MOVIES / PORTALS.ALL_ITEMS'
+        );
+
+        xtreamStore.selectedCategoryId.set(7);
+        xtreamStore.getSelectedCategory.set({ name: 'Drama' });
+
+        expect(facade.searchScopeLabel()).toBe(
+            'WORKSPACE.SHELL.RAIL_MOVIES / Drama'
         );
     });
 

@@ -363,35 +363,16 @@ export class PlaylistSwitcherComponent {
         return getPlaylistSourceIcon(playlist);
     }
 
-    getPlaylistTypeLabel(playlist: PlaylistMeta): string {
-        if (playlist.macAddress) {
-            return 'Stalker Portal';
-        }
-        if (playlist.serverUrl) {
-            return 'Xtream Code';
-        }
-        return `${playlist.count} channels`;
-    }
-
     getPlaylistMetaLabel(playlist: PlaylistMeta): string {
-        const count = playlist.count ?? 0;
-        const channelsLabel = this.translate.instant(
-            'HOME.PLAYLISTS.CHANNELS_COUNT',
-            { count }
-        );
-        const fallback = `${count} channels`;
-        const countLabel =
-            channelsLabel && channelsLabel !== 'HOME.PLAYLISTS.CHANNELS_COUNT'
-                ? channelsLabel
-                : fallback;
-
         if (playlist.macAddress) {
-            return 'Stalker Portal';
+            return this.translate.instant('WORKSPACE.SHELL.STALKER_PORTAL');
         }
         if (playlist.serverUrl) {
-            return 'Xtream Code';
+            return this.translate.instant('WORKSPACE.SHELL.XTREAM_CODE');
         }
-        return countLabel;
+        return this.translate.instant('HOME.PLAYLISTS.CHANNELS_COUNT', {
+            count: playlist.count ?? 0,
+        });
     }
 
     getStatusClass(playlistId: string): string {

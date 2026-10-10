@@ -1,4 +1,7 @@
-import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
+import {
+    ExternalPlayerSession,
+    tagExternalPlayerError,
+} from '@iptvnator/shared/interfaces';
 import { ExternalPlayerSessionRegistry } from './external-player-session-registry';
 
 describe('ExternalPlayerSessionRegistry', () => {
@@ -99,6 +102,28 @@ describe('ExternalPlayerSessionRegistry', () => {
         expect(errored?.status).toBe('error');
         expect(errored?.error).toBe('Failed to launch');
         expect(registry.getActiveSessionId()).toBe(session.id);
+    });
+
+    it('stores a tagged launch failure as its code and plain detail', () => {
+        const session = registry.beginSession({
+            player: 'vlc',
+            title: 'Example',
+            streamUrl: 'https://example.com/video.m3u8',
+        });
+
+        const errored = registry.markError(
+            session.id,
+            tagExternalPlayerError(
+                'start-failed',
+                'Failed to start VLC player: spawn vlc ENOENT'
+            ),
+            { code: 'start-failed' }
+        );
+
+        expect(errored?.errorCode).toBe('start-failed');
+        expect(errored?.error).toBe(
+            'Failed to start VLC player: spawn vlc ENOENT'
+        );
     });
 
     it('does not overwrite terminal status with late lifecycle updates', () => {

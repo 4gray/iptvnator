@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Xtremeプレイリスト",
             "STALKER_PORTAL": "Stalkerポータル",
             "CHANNELS": "チャンネル",
+            "CHANNELS_COUNT": "{{count}}チャンネル",
             "ADDED": "追加済み",
             "SHOW_DETAILS": "プレイリストの詳細を表示",
             "REMOVE": "プレイリストを削除",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "MACアドレス",
                 "PLAYLIST_EXPORT_SUCCESS": "プレイリストを正常にエクスポートしました。",
                 "PLAYLIST_EXPORT_ERROR": "エラー：プレイリストのエクスポートに失敗しました。",
+                "EXPORT_PLAYLIST_FAILED": "プレイリストのエクスポートに失敗しました。",
                 "COPY_URL": "URLをクリップボードにコピー",
                 "URL_COPIED": "URLをクリップボードにコピーしました"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "更新済み",
             "REFRESH": "プレイリストを更新",
+            "REFRESH_FETCHING": "プレイリストを取得中…",
+            "REFRESH_READING_FILE": "プレイリストファイルを読み込み中…",
+            "REFRESH_PARSING": "プレイリストを解析中…",
+            "REFRESH_SAVING": "プレイリストを保存中…",
             "REFRESH_XTREAM": "リモートからXtreamプレイリストを更新",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "Xtreamプレイリストを更新",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "利用可能な全プレイリスト",
             "PLAYLIST_UPDATE_SUCCESS": "成功！プレイリストが正常に更新されました。",
             "PLAYLIST_UPDATE_ERROR": "プレイリストの詳細を更新できませんでした。",
+            "PLAYLIST_UPDATE_FAILED": "プレイリストを更新できませんでした。",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "プレイリストの更新に失敗しました。ローカルファイルが利用できなくなっています。ファイルパスを確認するか、プレイリストを再インポートしてください。",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "プレイリストの更新に失敗しました。アプリがローカルファイルにアクセスできなくなりました。",
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！プレイリストが正常に更新されました",
@@ -166,6 +173,7 @@
             "ERROR_403": "アクセスが拒否されました（403）：サーバーがリクエストを拒否しました。URLに認証が必要か、プレイリストが制限されている可能性があります。",
             "ERROR_404": "プレイリストが見つかりません（404）：URLは有効なプレイリストを指していません。URLを確認してください。",
             "ERROR_401": "未認証（401）：このプレイリストにアクセスするには認証が必要です。",
+            "ERROR_413": "ファイルが大きすぎます。スタンドアロン版またはセルフホスト版のアプリをご利用ください。",
             "ERROR_INVALID_TLS": "このプレイリストホストの証明書は無効です。",
             "ERROR_TLS_HOST_UNKNOWN": "プレイリストのホストを特定できませんでした。手動で再試行してください。",
             "TRUST_TLS_HOST": "ホストを信頼",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "インポート",
         "EXPORT_DATA": "エクスポート",
         "EXPORTING_DATA": "エクスポート中…",
+        "BACKUP_EXPORTED": "プレイリストバックアップをエクスポートしました。",
+        "BACKUP_EXPORT_FAILED": "プレイリストバックアップのエクスポートに失敗しました。",
         "REMOVE_ALL": "すべてのプレイリストとプレイリストデータを削除",
         "REMOVE_ALL_BUTTON": "すべて削除",
         "REMOVE_ALL_DESCRIPTION": "アプリに保存されているすべての M3U、Xtream、Stalker プレイリストを削除します。",
@@ -483,6 +493,7 @@
             "CONFIRM": "すべて削除"
         },
         "IMPORT_ERROR": "インポートエラー。別のファイルで試してください。",
+        "BACKUP_IMPORT_SUMMARY": "バックアップのインポートが完了しました：インポート {{imported}} 件、統合 {{merged}} 件、スキップ {{skipped}} 件、失敗 {{failed}} 件。",
         "PLAYLISTS_REMOVED": "すべてのプレイリストとプレイリストデータを削除しました。",
         "MPV_PLAYER_PATH_LABEL": "mpv のパス",
         "MPV_PLAYER_PATH_DESCRIPTION": "MPV へのパスを設定します。macOS では /Applications/mpv.app のような MPV アプリバンドル、または実行ファイルのパスを使用できます。",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "次の局",
         "MUTE": "ミュート",
         "UNMUTE": "ミュート解除",
-        "VOLUME": "音量"
+        "VOLUME": "音量",
+        "RADIO": "ラジオ",
+        "PAUSED_BADGE": "一時停止中"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -850,6 +863,9 @@
         "SORT_BY_DATE": "追加日で並び替え（新しい順）",
         "SORT_BY_RATING": "評価で並び替え",
         "SORT_BY_NAME": "名前で並び替え（A-Z）",
+        "SORT_CHANNELS": "チャンネルを並び替え",
+        "SORT_SERVER_ORDER": "サーバー順",
+        "SORT_PLAYLIST_ORDER": "プレイリスト順",
         "LOAD_MORE": "さらに読み込む",
         "REMAINING": "残り",
         "LOADING": "チャンネルを読み込み中...",
@@ -1132,6 +1148,7 @@
         "DURATION": "再生時間",
         "CAST": "出演者",
         "EPISODE_RUN_TIME": "エピソードの再生時間",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}}分/話",
         "RATING": "評価",
         "IMDB_RATING": "IMDb 評価",
         "KINOPOISK_RATING": "Kinopoisk 評価",
@@ -1213,8 +1230,10 @@
             "SEARCH_PLACEHOLDER": "カテゴリーを検索...",
             "NO_RESULTS": "一致するカテゴリーが見つかりません",
             "NO_CATEGORIES": "利用可能なカテゴリーはありません",
-            "SAVE": "保存"
-        }
+            "SAVE": "保存",
+            "SAVE_FAILED": "カテゴリーの表示設定を保存できませんでした"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "{{playlists}}件のプレイリストで{{count}}件の項目が見つかりました"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1223,6 +1242,10 @@
             "RETRY": "今すぐ再試行"
         },
         "ALL_CATEGORIES": "すべてのカテゴリー",
+        "ALL_ITEMS": "すべての項目",
+        "UNNAMED_CATEGORY": "名前のないカテゴリー",
+        "NO_CATEGORIES": "利用可能なカテゴリーはありません",
+        "UNTITLED": "無題",
         "MY_FAVORITES": "お気に入り",
         "ADD_TO_FAVORITES": "お気に入りに追加",
         "REMOVE_FROM_FAVORITES": "お気に入りから削除",
@@ -1422,6 +1445,16 @@
             "TRAILER_UNMUTE": "予告編の音を出す",
             "PROGRESS_RESET": "再生位置をリセットしました",
             "HIDDEN_FROM_CONTINUE_WATCHING": "「続きを見る」から隠しました"
+        },
+        "SCROLL_LEFT": "左にスクロール",
+        "SCROLL_RIGHT": "右にスクロール",
+        "EPISODE_NAVIGATION": "エピソードナビゲーション",
+        "INLINE_PLAYER": "プレーヤー",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Xtream リクエストに失敗しました：{{message}}",
+            "XTREAM_CONNECTION": "Xtream サーバーに接続できませんでした",
+            "STALKER": "Stalker リクエストに失敗しました：{{message}}（ステータス {{status}}）",
+            "NOT_FOUND": "見つかりません"
         }
     },
     "INFORMATION": "情報",
@@ -1673,6 +1706,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "プレイリストで開く",
             "RAIL_ALL_CHANNELS": "すべてのチャンネル",
             "RAIL_GROUPS": "グループ",
             "RAIL_CONTEXT_ACTIONS": "コンテキスト操作",
@@ -2015,5 +2049,28 @@
         "UNLOCK_TO_SHOW": "PIN を入力して表示",
         "HEADER_LOCK": "今すぐロック（ペアレンタルロック）",
         "HEADER_UNLOCK": "ペアレンタル PIN を入力"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "{{player}} で開いています…",
+        "STOP": "{{player}} を停止",
+        "ERRORS": {
+            "START_FAILED": "{{player}} を起動できませんでした。インストールされていること、および設定のパスが正しいことを確認してください。",
+            "PREVIOUS_CLOSING": "前のプレーヤーがまだ終了処理中です。しばらくしてからもう一度お試しください。",
+            "CLOSED_UNEXPECTEDLY": "{{player}} が予期せず終了しました。",
+            "STREAM_OPEN_FAILED": "{{player}} でストリームを開けませんでした。URL が無効か、サーバーが応答していない可能性があります。",
+            "UNSUPPORTED_PROTOCOL": "{{player}} はこのストリームのプロトコルに対応していません。ストリーム URL を確認してください。",
+            "CONNECTION_FAILED": "{{player}} がストリームサーバーに接続できません。インターネット接続を確認してください。",
+            "ACCESS_DENIED": "アクセスが拒否されました。このストリームには有効な認証情報またはヘッダーが必要な可能性があります。",
+            "STREAM_NOT_FOUND": "ストリームが見つかりません。URL が正しくないか、期限切れの可能性があります。",
+            "TIMED_OUT": "接続がタイムアウトしました。サーバーが応答していません。",
+            "LAUNCH_FAILED": "{{player}} を起動できませんでした。",
+            "UNKNOWN": "{{player}} のエラー：{{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "動画は外部プレーヤーのウィンドウで再生中です。",
+            "INSTALL_HINT": "MPV または VLC がシステムに正しくインストールされていることを確認してください。",
+            "INSTALL_INSTRUCTIONS": "インストール手順",
+            "DONT_SHOW_AGAIN": "今後表示しない"
+        }
     }
 }

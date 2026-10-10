@@ -156,7 +156,10 @@ export class WorkspaceShellSearchService {
                 context,
                 section,
                 translate: (key, params) => this.translateText(key, params),
-                xtreamCategory: this.xtreamStore.getSelectedCategory(),
+                // No selected category means the grid lists every item.
+                xtreamCategory: this.xtreamStore.selectedCategoryId()
+                    ? this.xtreamStore.getSelectedCategory()
+                    : { name: this.translateText('PORTALS.ALL_ITEMS') },
                 stalkerCategoryName:
                     this.stalkerStore.getSelectedCategoryName(),
             }),

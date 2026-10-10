@@ -122,6 +122,24 @@ describe('StalkerCatalogFacadeService', () => {
         });
     });
 
+    it('leaves the every-item title to the view while no category is selected', () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        const categoryId = stalkerStoreMock['selectedCategoryId'] as ReturnType<
+            typeof signal<string | null>
+        >;
+        (
+            stalkerStoreMock['getSelectedCategory'] as ReturnType<
+                typeof signal<Record<string, unknown> | null>
+            >
+        ).set({ category_id: '5', category_name: 'News' });
+
+        expect(service.selectedCategoryTitle()).toBe('News');
+
+        categoryId.set(null);
+
+        expect(service.selectedCategoryTitle()).toBeNull();
+    });
+
     it('delegates category search query updates to the Stalker store', () => {
         const service = TestBed.inject(StalkerCatalogFacadeService);
 

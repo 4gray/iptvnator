@@ -65,7 +65,15 @@ review every added entry in the diff:
 pnpm run i18n:baseline:update
 ```
 
-The checker's own tests run with `pnpm run i18n:test`; CI runs both through
+`pnpm run i18n:check` also runs `check-usage.mjs`, which fails on a key the
+renderer uses but `en.json` lacks (ngx-translate would show the raw key). It
+scans production `.ts` and `.html` files under `apps/web/src`,
+`apps/remote-control-web/src` and `libs` for piped keys (including the
+branches of a parenthesised operand), translate calls and
+dotted literals in an `en.json` namespace; run it alone with
+`pnpm run i18n:usage`. Keys built entirely at runtime are not checked.
+
+The checkers' own tests run with `pnpm run i18n:test`; CI runs both through
 `pnpm run i18n:validate`. For a full audit that ignores the baseline, run:
 
 ```bash

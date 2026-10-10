@@ -153,7 +153,7 @@ describe('SettingsBackupFacade', () => {
 
         expect(facade.isExportingData()).toBe(false);
         expect(snackBar.open).toHaveBeenCalledWith(
-            'Playlist backup export failed.',
+            'SETTINGS.BACKUP_EXPORT_FAILED',
             undefined,
             expect.objectContaining({ panelClass: ['settings-snackbar'] })
         );
@@ -190,6 +190,13 @@ describe('SettingsBackupFacade', () => {
         )?.[1] as (event: Event) => Promise<void>;
         await changeListener({ target: input } as unknown as Event);
 
+        expect(
+            (TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub).open
+        ).toHaveBeenCalledWith(
+            'SETTINGS.BACKUP_IMPORT_SUMMARY',
+            undefined,
+            expect.objectContaining({ panelClass: ['settings-snackbar'] })
+        );
         expect(xtreamStore.reconcilePendingRestoreBlock).toHaveBeenCalledTimes(
             1
         );

@@ -24,6 +24,11 @@ class FakeTranslateLoader implements TranslateLoader {
                     EXTERNAL_PLAYBACK_FAILED: 'External player error',
                 },
             },
+            EXTERNAL_PLAYER: {
+                ERRORS: {
+                    START_FAILED: 'Could not start {{player}}.',
+                },
+            },
         });
     }
 }
@@ -153,6 +158,40 @@ describe('ExternalPlaybackDockComponent', () => {
 
         action.nativeElement.click();
         expect(dismissSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('translates a classified failure and keeps the raw detail as a tooltip', () => {
+        fixture.componentRef.setInput('session', {
+            ...session,
+            status: 'error',
+            error: 'Failed to start MPV player: spawn mpv ENOENT',
+            errorCode: 'start-failed',
+            canClose: false,
+        });
+        fixture.detectChanges();
+
+        const status = fixture.debugElement.query(
+            By.css('.external-playback-dock__status-text')
+        ).nativeElement as HTMLElement;
+        expect(status.textContent?.trim()).toBe('Could not start MPV.');
+        expect(status.getAttribute('title')).toBe(
+            'Failed to start MPV player: spawn mpv ENOENT'
+        );
+    });
+
+    it('shows the generic failure, not the raw English detail, without a code', () => {
+        fixture.componentRef.setInput('session', {
+            ...session,
+            status: 'error',
+            error: 'MPV IPC command timed out',
+            canClose: true,
+        });
+        fixture.detectChanges();
+
+        const status = fixture.debugElement.query(
+            By.css('.external-playback-dock__status-text')
+        ).nativeElement as HTMLElement;
+        expect(status.textContent?.trim()).toBe('External player error');
     });
 
     it('preserves the only stop affordance when an errored process may still be alive', () => {

@@ -253,7 +253,7 @@ describe('GridListComponent', () => {
         fixture.detectChanges();
 
         const title = fixture.debugElement.query(By.css('.title'));
-        expect(title.nativeElement.textContent.trim()).toBe('No name');
+        expect(title.nativeElement.textContent.trim()).toBe('PORTALS.UNTITLED');
     });
 });
 
