@@ -753,6 +753,31 @@ classifier accepts both shapes plus the legacy `{ js: '<body>' }` envelope.
 `makeAuthenticatedRequest` retries once with fresh authentication and
 otherwise throws `StalkerPortalError('auth-failed')` carrying the body.
 
+### Cancelled requests and HTTP 401/403 over IPC
+
+Electron prints `Error occurred in handler for 'STALKER_REQUEST'` — with a
+stack trace — for every `ipcMain.handle` promise that rejects, so the main
+process resolves two routine outcomes instead of throwing them: a request whose
+abort signal fired (a source-health probe the renderer cancelled or let
+expire) and an HTTP 401/403 (the endpoint answered and refused — an auth gate
+in front of a discovery candidate, an expired account). Both come back as a
+`{ portalRequestFailure }` envelope
+(`libs/shared/interfaces/src/lib/portal-request-failure.util.ts`, classified
+in `apps/electron-backend/src/app/events/portal-request-outcome.ts`).
+`ElectronService.fetchStalkerData` is the only reader of the raw bridge result
+and rethrows the envelope as the error the Stalker layers already classify: an
+`AbortError` for the cancellation (debug log, no snackbar), or an
+`HTTP Error <code>: <statusText>` Error that carries a numeric `status`, so
+`getStalkerRequestErrorStatus` no longer has to parse it out of the message.
+A cancelled request therefore never resolves into an empty answer. In the main
+process the refusal is one `console.warn` through `formatPortalRequestError`
+and `redactSensitiveData` (host and pathname, never the MAC, token or query
+string); the cancellation is logged only under `IPTVNATOR_TRACE_IPC`. Every
+other failure — 404, 5xx, network errors, the connectivity guard's fast-fail —
+still rejects with the message contracts above and keeps its `console.error`.
+`apps/electron-backend-e2e/src/portal-request-logging.e2e.ts` pins both
+outcomes for both portals against the real main-process log.
+
 ### Error surfacing
 
 `StalkerPortalError.portalText` holds the portal's own words. The import

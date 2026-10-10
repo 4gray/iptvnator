@@ -222,9 +222,10 @@ describe('XtreamEvents performance phases', () => {
             await expect(
                 getHandler(XTREAM_CANCEL_SESSION)({}, 'xtream-session-abort')
             ).resolves.toEqual({ cancelled: 1, success: true });
-            await expect(request).rejects.toMatchObject({
-                name: 'AbortError',
-                status: 499,
+            // A cancellation resolves as a structured failure (Electron logs
+            // every rejected handler); the renderer rethrows it as AbortError.
+            await expect(request).resolves.toEqual({
+                portalRequestFailure: { kind: 'cancelled' },
             });
             expect(signal?.aborted).toBe(true);
             expect(

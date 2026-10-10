@@ -13,14 +13,17 @@ import {
     AUTO_UPDATE_PLAYLISTS,
     AutoUpdatePlaylistsResult,
     CONNECTIVITY_GUARD_RESET,
+    createPortalRequestError,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     ERROR,
+    isPortalRequestCancelledError,
     normalizeHost,
     parseSecurityPolicyError,
     PlayerContentInfo,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
+    readPortalRequestFailure,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
     XtreamCodeActions,
@@ -316,8 +319,22 @@ export class ElectronService extends DataService {
                 ...payload,
                 requestId: context.requestId,
             });
+            // A cancellation or an HTTP 401/403 arrives resolved — Electron
+            // would otherwise log each one as a failed handler — and becomes
+            // the error the Stalker layers classify from `status`/message.
+            const expected = readPortalRequestFailure(response);
+            if (expected) {
+                throw createPortalRequestError(expected, 'stalker');
+            }
             return response;
         } catch (err: unknown) {
+            if (isPortalRequestCancelledError(err)) {
+                // The renderer asked for this; it is not an error to report.
+                this.logger.debug(
+                    `Stalker request cancelled (${payload.params?.action ?? 'unknown'})`
+                );
+                throw err;
+            }
             const errorInfo = this.getErrorDetails(err);
             this.logger.error('Stalker request error:', err);
             if (!payload.silent) {
@@ -637,6 +654,13 @@ export class ElectronService extends DataService {
                 ...payload,
                 requestId: context.requestId,
             });
+            // A cancellation or an HTTP 401/403 arrives resolved — Electron
+            // would otherwise log each one as a failed handler — and becomes
+            // the error this method already reports below.
+            const expected = readPortalRequestFailure(response);
+            if (expected) {
+                throw createPortalRequestError(expected, 'xtream');
+            }
 
             if (payload.connectionTest || payload.probe) return response;
 
@@ -650,7 +674,11 @@ export class ElectronService extends DataService {
         } catch (error: unknown) {
             if (payload.probe) throw error;
             const action = payload.params?.action;
+            // The renderer asked for a cancellation; report it like a
+            // background action, not a failure the user needs to see.
+            const cancelled = isPortalRequestCancelledError(error);
             const isSilentAction =
+                cancelled ||
                 payload.suppressErrorLog === true ||
                 (action ? this.silentXtreamActions.has(action) : false);
             const normalizedMessage = this.getReadableXtreamErrorMessage(error);
@@ -679,7 +707,9 @@ export class ElectronService extends DataService {
 
             return {
                 type: ERROR,
-                status: errorInfo?.status ?? 500,
+                // 499 ("client closed request") keeps a cancellation apart
+                // from a server failure in the result callers log.
+                status: cancelled ? 499 : (errorInfo?.status ?? 500),
                 message: normalizedMessage,
             };
         }

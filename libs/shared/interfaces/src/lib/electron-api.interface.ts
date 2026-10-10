@@ -1,5 +1,6 @@
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
+import type { PortalRequestFailure } from './portal-request-failure.util';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
 import type { ZoomLevelAction } from './zoom-level.util';
 import type {
@@ -335,6 +336,12 @@ export interface ElectronBridgeXtreamRequestPayload {
 
 export interface ElectronBridgeXtreamResponse {
     connectionFailure?: XtreamConnectionFailure;
+    /**
+     * A cancelled request or an HTTP 401/403, resolved instead of rejected so
+     * Electron does not log the handler as failed. `ElectronService` rethrows
+     * it; see `portal-request-failure.util.ts`. `payload` is absent then.
+     */
+    portalRequestFailure?: PortalRequestFailure;
     payload: unknown;
     action: string;
 }
