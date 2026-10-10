@@ -90,6 +90,12 @@ test('reads an invisible outline from any part of the shorthand', () => {
         'outline-color: transparent',
         'outline-width: 0px',
         'outline-style: hidden',
+        // A shorthand without a style resets it to `none`.
+        'outline: 2px',
+        'outline: 2px #1d63e0',
+        'outline: red',
+        'outline: initial',
+        'outline-style: unset',
     ]) {
         assert.equal(removesOutline(hidden), true, hidden);
     }
@@ -100,6 +106,8 @@ test('reads an invisible outline from any part of the shorthand', () => {
         'outline: 2px solid rgba(0, 0, 0, 0.5)',
         'outline: 2px solid #ff000080',
         'outline: auto',
+        'outline: dashed',
+        'outline: var(--app-focus-outline)',
         'outline-offset: 0',
     ]) {
         assert.equal(removesOutline(visible), false, visible);
@@ -112,12 +120,14 @@ test('reads an invisible outline from any part of the shorthand', () => {
             source: [
                 ':focus { outline: 0 solid transparent; }',
                 ':focus-visible { outline: 2px solid transparent; }',
+                ':focus-visible { outline: 2px; }',
             ].join('\n'),
         },
     ]);
     assert.deepEqual(problems, [
         'f.scss:1 `:focus` sets `outline: 0 solid transparent`',
         'f.scss:2 `:focus-visible` sets `outline: 2px solid transparent`',
+        'f.scss:3 `:focus-visible` sets `outline: 2px`',
         'No global `:focus-visible` rule draws the fallback outline (`@include focus-ring.focus-ring-declarations`).',
     ]);
 });

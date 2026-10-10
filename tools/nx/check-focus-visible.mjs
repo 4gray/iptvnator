@@ -23,7 +23,11 @@ const OUTLINE_DECLARATION =
 
 /** A zero length: `0`, `0px`, `0.0em`. */
 const ZERO_WIDTH = /^[+-]?0*\.?0+(?:[a-z]+)?$/i;
-const NO_STYLE = /^(?:none|hidden)$/i;
+/** `none`, `hidden`, or a keyword that resets the outline to `none`. */
+const NO_STYLE = /^(?:none|hidden|initial|unset)$/i;
+/** A style that draws, or a `var()` that may carry one. */
+const DRAWN_STYLE =
+    /^(?:auto|solid|dashed|dotted|double|groove|ridge|inset|outset|inherit|revert|revert-layer|var\(.*\))$/i;
 /** `transparent`, or a colour whose alpha (4th or slashed) is zero. */
 const NO_COLOR =
     /^(?:transparent|#[0-9a-f]{3}0|#[0-9a-f]{6}00|(?:rgb|hsl)a?\((?:[^,()]+,){3}\s*0*\.?0+%?\s*\)|(?:rgb|hsl)a?\([^/()]*\/\s*0*\.?0+%?\s*\))$/i;
@@ -62,7 +66,8 @@ function resolveSelectors(parents, selectorList) {
 /**
  * Whether an `outline*` declaration leaves no visible outline: a `none` or
  * `hidden` style, a zero width or a transparent colour, in the longhands or
- * anywhere in the shorthand (`outline: 0 solid transparent`).
+ * anywhere in the shorthand (`outline: 0 solid transparent`). A shorthand
+ * without a style (`outline: 2px`, `outline: red`) resets it to `none`.
  */
 export function removesOutline(declaration) {
     const match = OUTLINE_DECLARATION.exec(declaration);
@@ -78,7 +83,10 @@ export function removesOutline(declaration) {
             ZERO_WIDTH.test(token) ||
             NO_COLOR.test(token),
     }[property];
-    return tokens.some(invisible);
+    const styleless =
+        property === 'outline' &&
+        !tokens.some((token) => DRAWN_STYLE.test(token));
+    return styleless || tokens.some(invisible);
 }
 
 /** Whether a declaration draws a visible outline. */
