@@ -69,23 +69,28 @@ Two startup costs found on a 4 GB profile (3.9M catalog titles, 182
 playlists) are guarded in `runMigrations()`:
 
 - `deduplicateXtreamCache()` returns at once when both unique indexes
-  (`categories_playlist_type_xtream_unique`,
+  (`src/lib/xtream-cache-unique-indexes.ts`:
+  `categories_playlist_type_xtream_unique`,
   `content_category_type_xtream_unique`) exist: they make duplicates
   impossible, and its two `GROUP BY ... HAVING COUNT(*) > 1` scans cost a full
   pass over `content` on every launch otherwise (7.8 s cold on that profile).
   A profile whose unique index could not be created yet still gets the repair.
-- `payload` must be the last column of `playlists` (`PLAYLISTS_COLUMNS`): SQLite
+- `payload` must be the last column of `playlists` (`PLAYLISTS_COLUMNS` in
+  `src/lib/playlists-table.ts`): SQLite
   reads a row's columns in order and walks the overflow pages of every column
   before the one it needs, so a column after an M3U payload costs the whole
   payload on each read (`getAppPlaylistMetas` took 4-22 s for 70 MB of
   payloads). Tables created before 0.19 got `payload` appended by `ALTER TABLE`
-  with the EPG URL columns after it, and fresh installs up to 0.25 created
+  with the EPG URL columns after it, and fresh installs up to 0.24 created
   `last_usage` after it; `ensurePlaylistsPayloadLast()` rebuilds such a table
-  once (new table, copy, drop, rename, with foreign keys off and
-  `foreign_key_check` on the tables referencing playlists before commit) and
-  is a no-op afterwards. The rebuild rewrites every payload, about 4 s on that
-  profile; later starts open the database in about 40 ms instead of 5-8 s. Never append a
-  column after `payload`; add it to `PLAYLISTS_COLUMNS` before `payload` and to
+  once (new table, copy, drop, rename, with foreign keys off) and is a no-op
+  afterwards. It commits only if the tables referencing playlists hold no more
+  foreign key violations than before; rows a legacy profile already orphaned
+  do not block it. `src/lib/playlists-table.spec.ts` runs the rebuild and its
+  rollback on real SQLite. The rebuild rewrites every payload, about 4 s on
+  that profile; later starts open the database in about 40 ms instead of
+  5-8 s. Never append a column after `payload`; add it to `PLAYLISTS_COLUMNS`
+  before `payload` and to
   `COLUMN_MIGRATION_STATEMENTS`, and the rebuild moves it on the next start.
 
 The #1580 index-ordering fix is included in 0.24 through PR #1550.

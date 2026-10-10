@@ -1,4 +1,8 @@
 import { __databaseConnectionTestHooks } from './connection';
+import {
+    ensurePlaylistsPayloadLast,
+    playlistsTableSql,
+} from './playlists-table';
 
 const {
     columnMigrationStatements,
@@ -10,8 +14,6 @@ const {
     upgradeContentTitleFtsTokenizer,
     contentTitleFtsStatement,
     deduplicateXtreamCache,
-    ensurePlaylistsPayloadLast,
-    playlistsTableSql,
 } = __databaseConnectionTestHooks;
 
 type SqliteHandle = Parameters<typeof runMigrations>[0];
@@ -628,36 +630,20 @@ describe('ensurePlaylistsPayloadLast', () => {
         const all = prepare.mock.calls.map(([statement]) =>
             compactSql(statement as string)
         );
-        expect(
-            all.findIndex((statement) =>
-                statement.startsWith(
-                    'SELECT COUNT(*) AS count FROM pragma_foreign_key_check(?)'
-                )
+        const checks = all.flatMap((statement, index) =>
+            statement.startsWith(
+                'SELECT COUNT(*) AS count FROM pragma_foreign_key_check(?)'
             )
-        ).toBeGreaterThan(
-            all.indexOf(
-                'ALTER TABLE playlists_payload_rebuild RENAME TO playlists'
-            )
+                ? [index]
+                : []
         );
+        const rename = all.indexOf(
+            'ALTER TABLE playlists_payload_rebuild RENAME TO playlists'
+        );
+        // Counted once before the rebuild and once more after the rename.
+        expect(checks[0]).toBeLessThan(rename);
+        expect(checks.at(-1)).toBeGreaterThan(rename);
         expect(warnSpy).not.toHaveBeenCalled();
-    });
-
-    it('rolls the rebuild back and restores foreign keys when a reference breaks', () => {
-        const { sqlite, pragma } = createSqliteMock(
-            playlistRules(legacyColumns, [
-                { table: 'favorites', rowid: 1, parent: 'playlists', fkid: 0 },
-            ])
-        );
-
-        expect(() => ensurePlaylistsPayloadLast(sqlite)).not.toThrow();
-
-        expect(warnSpy).toHaveBeenCalledWith(
-            '[DB] playlists payload-last rebuild failed:',
-            expect.objectContaining({
-                message: expect.stringContaining('1 foreign key violation(s)'),
-            })
-        );
-        expect(pragma.mock.calls.at(-1)?.[0]).toBe('foreign_keys = ON');
     });
 
     it('does not rebuild while a canonical column is still missing', () => {
