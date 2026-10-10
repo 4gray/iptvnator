@@ -5,6 +5,7 @@ import {
     formatPortalHttpErrorMessage,
     isExpectedPortalHttpStatus,
     isPortalRequestCancelledError,
+    isPortalRequestFailureEnvelope,
     readPortalRequestFailure,
 } from './portal-request-failure.util';
 import { sourceHealthError } from './source-health';
@@ -54,6 +55,29 @@ describe('portal request failure envelope', () => {
         ['undefined', undefined],
     ])('treats %s as a normal response', (_label, value) => {
         expect(readPortalRequestFailure(value)).toBeNull();
+    });
+
+    it('narrows a bridge result to the envelope only for a valid failure', () => {
+        const envelope = createPortalRequestFailureEnvelope({
+            kind: 'http',
+            status: 403,
+        });
+        const result: typeof envelope | { payload: unknown; action: string } =
+            envelope;
+
+        expect(isPortalRequestFailureEnvelope(result)).toBe(true);
+        if (isPortalRequestFailureEnvelope(result)) {
+            // Narrowed: the success fields are no longer on the type.
+            expect(result.portalRequestFailure.kind).toBe('http');
+        }
+        expect(
+            isPortalRequestFailureEnvelope({ payload: [], action: 'get' })
+        ).toBe(false);
+        expect(
+            isPortalRequestFailureEnvelope({
+                portalRequestFailure: { kind: 'http' },
+            })
+        ).toBe(false);
     });
 
     it('expects only the HTTP auth refusals', () => {

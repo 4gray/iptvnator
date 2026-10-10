@@ -17,13 +17,13 @@ import {
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     ERROR,
     isPortalRequestCancelledError,
+    isPortalRequestFailureEnvelope,
     normalizeHost,
     parseSecurityPolicyError,
     PlayerContentInfo,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
-    readPortalRequestFailure,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
     XtreamCodeActions,
@@ -322,9 +322,11 @@ export class ElectronService extends DataService {
             // A cancellation or an HTTP 401/403 arrives resolved — Electron
             // would otherwise log each one as a failed handler — and becomes
             // the error the Stalker layers classify from `status`/message.
-            const expected = readPortalRequestFailure(response);
-            if (expected) {
-                throw createPortalRequestError(expected, 'stalker');
+            if (isPortalRequestFailureEnvelope(response)) {
+                throw createPortalRequestError(
+                    response.portalRequestFailure,
+                    'stalker'
+                );
             }
             return response;
         } catch (err: unknown) {
@@ -657,9 +659,11 @@ export class ElectronService extends DataService {
             // A cancellation or an HTTP 401/403 arrives resolved — Electron
             // would otherwise log each one as a failed handler — and becomes
             // the error this method already reports below.
-            const expected = readPortalRequestFailure(response);
-            if (expected) {
-                throw createPortalRequestError(expected, 'xtream');
+            if (isPortalRequestFailureEnvelope(response)) {
+                throw createPortalRequestError(
+                    response.portalRequestFailure,
+                    'xtream'
+                );
             }
 
             if (payload.connectionTest || payload.probe) return response;

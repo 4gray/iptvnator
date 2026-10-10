@@ -92,6 +92,17 @@ export function readPortalRequestFailure(
 }
 
 /**
+ * Type guard for a bridge result: narrows the union the bridge promises
+ * (`ElectronBridgeXtreamResult`) so success fields cannot be read off an
+ * envelope without checking first.
+ */
+export function isPortalRequestFailureEnvelope(
+    value: unknown
+): value is PortalRequestFailureEnvelope {
+    return readPortalRequestFailure(value) !== null;
+}
+
+/**
  * The message shape the renderer classifies HTTP failures from
  * (`getStalkerRequestErrorStatus`, `isStalkerAuthorizationFailure`,
  * `sourceHealthError`): `HTTP Error <status>`, with the status text when the
