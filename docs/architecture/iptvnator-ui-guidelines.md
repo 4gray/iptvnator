@@ -1007,6 +1007,23 @@ the string results of its bindings, `icon` / `*Icon` inputs, and TypeScript
 values named `icon`, `*Icon`, `*_ICON`, `*Icons` or `*_ICONS`. Name a member
 that feeds an icon that way, so the check can see its values.
 
+## Icon-Only Buttons
+
+A `<button>` whose only content is a `<mat-icon>` needs an accessible name:
+the ligature text is hidden from assistive technology, and a `matTooltip`
+only adds a description that appears on hover or focus. Give it a translated
+`aria-label`, usually `[attr.aria-label]` bound to the same key as its
+tooltip, or `aria-labelledby`. A toggle keeps one label and reports its state
+with `aria-pressed` (the channel row's star is "Favorite", pressed or not),
+as the password visibility toggle does; its tooltip may still name the next
+action. `pnpm run a11y:icon-buttons:validate` (CI) checks `.html` and inline
+templates, looking through control flow, `ng-container` and spinners; content
+it cannot see into (`ng-content`, another component, an image) counts as
+named, and text under `aria-hidden="true"` never does.
+`icon-button-names.e2e.ts` in `web-e2e` runs axe's `button-name` rule
+on a channel list, the channel details dialog, Sources, the playlist info
+dialog and an Xtream search.
+
 ## Phone Layout
 
 `640px` is the phone breakpoint. Use `@media (max-width: 640px)` rather than

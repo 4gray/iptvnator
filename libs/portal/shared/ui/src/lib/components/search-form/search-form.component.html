@@ -11,7 +11,13 @@
             (ngModelChange)="onSearchTermChange()"
         />
         @if (searchTerm()) {
-            <button mat-icon-button class="clear-btn" (click)="clearSearch()">
+            <button
+                mat-icon-button
+                type="button"
+                class="clear-btn"
+                [attr.aria-label]="'CLEAR_SEARCH' | translate"
+                (click)="clearSearch()"
+            >
                 <mat-icon>close</mat-icon>
             </button>
         }
