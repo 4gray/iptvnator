@@ -33,23 +33,17 @@ import {
 
 import {
     CollectionKey,
-    deduplicateRecentItems,
-    StoredRecentItem,
     collectionKey,
     typedCollectionRef,
     itemCollectionKey,
     findCollectionItems,
-    normalizeFavoriteStorage,
-    normalizeRecentStorage,
 } from './pwa-collection-identity';
+import { PwaCollectionStorage } from './pwa-collection-storage';
 
 /**
  * LocalStorage keys for PWA persistence
  */
 const STORAGE_KEYS = {
-    COLLECTION_ITEMS: 'xtream-collection-items',
-    FAVORITES: 'xtream-favorites',
-    RECENT_ITEMS: 'xtream-recent-items',
     PLAYLISTS: 'xtream-playlists',
     PLAYBACK_POSITIONS: 'xtream-playback-positions',
 };
@@ -93,6 +87,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly parentalLock = inject(ParentalLockService);
     private readonly logger = createLogger('PwaXtreamDataSource');
     private readonly contentTypes = ['live', 'movie', 'series'] as const;
+    private readonly collectionStorage = new PwaCollectionStorage(
+        (playlistId, ids) => this.getCollectionItemsById(playlistId, ids)
+    );
 
     // In-memory cache for the current session
     private categoryCache = new Map<string, XtreamCategory[]>();
@@ -172,9 +169,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         this.savePlaylistsToStorage(filtered);
 
         // Also clear favorites and recent items for this playlist
-        this.clearCollectionItemsForPlaylist(playlistId);
-        this.clearFavoritesForPlaylist(playlistId);
-        this.clearRecentItemsForPlaylist(playlistId);
+        this.collectionStorage.clearCollectionItemsForPlaylist(playlistId);
+        this.collectionStorage.clearFavoritesForPlaylist(playlistId);
+        this.collectionStorage.clearRecentItemsForPlaylist(playlistId);
         this.clearPlaybackPositionsForPlaylist(playlistId);
 
         // Clear cache
@@ -689,36 +686,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
 
     async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
-        let allFavorites = this.getFavoritesFromStorage();
-        let playlistFavorites = allFavorites[playlistId] || [];
-        let contentById = await this.getCollectionItemsWithHydration(
+        await this.getCollectionItemsWithHydration(
             playlistId,
-            playlistFavorites
+            this.collectionStorage.getFavoritesFromStorage()[playlistId] || []
         );
-
-        allFavorites = this.getFavoritesFromStorage();
-        playlistFavorites = allFavorites[playlistId] || [];
-        contentById = this.getCollectionItemsById(
-            playlistId,
-            playlistFavorites
-        );
-        const migrated = playlistFavorites.map((id) => {
-            const item = contentById.get(id);
-            return item ? (itemCollectionKey(item) ?? id) : id;
-        });
-        if (migrated.some((id, index) => id !== playlistFavorites[index])) {
-            allFavorites[playlistId] = [...new Set(migrated)];
-            this.saveFavoritesToStorage(allFavorites);
-        }
-        this.persistCollectionSnapshots(playlistId, contentById);
-        return [
-            ...new Map(
-                Array.from(contentById.values()).map((item) => [
-                    itemCollectionKey(item),
-                    item,
-                ])
-            ).values(),
-        ];
+        return this.collectionStorage.getLocalFavorites(playlistId);
     }
 
     async addFavorite(
@@ -734,16 +706,16 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
-        await this.getFavorites(playlistId);
-        const allFavorites = this.getFavoritesFromStorage();
+        this.collectionStorage.getLocalFavorites(playlistId);
+        const allFavorites = this.collectionStorage.getFavoritesFromStorage();
         if (!allFavorites[playlistId]) {
             allFavorites[playlistId] = [];
         }
         if (!allFavorites[playlistId].includes(normalizedContentId)) {
             allFavorites[playlistId].push(normalizedContentId);
         }
-        this.saveFavoritesToStorage(allFavorites);
-        this.saveCollectionItemSnapshot(
+        this.collectionStorage.saveFavoritesToStorage(allFavorites);
+        this.collectionStorage.saveCollectionItemSnapshot(
             playlistId,
             normalizedContentId,
             backdropUrl
@@ -762,14 +734,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
-        await this.getFavorites(playlistId);
-        const allFavorites = this.getFavoritesFromStorage();
+        this.collectionStorage.getLocalFavorites(playlistId);
+        const allFavorites = this.collectionStorage.getFavoritesFromStorage();
         if (allFavorites[playlistId]) {
             allFavorites[playlistId] = allFavorites[playlistId].filter(
                 (id) => id !== normalizedContentId
             );
         }
-        this.saveFavoritesToStorage(allFavorites);
+        this.collectionStorage.saveFavoritesToStorage(allFavorites);
     }
 
     async isFavorite(
@@ -784,30 +756,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return false;
         }
 
-        await this.getFavorites(playlistId);
-        const allFavorites = this.getFavoritesFromStorage();
+        this.collectionStorage.getLocalFavorites(playlistId);
+        const allFavorites = this.collectionStorage.getFavoritesFromStorage();
         return (allFavorites[playlistId] || []).includes(normalizedContentId);
-    }
-
-    private getFavoritesFromStorage(): Record<string, CollectionKey[]> {
-        try {
-            const data = localStorage.getItem(STORAGE_KEYS.FAVORITES);
-            return normalizeFavoriteStorage(data ? JSON.parse(data) : {});
-        } catch {
-            return {};
-        }
-    }
-
-    private saveFavoritesToStorage(
-        favorites: Record<string, CollectionKey[]>
-    ): void {
-        localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
-    }
-
-    private clearFavoritesForPlaylist(playlistId: string): void {
-        const allFavorites = this.getFavoritesFromStorage();
-        delete allFavorites[playlistId];
-        this.saveFavoritesToStorage(allFavorites);
     }
 
     // =========================================================================
@@ -999,62 +950,15 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
 
     async getRecentItems(playlistId: string): Promise<XtreamContentItem[]> {
-        let allRecent = this.getRecentItemsFromStorage();
-        let playlistRecent = allRecent[playlistId] || [];
-        let contentById = await this.getCollectionItemsWithHydration(
+        await this.getCollectionItemsWithHydration(
             playlistId,
-            playlistRecent.map((item) => item.id)
+            (
+                this.collectionStorage.getRecentItemsFromStorage()[
+                    playlistId
+                ] || []
+            ).map((item) => item.id)
         );
-        allRecent = this.getRecentItemsFromStorage();
-        playlistRecent = allRecent[playlistId] || [];
-        contentById = this.getCollectionItemsById(
-            playlistId,
-            playlistRecent.map((item) => item.id)
-        );
-        const migrated = deduplicateRecentItems(
-            playlistRecent.map((entry) => {
-                const item = contentById.get(entry.id);
-                return item
-                    ? { ...entry, id: itemCollectionKey(item) ?? entry.id }
-                    : entry;
-            })
-        );
-        if (
-            migrated.length !== playlistRecent.length ||
-            migrated.some(
-                (entry, index) => entry.id !== playlistRecent[index].id
-            )
-        ) {
-            allRecent[playlistId] = migrated;
-            this.saveRecentItemsToStorage(allRecent);
-        }
-        this.persistCollectionSnapshots(playlistId, contentById);
-        const results: (XtreamContentItem & { viewed_at: string })[] = [];
-        const migratedContent = this.getCollectionItemsById(
-            playlistId,
-            migrated.map((item) => item.id)
-        );
-        for (const recentEntry of migrated) {
-            const item = migratedContent.get(recentEntry.id);
-            if (!item) {
-                continue;
-            }
-
-            results.push({
-                ...item,
-                backdrop_url: recentEntry.backdropUrl ?? item.backdrop_url,
-                viewed_at: recentEntry.viewedAt,
-            });
-        }
-
-        // Sort by viewed_at descending
-        results.sort(
-            (a, b) =>
-                new Date(b.viewed_at).getTime() -
-                new Date(a.viewed_at).getTime()
-        );
-
-        return results as XtreamContentItem[];
+        return this.collectionStorage.getLocalRecentItems(playlistId);
     }
 
     async addRecentItem(
@@ -1071,8 +975,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
         const normalizedBackdropUrl = _backdropUrl?.trim();
 
-        await this.getRecentItems(playlistId);
-        const allRecent = this.getRecentItemsFromStorage();
+        this.collectionStorage.getLocalRecentItems(playlistId);
+        const allRecent = this.collectionStorage.getRecentItemsFromStorage();
         if (!allRecent[playlistId]) {
             allRecent[playlistId] = [];
         }
@@ -1094,8 +998,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Keep only last 50 items
         allRecent[playlistId] = allRecent[playlistId].slice(0, 50);
 
-        this.saveRecentItemsToStorage(allRecent);
-        this.saveCollectionItemSnapshot(
+        this.collectionStorage.saveRecentItemsToStorage(allRecent);
+        this.collectionStorage.saveCollectionItemSnapshot(
             playlistId,
             normalizedContentId,
             normalizedBackdropUrl
@@ -1114,143 +1018,18 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
-        await this.getRecentItems(playlistId);
-        const allRecent = this.getRecentItemsFromStorage();
+        this.collectionStorage.getLocalRecentItems(playlistId);
+        const allRecent = this.collectionStorage.getRecentItemsFromStorage();
         if (allRecent[playlistId]) {
             allRecent[playlistId] = allRecent[playlistId].filter(
                 (r) => r.id !== normalizedContentId
             );
         }
-        this.saveRecentItemsToStorage(allRecent);
+        this.collectionStorage.saveRecentItemsToStorage(allRecent);
     }
 
     async clearRecentItems(playlistId: string): Promise<void> {
-        this.clearRecentItemsForPlaylist(playlistId);
-    }
-
-    private getRecentItemsFromStorage(): Record<string, StoredRecentItem[]> {
-        try {
-            const data = localStorage.getItem(STORAGE_KEYS.RECENT_ITEMS);
-            return normalizeRecentStorage(data ? JSON.parse(data) : {});
-        } catch {
-            return {};
-        }
-    }
-
-    private saveRecentItemsToStorage(
-        recentItems: Record<string, StoredRecentItem[]>
-    ): void {
-        localStorage.setItem(
-            STORAGE_KEYS.RECENT_ITEMS,
-            JSON.stringify(recentItems)
-        );
-    }
-
-    private clearRecentItemsForPlaylist(playlistId: string): void {
-        const allRecent = this.getRecentItemsFromStorage();
-        delete allRecent[playlistId];
-        this.saveRecentItemsToStorage(allRecent);
-    }
-
-    private getCollectionItemsFromStorage(): Record<
-        string,
-        Record<string, XtreamContentItem>
-    > {
-        try {
-            const data = localStorage.getItem(STORAGE_KEYS.COLLECTION_ITEMS);
-            const parsed = data ? JSON.parse(data) : {};
-            if (!parsed || typeof parsed !== 'object') {
-                return {};
-            }
-            return parsed as Record<string, Record<string, XtreamContentItem>>;
-        } catch {
-            return {};
-        }
-    }
-
-    private saveCollectionItemsToStorage(
-        items: Record<string, Record<string, XtreamContentItem>>
-    ): void {
-        localStorage.setItem(
-            STORAGE_KEYS.COLLECTION_ITEMS,
-            JSON.stringify(items)
-        );
-    }
-
-    private clearCollectionItemsForPlaylist(playlistId: string): void {
-        const allItems = this.getCollectionItemsFromStorage();
-        delete allItems[playlistId];
-        this.saveCollectionItemsToStorage(allItems);
-    }
-
-    private persistCollectionSnapshots(
-        playlistId: string,
-        items: Map<CollectionKey, XtreamContentItem>
-    ): void {
-        if (!items.size) return;
-        const allItems = this.getCollectionItemsFromStorage();
-        const snapshots = allItems[playlistId] ?? {};
-        for (const item of items.values()) {
-            const key = itemCollectionKey(item);
-            if (key === null) continue;
-            snapshots[key] = {
-                ...item,
-                backdrop_url: item.backdrop_url ?? snapshots[key]?.backdrop_url,
-            };
-        }
-        this.saveCollectionItemsToStorage({
-            ...allItems,
-            [playlistId]: snapshots,
-        });
-    }
-
-    private saveCollectionItemSnapshot(
-        playlistId: string,
-        contentId: CollectionKey,
-        backdropUrl?: string
-    ): void {
-        const item = this.findCachedContentItemById(playlistId, contentId);
-        if (!item) {
-            return;
-        }
-
-        const normalizedBackdropUrl = backdropUrl?.trim();
-        const allItems = this.getCollectionItemsFromStorage();
-        const playlistItems = allItems[playlistId] ?? {};
-        playlistItems[String(contentId)] = {
-            ...item,
-            ...(normalizedBackdropUrl && !item.backdrop_url
-                ? { backdrop_url: normalizedBackdropUrl }
-                : {}),
-        };
-        this.saveCollectionItemsToStorage({
-            ...allItems,
-            [playlistId]: playlistItems,
-        });
-    }
-
-    private setCollectionItemBackdropIfMissing(
-        playlistId: string,
-        contentId: CollectionKey,
-        backdropUrl: string
-    ): void {
-        const allItems = this.getCollectionItemsFromStorage();
-        const playlistItems = allItems[playlistId];
-        const item = playlistItems?.[String(contentId)];
-        if (!item || item.backdrop_url) {
-            return;
-        }
-
-        this.saveCollectionItemsToStorage({
-            ...allItems,
-            [playlistId]: {
-                ...playlistItems,
-                [String(contentId)]: {
-                    ...item,
-                    backdrop_url: backdropUrl,
-                },
-            },
-        });
+        this.collectionStorage.clearRecentItemsForPlaylist(playlistId);
     }
 
     private getCollectionItemsById(
@@ -1267,7 +1046,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return findCollectionItems(
             ids,
             cached,
-            this.getCollectionItemsFromStorage()[playlistId] ?? {},
+            this.collectionStorage.getCollectionItemsFromStorage()[
+                playlistId
+            ] ?? {},
             this.contentTypes.every((type) =>
                 this.contentCache.has(`${playlistId}-${type}-content`)
             )
@@ -1438,19 +1219,19 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             );
         }
 
-        this.setCollectionItemBackdropIfMissing(
+        this.collectionStorage.setCollectionItemBackdropIfMissing(
             playlistId,
             normalizedContentId,
             normalizedBackdropUrl
         );
 
-        const allRecent = this.getRecentItemsFromStorage();
+        const allRecent = this.collectionStorage.getRecentItemsFromStorage();
         const playlistRecent = allRecent[playlistId];
         if (!playlistRecent) {
             return;
         }
 
-        this.saveRecentItemsToStorage({
+        this.collectionStorage.saveRecentItemsToStorage({
             ...allRecent,
             [playlistId]: playlistRecent.map((item) => {
                 if (item.id !== normalizedContentId || item.backdropUrl) {
@@ -1487,8 +1268,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Resolve only unambiguous legacy references before producing typed backup data.
         await this.getFavorites(playlistId);
         await this.getRecentItems(playlistId);
-        const favorites = this.getFavoritesFromStorage();
-        const recentItems = this.getRecentItemsFromStorage();
+        const favorites = this.collectionStorage.getFavoritesFromStorage();
+        const recentItems = this.collectionStorage.getRecentItemsFromStorage();
         const playbackPositions =
             await this.getAllPlaybackPositions(playlistId);
 
@@ -1544,16 +1325,16 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     ): Promise<void> {
         void options;
         // Restore favorites
-        const favorites = this.getFavoritesFromStorage();
+        const favorites = this.collectionStorage.getFavoritesFromStorage();
         favorites[playlistId] = restoreState.favorites
             .map((item) =>
                 collectionKey({ id: item.xtreamId, type: item.contentType })
             )
             .filter((key): key is CollectionKey => key !== null);
-        this.saveFavoritesToStorage(favorites);
+        this.collectionStorage.saveFavoritesToStorage(favorites);
 
         // Restore recent items
-        const recentItems = this.getRecentItemsFromStorage();
+        const recentItems = this.collectionStorage.getRecentItemsFromStorage();
         recentItems[playlistId] = [];
         for (const item of restoreState.recentlyViewed) {
             const id = collectionKey({
@@ -1563,7 +1344,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             if (id !== null)
                 recentItems[playlistId].push({ id, viewedAt: item.viewedAt });
         }
-        this.saveRecentItemsToStorage(recentItems);
+        this.collectionStorage.saveRecentItemsToStorage(recentItems);
 
         // Restore playback positions
         this.clearPlaybackPositionsForPlaylist(playlistId);

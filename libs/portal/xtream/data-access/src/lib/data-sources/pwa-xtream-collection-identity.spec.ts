@@ -193,6 +193,90 @@ describe('PWA Xtream collection identity', () => {
         ]);
     });
 
+    it.each([
+        'addFavorite',
+        'removeFavorite',
+        'isFavorite',
+        'addRecentItem',
+        'removeRecentItem',
+    ] as const)(
+        '%s completes locally while unrelated catalog hydration is pending',
+        async (operation) => {
+            const savedIds = [42, 77, 'series:99'];
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ p1: savedIds })
+            );
+            localStorage.setItem(
+                'xtream-recent-items',
+                JSON.stringify({
+                    p1: savedIds.map((id) => ({
+                        id,
+                        viewedAt: '2026-10-01T00:00:00.000Z',
+                    })),
+                })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({
+                    p1: {
+                        42: {
+                            id: 42,
+                            xtream_id: 42,
+                            type: 'movie',
+                            title: 'Saved Movie',
+                        },
+                    },
+                })
+            );
+            let releaseCatalog!: (items: unknown[]) => void;
+            const catalog = new Promise((resolve) => {
+                releaseCatalog = resolve;
+            });
+            api.getStreams.mockReturnValue(catalog);
+            const loading = Promise.all([
+                source.getFavorites('p1'),
+                source.getRecentItems('p1'),
+            ]);
+            for (let i = 0; i < 20; i++) await Promise.resolve();
+            const requestsBeforeAction = api.getStreams.mock.calls.length;
+            expect(requestsBeforeAction).toBeGreaterThan(0);
+            const adding =
+                operation === 'addFavorite' || operation === 'addRecentItem';
+            let settled = false;
+            let result: boolean | void;
+            const action = source[operation](
+                { id: 42, type: adding ? 'live' : 'movie' },
+                'p1'
+            ).then((value) => {
+                result = value;
+                settled = true;
+            });
+            try {
+                for (let i = 0; i < 20; i++) await Promise.resolve();
+                expect(settled).toBe(true);
+                expect(api.getStreams).toHaveBeenCalledTimes(
+                    requestsBeforeAction
+                );
+                if (operation === 'isFavorite') expect(result).toBe(true);
+                const storedIds = operation.includes('Recent')
+                    ? read('xtream-recent-items').p1.map(
+                          (entry: { id: unknown }) => entry.id
+                      )
+                    : read('xtream-favorites').p1;
+                const expectedIds = operation.startsWith('remove')
+                    ? [77, 'series:99']
+                    : adding
+                      ? ['movie:42', 77, 'series:99', 'live:42']
+                      : ['movie:42', 77, 'series:99'];
+                expect([...storedIds].sort()).toEqual(expectedIds.sort());
+            } finally {
+                releaseCatalog([]);
+                await Promise.all([loading, action]);
+            }
+        }
+    );
+
     it('preserves newer storage changes while legacy hydration is pending', async () => {
         localStorage.setItem('xtream-favorites', JSON.stringify({ p1: [42] }));
         let resolveMovie!: (items: unknown[]) => void;

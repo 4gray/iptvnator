@@ -44,8 +44,9 @@ on Electron and the provider ID on PWA. Electron unwraps the row ID at its
 existing database boundary. Typed lookups, favorite toggles, recent updates,
 removals, backdrops and backup/restore retain the content type. A favorite toggle
 reads persisted status for its exact typed target instead of borrowing the last
-detail's favorite state. Live playback records its typed recent entry when a
-channel start is requested; selection without a start does not update history.
+detail's favorite state. Like VOD and series, live history records a valid
+playback request without waiting for the media engine to confirm playback.
+Live selection without a start or a resolved stream URL does not update history.
 
 PWA keeps the existing localStorage keys. `xtream-favorites` contains ordered
 `type:id` keys (for example `movie:42`); `xtream-recent-items` uses the same
@@ -53,6 +54,10 @@ keys in each entry's `id`, retaining `viewedAt` and backdrop metadata.
 `xtream-collection-items` stores snapshots under those typed keys while each
 snapshot's `id` and `xtream_id` remain numeric provider IDs. Hydration fetches
 only the required content types; snapshots support collection reads offline.
+Typed add/remove/status operations use synchronous local migration and never
+wait for unrelated catalog hydration. `PwaCollectionStorage` owns that local
+migration and snapshot persistence; the data source owns provider hydration for
+collection loading and legacy numeric callers that still need identity evidence.
 
 Legacy numeric and numeric-string references migrate lazily. A valid legacy
 snapshot supplies its saved content type; otherwise all three catalogs must
