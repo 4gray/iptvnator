@@ -63,7 +63,12 @@ describe('SerialDetailsMenuService', () => {
                 },
                 {
                     provide: XTREAM_DATA_SOURCE,
-                    useValue: { removeRecentItem: jest.fn() },
+                    useValue: {
+                        removeRecentItem: jest.fn(),
+                        getContentByXtreamId: jest
+                            .fn()
+                            .mockResolvedValue({ id: 103 }),
+                    },
                 },
                 {
                     provide: RuntimeCapabilitiesService,
@@ -159,6 +164,17 @@ describe('SerialDetailsMenuService', () => {
             episodesSignal.set({
                 '1': [episode(1001, 1), episode(1002, 2), episode(1003, 3)],
             });
+        });
+
+        it('removes only the typed series when hiding it from Continue Watching', async () => {
+            await service.run(SERIES_MENU_ACTION.HideFromContinueWatching);
+
+            expect(
+                TestBed.inject(XTREAM_DATA_SOURCE).getContentByXtreamId
+            ).toHaveBeenCalledWith(103, 'xtream-1', 'series');
+            expect(
+                TestBed.inject(XTREAM_DATA_SOURCE).removeRecentItem
+            ).toHaveBeenCalledWith({ id: 103, type: 'series' }, 'xtream-1');
         });
 
         it('is offered once an episode is finished while the next one remains, as the rail lists the series with it', () => {

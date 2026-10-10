@@ -15,7 +15,20 @@ import {
     DEFAULT_USERNAME,
     interceptXtreamRequests,
     MOCK_SERVER,
+    selectWebPlayer,
 } from './xtream-series-playback.fixture';
+import {
+    addCollisionFavorite,
+    collisionCollectionItem,
+    collisionItems,
+    expectCollectionDetailRoundTrip,
+    expectCollisionCollection,
+    interceptCollidingXtreamItems,
+    playCollisionItem,
+    removeCollisionFavorite,
+    routeCollisionMedia,
+    selectCollectionType,
+} from './xtream-collection-helpers';
 
 /**
  * Xtream Codes E2E Tests
@@ -411,6 +424,108 @@ test('@xtream add portal and see it in the playlist list', async ({ page }) => {
     await expect(
         page.getByText('My Xtream Test Portal', { exact: false })
     ).toBeVisible();
+});
+
+test('@xtream @collections PWA favorites keep colliding movie, series and live IDs independent after reload and removal', async ({
+    page,
+    request,
+}) => {
+    test.setTimeout(90_000);
+    const categories = await interceptCollidingXtreamItems(
+        page,
+        request,
+        MOCK_SERVER
+    );
+    await addXtreamPortal(page, {
+        name: 'Collision Favorites Portal',
+        username: 'minimal',
+        password: 'minimal',
+    });
+    const playlistPath = new URL(page.url()).pathname.replace(/\/vod.*$/, '');
+
+    for (const item of collisionItems) {
+        await addCollisionFavorite(page, item, categories[item.type]);
+    }
+
+    await page.goto(`${playlistPath}/favorites`);
+    await expectCollisionCollection(page, collisionItems);
+    await page.reload();
+    await expectCollisionCollection(page, collisionItems);
+    await expectCollectionDetailRoundTrip(page, collisionItems[0]);
+    await expectCollectionDetailRoundTrip(page, collisionItems[1]);
+
+    for (let index = 0; index < collisionItems.length; index++) {
+        const item = collisionItems[index];
+        await removeCollisionFavorite(
+            page,
+            item,
+            collisionItems.length - index
+        );
+        await expect(collisionCollectionItem(page, item)).toHaveCount(0);
+        await page.reload();
+        await expectCollisionCollection(page, collisionItems.slice(index + 1));
+    }
+});
+
+test('@xtream @collections PWA recent items require confirmed playback and retain colliding content IDs', async ({
+    page,
+    request,
+    browserName,
+}) => {
+    test.skip(
+        browserName !== 'chromium',
+        'Synthetic live media uses Chromium codecs'
+    );
+    test.setTimeout(90_000);
+    const categories = await interceptCollidingXtreamItems(
+        page,
+        request,
+        MOCK_SERVER
+    );
+    const allowPlayback = await routeCollisionMedia(page, MOCK_SERVER);
+    await selectWebPlayer(page, 'HTML5 video player');
+    await page.goto('/');
+    await addXtreamPortal(page, {
+        name: 'Collision Recent Portal',
+        username: 'minimal',
+        password: 'minimal',
+    });
+    const playlistPath = new URL(page.url()).pathname.replace(/\/vod.*$/, '');
+
+    for (const item of collisionItems) {
+        const failedMedia = page.waitForResponse(
+            (response) =>
+                response.url().startsWith(`${MOCK_SERVER}/${item.type}/`) &&
+                response.status() === 503
+        );
+        await playCollisionItem(page, item, categories[item.type], false);
+        await failedMedia;
+        await page.goto(`${playlistPath}/recent`);
+        await expectCollisionCollection(page, []);
+    }
+
+    allowPlayback();
+    for (let index = 0; index < collisionItems.length; index++) {
+        const item = collisionItems[index];
+        await playCollisionItem(page, item, categories[item.type]);
+        await page.goto(`${playlistPath}/recent`);
+        await expectCollisionCollection(
+            page,
+            collisionItems.slice(0, index + 1)
+        );
+    }
+    await page.reload();
+    await expectCollisionCollection(page, collisionItems);
+    await expectCollectionDetailRoundTrip(page, collisionItems[0]);
+    await expectCollectionDetailRoundTrip(page, collisionItems[1]);
+
+    await selectCollectionType(page, collisionItems[0]);
+    const movie = collisionCollectionItem(page, collisionItems[0]);
+    await movie.hover();
+    await movie.locator('.remove-button').click();
+    await expect(movie).toHaveCount(0);
+    await page.reload();
+    await expectCollisionCollection(page, collisionItems.slice(1));
 });
 
 test('@xtream playlist details edit is retained in the PWA browser context', async ({

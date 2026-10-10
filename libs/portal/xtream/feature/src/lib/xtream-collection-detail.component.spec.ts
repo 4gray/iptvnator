@@ -33,9 +33,34 @@ describe('XtreamCollectionDetailComponent', () => {
     let cancelDetailsRequest: jest.Mock;
     let routerNavigate: jest.Mock;
 
+    const seriesItem: UnifiedCollectionItem = {
+        uid: 'xtream::xtream-1::series:103',
+        name: 'Series One',
+        contentType: 'series',
+        sourceType: 'xtream',
+        playlistId: 'xtream-1',
+        playlistName: 'Xtream Portal',
+        xtreamId: 103,
+        categoryId: 3,
+    };
+    const detailPlaylist = {
+        _id: 'xtream-1',
+        title: 'Xtream Portal',
+        serverUrl: 'http://xtream.example',
+        username: 'user',
+        password: 'pass',
+    } as Playlist;
+
     beforeEach(async () => {
-        playlistId = signal('');
-        currentPlaylist = signal<XtreamPlaylistData | null>(null);
+        playlistId = signal('original-playlist');
+        currentPlaylist = signal<XtreamPlaylistData | null>({
+            id: 'original-playlist',
+            name: 'Original Portal',
+            type: 'xtream',
+            serverUrl: 'http://original.example',
+            username: 'original-user',
+            password: 'original-pass',
+        });
         selectedContentType = signal<'live' | 'vod' | 'series'>('vod');
         selectedCategoryId = signal<number | null>(null);
         selectedItem = signal<unknown>(null);
@@ -93,15 +118,7 @@ describe('XtreamCollectionDetailComponent', () => {
                 {
                     provide: PlaylistsService,
                     useValue: {
-                        getPlaylistById: jest.fn(() =>
-                            of({
-                                _id: 'xtream-1',
-                                title: 'Xtream Portal',
-                                serverUrl: 'http://xtream.example',
-                                username: 'user',
-                                password: 'pass',
-                            } as Playlist)
-                        ),
+                        getPlaylistById: jest.fn(() => of(detailPlaylist)),
                     },
                 },
             ],
@@ -127,16 +144,7 @@ describe('XtreamCollectionDetailComponent', () => {
             seasonNumber: 2,
             episodeNumber: 1,
         };
-        fixture.componentRef.setInput('item', {
-            uid: 'xtream::xtream-1::series:103',
-            name: 'Series One',
-            contentType: 'series',
-            sourceType: 'xtream',
-            playlistId: 'xtream-1',
-            playlistName: 'Xtream Portal',
-            xtreamId: 103,
-            categoryId: 3,
-        } satisfies UnifiedCollectionItem);
+        fixture.componentRef.setInput('item', seriesItem);
         fixture.componentRef.setInput('seriesResume', seriesResume);
 
         fixture.detectChanges();
@@ -173,6 +181,37 @@ describe('XtreamCollectionDetailComponent', () => {
                 ?.get(XTREAM_SERIES_RESUME_TARGET)()
         ).toEqual(seriesResume);
     });
+
+    it('keeps the newer selection when an earlier playlist resolves last', fakeAsync(() => {
+        const pendingPlaylist = new Subject<Playlist>();
+        jest.spyOn(TestBed.inject(PlaylistsService), 'getPlaylistById')
+            .mockReturnValueOnce(pendingPlaylist)
+            .mockReturnValueOnce(of({ ...detailPlaylist, _id: 'xtream-2' }));
+        fixture.componentRef.setInput('item', seriesItem);
+        fixture.detectChanges();
+        fixture.componentRef.setInput('item', {
+            ...seriesItem,
+            uid: 'xtream::xtream-2::series:203',
+            playlistId: 'xtream-2',
+            xtreamId: 203,
+            categoryId: 6,
+        } satisfies UnifiedCollectionItem);
+        fixture.detectChanges();
+        flushMicrotasks();
+        const detailInjector = fixture.componentInstance.detailInjector();
+
+        pendingPlaylist.next(detailPlaylist);
+        flushMicrotasks();
+
+        expect(playlistId()).toBe('xtream-2');
+        expect(currentPlaylist()?.id).toBe('xtream-2');
+        expect(selectedCategoryId()).toBe(6);
+        expect(fixture.componentInstance.detailInjector()).toBe(detailInjector);
+        expect(detailInjector?.get(ActivatedRoute).snapshot.params).toEqual({
+            categoryId: '6',
+            serialId: '203',
+        });
+    }));
 
     it('invalidates detail loading before restoring the underlying store', () => {
         fixture.componentInstance.ngOnDestroy();

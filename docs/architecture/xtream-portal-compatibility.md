@@ -37,6 +37,58 @@ See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
 [Portal Detail Navigation](./portal-detail-navigation.md), and
 [VOD Multi-Source](./vod-multi-source.md).
 
+## PWA Collection Persistence
+
+Collection operations carry `{ id, type }`: `id` remains the SQLite row ID
+on Electron and the provider ID on PWA. Electron unwraps the row ID at its
+existing database boundary. Typed lookups, favorite toggles, recent updates,
+removals, backdrops and backup/restore retain the content type. A favorite toggle
+reads persisted status for its exact typed target instead of borrowing the last
+detail's favorite state. Live history uses the same confirmed-playback gate as
+VOD and series: inline playback confirms its playlist-scoped session key, while
+external playback confirms its URL. The initiating playlist and typed identity
+remain captured across delayed confirmation. Selection without playback or a
+resolved URL does not update history. See the
+[playback-history contract](./embedded-inline-playback.md#recently-viewed-confirmation).
+
+PWA keeps the existing localStorage keys. `xtream-favorites` contains ordered
+`type:id` keys (for example `movie:42`); `xtream-recent-items` uses the same
+keys in each entry's `id`, retaining `viewedAt` and backdrop metadata.
+`xtream-collection-items` stores snapshots under those typed keys while each
+snapshot's `id` and `xtream_id` remain numeric provider IDs. Hydration fetches
+only the required content types; snapshots support collection reads offline.
+Typed add/remove/status operations use synchronous local migration and never
+wait for unrelated catalog hydration. `PwaCollectionStorage` owns that local
+migration and snapshot persistence; the data source owns provider hydration for
+collection loading and legacy numeric callers that still need identity evidence.
+
+Legacy numeric and numeric-string references migrate lazily. A valid legacy
+snapshot supplies its saved content type; otherwise all three catalogs must
+be loaded successfully and exactly one type must match (repeated rows within
+that same type are one identity). A partial catalog,
+failed hydration, missing item or colliding ID never chooses a type. Such
+references remain stored but hidden until identity can be resolved or the
+user explicitly adds a typed item. Legacy numeric snapshot entries remain as
+migration evidence for the other collection. Already-overwritten snapshots
+cannot recover information lost by an older version. Ambiguous references
+cannot be included in typed backup exports; the original browser storage is
+retained. Migration merges into current storage after hydration, preserving
+concurrent additions/removals, and duplicate recent references keep the newest
+timestamp.
+
+Migration writes and snapshot-cache writes are best effort when browser storage
+is full. Reads still resolve the retained legacy evidence in memory. Typed
+status and mutations match original numeric references through that evidence;
+removal filters the original stored keys without first expanding the remaining
+keys. Typed favorite-status checks never write storage. Additions save the
+requested reference before attempting optional migration or snapshot copies, so
+those copies cannot consume space needed by the requested save. Recent aliases
+are deduplicated in memory before the 50-item limit, keeping the newest timestamp
+and its original saved key until optional migration. Favorite/recent
+writes requested by the user still propagate storage failures. A new reference
+that fits can be saved without its optional snapshot and hydrated on a later
+collection load.
+
 ## Connection Input
 
 Xtream server URLs are normalized through
