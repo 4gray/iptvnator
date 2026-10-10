@@ -84,6 +84,9 @@
                         <button
                             type="button"
                             class="epg-timeline__watch"
+                            [attr.aria-label]="
+                                'EPG.TIMELINE.WATCH_FROM_START' | translate
+                            "
                             (click)="watchClick.emit(item.block); $event.stopPropagation()"
                         >
                             <mat-icon>replay</mat-icon>

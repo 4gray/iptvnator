@@ -83,7 +83,9 @@
             @if (searchQuery()) {
                 <button
                     mat-icon-button
+                    type="button"
                     class="clear-btn"
+                    [attr.aria-label]="'CLEAR_SEARCH' | translate"
                     (click)="setSearchQuery('')"
                 >
                     <mat-icon>close</mat-icon>
