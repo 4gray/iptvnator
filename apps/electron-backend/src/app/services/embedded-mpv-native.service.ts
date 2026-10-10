@@ -14,6 +14,7 @@ import App from '../app';
 import {
     EmbeddedMpvAudioTrack,
     EmbeddedMpvBounds,
+    EmbeddedMpvChapter,
     EmbeddedMpvCapabilities,
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvRecordingState,
@@ -56,6 +57,7 @@ import {
     resolveFrameCopyHelperPath,
 } from './embedded-mpv-frame-copy-platform.util';
 import type { EmbeddedMpvFrameCopyRuntimeMode } from './embedded-mpv-frame-copy-runtime';
+import { normalizeEmbeddedMpvChapters } from './embedded-mpv-chapters.util';
 import {
     EMBEDDED_MPV_EXPERIMENT_ENV,
     isEmbeddedMpvFeatureEnabled,
@@ -71,6 +73,7 @@ export interface NativeEmbeddedMpvSessionSnapshot {
     selectedAudioTrackId?: number | null;
     subtitleTracks?: EmbeddedMpvSubtitleTrack[];
     selectedSubtitleTrackId?: number | null;
+    chapters?: EmbeddedMpvChapter[];
     playbackSpeed?: number;
     aspectOverride?: string;
     videoWidth?: number;
@@ -1282,6 +1285,7 @@ export class EmbeddedMpvNativeService {
                 typeof snapshot.selectedSubtitleTrackId === 'number'
                     ? snapshot.selectedSubtitleTrackId
                     : null,
+            chapters: normalizeEmbeddedMpvChapters(snapshot.chapters),
             playbackSpeed:
                 typeof snapshot.playbackSpeed === 'number'
                     ? snapshot.playbackSpeed

@@ -360,12 +360,23 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 resourcePath: '/stream-stats-switch.webm',
                 contentType: 'video/webm',
             });
+            const chapteredMedia = await createLocalMediaServer({
+                body: readFileSync(
+                    join(
+                        __dirname,
+                        '../../web-e2e/src/fixtures/playback/episode-chapters.webm'
+                    )
+                ),
+                resourcePath: '/chapters.webm',
+                contentType: 'video/webm',
+            });
             media = {
                 url: mediaServer.url,
                 close: async () => {
                     await Promise.all([
                         mediaServer.close(),
                         alternateMedia.close(),
+                        chapteredMedia.close(),
                     ]);
                 },
             };
@@ -415,6 +426,33 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     });
             }
 
+            // mpv's `chapter-list` reaches the renderer session (it draws the
+            // timeline segments and times the Up next card), and the next
+            // file starts without the previous file's chapters.
+            await launchedFrameCopyApp.mainWindow.evaluate(
+                async ({ sessionId, streamUrl }) => {
+                    await window.electron.loadEmbeddedMpvPlayback(sessionId, {
+                        streamUrl,
+                        title: 'Chaptered episode',
+                        isLive: false,
+                    });
+                },
+                { sessionId: created.id, streamUrl: chapteredMedia.url }
+            );
+            await expect
+                .poll(
+                    () => getLatestSession(launchedFrameCopyApp, created.id),
+                    { timeout: 15000 }
+                )
+                .toMatchObject({
+                    streamUrl: chapteredMedia.url,
+                    chapters: [
+                        { timeSeconds: 0, title: 'Intro' },
+                        { timeSeconds: 5, title: 'Episode' },
+                        { timeSeconds: 24, title: 'Credits' },
+                    ],
+                });
+
             // Audio-only replacements must not retain the previous video size.
             await launchedFrameCopyApp.mainWindow.evaluate(
                 async ({ sessionId, streamUrl }) => {
@@ -433,6 +471,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 )
                 .toMatchObject({
                     streamUrl: audioMedia.url,
+                    chapters: [],
                     videoWidth: 0,
                     videoHeight: 0,
                     stats: {

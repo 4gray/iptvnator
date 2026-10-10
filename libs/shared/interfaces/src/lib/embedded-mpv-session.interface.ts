@@ -91,6 +91,13 @@ export interface EmbeddedMpvAudioTrack {
 
 export type EmbeddedMpvSubtitleTrack = EmbeddedMpvAudioTrack;
 
+/** One entry of mpv's `chapter-list`, in file order. */
+export interface EmbeddedMpvChapter {
+    /** Chapter start, in media seconds. */
+    timeSeconds: number;
+    title?: string;
+}
+
 export interface EmbeddedMpvRecordingState {
     active: boolean;
     targetPath?: string;
@@ -149,6 +156,11 @@ export interface EmbeddedMpvSession {
     selectedSubtitleTrackId: number | null;
     playbackSpeed: number;
     aspectOverride: string;
+    /**
+     * The file's chapters (mpv `chapter-list`). Absent from an addon built
+     * before chapters were observed and from the Linux `--wid` backend.
+     */
+    chapters?: EmbeddedMpvChapter[];
     /** Source video size (mpv dwidth/dheight); frame-copy engine only. */
     videoWidth?: number;
     videoHeight?: number;

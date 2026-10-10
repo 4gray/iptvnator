@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { buildCatchupTimelineSegments } from './catchup-timeline-segments';
+import { buildChapterTimelineSegments } from './chapter-timeline-segments';
 import {
     ControlsTimelineLabel,
     TIMELINE_LABEL_EDGE_PX,
@@ -63,7 +64,12 @@ describe('clampTimelineLabelLeft', () => {
         const narrow = { left: 0, right: 800 };
         const narrowBar = { left: 70, width: 660 };
         for (const percent of [0, 3, 50, 97, 100]) {
-            const left = clampTimelineLabelLeft(percent, 390, narrowBar, narrow);
+            const left = clampTimelineLabelLeft(
+                percent,
+                390,
+                narrowBar,
+                narrow
+            );
             const start = narrowBar.left + left;
             expect(start).toBeGreaterThanOrEqual(narrow.left + edge);
             expect(start + 390).toBeLessThanOrEqual(narrow.right - edge);
@@ -79,11 +85,13 @@ describe('clampTimelineLabelLeft', () => {
 });
 
 describe('ControlsTimelineLabel', () => {
-    function createLabel(options: {
-        duration?: number;
-        interactive?: boolean;
-        segments?: readonly PlayerTimelineSegment[] | null;
-    } = {}) {
+    function createLabel(
+        options: {
+            duration?: number;
+            interactive?: boolean;
+            segments?: readonly PlayerTimelineSegment[] | null;
+        } = {}
+    ) {
         const duration = signal(options.duration ?? 600);
         const interactive = signal(options.interactive ?? true);
         const value = signal(0);
@@ -286,15 +294,18 @@ describe('ControlsTimelineLabel', () => {
         });
 
         it('names file chapters and leaves untitled ones to the time', () => {
-            // Chapters as Embedded MPV reports them: each runs to the next
-            // one's start, the last to the end; an untitled one has no name.
+            // Embedded MPV's chapters: each runs to the next one's start,
+            // the last to the end; an untitled one has no name.
             const { label, value } = createLabel({
                 duration: 600,
-                segments: [
-                    { startSeconds: 0, endSeconds: 90, title: 'Opening' },
-                    { startSeconds: 90, endSeconds: 480, title: null },
-                    { startSeconds: 480, endSeconds: 600, title: 'Credits' },
-                ],
+                segments: buildChapterTimelineSegments(
+                    [
+                        { startSeconds: 0, title: 'Opening' },
+                        { startSeconds: 90 },
+                        { startSeconds: 480, title: 'Credits' },
+                    ],
+                    600
+                ),
             });
             label.keydown(key('Home'));
 

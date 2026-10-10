@@ -112,6 +112,12 @@ struct AudioTrack {
     bool forced = false;
 };
 
+/** One entry of mpv's `chapter-list`: start time and optional title. */
+struct Chapter {
+    double timeSeconds = 0.0;
+    std::string title;
+};
+
 struct SessionSnapshot {
     SessionStatus status = SessionStatus::Idle;
     double positionSeconds = 0.0;
@@ -125,6 +131,8 @@ struct SessionSnapshot {
     int64_t selectedAudioTrackId = -1;
     std::vector<AudioTrack> subtitleTracks;
     int64_t selectedSubtitleTrackId = -1;
+    /** libmpv backend only; the Linux `--wid` poller does not read it. */
+    std::vector<Chapter> chapters;
     double playbackSpeed = 1.0;
     std::string aspectOverride = "no";
     /** Stream diagnostics for the player's info popover. Sentinels mean "not
@@ -1400,6 +1408,65 @@ void updateAudioTracksFromNode(SessionSnapshot& snapshot, const mpv_node& node)
     }
 }
 
+/* Snapshots repeat the chapter list on every emit, so a file with thousands
+ * of chapters or a huge title must not inflate every snapshot. Beyond these
+ * bounds a timeline cannot draw anything useful anyway. */
+constexpr size_t kMaxChapters = 256;
+constexpr size_t kMaxChapterTitleBytes = 256;
+
+/* Cut to at most `maxBytes` without splitting a UTF-8 sequence. */
+std::string truncateUtf8(const std::string& value, size_t maxBytes)
+{
+    std::string text = value;
+    if (text.size() <= maxBytes) return text;
+    size_t end = maxBytes;
+    while (end > 0 &&
+           (static_cast<unsigned char>(text[end]) & 0xC0) == 0x80) {
+        end--;
+    }
+    text.resize(end);
+    return text;
+}
+
+/** mpv `chapter-list`: an array of { time, title? } maps in file order. */
+void updateChaptersFromNode(SessionSnapshot& snapshot, const mpv_node& node)
+{
+    snapshot.chapters.clear();
+    if (node.format != MPV_FORMAT_NODE_ARRAY || !node.u.list ||
+        !node.u.list->values) {
+        return;
+    }
+
+    for (int index = 0;
+         index < node.u.list->num && snapshot.chapters.size() < kMaxChapters;
+         index += 1) {
+        const mpv_node& chapterNode = node.u.list->values[index];
+        if (chapterNode.format != MPV_FORMAT_NODE_MAP) {
+            continue;
+        }
+        const mpv_node* timeNode = getNodeMapValue(chapterNode, "time");
+        if (!timeNode) {
+            continue;
+        }
+        Chapter chapter;
+        if (timeNode->format == MPV_FORMAT_DOUBLE) {
+            chapter.timeSeconds = timeNode->u.double_;
+        } else if (timeNode->format == MPV_FORMAT_INT64) {
+            chapter.timeSeconds = static_cast<double>(timeNode->u.int64);
+        } else {
+            continue;
+        }
+        if (!std::isfinite(chapter.timeSeconds)) {
+            continue;
+        }
+        if (const mpv_node* titleNode = getNodeMapValue(chapterNode, "title")) {
+            chapter.title =
+                truncateUtf8(readNodeString(*titleNode), kMaxChapterTitleBytes);
+        }
+        snapshot.chapters.push_back(chapter);
+    }
+}
+
 void updateSubtitleTracksFromNode(SessionSnapshot& snapshot, const mpv_node& node)
 {
     snapshot.subtitleTracks = readTracksOfType(node, "sub");
@@ -1498,6 +1565,7 @@ void runEventLoop(std::shared_ptr<Session> session)
                 session->snapshot.status = SessionStatus::Loading;
                 session->snapshot.error.clear();
                 session->snapshot.clearStreamStats();
+                session->snapshot.chapters.clear();
                 break;
             case MPV_EVENT_FILE_LOADED:
                 session->snapshot.status =
@@ -1580,6 +1648,10 @@ void runEventLoop(std::shared_ptr<Session> session)
                         *static_cast<mpv_node*>(property->data);
                     updateAudioTracksFromNode(session->snapshot, node);
                     updateSubtitleTracksFromNode(session->snapshot, node);
+                } else if (name == "chapter-list" && property->format == MPV_FORMAT_NODE) {
+                    updateChaptersFromNode(
+                        session->snapshot,
+                        *static_cast<mpv_node*>(property->data));
                 } else if (name == "aid") {
                     const char* rawValue = property->format == MPV_FORMAT_STRING
                         ? *static_cast<char**>(property->data)
@@ -1918,6 +1990,8 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         session->handle, 21, "audio-params/channels", MPV_FORMAT_STRING);
     mpv_observe_property(
         session->handle, 22, "audio-params/samplerate", MPV_FORMAT_INT64);
+    /* File chapters draw the timeline segments and mark closing credits. */
+    mpv_observe_property(session->handle, 23, "chapter-list", MPV_FORMAT_NODE);
 
     session->running.store(true);
     session->eventThread = std::thread(runEventLoop, session);
@@ -2624,6 +2698,17 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
         result.Set("selectedSubtitleTrackId", env.Null());
     }
     writeTracks(env, result, "subtitleTracks", snapshot.subtitleTracks);
+    auto chapters = Napi::Array::New(env, snapshot.chapters.size());
+    for (size_t index = 0; index < snapshot.chapters.size(); index += 1) {
+        const Chapter& chapter = snapshot.chapters[index];
+        auto chapterObject = Napi::Object::New(env);
+        chapterObject.Set("timeSeconds", Napi::Number::New(env, chapter.timeSeconds));
+        if (!chapter.title.empty()) {
+            chapterObject.Set("title", Napi::String::New(env, chapter.title));
+        }
+        chapters.Set(index, chapterObject);
+    }
+    result.Set("chapters", chapters);
     result.Set("playbackSpeed", Napi::Number::New(env, snapshot.playbackSpeed));
     result.Set("aspectOverride", Napi::String::New(env, snapshot.aspectOverride));
     writeStreamStats(env, result, snapshot);
