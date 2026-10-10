@@ -1235,6 +1235,22 @@ A visual change is not done until:
 4. Scroll behavior is correct.
 5. The result was checked in the running app for layout-sensitive work.
 
+### Source row keyboard access
+
+A Sources row (`app-playlist-item`) opens on a click anywhere on it, and it
+also holds a drag handle, a health indicator and actions. Like
+`app-content-card`, it opens from the keyboard through a dedicated element
+that is a sibling of those controls: the title and meta block
+`.playlist-content` (`role="button"`, `tabindex="0"`, named by the source
+title, `aria-current` on the active source, `aria-disabled` while busy).
+Enter and Space open the source (Space prevents the page scroll), and Tab
+reaches each row before its actions. Never put `role="button"` or key
+handlers on the whole row: the actions would sit inside a button, and their
+Enter and Space would bubble into it. The row draws the ring for that
+element, inset (`$offset: -2px`), because the list's scroller would cut a
+ring drawn outside the full-width row. `sources-keyboard.e2e.ts` (Electron)
+tabs to a row, checks its ring and opens the source with Enter.
+
 ### Network source indicators (Electron)
 
 The switcher and source rows use `SourceHealthIndicatorComponent`: green means

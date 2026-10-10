@@ -1,3 +1,5 @@
+@use '../../../../../../../ui/styles/focus-ring';
+
 :host {
     display: block;
     width: 100%;
@@ -75,6 +77,14 @@
     flex-direction: column;
     justify-content: center;
     gap: 2px;
+    // The row draws this element's focus ring.
+    outline: none;
+}
+
+// The keyboard ring belongs to the whole row, the unit that opens. It sits
+// inside the row: the list's scroller would cut one drawn outside it.
+.playlist-item:has(> .playlist-content:focus-visible) {
+    @include focus-ring.focus-ring-declarations($offset: -2px);
 }
 
 .playlist-title {
