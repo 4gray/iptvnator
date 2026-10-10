@@ -137,7 +137,6 @@ export class WorkspaceDashboardRailsComponent {
 
     readonly skeletonRails = SKELETON_RAILS;
     readonly liveRailTitleKeyForSource = liveRailTitleKeyForSource;
-    readonly recentContentSkeletonLayout = recentContentSkeletonLayout;
     readonly dashboardRails = computed(() =>
         normalizeDashboardRailsSettings(this.settingsStore.dashboardRails?.())
     );
@@ -175,13 +174,25 @@ export class WorkspaceDashboardRailsComponent {
         })
     );
 
+    private readonly recentContentLoading = computed(() => ({
+        continueWatchingCount: this.continueWatchingCards().length,
+        continueWatchingLoading: !this.data.continueWatchingSettled(),
+        globalRecentLoading: this.data.globalRecentLoading(),
+        recentLiveCount: this.recentLiveCards().length,
+    }));
+
     readonly showRecentContentSkeleton = computed(() =>
-        shouldShowRecentContentSkeleton(this.dashboardRails(), {
-            continueWatchingCount: this.continueWatchingCards().length,
-            continueWatchingLoading: !this.data.continueWatchingSettled(),
-            globalRecentLoading: this.data.globalRecentLoading(),
-            recentLiveCount: this.recentLiveCards().length,
-        })
+        shouldShowRecentContentSkeleton(
+            this.dashboardRails(),
+            this.recentContentLoading()
+        )
+    );
+
+    readonly recentContentSkeletonLayout = computed(() =>
+        recentContentSkeletonLayout(
+            this.dashboardRails(),
+            this.recentContentLoading()
+        )
     );
 
     // The live cards whose rails are enabled; the presenter adds the hero's

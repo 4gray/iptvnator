@@ -35,6 +35,7 @@
                 [seeAllLink]="['/workspace/global-recent']"
                 [seeAllState]="continueWatchingSeeAllState()"
                 [testId]="'dashboard-continue-watching-rail'"
+                [reserveMetaLine]="true"
                 (actionSelected)="onContinueWatchingActionSelected($event)"
             />
         }
@@ -103,7 +104,7 @@
 
         @if (railSkeletons.recentContent()) {
             <lib-dashboard-rail-skeleton
-                [layout]="recentContentSkeletonLayout(dashboardRails())"
+                [layout]="recentContentSkeletonLayout()"
                 testId="dashboard-recent-content-rail-skeleton"
             />
         }
@@ -117,6 +118,7 @@
                 [seeAllLink]="['/workspace/sources']"
                 aspectRatio="16 / 9"
                 [testId]="'dashboard-recent-sources-rail'"
+                [reserveMetaLine]="true"
                 (actionSelected)="onSourceActionSelected($event)"
             />
         } @else if (railSkeletons.sources()) {
@@ -138,6 +140,7 @@
                 [items]="xtreamRecentlyAddedCards()"
                 [totalCount]="data.xtreamRecentlyAddedItems().length"
                 [testId]="'dashboard-xtream-recently-added-rail'"
+                [reserveMetaLine]="true"
             />
         } @else if (railSkeletons.xtreamRecentlyAdded()) {
             <lib-dashboard-rail-skeleton
@@ -155,6 +158,7 @@
                 [items]="recommendationCards()"
                 [totalCount]="recommendationCards().length"
                 [testId]="'dashboard-tmdb-recommendations-rail'"
+                [reserveMetaLine]="true"
             />
         } @else if (railSkeletons.tmdbRecommendations()) {
             <lib-dashboard-rail-skeleton
@@ -169,6 +173,7 @@
                 [items]="trendingCards()"
                 [totalCount]="trendingCards().length"
                 [testId]="'dashboard-tmdb-trending-rail'"
+                [reserveMetaLine]="true"
             />
         } @else if (railSkeletons.tmdbTrending()) {
             <lib-dashboard-rail-skeleton

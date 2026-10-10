@@ -695,14 +695,34 @@ describe('recent content skeleton helper', () => {
         ).toBe(false);
     });
 
-    it('draws posters for Continue Watching and channel cards for recently watched live alone', () => {
+    it('draws posters while Continue Watching is the rail still loading, channel cards otherwise', () => {
+        const loading = {
+            continueWatchingCount: 0,
+            continueWatchingLoading: true,
+            recentLiveCount: 0,
+            globalRecentLoading: true,
+        };
+
         expect(
-            recentContentSkeletonLayout(DEFAULT_DASHBOARD_RAILS_SETTINGS)
+            recentContentSkeletonLayout(
+                DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                loading
+            )
         ).toBe('cover');
         expect(
-            recentContentSkeletonLayout({
-                ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
-                continueWatching: false,
+            recentContentSkeletonLayout(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    continueWatching: false,
+                },
+                loading
+            )
+        ).toBe('channel');
+        // Continue Watching already shows cards; only the live history waits.
+        expect(
+            recentContentSkeletonLayout(DEFAULT_DASHBOARD_RAILS_SETTINGS, {
+                ...loading,
+                continueWatchingCount: 2,
             })
         ).toBe('channel');
     });

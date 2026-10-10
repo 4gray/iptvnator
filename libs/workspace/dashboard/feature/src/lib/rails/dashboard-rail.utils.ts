@@ -185,13 +185,19 @@ export function shouldShowRecentContentSkeleton(
 }
 
 /**
- * The recent-content skeleton holds the place of Continue Watching (posters)
- * or, with that rail turned off, of recently watched live (channel cards).
+ * The recent-content skeleton holds the place of the recent rail it waits
+ * for: Continue Watching (posters) while that rail is still loading with no
+ * cards, recently watched live (channel cards) otherwise.
  */
 export function recentContentSkeletonLayout(
-    rails: DashboardRecentRailSettings
+    rails: DashboardRecentRailSettings,
+    input: DashboardRecentContentSkeletonInput
 ): DashboardRailLayout {
-    return rails.continueWatching ? 'cover' : 'channel';
+    return rails.continueWatching &&
+        input.continueWatchingLoading &&
+        input.continueWatchingCount === 0
+        ? 'cover'
+        : 'channel';
 }
 
 export interface DashboardLiveFavoritesSkeletonInput {
