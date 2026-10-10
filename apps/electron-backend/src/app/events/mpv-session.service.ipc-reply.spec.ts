@@ -40,6 +40,7 @@ jest.mock('../services/store.service', () => ({
 import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { createConnection } from 'net';
+import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import {
     MPV_PLAYER_PATH,
     MPV_REUSE_INSTANCE,
@@ -87,6 +88,13 @@ function nextTick(): Promise<void> {
 
 /** Spawns the reusable instance a later launch is handed over to. */
 async function launchReusableInstance(): Promise<ChildProcess> {
+    return (await launchReusableSession()).proc;
+}
+
+async function launchReusableSession(): Promise<{
+    proc: ChildProcess;
+    session: ExternalPlayerSession;
+}> {
     const proc = createMockChildProcess();
     spawnMock.mockReturnValueOnce(proc);
     (store.get as unknown as jest.Mock).mockImplementation(
@@ -96,11 +104,33 @@ async function launchReusableInstance(): Promise<ChildProcess> {
                 [MPV_REUSE_INSTANCE]: true,
             })[key] ?? fallback
     );
-    await openMpvPlayer({
+    const session = await openMpvPlayer({
         title: 'First stream',
         url: 'https://example.com/one.m3u8',
     });
-    return proc;
+    return { proc, session };
+}
+
+/** A socket whose written command mpv never answers; the test replies. */
+function mockUnansweredSockets(): MpvSocketMock[] {
+    const sockets: MpvSocketMock[] = [];
+    createConnectionMock.mockImplementation(() => {
+        const socket = createMpvSocketMock({ reply: () => null });
+        sockets.push(socket);
+        return socket;
+    });
+    return sockets;
+}
+
+async function writtenRequestId(socket: MpvSocketMock): Promise<number> {
+    while (!socket?.write.mock.calls.length) {
+        await nextTick();
+    }
+    return (
+        JSON.parse(socket.write.mock.calls[0][0] as string) as {
+            request_id: number;
+        }
+    ).request_id;
 }
 
 describe('reused MPV IPC replies', () => {
@@ -263,5 +293,74 @@ describe('reused MPV IPC replies', () => {
         await expect(opening).resolves.toMatchObject({ status: 'opened' });
         expect(spawnMock).toHaveBeenCalledTimes(1);
         expect(sockets).toHaveLength(1);
+    });
+
+    it('lets a stale Stop for the previous session pass while the loadfile reply is pending', async () => {
+        const { proc, session: previous } = await launchReusableSession();
+        const sockets = mockUnansweredSockets();
+
+        const opening = openMpvPlayer({
+            title: 'Second stream',
+            url: 'https://example.com/two.m3u8',
+        });
+        const requestId = await writtenRequestId(sockets[0]);
+
+        // The child already belongs to the new session: the old closer
+        // must neither kill it nor send quit.
+        await expect(
+            externalPlayerSessions.closeSession(previous.id)
+        ).resolves.toMatchObject({ id: previous.id, status: 'closed' });
+        expect(proc.kill).not.toHaveBeenCalled();
+        expect(sockets).toHaveLength(1);
+
+        sockets[0].emit(
+            'data',
+            Buffer.from(
+                JSON.stringify({ request_id: requestId, error: 'success' }) +
+                    '\n'
+            )
+        );
+        await expect(opening).resolves.toMatchObject({ status: 'opened' });
+        expect(proc.kill).not.toHaveBeenCalled();
+        expect(spawnMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('settles the new session as closed when the child exits during the reply wait', async () => {
+        const { proc, session: previous } = await launchReusableSession();
+        const sockets = mockUnansweredSockets();
+
+        const opening = openMpvPlayer({
+            title: 'Second stream',
+            url: 'https://example.com/two.m3u8',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 7,
+                contentType: 'vod',
+            },
+        });
+        const requestId = await writtenRequestId(sockets[0]);
+        const replacementId =
+            externalPlayerSessions.getActiveSessionId() as string;
+
+        Object.defineProperty(proc, 'exitCode', { value: 0 });
+        proc.emit('exit', 0);
+        sockets[0].emit(
+            'data',
+            Buffer.from(
+                JSON.stringify({ request_id: requestId, error: 'success' }) +
+                    '\n'
+            )
+        );
+
+        // The exit landed on the session that owned the child at that
+        // moment, and a dead player is never reported as opened.
+        await expect(opening).resolves.toMatchObject({
+            id: replacementId,
+            status: 'closed',
+        });
+        expect(externalPlayerSessions.getSession(previous.id)?.status).toBe(
+            'opened'
+        );
+        expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 });

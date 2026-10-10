@@ -168,17 +168,34 @@ export class MpvReusableProcess {
             return retryableClose;
         });
 
+        // Once `loadfile` reaches the socket the player content may have
+        // changed, whatever mpv replies, so the attempted session owns the
+        // child from the write onwards: an exit or a stale Stop for the
+        // previous session during the reply wait then lands on the right
+        // session instead of terminating the new playback.
+        const onContentDispatched = () => {
+            state.contentMutated = true;
+            this.processSessionId = session.id;
+            this.processSessionIds.set(reusedProcess, session.id);
+        };
+
         try {
             await this.applyReuseCommands(
                 options,
                 reusedSocketPath,
-                () => !closeRequested
+                () => !closeRequested,
+                onContentDispatched
             );
             if (closeRequested) return await finishRequestedClose();
-
-            this.processSessionId = session.id;
-            this.processSessionIds.set(reusedProcess, session.id);
             options.stopPositionPolling();
+            if (
+                reusedProcess.exitCode !== null ||
+                reusedProcess.signalCode !== null
+            ) {
+                // The child exited while its reply was in flight; its exit
+                // handler has already settled the session that owned it.
+                return externalPlayerSessions.getSession(session.id) ?? session;
+            }
 
             if (options.contentInfo) {
                 options.startPositionPolling(
@@ -230,7 +247,8 @@ export class MpvReusableProcess {
     private async applyReuseCommands(
         options: MpvReuseOptions,
         socketPath: string,
-        shouldDispatch: () => boolean
+        shouldDispatch: () => boolean,
+        onContentDispatched: () => void
     ): Promise<void> {
         if (options.effectiveUserAgent) {
             const dispatched = await sendMpvCommand(
@@ -276,19 +294,11 @@ export class MpvReusableProcess {
             -1,
             fileOptions.join(','),
         ];
-        // Once `loadfile` reaches the socket the player content may have
-        // changed, whatever mpv replies, so the attempted session owns the
-        // process from the write onwards.
         const reply = await sendMpvCommand(
             socketPath,
             'loadfile',
             loadFileArgs,
-            {
-                shouldDispatch,
-                onDispatched: () => {
-                    options.state.contentMutated = true;
-                },
-            }
+            { shouldDispatch, onDispatched: onContentDispatched }
         );
         if (!reply) return;
         traceExternalPlayer('loaded new url in existing mpv instance');

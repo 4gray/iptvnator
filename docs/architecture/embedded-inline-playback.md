@@ -1023,7 +1023,10 @@ IPC bound, for mpv's matching newline-delimited reply; event lines and replies
 to other requests on that connection are skipped. An error reply or a missing
 reply fails the handoff exactly like a socket error: the reused child is torn
 down and a fresh launch follows. `loadfile` marks the content as possibly
-changed from the moment it is written, whatever mpv replies. No `seek` follows
+changed and moves ownership of the child to the attempted session from the
+moment it is written, whatever mpv replies, so an exit or a stale Stop for the
+previous session during the reply wait settles the right session; a child that
+exited while its reply was in flight is never reported as opened. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused
