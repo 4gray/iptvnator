@@ -371,6 +371,71 @@ describe('external player shutdown on app quit', () => {
         expect(headerArg).not.toContain('(KHTML, like Gecko)');
     });
 
+    it('gives every reused load its own start offset, zero by default', async () => {
+        // mpv applies the first launch's global --start=<resume> to every
+        // later loadfile of that process; the per-file start option (0 when
+        // nothing is resumed) keeps a next episode, or "Play from
+        // beginning", at zero. A seek right after loadfile fails in mpv.
+        shutdownMpvSession();
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        mockStoreValues({
+            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+            [MPV_REUSE_INSTANCE]: true,
+        });
+        await openMpvPlayer({
+            title: 'Episode 3',
+            url: 'https://portal.example/ep/3',
+            startTime: 42,
+        });
+        const launchArgs = (spawn as unknown as jest.Mock).mock.calls.at(
+            -1
+        )?.[1] as string[];
+        expect(launchArgs).toContain('--start=42');
+
+        const written: string[] = [];
+        (createConnection as unknown as jest.Mock).mockImplementation(() => {
+            const socket = Object.assign(new EventEmitter(), {
+                write: jest.fn((chunk: string) => written.push(chunk)),
+                end: jest.fn(),
+                destroy: jest.fn(),
+            });
+            setImmediate(() => socket.emit('connect'));
+            return socket;
+        });
+        const loadfileOptionsOf = async (startTime: number | undefined) => {
+            written.length = 0;
+            await openMpvPlayer({
+                title: 'Episode 4',
+                url: 'https://portal.example/ep/4',
+                ...(startTime === undefined ? {} : { startTime }),
+            });
+            const loadfile = written
+                .map(
+                    (chunk) =>
+                        JSON.parse(chunk.trim()).command as Array<
+                            string | number
+                        >
+                )
+                .find((command) => command[0] === 'loadfile');
+            expect(loadfile).toBeDefined();
+            // ['loadfile', url, 'replace', index, options]
+            return String(loadfile?.[4]);
+        };
+
+        expect(await loadfileOptionsOf(0)).toBe(
+            'start=0,force-media-title=Episode 4'
+        );
+        expect(await loadfileOptionsOf(undefined)).toBe(
+            'start=0,force-media-title=Episode 4'
+        );
+        expect(await loadfileOptionsOf(90)).toBe(
+            'start=90,force-media-title=Episode 4'
+        );
+
+        shutdownMpvSession();
+    });
+
     it('escapes commas in http header fields on the reused-instance IPC path', async () => {
         // Reset any reusable instance a previous test may have left behind so
         // the first launch below spawns rather than reuses.
@@ -647,8 +712,8 @@ describe('external player shutdown on app quit', () => {
         await expect(closing).resolves.toMatchObject({ status: 'closed' });
         await expect(opening).resolves.toMatchObject({ status: 'closed' });
         const commands = sockets.flatMap((socket) =>
-            socket.write.mock.calls.map(([request]) =>
-                JSON.parse(String(request)).command[0]
+            socket.write.mock.calls.map(
+                ([request]) => JSON.parse(String(request)).command[0]
             )
         );
         expect(commands).not.toContain('loadfile');
