@@ -7,6 +7,7 @@ import {
     removesOutline,
     splitTopLevel,
     walkDeclarations,
+    withoutNegations,
 } from './check-focus-visible.mjs';
 
 /**
@@ -226,9 +227,12 @@ function offTokenIndicators(file, source) {
         ({ selectors, declaration, line, mixin }) => {
             // A focus mixin's body (the shared `focus-ring-declarations`)
             // draws rings wherever it is included.
+            // `:hover:not(:focus-visible)` excludes focus: only a focus
+            // condition outside `:not()` makes a focus rule.
             const focus =
-                selectors.find((selector) => FOCUS_SELECTOR.test(selector)) ??
-                (mixin && /focus/i.test(mixin) ? `@mixin ${mixin}` : null);
+                selectors.find((selector) =>
+                    FOCUS_SELECTOR.test(withoutNegations(selector))
+                ) ?? (mixin && /focus/i.test(mixin) ? `@mixin ${mixin}` : null);
             if (!focus) return [];
             const border = /^border/i.test(declaration);
             const colours = indicatorColours(declaration).filter(

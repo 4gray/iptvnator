@@ -283,6 +283,22 @@ test('reads shadow lengths by type, with the colour first or the blur left out',
     );
 });
 
+test('ignores a focus condition that a rule negates', () => {
+    const source = [
+        // A hover style that excludes keyboard focus.
+        '.a:hover:not(:focus-visible) { border-color: red; }',
+        // A negation elsewhere does not hide a real focus condition.
+        '.b:not(.disabled):focus-visible { border-color: red; }',
+        // A focus condition inside :has() still makes a focus rule.
+        '.c:has(> button:focus-visible) { outline: 2px solid red; }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('k.scss', source).map(({ line }) => line),
+        [2, 3]
+    );
+});
+
 test('lets a listed exception through only in its own file', () => {
     const [exception] = RING_EXCEPTIONS;
     const source = `.x:focus-visible { outline: 2px solid ${exception.value}; }`;

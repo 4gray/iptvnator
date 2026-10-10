@@ -120,7 +120,7 @@ function subjectOf(selector) {
 }
 
 /** A compound without its `:not(...)` arguments. */
-function withoutNegations(compound) {
+export function withoutNegations(compound) {
     let out = '';
     for (let i = 0; i < compound.length; i += 1) {
         if (/^:not\(/i.test(compound.slice(i))) {
