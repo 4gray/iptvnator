@@ -361,7 +361,7 @@ test.describe('Electron Settings', () => {
                 'app-html-video-player video'
             );
             await expect(video).toBeAttached();
-            await video.evaluate<void, HTMLVideoElement>((video) => {
+            await video.evaluate((video: HTMLVideoElement) => {
                 const ownerDocument = video.ownerDocument;
                 let activePictureInPictureElement: Element | null = null;
                 video.dataset['pictureInPictureRequestCount'] = '0';
