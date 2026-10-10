@@ -42,8 +42,15 @@ const SKIPPED_FILE =
 const KEY = '[A-Z][A-Z0-9_]*(?:\\.[A-Z0-9_]+)*';
 const PIPE_USAGE = /(['"])([A-Za-z0-9_.-]+)\1\s*\|\s*translate\b/g;
 const PIPE_AFTER_GROUP = /\)\s*\|\s*translate\b/g;
-/** A key that a grouped pipe operand can yield: a ternary or fallback branch. */
-const GROUP_OPERAND = new RegExp(`(^|[?:|])\\s*(['"])(${KEY})\\2`, 'g');
+/**
+ * A key that a grouped pipe operand can yield: a ternary or fallback branch.
+ * The literal must also end the operand (end of group, `:`, `||` or `??`),
+ * so a value compared in a condition (`'ERROR' === x ? …`) is not a key.
+ */
+const GROUP_OPERAND = new RegExp(
+    `(^|[?:|])\\s*(['"])(${KEY})\\2(?=\\s*(?:$|:|\\|\\||\\?\\?))`,
+    'g'
+);
 const CALL_USAGE = new RegExp(
     `([A-Za-z_$][\\w$]*(?:\\s*\\??\\.\\s*[A-Za-z_$][\\w$]*)*)\\s*\\(\\s*(['"\`])(${KEY})\\2`,
     'g'
@@ -101,9 +108,9 @@ function findGroupStart(code, closeIndex) {
 
 /**
  * Keys a parenthesised pipe operand can yield, as in
- * `(expanded() ? 'SHOW_LESS' : 'SHOW_MORE') | translate`. Only literals that
- * open the group or follow `?`, `:` or `||` count, so a literal compared in
- * the condition is not read as a key.
+ * `(expanded() ? 'SHOW_LESS' : 'SHOW_MORE') | translate`. Only whole
+ * branches count (see GROUP_OPERAND), so a literal compared in the condition
+ * is not read as a key.
  */
 function findGroupedPipeKeys(code) {
     const references = [];

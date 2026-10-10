@@ -108,6 +108,21 @@ test('does not read a literal compared in the condition as a key', () => {
         ),
         ['leaf:CLOSE']
     );
+    assert.deepEqual(
+        keys(
+            "{{ ('ERROR' === status() ? 'CLOSE' : 'CLOSE') | translate }}",
+            'html'
+        ),
+        ['leaf:CLOSE', 'leaf:CLOSE']
+    );
+    assert.deepEqual(
+        keys("{{ ('LIVE' ? 'CLOSE' : other) | translate }}", 'html'),
+        ['leaf:CLOSE']
+    );
+    assert.deepEqual(
+        keys("{{ ('CLOSE' || fallback()) | translate }}", 'html'),
+        ['leaf:CLOSE']
+    );
 });
 
 test('fails on a missing key in a parenthesised pipe operand', () => {
