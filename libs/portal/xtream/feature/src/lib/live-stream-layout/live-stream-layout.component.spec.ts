@@ -42,6 +42,7 @@ import { PortalChannelsListComponent } from '../portal-channels-list/portal-chan
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { liveHistoryTestCases } from './live-stream-layout-history.spec-data';
 
 import {
     sampleChannel,
@@ -97,6 +98,7 @@ describe('LiveStreamLayoutComponent', () => {
         ]),
         constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
         openPlayer: jest.fn(),
+        addRecentItem: jest.fn(),
         setSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
         loadMoreContent: jest.fn(),
@@ -147,6 +149,7 @@ describe('LiveStreamLayoutComponent', () => {
         router = { events: routerEvents, navigate: jest.fn() };
         xtreamStore.constructStreamUrl.mockClear();
         xtreamStore.openPlayer.mockClear();
+        xtreamStore.addRecentItem.mockClear();
         xtreamStore.setSelectedItem.mockClear();
         xtreamStore.setSelectedCategory.mockClear();
         xtreamStore.loadMoreContent.mockClear();
@@ -343,6 +346,8 @@ describe('LiveStreamLayoutComponent', () => {
 
         settingsStore.resolvedEpgViewMode.set('timeline'); // restore for sibling tests
     });
+
+    liveHistoryTestCases(() => ({ component, xtreamStore, portalPlayer }));
 
     it('hides the EPG panel in browser/PWA playback', () => {
         fixture.destroy();

@@ -880,7 +880,7 @@ describe('DashboardDataService', () => {
         await service.removeGlobalFavorite(item);
 
         expect(xtreamDataSourceMock.removeFavorite).toHaveBeenCalledWith(
-            51,
+            { id: 51, type: 'movie' },
             'xtream-1'
         );
         expect(dbServiceMock.removeFromFavorites).not.toHaveBeenCalled();
@@ -2784,7 +2784,7 @@ describe('DashboardDataService', () => {
         await service.removeGlobalRecentItem(item);
 
         expect(xtreamDataSourceMock.removeRecentItem).toHaveBeenCalledWith(
-            91,
+            { id: 91, type: 'movie' },
             'xtream-1'
         );
         expect(dbServiceMock.removeRecentItem).not.toHaveBeenCalled();
