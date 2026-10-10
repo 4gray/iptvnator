@@ -14,6 +14,16 @@
     animation: fadeIn 0.5s ease-out;
     min-width: 0;
     min-height: 0;
+    --welcome-grid-line: color-mix(
+        in srgb,
+        var(--app-selection-color) 4%,
+        transparent
+    );
+    --welcome-grid-diagonal: color-mix(
+        in srgb,
+        var(--app-selection-color) 2%,
+        transparent
+    );
 
     &::before {
         content: '';
@@ -24,22 +34,22 @@
                 0deg,
                 transparent,
                 transparent 39px,
-                rgba(59, 130, 246, 0.03) 39px,
-                rgba(59, 130, 246, 0.03) 41px
+                var(--welcome-grid-line) 39px,
+                var(--welcome-grid-line) 41px
             ),
             repeating-linear-gradient(
                 90deg,
                 transparent,
                 transparent 39px,
-                rgba(59, 130, 246, 0.03) 39px,
-                rgba(59, 130, 246, 0.03) 41px
+                var(--welcome-grid-line) 39px,
+                var(--welcome-grid-line) 41px
             ),
             repeating-linear-gradient(
                 45deg,
                 transparent,
                 transparent 79px,
-                rgba(59, 130, 246, 0.015) 79px,
-                rgba(59, 130, 246, 0.015) 81px
+                var(--welcome-grid-diagonal) 79px,
+                var(--welcome-grid-diagonal) 81px
             );
         mask-image: linear-gradient(
             to bottom,
@@ -85,30 +95,33 @@
     .welcome-dashboard__illustration {
         width: clamp(96px, 16vh, 160px);
         height: clamp(96px, 16vh, 160px);
-        filter: drop-shadow(0 10px 30px rgba(59, 130, 246, 0.2));
-        color: #60a5fa;
+        filter: drop-shadow(
+            0 10px 30px
+                color-mix(in srgb, var(--app-selection-color) 20%, transparent)
+        );
+        color: var(--app-selection-color);
         display: block;
 
         .icon-background {
-            fill: #3b82f6;
+            fill: currentColor;
             opacity: 0.15;
         }
 
         .monitor-base,
         .monitor-stand {
-            fill: #3b82f6;
+            fill: var(--empty-state-accent-strong);
         }
 
         .screen-border {
-            stroke: #3b82f6;
+            stroke: var(--empty-state-accent-strong);
         }
 
         .wifi-dot {
-            fill: #60a5fa;
+            fill: currentColor;
         }
 
         .wifi-arc {
-            stroke: #60a5fa;
+            stroke: currentColor;
             opacity: 0.7;
 
             &.arc-1 { opacity: 0.9; }
@@ -122,7 +135,11 @@
         font-weight: 600;
         font-size: clamp(1.4rem, 3.4vh, 2.1rem);
         margin: 0;
-        background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
+        background: linear-gradient(
+            135deg,
+            var(--app-selection-color) 0%,
+            var(--empty-state-accent-strong) 100%
+        );
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -133,6 +150,7 @@
         font-family: Roboto, 'Helvetica Neue', sans-serif;
         font-size: clamp(0.95rem, 1.9vh, 1.05rem);
         font-weight: 500;
+        color: var(--app-heading-color);
         opacity: 0.85;
         margin: 0;
         line-height: 1.45;
@@ -141,7 +159,7 @@
     .welcome-dashboard__description {
         font-family: Roboto, 'Helvetica Neue', sans-serif;
         font-size: clamp(0.8125rem, 1.7vh, 0.9375rem);
-        opacity: 0.65;
+        color: var(--app-body-color);
         margin: 0;
         line-height: 1.5;
         max-width: 480px;
@@ -149,13 +167,14 @@
 
     .welcome-dashboard__cta {
         margin-top: 8px;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        color: white;
+        background: var(--empty-state-accent-fill);
+        color: var(--app-selection-on-color);
         font-weight: 500;
         font-size: clamp(0.875rem, 1.8vh, 1rem);
         padding: 10px 28px;
         border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 4px 16px
+            color-mix(in srgb, var(--app-selection-color) 30%, transparent);
         transition:
             transform 0.2s ease,
             box-shadow 0.2s ease;
@@ -168,7 +187,8 @@
 
         &:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 24px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 6px 24px
+                color-mix(in srgb, var(--app-selection-color) 40%, transparent);
         }
 
         &:active {
@@ -200,10 +220,11 @@
         padding: clamp(12px, 2vh, 18px) clamp(10px, 1.5vw, 14px);
         background: linear-gradient(
             135deg,
-            rgba(96, 165, 250, 0.08),
-            rgba(37, 99, 235, 0.04)
+            color-mix(in srgb, var(--app-selection-color) 8%, transparent),
+            color-mix(in srgb, var(--app-selection-color) 4%, transparent)
         );
-        border: 1px solid rgba(96, 165, 250, 0.18);
+        border: 1px solid
+            color-mix(in srgb, var(--app-selection-color) 18%, transparent);
         border-radius: 14px;
         backdrop-filter: blur(8px);
         transform: rotate(-2deg);
@@ -222,17 +243,27 @@
 
         &:hover {
             transform: rotate(0deg) translateY(-4px) scale(1.04);
-            box-shadow: 0 10px 24px rgba(59, 130, 246, 0.22);
-            border-color: rgba(96, 165, 250, 0.4);
+            box-shadow: 0 10px 24px
+                color-mix(in srgb, var(--app-selection-color) 22%, transparent);
+            border-color: color-mix(
+                in srgb,
+                var(--app-selection-color) 40%,
+                transparent
+            );
             background: linear-gradient(
                 135deg,
-                rgba(96, 165, 250, 0.16),
-                rgba(37, 99, 235, 0.1)
+                color-mix(in srgb, var(--app-selection-color) 16%, transparent),
+                color-mix(in srgb, var(--app-selection-color) 10%, transparent)
             );
 
             .feature-card__icon-wrap {
                 transform: scale(1.08);
-                box-shadow: 0 6px 18px rgba(59, 130, 246, 0.4);
+                box-shadow: 0 6px 18px
+                    color-mix(
+                        in srgb,
+                        var(--app-selection-color) 40%,
+                        transparent
+                    );
             }
         }
     }
@@ -244,8 +275,9 @@
         width: 40px;
         height: 40px;
         border-radius: 11px;
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        background: var(--empty-state-accent-fill);
+        box-shadow: 0 4px 12px
+            color-mix(in srgb, var(--app-selection-color) 30%, transparent);
         transition:
             transform 0.25s ease,
             box-shadow 0.25s ease;
@@ -256,7 +288,7 @@
         font-size: 22px;
         width: 22px;
         height: 22px;
-        color: white;
+        color: var(--app-selection-on-color);
     }
 
     .feature-card__title {
@@ -271,7 +303,7 @@
     .feature-card__desc {
         font-family: Roboto, 'Helvetica Neue', sans-serif;
         font-size: 0.78125rem;
-        opacity: 0.7;
+        color: var(--app-body-color);
         margin: 0;
         line-height: 1.35;
         word-break: break-word;
@@ -329,94 +361,6 @@
 
         .welcome-dashboard__cta:hover {
             transform: none;
-        }
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    .welcome-dashboard {
-        &::before {
-            background-image:
-                repeating-linear-gradient(
-                    0deg,
-                    transparent,
-                    transparent 39px,
-                    rgba(37, 99, 235, 0.04) 39px,
-                    rgba(37, 99, 235, 0.04) 41px
-                ),
-                repeating-linear-gradient(
-                    90deg,
-                    transparent,
-                    transparent 39px,
-                    rgba(37, 99, 235, 0.04) 39px,
-                    rgba(37, 99, 235, 0.04) 41px
-                ),
-                repeating-linear-gradient(
-                    45deg,
-                    transparent,
-                    transparent 79px,
-                    rgba(37, 99, 235, 0.02) 79px,
-                    rgba(37, 99, 235, 0.02) 81px
-                );
-        }
-
-        .welcome-dashboard__title {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .welcome-dashboard__tagline {
-            color: #1e3a8a;
-            opacity: 0.85;
-        }
-
-        .welcome-dashboard__description {
-            color: #64748b;
-            opacity: 0.85;
-        }
-
-        .welcome-dashboard__illustration {
-            filter: drop-shadow(0 10px 30px rgba(37, 99, 235, 0.15));
-            color: #3b82f6;
-
-            .icon-background {
-                fill: #2563eb;
-                opacity: 0.12;
-            }
-
-            .monitor-base,
-            .monitor-stand {
-                fill: #2563eb;
-            }
-
-            .screen-border {
-                stroke: #2563eb;
-            }
-
-            .wifi-dot {
-                fill: #3b82f6;
-            }
-
-            .wifi-arc {
-                stroke: #3b82f6;
-            }
-        }
-
-        .feature-card {
-            background: linear-gradient(135deg, rgba(37, 99, 235, 0.06), rgba(29, 78, 216, 0.03));
-            border-color: rgba(37, 99, 235, 0.15);
-
-            &:hover {
-                background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(29, 78, 216, 0.06));
-                border-color: rgba(37, 99, 235, 0.3);
-            }
-        }
-
-        .feature-card__desc {
-            color: #475569;
-            opacity: 0.85;
         }
     }
 }

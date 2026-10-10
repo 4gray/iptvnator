@@ -416,6 +416,11 @@ jobs:
             - name: Validate Material icon names
               run: pnpm run styles:icon-ligatures:validate
 
+            # A var() read nothing declares always falls back, and a
+            # prefers-color-scheme query follows the OS, not the app theme.
+            - name: Validate theme references
+              run: pnpm run styles:theme-references:validate
+
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is
             # unset, so this checks both the local and the CI inference.

@@ -15,13 +15,14 @@ description: Use when changing IPTVnator SCSS tokens, shared layout mixins, port
   `libs/ui/styles/_detail-view-actions.scss`
 - UI policy and migration debt: `docs/architecture/iptvnator-ui-guidelines.md`
 
-The index is a barrel, not a configured Sass include path. Production
-consumers currently use relative `@use` paths to the needed partial.
+The index is a barrel, not a Sass include path: consumers `@use` each
+partial by relative path.
 
 ## Token Boundary
 
 - App-owned surfaces, text, separators, hover states, selections, and provider
-  accents use `--app-*` tokens from `m3-theme.scss`.
+  accents use `--app-*` tokens from `m3-theme.scss`, switched by
+  `.dark-theme`, not `prefers-color-scheme`.
 - Use `--app-selection-on-color` for foregrounds placed on the selection
   accent; do not assume white has enough contrast in both themes.
 - Angular Material mixins and Material-component overrides may use Material

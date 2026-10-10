@@ -101,7 +101,6 @@ const SOURCE_CARDS: readonly SourceCard[] = [
         './empty-state.welcome-dashboard.scss',
         './empty-state.welcome-sources.scss',
         './empty-state.responsive.scss',
-        './empty-state.themes.scss',
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatButtonModule, MatIcon, TranslatePipe],

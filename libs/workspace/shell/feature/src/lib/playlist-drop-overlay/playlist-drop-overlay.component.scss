@@ -14,10 +14,14 @@
     animation: drop-overlay-fade 0.15s ease-out;
 }
 
+// Colours come from the app theme tokens, so the overlay follows the theme
+// chosen in Settings rather than the OS colour scheme. The scrim stays dark
+// in both themes, as a modal backdrop does; the card takes the theme's
+// widget surface with a selection (or, on rejection, error) tint.
 .drop-overlay__backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(2, 6, 23, 0.6);
+    background: color-mix(in srgb, var(--mat-sys-scrim) 50%, transparent);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
 }
@@ -32,28 +36,33 @@
     padding: clamp(28px, 5vh, 48px) clamp(28px, 5vw, 56px);
     min-width: 320px;
     max-width: min(520px, 88vw);
-    background: linear-gradient(
-        145deg,
-        rgba(96, 165, 250, 0.12),
-        rgba(37, 99, 235, 0.08)
+    background: color-mix(
+        in srgb,
+        var(--app-selection-color) 8%,
+        var(--app-widget-bg)
     );
-    border: 2px dashed rgba(96, 165, 250, 0.55);
+    border: 2px dashed var(--app-selection-border);
     border-radius: 18px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-    color: #f1f5f9;
+    color: var(--app-heading-color);
     animation: drop-overlay-scale 0.18s ease-out;
 
     &.is-rejected {
-        border-color: rgba(248, 113, 113, 0.55);
-        background: linear-gradient(
-            145deg,
-            rgba(248, 113, 113, 0.12),
-            rgba(220, 38, 38, 0.08)
+        border-color: var(--mat-sys-error);
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-error) 8%,
+            var(--app-widget-bg)
         );
 
         .drop-overlay__icon-wrap {
-            background: linear-gradient(135deg, #f87171, #dc2626);
-            box-shadow: 0 8px 22px rgba(220, 38, 38, 0.4);
+            background: var(--mat-sys-error);
+            box-shadow: 0 8px 22px
+                color-mix(in srgb, var(--mat-sys-error) 40%, transparent);
+        }
+
+        .drop-overlay__icon {
+            color: var(--mat-sys-on-error);
         }
     }
 }
@@ -65,8 +74,9 @@
     width: 64px;
     height: 64px;
     border-radius: 18px;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    box-shadow: 0 8px 22px rgba(59, 130, 246, 0.45);
+    background: var(--app-selection-color);
+    box-shadow: 0 8px 22px
+        color-mix(in srgb, var(--app-selection-color) 45%, transparent);
     margin-bottom: 4px;
 }
 
@@ -74,7 +84,7 @@
     font-size: 36px;
     width: 36px;
     height: 36px;
-    color: white;
+    color: var(--app-selection-on-color);
 }
 
 .drop-overlay__title {
@@ -120,30 +130,5 @@
 
     .drop-overlay__card {
         animation: drop-overlay-fade 0.1s ease-out;
-    }
-}
-
-@media (prefers-color-scheme: light) {
-    .drop-overlay__backdrop {
-        background: rgba(15, 23, 42, 0.45);
-    }
-
-    .drop-overlay__card {
-        background: linear-gradient(
-            145deg,
-            rgba(255, 255, 255, 0.96),
-            rgba(241, 245, 249, 0.96)
-        );
-        color: #0f172a;
-        border-color: rgba(37, 99, 235, 0.55);
-
-        &.is-rejected {
-            background: linear-gradient(
-                145deg,
-                rgba(254, 226, 226, 0.96),
-                rgba(252, 165, 165, 0.92)
-            );
-            border-color: rgba(220, 38, 38, 0.6);
-        }
     }
 }

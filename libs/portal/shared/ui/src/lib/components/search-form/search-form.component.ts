@@ -55,8 +55,8 @@ export interface SearchFilter {
                 padding: 0 12px;
                 height: 42px;
                 border-radius: 12px;
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid var(--app-search-border);
+                background: var(--app-search-bg);
             }
 
             .recent-search mat-icon {

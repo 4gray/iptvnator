@@ -538,7 +538,7 @@
 // small (100–256px square) so a poster card wastes most of its height on
 // padding. Mirrors the live strip in the v0.22 mockup.
 .rail__track[data-layout='channel'] {
-    --rail-card-width: var(--channel-rail-width, 280px);
+    --rail-card-width: 280px;
     --rail-gap: 10px;
     scroll-snap-type: x mandatory;
 }

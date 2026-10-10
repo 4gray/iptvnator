@@ -26,4 +26,4 @@ $accent-live: var(--app-live-color);
 // theme's red and near-white behind the dark theme's pink — so it clears 4.5:1
 // either way, where a fixed dark literal only worked in the light theme.
 $on-live: var(--app-content-bg);
-$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+$font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
