@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "이름 Z-A",
         "SORT_TOP_RATED": "평점 높은 순",
         "SORT_LOWEST_RATED": "평점 낮은 순",
+        "SORT_CHIP": {
+            "NEWEST": "최신순",
+            "OLDEST": "오래된순",
+            "TOP_RATED": "평점 높은 순",
+            "LOWEST_RATED": "평점 낮은 순"
+        },
         "REFINE_ACTION": "세부 조정",
         "REFINE_SORT_SECTION": "정렬 기준",
         "REFINE_RATING_SECTION": "최소 평점",
         "REFINE_CLEAR_RATING": "{{value}}.0 이상 평점 필터 지우기",
-        "FILTER_RATING": "평점으로 필터링",
         "FILTER_RATING_ANY": "모든 평점",
         "FILTER_RATING_MIN": "{{value}}.0 이상",
         "SORT_LABEL": "정렬: ",

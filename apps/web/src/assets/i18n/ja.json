@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "名前 Z-A",
         "SORT_TOP_RATED": "評価が高い順",
         "SORT_LOWEST_RATED": "評価が低い順",
+        "SORT_CHIP": {
+            "NEWEST": "新しい順",
+            "OLDEST": "古い順",
+            "TOP_RATED": "評価が高い順",
+            "LOWEST_RATED": "評価が低い順"
+        },
         "REFINE_ACTION": "絞り込み",
         "REFINE_SORT_SECTION": "並び替え",
         "REFINE_RATING_SECTION": "最低評価",
         "REFINE_CLEAR_RATING": "{{value}}.0 以上の評価フィルターをクリア",
-        "FILTER_RATING": "評価で絞り込み",
         "FILTER_RATING_ANY": "すべての評価",
         "FILTER_RATING_MIN": "{{value}}.0 以上",
         "SORT_LABEL": "並び替え：",

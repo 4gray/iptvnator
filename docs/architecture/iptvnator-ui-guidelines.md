@@ -153,6 +153,39 @@ Use this pattern for:
 
 Do not add extra badges, left rails, or second selection systems unless there is a strong reason.
 
+## Single-Choice Menus And Status Chips
+
+A `mat-menu` that picks one value, such as a sort order or a rating
+threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
+`@iptvnator/ui/components`:
+
+```html
+<button mat-menu-item [appMenuItemRadio]="mode() === option.mode">
+    <mat-icon appMenuItemRadioCheck>check</mat-icon>
+    <mat-icon>{{ option.icon }}</mat-icon>
+    <span>{{ option.labelKey | translate }}</span>
+</button>
+```
+
+- The row becomes a `menuitemradio` whose `aria-checked` follows the bound
+  state, so E2E tests select it with `getByRole('menuitemradio')`.
+- Every row renders the check slot as its first icon. Only the checked row
+  shows it. Material projects every `<mat-icon>` of a menu item, and of a
+  `mat-button`, ahead of the label. A check rendered only on the chosen row
+  therefore shifted that row's label. In a button, put a trailing icon after
+  the label with `iconPositionEnd`.
+- A semantic icon, if any, comes after the check slot.
+- A menu with several groups, such as the catalog refine menu, wraps each
+  group in `role="group"`. The group is named by its section title, and
+  `role="separator"` sits between groups.
+
+A chip that shows the active state next to its menu trigger, such as the
+catalog sort chip, shows its icon and a short value at every width, for
+example "Newest" or "9.0+". The full text, such as "Sort: Date Added
+(Latest First)", goes in `aria-label`. Do not swap between a full and a
+compact label with container queries: long translations still cut off the
+full label.
+
 ## Detail Views
 
 VOD and series detail screens share `app-portal-detail-shell` and

@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "Назва Я-А",
         "SORT_TOP_RATED": "Найвышэйшы рэйтынг",
         "SORT_LOWEST_RATED": "Спачатку з найніжэйшым рэйтынгам",
+        "SORT_CHIP": {
+            "NEWEST": "Новыя",
+            "OLDEST": "Старыя",
+            "TOP_RATED": "Найвышэйшы рэйтынг",
+            "LOWEST_RATED": "Найніжэйшы рэйтынг"
+        },
         "REFINE_ACTION": "Удакладніць",
         "REFINE_SORT_SECTION": "Сартаваць па",
         "REFINE_RATING_SECTION": "Мінімальны рэйтынг",
         "REFINE_CLEAR_RATING": "Ачысціць фільтр рэйтынгу {{value}}.0 і вышэй",
-        "FILTER_RATING": "Фільтраваць па рэйтынгу",
         "FILTER_RATING_ANY": "Любы рэйтынг",
         "FILTER_RATING_MIN": "{{value}}.0 і вышэй",
         "SORT_LABEL": "Сартаваць: ",

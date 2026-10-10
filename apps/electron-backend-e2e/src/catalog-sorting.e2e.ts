@@ -364,7 +364,7 @@ async function setLiveSortMode(
     label: 'Server order' | 'Name A-Z' | 'Name Z-A'
 ): Promise<void> {
     await page.getByRole('button', { name: 'Sort channels' }).click();
-    await page.getByRole('menuitem', { name: label, exact: true }).click();
+    await page.getByRole('menuitemradio', { name: label, exact: true }).click();
 }
 
 async function setContentSortMode(
@@ -376,7 +376,7 @@ async function setContentSortMode(
         | 'Name Z-A'
 ): Promise<void> {
     await page.getByRole('button', { name: 'Refine', exact: true }).click();
-    await page.getByRole('menuitem', { name: label, exact: true }).click();
+    await page.getByRole('menuitemradio', { name: label, exact: true }).click();
 }
 
 async function expectVisibleChannelTitles(

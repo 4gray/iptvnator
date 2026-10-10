@@ -60,7 +60,7 @@ test.describe('Electron Xtream Category Management', () => {
                 .getByRole('button', { name: 'Sort categories', exact: true })
                 .click();
             await app.mainWindow
-                .getByRole('menuitem', { name: 'Name A-Z' })
+                .getByRole('menuitemradio', { name: 'Name A-Z' })
                 .click();
 
             const categories = await app.mainWindow.evaluate(async () => {

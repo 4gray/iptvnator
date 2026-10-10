@@ -1503,7 +1503,7 @@ export async function selectSourceSort(
     await sortTrigger.click();
 
     const option = page
-        .locator('.cdk-overlay-pane [role="menuitem"]')
+        .locator('.cdk-overlay-pane [role="menuitemradio"]')
         .filter({
             hasText: flexibleTextPattern(sortLabel),
         })

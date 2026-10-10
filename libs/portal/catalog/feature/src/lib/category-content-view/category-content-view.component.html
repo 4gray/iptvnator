@@ -24,24 +24,17 @@
                 @if (hasRefineControls()) {
                     <div class="active-refinements" aria-live="polite">
                         @if (canSortContent()) {
+                            @let sortLabels = activeSortLabels();
                             <div
                                 class="refinement-chip sort-refinement-chip"
                                 [attr.aria-label]="
                                     ('WORKSPACE.SORT_LABEL' | translate) +
-                                    (activeSortLabelKey() | translate)
+                                    (sortLabels.labelKey | translate)
                                 "
                             >
                                 <mat-icon>sort</mat-icon>
-                                <span
-                                    class="refinement-chip-label refinement-chip-label-full"
-                                >
-                                    {{ 'WORKSPACE.SORT_LABEL' | translate
-                                    }}{{ activeSortLabelKey() | translate }}
-                                </span>
-                                <span
-                                    class="refinement-chip-label refinement-chip-label-compact"
-                                >
-                                    {{ activeSortLabelKey() | translate }}
+                                <span class="refinement-chip-label">
+                                    {{ sortLabels.chipLabelKey | translate }}
                                 </span>
                             </div>
                         }
@@ -57,18 +50,10 @@
                                 "
                             >
                                 <mat-icon>star</mat-icon>
-                                <span
-                                    class="refinement-chip-label refinement-chip-label-full"
-                                >
-                                    {{ 'WORKSPACE.FILTER_RATING' | translate }}:
+                                <span class="refinement-chip-label">
                                     {{ rating }}.0+
                                 </span>
-                                <span
-                                    class="refinement-chip-label refinement-chip-label-compact"
-                                >
-                                    {{ rating }}.0+
-                                </span>
-                                <mat-icon>close</mat-icon>
+                                <mat-icon iconPositionEnd>close</mat-icon>
                             </button>
                         }
                     </div>
@@ -95,116 +80,102 @@
                     </button>
                     <mat-menu #refineMenu="matMenu" class="refine-menu">
                         @if (canSortContent()) {
-                            <div class="refine-menu-section-title">
-                                {{
+                            <div
+                                role="group"
+                                [attr.aria-label]="
                                     'WORKSPACE.REFINE_SORT_SECTION' | translate
-                                }}
-                            </div>
-                            <button
-                                mat-menu-item
-                                (click)="setContentSortMode('date-desc')"
+                                "
                             >
-                                <span>{{
-                                    'WORKSPACE.SORT_DATE_DESC' | translate
-                                }}</span>
-                                @if (contentSortMode() === 'date-desc') {
-                                    <mat-icon>check</mat-icon>
-                                }
-                            </button>
-                            <button
-                                mat-menu-item
-                                (click)="setContentSortMode('date-asc')"
-                            >
-                                <span>{{
-                                    'WORKSPACE.SORT_DATE_ASC' | translate
-                                }}</span>
-                                @if (contentSortMode() === 'date-asc') {
-                                    <mat-icon>check</mat-icon>
-                                }
-                            </button>
-                            <button
-                                mat-menu-item
-                                (click)="setContentSortMode('name-asc')"
-                            >
-                                <span>{{
-                                    'WORKSPACE.SORT_NAME_ASC' | translate
-                                }}</span>
-                                @if (contentSortMode() === 'name-asc') {
-                                    <mat-icon>check</mat-icon>
-                                }
-                            </button>
-                            <button
-                                mat-menu-item
-                                (click)="setContentSortMode('name-desc')"
-                            >
-                                <span>{{
-                                    'WORKSPACE.SORT_NAME_DESC' | translate
-                                }}</span>
-                                @if (contentSortMode() === 'name-desc') {
-                                    <mat-icon>check</mat-icon>
-                                }
-                            </button>
-                            @if (supportsRatingSort()) {
-                                <button
-                                    mat-menu-item
-                                    (click)="setContentSortMode('rating-desc')"
+                                <div
+                                    class="refine-menu-section-title"
+                                    aria-hidden="true"
                                 >
-                                    <span>{{
-                                        'WORKSPACE.SORT_TOP_RATED' | translate
-                                    }}</span>
-                                    @if (contentSortMode() === 'rating-desc') {
-                                        <mat-icon>check</mat-icon>
-                                    }
-                                </button>
-                                <button
-                                    mat-menu-item
-                                    (click)="setContentSortMode('rating-asc')"
-                                >
-                                    <span>{{
-                                        'WORKSPACE.SORT_LOWEST_RATED'
+                                    {{
+                                        'WORKSPACE.REFINE_SORT_SECTION'
                                             | translate
-                                    }}</span>
-                                    @if (contentSortMode() === 'rating-asc') {
-                                        <mat-icon>check</mat-icon>
-                                    }
-                                </button>
-                            }
+                                    }}
+                                </div>
+                                @for (
+                                    option of sortOptions();
+                                    track option.mode
+                                ) {
+                                    <button
+                                        mat-menu-item
+                                        [appMenuItemRadio]="
+                                            contentSortMode() === option.mode
+                                        "
+                                        (click)="
+                                            setContentSortMode(option.mode)
+                                        "
+                                    >
+                                        <mat-icon appMenuItemRadioCheck
+                                            >check</mat-icon
+                                        >
+                                        <span>{{
+                                            option.labelKey | translate
+                                        }}</span>
+                                    </button>
+                                }
+                            </div>
                         }
                         @if (canFilterByRating()) {
                             @if (canSortContent()) {
-                                <div class="refine-menu-divider"></div>
+                                <div
+                                    class="refine-menu-divider"
+                                    role="separator"
+                                ></div>
                             }
-                            <div class="refine-menu-section-title">
-                                {{
+                            <div
+                                role="group"
+                                [attr.aria-label]="
                                     'WORKSPACE.REFINE_RATING_SECTION'
                                         | translate
-                                }}
-                            </div>
-                            <button mat-menu-item (click)="setMinRating(null)">
-                                <span>{{
-                                    'WORKSPACE.FILTER_RATING_ANY' | translate
-                                }}</span>
-                                @if (minRating() === null) {
-                                    <mat-icon>check</mat-icon>
-                                }
-                            </button>
-                            @for (
-                                threshold of ratingThresholds;
-                                track threshold
-                            ) {
+                                "
+                            >
+                                <div
+                                    class="refine-menu-section-title"
+                                    aria-hidden="true"
+                                >
+                                    {{
+                                        'WORKSPACE.REFINE_RATING_SECTION'
+                                            | translate
+                                    }}
+                                </div>
                                 <button
                                     mat-menu-item
-                                    (click)="setMinRating(threshold)"
+                                    [appMenuItemRadio]="minRating() === null"
+                                    (click)="setMinRating(null)"
                                 >
+                                    <mat-icon appMenuItemRadioCheck
+                                        >check</mat-icon
+                                    >
                                     <span>{{
-                                        'WORKSPACE.FILTER_RATING_MIN'
-                                            | translate: { value: threshold }
+                                        'WORKSPACE.FILTER_RATING_ANY'
+                                            | translate
                                     }}</span>
-                                    @if (minRating() === threshold) {
-                                        <mat-icon>check</mat-icon>
-                                    }
                                 </button>
-                            }
+                                @for (
+                                    threshold of ratingThresholds;
+                                    track threshold
+                                ) {
+                                    <button
+                                        mat-menu-item
+                                        [appMenuItemRadio]="
+                                            minRating() === threshold
+                                        "
+                                        (click)="setMinRating(threshold)"
+                                    >
+                                        <mat-icon appMenuItemRadioCheck
+                                            >check</mat-icon
+                                        >
+                                        <span>{{
+                                            'WORKSPACE.FILTER_RATING_MIN'
+                                                | translate
+                                                    : { value: threshold }
+                                        }}</span>
+                                    </button>
+                                }
+                            </div>
                         }
                     </mat-menu>
                 }

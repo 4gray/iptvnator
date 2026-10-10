@@ -51,6 +51,8 @@
 }
 
 // ─── Refine controls — show current sort/filter state compactly ──────────────
+// A chip shows its icon and a short value at every width; the full
+// "Sort: …" text is its accessible name.
 .active-refinements {
     grid-area: refinements;
     justify-self: end;
@@ -103,20 +105,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.refinement-chip-label-compact {
-    display: none;
-}
-
-@container category-content (max-width: 1120px) {
-    .refinement-chip-label-full {
-        display: none;
-    }
-
-    .refinement-chip-label-compact {
-        display: inline;
-    }
 }
 
 .sort-refinement-chip {
@@ -219,7 +207,6 @@
     .refine-action {
         justify-self: end;
     }
-
 }
 
 // ─── Grid scroll area ─────────────────────────────────────────────────────────
