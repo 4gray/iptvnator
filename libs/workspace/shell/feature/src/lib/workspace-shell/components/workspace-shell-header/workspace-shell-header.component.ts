@@ -17,10 +17,7 @@ import {
     WorkspaceHeaderAction,
 } from '@iptvnator/portal/shared/util';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import {
-    WorkspaceHeaderBulkAction,
-    WorkspaceHeaderSidebarToggle,
-} from '../../services/helpers/workspace-shell-constants';
+import { WorkspaceHeaderSidebarToggle } from '../../services/helpers/workspace-shell-constants';
 
 @Component({
     selector: 'app-workspace-shell-header',
@@ -61,7 +58,6 @@ export class WorkspaceShellHeaderComponent {
     readonly searchScopeLabel = input('');
     readonly searchStatusLabel = input('');
     readonly headerShortcut = input<WorkspaceHeaderAction | null>(null);
-    readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = input<WorkspaceHeaderSidebarToggle | null>(
         null
     );
@@ -76,7 +72,7 @@ export class WorkspaceShellHeaderComponent {
     );
     /**
      * When true the playlist switcher + the "+ Add source" / refresh /
-     * bulk-action buttons are hidden — those controls scope to a
+     * shortcut buttons are hidden — those controls scope to a
      * playlist, but Settings is a global page, so leaving them visible
      * implies (falsely) that switching the playlist changes which
      * settings you're editing. Driven from the shell facade's existing
@@ -131,7 +127,6 @@ export class WorkspaceShellHeaderComponent {
     readonly shortcutsRequested = output<void>();
     readonly addPlaylistRequested = output<void>();
     readonly headerShortcutRequested = output<void>();
-    readonly headerBulkActionRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
     readonly refreshPlaylistRequested = output<void>();
@@ -215,10 +210,6 @@ export class WorkspaceShellHeaderComponent {
 
     onHeaderShortcutRequested(): void {
         this.headerShortcutRequested.emit();
-    }
-
-    onHeaderBulkActionRequested(): void {
-        this.headerBulkActionRequested.emit();
     }
 
     onHeaderSidebarToggleRequested(): void {

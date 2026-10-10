@@ -139,7 +139,8 @@ services:
 3. `WorkspaceShellSearchSyncService` owns the search query signals, debounced
    application, provider-store synchronization, and query-param sync.
 4. `WorkspaceShellHeaderService` owns playlist title/subtitle, account/info
-   actions, refresh action state, and recent-items bulk cleanup.
+   actions, and refresh action state. It has no clear action: clearing
+   recently viewed or favorites belongs to the collection page.
 5. `WorkspaceShellCommandPaletteService` owns command-palette dialog lifecycle
    and recent-command recording.
 6. `WorkspaceShellXtreamImportService` owns Xtream import/refresh overlay

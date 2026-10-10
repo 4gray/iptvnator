@@ -821,6 +821,7 @@ ignored.
 | Counter                          | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `renderer.ipcCallsToPlaying`     | Bridge `start` trace events between the start and end sentinels, as `renderer.ipcCallsToFirstPage` in J2.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `renderer.ipcSerialDepthToPlaying` | `computeJourneyIpcSerialDepth` over the capture's timeline between the start and end sentinels, as `renderer.ipcSerialDepthToResults` in J4 (see [Serial IPC depth](#serial-ipc-depth)). `evidence.ipcSerialDepth.chain` and `evidence.ipcTimeline` show the calls; `evidence.ipcTimelineAmbiguousCompletions` counts completions the start marker left ambiguous. |
 | `renderer.httpRequestsToPlaying` | Requests the ledger proxy received from the click stamp until the `playing` stamp, from either process (the stream request comes from the renderer, Xtream API calls from the main process). Both stamps are `performance.timeOrigin + performance.now()` of processes on the same host clock, as in J2. Unlike J2's counter the window ends at the terminal, not at a quiet mock: a live stream has no quiet end. Later requests are kept as `evidence.httpRequestsAfterPlayingByRoute`, the ones in the window as `evidence.httpRequestsByRoute`. |
 | `renderer.domMutationsToPlaying` | `MutationRecord`s from the click until the `playing` event, including records still queued when it fires.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `renderer.cdTicksToPlaying`      | `ApplicationRef` ticks from the click until the `playing` event, read like `renderer.cdTicksToFirstPage` in J2 (see [Change-detection ticks](#change-detection-ticks)). Not yet measured on a run; the counter shipped after J3's first measurements. |
@@ -841,10 +842,7 @@ above a sub-millisecond origin difference. `evidence.httpRequestsAfterPlayingByR
 window of 1 s after `playing` (the test waits that long before reading the
 ledger), not a quiet mock as in J2: a live stream has no quiet end.
 
-One counter is listed under `unavailable`.
-`renderer.ipcSerialDepthToPlaying` is missing because the serial-depth
-helper (see [Startup work before the first card](#startup-work-before-the-first-card))
-was not on `master` when J3 landed; J3 adopts it once the J1 thread adds it.
+No counter is listed under `unavailable`.
 `main.sqlStatementsToPlaying` is not measured for the same reason as J2's
 SQL counter.
 
@@ -876,6 +874,13 @@ machine, so check the runner's `counterStability` before trusting the
 mutation and request counts. On the runner `renderer.httpRequestsToPlaying`
 and `renderer.layoutShiftScore` are enforced as guards; see
 [Enforced journey counters](#enforced-journey-counters).
+
+`renderer.ipcSerialDepthToPlaying` came later. One local macOS
+`perf:journeys` run on 2026-10-10 read 3 in all six iterations, warm-up
+included, with `depthLowerBound` 3, no ambiguous completion and no call in
+flight at `playing`. The chain was `getEpgMapping` → `xtreamRequest` →
+`updateRemoteControlStatus`; the last is the second of two
+`updateRemoteControlStatus` calls in the window (five calls in all).
 
 ## J4 `search`: type a query until the results settle
 
@@ -1299,6 +1304,9 @@ Not enforced, with the reason:
 - J3 `renderer.ipcCallsToPlaying` (4 or 5) and
   `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199): not identical,
   and the EPG rendering work changes the mutation count.
+- J3 `renderer.ipcSerialDepthToPlaying` (3 locally): added after these
+  runs and not yet measured on the runner; a candidate once `master` runs
+  agree.
 - J4: not measured yet.
 
 Runner counters differ from a Mac (the Linux-only `getWindowState` call, for
@@ -1497,6 +1505,11 @@ detail 187 to 143 MB.
    change.
 5. Cover the probe with jsdom fixtures and the record and summary code with
    `node:test` (`pnpm nx run electron-backend-e2e:test-performance-harness`).
+   `tsx` runs those specs without type checking, so also run
+   `pnpm run typecheck:spec electron-backend-e2e`. Its
+   `apps/electron-backend-e2e/tsconfig.spec.json` includes `src/journeys/**`
+   and `src/performance/*journey*.ts`; keep `journey` in the name of the
+   journey's files and specs under `src/performance/`.
 6. Validate a counter before it becomes a guardrail: one PR must show that
    lowering it moved wall-clock in the same journey.
 

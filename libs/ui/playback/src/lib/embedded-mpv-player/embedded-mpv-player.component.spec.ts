@@ -192,11 +192,12 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
                 By.css('[data-test-id="embedded-mpv-next-episode"]')
             )
         ).toBeNull();
-        expect(
-            fixture.debugElement.query(
-                By.css('.embedded-mpv-player__live-badge')
-            )
-        ).not.toBeNull();
+        const liveBadge = fixture.debugElement.query(
+            By.css('.embedded-mpv-player__live-badge')
+        );
+        expect(liveBadge).not.toBeNull();
+        // Named on an element with a role, so the name is announced.
+        expect(liveBadge.attributes['role']).toBe('img');
         expect(
             fixture.debugElement.query(
                 By.css(
@@ -366,6 +367,13 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
             )
         ).toBeNull();
         expect(fixture.nativeElement.textContent).toContain('--:--');
+        expect(
+            fixture.debugElement.query(
+                By.css(
+                    '.embedded-mpv-player__time [role="img"][aria-label="EMBEDDED_MPV.PLAYER.DURATION_UNKNOWN"]'
+                )
+            )?.nativeElement.textContent
+        ).toBe('--:--');
     });
 
     it('offers Retry when a live stream ends without a reconnect in progress', () => {
