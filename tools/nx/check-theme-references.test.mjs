@@ -138,10 +138,6 @@ test('reports prefers-color-scheme in app styles, outside the settings resolver'
         []
     );
     assert.deepEqual(
-        findColorSchemeQueries('apps/website/src/styles/global.css', query),
-        []
-    );
-    assert.deepEqual(
         findColorSchemeQueries(
             'libs/ui/card/card.component.scss',
             '// Not @media (prefers-color-scheme: light): it follows the OS.'
@@ -150,7 +146,7 @@ test('reports prefers-color-scheme in app styles, outside the settings resolver'
     );
 });
 
-test('selects tracked app and lib sources at any depth, but not specs', async () => {
+test('selects tracked runtime sources at any depth, not tests, E2E, mocks or the website', async () => {
     const rootDir = await mkdtemp(path.join(os.tmpdir(), 'theme-ref-guard-'));
     const git = (...args) =>
         execFileSync('git', args, { cwd: rootDir, stdio: 'pipe' });
@@ -161,8 +157,16 @@ test('selects tracked app and lib sources at any depth, but not specs', async ()
             'libs/ui/feature/src/lib/deep/panel.component.html': '',
             'libs/ui/feature/src/lib/deep/panel.component.ts': '',
             'libs/ui/feature/src/lib/deep/panel.component.spec.ts': '',
+            'libs/ui/feature/src/lib/deep/panel.test-helpers.ts': '',
+            'libs/ui/feature/src/lib/deep/panel.test-stubs.ts': '',
+            'libs/shared/testing/src/index.ts': '',
             'apps/web/src/styles.scss': '',
             'apps/web/src/vendor.css': '',
+            'apps/electron-backend-e2e/src/rail.e2e.ts': '',
+            'apps/electron-backend-e2e/src/theme-contrast.ts': '',
+            'apps/web-e2e/src/recent.e2e-support.ts': '',
+            'apps/xtream-mock-server/src/main.ts': '',
+            'apps/website/src/styles/global.css': '',
             'tools/outside.scss': '',
         };
         for (const [file, content] of Object.entries(files)) {

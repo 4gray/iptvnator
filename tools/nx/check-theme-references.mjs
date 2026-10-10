@@ -38,11 +38,6 @@ const EXTERNAL_PROPERTIES = new Map([['--art-subtitle-bottom', 'artplayer']]);
  */
 const COLOR_SCHEME_RESOLVER = 'apps/web/src/app/services/settings.service.ts';
 
-/** The marketing website themes itself from the OS; it is not the app. */
-function isAppSource(file) {
-    return !file.startsWith('apps/website/');
-}
-
 const NAME = '--[A-Za-z0-9_-]+';
 const READ = new RegExp(`var\\(\\s*(${NAME})`, 'g');
 const DECLARATIONS = [
@@ -60,9 +55,22 @@ const DECLARATIONS = [
 ];
 const COLOR_SCHEME_QUERY = /prefers-color-scheme/g;
 
-/** Tests and fixtures may name anything. */
+/**
+ * Sources that never ship in the app. Their reads are not user-visible, and a
+ * declaration in one (an E2E `setProperty`, a test stub) would mask a runtime
+ * read that nothing in the app declares. The marketing website is a separate
+ * site that themes itself from the OS.
+ */
+const NON_RUNTIME = [
+    /\.(spec|test|e2e)\.[cm]?[jt]s$/,
+    /\.(test-helpers|test-stubs|spec-data|e2e-support|stories)\.[cm]?[jt]s$/,
+    /(^|\/)testing\//,
+    /^apps\/[^/]+-(e2e|mock-server)\//,
+    /^apps\/website\//,
+];
+
 function isScanned(file) {
-    return !/\.(spec|test)\.[cm]?[jt]s$/.test(file);
+    return !NON_RUNTIME.some((pattern) => pattern.test(file));
 }
 
 /**
@@ -137,7 +145,7 @@ export function findUndeclaredReads(sources) {
 }
 
 export function findColorSchemeQueries(file, source) {
-    if (file === COLOR_SCHEME_RESOLVER || !isAppSource(file)) return [];
+    if (file === COLOR_SCHEME_RESOLVER) return [];
     const code = stripComments(source);
     const lineAt = lineLocator(code);
     return [...code.matchAll(COLOR_SCHEME_QUERY)].map((match) => ({
