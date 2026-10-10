@@ -181,6 +181,7 @@ test('maps the media-terminated probe, IPC window and mock ledger to exact count
         'renderer.domMutationsToPlaying': 6_188,
         'renderer.httpRequestsToPlaying': 2,
         'renderer.ipcCallsToPlaying': 4,
+        'renderer.ipcSerialDepthToPlaying': 3,
         'renderer.layoutShiftScore': 0.001,
         'renderer.longTasks': 0,
     });
@@ -223,6 +224,71 @@ test('maps the media-terminated probe, IPC window and mock ledger to exact count
     });
     assert.equal(record.evidence['externalArtworkCancelled'], 8);
     assert.equal(record.evidence['ipcCallsAfterPlaying'], 3);
+});
+
+test('derives the serial IPC depth from the capture timeline, not the call count', () => {
+    const record = toPlaybackIterationRecord(1, false, measurement());
+    // xtreamRequest overlaps getEpgMapping and updateRemoteControlStatus, so
+    // four calls take three round trips.
+    assert.deepEqual(record.evidence['ipcSerialDepth'], {
+        chain: ['setUserAgent', 'getEpgMapping', 'updateRemoteControlStatus'],
+        depth: 3,
+        depthLowerBound: 3,
+        inFlightAtEnd: 0,
+    });
+    assert.deepEqual(record.evidence['ipcTimeline'], [
+        '+setUserAgent',
+        '-setUserAgent',
+        '+xtreamRequest',
+        '+getEpgMapping',
+        '-getEpgMapping',
+        '+updateRemoteControlStatus',
+        '-updateRemoteControlStatus',
+        '-xtreamRequest',
+    ]);
+    assert.equal(record.evidence['ipcTimelineAmbiguousCompletions'], 0);
+
+    const base = measurement();
+    const parallel = toPlaybackIterationRecord(1, false, {
+        ...base,
+        ipc: {
+            ...base.ipc,
+            ambiguousTimelineCompletions: 1,
+            timeline: [
+                { method: 'setUserAgent', phase: 'start' },
+                { method: 'xtreamRequest', phase: 'start' },
+                { method: 'getEpgMapping', phase: 'start' },
+                { method: 'updateRemoteControlStatus', phase: 'start' },
+                { method: 'getEpgMapping', phase: 'end' },
+                { method: 'setUserAgent', phase: 'end' },
+                { method: 'xtreamRequest', phase: 'end' },
+            ],
+        },
+    });
+    assert.equal(parallel.counters['renderer.ipcCallsToPlaying'], 4);
+    // A call still in flight at `playing` is excluded from the depth.
+    assert.equal(parallel.counters['renderer.ipcSerialDepthToPlaying'], 1);
+    assert.equal(
+        (parallel.evidence['ipcSerialDepth'] as { inFlightAtEnd: number })
+            .inFlightAtEnd,
+        1
+    );
+    assert.equal(parallel.evidence['ipcTimelineAmbiguousCompletions'], 1);
+});
+
+test('fails the iteration on a timeline completion without a start', () => {
+    const base = measurement();
+    assert.throws(
+        () =>
+            toPlaybackIterationRecord(0, false, {
+                ...base,
+                ipc: {
+                    ...base.ipc,
+                    timeline: [{ method: 'xtreamRequest', phase: 'end' }],
+                },
+            }),
+        /journey-ipc-serial-depth-unmatched-end:xtreamRequest/
+    );
 });
 
 test('rejects measurements that did not start at a live channel or did not play a video', () => {
@@ -345,7 +411,7 @@ test('rejects activity that moved between the settle snapshot and the click', ()
     );
 });
 
-test('summarizes playback iterations with J3 counters and unavailable reasons', () => {
+test('summarizes playback iterations with every J3 counter measured', () => {
     const iterations = [0, 1, 2].map((index) =>
         toPlaybackIterationRecord(index, index === 0, {
             ...measurement(),
@@ -364,7 +430,10 @@ test('summarizes playback iterations with J3 counters and unavailable reasons', 
     assert.equal(entry.wallClock['clickToPlayingMs.p50'], 349.8);
     assert.equal(entry.wallClock['clickToLoadedMetadataMs.p90'], 95);
     assert.equal(entry.counters['renderer.cdTicksToPlaying'], 14);
-    assert.deepEqual(Object.keys(entry.unavailable).sort(), [
-        'renderer.ipcSerialDepthToPlaying',
-    ]);
+    assert.equal(entry.counters['renderer.ipcSerialDepthToPlaying'], 3);
+    assert.deepEqual(
+        entry.counterStability['renderer.ipcSerialDepthToPlaying'],
+        { stable: true, values: [3, 3] }
+    );
+    assert.deepEqual(entry.unavailable, {});
 });
