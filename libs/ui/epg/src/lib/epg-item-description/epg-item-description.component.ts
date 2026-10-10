@@ -7,11 +7,11 @@ import {
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
-import { injectTranslationTick, normalizeDateLocale } from '@iptvnator/pipes';
+import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { differenceInMinutes } from 'date-fns';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
 import { getProgramTimeMs } from '../epg-program.utils';
 
 export type EpgItemDialogAction =

@@ -6,7 +6,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
+import { injectTranslationTick } from '@iptvnator/services';
 import {
     ContentCardComponent,
     ContentRailShellComponent,

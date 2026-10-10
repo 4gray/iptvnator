@@ -9,7 +9,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import { filter } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -17,7 +16,10 @@ import {
     PortalRailLink,
 } from '@iptvnator/portal/shared/util';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    injectTranslationTick,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import {
     parseWorkspaceShellRoute,
     WorkspacePortalContext,

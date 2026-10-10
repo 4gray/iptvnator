@@ -11,7 +11,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
+import { injectTranslationTick } from '@iptvnator/services';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { Channel } from '@iptvnator/shared/interfaces';

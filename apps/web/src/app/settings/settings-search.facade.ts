@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { injectTranslationTick } from '@iptvnator/pipes';
+import { injectTranslationTick } from '@iptvnator/services';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import {
     SettingsRevealRequest,

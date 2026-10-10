@@ -17,7 +17,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
@@ -49,7 +48,11 @@ import {
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SettingsStore,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { RecordingStoppedEvent } from '@iptvnator/shared/interfaces';
 import {
     createUnifiedLiveCatchup,

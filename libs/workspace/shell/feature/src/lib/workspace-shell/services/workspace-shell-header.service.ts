@@ -2,7 +2,7 @@ import { computed, inject, Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
+import { injectTranslationTick } from '@iptvnator/services';
 import {
     PlaylistInfoComponent,
     PlaylistRefreshActionService,

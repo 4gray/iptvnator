@@ -16,7 +16,7 @@ import {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
+import { injectTranslationTick } from '@iptvnator/services';
 import {
     DEFAULT_ASPECT_PRESETS,
     DEFAULT_PLAYER_CAPABILITIES,

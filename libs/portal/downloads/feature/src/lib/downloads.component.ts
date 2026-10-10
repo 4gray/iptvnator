@@ -14,13 +14,13 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     type DownloadItem,
     DownloadsService,
     PlaylistsService,
     type RecordingItem,
     RecordingsService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import {

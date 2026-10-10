@@ -19,10 +19,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     EpgSourceReconciliationError,
     RuntimeCapabilitiesService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import {

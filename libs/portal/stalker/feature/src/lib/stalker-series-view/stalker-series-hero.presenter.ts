@@ -1,6 +1,5 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import { formatSeriesEpisodeCode } from '@iptvnator/portal/shared/util';
 import {
     StalkerStore,
@@ -9,6 +8,7 @@ import {
 import {
     SettingsStore,
     type CrossPortalSimilarItem,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { youtubeEmbedUrl } from '@iptvnator/shared/interfaces';
 import {

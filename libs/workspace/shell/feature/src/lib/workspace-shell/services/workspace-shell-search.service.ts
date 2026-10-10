@@ -1,13 +1,15 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     StalkerStore,
     stalkerCategoryLabelText,
 } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { WorkspaceSearchCapability } from '@iptvnator/workspace/shell/util';
 import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
 import {

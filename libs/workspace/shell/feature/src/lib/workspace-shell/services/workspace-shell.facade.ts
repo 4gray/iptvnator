@@ -1,7 +1,6 @@
 import { computed, DestroyRef, inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -13,6 +12,7 @@ import {
     ParentalLockService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     CommandBuilderActions,

@@ -1,9 +1,11 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import type { XtreamImportPhaseTone } from './helpers/workspace-shell-constants';
 import {
     buildXtreamImportDetailLabel,

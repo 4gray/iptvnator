@@ -8,6 +8,7 @@ import {
 import {
     RuntimeCapabilitiesService,
     SourceActivityService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -33,7 +34,6 @@ import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { RecentPlaylistsComponent } from '@iptvnator/playlist/shared/ui';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,

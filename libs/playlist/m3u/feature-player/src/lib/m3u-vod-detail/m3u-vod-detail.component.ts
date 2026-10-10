@@ -10,13 +10,13 @@ import {
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import {
     enrichedCast,
     tmdbBackdropUrl,
     tmdbPosterUrl,
     topCast,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     Channel,

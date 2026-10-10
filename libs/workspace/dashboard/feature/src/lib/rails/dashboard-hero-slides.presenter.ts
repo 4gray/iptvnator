@@ -9,7 +9,7 @@ import {
     untracked,
 } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
+import { injectTranslationTick } from '@iptvnator/services';
 import { splitSeasonSuffix } from '@iptvnator/portal/shared/util';
 import {
     playlistDisplayLabel,

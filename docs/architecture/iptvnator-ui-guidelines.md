@@ -934,7 +934,7 @@ after the first render. Text on screen must follow the current language:
   name empty. The Stalker every-item genre is an example.
 - Prefer `| translate` in the template. A `computed` that calls
   `TranslateService.instant` must also read `injectTranslationTick()` from
-  `@iptvnator/pipes`. It ticks on the three events the translate pipe
+  `@iptvnator/services`. It ticks on the three events the translate pipe
   listens to: `onLangChange`, `onDefaultLangChange` and
   `onTranslationChange`. `onLangChange` alone is not enough. A start-up
   without a saved language never calls `use()`, so only

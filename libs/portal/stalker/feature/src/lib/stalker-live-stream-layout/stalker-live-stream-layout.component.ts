@@ -30,7 +30,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     ChannelListItemComponent,
     ChannelListSkeletonComponent,
@@ -43,6 +42,7 @@ import {
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { isStalkerPlaybackRequestLockCurrent } from './stalker-live-lock-guard';
 import {

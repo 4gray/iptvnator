@@ -7,7 +7,6 @@ import {
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     createDiscoverFacetNavigation,
@@ -48,6 +47,7 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
     TmdbEnrichmentService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { VOD_DETAILS_MENU_ACTION } from './vod-details-presentation';
 import { createVodDetailsHeroState } from './vod-details-hero.state';

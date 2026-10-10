@@ -11,8 +11,9 @@ export interface StalkerCategoryLabel {
 
 /**
  * The label's text in the current language. A caller that keeps the result
- * in a `computed` must also read `injectTranslationTick()` (`@iptvnator/pipes`),
- * or the text stays in the language the computed first ran in.
+ * in a `computed` must also read `injectTranslationTick()` from
+ * `@iptvnator/services`, or the text stays in the language the computed
+ * first ran in.
  */
 export function stalkerCategoryLabelText(
     label: StalkerCategoryLabel,

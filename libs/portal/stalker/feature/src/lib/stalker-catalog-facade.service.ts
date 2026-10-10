@@ -8,7 +8,6 @@ import {
     signal,
 } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     buildStalkerSelectedVodItem,
     isStalkerSeriesFlag,
@@ -17,7 +16,10 @@ import {
     StalkerVodSource,
     stalkerCategoryLabelText,
 } from '@iptvnator/portal/stalker/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import {
+    PlaybackPositionRuntimeBridgeService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import {
     PortalCatalogItemProgress,
     PortalCatalogPlaylistMeta,

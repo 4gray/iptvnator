@@ -19,7 +19,6 @@ import { Router } from '@angular/router';
 import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     EmptyStateComponent,
     PlaylistInfoComponent,
@@ -35,6 +34,7 @@ import {
     PlaylistDeleteActionService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     DashboardDataService,

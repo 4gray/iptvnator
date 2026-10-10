@@ -1,12 +1,15 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    DataService,
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import { take } from 'rxjs';
 import { AppUpdateInstallService } from '../services/app-update-install.service';
 import { SettingsService } from '../services/settings.service';

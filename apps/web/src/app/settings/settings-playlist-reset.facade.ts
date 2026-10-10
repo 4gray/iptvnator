@@ -2,7 +2,6 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import { firstValueFrom, take } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
@@ -11,6 +10,7 @@ import {
     DbOperationEvent,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     SettingsDeleteAllPlaylistsDialogComponent,

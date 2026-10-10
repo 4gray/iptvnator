@@ -8,7 +8,6 @@ import {
 } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     PlaylistActions,
     selectAllPlaylistsMeta,
@@ -20,6 +19,7 @@ import {
     GlobalRecentlyAddedKind,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     XTREAM_DATA_SOURCE,

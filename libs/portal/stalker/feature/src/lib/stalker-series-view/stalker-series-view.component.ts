@@ -15,7 +15,6 @@ import { Location } from '@angular/common';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import { withEpisodeTitleFallback } from './stalker-series-episode-titles';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import {
@@ -97,6 +96,7 @@ import {
     CrossPortalSimilarService,
     PlaybackPositionRuntimeBridgeService,
     TmdbEnrichmentService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
 import { StalkerSeriesHeroPresenter } from './stalker-series-hero.presenter';

@@ -7,7 +7,7 @@ import {
     output,
 } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
+import { injectTranslationTick } from '@iptvnator/services';
 import type { TmdbEnrichedCastMember } from '@iptvnator/shared/interfaces';
 import { buildCastCrewEntries, type CastCrewEntry } from './cast-crew.util';
 import { DetailRailComponent } from './detail-rail.component';

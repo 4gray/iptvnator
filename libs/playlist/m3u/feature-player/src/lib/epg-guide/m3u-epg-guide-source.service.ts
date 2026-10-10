@@ -1,10 +1,9 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { SettingsStore } from '@iptvnator/services';
+import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import { Channel } from '@iptvnator/shared/interfaces';
 import type { EpgProgram } from '@iptvnator/shared/interfaces';

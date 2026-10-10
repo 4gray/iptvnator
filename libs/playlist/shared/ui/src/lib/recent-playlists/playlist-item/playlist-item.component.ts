@@ -25,12 +25,13 @@ import { MatIcon } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
-import { injectTranslationTick, normalizeDateLocale } from '@iptvnator/pipes';
+import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     PortalStatus,
     PortalStatusService,
     RuntimeCapabilitiesService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 

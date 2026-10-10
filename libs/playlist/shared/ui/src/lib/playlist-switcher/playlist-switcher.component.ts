@@ -1,5 +1,8 @@
 import { Injector } from '@angular/core';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
 import { foldSearchText, sourceHealthType } from '@iptvnator/shared/interfaces';
 import { SourceHealthIndicatorComponent } from '../source-health/source-health-indicator.component';
@@ -27,7 +30,7 @@ import { MatMenu, MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
-import { injectTranslationTick, normalizeDateLocale } from '@iptvnator/pipes';
+import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { DialogService } from '@iptvnator/ui/components';
 import { PlaylistActions } from '@iptvnator/m3u-state';

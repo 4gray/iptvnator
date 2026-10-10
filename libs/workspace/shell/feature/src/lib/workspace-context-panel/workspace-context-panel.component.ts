@@ -20,7 +20,6 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     StalkerStore,
     asStalkerPortalError,
@@ -32,7 +31,10 @@ import {
     sortPortalCategoryItems,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { ParentalLockService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import {
     toParentalLockStalkerCategoryType,
     toParentalLockXtreamCategoryType,

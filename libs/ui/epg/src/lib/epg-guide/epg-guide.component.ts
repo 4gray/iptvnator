@@ -23,8 +23,8 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { injectTranslationTick, normalizeDateLocale } from '@iptvnator/pipes';
-import { SettingsStore } from '@iptvnator/services';
+import { normalizeDateLocale } from '@iptvnator/pipes';
+import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
 import { EpgProgram, epgProviderClockMs } from '@iptvnator/shared/interfaces';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EpgDateNavigationDirection } from '../epg-date';

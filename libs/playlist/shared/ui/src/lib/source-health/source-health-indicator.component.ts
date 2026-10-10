@@ -10,8 +10,11 @@ import {
 } from '@angular/core';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick, normalizeDateLocale } from '@iptvnator/pipes';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { normalizeDateLocale } from '@iptvnator/pipes';
+import {
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
 import { PlaylistMeta, sourceHealthType } from '@iptvnator/shared/interfaces';
 

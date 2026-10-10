@@ -1,6 +1,5 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     formatDurationLabel,
     formatRemainingLabel,
@@ -20,7 +19,7 @@ import {
     type TmdbGenreFacet,
     type XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
 import type { CrossPortalSimilarItem } from '@iptvnator/services';
 import {
     castMembersFromNames,

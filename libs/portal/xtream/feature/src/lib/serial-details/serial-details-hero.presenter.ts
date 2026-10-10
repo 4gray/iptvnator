@@ -1,12 +1,11 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     formatSeriesEpisodeCode,
     type SeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { SettingsStore } from '@iptvnator/services';
+import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
 import type { CrossPortalSimilarItem } from '@iptvnator/services';
 import { youtubeEmbedUrl } from '@iptvnator/shared/interfaces';
 import {

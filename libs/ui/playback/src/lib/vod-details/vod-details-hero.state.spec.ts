@@ -6,7 +6,7 @@ import {
     TranslateService,
 } from '@ngx-translate/core';
 import { Observable, of, Subject } from 'rxjs';
-import { injectTranslationTick } from '@iptvnator/pipes';
+import { injectTranslationTick } from '@iptvnator/services';
 import type { NormalizedVodMeta } from '@iptvnator/shared/interfaces';
 import { createVodDetailsHeroState } from './vod-details-hero.state';
 
