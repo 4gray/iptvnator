@@ -80,6 +80,22 @@ The checkers' own tests run with `pnpm run i18n:test`; CI runs both through
 node tools/i18n/check-drift.mjs --fail-on-identical
 ```
 
+`pnpm run i18n:duplicates` lists English strings that `en.json` defines under
+several keys while a locale translates those keys differently, such as one
+"Close" button saying "Afsluiten" and another "Sluiten". Add `--verbose` for
+each locale's variants and keys, or `--max <n>` to fail above n groups. It is
+a report, not a CI gate: a group can be legitimate when context needs another
+grammatical form. When aligning, change the drifted values rather than
+removing keys.
+
+## Changing existing translations
+
+`fill-missing.mjs` never overwrites, so rewording an existing value or paying
+down baseline debt means editing the value in the locale file directly (keep
+the key order, 4-space indent and trailing newline), then running
+`pnpm run i18n:baseline:update` and checking that the baseline diff only
+removes entries.
+
 ## Translation rules
 
 - Preserve `{{interpolation}}` placeholders verbatim.

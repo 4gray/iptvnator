@@ -259,6 +259,7 @@ pnpm run coverage:e2e:v8:web
 pnpm run i18n:validate          # checker unit tests, then the check (CI)
 pnpm run i18n:check             # the check only: locale drift, then key usage
 pnpm run i18n:usage             # key usage only
+pnpm run i18n:duplicates        # report: one English string, diverging translations
 pnpm run i18n:baseline:update   # deliberate: rewrite the English-identical baseline
 ```
 
@@ -295,6 +296,12 @@ which may also name a group of keys that code completes. The static prefix of
 a template literal such as `` `EPG.DIALOG.${name}` `` must name a group. Keys
 built entirely at runtime are not checked. CI runs `pnpm run i18n:validate` in
 the unit test job.
+
+`pnpm run i18n:duplicates` (`tools/i18n/check-duplicates.mjs`) is a report,
+not a gate: it lists English strings defined under several keys that a locale
+translates differently. Align drifted wording in the locale files; a group may
+stay when context needs another grammatical form. `--max <n>` makes it fail
+above n groups.
 
 ## Performance
 
