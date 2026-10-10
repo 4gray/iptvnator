@@ -75,8 +75,10 @@ import {
     buildDashboardContinueWatchingActions,
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
+    type DashboardTmdbRailLoadInput,
     liveRailTitleKeyForSource,
     RAIL_ITEM_LIMIT,
+    shouldLoadTmdbRail,
     shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
     SKELETON_CARDS_PER_RAIL,
@@ -199,6 +201,14 @@ export class WorkspaceDashboardRailsComponent {
     private readonly playbackPositionReloadKey = computed(() =>
         buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
     );
+
+    /** What the TMDB rails wait for before their title match; see shouldLoadTmdbRail. */
+    private tmdbRailLoadInput(): DashboardTmdbRailLoadInput {
+        return {
+            globalFavoritesLoaded: this.data.globalFavoritesLoaded(),
+            continueWatchingSettled: this.data.continueWatchingSettled(),
+        };
+    }
 
     readonly liveFavoriteCardsEnriched = computed<DashboardRailCard[]>(() =>
         this.liveEpg.enrich(this.liveFavoriteCards())
@@ -346,12 +356,15 @@ export class WorkspaceDashboardRailsComponent {
         });
 
         // Trending rail: needs the TMDB opt-in and the Electron DB worker.
-        // Deferred until the dashboard's own recent/favorites data is in so
-        // the batched title match never competes for the worker at startup.
+        // Deferred until the dashboard's own reads are in (favorites, and the
+        // playback positions Continue Watching settles on) so the batched
+        // title match never holds the worker while those are queued.
         effect(() => {
             if (
-                !this.dashboardRails().tmdbTrending ||
-                !this.data.globalFavoritesLoaded()
+                !shouldLoadTmdbRail(
+                    this.dashboardRails().tmdbTrending,
+                    this.tmdbRailLoadInput()
+                )
             ) {
                 return;
             }
@@ -366,8 +379,10 @@ export class WorkspaceDashboardRailsComponent {
         // catalog set and skips no-ops.
         effect(() => {
             if (
-                !this.dashboardRails().tmdbRecommendations ||
-                !this.data.globalFavoritesLoaded()
+                !shouldLoadTmdbRail(
+                    this.dashboardRails().tmdbRecommendations,
+                    this.tmdbRailLoadInput()
+                )
             ) {
                 return;
             }

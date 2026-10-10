@@ -315,9 +315,12 @@ all, and none inside the hero.
        yet this session, its episode list) lands.
        `reloadPlaybackPositions()` applies only its latest call's result, so
        an older read finishing last cannot bring finished titles back.
-       Portal playback positions are bulk-loaded per playlist so
-       hero and cards can show progress, remaining time, and series season/
-       episode badges. Whether an item is looked up as a movie (one `vod`
+       Portal playback positions are bulk-loaded per playlist, every
+       playlist at once (one `Promise.all`, not one await per playlist: the
+       single-threaded DB worker then answers the set in one pass, and a
+       long request it is busy with delays the set once, not once per
+       playlist), so hero and cards can show progress, remaining time, and
+       series season/episode badges. Whether an item is looked up as a movie (one `vod`
        row) or a series (episode rows under the parent id) is its WATCH
        kind, `resolvePortalActivityWatchKind`, not its routing `type`. The
        shape that needs the distinction is a Stalker embedded-VOD row: its
@@ -440,8 +443,14 @@ all, and none inside the hero.
     5. `recommendationCards` / `trendingCards` — the two TMDB rails. Both
        need the TMDB opt-in AND the Electron DB worker that answers
        `DB_MATCH_TITLES` (each is hidden in the PWA), and both load after
-       `globalFavoritesLoaded()` so the batched title match never competes
-       for the worker at startup. `recommendationCards` is seeded from
+       `globalFavoritesLoaded()` AND `continueWatchingSettled()`
+       (`shouldLoadTmdbRail`) so the batched title match never competes
+       for the worker at startup: one match runs a ranked FTS query per
+       title and a common single word holds the worker for seconds on a
+       large catalog; issued before the playback positions, it queued them
+       behind it and kept the Continue Watching and hero skeletons up for
+       as long as it ran (measured 14 s warm and 97 s cold on a 3.9M-title
+       library). `recommendationCards` is seeded from
        recently watched movies/series and only shows titles present in an
        imported library, hiding itself below five matched cards; its rail
        label names the seed ("Because you watched X") when exactly one

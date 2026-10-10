@@ -1106,6 +1106,73 @@ describe('DashboardDataService', () => {
         });
     });
 
+    it('asks every playlist for its playback positions at once, not one after another', async () => {
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 101,
+                category_id: 18,
+                title: 'Atlantic City',
+                rating: '7.3',
+                viewed_at: '2026-04-21T10:00:00.000Z',
+                poster_url: 'https://example.com/atlantic.png',
+                xtream_id: 4242,
+                type: 'movie',
+                playlist_id: 'xtream-A',
+                playlist_name: 'Xtream A',
+            },
+            {
+                id: 102,
+                category_id: 19,
+                title: 'Color Orchard S02E04',
+                rating: '8.1',
+                viewed_at: '2026-04-22T10:00:00.000Z',
+                poster_url: 'https://example.com/orchard.png',
+                xtream_id: 909,
+                type: 'series',
+                playlist_id: 'xtream-B',
+                playlist_name: 'Xtream B',
+            },
+        ]);
+
+        // Hold every answer: asked one after another, the second playlist
+        // would not be asked until the first had answered, and a DB worker
+        // busy with a long request would delay the set once per playlist.
+        const pending = new Map<string, (rows: PlaybackPositionData[]) => void>();
+        playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
+            (playlistId: string) =>
+                new Promise<PlaybackPositionData[]>((resolve) => {
+                    pending.set(playlistId, resolve);
+                })
+        );
+
+        await service.reloadGlobalRecentItems();
+        const reload = service.reloadPlaybackPositions();
+
+        expect(new Set(pending.keys())).toEqual(
+            new Set(['xtream-A', 'xtream-B'])
+        );
+
+        pending.get('xtream-A')?.([
+            {
+                contentXtreamId: 4242,
+                contentType: 'vod',
+                positionSeconds: 3600,
+                durationSeconds: 6000,
+                playlistId: 'xtream-A',
+            } as PlaybackPositionData,
+        ]);
+        pending.get('xtream-B')?.([]);
+        await reload;
+
+        const movie = service
+            .globalRecentVodItems()
+            .find((item) => item.playlist_id === 'xtream-A');
+        expect(movie).toBeDefined();
+        expect(
+            service.getPlaybackPositionForItem(movie as GlobalRecentItem)
+        ).toMatchObject({ contentXtreamId: 4242, positionSeconds: 3600 });
+    });
+
     it('resolves episode metadata for a Stalker VOD is_series recent item', async () => {
         playlistsSignal.set([
             ...createDefaultPlaylists(),

@@ -395,8 +395,11 @@ export class DashboardDataService {
     /**
      * Refresh the in-memory positions map for every playlist that owns at
      * least one VOD/series recent item. Per-playlist bulk fetch is one IPC
-     * round-trip each (vs N+1 per content item), so this stays cheap even
-     * on heavy libraries.
+     * round-trip each (vs N+1 per content item), and the playlists are asked
+     * at once: the DB worker answers them in one pass, so a long request it
+     * is busy with (a catalog import, a TMDB title match) delays the whole
+     * set once rather than once per playlist. Continue Watching and the hero
+     * wait for this set before they render.
      */
     async reloadPlaybackPositions(): Promise<void> {
         // Latest reload wins: an older one finishing last would put back the
@@ -417,53 +420,62 @@ export class DashboardDataService {
             return;
         }
 
+        const loaded = await Promise.all(
+            [...playlistIds].map(async (playlistId) => {
+                try {
+                    return {
+                        playlistId,
+                        positions:
+                            await this.playbackPositions.getAllPlaybackPositions(
+                                playlistId
+                            ),
+                    };
+                } catch (err) {
+                    console.warn(
+                        '[DashboardData] Failed to load playback positions for playlist',
+                        playlistId,
+                        err
+                    );
+                    return { playlistId, positions: [] };
+                }
+            })
+        );
+
         const next = new Map<string, PlaybackPositionData>();
         const nextBySeries = new Map<string, PlaybackPositionData>();
         const nextEpisodesBySeries = new Map<string, PlaybackPositionData[]>();
-        for (const playlistId of playlistIds) {
-            try {
-                const positions =
-                    await this.playbackPositions.getAllPlaybackPositions(
-                        playlistId
+        for (const { playlistId, positions } of loaded) {
+            for (const position of positions) {
+                next.set(
+                    playbackPositionMapKey(
+                        playlistId,
+                        position.contentXtreamId,
+                        position.contentType
+                    ),
+                    position
+                );
+                if (
+                    position.contentType === 'episode' &&
+                    Number.isFinite(position.seriesXtreamId)
+                ) {
+                    const seriesKey = seriesPlaybackPositionMapKey(
+                        playlistId,
+                        position.seriesXtreamId as number
                     );
-                for (const position of positions) {
-                    next.set(
-                        playbackPositionMapKey(
-                            playlistId,
-                            position.contentXtreamId,
-                            position.contentType
-                        ),
-                        position
+                    nextBySeries.set(
+                        seriesKey,
+                        newestPlaybackPosition(
+                            nextBySeries.get(seriesKey),
+                            position
+                        ) as PlaybackPositionData
                     );
-                    if (
-                        position.contentType === 'episode' &&
-                        Number.isFinite(position.seriesXtreamId)
-                    ) {
-                        const seriesKey = seriesPlaybackPositionMapKey(
-                            playlistId,
-                            position.seriesXtreamId as number
-                        );
-                        nextBySeries.set(
-                            seriesKey,
-                            newestPlaybackPosition(
-                                nextBySeries.get(seriesKey),
-                                position
-                            ) as PlaybackPositionData
-                        );
-                        const seriesRows = nextEpisodesBySeries.get(seriesKey);
-                        if (seriesRows) {
-                            seriesRows.push(position);
-                        } else {
-                            nextEpisodesBySeries.set(seriesKey, [position]);
-                        }
+                    const seriesRows = nextEpisodesBySeries.get(seriesKey);
+                    if (seriesRows) {
+                        seriesRows.push(position);
+                    } else {
+                        nextEpisodesBySeries.set(seriesKey, [position]);
                     }
                 }
-            } catch (err) {
-                console.warn(
-                    '[DashboardData] Failed to load playback positions for playlist',
-                    playlistId,
-                    err
-                );
             }
         }
 
