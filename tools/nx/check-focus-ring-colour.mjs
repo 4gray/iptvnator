@@ -146,21 +146,27 @@ export function indicatorColours(declaration) {
             );
             const isLength = (token) =>
                 LENGTH.test(token) || LENGTH_FUNCTION.test(token);
-            // Not a ring only when provably so: a literal non-zero blur in
-            // the third place (a lift shadow), or every length a literal
-            // zero with no `var()` that could be a spread. A computed
-            // offset, blur or spread is assumed to draw a ring.
-            const blurred =
-                tokens.slice(0, 3).every((token) => LENGTH.test(token)) &&
-                parseFloat(tokens[2]) !== 0;
+            // Lengths by type, not place: the colour comes first or last,
+            // never between the lengths, and a missing blur is zero. A
+            // `var()` may be a length or the colour, so it counts as a
+            // possible length. Not a ring only when provably so: the first
+            // three possible lengths are literal with a non-zero blur (a
+            // lift shadow), or every length is a literal zero and so are the
+            // first four possible lengths (or there is no `var()`).
+            const literal = (token) => LENGTH.test(token);
+            const zero = (token) => literal(token) && parseFloat(token) === 0;
             const lengths = tokens.filter(isLength);
-            const zeros = lengths.filter(
-                (token) => LENGTH.test(token) && parseFloat(token) === 0
+            const possible = tokens.filter(
+                (token) => isLength(token) || /^var\(/i.test(token)
             );
+            const blurred =
+                possible.length >= 3 &&
+                possible.slice(0, 3).every(literal) &&
+                parseFloat(possible[2]) !== 0;
             const flat =
-                zeros.length === lengths.length &&
-                (zeros.length >= 4 ||
-                    !tokens.some((token) => /^var\(/i.test(token)));
+                lengths.every(zero) &&
+                (possible.length === lengths.length ||
+                    possible.slice(0, 4).every(zero));
             if (blurred || flat) return [];
             const colours = shorthandColour(
                 tokens.filter((token) => !isLength(token))

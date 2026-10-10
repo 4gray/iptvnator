@@ -262,6 +262,27 @@ test('reads a shadow ring whose spread is computed', () => {
     );
 });
 
+test('reads shadow lengths by type, with the colour first or the blur left out', () => {
+    const source = [
+        // No blur and no colour: a line in the text colour.
+        '.a:focus-visible { box-shadow: 0 2px; }',
+        // The colour first, then a ring.
+        '.b:focus-visible { box-shadow: red 0 0 0 2px; }',
+        // The colour first, then a lift shadow with a literal blur.
+        '.c:focus-within { box-shadow: rgba(0, 0, 0, 0.5) 0 12px 28px; }',
+        '.d:focus-visible { box-shadow: var(--app-focus-ring) 0 0 0 2px; }',
+        // A lift shadow whose colour is a variable.
+        '.e:focus-within { box-shadow: 0 12px 28px var(--shadow-colour); }',
+        // Four literal zeros: the variable can only be the colour.
+        '.f:focus-visible { box-shadow: 0 0 0 0 var(--mat-sys-primary); }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('j.scss', source).map(({ line }) => line),
+        [1, 2]
+    );
+});
+
 test('lets a listed exception through only in its own file', () => {
     const [exception] = RING_EXCEPTIONS;
     const source = `.x:focus-visible { outline: 2px solid ${exception.value}; }`;
