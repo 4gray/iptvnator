@@ -21,6 +21,55 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
     });
 
     describe('favorites and recently viewed', () => {
+        it.each(['live', 'movie', 'series'] as const)(
+            'forwards only the SQLite row id for typed %s references',
+            async (type) => {
+                const ref = { id: 202, type };
+                await harness.dataSource.addFavorite(
+                    ref,
+                    playlistId,
+                    'backdrop.jpg'
+                );
+                await harness.dataSource.removeFavorite(ref, playlistId);
+                await harness.dataSource.isFavorite(ref, playlistId);
+                await harness.dataSource.addRecentItem(
+                    ref,
+                    playlistId,
+                    'backdrop.jpg'
+                );
+                await harness.dataSource.removeRecentItem(ref, playlistId);
+                await harness.dataSource.setContentBackdropIfMissing(
+                    ref,
+                    playlistId,
+                    'backdrop.jpg'
+                );
+                expect(harness.dbService.addToFavorites).toHaveBeenCalledWith(
+                    202,
+                    playlistId,
+                    'backdrop.jpg'
+                );
+                expect(
+                    harness.dbService.removeFromFavorites
+                ).toHaveBeenCalledWith(202, playlistId);
+                expect(harness.dbService.isFavorite).toHaveBeenCalledWith(
+                    202,
+                    playlistId
+                );
+                expect(harness.dbService.addRecentItem).toHaveBeenCalledWith(
+                    202,
+                    playlistId,
+                    'backdrop.jpg'
+                );
+                expect(harness.dbService.removeRecentItem).toHaveBeenCalledWith(
+                    202,
+                    playlistId
+                );
+                expect(
+                    harness.dbService.setContentBackdropIfMissing
+                ).toHaveBeenCalledWith(202, 'backdrop.jpg');
+            }
+        );
+
         it('delegates favorites operations to the DB', async () => {
             harness.dbService.isFavorite.mockResolvedValue(true);
 

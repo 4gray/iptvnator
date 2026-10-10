@@ -1,3 +1,4 @@
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore } from '@ngrx/signals';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
@@ -19,6 +20,7 @@ const TestFavoritesStore = signalStore(
 
 describe('withFavorites', () => {
     const originalElectron = window.electron;
+    const runtime = { supportsXtreamSqliteDataSource: false };
     let store: InstanceType<typeof TestFavoritesStore>;
     let dataSource: {
         addFavorite: jest.Mock;
@@ -28,6 +30,7 @@ describe('withFavorites', () => {
     };
 
     beforeEach(() => {
+        runtime.supportsXtreamSqliteDataSource = false;
         dataSource = {
             addFavorite: jest.fn().mockResolvedValue(undefined),
             getContentByXtreamId: jest.fn(),
@@ -38,6 +41,7 @@ describe('withFavorites', () => {
         TestBed.configureTestingModule({
             providers: [
                 TestFavoritesStore,
+                { provide: RuntimeCapabilitiesService, useValue: runtime },
                 {
                     provide: XTREAM_DATA_SOURCE,
                     useValue: dataSource,
@@ -72,7 +76,7 @@ describe('withFavorites', () => {
             'series'
         );
         expect(dataSource.addFavorite).toHaveBeenCalledWith(
-            3941697,
+            { id: 3941697, type: 'series' },
             'playlist-1',
             undefined
         );
@@ -95,7 +99,7 @@ describe('withFavorites', () => {
         );
 
         expect(dataSource.addFavorite).toHaveBeenCalledWith(
-            1767451,
+            { id: 1767451, type: 'movie' },
             'playlist-1',
             undefined
         );
@@ -123,7 +127,7 @@ describe('withFavorites', () => {
             'movie'
         );
         expect(dataSource.addFavorite).toHaveBeenCalledWith(
-            1767451,
+            { id: 1767451, type: 'movie' },
             'playlist-1',
             undefined
         );
@@ -147,7 +151,7 @@ describe('withFavorites', () => {
             'live'
         );
         expect(dataSource.removeFavorite).toHaveBeenCalledWith(
-            3867578,
+            { id: 3867578, type: 'live' },
             'playlist-1'
         );
         expect(result).toBe(false);
@@ -171,7 +175,7 @@ describe('withFavorites', () => {
             'series'
         );
         expect(dataSource.isFavorite).toHaveBeenCalledWith(
-            3829429,
+            { id: 3829429, type: 'series' },
             'playlist-1'
         );
         expect(store.isFavorite()).toBe(true);
@@ -189,7 +193,7 @@ describe('withFavorites', () => {
         await store.checkFavoriteStatus(1767451, 'playlist-1', 'movie');
 
         expect(dataSource.isFavorite).toHaveBeenCalledWith(
-            1767451,
+            { id: 1767451, type: 'movie' },
             'playlist-1'
         );
         expect(store.isFavorite()).toBe(true);
@@ -211,6 +215,7 @@ describe('withFavorites', () => {
     });
 
     it('does not toggle Electron favorites when the cached content is missing', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
         Object.defineProperty(window, 'electron', {
             configurable: true,
             writable: true,
@@ -237,6 +242,7 @@ describe('withFavorites', () => {
     });
 
     it('resets Electron favorite state when the cached content is missing', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
         Object.defineProperty(window, 'electron', {
             configurable: true,
             writable: true,

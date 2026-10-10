@@ -652,7 +652,7 @@ describe('UnifiedFavoritesDataService', () => {
             'movie'
         );
         expect(xtreamDataSource.addFavorite).toHaveBeenCalledWith(
-            101,
+            { id: 101, type: 'movie' },
             'xtream-1',
             'movie.png'
         );
@@ -678,7 +678,7 @@ describe('UnifiedFavoritesDataService', () => {
         } satisfies UnifiedCollectionItem);
 
         expect(xtreamDataSource.removeFavorite).toHaveBeenCalledWith(
-            1010,
+            { id: 1010, type: 'movie' },
             'xtream-1'
         );
         expect(electronApi.dbRemoveFavorite).not.toHaveBeenCalled();

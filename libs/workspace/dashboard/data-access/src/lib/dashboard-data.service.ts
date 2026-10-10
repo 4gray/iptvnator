@@ -1046,7 +1046,10 @@ export class DashboardDataService {
                 );
             } else {
                 await this.xtreamDataSource.removeRecentItem(
-                    item.id as number,
+                    {
+                        id: Number(item.id),
+                        type: item.type as 'live' | 'movie' | 'series',
+                    },
                     item.playlist_id
                 );
             }
@@ -1121,7 +1124,10 @@ export class DashboardDataService {
                 );
             } else {
                 await this.xtreamDataSource.removeFavorite(
-                    item.id as number,
+                    {
+                        id: Number(item.id),
+                        type: item.type as 'live' | 'movie' | 'series',
+                    },
                     item.playlist_id
                 );
             }
