@@ -212,7 +212,9 @@ import applies the restore immediately. Otherwise the typed restore payload is
 left pending until the next Xtream initialization/import. Both paths use strict
 playback-position replacement: unavailable storage, rejected IPC, or an
 unsuccessful response fail the restore and leave the pending snapshot intact.
-Ordinary playback keeps its best-effort persistence API. The whole restore is
+The Xtream SQLite capability gate requires the atomic replacement method;
+older or partial preloads use the supported fallback. Ordinary playback keeps
+its existing capability checks and best-effort persistence API. The whole restore is
 not one database transaction; already applied categories/favorites/history can
 remain after a later failure, but the snapshot remains available to retry the
 complete restore. It is consumed only after every restore step succeeds.

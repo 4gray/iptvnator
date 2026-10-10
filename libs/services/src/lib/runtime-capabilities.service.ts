@@ -5,9 +5,9 @@ export type RuntimeEnvironment = 'electron' | 'pwa';
 
 type RuntimeElectronBridge = Partial<ElectronBridgeApi>;
 
-// The full method set the position-storage layer may invoke — including the
-// season-batch variants, so a bridge lacking them degrades to the in-memory
-// path wholesale instead of throwing mid-action.
+// Ordinary playback methods include season batches, so partial bridges use
+// the in-memory path instead of throwing mid-action. Atomic backup restore is
+// required separately by Xtream and checked by its strict position bridge.
 const playbackPositionStorageMethods = [
     'dbSavePlaybackPosition',
     'dbGetPlaybackPosition',
@@ -220,6 +220,7 @@ export class RuntimeCapabilitiesService {
             'dbClearPlaylistRecentItems',
             'dbGetContentByXtreamId',
             ...playbackPositionStorageMethods,
+            'dbReplaceAllPlaybackPositions',
             'dbDeleteXtreamContent',
             'dbRestoreXtreamUserData',
         ].every((methodName) => this.hasElectronMethod(methodName));
