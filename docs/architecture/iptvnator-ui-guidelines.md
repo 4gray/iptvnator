@@ -65,6 +65,7 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-widget-border` / `--app-rail-border` — hairlines
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
+- `--app-success-color` — done/watched status (episode watched toggle)
 
 Angular Material mixins and Material-component overrides may use the tokens
 owned by that component. Outside a Material-owned component, prefer the
@@ -158,8 +159,11 @@ VOD and series detail screens share `app-portal-detail-shell` and
 kind label ("Movie · playlist") → title → chips → description (three lines,
 "More") → resume bar → action row → credits, with the poster bottom-aligned
 on the left and the backdrop filling the hero behind a two-layer scrim built
-from `--app-content-bg`. The hero keeps `min(480px, 60vh)` of stage for a
-16:9 backdrop. Without one, or when the provider sends the poster as the
+from `--app-content-bg`. The hero keeps `min(520px, 60vh)` of stage for a
+16:9 backdrop. The shell gives it a 140px `--hero-tail` and pulls the first
+section up over it, so the artwork continues under that section's heading and
+the vertical scrim ends on the exact page surface there, never as a band at
+the hero's edge. Without one, or when the provider sends the poster as the
 backdrop, the hero is compact (`hero--compact`, sized by its content) over
 the blurred poster. The layout is decided once per title, so a backdrop that
 TMDB enrichment adds a moment later fills the compact hero instead of
@@ -177,7 +181,10 @@ keys, Escape, hosts the alternative-sources panel), `app-detail-credits`
 `app-detail-rail`/`app-similar-rail` (hidden scrollbar, prev/next arrows,
 title + year) and `TrailerDialogService`. The dashboard hero reuses the same
 light primary (`light-primary-button` in `libs/ui/styles/_detail-view-actions.scss`)
-and chip. Series titles drop their season marker (`splitSeasonSuffix`) into a
+and chip, and the same kind of tail: its artwork runs 160px under the first
+rail, whose heading keeps a trace of it, and reaches the page colour before
+that rail's cards (their scroll-edge fades are drawn in the page colour), with
+no tail in the narrow layout. Series titles drop their season marker (`splitSeasonSuffix`) into a
 "Season N" chip. Rows a provider cannot serve are left out of the menu, never
 disabled. The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
 only carries the page shell, meta items and the episodes section.
@@ -317,10 +324,7 @@ Movie and series covers render in three surfaces: the catalog grid
 recent card (`app-content-card`, same lib) and the dashboard rails. All of
 them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 `--cover-gap` tokens that `Settings.coverSize` writes onto `<html>` as
-`data-cover-size` (`apps/web/src/_cover-size.scss`). The same file carries
-`--season-cover-width` (96 / 120 / 144px) for the season cover beside the
-season tabs on series detail pages; medium equals the About block's 120px
-poster so browse and watch share one secondary-poster size.
+`data-cover-size` (`apps/web/src/_cover-size.scss`).
 
 ### Posters-only wall
 
@@ -599,7 +603,7 @@ A title's watch progress (its resume share, `progressPercent`) has exactly one
 colour per context, and never a literal of its own:
 
 - **App chrome** — dashboard rail cards and the hero, catalog grids and season
-  episodes (`app-progress-capsule`, and the season list rows' own fill):
+  episodes (`app-progress-capsule`, and the episode items' own 3px bar):
   `--app-progress-color`, declared per theme in `apps/web/src/m3-theme.scss`
   as that theme's `--app-selection-color`, and declared again inside
   `.dark-theme` because a derived custom property resolves where it is
@@ -685,6 +689,14 @@ page down. For the same reason it stays until every source that can fill it
 has loaded, not only the first one. Use the same rules for any page that
 stacks independently loading blocks.
 
+The movie and series detail hero has an immediate skeleton too, built from
+the shared shimmer (`libs/ui/components/src/lib/styles/_skeleton-shimmer.scss`)
+at the loaded hero's geometry: stage height, bottom-aligned eyebrow, title,
+one row of chips, two description lines, the action row and two credit lines.
+The Xtream series page adds an episodes section skeleton under it, and the
+Stalker series hero holds the Play button's place
+(`app-detail-action-skeleton`) while its seasons load.
+
 ### Reload with content on screen: non-destructive indicator
 
 A reload of a list that is already rendered (the collection page's
@@ -735,17 +747,55 @@ If the label is too long for the rail, shorten the label key instead of shrinkin
 The action row never wraps on a desktop window: the primary, the Trailer
 button, then the 44px icon buttons and the "…" menu. Season and series
 actions (mark watched, download season, reset progress) live in that menu
-and drive the season container's presenters; the container's header is
-"Episodes" with the season pills and the episode count, plus the grid/list
-toggle. The checked toggle uses `--app-selection-surface` and
-`--app-selection-color`; hover uses the app's neutral surface treatment.
+and drive the season container's presenters.
 
-Episode cards are flat: a 16:9 thumbnail (with a light hairline so its edge
-survives the light theme) and a 3px watched bar at its bottom edge, "N. Title", the plot clamped to two lines and a "42 min ·
-18m left / watched" line. List rows keep a subtle neutral fill. The selected
-season's cover and synopsis sit in a compact strip under the header only
-when present. Keep these treatments in the shared season components so
-Xtream and Stalker share the same behavior.
+Every section below the hero (Episodes, Cast & crew, Similar) uses
+`app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular
+counter, a lead slot (the season pills or dropdown, a 30px pill) and an end
+slot (the list/grid toggle, rail arrows). Sections sit 56px apart, with 16px
+between a header and its content and 56px after the last one. The Episodes
+counter reads "N episodes · M watched". The list/grid switch is a segmented
+track whose checked segment is a neutral raised fill with heading ink; the
+list is the default view.
+
+Episodes render through `app-episode-item` as a flat list row or grid card,
+never a bordered box. A row is a number column, a 168px 16:9 thumbnail (with
+a light hairline border so its edge survives the light theme), the title with
+a "46 min · 12 Jan" meta line (time left once started, "Resume at 12:34" when
+no runtime is known) and the plot clamped to
+two lines at 74ch, and a 112px action slot. Rows are separated by a hairline
+that gives way around a hovered, focused or highlighted row. Watched episodes
+carry a check badge on the thumbnail and muted text, and never a bar; a
+started one gets a 3px bar and the time left. Mark watched, download and "…"
+(Episode details, Play from beginning) are always laid out and only fade in on
+`:hover`/`:focus-within`, so nothing shifts. The whole item is one stretched
+button: Tab focuses it and Enter plays. The playing episode, else the most
+recently watched unfinished one, is highlighted. Without distinct stills the
+thumbnails show a dimmed fallback, not a column of bright posters. The season
+picker never shows a season poster: chips up to four seasons, a menu button
+from five whose rows read "Season N" and "N episodes · M watched" (the second
+part left out at zero, and no count at all for a lazy Stalker VOD season the
+portal has not answered yet — `seasonLoadStates`). The selected season's
+synopsis sits under the header,
+offset 52px to the number column and 24px above the list, only when present;
+one that repeats the series description (or is cut short from it) is dropped,
+and without one no row renders.
+
+A season whose final episode data has no plot and no usable still (a still
+equal to the series poster or the season cover counts as none) renders bare:
+44px rows of number, title, meta and an inline check or 72px bar, the same
+action slot, and no grid toggle. Only some stills or plots missing keeps full
+rows (dimmed tile, line left out). While the provider list is outstanding,
+and while a TMDB lookup that could still fill a season that would otherwise
+render bare is outstanding, the episodes are skeleton rows at the full row's
+geometry (`app-episode-skeleton`); a season the provider already describes
+renders at once and the metadata lands in place. The state is decided from
+data (`episode-meta-state.util.ts`); the metadata wait is only capped
+(`EPISODE_METADATA_WAIT_MS`, 4s) because TMDB requests carry no timeout, and
+it never applies to a season without episodes, which no host enriches. At a
+pane width of 480px or less the thumbnail shrinks to 96px and the actions
+take their own row under the text. Keep these treatments in the shared season
+components so Xtream and Stalker share the same behavior.
 
 Browser regression coverage measures the composited neutral edges and selected
 toggle fill, in addition to capturing light/dark grid and list screenshots.
@@ -842,6 +892,13 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   is "Cancel …", pass `cancelLabel` "Close" so the two buttons do not read
   alike. `theme-tokens.e2e.ts` checks the label and the error fill in both
   themes.
+- **One control per action.** A page offers one control for a destructive
+  action. Clearing a favorites or recently viewed tab goes through
+  `createClearCollectionAction` (`unified-collection-clear-action.ts` in
+  `portal/shared/ui`), from the collection page's button and from the command
+  palette alike; the shell
+  header does not repeat it. `recent.e2e.ts` checks the single control and
+  the single confirmation on M3U, Xtream and Stalker recently viewed pages.
 
 ## Forms
 
@@ -873,6 +930,18 @@ provider icons: Xtream `cloud`, Stalker `cast`, the M3U family
 text) and `subject` (pasted text in the add flow). Use
 `getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
 providers, and the Dashboard rail icon is never a provider icon.
+
+## Icon Names
+
+`<mat-icon>` draws its text through the ligatures of the Material Icons font
+from `material-design-icons-iconfont`, imported in `apps/web/src/styles.scss`.
+The font renders a name it does not know as plain text, so pick names from its
+`dist/fonts/MaterialIcons-Regular.json` codepoints file: newer Material Symbols
+names such as `file_off` or `arrow_outward` are not in it.
+`pnpm run styles:icon-ligatures:validate` (CI) checks static `<mat-icon>` text,
+the string results of its bindings, `icon` / `*Icon` inputs, and TypeScript
+values named `icon`, `*Icon`, `*_ICON`, `*Icons` or `*_ICONS`. Name a member
+that feeds an icon that way, so the check can see its values.
 
 ## Phone Layout
 

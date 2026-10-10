@@ -32,32 +32,11 @@ import {
     RANGE_SERVER_ETAG,
     startDownload,
 } from './downloads.e2e-support';
+import { navigateWithinWorkspace } from './workspace-route.e2e-support';
 
 async function openDownloadsPage(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Open downloads' }).click();
     await page.waitForURL(/\/workspace\/downloads(?:\?.*)?$/);
-}
-
-async function navigateWithinWorkspace(
-    page: Page,
-    path: string
-): Promise<void> {
-    const targetPathname = await page.evaluate((target) => {
-        const targetUrl = new URL(window.location.href);
-        const workspaceIndex = targetUrl.pathname.lastIndexOf('/workspace');
-        const rendererPath =
-            workspaceIndex >= 0
-                ? targetUrl.pathname.slice(0, workspaceIndex)
-                : targetUrl.pathname.replace(/\/$/, '');
-
-        targetUrl.pathname = `${rendererPath}${target}`;
-        targetUrl.search = '';
-        targetUrl.hash = '';
-        window.history.pushState(null, '', targetUrl);
-        window.dispatchEvent(new PopStateEvent('popstate'));
-        return targetUrl.pathname;
-    }, path);
-    await page.waitForURL((url) => url.pathname === targetPathname);
 }
 
 async function getPlaylistId(page: Page, title: string): Promise<string> {
@@ -361,6 +340,17 @@ test.describe('Electron Downloads', () => {
             await expect(missingRow.getByRole('status')).toContainText(
                 'File missing'
             );
+            // A name missing from the icon font renders as text that
+            // overflows the icon box instead of one glyph.
+            const missingIcon = missingRow
+                .getByRole('status')
+                .locator('mat-icon');
+            await expect(missingIcon).toHaveText('error_outline');
+            expect(
+                await missingIcon.evaluate(
+                    (icon) => icon.scrollWidth <= icon.clientWidth
+                )
+            ).toBe(true);
             await expect(card).toHaveCount(0);
             await expect(
                 missingRow.getByRole('button', { name: 'Play: E2E Movie' })

@@ -19,7 +19,6 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     DownloadsService,
-    PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -139,10 +138,6 @@ describe('WorkspaceShellFacade', () => {
         isActive: jest.Mock;
         lastSuccessfulNavigation: () => { trigger: string };
     };
-    let playlistsService: {
-        clearPortalRecentlyViewed: jest.Mock;
-        clearM3uRecentlyViewed: jest.Mock;
-    };
     let workspaceActions: {
         openAddPlaylistDialog: jest.Mock;
         openGlobalSearch: jest.Mock;
@@ -225,14 +220,6 @@ describe('WorkspaceShellFacade', () => {
             createUrlTree: jest.fn(),
             isActive: jest.fn(),
             lastSuccessfulNavigation: () => ({ trigger: navigationTrigger }),
-        };
-        playlistsService = {
-            clearPortalRecentlyViewed: jest
-                .fn()
-                .mockReturnValue(of({ recentlyViewed: [] })),
-            clearM3uRecentlyViewed: jest
-                .fn()
-                .mockReturnValue(of({ recentlyViewed: [] })),
         };
         workspaceActions = {
             openAddPlaylistDialog: jest.fn(),
@@ -328,10 +315,6 @@ describe('WorkspaceShellFacade', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtime,
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: playlistsService,
                 },
                 {
                     provide: DownloadsService,
@@ -646,26 +629,6 @@ describe('WorkspaceShellFacade', () => {
         expect(router.navigate).toHaveBeenCalledWith([
             '/workspace/global-favorites',
         ]);
-    });
-
-    it('clears stalker recent items and refreshes the route', async () => {
-        facade.currentUrl.set('/workspace/stalker/pl-1/recent');
-        router.navigateByUrl.mockClear();
-
-        await facade.runHeaderBulkAction();
-
-        expect(playlistsService.clearPortalRecentlyViewed).toHaveBeenCalledWith(
-            'pl-1'
-        );
-        expect(storeDispatch).toHaveBeenCalled();
-        expect(router.navigateByUrl).toHaveBeenCalledWith(
-            expect.stringMatching(
-                /^\/workspace\/stalker\/pl-1\/recent\?refresh=/
-            ),
-            {
-                replaceUrl: true,
-            }
-        );
     });
 
     it('exposes loaded-only status for stalker itv searches', () => {

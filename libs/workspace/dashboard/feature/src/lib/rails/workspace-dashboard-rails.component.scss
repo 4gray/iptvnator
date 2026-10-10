@@ -26,6 +26,12 @@
     flex-direction: column;
     gap: 32px;
     min-width: 0;
+
+    // The hero's artwork runs on under the first rails (its tail); they
+    // must paint above the hero's isolated stacking context.
+    > lib-dashboard-hero ~ * {
+        position: relative;
+    }
 }
 
 .rails-page--empty {

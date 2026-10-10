@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
+import { DetailSectionHeaderComponent } from './detail-section-header.component';
 
 const SCROLL_STEP_PX = 450;
 
@@ -21,7 +22,7 @@ const SCROLL_STEP_PX = 450;
  */
 @Component({
     selector: 'app-detail-rail',
-    imports: [MatIcon, TranslatePipe],
+    imports: [DetailSectionHeaderComponent, MatIcon, TranslatePipe],
     templateUrl: './detail-rail.component.html',
     styleUrl: './detail-rail.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

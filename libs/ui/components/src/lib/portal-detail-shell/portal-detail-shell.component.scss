@@ -50,14 +50,22 @@
 // ============================================================================
 
 .shell__hero {
+    // The hero's artwork runs on under the first section's heading: the hero
+    // grows by the tail and the sections below are pulled up over it, so the
+    // fade into the page surface ends behind the heading, not at a hard edge.
+    --hero-tail: 140px;
+
     display: grid;
     grid-template-rows: 1fr;
+    margin-bottom: calc(-1 * var(--hero-tail));
     transition:
         grid-template-rows 300ms ease,
-        opacity 250ms ease;
+        opacity 250ms ease,
+        margin-bottom 300ms ease;
 
     &--collapsed {
         grid-template-rows: 0fr;
+        margin-bottom: 0;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
@@ -66,6 +74,7 @@
         transition:
             grid-template-rows 300ms ease,
             opacity 250ms ease,
+            margin-bottom 300ms ease,
             visibility 0s linear 300ms;
     }
 }
@@ -73,6 +82,16 @@
 .shell__hero-inner {
     min-height: 0;
     overflow: hidden;
+    // Keeps the hero's layered scrim and content in their own stacking
+    // context, so the sections pulled up over the tail paint above them.
+    isolation: isolate;
+}
+
+.shell__player,
+.shell__episodes,
+.shell__about,
+.shell__extras {
+    position: relative;
 }
 
 // ============================================================================
@@ -106,17 +125,33 @@
     animation: shell-fade-in 250ms ease 100ms both;
 }
 
+// Section rhythm: 56px between sections (Episodes → Cast & crew → Similar)
+// and after the last one, 16px between a section's header and its content
+// (app-detail-section-header).
 .shell__extras {
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
     max-width: var(--content-max-width);
     margin: 0 auto;
-    padding: 8px 32px 40px;
+    padding: 0 32px 56px;
 
     &:empty {
         display: none;
     }
+
+    // The hosts project one wrapper with their rails; a rail without items
+    // renders nothing and must not leave a 56px hole.
+    ::ng-deep > [detail-extras] {
+        display: flex;
+        flex-direction: column;
+        gap: 56px;
+
+        > :empty {
+            display: none;
+        }
+    }
+}
+
+.shell__episodes:not(:empty) ~ .shell__extras {
+    margin-top: 56px;
 }
 
 @keyframes shell-fade-in {
@@ -140,7 +175,7 @@
     }
 
     .shell__extras {
-        padding: 0 20px 32px;
+        padding: 0 20px 40px;
     }
 }
 

@@ -215,7 +215,7 @@ describe('RecordingQueueComponent', () => {
         );
         expect(warnChip?.textContent).toContain('File missing');
         expect(warnChip?.querySelector('mat-icon')?.textContent?.trim()).toBe(
-            'file_off'
+            'error_outline'
         );
         expect(host.querySelector('.recording-queue__progress')).toBeNull();
         expect(

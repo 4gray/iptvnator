@@ -1,5 +1,10 @@
 <!-- Hero Section with Backdrop -->
-<section class="hero" [class.hero--compact]="layout() === 'compact'">
+<!-- The skeleton keeps the stage height: whether the title has a backdrop
+     is unknown until it loads, and most detail pages do. -->
+<section
+    class="hero"
+    [class.hero--compact]="layout() === 'compact' && !isLoading()"
+>
     @if (errorMessage()) {
         <div class="hero__content hero__error">
             <mat-icon class="error-icon">cloud_off</mat-icon>
@@ -7,81 +12,38 @@
             <ng-content select="[hero-error-actions]"></ng-content>
         </div>
     } @else if (isLoading()) {
-        <div class="hero__content hero__content--skeleton">
-            <!-- Skeleton Poster -->
+        <!-- Placeholders at the loaded hero's geometry, bottom-aligned like
+             it: eyebrow, title, chips, two description lines, the action
+             row and the credits. -->
+        <div
+            class="hero__content hero__content--skeleton"
+            data-test-id="hero-skeleton"
+            aria-hidden="true"
+        >
             <div class="poster">
-                <ngx-skeleton-loader
-                    count="1"
-                    [theme]="{
-                        height: '100%',
-                        width: '100%',
-                        'border-radius': '10px',
-                        'aspect-ratio': '2/3',
-                        display: 'block',
-                    }"
-                />
+                <span class="skeleton skeleton--poster"></span>
             </div>
-
-            <!-- Skeleton Details -->
             <div class="details">
-                <ngx-skeleton-loader
-                    count="1"
-                    [theme]="{
-                        height: '11px',
-                        width: '140px',
-                        'margin-bottom': '14px',
-                        display: 'block',
-                    }"
-                />
-                <ngx-skeleton-loader
-                    count="1"
-                    [theme]="{
-                        height: '40px',
-                        width: '60%',
-                        'margin-bottom': '14px',
-                        display: 'block',
-                    }"
-                />
-                <div style="display: flex; gap: 6px; margin-bottom: 14px">
-                    <ngx-skeleton-loader
-                        count="3"
-                        [theme]="{
-                            height: '22px',
-                            width: '60px',
-                            'border-radius': '999px',
-                            display: 'block',
-                        }"
-                    />
-                </div>
-                <ngx-skeleton-loader
-                    count="3"
-                    [theme]="{
-                        height: '14px',
-                        'margin-bottom': '8px',
-                        width: '100%',
-                        display: 'block',
-                    }"
-                />
-                <div style="margin-top: 14px; display: flex; gap: 10px">
-                    <ngx-skeleton-loader
-                        count="1"
-                        [theme]="{
-                            height: '44px',
-                            width: '150px',
-                            'border-radius': '10px',
-                            display: 'block',
-                        }"
-                    />
-                    <ngx-skeleton-loader
-                        count="2"
-                        [theme]="{
-                            height: '44px',
-                            width: '44px',
-                            'border-radius': '10px',
-                            display: 'block',
-                        }"
-                    />
-                </div>
+                <span class="skeleton skeleton--kind"></span>
+                <span class="skeleton skeleton--title"></span>
+                <span class="details__tags">
+                    <span class="skeleton skeleton--chip"></span>
+                    <span class="skeleton skeleton--chip"></span>
+                    <span class="skeleton skeleton--chip"></span>
+                </span>
+                <span class="skeleton-lines">
+                    <span class="skeleton skeleton--line"></span>
+                    <span class="skeleton skeleton--line"></span>
+                </span>
+                <span class="action-buttons">
+                    <span class="skeleton skeleton--primary"></span>
+                    <span class="skeleton skeleton--icon-button"></span>
+                    <span class="skeleton skeleton--icon-button"></span>
+                </span>
+                <span class="skeleton-lines skeleton-lines--meta">
+                    <span class="skeleton skeleton--line"></span>
+                    <span class="skeleton skeleton--line"></span>
+                </span>
             </div>
         </div>
     } @else {

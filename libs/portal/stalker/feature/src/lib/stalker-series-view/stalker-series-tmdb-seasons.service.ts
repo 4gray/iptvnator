@@ -44,6 +44,8 @@ export class StalkerSeriesTmdbSeasonsService {
     );
     /** mapKey → season number currently being fetched (in-flight dedup) */
     private readonly pending = new Map<string, number>();
+    /** mapKeys whose fetch has finished, with or without a result. */
+    private readonly settledKeys = signal<ReadonlySet<string>>(new Set());
 
     /**
      * Overlays fetched TMDB episode data (real names, overviews, stills)
@@ -84,6 +86,28 @@ export class StalkerSeriesTmdbSeasonsService {
      */
     posters(tmdbId: number | null | undefined): Record<string, string> {
         return this.forShow(this.postersByKey(), tmdbId);
+    }
+
+    /**
+     * True once the season's TMDB fetch has finished (or the season is
+     * cached), whatever it returned. Reads a signal, so callers can use it
+     * in a `computed`: the series view keeps rows it would render bare as
+     * skeletons until then.
+     */
+    isSeasonSettled(
+        tmdbId: number | null | undefined,
+        seasonKey: string
+    ): boolean {
+        const mapKey = `${tmdbId}|${seasonKey}`;
+        return (
+            this.settledKeys().has(mapKey) || this.seasonsByKey().has(mapKey)
+        );
+    }
+
+    private markSettled(mapKey: string): void {
+        if (!this.settledKeys().has(mapKey)) {
+            this.settledKeys.update((keys) => new Set(keys).add(mapKey));
+        }
     }
 
     private forShow(
@@ -127,6 +151,7 @@ export class StalkerSeriesTmdbSeasonsService {
 
         const providerSeasonNumber = Number(episodes?.[0]?.season ?? seasonKey);
         if (!Number.isFinite(providerSeasonNumber)) {
+            this.markSettled(`${tmdbId}|${seasonKey}`);
             return;
         }
 
@@ -197,6 +222,7 @@ export class StalkerSeriesTmdbSeasonsService {
         } finally {
             if (this.pending.get(mapKey) === seasonNumber) {
                 this.pending.delete(mapKey);
+                this.markSettled(mapKey);
             }
         }
     }

@@ -121,7 +121,7 @@
          playlist is a global action, not playlist-scoped, so it must
          remain reachable (e.g. a fresh user configuring the app before
          importing their first source). Only the per-playlist shortcut
-         and bulk actions are hidden on Settings. -->
+         is hidden on Settings. -->
     <div class="header-actions header-actions--leading">
         <button
             type="button"
@@ -199,19 +199,6 @@
                     [attr.aria-label]="action.ariaLabelKey | translate"
                 >
                     <mat-icon>{{ action.icon }}</mat-icon>
-                </button>
-            }
-            @if (headerBulkAction(); as bulk) {
-                <button
-                    type="button"
-                    class="header-shortcut header-bulk-action"
-                    mat-icon-button
-                    [disabled]="bulk.disabled"
-                    (click)="onHeaderBulkActionRequested()"
-                    [matTooltip]="bulk.tooltip"
-                    [attr.aria-label]="bulk.ariaLabel"
-                >
-                    <mat-icon>{{ bulk.icon }}</mat-icon>
                 </button>
             }
         }

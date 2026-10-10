@@ -210,6 +210,7 @@ export async function configureSerialDetailsTestBed(
                     recentItems: signal([]),
                     serialCategories: signal([]),
                     loadRecentItems: jest.fn(),
+                    isTmdbEpisodeMetadataPending: jest.fn(() => false),
                 },
             },
             {

@@ -20,10 +20,7 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
 import { WorkspaceShellComponent } from './workspace-shell.component';
-import {
-    WorkspaceHeaderBulkAction,
-    WorkspaceShellFacade,
-} from './services/workspace-shell.facade';
+import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 
 @Component({
@@ -71,7 +68,6 @@ class MockWorkspaceShellHeaderComponent {
     readonly isContextDrawerOpen = input(false);
     readonly contextDrawerToggleAriaKey = input('');
     readonly contextDrawerTooltipKey = input('');
-    readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = input<unknown>(null);
     readonly parentalLockState = input<'off' | 'locked' | 'unlocked'>('off');
     readonly backRequested = output<void>();
@@ -83,7 +79,6 @@ class MockWorkspaceShellHeaderComponent {
     readonly headerShortcutRequested = output<void>();
     readonly refreshPlaylistRequested = output<void>();
     readonly downloadsRequested = output<void>();
-    readonly headerBulkActionRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
@@ -177,7 +172,6 @@ class MockWorkspaceShellFacade {
     readonly hasNoPlaylists = signal(false);
     readonly isDownloadsView = signal(false);
     readonly activeDownloadsCount = signal(3);
-    readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = signal(null);
     toggleLiveSidebar = jest.fn();
     readonly parentalLockState = signal<'off' | 'locked' | 'unlocked'>('off');
@@ -226,7 +220,6 @@ class MockWorkspaceShellFacade {
     runHeaderShortcut = jest.fn();
     refreshCurrentPlaylist = jest.fn();
     openDownloadsShortcut = jest.fn();
-    runHeaderBulkAction = jest.fn();
     openPlaylistInfo = jest.fn();
     openAccountInfo = jest.fn();
     openAccountInfoFor = jest.fn();

@@ -243,7 +243,7 @@ export async function rasterizedBorderContrast(
     return ratios[Math.floor(ratios.length / 2)];
 }
 
-/** Check the shared series UI under a provider host before testing watched state. */
+/** Check the shared series UI under the Stalker host before testing watched state. */
 export async function expectSeriesSurfacesInBothThemes(
     page: Page,
     testInfo: TestInfo
@@ -266,39 +266,24 @@ export async function expectSeriesSurfacesInBothThemes(
                 )
             )
             .toBeGreaterThan(1.1);
-        // The flat card's visible edge is its artwork's hairline.
-        for (const selector of [
-            '.episode-card__thumbnail',
-            'mat-button-toggle-group',
-        ]) {
-            await expect
-                .poll(
-                    async () =>
-                        (await surfaceContrast(shell.locator(selector).first()))
-                            .border
-                )
-                .toBeGreaterThan(1.15);
-        }
-        await page
-            .getByRole('radio', { name: 'List view', exact: true })
-            .click();
-        await expect
-            .poll(
-                async () =>
-                    (
-                        await surfaceContrast(
-                            shell.locator('.episode-list-item').first()
-                        )
-                    ).border
-            )
-            .toBeGreaterThan(1.15);
+        // The modeled Stalker series carry neither stills (every episode
+        // repeats the series poster) nor plots: the season renders bare
+        // 44px rows without thumbnails, and there is no grid form to offer.
+        const rows = shell.locator('app-episode-item');
+        await expect(rows.first()).toBeVisible();
+        expect(await rows.count()).toBeGreaterThan(0);
+        await expect(
+            shell.locator('app-episode-item:not(.episode-item--bare)')
+        ).toHaveCount(0);
+        await expect(shell.locator('.episode-item__thumb')).toHaveCount(0);
+        await expect(shell.locator('mat-button-toggle-group')).toHaveCount(0);
+        expect(
+            Math.round((await rows.first().boundingBox())?.height ?? 0)
+        ).toBe(44);
         await shell.screenshot({
-            path: testInfo.outputPath(`stalker-series-list-${theme}.png`),
+            path: testInfo.outputPath(`stalker-series-bare-${theme}.png`),
             animations: 'disabled',
         });
-        await page
-            .getByRole('radio', { name: 'Grid view', exact: true })
-            .click();
     }
 }
 
