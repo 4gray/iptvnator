@@ -166,10 +166,12 @@ function exceptionFor(file, declaration) {
  */
 function offTokenIndicators(file, source) {
     return walkDeclarations(source).flatMap(
-        ({ selectors, declaration, line }) => {
-            const focus = selectors.find((selector) =>
-                FOCUS_SELECTOR.test(selector)
-            );
+        ({ selectors, declaration, line, mixin }) => {
+            // A focus mixin's body (the shared `focus-ring-declarations`)
+            // draws rings wherever it is included.
+            const focus =
+                selectors.find((selector) => FOCUS_SELECTOR.test(selector)) ??
+                (mixin && /focus/i.test(mixin) ? `@mixin ${mixin}` : null);
             if (!focus) return [];
             const border = /^border/i.test(declaration);
             const offToken = indicatorColours(declaration).some(

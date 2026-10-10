@@ -186,6 +186,24 @@ test('accepts a token only by its exact name', () => {
     );
 });
 
+test('checks the body of a focus mixin, the shared ring included', () => {
+    const source = [
+        '@mixin focus-ring-declarations($offset: 2px) {',
+        '    outline: 2px solid red;',
+        '    outline-offset: $offset;',
+        '}',
+        // Not a focus mixin: a decorative outline.
+        '@mixin panel-frame { outline: 1px solid rgba(255, 255, 255, 0.04); }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('libs/ui/styles/_focus-ring.scss', source).map(
+            ({ line, selector }) => `${line} ${selector}`
+        ),
+        ['2 @mixin focus-ring-declarations']
+    );
+});
+
 test('lets a listed exception through only in its own file', () => {
     const [exception] = RING_EXCEPTIONS;
     const source = `.x:focus-visible { outline: 2px solid ${exception.value}; }`;
