@@ -1,5 +1,6 @@
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
+import type { PortalRequestFailureEnvelope } from './portal-request-failure.util';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
 import type { ZoomLevelAction } from './zoom-level.util';
 import type {
@@ -341,6 +342,17 @@ export interface ElectronBridgeXtreamResponse {
     payload: unknown;
     action: string;
 }
+
+/**
+ * What `xtreamRequest` resolves with: the provider answer, or — for a
+ * cancelled request and an HTTP 401/403 — a `portalRequestFailure` envelope
+ * carrying neither `payload` nor `action`. Resolved instead of rejected so
+ * Electron does not log the handler as failed; `ElectronService` narrows it
+ * with `isPortalRequestFailureEnvelope` and rethrows
+ * (`portal-request-failure.util.ts`).
+ */
+export type ElectronBridgeXtreamResult =
+    ElectronBridgeXtreamResponse | PortalRequestFailureEnvelope;
 
 export interface ElectronBridgeXtreamCancelResult extends ElectronBridgeResult {
     cancelled: number;
@@ -918,9 +930,13 @@ export interface ElectronBridgeApi {
     getAiSettings: () => Promise<ElectronBridgeAiSettings>;
     setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
     setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
+    /**
+     * The portal's JSON, the `{ stalkerAuthFailure }` marker, or a
+     * `PortalRequestFailureEnvelope` (cancelled request, HTTP 401/403).
+     */
     stalkerRequest: (
         payload: ElectronBridgeStalkerRequestPayload
-    ) => Promise<Record<string, unknown>>;
+    ) => Promise<Record<string, unknown> | PortalRequestFailureEnvelope>;
     /**
      * Forgets the connection failures recorded for the host `url` points at, so
      * the next request contacts it for real instead of being fast-failed.
@@ -928,7 +944,7 @@ export interface ElectronBridgeApi {
     resetHostConnectivityGuard: (url: string) => Promise<ElectronBridgeResult>;
     xtreamRequest: (
         payload: ElectronBridgeXtreamRequestPayload
-    ) => Promise<ElectronBridgeXtreamResponse>;
+    ) => Promise<ElectronBridgeXtreamResult>;
     xtreamCancelSession: (
         sessionId: string
     ) => Promise<ElectronBridgeXtreamCancelResult>;
