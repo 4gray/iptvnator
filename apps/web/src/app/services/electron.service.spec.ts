@@ -210,11 +210,19 @@ describe('ElectronService', () => {
                     status,
                 });
                 expect(snackBar.open).toHaveBeenCalledTimes(1);
-                expect(snackBar.open.mock.calls[0][0]).toContain(
-                    `status: ${status}`
+                expect(snackBar.open).toHaveBeenCalledWith(
+                    'PORTALS.REQUEST_ERRORS.STALKER',
+                    'CLOSE',
+                    { duration: 5000 }
                 );
-                expect(snackBar.open.mock.calls[0][0]).not.toContain(
-                    'Error invoking remote method'
+                // The toast carries the portal's own error, not Electron's
+                // "Error invoking remote method" wrapper.
+                expect(translateService.instant).toHaveBeenCalledWith(
+                    'PORTALS.REQUEST_ERRORS.STALKER',
+                    {
+                        message: `HTTP Error ${status}: ${status === 401 ? 'Unauthorized' : 'Forbidden'}`,
+                        status,
+                    }
                 );
             }
         );
@@ -311,8 +319,9 @@ describe('ElectronService', () => {
                     message: `HTTP Error ${status}: ${status === 401 ? 'Unauthorized' : 'Forbidden'}`,
                 });
                 expect(snackBar.open).toHaveBeenCalledTimes(1);
-                expect(snackBar.open.mock.calls[0][0]).toContain(
-                    `HTTP Error ${status}`
+                expect(translateService.instant).toHaveBeenCalledWith(
+                    'PORTALS.REQUEST_ERRORS.XTREAM',
+                    { message: expect.stringContaining(`HTTP Error ${status}`) }
                 );
             }
         );
