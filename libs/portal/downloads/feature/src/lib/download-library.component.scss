@@ -1,5 +1,6 @@
 @use '@angular/material' as mat;
 @use '../../../../shared/ui/src/lib/styles/content-grid' as grid;
+@use '../../../../../ui/styles/focus-ring';
 
 :host {
     display: block;
@@ -238,8 +239,7 @@
 
 button:focus-visible {
     border-radius: 6px;
-    outline: 2px solid var(--mat-sys-primary);
-    outline-offset: 2px;
+    @include focus-ring.focus-ring-declarations;
 }
 
 button:disabled {

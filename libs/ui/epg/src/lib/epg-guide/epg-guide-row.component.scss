@@ -1,4 +1,5 @@
 @use '../epg-theme' as *;
+@use '../../../../styles/focus-ring';
 
 :host {
     display: flex;
@@ -43,8 +44,7 @@
     color: $text-primary;
 
     &:focus-visible {
-        outline: 2px solid $accent-blue;
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     :host(.is-active) &::before {
@@ -184,8 +184,7 @@
     }
     &.is-focused,
     &:focus-visible {
-        outline: 2px solid $accent-blue;
-        outline-offset: 1px;
+        @include focus-ring.focus-ring-declarations($offset: 1px);
         z-index: 3;
     }
     &.is-past {

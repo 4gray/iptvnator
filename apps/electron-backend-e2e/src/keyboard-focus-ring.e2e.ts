@@ -40,6 +40,8 @@ type Ring = {
     contrast: number | null;
     /** The `overflow: hidden` ancestor that cuts the outline, if any. */
     clippedBy: string | null;
+    /** `--app-focus-ring` where the ring is drawn. */
+    token: string;
 };
 
 type Stop = { element: string; label: string; rings: Ring[] };
@@ -185,6 +187,21 @@ async function installProbe(page: Page): Promise<void> {
             }
             return null;
         };
+        /** The app ring colour in `el`'s context, as `rgb(…)`. */
+        const tokenAt = (el: Element) => {
+            const hex = getComputedStyle(el)
+                .getPropertyValue('--app-focus-ring')
+                .trim();
+            canvas.fillStyle = '#000';
+            canvas.fillStyle = hex;
+            const [r, g, b] = Array.from(
+                (() => {
+                    canvas.fillRect(0, 0, 1, 1);
+                    return canvas.getImageData(0, 0, 1, 1).data;
+                })()
+            );
+            return hex ? `rgb(${r}, ${g}, ${b})` : '';
+        };
         const contrastOf = (on: Element, color: string, inside: boolean) => {
             const layers = layersUnder(inside ? on : on.parentElement);
             if (!layers) return null;
@@ -259,6 +276,7 @@ async function installProbe(page: Page): Promise<void> {
                                 was.offset < 0
                             ),
                             clippedBy: was.clippedBy,
+                            token: tokenAt(on),
                         });
                     }
                     if (was.shadow && was.shadow !== now.shadow) {
@@ -273,6 +291,7 @@ async function installProbe(page: Page): Promise<void> {
                                 was.shadow.endsWith(' inset')
                             ),
                             clippedBy: null,
+                            token: tokenAt(on),
                         });
                     }
                     if (was.border && was.border !== now.border) {
@@ -288,6 +307,7 @@ async function installProbe(page: Page): Promise<void> {
                                     ? null
                                     : contrastOf(on, focused, true),
                             clippedBy: null,
+                            token: tokenAt(on),
                         });
                     }
                     return rings;
@@ -344,6 +364,11 @@ function expectOneVisibleRing(stops: Stop[], context: string): void {
         expect(stop.rings, where).toHaveLength(1);
         const [ring] = stop.rings;
         expect(ring.clippedBy, `${where} ring clipped`).toBeNull();
+        // One ring colour everywhere. A select shows focus on its Material
+        // form-field outline, which keeps the theme's field colours.
+        if (ring.kind !== 'field-outline') {
+            expect(ring.color, `${where} ring colour`).toBe(ring.token);
+        }
         if (ring.contrast !== null) {
             expect(
                 ring.contrast,

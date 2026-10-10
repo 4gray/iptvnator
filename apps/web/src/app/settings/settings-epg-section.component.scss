@@ -1,3 +1,5 @@
+@use '../../../../../libs/ui/styles/focus-ring';
+
 // EPG page: the offset stepper and the sources list. Shared row and card
 // styles come from settings.component.scss (ViewEncapsulation.None).
 app-settings-epg-section {
@@ -60,8 +62,7 @@ app-settings-epg-section {
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 }
 

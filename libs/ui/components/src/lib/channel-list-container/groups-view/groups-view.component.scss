@@ -2,6 +2,7 @@
 @use '../../../../../styles/portal-sidebar';
 @use '../../../../../styles/panel-header' as panel;
 @use '../../../../../styles/nav-list';
+@use '../../../../../styles/focus-ring';
 
 :host {
     display: flex;
@@ -355,8 +356,7 @@
 
     &:focus-visible {
         color: var(--app-heading-color);
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     mat-icon {
