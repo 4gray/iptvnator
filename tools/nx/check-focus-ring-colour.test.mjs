@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import {
     RING_EXCEPTIONS,
     checkFocusRingColour,
+    colourAtoms,
     findOffTokenRings,
     findUnusedExceptions,
     indicatorColours,
@@ -105,6 +106,67 @@ test('leaves neutral boundaries, lift shadows and token colours alone', () => {
             'box-shadow: 0 0 0 2px var(--pc-text), 0 12px 32px rgba(0, 0, 0, 0.45)'
         ),
         ['var(--pc-text)']
+    );
+});
+
+test('checks every colour on its own, inside color-mix() too', () => {
+    assert.deepEqual(
+        colourAtoms(
+            'var(--app-focus-ring) color-mix(in srgb, red 40%, var(--app-separator))'
+        ),
+        ['var(--app-focus-ring)', 'red', 'var(--app-separator)']
+    );
+
+    const source = [
+        // Two sides in the token, two in red.
+        '.a:focus-visible { border-color: var(--app-focus-ring) red; }',
+        '.b:focus-within {',
+        '    box-shadow: 0 0 0 3px',
+        '        color-mix(in srgb, var(--app-focus-ring) 40%, red);',
+        '}',
+        // No colour: the ring is drawn in the text colour.
+        '.c:focus-visible { outline: 2px solid; }',
+        '.d:focus-visible { box-shadow: 0 0 0 2px; }',
+        // The token beside a neutral boundary, or mixed with one.
+        '.e:focus-within { border-color: var(--app-focus-ring) var(--app-separator); }',
+        '.f:focus-within { border-color: color-mix(in srgb, var(--app-focus-ring) 38%, var(--app-separator)); }',
+        // A border may keep the text colour.
+        '.g:focus-within { border-color: currentColor; }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('e.scss', source).map(({ line }) => line),
+        [1, 3, 6, 7]
+    );
+});
+
+test('counts an exception as used only where it excuses a focus indicator', () => {
+    const diagnostic = RING_EXCEPTIONS.find(({ value }) => value === '#ffb24c');
+    const others = RING_EXCEPTIONS.filter(
+        (exception) => exception !== diagnostic
+    ).map(({ file, value }) => ({
+        file,
+        source: `.x:focus-visible { outline: 2px solid ${value}; }`,
+    }));
+    // The amber stays as a text colour after its ring moved to the token.
+    const textOnly = {
+        file: diagnostic.file,
+        source: [
+            '.label { color: #ffb24c; }',
+            '.button:focus-visible { outline: 2px solid var(--app-focus-ring); }',
+        ].join('\n'),
+    };
+
+    assert.deepEqual(findUnusedExceptions([...others, textOnly]), [diagnostic]);
+    assert.deepEqual(
+        findUnusedExceptions([
+            ...others,
+            {
+                file: diagnostic.file,
+                source: '.button:focus-visible { outline: 2px solid #ffb24c; }',
+            },
+        ]),
+        []
     );
 });
 
