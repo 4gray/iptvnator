@@ -26,6 +26,10 @@ function reuseStartSeconds(startTime: number | undefined): number {
         : 0;
 }
 
+function hasExited(child: ChildProcess): boolean {
+    return child.exitCode !== null || child.signalCode !== null;
+}
+
 export interface MpvReuseAttemptState {
     contentMutated: boolean;
     teardownUnconfirmed: boolean;
@@ -172,11 +176,14 @@ export class MpvReusableProcess {
         // changed, whatever mpv replies, so the attempted session owns the
         // child from the write onwards: an exit or a stale Stop for the
         // previous session during the reply wait then lands on the right
-        // session instead of terminating the new playback.
+        // session instead of terminating the new playback, and the previous
+        // session's position poll can no longer read the new stream's
+        // position under the old content.
         const onContentDispatched = () => {
             state.contentMutated = true;
             this.processSessionId = session.id;
             this.processSessionIds.set(reusedProcess, session.id);
+            options.stopPositionPolling();
         };
 
         try {
@@ -187,11 +194,7 @@ export class MpvReusableProcess {
                 onContentDispatched
             );
             if (closeRequested) return await finishRequestedClose();
-            options.stopPositionPolling();
-            if (
-                reusedProcess.exitCode !== null ||
-                reusedProcess.signalCode !== null
-            ) {
+            if (hasExited(reusedProcess)) {
                 // The child exited while its reply was in flight; its exit
                 // handler has already settled the session that owned it.
                 return externalPlayerSessions.getSession(session.id) ?? session;
@@ -211,6 +214,12 @@ export class MpvReusableProcess {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
+            if (current?.status === 'error' && hasExited(reusedProcess)) {
+                // The child died while its reply was in flight and its exit
+                // handler already reported the failure; a fresh launch under
+                // this terminal session could never be shown as opened.
+                return current;
+            }
             console.error(
                 'Failed to send command to existing MPV:',
                 redactSensitiveData(error)

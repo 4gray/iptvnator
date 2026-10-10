@@ -363,4 +363,103 @@ describe('reused MPV IPC replies', () => {
         );
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
+
+    it('stops the previous position poll as soon as loadfile is written', async () => {
+        jest.useFakeTimers();
+        const contentInfo = {
+            playlistId: 'playlist-1',
+            contentXtreamId: 7,
+            contentType: 'vod' as const,
+        };
+        const proc = createMockChildProcess();
+        spawnMock.mockReturnValueOnce(proc);
+        (store.get as unknown as jest.Mock).mockImplementation(
+            (key: string, fallback?: unknown) =>
+                ({
+                    [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+                    [MPV_REUSE_INSTANCE]: true,
+                })[key] ?? fallback
+        );
+        const sockets = mockUnansweredSockets();
+        const first = openMpvPlayer({
+            title: 'First stream',
+            url: 'https://example.com/one.m3u8',
+            contentInfo,
+        });
+        await jest.advanceTimersByTimeAsync(100);
+        await first;
+        // The first session polls 2 s after launch, then every 5 s: the
+        // next poll is due at 7 s, inside the reply window of a loadfile
+        // written at 6.5 s.
+        await jest.advanceTimersByTimeAsync(6_500);
+        const pollsBefore = sockets.length;
+
+        const opening = openMpvPlayer({
+            title: 'Second stream',
+            url: 'https://example.com/two.m3u8',
+            contentInfo: { ...contentInfo, contentXtreamId: 8 },
+        });
+        await jest.advanceTimersByTimeAsync(0);
+        const loadfileSocket = sockets[pollsBefore];
+        const requestId = await writtenRequestId(loadfileSocket);
+        await jest.advanceTimersByTimeAsync(1_000);
+
+        const commandsAfterLoadfile = sockets
+            .slice(pollsBefore + 1)
+            .flatMap((socket) =>
+                socket.write.mock.calls.map(
+                    ([request]) =>
+                        (JSON.parse(String(request)) as { command: string[] })
+                            .command[0]
+                )
+            );
+        expect(commandsAfterLoadfile).not.toContain('get_property');
+
+        loadfileSocket.emit(
+            'data',
+            Buffer.from(
+                JSON.stringify({ request_id: requestId, error: 'success' }) +
+                    '\n'
+            )
+        );
+        await jest.advanceTimersByTimeAsync(0);
+        await expect(opening).resolves.toMatchObject({ status: 'opened' });
+    });
+
+    it('keeps the errored session when the child crashes during the reply wait', async () => {
+        const { proc, session: previous } = await launchReusableSession();
+        const sockets = mockUnansweredSockets();
+        const errorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            const opening = openMpvPlayer({
+                title: 'Second stream',
+                url: 'https://example.com/two.m3u8',
+            });
+            await writtenRequestId(sockets[0]);
+            const replacementId =
+                externalPlayerSessions.getActiveSessionId() as string;
+
+            // A crash closes the IPC socket before any reply: the exit
+            // handler reports it, and no fresh player is launched under a
+            // session that could never be shown as opened.
+            Object.defineProperty(proc, 'exitCode', { value: 1 });
+            proc.emit('exit', 1);
+            sockets[0].emit('close');
+
+            await expect(opening).resolves.toMatchObject({
+                id: replacementId,
+                status: 'error',
+                errorCode: 'closed-unexpectedly',
+            });
+            expect(externalPlayerSessions.getSession(previous.id)?.status).toBe(
+                'opened'
+            );
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        } finally {
+            errorSpy.mockRestore();
+        }
+    });
 });

@@ -1024,9 +1024,12 @@ to other requests on that connection are skipped. An error reply or a missing
 reply fails the handoff exactly like a socket error: the reused child is torn
 down and a fresh launch follows. `loadfile` marks the content as possibly
 changed and moves ownership of the child to the attempted session from the
-moment it is written, whatever mpv replies, so an exit or a stale Stop for the
-previous session during the reply wait settles the right session; a child that
-exited while its reply was in flight is never reported as opened. No `seek` follows
+moment it is written, whatever mpv replies, and stops the previous session's
+position poll there, so an exit or a stale Stop for the previous session during
+the reply wait settles the right session and no poll can save the new stream's
+position under the old content; a child that exited while its reply was in
+flight is returned as the session its exit handler settled, never reported as
+opened and never replaced by a fresh launch under that terminal session. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused
