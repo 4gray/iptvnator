@@ -32,12 +32,36 @@ const SCANNED_PATHSPECS = [
 const FOCUS_SELECTOR =
     /:focus(?:-visible|-within)?\b|\.is-focused\b|\.cdk-keyboard-focused\b/i;
 
-/** The app ring token, or the player's own palette over video. */
-const APP_RING = /^var\(\s*--(?:app-focus-ring|pc-)/i;
+/** The custom property a `var()` reads (its fallback aside), or null. */
+function propertyRead(colour) {
+    return /^var\(\s*(--[\w-]+)\s*[,)]/i.exec(colour)?.[1] ?? null;
+}
+
+/**
+ * The app ring token, or the player's own palette over video, by exact
+ * name: `--app-focus-ring-other` is not the token. A fallback is never
+ * drawn, since these tokens are always declared, so it is not checked.
+ */
+function isAppRing(colour) {
+    const property = propertyRead(colour);
+    return property === '--app-focus-ring' || /^--pc-[\w-]+$/.test(property);
+}
+
+/** Boundary tokens that do not signal focus. */
+const NEUTRAL_TOKENS = new Set([
+    '--app-separator',
+    '--app-widget-border',
+    '--app-rail-border',
+    '--app-search-border',
+]);
 
 /** A boundary colour that does not signal focus. */
-const NEUTRAL =
-    /^(?:transparent|none|var\(\s*--app-(?:separator|widget-border|rail-border|search-border)\b.*\))$/i;
+function isNeutral(colour) {
+    return (
+        /^(?:transparent|none)$/i.test(colour) ||
+        NEUTRAL_TOKENS.has(propertyRead(colour))
+    );
+}
 
 /** Text colour: fine for a border, a colour of its own for a ring. */
 const TEXT_COLOUR = /^(?:currentcolor|inherit)$/i;
@@ -150,8 +174,8 @@ function offTokenIndicators(file, source) {
             const border = /^border/i.test(declaration);
             const offToken = indicatorColours(declaration).some(
                 (colour) =>
-                    !APP_RING.test(colour) &&
-                    !NEUTRAL.test(colour) &&
+                    !isAppRing(colour) &&
+                    !isNeutral(colour) &&
                     !(border && TEXT_COLOUR.test(colour))
             );
             return offToken

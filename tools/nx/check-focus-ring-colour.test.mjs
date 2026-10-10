@@ -170,6 +170,22 @@ test('counts an exception as used only where it excuses a focus indicator', () =
     );
 });
 
+test('accepts a token only by its exact name', () => {
+    const source = [
+        '.a:focus-visible { outline: 2px solid var(--app-focus-ring-other, red); }',
+        '.b:focus-within { border-color: var(--app-separator-strong); }',
+        '.c:focus-visible { outline: 2px solid var(--app-focus-ring); }',
+        '.d:focus-visible { outline: 2px solid var( --app-focus-ring , #1d63e0); }',
+        '.e:focus-visible { outline: 2px solid var(--pc-text, #e7ecf3); }',
+        '.f:focus-within { border-color: var(--app-separator, var(--mat-sys-outline-variant)); }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('f.scss', source).map(({ line }) => line),
+        [1, 2]
+    );
+});
+
 test('lets a listed exception through only in its own file', () => {
     const [exception] = RING_EXCEPTIONS;
     const source = `.x:focus-visible { outline: 2px solid ${exception.value}; }`;
