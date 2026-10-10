@@ -61,9 +61,10 @@ export interface SeriesHeroStateDeps {
     readonly quickStart: Signal<SeriesHeroQuickStart | null>;
     readonly translate: Pick<TranslateService, 'instant'>;
     /**
-     * Ticks on a UI language switch (and when translations first land).
-     * Every label below is worded through a wrapper that reads it, so the
-     * computeds re-word instead of keeping the language they first ran in.
+     * The host's `injectTranslationTick()`: ticks on a language switch and
+     * when a dictionary lands. Every label below is worded through a wrapper
+     * that reads it, so the computeds re-word instead of keeping the
+     * language (or the raw keys) they first ran with.
      */
     readonly language: Signal<unknown>;
 }

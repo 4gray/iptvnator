@@ -6,9 +6,8 @@ import {
     output,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     createDiscoverFacetNavigation,
@@ -206,10 +205,7 @@ export class VodDetailsComponent {
     private readonly router = inject(Router);
     private readonly settingsStore = inject(SettingsStore);
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     private readonly trailerDialog = inject(TrailerDialogService);
 
     // ============ Computed State ============

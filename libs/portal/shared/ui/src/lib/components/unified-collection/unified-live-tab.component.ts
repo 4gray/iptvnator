@@ -12,13 +12,12 @@ import {
     TemplateRef,
     viewChild,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
@@ -118,10 +117,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     private readonly settingsStore = inject(SettingsStore);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     private readonly router = inject(Router);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
 

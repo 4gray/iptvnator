@@ -7,9 +7,8 @@ import {
     inject,
     signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     buildStalkerSelectedVodItem,
     isStalkerSeriesFlag,
@@ -41,10 +40,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
 > {
     private readonly stalkerStore = inject(StalkerStore);
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService

@@ -20,15 +20,13 @@ import {
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
-import { normalizeDateLocale } from '@iptvnator/pipes';
+import { injectTranslationTick, normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
 import {
     PortalStatus,
     PortalStatusService,
@@ -99,10 +97,7 @@ export class PlaylistItemComponent implements OnInit {
         );
     }
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly supportsPlaylistRefresh = this.runtime.supportsPlaylistRefresh;
     readonly supportsXtreamSqliteDataSource =

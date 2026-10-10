@@ -21,7 +21,7 @@ import {
     viewChildren,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -30,7 +30,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     ChannelListItemComponent,
     ChannelListSkeletonComponent,
@@ -205,10 +205,7 @@ export class StalkerLiveStreamLayoutComponent
         LiveLayoutSidebarStateService
     );
     private readonly logger = createLogger('StalkerLiveStream');
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     /**
      * The portal's genre name, or the store's every-item entry translated
      * in the current language: the tick re-runs this after a switch.

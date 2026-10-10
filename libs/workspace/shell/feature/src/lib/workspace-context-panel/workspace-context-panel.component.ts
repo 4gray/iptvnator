@@ -12,7 +12,7 @@ import {
     ElementRef,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
@@ -20,7 +20,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     StalkerStore,
     asStalkerPortalError,
@@ -99,10 +99,7 @@ export class WorkspaceContextPanelComponent {
      * translated label) read this, so a runtime language switch re-runs them
      * instead of keeping the text of the language they first ran in.
      */
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     // Root-provided; optional keeps standalone unit tests light. Only relevant
     // when the panel renders as the phone drawer. Some selections here (e.g.
     // Stalker ITV/radio) update the store without navigating, so the drawer's

@@ -1,7 +1,6 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     formatDurationLabel,
     formatRemainingLabel,
@@ -75,10 +74,7 @@ export class VodDetailsHeroPresenter {
      * Read by every computed that words a label, so a UI language switch
      * (or translations landing after the first render) re-words the hero.
      */
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
     private readonly trailerDialog = inject(TrailerDialogService);

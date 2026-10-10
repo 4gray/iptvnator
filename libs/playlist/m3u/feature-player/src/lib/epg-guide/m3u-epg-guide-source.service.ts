@@ -1,8 +1,7 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
@@ -59,10 +58,7 @@ export class M3uEpgGuideSourceService implements EpgGuideSource {
 
     private readonly inputs = signal<M3uEpgGuideInputs | null>(null);
     private readonly scope = signal(SCOPE_ALL);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly scopeId = this.scope.asReadonly();
 

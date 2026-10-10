@@ -14,6 +14,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     type DownloadItem,
     DownloadsService,
@@ -136,10 +137,7 @@ export class DownloadsComponent {
         this.playlistsService.getAllPlaylists().pipe(startWith(null)),
         { initialValue: null as Playlist[] | null }
     );
-    readonly languageChange = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    readonly languageChange = injectTranslationTick();
     readonly playlistItems = computed(() => this.playlists() ?? []);
     readonly playlistsLoaded = computed(() => this.playlists() !== null);
     readonly hasNoPlaylists = computed(

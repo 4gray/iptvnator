@@ -1,7 +1,6 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import { formatSeriesEpisodeCode } from '@iptvnator/portal/shared/util';
 import {
     StalkerStore,
@@ -32,10 +31,7 @@ interface StalkerSeriesHeroBindings {
 @Injectable()
 export class StalkerSeriesHeroPresenter {
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     private readonly stalkerStore = inject(StalkerStore);
     private readonly trailerDialog = inject(TrailerDialogService);
     private readonly settingsStore = inject(SettingsStore);

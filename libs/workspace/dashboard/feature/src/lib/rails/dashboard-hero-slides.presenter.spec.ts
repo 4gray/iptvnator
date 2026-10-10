@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
-import { Subject } from 'rxjs';
+import { EMPTY, Subject } from 'rxjs';
 import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import type {
     PlaybackPositionData,
@@ -200,6 +200,8 @@ describe('DashboardHeroSlidesPresenter', () => {
                     provide: TranslateService,
                     useValue: {
                         onLangChange: new Subject(),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                         instant: (key: string, params?: object) =>
                             params ? `${key} ${JSON.stringify(params)}` : key,
                     },

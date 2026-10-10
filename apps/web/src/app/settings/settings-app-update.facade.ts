@@ -1,5 +1,4 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
@@ -7,7 +6,8 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith, take } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
+import { take } from 'rxjs';
 import { AppUpdateInstallService } from '../services/app-update-install.service';
 import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
@@ -43,10 +43,7 @@ export class SettingsAppUpdateFacade {
      * The language switch happens on this very page, so the message is
      * worded per language instead of stored in the one it was checked in.
      */
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     /** Update message to show, in the current language */
     readonly updateMessage = computed(() => {

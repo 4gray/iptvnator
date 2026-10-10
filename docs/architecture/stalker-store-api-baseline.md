@@ -47,8 +47,8 @@ Direct signal properties currently exposed by `signalStore`:
 - `isCategoryResourceLoading: boolean`
 - `isCategoryResourceFailed: unknown`
 - `getSelectedCategoryLabel: StalkerCategoryLabel` (`{ name, labelKey }`;
-  render with `stalkerCategoryLabelText()` inside a computed that reads a
-  language signal)
+  render with `stalkerCategoryLabelText()` inside a computed that reads
+  `injectTranslationTick()`)
 
 ## Exposed Resources/Props
 

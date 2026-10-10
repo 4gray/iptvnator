@@ -13,13 +13,12 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
-import { normalizeDateLocale } from '@iptvnator/pipes';
+import { injectTranslationTick, normalizeDateLocale } from '@iptvnator/pipes';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
 import {
     EpgDateNavigationDirection,
     getTodayEpgDateKey,
@@ -123,10 +122,7 @@ export class EpgListViewComponent {
         return key ? key : getTodayEpgDateKey();
     });
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     readonly currentLocale = computed(() => {
         this.languageTick();
         return normalizeDateLocale(

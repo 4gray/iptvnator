@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -72,6 +72,8 @@ describe('WorkspaceShellSearchService on settings routes', () => {
                     useValue: {
                         instant: (key: string) => key,
                         onLangChange: of(null),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                     },
                 },
                 {

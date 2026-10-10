@@ -1,7 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -29,10 +28,7 @@ export class WorkspaceShellXtreamImportService {
     private readonly translate = inject(TranslateService);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     isSourceBusy(playlistId: string): boolean {
         return (

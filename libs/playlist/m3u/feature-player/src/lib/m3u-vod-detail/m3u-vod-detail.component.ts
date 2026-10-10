@@ -9,9 +9,8 @@ import {
     untracked,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import {
     enrichedCast,
@@ -80,10 +79,7 @@ export class M3uVodDetailComponent {
     private readonly metadata = inject(M3uVodMetadataService);
     private readonly translate = inject(TranslateService);
     /** Read by the worded labels below, so a language switch re-words them. */
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly channel = input.required<Channel>();
     /** Parent-owned playback payload (headers/DRM already resolved). */

@@ -16,9 +16,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { merge } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     EmbeddedMpvAudioTrack,
     RecordingStartMetadata,
@@ -113,14 +112,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      * otherwise labels keep the previous language (or the raw key when the
      * component mounts before the translation file finishes loading).
      */
-    private readonly translationsTick = toSignal(
-        merge(
-            this.translate.onLangChange,
-            this.translate.onTranslationChange,
-            this.translate.onDefaultLangChange
-        ),
-        { initialValue: null }
-    );
+    private readonly translationsTick = injectTranslationTick();
     readonly controller = inject(EmbeddedMpvSessionController);
     readonly sharedControls = inject(EmbeddedMpvControlsAdapter);
     private readonly shortcuts = new EmbeddedMpvShortcuts();

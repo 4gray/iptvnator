@@ -412,8 +412,8 @@ name: its `category_name` is empty and its `labelKey` is
 render the key with the translate pipe. `getSelectedCategoryLabel()` returns
 `{ name, labelKey }` for the selected genre. Text consumers (live header,
 fullscreen panel title, catalog title, search scope) turn it into a string
-with `stalkerCategoryLabelText()` inside a computed that reads a language
-signal. The root store outlives a runtime language switch, so a name
+with `stalkerCategoryLabelText()` inside a computed that reads
+`injectTranslationTick()`. The root store outlives a runtime language switch, so a name
 translated at load time would keep the old language until the next reload.
 
 Failure-handling rule:

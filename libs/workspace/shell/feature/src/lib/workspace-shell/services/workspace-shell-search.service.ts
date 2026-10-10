@@ -1,8 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     StalkerStore,
     stalkerCategoryLabelText,
@@ -35,10 +34,7 @@ export class WorkspaceShellSearchService {
     private readonly searchSync = inject(WorkspaceShellSearchSyncService);
     private readonly settingsSearch = inject(SettingsSearchService);
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly searchQuery = this.searchSync.searchQuery;
     readonly appliedSearchQuery = this.searchSync.appliedSearchQuery;

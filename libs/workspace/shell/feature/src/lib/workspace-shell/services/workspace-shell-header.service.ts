@@ -1,9 +1,8 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     PlaylistInfoComponent,
     PlaylistRefreshActionService,
@@ -41,10 +40,7 @@ export class WorkspaceShellHeaderService {
     );
     private readonly liveSidebar = inject(LiveLayoutSidebarStateService);
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly playlistTitle = computed(() => {
         const playlist = this.routeState.activePlaylist();

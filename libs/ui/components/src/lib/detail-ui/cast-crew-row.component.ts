@@ -6,9 +6,8 @@ import {
     input,
     output,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import type { TmdbEnrichedCastMember } from '@iptvnator/shared/interfaces';
 import { buildCastCrewEntries, type CastCrewEntry } from './cast-crew.util';
 import { DetailRailComponent } from './detail-rail.component';
@@ -43,10 +42,7 @@ export class CastCrewRowComponent {
     readonly personSelected = output<TmdbEnrichedCastMember>();
 
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     /** The "Director" role is worded per language: the tick re-runs this. */
     readonly entries = computed<CastCrewEntry[]>(() => {

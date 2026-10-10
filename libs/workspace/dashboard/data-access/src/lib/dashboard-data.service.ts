@@ -6,15 +6,15 @@ import {
     inject,
     signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     PlaylistActions,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { firstValueFrom, startWith } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import {
     DatabaseService,
     GlobalRecentlyAddedKind,
@@ -134,10 +134,7 @@ export class DashboardDataService {
     private readonly translate = inject(TranslateService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly favoritesAutoRefreshEnabled = signal(false);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     private readonly xtreamGlobalRecentItems = signal<GlobalRecentItem[]>([]);
     private readonly xtreamRecentlyAddedItemsState = signal<

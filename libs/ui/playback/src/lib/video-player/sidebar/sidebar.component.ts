@@ -6,17 +6,16 @@ import {
     output,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { ChannelListContainerComponent } from '@iptvnator/ui/components';
-import { startWith } from 'rxjs';
 
 @Component({
     selector: 'app-sidebar',
@@ -47,10 +46,7 @@ export class SidebarComponent {
 
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly activePlaylist = this.playlistContext.activePlaylist;
     readonly playlistTitle = computed(() => {

@@ -6,8 +6,6 @@ import {
     inject,
     untracked,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { startWith } from 'rxjs';
 import {
     getPlaylistSourceIcon,
     isStalkerAccountPlaylist,
@@ -21,6 +19,7 @@ import { Router } from '@angular/router';
 import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     EmptyStateComponent,
     PlaylistInfoComponent,
@@ -121,10 +120,7 @@ export class WorkspaceDashboardRailsComponent {
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);

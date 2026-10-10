@@ -933,11 +933,15 @@ after the first render. Text on screen must follow the current language:
   `labelKey` that the view renders with `| translate` and leave its provider
   name empty. The Stalker every-item genre is an example.
 - Prefer `| translate` in the template. A `computed` that calls
-  `TranslateService.instant` must also read a language signal,
-  `toSignal(translate.onLangChange.pipe(startWith(null)), { initialValue:
-  null })`. Without it the computed keeps the language it first ran in.
-  State factories such as `createSeriesHeroState` and
-  `createVodDetailsHeroState` take that signal as `language`.
+  `TranslateService.instant` must also read `injectTranslationTick()` from
+  `@iptvnator/pipes`. It ticks on the three events the translate pipe
+  listens to: `onLangChange`, `onDefaultLangChange` and
+  `onTranslationChange`. `onLangChange` alone is not enough. A start-up
+  without a saved language never calls `use()`, so only
+  `onDefaultLangChange` fires when the dictionary lands, and the computed
+  would keep showing raw keys. Without any tick, the computed keeps the
+  language it first ran in. State factories such as `createSeriesHeroState`
+  and `createVodDetailsHeroState` take the tick as `language`.
 - `instant` is fine at event time, for snackbar, dialog and confirm text.
 
 ## Source Type Icons

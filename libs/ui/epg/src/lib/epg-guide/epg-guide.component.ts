@@ -20,15 +20,13 @@ import {
     untracked,
     viewChild,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { normalizeDateLocale } from '@iptvnator/pipes';
+import { injectTranslationTick, normalizeDateLocale } from '@iptvnator/pipes';
 import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram, epgProviderClockMs } from '@iptvnator/shared/interfaces';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
 import { EpgDateNavigationDirection } from '../epg-date';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
@@ -106,10 +104,7 @@ export class EpgGuideComponent implements OnDestroy {
     readonly filter = this.view.filter;
     readonly rowHeightPx = this.view.rowHeightPx;
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     readonly currentLocale = computed(() => {
         this.languageTick();
         return normalizeDateLocale(

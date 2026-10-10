@@ -1,9 +1,9 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom, startWith, take } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
+import { firstValueFrom, take } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
     ParentalLockService,
@@ -34,10 +34,7 @@ export class SettingsPlaylistResetFacade {
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     /** The language can be switched on this page while a removal runs. */
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly isRemovingAllPlaylists = signal(false);
     readonly removeAllProgress = signal<DbOperationEvent | null>(null);

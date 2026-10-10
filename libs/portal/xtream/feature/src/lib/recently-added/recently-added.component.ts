@@ -4,10 +4,9 @@ import {
     computed,
     inject,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/pipes';
 import {
     ContentCardComponent,
     ContentRailShellComponent,
@@ -49,10 +48,7 @@ export class RecentlyAddedComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly translate = inject(TranslateService);
     // Re-compute translated labels when the active language changes.
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly recentlyAddedLive = computed(() =>
         this.getRecentlyAdded(
