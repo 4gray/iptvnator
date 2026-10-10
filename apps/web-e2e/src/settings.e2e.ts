@@ -232,14 +232,6 @@ test.describe('Settings', () => {
     test('@settings @web About keeps its label and clears the window bottom', async ({
         page,
     }) => {
-        // The sidebar shows the version only once the GitHub releases check
-        // answers; CI runners are often rate-limited there, so answer locally
-        // with an older release (no update badge replaces the version).
-        await page.route('**/repos/4gray/iptvnator/releases*', (route) =>
-            route.fulfill({
-                json: [{ created_at: '2020-01-01T00:00:00Z', name: '0.0.1' }],
-            })
-        );
         await openSettings(page);
         const about = page.locator(
             '.settings-nav__footer [data-test-id="settings-section-about"]'
@@ -277,6 +269,29 @@ test.describe('Settings', () => {
         expect(
             layout.viewportHeight - layout.linkBottom
         ).toBeGreaterThanOrEqual(12);
+    });
+
+    test('@settings @web The installed version shows while GitHub is unreachable', async ({
+        page,
+    }) => {
+        // Offline, or rate-limited by api.github.com: the release check never
+        // answers, yet the installed version is known locally.
+        await page.route('**/repos/4gray/iptvnator/releases*', (route) =>
+            route.abort()
+        );
+        await openSettings(page);
+
+        const version = /\d+\.\d+\.\d+/;
+        await expect(
+            page.locator(
+                '[data-test-id="settings-section-about"] [data-test-id="settings-nav-version"]'
+            )
+        ).toHaveText(version);
+
+        await openSettingsSection(page, 'about');
+        await expect(page.locator('[data-test-id="app-version"]')).toHaveText(
+            version
+        );
     });
 
     test('@settings @web Esc leaves settings like the header Back', async ({
