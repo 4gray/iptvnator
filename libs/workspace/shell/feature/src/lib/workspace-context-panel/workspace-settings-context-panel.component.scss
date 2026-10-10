@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/focus-ring';
+
 // Settings navigation. Not the shared nav-list: the active item here is a
 // soft fill with tinted text and no border, the same treatment as a
 // selected channel row, so the list does not shift by the 2px an outlined
@@ -95,9 +97,9 @@
         color: var(--mat-sys-on-surface);
     }
 
+    // Inside the item, so the ring on the active item sits on its tint.
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     &.active {

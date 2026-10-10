@@ -1,0 +1,11 @@
+// The app's keyboard focus ring. `apps/web/src/styles.scss` draws it on
+// every `:focus-visible` element that sets no outline of its own; components
+// include it where the ring belongs on another element (the card that owns
+// `overflow: hidden`, for one). `--app-focus-ring` is declared per theme in
+// `apps/web/src/m3-theme.scss`; surfaces over video point it at the
+// player's text colour (`_player-palette.scss`).
+@mixin focus-ring-declarations($offset: 2px) {
+    outline: 2px solid
+        var(--app-focus-ring, var(--app-selection-color, #2f7bff));
+    outline-offset: $offset;
+}

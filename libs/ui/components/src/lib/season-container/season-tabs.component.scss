@@ -33,7 +33,9 @@
             background: var(--tag-bg, rgba(255, 255, 255, 0.1));
             color: var(--text-primary, #fff);
             font-weight: 600;
-            outline: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+            // A spread shadow, not an outline: an outline here would
+            // replace the keyboard focus ring on the selected tab.
+            box-shadow: 0 0 0 1px var(--tag-border, rgba(255, 255, 255, 0.2));
         }
     }
 

@@ -1,5 +1,6 @@
 @use '@angular/material' as mat;
 @use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
+@use '../../../libs/ui/styles/focus-ring';
 @use './settings-theme';
 @use './cover-size';
 
@@ -164,11 +165,41 @@ textarea {
     opacity: 1 !important;
 }
 
-input,
-button,
-textarea,
-:focus {
+// ─── Keyboard focus ───────────────────────────────────────────────────────────
+// Pointer focus draws no ring; keyboard focus always does. Both rules have
+// zero specificity (`:where`), so a component that styles its own focus — an
+// outline, a ring drawn on another element, or `outline: none` beside an
+// indicator of its own — wins whatever the stylesheet order.
+// `pnpm run styles:focus-visible:check` keeps a blanket `outline: none` out.
+:where(:focus:not(:focus-visible)) {
     outline: none;
+}
+
+:where(:focus-visible) {
+    @include focus-ring.focus-ring-declarations;
+}
+
+// Material sets `outline: none` on its controls and shows keyboard focus as a
+// 12% state layer, well under the 3:1 a focus indicator needs, so its Tab
+// stops take the ring too (over the state layer, which stays). Items inside
+// arrow-key composites (menu items, select options) keep Material's
+// highlight. A component that rings its own Material control (the player's
+// `--pc-text` outline) is more specific and wins.
+.mat-mdc-button-base:focus-visible,
+.mat-mdc-slide-toggle .mdc-switch:focus-visible {
+    @include focus-ring.focus-ring-declarations;
+}
+
+// The group clips its toggles (`overflow: hidden`): draw the ring inside.
+.mat-button-toggle-button:focus-visible {
+    @include focus-ring.focus-ring-declarations($offset: -3px);
+}
+
+// The native checkbox is transparent; ring the box drawn beside it.
+.mat-mdc-checkbox
+    .mdc-checkbox__native-control:focus-visible
+    ~ .mdc-checkbox__background {
+    @include focus-ring.focus-ring-declarations;
 }
 
 // ─── Dark Theme ───────────────────────────────────────────────────────────────

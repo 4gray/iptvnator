@@ -1,0 +1,264 @@
+import { execFileSync } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { stripScssComments } from './check-stylesheet-inputs.mjs';
+
+/**
+ * The web app's global stylesheets used to remove the outline from every
+ * `input`, `button`, `textarea` and `:focus`, so keyboard users saw no focus
+ * at all. A global rule may remove the outline only where focus is not
+ * visible (`:focus:not(:focus-visible)`), or on an element the selector
+ * scopes by class, id or attribute; and a bare `:focus-visible` rule must
+ * draw the fallback ring. Component styles are out of scope: Angular scopes
+ * them, and they may replace the ring with an indicator of their own.
+ */
+
+/** The global entry stylesheets and the partials beside them. */
+const SCANNED_PATHSPECS = [':(glob)apps/web/src/*.scss'];
+
+const REMOVES_OUTLINE =
+    /^(?:outline\s*:\s*(?:none|0(?:px)?)(?:\s+none)?|outline-style\s*:\s*(?:none|hidden)|outline-width\s*:\s*0(?:px)?|outline-color\s*:\s*transparent)\s*(?:!important)?$/i;
+
+const OUTLINE_PROPERTY = /^outline\s*:/i;
+
+/** Splits `text` on `separator` outside parentheses and brackets. */
+function splitTopLevel(text, separator) {
+    const parts = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        if (char === '(' || char === '[') depth += 1;
+        else if (char === ')' || char === ']') depth -= 1;
+        else if (depth === 0 && separator.test(char)) {
+            parts.push(text.slice(start, i));
+            start = i + 1;
+        }
+    }
+    parts.push(text.slice(start));
+    return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+/** Resolves a nested selector list against its parent selectors. */
+function resolveSelectors(parents, selectorList) {
+    const own = splitTopLevel(selectorList, /,/);
+    if (parents.length === 0) return own;
+    return parents.flatMap((parent) =>
+        own.map((selector) =>
+            selector.includes('&')
+                ? selector.replaceAll('&', parent)
+                : `${parent} ${selector}`
+        )
+    );
+}
+
+/** Expands `:is()` / `:where()` / `:matches()` lists into plain branches. */
+export function expandBranches(selector) {
+    const match = /:(?:is|where|matches)\(/i.exec(selector);
+    if (!match) return [selector];
+    const open = match.index + match[0].length;
+    let depth = 1;
+    let close = open;
+    while (close < selector.length && depth > 0) {
+        if (selector[close] === '(') depth += 1;
+        else if (selector[close] === ')') depth -= 1;
+        close += 1;
+    }
+    const head = selector.slice(0, match.index);
+    const tail = selector.slice(close);
+    return splitTopLevel(selector.slice(open, close - 1), /,/).flatMap(
+        (branch) => expandBranches(`${head}${branch}${tail}`)
+    );
+}
+
+/** The last compound selector, the element the rule actually styles. */
+function subjectOf(selector) {
+    const compounds = splitTopLevel(selector, /[\s>+~]/);
+    return compounds[compounds.length - 1] ?? '';
+}
+
+/** A compound without its `:not(...)` arguments. */
+function withoutNegations(compound) {
+    let out = '';
+    for (let i = 0; i < compound.length; i += 1) {
+        if (/^:not\(/i.test(compound.slice(i))) {
+            let depth = 0;
+            for (; i < compound.length; i += 1) {
+                if (compound[i] === '(') depth += 1;
+                else if (compound[i] === ')' && --depth === 0) break;
+            }
+        } else {
+            out += compound[i];
+        }
+    }
+    return out;
+}
+
+/**
+ * Whether removing the outline here strips it from elements nothing else
+ * styles: the subject has no class, id or attribute of its own, and does
+ * not limit the removal to focus that is not visible.
+ */
+export function isBlanketSelector(selector) {
+    return expandBranches(selector).some((branch) => {
+        const subject = subjectOf(branch);
+        if (subject.includes('::')) return false;
+        if (/:not\(\s*:focus-visible\s*\)/i.test(subject)) return false;
+        return !/[.#[]/.test(withoutNegations(subject));
+    });
+}
+
+/** Whether a selector is the global `:focus-visible` fallback. */
+function isFallbackSelector(selector) {
+    return expandBranches(selector).some((branch) =>
+        /^\*?:focus-visible$/i.test(subjectOf(branch).replace(/\s+/g, ''))
+    );
+}
+
+/** One line number per offset, for reports. */
+function lineAt(source, index) {
+    let line = 1;
+    for (let i = 0; i < index; i += 1) if (source[i] === '\n') line += 1;
+    return line;
+}
+
+/**
+ * Walks the rules of a stylesheet: each declaration and `@include` with the
+ * fully resolved selectors it applies to. Mixin bodies are walked as if they
+ * were included at the top level, the widest place a caller could use them.
+ */
+export function walkDeclarations(source) {
+    const text = stripScssComments(source);
+    const items = [];
+    const stack = [{ selectors: [] }];
+    let start = 0;
+    let quote = '';
+    let interpolation = 0;
+    const statement = (end) => {
+        const raw = text.slice(start, end);
+        const value = raw.trim();
+        const offset = start + raw.indexOf(value);
+        start = end + 1;
+        return { value, offset };
+    };
+    for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        if (quote) {
+            if (char === '\\') i += 1;
+            else if (char === quote) quote = '';
+            continue;
+        }
+        if (char === '"' || char === "'") quote = char;
+        else if (text.startsWith('#{', i)) {
+            interpolation += 1;
+            i += 1;
+        } else if (interpolation > 0 && char === '}') interpolation -= 1;
+        else if (interpolation > 0) continue;
+        else if (char === '{') {
+            const { value } = statement(i);
+            const parent = stack[stack.length - 1].selectors;
+            if (/^@mixin\b/i.test(value)) stack.push({ selectors: [] });
+            else if (value.startsWith('@')) stack.push({ selectors: parent });
+            else
+                stack.push({
+                    selectors: resolveSelectors(parent, value),
+                });
+        } else if (char === ';' || char === '}') {
+            const { value, offset } = statement(i);
+            if (value) {
+                items.push({
+                    selectors: stack[stack.length - 1].selectors,
+                    declaration: value.replace(/\s+/g, ' '),
+                    line: lineAt(text, offset),
+                });
+            }
+            if (char === '}' && stack.length > 1) stack.pop();
+        }
+    }
+    return items;
+}
+
+/** Blanket outline removals in one stylesheet. */
+export function findBlanketOutlineRemovals(file, source) {
+    return walkDeclarations(source).flatMap(
+        ({ selectors, declaration, line }) =>
+            REMOVES_OUTLINE.test(declaration)
+                ? selectors.filter(isBlanketSelector).map((selector) => ({
+                      file,
+                      line,
+                      selector,
+                      declaration,
+                  }))
+                : []
+    );
+}
+
+/** Whether a stylesheet draws the bare `:focus-visible` fallback ring. */
+export function hasFocusVisibleFallback(source) {
+    return walkDeclarations(source).some(
+        ({ selectors, declaration }) =>
+            selectors.some(isFallbackSelector) &&
+            ((OUTLINE_PROPERTY.test(declaration) &&
+                !REMOVES_OUTLINE.test(declaration)) ||
+                /^@include\s+[\w.-]*focus-ring/i.test(declaration))
+    );
+}
+
+/** Tracked global stylesheets under `rootDir`. */
+export function listScannedFiles(rootDir) {
+    // No shell: `cmd.exe` treats single quotes as literal characters, so a
+    // POSIX-quoted pathspec reaches git intact on Windows and matches nothing.
+    return execFileSync('git', ['ls-files', ...SCANNED_PATHSPECS], {
+        cwd: rootDir,
+        encoding: 'utf8',
+    })
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+}
+
+/** Every problem across the global stylesheets, as printable lines. */
+export function checkFocusVisible(sources) {
+    const problems = sources.flatMap(({ file, source }) =>
+        findBlanketOutlineRemovals(file, source).map(
+            ({ file: at, line, selector, declaration }) =>
+                `${at}:${line} \`${selector}\` sets \`${declaration}\``
+        )
+    );
+    if (!sources.some(({ source }) => hasFocusVisibleFallback(source))) {
+        problems.push(
+            'No global `:focus-visible` rule draws the fallback outline (`@include focus-ring.focus-ring-declarations`).'
+        );
+    }
+    return problems;
+}
+
+const isMain =
+    process.argv[1] &&
+    path.resolve(process.argv[1]) ===
+        path.resolve(fileURLToPath(import.meta.url));
+
+if (isMain) {
+    const rootDir = process.cwd();
+    const files = listScannedFiles(rootDir);
+    const sources = await Promise.all(
+        files.map(async (file) => ({
+            file,
+            source: await readFile(path.join(rootDir, file), 'utf8'),
+        }))
+    );
+    const problems = checkFocusVisible(sources);
+    if (problems.length > 0) {
+        console.error(
+            'Global styles hide keyboard focus. Remove the outline only under `:focus:not(:focus-visible)` or on a scoped selector, and keep the `:focus-visible` fallback ring:'
+        );
+        for (const problem of problems) console.error(`- ${problem}`);
+        process.exitCode = 1;
+    } else {
+        console.log(
+            `Checked ${files.length} global stylesheets; keyboard focus keeps its fallback ring.`
+        );
+    }
+}
