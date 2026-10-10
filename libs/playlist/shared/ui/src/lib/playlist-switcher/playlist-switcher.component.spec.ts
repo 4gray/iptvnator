@@ -395,7 +395,8 @@ describe('PlaylistSwitcherComponent', () => {
         expect(portalStatusService.checkPortalStatus).toHaveBeenCalledWith(
             xtreamPlaylist.serverUrl,
             xtreamPlaylist.username,
-            xtreamPlaylist.password
+            xtreamPlaylist.password,
+            { userAgent: xtreamPlaylist.userAgent }
         );
         expect(component.portalStatuses().get(xtreamPlaylist._id)).toBe(
             'active'

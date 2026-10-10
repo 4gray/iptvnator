@@ -138,7 +138,8 @@ export class PlaylistItemComponent implements OnInit {
                 await this.portalStatusService.checkPortalStatus(
                     this.item.serverUrl,
                     this.item.username,
-                    this.item.password
+                    this.item.password,
+                    { userAgent: this.item.userAgent }
                 )
             );
         }

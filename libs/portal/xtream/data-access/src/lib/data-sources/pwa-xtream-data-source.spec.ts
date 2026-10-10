@@ -13,6 +13,7 @@ describe('PwaXtreamDataSource', () => {
     let dataSource: PwaXtreamDataSource;
     let apiService: {
         getStreams: jest.Mock;
+        getCategories: jest.Mock;
     };
     let playlistsService: {
         getPlaylistById: jest.Mock;
@@ -35,6 +36,7 @@ describe('PwaXtreamDataSource', () => {
 
         apiService = {
             getStreams: jest.fn(),
+            getCategories: jest.fn(),
         };
         playlistsService = {
             getPlaylistById: jest.fn(() => of(undefined)),
@@ -68,6 +70,71 @@ describe('PwaXtreamDataSource', () => {
 
     afterEach(() => {
         localStorage.clear();
+    });
+
+    it.each(['favorites', 'recent'] as const)(
+        'uses the playlist User-Agent when hydrating %s',
+        async (collection) => {
+            await dataSource.createPlaylist({
+                id: 'playlist-1',
+                name: 'Xtream PWA',
+                type: 'xtream',
+                ...credentials,
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            });
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ 'playlist-1': ['movie:202'] })
+            );
+            localStorage.setItem(
+                'xtream-recent-items',
+                JSON.stringify({
+                    'playlist-1': [
+                        { id: 'movie:202', viewedAt: new Date().toISOString() },
+                    ],
+                })
+            );
+            apiService.getStreams.mockResolvedValue([
+                { stream_id: 202, name: 'Movie One', category_id: '20' },
+            ]);
+
+            const items =
+                collection === 'favorites'
+                    ? await dataSource.getFavorites('playlist-1')
+                    : await dataSource.getRecentItems('playlist-1');
+
+            expect(items).toHaveLength(1);
+            expect(apiService.getStreams).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userAgent:
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                }),
+                'movie'
+            );
+        }
+    );
+
+    it('uses the playlist User-Agent for cold category loading', async () => {
+        await dataSource.createPlaylist({
+            id: 'playlist-1',
+            name: 'Xtream PWA',
+            type: 'xtream',
+            ...credentials,
+            userAgent:
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        });
+        apiService.getCategories.mockResolvedValue([]);
+
+        await dataSource.getAllCategories('playlist-1', 'movies');
+
+        expect(apiService.getCategories).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            }),
+            'vod'
+        );
     });
 
     it('withholds locked categories from catalog reads and search while the lock is active', async () => {
@@ -741,6 +808,7 @@ describe('PwaXtreamDataSource', () => {
         TestBed.resetTestingModule();
         apiService = {
             getStreams: jest.fn(),
+            getCategories: jest.fn(),
         };
         TestBed.configureTestingModule({
             providers: [

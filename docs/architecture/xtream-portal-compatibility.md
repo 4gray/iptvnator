@@ -215,6 +215,19 @@ and private-network checks.
 
 ## User-Agent
 
+Xtream account, catalog, detail, EPG, and source-health API requests carry the
+playlist's trimmed `userAgent` separately from provider query parameters.
+Credentials built for selected-channel and channel-list EPG, account dialogs,
+PWA collections/category loading, category guards, and dashboard episode lookups
+retain that value. Dashboard episode request identity includes the User-Agent so
+an edited value retries a blocked lookup without waiting for the old cooldown.
+Add/Edit connection tests use the current form value. Electron chooses a nonblank
+override before `XTREAM_CLIENT_USER_AGENT`. The PWA proxy
+accepts the override as a control parameter, removes it from the provider query,
+and sends it as `User-Agent`. Blank overrides retain each transport's fallback.
+Passive status caches and in-flight checks include the normalized User-Agent, so
+changing it cannot reuse a refusal from the previous client identity.
+
 Electron's `XTREAM_REQUEST` and stream-probe handlers plus fresh Xtream movie
 and series-episode download requests share the exported
 `XTREAM_CLIENT_USER_AGENT` fallback. A playlist's explicit User-Agent,
@@ -228,7 +241,7 @@ same IPTV-player fallback, while a still-identifiable Stalker row remains
 unchanged. Some Xtream
 panels sit behind a WAF (e.g. Cloudflare) configured to challenge
 generic/incomplete browser-looking User-Agents while allowlisting known IPTV
-player clients; a player-style User-Agent (currently a VLC signature) avoids
+player clients; a player-style User-Agent (currently a VLC signature) can avoid
 that challenge page, whereas a browser-looking but non-browser TLS/HTTP client
 (axios/curl with a Chrome or empty User-Agent) can be blocked even though a
 real browser or a VLC-style client passes. Keep all three request sites using

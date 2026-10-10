@@ -70,13 +70,16 @@ export function withPortal() {
                     serverUrl?: string;
                     username?: string;
                     password?: string;
+                    userAgent?: string | null;
                 } | null,
                 credentials: XtreamCredentials
             ): boolean =>
                 !!candidate &&
                 candidate.serverUrl === credentials.serverUrl &&
                 candidate.username === credentials.username &&
-                candidate.password === credentials.password;
+                candidate.password === credentials.password &&
+                (candidate.userAgent?.trim() || undefined) ===
+                    credentials.userAgent;
 
             /**
              * The Favorites / Recent catch-up resolver reads the STORED
@@ -176,6 +179,7 @@ export function withPortal() {
                         serverUrl: playlist.serverUrl,
                         username: playlist.username,
                         password: playlist.password,
+                        userAgent: playlist.userAgent?.trim() || undefined,
                     };
 
                     try {

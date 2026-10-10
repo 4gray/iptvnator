@@ -143,6 +143,7 @@ export const XtreamStore = signalStore(
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 };
 
                 store.setIsLoadingDetails(true);
@@ -243,6 +244,7 @@ export const XtreamStore = signalStore(
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 };
 
                 store.setIsLoadingDetails(true);

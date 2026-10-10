@@ -286,7 +286,16 @@ export function createWebBackendApp(
             requestUrl = appendPathSegment(url, 'player_api.php');
 
             const response = await httpClient.get(requestUrl, {
-                params: getProxyParams(req, ['targetId', 'connectionTest']),
+                params: getProxyParams(req, [
+                    'targetId',
+                    'connectionTest',
+                    'userAgent',
+                ]),
+                headers:
+                    typeof req.query.userAgent === 'string' &&
+                    req.query.userAgent.trim()
+                        ? { 'User-Agent': req.query.userAgent.trim() }
+                        : undefined,
                 timeout: PROVIDER_REQUEST_TIMEOUT_MS.xtream,
                 onConnect: () => {
                     connected = true;
