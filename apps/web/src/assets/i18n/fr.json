@@ -1701,8 +1701,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Effacer les téléchargements terminés pour toutes les listes de lecture",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Effacer les téléchargements terminés (cette liste)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Effacer les téléchargements terminés pour cette liste de lecture",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Effacer les éléments récemment consultés",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Effacer les éléments récemment consultés de cette section",
             "CLEAR_RECENTLY_VIEWED_TYPE": "Effacer les {{type}} récemment consultés",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "Effacer les {{type}} récemment consultés ?",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "Tous les éléments {{type}} de cette liste de lecture seront retirés de votre historique récemment consulté. Cette action est irréversible.",

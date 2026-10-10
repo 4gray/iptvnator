@@ -1701,8 +1701,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Cancella i download completati per tutte le playlist",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Cancella download completati (questa playlist)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Cancella i download completati per questa playlist",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Cancella visti di recente",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Cancella visti di recente per questa sezione",
             "CLEAR_RECENTLY_VIEWED_TYPE": "Cancella visti di recente: {{type}}",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "Cancellare visti di recente: {{type}}?",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "Tutti gli elementi {{type}} di questa playlist verranno rimossi dalla cronologia dei visti di recente. L'azione non può essere annullata.",

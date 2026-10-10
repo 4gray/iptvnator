@@ -1701,8 +1701,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Az összes lejátszási listához tartozó befejezett letöltési bejegyzések eltávolítása",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Befejezett letöltési bejegyzések eltávolítása – jelenlegi lejátszási lista",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "A jelenlegi lejátszási listához tartozó befejezett letöltési bejegyzések eltávolítása",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Megtekintési előzmények törlése",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "A szakasz legutóbbi megtekintéseinek törlése",
             "CLEAR_RECENTLY_VIEWED_TYPE": "Megtekintési előzmények törlése – {{type}}",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "Törli ezeket a megtekintési előzményeket: {{type}}?",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "A lejátszási lista következő tartalomtípusba tartozó összes eleme törlődik a megtekintési előzményekből: {{type}}. A művelet nem vonható vissza.",

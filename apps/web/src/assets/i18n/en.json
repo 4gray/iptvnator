@@ -1701,8 +1701,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Clear completed downloads for all playlists",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Clear completed downloads (this playlist)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Clear completed downloads for this playlist",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Clear recently viewed",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Clear recently viewed for this section",
             "CLEAR_RECENTLY_VIEWED_TYPE": "Clear recently viewed {{type}}",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "Clear recently viewed {{type}}?",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "All {{type}} items from this playlist will be removed from your recently viewed history. This action cannot be undone.",

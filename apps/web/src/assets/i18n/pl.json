@@ -1701,8 +1701,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Wyczyść ukończone pobrania dla wszystkich list odtwarzania",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Wyczyść ukończone pobrania (ta lista odtwarzania)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Wyczyść ukończone pobrania dla tej listy odtwarzania",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Wyczyść ostatnio oglądane",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Wyczyść ostatnio oglądane dla tej sekcji",
             "CLEAR_RECENTLY_VIEWED_TYPE": "Wyczyść ostatnio oglądane {{type}}",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "Wyczyścić ostatnio oglądane {{type}}?",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "Wszystkie elementy {{type}} z tej listy odtwarzania zostaną usunięte z historii ostatnio oglądanych. Tej akcji nie można cofnąć.",

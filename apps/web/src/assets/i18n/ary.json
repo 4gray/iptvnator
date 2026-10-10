@@ -1701,8 +1701,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "مسح التحميلات المكتملة لجميع قوائم التشغيل",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "مسح التحميلات المكتملة (هاد قائمة التشغيل)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "مسح التحميلات المكتملة لهاد قائمة التشغيل",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "مسح المتشافين مؤخراً",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "مسح المتشافين مؤخراً لهاد القسم",
             "CLEAR_RECENTLY_VIEWED_TYPE": "مسح {{type}} المتشافين مؤخراً",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "مسح {{type}} المتشافين مؤخراً؟",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "جميع عناصر {{type}} من هاد قائمة التشغيل غادي يتحيدو من سجل المتشافين مؤخراً ديالك. هاد العملية ما تقدرش ترجع.",

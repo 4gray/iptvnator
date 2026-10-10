@@ -1701,8 +1701,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Ачысціць завершаныя спампаванні для ўсіх плэйлістоў",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Ачысціць завершаныя спампаванні (гэты плэйліст)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Ачысціць завершаныя спампаванні для гэтага плэйліста",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Ачысціць нядаўна праглянутае",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Ачысціць нядаўна прагледжанае ў гэтым раздзеле",
             "CLEAR_RECENTLY_VIEWED_TYPE": "Ачысціць нядаўна праглянутае: {{type}}",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "Ачысціць нядаўна праглянутае: {{type}}?",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "Усе элементы тыпу {{type}} з гэтага плэйліста будуць выдалены з гісторыі нядаўна праглянутага. Гэта дзеянне нельга адмяніць.",

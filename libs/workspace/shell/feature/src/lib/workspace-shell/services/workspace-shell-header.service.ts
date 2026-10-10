@@ -1,10 +1,9 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
-import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom, startWith } from 'rxjs';
+import { startWith } from 'rxjs';
 import {
     PlaylistInfoComponent,
     PlaylistRefreshActionService,
@@ -16,8 +15,6 @@ import {
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaylistsService } from '@iptvnator/services';
-import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     isStalkerAccountPlaylist,
     isXtreamAccountPlaylist,
@@ -25,24 +22,15 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     WorkspaceAccountInfoData,
-    WorkspacePortalContext,
     WORKSPACE_SHELL_ACTIONS,
 } from '@iptvnator/workspace/shell/util';
-import {
-    CLEAR_RECENTLY_VIEWED_ARIA,
-    CLEAR_RECENTLY_VIEWED_TOOLTIP,
-    WorkspaceHeaderBulkAction,
-    WorkspaceHeaderSidebarToggle,
-} from './helpers/workspace-shell-constants';
-import { bumpRefreshQueryParam } from './helpers/workspace-shell-route-utils';
+import { WorkspaceHeaderSidebarToggle } from './helpers/workspace-shell-constants';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 
 @Injectable()
 export class WorkspaceShellHeaderService {
     private readonly router = inject(Router);
-    private readonly store = inject(Store);
     private readonly xtreamStore = inject(XtreamStore);
-    private readonly playlistsService = inject(PlaylistsService);
     private readonly workspaceActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly translate = inject(TranslateService);
     private readonly dialog = inject(MatDialog);
@@ -128,33 +116,6 @@ export class WorkspaceShellHeaderService {
         )
     );
     readonly isRefreshingPlaylist = this.playlistRefreshAction.isRefreshing;
-    readonly headerBulkAction = computed<WorkspaceHeaderBulkAction | null>(
-        () => {
-            this.languageTick();
-
-            const context = this.routeState.currentContext();
-            const section = this.routeState.currentSection();
-
-            if (!context || section !== 'recent') {
-                return null;
-            }
-
-            if (
-                context.provider !== 'xtreams' &&
-                context.provider !== 'stalker' &&
-                context.provider !== 'playlists'
-            ) {
-                return null;
-            }
-
-            return {
-                icon: 'delete_sweep',
-                tooltip: this.translateText(CLEAR_RECENTLY_VIEWED_TOOLTIP),
-                ariaLabel: this.translateText(CLEAR_RECENTLY_VIEWED_ARIA),
-                disabled: this.isRecentCleanupDisabled(context.provider),
-            };
-        }
-    );
     readonly playlistSubtitle = computed(() => {
         this.languageTick();
 
@@ -198,61 +159,6 @@ export class WorkspaceShellHeaderService {
 
     openGlobalRecent(): void {
         this.workspaceActions.openGlobalRecent();
-    }
-
-    async runHeaderBulkAction(): Promise<void> {
-        const context = this.routeState.currentContext();
-        const section = this.routeState.currentSection();
-
-        if (!context || section !== 'recent') {
-            return;
-        }
-
-        if (context.provider === 'xtreams') {
-            this.xtreamStore.clearRecentItems({ id: context.playlistId });
-            return;
-        }
-
-        if (context.provider === 'stalker') {
-            const updatedPlaylist = await firstValueFrom(
-                this.playlistsService.clearPortalRecentlyViewed(
-                    context.playlistId
-                )
-            );
-            this.store.dispatch(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: {
-                        _id: context.playlistId,
-                        recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
-                    } as PlaylistMeta,
-                })
-            );
-            bumpRefreshQueryParam(
-                this.router,
-                this.routeState.currentUrl()
-            );
-            return;
-        }
-
-        if (context.provider === 'playlists') {
-            const updatedPlaylist = await firstValueFrom(
-                this.playlistsService.clearM3uRecentlyViewed(
-                    context.playlistId
-                )
-            );
-            this.store.dispatch(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: {
-                        _id: context.playlistId,
-                        recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
-                    } as PlaylistMeta,
-                })
-            );
-            bumpRefreshQueryParam(
-                this.router,
-                this.routeState.currentUrl()
-            );
-        }
     }
 
     toggleLiveSidebar(): void {
@@ -341,22 +247,6 @@ export class WorkspaceShellHeaderService {
         }
 
         this.playlistRefreshAction.refresh(playlist);
-    }
-
-    private isRecentCleanupDisabled(
-        provider: WorkspacePortalContext['provider']
-    ): boolean {
-        if (provider === 'xtreams') {
-            return this.xtreamStore.recentItems().length === 0;
-        }
-
-        if (provider === 'playlists') {
-            return (
-                this.routeState.activePlaylist()?.recentlyViewed?.length ?? 0
-            ) === 0;
-        }
-
-        return false;
     }
 
     private translateText(

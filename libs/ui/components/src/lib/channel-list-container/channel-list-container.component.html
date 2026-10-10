@@ -13,16 +13,6 @@
         <header class="context-header">
             <div class="context-header__top">
                 <h2>{{ viewTitle() | translate }}</h2>
-                @if (
-                    activeView() === 'recent' && recentChannelItems().length > 0
-                ) {
-                    <button mat-button (click)="clearRecentChannels()">
-                        {{
-                            'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION'
-                                | translate
-                        }}
-                    </button>
-                }
             </div>
         </header>
         <div class="context-divider"></div>
