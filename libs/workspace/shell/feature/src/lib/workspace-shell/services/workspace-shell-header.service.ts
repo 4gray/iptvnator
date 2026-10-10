@@ -224,6 +224,7 @@ export class WorkspaceShellHeaderService {
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 },
             };
             this.workspaceActions.openAccountInfo(data);

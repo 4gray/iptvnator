@@ -653,6 +653,7 @@ export class WorkspaceDashboardRailsComponent {
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 },
             });
             return;

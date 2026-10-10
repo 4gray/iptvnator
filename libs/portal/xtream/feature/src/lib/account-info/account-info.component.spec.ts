@@ -62,6 +62,8 @@ describe('AccountInfoComponent', () => {
                             serverUrl: 'https://dialog.example.test',
                             username: 'dialog-user',
                             password: 'dialog-secret',
+                            userAgent:
+                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                         },
                     },
                 },
@@ -121,6 +123,8 @@ describe('AccountInfoComponent', () => {
             serverUrl: 'https://dialog.example.test',
             username: 'dialog-user',
             password: 'dialog-secret',
+            userAgent:
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         });
         expect(component.loadState()).toBe('ready');
         expect(component.playlistLabel()).toBe('Dialog Xtream');

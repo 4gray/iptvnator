@@ -216,9 +216,13 @@ and private-network checks.
 ## User-Agent
 
 Xtream account, catalog, detail, EPG, and source-health API requests carry the
-playlist's trimmed `userAgent` separately from provider query parameters. Add/Edit
-connection tests use the current form value. Electron chooses a nonblank override
-before `XTREAM_CLIENT_USER_AGENT`. The PWA proxy
+playlist's trimmed `userAgent` separately from provider query parameters.
+Credentials built for selected-channel and channel-list EPG, account dialogs,
+PWA collections/category loading, category guards, and dashboard episode lookups
+retain that value. Dashboard episode request identity includes the User-Agent so
+an edited value retries a blocked lookup without waiting for the old cooldown.
+Add/Edit connection tests use the current form value. Electron chooses a nonblank
+override before `XTREAM_CLIENT_USER_AGENT`. The PWA proxy
 accepts the override as a control parameter, removes it from the provider query,
 and sends it as `User-Agent`. Blank overrides retain each transport's fallback.
 Passive status caches and in-flight checks include the normalized User-Agent, so

@@ -1675,6 +1675,38 @@ describe('DashboardDataService', () => {
                 );
             });
 
+            it('uses an edited playlist User-Agent for episode lookups', async () => {
+                seriesEpisodeAnswers.set(
+                    dashboardSeriesEpisodesKey(PLAYLIST, 200),
+                    { status: 'failed' }
+                );
+                await loadDashboard();
+                playlistsSignal.set(
+                    playlistsSignal().map((playlist) =>
+                        playlist._id === PLAYLIST
+                            ? {
+                                  ...playlist,
+                                  userAgent:
+                                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                              }
+                            : playlist
+                    )
+                );
+                TestBed.tick();
+                expect(seriesEpisodesMock.request).toHaveBeenCalledTimes(2);
+                expect(seriesEpisodesMock.request).toHaveBeenLastCalledWith(
+                    [
+                        expect.objectContaining({
+                            credentials: expect.objectContaining({
+                                userAgent:
+                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            }),
+                        }),
+                    ],
+                    expect.any(Number)
+                );
+            });
+
             it('asks the portal for its episodes with the playlist credentials', async () => {
                 answerEpisodes(200, [201, 202, 203, 204, 205]);
 

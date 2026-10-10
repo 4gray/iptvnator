@@ -69,6 +69,8 @@ describe('parentalLockXtreamCategoryGuard', () => {
                 serverUrl: 'http://panel.example',
                 username: 'u',
                 password: 'p',
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             }),
             getContent: jest.fn().mockResolvedValue([]),
         };
@@ -184,7 +186,13 @@ describe('parentalLockXtreamCategoryGuard', () => {
 
         expect(dataSource.getContent).toHaveBeenCalledWith(
             'playlist-1',
-            { serverUrl: 'http://panel.example', username: 'u', password: 'p' },
+            {
+                serverUrl: 'http://panel.example',
+                username: 'u',
+                password: 'p',
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
             'movie'
         );
         expect(parentalLock.requestUnlock).toHaveBeenCalled();

@@ -43,6 +43,7 @@ function buildProgram(
 }
 
 interface TestStoreSetup {
+    userAgent?: string;
     appEnvironment?: 'electron' | 'pwa';
     selectedItem: { xtream_id: number; epg_channel_id?: string | null };
     preferUploaded?: boolean;
@@ -52,7 +53,7 @@ interface TestStoreSetup {
 function configureStore(setup: TestStoreSetup) {
     const TestEpgStore = signalStore(
         withState({
-            currentPlaylist: PLAYLIST,
+            currentPlaylist: { ...PLAYLIST, userAgent: setup.userAgent },
             selectedItem: setup.selectedItem,
         }),
         withEpg()
@@ -102,6 +103,37 @@ function configureStore(setup: TestStoreSetup) {
 
 describe('withEpg', () => {
     afterEach(() => TestBed.resetTestingModule());
+
+    it('forwards the playlist User-Agent for selected and row guides', async () => {
+        const { store, xtreamApiService } = configureStore({
+            selectedItem: { xtream_id: 101 },
+            userAgent:
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        });
+        xtreamApiService.getFullEpg.mockResolvedValue([]);
+        xtreamApiService.getShortEpg.mockResolvedValue([]);
+
+        await store.loadEpg();
+        await store.loadChannelEpg(102);
+
+        expect(xtreamApiService.getFullEpg).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            }),
+            101,
+            { suppressErrorLog: true }
+        );
+        expect(xtreamApiService.getShortEpg).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            }),
+            102,
+            1,
+            { suppressErrorLog: true }
+        );
+    });
 
     it('selects the current program in the provider clock when a display offset is set', async () => {
         const { store, xtreamApiService } = configureStore({
