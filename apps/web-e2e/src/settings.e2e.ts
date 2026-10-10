@@ -229,6 +229,56 @@ test.describe('Settings', () => {
         ).toHaveAttribute('aria-checked', 'true');
     });
 
+    test('@settings @web About keeps its label and clears the window bottom', async ({
+        page,
+    }) => {
+        // The sidebar shows the version only once the GitHub releases check
+        // answers; CI runners are often rate-limited there, so answer locally
+        // with an older release (no update badge replaces the version).
+        await page.route('**/repos/4gray/iptvnator/releases*', (route) =>
+            route.fulfill({
+                json: [{ created_at: '2020-01-01T00:00:00Z', name: '0.0.1' }],
+            })
+        );
+        await openSettings(page);
+        const about = page.locator(
+            '.settings-nav__footer [data-test-id="settings-section-about"]'
+        );
+        const version = about.locator('[data-test-id="settings-nav-version"]');
+        await expect(version).toBeVisible();
+        // A nightly build string is far wider than the default panel.
+        await version.evaluate((node) => {
+            node.textContent = '0.25.0-nightly.20261010.3937';
+        });
+
+        const layout = await about.evaluate((link) => {
+            const label = link.querySelector('.nav-item-label') as HTMLElement;
+            const tag = link.querySelector(
+                '[data-test-id="settings-nav-version"]'
+            ) as HTMLElement;
+            const panel = link.closest('.context-panel') as HTMLElement;
+            const linkBox = link.getBoundingClientRect();
+            return {
+                labelClipped: label.scrollWidth > label.clientWidth,
+                versionClipped: tag.scrollWidth > tag.clientWidth,
+                linkOverflows: link.scrollWidth > link.clientWidth,
+                linkBottom: linkBox.bottom,
+                panelBottom: panel.getBoundingClientRect().bottom,
+                viewportHeight: window.innerHeight,
+            };
+        });
+
+        expect(layout.labelClipped).toBe(false);
+        expect(layout.versionClipped).toBe(true);
+        expect(layout.linkOverflows).toBe(false);
+        // The panel ends at the window edge, and its bottom padding keeps the
+        // footer item off it.
+        expect(layout.panelBottom).toBeLessThanOrEqual(layout.viewportHeight);
+        expect(
+            layout.viewportHeight - layout.linkBottom
+        ).toBeGreaterThanOrEqual(12);
+    });
+
     test('@settings @web Esc leaves settings like the header Back', async ({
         page,
     }) => {

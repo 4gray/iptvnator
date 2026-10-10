@@ -163,6 +163,12 @@ describe('WorkspaceSettingsContextPanelComponent', () => {
             link('about').querySelector('[data-test-id="settings-nav-version"]')
                 ?.textContent
         ).toBe('0.25.0');
+        // A long nightly string is truncated; the tooltip keeps all of it.
+        expect(
+            link('about')
+                .querySelector('[data-test-id="settings-nav-version"]')
+                ?.getAttribute('title')
+        ).toBe('0.25.0');
         expect(link('general').querySelector('.nav-item-version')).toBeNull();
 
         ctx.setUpdateAvailable(true);

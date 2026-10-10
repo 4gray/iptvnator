@@ -112,8 +112,10 @@
     }
 }
 
+// Auto basis, not `flex: 1`: a zero basis gives the label no claim on the
+// row, so any wide trailing element squeezed it to nothing.
 .nav-item-label {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
     line-height: 1.2;
     white-space: nowrap;
@@ -138,8 +140,16 @@
     background: var(--app-selection-color);
 }
 
+// The version yields first when the panel narrows: a nightly build string
+// (0.25.0-nightly.YYYYMMDD.N) is wider than the default panel. The large
+// shrink factor makes it give way before the label starts to; the full string
+// stays in the tooltip.
 .nav-item-version {
-    flex-shrink: 0;
+    flex: 0 1000 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 11px;
     color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
