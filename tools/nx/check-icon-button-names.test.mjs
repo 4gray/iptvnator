@@ -81,6 +81,26 @@ test('accepts a button whose content includes text', () => {
     assert.deepEqual(nameless('e.html', template), []);
 });
 
+test('ignores text and components hidden from assistive technology', () => {
+    const template = [
+        '<button><mat-icon>close</mat-icon><span aria-hidden="true">Close</span></button>',
+        '<button>',
+        '    <span aria-hidden="true">',
+        '        <mat-icon>star</mat-icon>',
+        "        {{ 'FAVORITE' | translate }}",
+        '        <app-badge />',
+        '    </span>',
+        '</button>',
+        '<button><span aria-hidden="true">Only hidden text</span></button>',
+        '<button><mat-icon>add</mat-icon><span [attr.aria-hidden]="hide">Add</span></button>',
+    ].join('\n');
+
+    assert.deepEqual(nameless('e2.html', template), [
+        { line: 1, icon: 'close' },
+        { line: 2, icon: 'star' },
+    ]);
+});
+
 test('looks through control flow, wrappers and spinners', () => {
     const template = [
         '<button mat-icon-button>',

@@ -1019,7 +1019,8 @@ as the password visibility toggle does; its tooltip may still name the next
 action. `pnpm run a11y:icon-buttons:validate` (CI) checks `.html` and inline
 templates, looking through control flow, `ng-container` and spinners; content
 it cannot see into (`ng-content`, another component, an image) counts as
-named. `icon-button-names.e2e.ts` in `web-e2e` runs axe's `button-name` rule
+named, and text under `aria-hidden="true"` never does.
+`icon-button-names.e2e.ts` in `web-e2e` runs axe's `button-name` rule
 on a channel list, the channel details dialog, Sources, the playlist info
 dialog and an Xtream search.
 

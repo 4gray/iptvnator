@@ -60,16 +60,29 @@ function hasName(element) {
 /**
  * What a button's content contributes to its name: icons, text, or
  * something this guard cannot see into (projected content, another
- * component, an image), which is assumed to name it.
+ * component, an image), which is assumed to name it. Content under a static
+ * `aria-hidden="true"` is hidden from assistive technology, so it adds only
+ * its icons, never a name.
  */
 class ContentVisitor extends TmplAstRecursiveVisitor {
     icons = [];
     text = false;
     opaque = false;
 
+    constructor(hidden = false) {
+        super();
+        this.hidden = hidden;
+    }
+
     visitElement(element) {
         if (element.name === 'mat-icon') {
             this.icons.push(element);
+        } else if (this.hidden) {
+            super.visitElement(element);
+        } else if (staticAttribute(element, 'aria-hidden') === 'true') {
+            const hidden = new ContentVisitor(true);
+            tmplAstVisitAll(hidden, element.children);
+            this.icons.push(...hidden.icons);
         } else if (DECORATIVE_ELEMENTS.has(element.name)) {
             // A spinner beside the icon: still no name.
         } else if (
@@ -83,25 +96,25 @@ class ContentVisitor extends TmplAstRecursiveVisitor {
     }
 
     visitText(text) {
-        if (text.value.trim() !== '') {
+        if (!this.hidden && text.value.trim() !== '') {
             this.text = true;
         }
     }
 
     visitBoundText() {
-        this.text = true;
+        this.text ||= !this.hidden;
     }
 
     visitIcu() {
-        this.text = true;
+        this.text ||= !this.hidden;
     }
 
     visitContent() {
-        this.opaque = true;
+        this.opaque ||= !this.hidden;
     }
 
     visitComponent() {
-        this.opaque = true;
+        this.opaque ||= !this.hidden;
     }
 }
 
