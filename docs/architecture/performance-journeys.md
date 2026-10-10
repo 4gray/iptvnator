@@ -824,7 +824,7 @@ ignored.
 | `renderer.ipcSerialDepthToPlaying` | `computeJourneyIpcSerialDepth` over the capture's timeline between the start and end sentinels, as `renderer.ipcSerialDepthToResults` in J4 (see [Serial IPC depth](#serial-ipc-depth)). `evidence.ipcSerialDepth.chain` and `evidence.ipcTimeline` show the calls; `evidence.ipcTimelineAmbiguousCompletions` counts completions the start marker left ambiguous. |
 | `renderer.httpRequestsToPlaying` | Requests the ledger proxy received from the click stamp until the `playing` stamp, from either process (the stream request comes from the renderer, Xtream API calls from the main process). Both stamps are `performance.timeOrigin + performance.now()` of processes on the same host clock, as in J2. Unlike J2's counter the window ends at the terminal, not at a quiet mock: a live stream has no quiet end. Later requests are kept as `evidence.httpRequestsAfterPlayingByRoute`, the ones in the window as `evidence.httpRequestsByRoute`. |
 | `renderer.domMutationsToPlaying` | `MutationRecord`s from the click until the `playing` event, including records still queued when it fires.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `renderer.cdTicksToPlaying`      | `ApplicationRef` ticks from the click until the `playing` event, read like `renderer.cdTicksToFirstPage` in J2 (see [Change-detection ticks](#change-detection-ticks)). Not yet measured on a run; the counter shipped after J3's first measurements. |
+| `renderer.cdTicksToPlaying`      | `ApplicationRef` ticks from the click until the `playing` event, read like `renderer.cdTicksToFirstPage` in J2 (see [Change-detection ticks](#change-detection-ticks)). Shipped after J3's first measurements; the runner reads 15 to 19, varying within a run. |
 | `renderer.layoutShiftScore`      | All `layout-shift` entries from the click until the `playing` event, including `hadRecentInput` ones (as J2), rounded to three decimals. Entries delivered up to the post-paint cutoff are read, but only those that started by the event count.                                                                                                                                                                                                                                                                                                    |
 | `renderer.longTasks`             | `longtask` entries over 50 ms whose time range overlaps the window from the click to the `playing` event, so the task that dispatched the event counts. Evidence until shown to be stable on the runner.                                                                                                                                                                                                                                                                                                                                            |
 
@@ -875,12 +875,23 @@ mutation and request counts. On the runner `renderer.httpRequestsToPlaying`
 and `renderer.layoutShiftScore` are enforced as guards; see
 [Enforced journey counters](#enforced-journey-counters).
 
+#1817 (6c8f5028c, 2026-10-07) made the EPG timeline render only the
+programmes near the visible range. On the runner
+`renderer.domMutationsToPlaying` fell from 6,182 to 731 and
+`renderer.longTasks` from 1 to 0 in every measured iteration. The ten
+`master` runs from #1817 to 5c7a8a572 read 0 long tasks and either 731 or
+734 mutations per run, except one iteration with a fifth bridge call and
+748 mutations.
+
 `renderer.ipcSerialDepthToPlaying` came later. One local macOS
 `perf:journeys` run on 2026-10-10 read 3 in all six iterations, warm-up
 included, with `depthLowerBound` 3, no ambiguous completion and no call in
 flight at `playing`. The chain was `getEpgMapping` → `xtreamRequest` →
 `updateRemoteControlStatus`; the last is the second of two
-`updateRemoteControlStatus` calls in the window (five calls in all).
+`updateRemoteControlStatus` calls in the window (five calls in all). The
+runner reads 4: #1862's CI run (38027151670) measured it in all six
+iterations, with four calls in the window and the chain `getEpgMapping` →
+`xtreamRequest` → `updateRemoteControlStatus` → `setUserAgent`.
 
 ## J4 `search`: type a query until the results settle
 
@@ -1295,18 +1306,18 @@ Not enforced, with the reason:
   race, because the download and recording recovery races `ready-to-show`
   (plan item A2).
 - Every `renderer.longTasks` (J1 2 or 1, J2 0 with one 1 earlier in the
-  week, J3 1 or 2): a long task is a task over 50 ms, so the count follows
-  runner speed, not work.
+  week, J3 1 or 2 until #1817 and 0 since): a long task is a task over
+  50 ms, so the count follows runner speed, not work.
 - Every `cdTicks` counter: the zoneless migration (plan item C6) changes
   them.
 - J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
   recent commits.
 - J3 `renderer.ipcCallsToPlaying` (4 or 5) and
-  `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199): not identical,
-  and the EPG rendering work changes the mutation count.
-- J3 `renderer.ipcSerialDepthToPlaying` (3 locally): added after these
-  runs and not yet measured on the runner; a candidate once `master` runs
-  agree.
+  `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199 before #1817;
+  731 or 734 between runs since, 748 with a fifth call): not identical.
+- J3 `renderer.ipcSerialDepthToPlaying` (4 on the runner, 3 on a Mac):
+  added after these runs and measured in one runner run so far; a
+  candidate once `master` runs agree.
 - J4: not measured yet.
 
 Runner counters differ from a Mac (the Linux-only `getWindowState` call, for
