@@ -7,7 +7,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MockProvider } from 'ng-mocks';
-import { of } from 'rxjs';
+import { NEVER, of, throwError } from 'rxjs';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
@@ -214,6 +214,34 @@ describe('SettingsAppUpdateFacade', () => {
                 },
             })
         );
+    });
+
+    describe('Installed version without the release check', () => {
+        it('shows the installed version before GitHub answers', () => {
+            (
+                TestBed.inject(SettingsService).getAppVersion as jest.Mock
+            ).mockReturnValue(NEVER);
+
+            facade.checkAppVersion();
+
+            expect(facade.version()).toBe('1.0.0');
+            expect(facade.updateMessage()).toBe('');
+        });
+
+        it('keeps the installed version when GitHub cannot be reached', async () => {
+            (
+                TestBed.inject(SettingsService).getAppVersion as jest.Mock
+            ).mockReturnValue(
+                throwError(() => new Error('rate limit exceeded'))
+            );
+
+            facade.checkAppVersion();
+            // An unhandled observable error is rethrown on a timer.
+            await flush();
+
+            expect(facade.version()).toBe('1.0.0');
+            expect(facade.updateMessage()).toBe('');
+        });
     });
 
     describe('Version check', () => {
