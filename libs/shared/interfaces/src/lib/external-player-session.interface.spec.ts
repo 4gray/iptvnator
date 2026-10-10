@@ -1,6 +1,7 @@
 import {
     EXTERNAL_PLAYER_ERROR_KEYS,
     readExternalPlayerErrorCode,
+    stripExternalPlayerErrorTag,
     tagExternalPlayerError,
 } from './external-player-session.interface';
 
@@ -26,6 +27,17 @@ describe('external player error codes', () => {
         );
 
         expect(readExternalPlayerErrorCode(rejected)).toBe('previous-closing');
+    });
+
+    it('strips the tag and leaves untagged messages alone', () => {
+        expect(
+            stripExternalPlayerErrorTag(
+                tagExternalPlayerError('start-failed', 'Failed to start MPV')
+            )
+        ).toBe('Failed to start MPV');
+        expect(stripExternalPlayerErrorTag('MPV IPC command timed out')).toBe(
+            'MPV IPC command timed out'
+        );
     });
 
     it('returns null for untagged messages and unknown codes', () => {

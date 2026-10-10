@@ -3,6 +3,7 @@ import {
     ExternalPlayerName,
     ExternalPlayerSession,
     PlayerContentInfo,
+    stripExternalPlayerErrorTag,
 } from '@iptvnator/shared/interfaces';
 
 interface CreateExternalPlayerSessionOptions {
@@ -180,9 +181,11 @@ export class ExternalPlayerSessionRegistry {
             return current;
         }
 
+        // The code tag only carries the code across IPC; the renderer shows
+        // the stored error as detail.
         return this.updateSession(id, {
             status: 'error',
-            error,
+            error: stripExternalPlayerErrorTag(error),
             errorCode: options.code,
             canClose: options.canClose ?? false,
         });

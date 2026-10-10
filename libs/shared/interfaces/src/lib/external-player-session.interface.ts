@@ -56,6 +56,14 @@ export function tagExternalPlayerError(
     return `[iptvnator:external-player:${code}] ${message}`;
 }
 
+/** Removes the code tag so the message can be shown or stored as detail. */
+export function stripExternalPlayerErrorTag(message: string): string {
+    return message.replace(
+        new RegExp(`${EXTERNAL_PLAYER_ERROR_TAG.source}\\s*`, 'g'),
+        ''
+    );
+}
+
 /** Reads the code `tagExternalPlayerError` put into an error message. */
 export function readExternalPlayerErrorCode(
     error: unknown
