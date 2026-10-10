@@ -60,6 +60,11 @@ export class MpvReusableProcess {
     private socketPath: string | null = null;
     private processSessionId: string | null = null;
     private readonly processSessionIds = new WeakMap<ChildProcess, string>();
+    // Each reuse attempt waits for mpv's replies, so a quick channel switch
+    // can start the next attempt while the previous one is still waiting.
+    // The newest attempt wins: an older one stops dispatching and never
+    // tears down or replaces the child the newer one is loading into.
+    private reuseAttempt = 0;
 
     currentSessionId(): string | null {
         return this.processSessionId;
@@ -116,6 +121,12 @@ export class MpvReusableProcess {
 
         traceExternalPlayer('reuse existing mpv instance');
         const { session, state } = options;
+        const attempt = ++this.reuseAttempt;
+        const superseded = () => attempt !== this.reuseAttempt;
+        const settleSuperseded = () => {
+            traceExternalPlayer('mpv reuse superseded by a newer launch');
+            return externalPlayerSessions.markClosed(session.id) ?? session;
+        };
         const reusedProcessSessionId =
             this.processSessionIds.get(reusedProcess) ??
             options.previousProcessSessionId;
@@ -190,10 +201,11 @@ export class MpvReusableProcess {
             await this.applyReuseCommands(
                 options,
                 reusedSocketPath,
-                () => !closeRequested,
+                () => !closeRequested && !superseded(),
                 onContentDispatched
             );
             if (closeRequested) return await finishRequestedClose();
+            if (superseded()) return settleSuperseded();
             if (hasExited(reusedProcess)) {
                 // The child exited while its reply was in flight; its exit
                 // handler has already settled the session that owned it.
@@ -214,6 +226,7 @@ export class MpvReusableProcess {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
+            if (superseded()) return settleSuperseded();
             if (current?.status === 'error' && hasExited(reusedProcess)) {
                 // The child died while its reply was in flight and its exit
                 // handler already reported the failure; a fresh launch under

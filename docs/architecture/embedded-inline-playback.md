@@ -1030,7 +1030,12 @@ stale Stop for the previous session during
 the reply wait settles the right session and no poll can save the new stream's
 position under the old content; a child that exited while its reply was in
 flight is returned as the session its exit handler settled, never reported as
-opened and never replaced by a fresh launch under that terminal session. No `seek` follows
+opened and never replaced by a fresh launch under that terminal session.
+Because each reuse attempt waits for replies, a quick channel switch can start
+the next attempt while the previous one is still waiting. The newest attempt
+supersedes older ones: an older attempt dispatches no further commands, never
+tears down or falls back over the child the newer one is loading into, and
+settles its own session as closed. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused
