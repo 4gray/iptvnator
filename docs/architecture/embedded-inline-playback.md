@@ -1018,6 +1018,16 @@ is also idempotent: it returns the closed snapshot without invoking the saved
 closer, and a later process error cannot revive it as a visible failure. Reused
 MPV commands use the socket captured for their exact child, so a delayed close
 cannot send `quit` to a replacement process through a newer global socket.
+Every reused MPV command carries a `request_id` and waits, within the same 2 s
+IPC bound, for mpv's matching newline-delimited reply; event lines and replies
+to other requests on that connection are skipped. An error reply or a missing
+reply fails the handoff exactly like a socket error: the reused child is torn
+down and a fresh launch follows. `loadfile` marks the content as possibly
+changed from the moment it is written, whatever mpv replies. No `seek` follows
+`loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
+travels as the per-file `start` option. The `loadfile` reply only acknowledges
+the command; a stream that later fails to open is reported through the reused
+child's output and exit, not through the reply.
 If Stop is observed before a pending MPV content command or VLC enqueue command
 is dispatched, that command is skipped. A source handoff also fails closed
 while a live session has no closer (`canClose: false`); renderer Dismiss is not
@@ -1132,7 +1142,9 @@ External MPV/VLC integration is split across focused main-process modules:
   forwarding, and user-facing start errors.
 - `apps/electron-backend/src/app/events/mpv-session.service.ts` owns fresh MPV
   launches and progress polling; `mpv-reusable-process.ts` owns the tracked
-  child, captured socket, remapping, retryable close, and reuse handoff.
+  child, captured socket, remapping, retryable close, and reuse handoff;
+  `mpv-ipc-command.ts` owns the bounded request/reply IPC command the reuse
+  handoff and its quit use.
 - `apps/electron-backend/src/app/events/vlc-session.service.ts` owns fresh VLC
   launches and progress polling; `vlc-reusable-process.ts` owns the tracked
   child, RC-port remapping, retryable close, and reuse handoff, while
