@@ -27,7 +27,7 @@ using its result as evidence. Docker validation can use
 | ---------------------------------- | ----------------------------------- |
 | Angular renderer entry points      | `pnpm run typecheck:web`            |
 | Electron main process entry points | `pnpm run typecheck:backend`        |
-| Jest spec programs                 | `pnpm run typecheck:spec`           |
+| Spec programs (Jest, perf harness) | `pnpm run typecheck:spec`           |
 | Full unit suite (all projects)     | `pnpm run test:unit:ci`             |
 | EPG data access                    | `pnpm nx test epg-data-access`      |
 | Workspace shell utilities          | `pnpm nx test workspace-shell-util` |
@@ -38,20 +38,35 @@ using its result as evidence. Docker validation can use
 over every `tsconfig.spec.json` under `apps/`, `libs/` and `tools/`, a few
 programs at a time (`--concurrency=N` or `SPEC_TYPECHECK_CONCURRENCY`; a
 positional argument filters by path), and fails on any diagnostic. ts-jest
-transpiles with `isolatedModules`, so this is the only check that catches a
-spec whose types drifted from the code it exercises. CI runs it in the
+transpiles with `isolatedModules`, and `tsx` and Playwright strip types without
+checking them, so this is the only check that catches a spec or harness file
+whose types drifted from the code it exercises. CI runs it in the
 `unit-and-typecheck` job after `typecheck:ci`. Conventions the gate relies on:
 
 - Spec tsconfigs use `module: preserve` with `moduleResolution: bundler`, the
   same as the library's own `tsconfig.json`; ts-jest forces CommonJS emit
   outside ESM mode, so the setting only affects type-checking, and `node10`
   resolution cannot see Angular's `exports`-only secondary entry points.
-- Each spec program lists `global.d.ts` in `files` so `window.electron` and the
-  other ambient declarations resolve.
+- Each spec program keeps `global.d.ts` in `files` so `window.electron` and the
+  other ambient declarations resolve. A config that sets `files` lists
+  `../../global.d.ts` again; one that does not inherits it from
+  `tsconfig.base.json`.
 - Libraries tested through `tools/testing/run-web-esm-lib-tests.mjs` are
   type-checked by `apps/web/tsconfig.spec.json`, the config
   `jest.web-esm.workspace.ts` hands to ts-jest; add a new ESM-tested library's
   spec globs there. `apps/web/src/jest-esm.d.ts` types `jest.unstable_mockModule`.
+- `apps/electron-backend-e2e/tsconfig.spec.json` type-checks the performance
+  harness, which `test-performance-harness` (`tsx --test`) and the journeys'
+  Playwright runs execute without type checking. Besides `module` and
+  `moduleResolution` it sets `target: es2022` and `lib: ["es2022", "dom"]`,
+  because the project's `commonjs` module and the base `es2015` target reject
+  the harness's `import.meta`, BigInt literals and ES2022 library names. It
+  also sets `types: ["node"]`: the specs import `describe` and `it` from
+  `node:test`, so a Jest or Mocha global fails the check. Its `include` covers
+  the journey harness (`src/performance/*journey*.ts` and `src/journeys/**`);
+  the older benchmark files and the Electron E2E specs still have type errors,
+  so widen the `include` as they are fixed instead of adding a baseline or an
+  ignore list.
 - Type test doubles instead of casting to `any`: `jest.Mocked<T>`,
   `InstanceType<typeof SomeStore>` for signal stores, and
   `Object.defineProperty` or a writable mapped type for read-only capability
@@ -313,7 +328,9 @@ journey spec against the Xtream mock: J1 launch, then J2 open-source (a
 second set of launches, each followed by the click on the portal card), both
 written to the same summary file; its probe specs run with
 `pnpm nx run electron-backend-e2e:test-performance-harness`, which CI runs in
-the `Unit Tests and Typechecks` job of `ci.yml` on every run. The
+the `Unit Tests and Typechecks` job of `ci.yml` on every run. `tsx` runs them
+without type checking; `pnpm run typecheck:spec electron-backend-e2e` checks
+the journey harness (see Unit And Type Checks). The
 `electron-backend-e2e` command targets call `tsx` and `playwright` directly,
 not through `pnpm exec`: under `pnpm nx`, a nested `pnpm exec` can run from the
 workspace root instead of the target `cwd` and miss cwd-relative specs, globs

@@ -264,6 +264,7 @@
                         } @else if (isLivePlayback()) {
                             <span
                                 class="embedded-mpv-player__live-badge"
+                                role="img"
                                 [attr.aria-label]="
                                     'EMBEDDED_MPV.PLAYER.LIVE_STREAM'
                                         | translate
@@ -273,10 +274,17 @@
                                     class="embedded-mpv-player__live-dot"
                                     aria-hidden="true"
                                 ></span>
-                                {{ 'PORTALS.LIVE_BADGE' | translate }}
+                                {{ 'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate }}
                             </span>
                         } @else {
-                            <span>--:--</span>
+                            <span
+                                role="img"
+                                [attr.aria-label]="
+                                    'EMBEDDED_MPV.PLAYER.DURATION_UNKNOWN'
+                                        | translate
+                                "
+                                >--:--</span
+                            >
                         }
                     </div>
                     @if (recordingStatusText(); as recordingStatus) {

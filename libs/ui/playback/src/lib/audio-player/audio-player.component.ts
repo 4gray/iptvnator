@@ -64,7 +64,7 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
                 >
                     @if (playState() === 'play') {
                         <span class="pulse"></span>
-                        {{ 'PORTALS.LIVE_BADGE' | translate }}
+                        {{ 'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate }}
                     } @else {
                         {{ 'AUDIO_PLAYER.PAUSED_BADGE' | translate }}
                     }

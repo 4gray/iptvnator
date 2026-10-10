@@ -1,0 +1,11 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "module": "preserve",
+        "moduleResolution": "bundler",
+        "target": "es2022",
+        "lib": ["es2022", "dom"],
+        "types": ["node"]
+    },
+    "include": ["src/performance/*journey*.ts", "src/journeys/**/*.ts"]
+}

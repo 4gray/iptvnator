@@ -30,6 +30,13 @@
     --pc-text-dim: rgba(255, 255, 255, 0.82);
     --pc-scrim-ink: 4, 7, 11;
     --pc-track: rgba(255, 255, 255, 0.18);
+    // The seek bar's unplayed track: `--pc-track` over the scrim ink, made
+    // opaque so its contrast no longer depends on the frame. The white
+    // separators between programmes or chapters read 12.5:1 on it and 3.2:1
+    // on the played fill, which reads 4.0:1 on it. Translucent, over a
+    // bright frame, a separator fell to 2.5:1 and the fill to 1.1:1.
+    --pc-timeline-track: #313437;
+    --pc-timeline-separator: #ffffff;
     --pc-hover: rgba(255, 255, 255, 0.1);
     --pc-glass-bg: rgba(12, 16, 23, 0.72);
     // The settings panel carries small secondary text over whatever frame is
