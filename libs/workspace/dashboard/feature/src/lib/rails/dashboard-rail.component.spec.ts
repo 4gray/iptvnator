@@ -11,7 +11,7 @@ import {
 describe('DashboardRailComponent', () => {
     const createComponent = async (stripCountryPrefix: boolean) => {
         await TestBed.configureTestingModule({
-            imports: [DashboardRailComponent],
+            imports: [DashboardRailComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: SettingsStore,

@@ -158,13 +158,10 @@ export class EpgProgressPanelComponent {
             item.errorCode ===
             ELECTRON_BRIDGE_SECURITY_ERROR_CODES.EpgPrivateNetworkBlocked
         ) {
-            return this.translateWithFallback(
-                'EPG.ALLOW_PRIVATE_SOURCE',
-                'Allow source'
-            );
+            return this.translate.instant('EPG.ALLOW_PRIVATE_SOURCE');
         }
 
-        return this.translateWithFallback('EPG.TRUST_TLS_HOST', 'Trust host');
+        return this.translate.instant('EPG.TRUST_TLS_HOST');
     }
 
     confirmTrust(item: EpgImportProgress): void {
@@ -174,17 +171,14 @@ export class EpgProgressPanelComponent {
         ) {
             this.openTrustDialog(
                 {
-                    title: this.translateWithFallback(
-                        'EPG.ALLOW_PRIVATE_SOURCE_TITLE',
-                        'Allow private-network EPG source?'
+                    title: this.translate.instant(
+                        'EPG.ALLOW_PRIVATE_SOURCE_TITLE'
                     ),
-                    message: this.translateWithFallback(
-                        'EPG.ALLOW_PRIVATE_SOURCE_WARNING',
-                        'Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.'
+                    message: this.translate.instant(
+                        'EPG.ALLOW_PRIVATE_SOURCE_WARNING'
                     ),
-                    confirmLabel: this.translateWithFallback(
-                        'EPG.ALLOW_PRIVATE_SOURCE',
-                        'Allow source'
+                    confirmLabel: this.translate.instant(
+                        'EPG.ALLOW_PRIVATE_SOURCE'
                     ),
                 },
                 () => {
@@ -198,18 +192,9 @@ export class EpgProgressPanelComponent {
 
         this.openTrustDialog(
             {
-                title: this.translateWithFallback(
-                    'EPG.TRUST_TLS_HOST_TITLE',
-                    'Trust invalid certificate?'
-                ),
-                message: this.translateWithFallback(
-                    'EPG.TRUST_TLS_HOST_WARNING',
-                    'Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.'
-                ),
-                confirmLabel: this.translateWithFallback(
-                    'EPG.TRUST_TLS_HOST',
-                    'Trust host'
-                ),
+                title: this.translate.instant('EPG.TRUST_TLS_HOST_TITLE'),
+                message: this.translate.instant('EPG.TRUST_TLS_HOST_WARNING'),
+                confirmLabel: this.translate.instant('EPG.TRUST_TLS_HOST'),
             },
             () => {
                 void this.epgProgress.trustInsecureTlsHostAndRetry(
@@ -235,10 +220,5 @@ export class EpgProgressPanelComponent {
                     onConfirm();
                 }
             });
-    }
-
-    private translateWithFallback(key: string, fallback: string): string {
-        const translated = this.translate.instant(key);
-        return translated === key ? fallback : translated;
     }
 }

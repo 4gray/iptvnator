@@ -61,11 +61,15 @@
                 }
             }
             @if (showsPortalStatusDot) {
+                @let statusLabel =
+                    'HOME.PLAYLISTS.PORTAL_STATUS'
+                        | translate
+                            : { status: (portalStatusLabelKey() | translate) };
                 <span
                     class="status-dot"
                     [class]="getStatusClass()"
-                    [matTooltip]="'Portal status: ' + portalStatus()"
-                    [attr.aria-label]="'Portal status: ' + portalStatus()"
+                    [matTooltip]="statusLabel"
+                    [attr.aria-label]="statusLabel"
                 ></span>
             } @else if (showsAutoRefresh) {
                 <mat-icon

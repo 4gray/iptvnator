@@ -185,8 +185,8 @@ coverage do not decrease.
 
 `apps/website` is an Astro marketing site. Its useful signal is a successful
 static build plus targeted output checks, not a merged code coverage percentage.
-Projects with a test target but no specs, such as `remote-control-web` and
-`remote-control` today, should not be in Tier A until focused specs exist.
+Projects with a test target but no specs, such as `remote-control-web`
+today, should not be in Tier A until focused specs exist.
 
 For local coverage inspection:
 

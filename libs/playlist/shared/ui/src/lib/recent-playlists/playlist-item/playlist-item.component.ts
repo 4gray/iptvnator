@@ -36,6 +36,15 @@ import {
 } from '@iptvnator/services';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
+/** Translation keys for the status word in the portal status tooltip. */
+const PORTAL_STATUS_LABEL_KEYS: Record<PortalStatus, string> = {
+    active: 'HOME.PLAYLISTS.PORTAL_STATUS_ACTIVE',
+    inactive: 'HOME.PLAYLISTS.PORTAL_STATUS_INACTIVE',
+    expired: 'HOME.PLAYLISTS.PORTAL_STATUS_EXPIRED',
+    unavailable: 'HOME.PLAYLISTS.PORTAL_STATUS_UNAVAILABLE',
+    checking: 'HOME.PLAYLISTS.PORTAL_STATUS_CHECKING',
+};
+
 @Component({
     selector: 'app-playlist-item',
     templateUrl: './playlist-item.component.html',
@@ -72,6 +81,9 @@ export class PlaylistItemComponent implements OnInit {
     readonly cancelBusyActionClicked = output<void>();
 
     readonly portalStatus = signal<PortalStatus>('unavailable');
+    readonly portalStatusLabelKey = computed(
+        () => PORTAL_STATUS_LABEL_KEYS[this.portalStatus()]
+    );
     private readonly portalStatusService = inject(PortalStatusService);
     readonly runtime = inject(RuntimeCapabilitiesService);
     readonly sourceIcons = SOURCE_TYPE_ICONS;

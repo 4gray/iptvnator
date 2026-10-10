@@ -118,7 +118,8 @@ export class FileUploadComponent {
         }
 
         if (result.reason !== 'cancelled') {
-            this.fileRejected.emit('selected playlist');
+            // The native dialog does not report a file name.
+            this.fileRejected.emit('');
         }
     }
 }

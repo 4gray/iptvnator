@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
 import {
     PortalStatusService,
@@ -209,6 +209,17 @@ describe('PlaylistItemComponent', () => {
             username: 'demo',
             password: 'secret',
         };
+        const translate = TestBed.inject(TranslateService);
+        // Not English text, so the label must come from the keys.
+        translate.setTranslation('en', {
+            HOME: {
+                PLAYLISTS: {
+                    PORTAL_STATUS: 'Portalstatus: {{status}}',
+                    PORTAL_STATUS_ACTIVE: 'aktiv',
+                },
+            },
+        });
+        translate.use('en');
         // The fixture renders on its own: a forced detectChanges() after the
         // await would hide a status that does not schedule a render.
         fixture.autoDetectChanges();
@@ -219,7 +230,7 @@ describe('PlaylistItemComponent', () => {
             '.status-dot'
         );
         expect(statusDot?.getAttribute('aria-label')).toBe(
-            'Portal status: active'
+            'Portalstatus: aktiv'
         );
     });
 

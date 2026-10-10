@@ -19,6 +19,8 @@ import {
     STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
 } from './stalker-playlist-connection-editor.token';
 
+const EXPORT_FILE_TYPE = 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE';
+
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
     let fixture: ComponentFixture<PlaylistInfoComponent>;
@@ -326,7 +328,7 @@ describe('PlaylistInfoComponent', () => {
 
         expect(window.electron.saveFileDialog).toHaveBeenCalledWith(
             'My Playlist.m3u8',
-            [{ name: 'Playlist', extensions: ['m3u8', 'm3u'] }]
+            [{ name: EXPORT_FILE_TYPE, extensions: ['m3u8', 'm3u'] }]
         );
         expect(window.electron.writeFile).toHaveBeenCalledWith(
             '/tmp/export.m3u8',

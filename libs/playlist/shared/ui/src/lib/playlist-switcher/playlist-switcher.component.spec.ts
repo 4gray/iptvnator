@@ -418,11 +418,16 @@ describe('PlaylistSwitcherComponent', () => {
 
         expect(component.displayTitle()).toBe('Cinema Xtream');
 
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            HOME: { PLAYLISTS: { SELECT_PLAYLIST: 'Pick a source' } },
+        });
+        translate.use('en');
         resolvedPlaylistIdSignal.set(null);
         activePlaylistSignal.set(null);
         fixture.detectChanges();
 
-        expect(component.displayTitle()).toBe('Select playlist');
+        expect(component.displayTitle()).toBe('Pick a source');
     });
 
     it('delegates playlist deletion and removes the source after confirmation', async () => {

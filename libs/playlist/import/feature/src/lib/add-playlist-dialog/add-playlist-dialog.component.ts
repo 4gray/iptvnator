@@ -260,9 +260,13 @@ export class AddPlaylistDialogComponent {
 
     rejectFile(filename: string): void {
         this.snackBar.open(
-            this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
-                filename,
-            })
+            filename
+                ? this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
+                      filename,
+                  })
+                : this.translateService.instant(
+                      'HOME.FILE_UPLOAD.REJECTED_UNNAMED'
+                  )
         );
     }
 

@@ -4,7 +4,11 @@ import {
     inject,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { RemoteControlComponent } from '@iptvnator/ui/remote-control';
+import { DOCUMENT } from '@angular/common';
+import {
+    RemoteControlComponent,
+    resolveRemoteControlLanguage,
+} from '@iptvnator/ui/remote-control';
 import { TranslateService } from '@ngx-translate/core';
 
 @Component({
@@ -17,10 +21,17 @@ import { TranslateService } from '@ngx-translate/core';
 })
 export class App implements OnInit {
     private translate = inject(TranslateService);
+    private document = inject(DOCUMENT);
 
     ngOnInit() {
-        // Set default language
+        const navigator = this.document.defaultView?.navigator;
+        const language = resolveRemoteControlLanguage(
+            navigator?.languages?.length
+                ? navigator.languages
+                : [navigator?.language ?? 'en']
+        );
+        this.document.documentElement.lang = language.documentLanguage;
         this.translate.setDefaultLang('en');
-        this.translate.use('en');
+        this.translate.use(language.translation);
     }
 }
