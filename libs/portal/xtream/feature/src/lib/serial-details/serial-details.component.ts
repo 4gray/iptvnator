@@ -189,7 +189,12 @@ export class SerialDetailsComponent implements OnDestroy {
     constructor() {
         this.playback.bind({ selectedItem: this.selectedItem });
         this.similar.bind({ selectedItem: this.selectedItem });
-        this.seasons.bind({ selectedItem: this.selectedItem });
+        this.seasons.bind({
+            selectedItem: this.selectedItem,
+            detailSeasonKey: computed(
+                () => this.seasonContainer()?.selectedSeason() ?? null
+            ),
+        });
         this.downloadAdapter.bind(this.selectedItem);
         this.heroPresenter.bind({
             selectedItem: this.selectedItem,

@@ -14,6 +14,13 @@ import type { XtreamSerieDetailsView } from './serial-details-playback.service';
 
 interface SerialDetailsSeasonsBindings {
     readonly selectedItem: Signal<XtreamSerieDetailsView | null>;
+    /**
+     * The season the detail container shows. `select()` is also called for
+     * the fullscreen episode picker, whose choice enriches another season
+     * without changing the detail list; the container's metadata flag must
+     * follow the container's own selection.
+     */
+    readonly detailSeasonKey?: Signal<string | null | undefined>;
 }
 
 /**
@@ -31,7 +38,7 @@ export class SerialDetailsSeasonsService {
         () => this.bindings()?.selectedItem() ?? null
     );
 
-    /** Season currently selected in the season container. */
+    /** Season selected last, in the season container or the fullscreen picker. */
     private readonly selectedSeasonKey = signal<string | null>(null);
 
     /** Season descriptions (provider text, TMDB fallback, URL junk dropped). */
@@ -45,14 +52,14 @@ export class SerialDetailsSeasonsService {
     );
 
     /**
-     * True while TMDB may still fill the selected season's episodes (show
+     * True while TMDB may still fill the detail container's season (show
      * match or season enrichment outstanding); the container then keeps
      * rows it would otherwise render bare as skeletons. Before the
      * container reports its selection, the lowest season stands in.
      */
     readonly metadataLoading = computed(() => {
         const seasonKey =
-            this.selectedSeasonKey() ??
+            this.bindings()?.detailSeasonKey?.() ??
             Object.keys(this.selectedItem()?.episodes ?? {}).sort(
                 (a, b) => Number(a) - Number(b)
             )[0];

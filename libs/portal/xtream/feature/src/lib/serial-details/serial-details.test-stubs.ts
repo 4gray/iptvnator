@@ -3,6 +3,7 @@ import {
     Component,
     input,
     output,
+    signal,
 } from '@angular/core';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 
@@ -30,6 +31,7 @@ export class StubSeasonContainerComponent {
     readonly seasonPosters = input<unknown>(null);
     readonly seriesPosterUrl = input<unknown>(null);
     readonly metadataLoading = input(false);
+    readonly selectedSeason = signal<string | undefined>(undefined);
     readonly seasonWatchBatchRunning = input(false);
     readonly episodeClicked = output<unknown>();
     readonly episodeRestartRequested = output<unknown>();
