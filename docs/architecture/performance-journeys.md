@@ -1497,6 +1497,11 @@ detail 187 to 143 MB.
    change.
 5. Cover the probe with jsdom fixtures and the record and summary code with
    `node:test` (`pnpm nx run electron-backend-e2e:test-performance-harness`).
+   `tsx` runs those specs without type checking, so also run
+   `pnpm run typecheck:spec electron-backend-e2e`. Its
+   `apps/electron-backend-e2e/tsconfig.spec.json` includes `src/journeys/**`
+   and `src/performance/*journey*.ts`; keep `journey` in the name of the
+   journey's files and specs under `src/performance/`.
 6. Validate a counter before it becomes a guardrail: one PR must show that
    lowering it moved wall-clock in the same journey.
 
