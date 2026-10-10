@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "Név szerint (Z–A)",
         "SORT_TOP_RATED": "Legmagasabb értékelés elöl",
         "SORT_LOWEST_RATED": "Legalacsonyabb értékelés elöl",
+        "SORT_CHIP": {
+            "NEWEST": "Legújabb",
+            "OLDEST": "Legrégebbi",
+            "TOP_RATED": "Legjobbra értékelt",
+            "LOWEST_RATED": "Legrosszabbra értékelt"
+        },
         "REFINE_ACTION": "Finomítás",
         "REFINE_SORT_SECTION": "Rendezés alapja",
         "REFINE_RATING_SECTION": "Minimális értékelés",
         "REFINE_CLEAR_RATING": "A {{value}},0 vagy magasabb értékelési szűrő törlése",
-        "FILTER_RATING": "Szűrés értékelés szerint",
         "FILTER_RATING_ANY": "Bármely értékelés",
         "FILTER_RATING_MIN": "{{value}},0 vagy magasabb",
         "SORT_LABEL": "Rendezés: ",

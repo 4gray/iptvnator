@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "Nome Z-A",
         "SORT_TOP_RATED": "Melhor avaliados",
         "SORT_LOWEST_RATED": "Menor avaliação primeiro",
+        "SORT_CHIP": {
+            "NEWEST": "Mais recentes",
+            "OLDEST": "Mais antigos",
+            "TOP_RATED": "Melhor avaliados",
+            "LOWEST_RATED": "Pior avaliados"
+        },
         "REFINE_ACTION": "Refinar",
         "REFINE_SORT_SECTION": "Ordenar por",
         "REFINE_RATING_SECTION": "Avaliação mínima",
         "REFINE_CLEAR_RATING": "Limpar filtro de avaliação {{value}}.0 ou superior",
-        "FILTER_RATING": "Filtrar por avaliação",
         "FILTER_RATING_ANY": "Qualquer avaliação",
         "FILTER_RATING_MIN": "{{value}}.0 ou superior",
         "SORT_LABEL": "Ordenar: ",

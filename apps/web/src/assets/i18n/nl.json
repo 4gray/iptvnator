@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "Naam Z-A",
         "SORT_TOP_RATED": "Hoogst beoordeeld",
         "SORT_LOWEST_RATED": "Laagste beoordeling eerst",
+        "SORT_CHIP": {
+            "NEWEST": "Nieuwste",
+            "OLDEST": "Oudste",
+            "TOP_RATED": "Hoogst beoordeeld",
+            "LOWEST_RATED": "Laagst beoordeeld"
+        },
         "REFINE_ACTION": "Verfijnen",
         "REFINE_SORT_SECTION": "Sorteren op",
         "REFINE_RATING_SECTION": "Minimumbeoordeling",
         "REFINE_CLEAR_RATING": "Filter voor beoordeling {{value}}.0 en hoger wissen",
-        "FILTER_RATING": "Filteren op beoordeling",
         "FILTER_RATING_ANY": "Elke beoordeling",
         "FILTER_RATING_MIN": "{{value}}.0 en hoger",
         "SORT_LABEL": "Sorteren: ",

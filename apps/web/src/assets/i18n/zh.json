@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "名称 Z-A",
         "SORT_TOP_RATED": "评分最高",
         "SORT_LOWEST_RATED": "评分最低优先",
+        "SORT_CHIP": {
+            "NEWEST": "最新",
+            "OLDEST": "最旧",
+            "TOP_RATED": "评分最高",
+            "LOWEST_RATED": "评分最低"
+        },
         "REFINE_ACTION": "筛选",
         "REFINE_SORT_SECTION": "排序方式",
         "REFINE_RATING_SECTION": "最低评分",
         "REFINE_CLEAR_RATING": "清除 {{value}}.0 及以上评分筛选",
-        "FILTER_RATING": "按评分筛选",
         "FILTER_RATING_ANY": "任意评分",
         "FILTER_RATING_MIN": "{{value}}.0 及以上",
         "SORT_LABEL": "排序：",

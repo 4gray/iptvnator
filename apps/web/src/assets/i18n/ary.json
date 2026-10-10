@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "الاسم ي-أ",
         "SORT_TOP_RATED": "الأعلى تقييماً",
         "SORT_LOWEST_RATED": "الأقل تقييماً أولاً",
+        "SORT_CHIP": {
+            "NEWEST": "الأحدث",
+            "OLDEST": "الأقدم",
+            "TOP_RATED": "الأعلى تقييماً",
+            "LOWEST_RATED": "الأقل تقييماً"
+        },
         "REFINE_ACTION": "دقق",
         "REFINE_SORT_SECTION": "رتب حسب",
         "REFINE_RATING_SECTION": "أدنى تقييم",
         "REFINE_CLEAR_RATING": "مسح فلتر التقييم {{value}}.0 وفوق",
-        "FILTER_RATING": "فلتر بالتقييم",
         "FILTER_RATING_ANY": "أي تقييم",
         "FILTER_RATING_MIN": "{{value}}.0 وفوق",
         "SORT_LABEL": "ترتيب: ",

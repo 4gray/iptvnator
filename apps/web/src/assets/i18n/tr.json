@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "İsim Z-A",
         "SORT_TOP_RATED": "En yüksek puanlılar",
         "SORT_LOWEST_RATED": "Önce en düşük puanlılar",
+        "SORT_CHIP": {
+            "NEWEST": "En yeni",
+            "OLDEST": "En eski",
+            "TOP_RATED": "En yüksek puan",
+            "LOWEST_RATED": "En düşük puan"
+        },
         "REFINE_ACTION": "Daralt",
         "REFINE_SORT_SECTION": "Sıralama",
         "REFINE_RATING_SECTION": "En düşük puan",
         "REFINE_CLEAR_RATING": "{{value}}.0 ve üzeri puan filtresini temizle",
-        "FILTER_RATING": "Puana göre filtrele",
         "FILTER_RATING_ANY": "Herhangi bir puan",
         "FILTER_RATING_MIN": "{{value}}.0 ve üzeri",
         "SORT_LABEL": "Sırala: ",

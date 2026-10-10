@@ -1669,11 +1669,16 @@
         "SORT_NAME_DESC": "Имя (Я-А)",
         "SORT_TOP_RATED": "С высоким рейтингом",
         "SORT_LOWEST_RATED": "Сначала с низким рейтингом",
+        "SORT_CHIP": {
+            "NEWEST": "Новые",
+            "OLDEST": "Старые",
+            "TOP_RATED": "Высокий рейтинг",
+            "LOWEST_RATED": "Низкий рейтинг"
+        },
         "REFINE_ACTION": "Уточнить",
         "REFINE_SORT_SECTION": "Сортировать по",
         "REFINE_RATING_SECTION": "Минимальный рейтинг",
         "REFINE_CLEAR_RATING": "Сбросить фильтр рейтинга {{value}}.0 и выше",
-        "FILTER_RATING": "Фильтр по рейтингу",
         "FILTER_RATING_ANY": "Любой рейтинг",
         "FILTER_RATING_MIN": "{{value}}.0 и выше",
         "SORT_LABEL": "Сортировка: ",

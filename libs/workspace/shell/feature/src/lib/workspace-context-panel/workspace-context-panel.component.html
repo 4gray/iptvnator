@@ -45,17 +45,16 @@
                         ) {
                             <button
                                 mat-menu-item
+                                [appMenuItemRadio]="
+                                    categorySortMode() === option.mode
+                                "
                                 (click)="setCategorySortMode(option.mode)"
                             >
+                                <mat-icon appMenuItemRadioCheck>check</mat-icon>
                                 <mat-icon>{{ option.icon }}</mat-icon>
                                 <span>{{
                                     option.translationKey | translate
                                 }}</span>
-                                @if (categorySortMode() === option.mode) {
-                                    <mat-icon class="context-sort-check"
-                                        >check</mat-icon
-                                    >
-                                }
                             </button>
                         }
                     </mat-menu>
