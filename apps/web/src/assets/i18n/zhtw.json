@@ -2041,7 +2041,7 @@
         }
     },
     "SOURCE_CLEANUP": {
-        "TITLE": "清理未啟用的來源…",
+        "TITLE": "清理失效的來源…",
         "SCOPE": "媒體庫中的所有網路來源，不受頁面篩選條件影響。",
         "CONSEQUENCES": "僅刪除您選取的來源。這些來源已儲存的我的最愛、觀看記錄和播放進度也會一併移除。已下載的檔案會保留。",
         "SUMMARY": "已檢查 {{checked}}/{{total}} · 可用 {{available}} · 已刪除 {{deleted}} · 已略過 {{skipped}} · 失敗 {{failed}}",
@@ -2053,7 +2053,7 @@
         "STOP": "完成目前來源後停止",
         "CLEANUP_WARNING": "來源已刪除，但部分後續清理失敗",
         "GROUP": {
-            "confirmed": "已確認未啟用的帳戶",
+            "confirmed": "已確認失效的帳戶",
             "uncertain": "刪除前請先確認",
             "skipped": "已略過的來源",
             "results": "刪除結果"

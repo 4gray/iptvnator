@@ -2041,7 +2041,7 @@
         }
     },
     "SOURCE_CLEANUP": {
-        "TITLE": "清理未激活的源…",
+        "TITLE": "清理失效的源…",
         "SCOPE": "媒体库中的所有网络源，不受页面筛选条件影响。",
         "CONSEQUENCES": "仅删除您选择的源。其保存的收藏、观看历史和播放进度也将一并移除。已下载的文件会保留。",
         "SUMMARY": "已检查 {{checked}}/{{total}} · 可用 {{available}} · 已删除 {{deleted}} · 已跳过 {{skipped}} · 失败 {{failed}}",
@@ -2053,7 +2053,7 @@
         "STOP": "当前源完成后停止",
         "CLEANUP_WARNING": "源已删除，但部分后续清理失败",
         "GROUP": {
-            "confirmed": "已确认未激活的账户",
+            "confirmed": "已确认失效的账户",
             "uncertain": "删除前请确认",
             "skipped": "已跳过的源",
             "results": "删除结果"
