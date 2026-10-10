@@ -133,6 +133,7 @@ interface SettingsNavGroupView {
                     <span
                         class="nav-item-version"
                         data-test-id="settings-nav-version"
+                        [attr.title]="version"
                         >{{ version }}</span
                     >
                 }
