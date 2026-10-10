@@ -159,4 +159,15 @@ export class PlaylistItemComponent implements OnInit {
 
         this.playlistClicked.emit(this.item._id);
     }
+
+    /**
+     * Enter/Space open the source like a click on the row; Space also
+     * prevents the page scroll. The drag handle and the actions are siblings
+     * of the activation element, never descendants, so their keys cannot
+     * reach this handler.
+     */
+    onActivationKey(event: Event): void {
+        event.preventDefault();
+        this.onPlaylistClick();
+    }
 }
