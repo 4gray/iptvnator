@@ -133,7 +133,13 @@ export function indicatorColours(declaration) {
             );
         });
     }
-    if (/^border(?:-(?:top|right|bottom|left))?(?:-color)?$/.test(property)) {
+    // Every border that carries a colour: the shorthand, the physical and
+    // logical sides (`border-inline-start`, `border-block-end-color`…).
+    if (
+        /^border(?:-(?:top|right|bottom|left|(?:block|inline)(?:-(?:start|end))?))?(?:-color)?$/.test(
+            property
+        )
+    ) {
         return colourTokens(value).flatMap(colourAtoms);
     }
     return [];

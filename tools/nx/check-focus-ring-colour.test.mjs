@@ -204,6 +204,22 @@ test('checks the body of a focus mixin, the shared ring included', () => {
     );
 });
 
+test('reads logical border sides as well as physical ones', () => {
+    const source = [
+        '.a:focus-visible { border-inline-start: 2px solid red; }',
+        '.b:focus-visible { border-block-color: #2f7bff; }',
+        '.c:focus-visible { border-inline-end-color: var(--mat-sys-primary); }',
+        '.d:focus-visible { border-block-start: 2px solid var(--app-focus-ring); }',
+        // Not a colour: the radius of a logical corner.
+        '.e:focus-visible { border-start-start-radius: 4px; }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('g.scss', source).map(({ line }) => line),
+        [1, 2, 3]
+    );
+});
+
 test('lets a listed exception through only in its own file', () => {
     const [exception] = RING_EXCEPTIONS;
     const source = `.x:focus-visible { outline: 2px solid ${exception.value}; }`;
