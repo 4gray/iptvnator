@@ -1,3 +1,5 @@
+@use '../../../../../libs/ui/styles/focus-ring';
+
 // Settings page: one content column of titled cards. Every row is a label
 // column plus one right-aligned control column, so selects, switches and
 // segmented controls line up down the page. Tokens and the Material token
@@ -202,7 +204,9 @@
     justify-content: flex-end;
 }
 
-// Row revealed from settings search or the command palette.
+// Row revealed from settings search or the command palette. Choosing a
+// result with Enter focuses the row by script and keeps `:focus-visible`,
+// so it shows the app ring like any keyboard focus.
 .setting-item[data-setting-id],
 .settings-card[data-setting-id],
 .settings-foot[data-setting-id] {
@@ -213,9 +217,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid
-            color-mix(in srgb, var(--app-selection-color) 60%, transparent);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
         border-radius: 12px;
     }
 }
@@ -378,8 +380,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 1px;
+        @include focus-ring.focus-ring-declarations($offset: 1px);
     }
 }
 

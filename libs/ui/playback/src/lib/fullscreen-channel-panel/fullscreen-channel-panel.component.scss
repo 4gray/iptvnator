@@ -193,7 +193,7 @@
 }
 
 .fullscreen-channel-panel__search:focus-within {
-    border-color: rgba(255, 255, 255, 0.28);
+    border-color: color-mix(in srgb, var(--app-focus-ring) 28%, transparent);
     background: rgba(255, 255, 255, 0.1);
 }
 

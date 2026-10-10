@@ -1,3 +1,5 @@
+@use '../../../../styles/focus-ring';
+
 :host {
     display: block;
     min-width: 0;
@@ -27,8 +29,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 
     mat-icon {

@@ -1,4 +1,5 @@
 @use 'source-tag' as tag;
+@use '../../../../styles/focus-ring';
 
 $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 
@@ -133,8 +134,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
         }
 
         &:focus-visible {
-            outline: 2px solid var(--app-selection-color);
-            outline-offset: 2px;
+            @include focus-ring.focus-ring-declarations;
         }
     }
 }
@@ -201,7 +201,6 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 }

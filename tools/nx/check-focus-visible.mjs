@@ -33,7 +33,7 @@ const NO_COLOR =
     /^(?:transparent|#[0-9a-f]{3}0|#[0-9a-f]{6}00|(?:rgb|hsl)a?\((?:[^,()]+,){3}\s*0*\.?0+%?\s*\)|(?:rgb|hsl)a?\([^/()]*\/\s*0*\.?0+%?\s*\))$/i;
 
 /** Splits `text` on `separator` outside parentheses and brackets. */
-function splitTopLevel(text, separator) {
+export function splitTopLevel(text, separator) {
     const parts = [];
     let depth = 0;
     let start = 0;
@@ -173,12 +173,13 @@ function lineAt(source, index) {
  * fully resolved selectors it applies to. Mixin bodies are walked as if they
  * were included at the top level, the widest place a caller could use them.
  * `conditional` marks a declaration inside an at-rule (`@mixin`, `@media`,
- * `@if`, an `@include` content block…), which may never reach the page.
+ * `@if`, an `@include` content block…), which may never reach the page;
+ * `mixin` names the mixin whose body holds it.
  */
 export function walkDeclarations(source) {
     const text = stripScssComments(source);
     const items = [];
-    const stack = [{ selectors: [], conditional: false }];
+    const stack = [{ selectors: [], conditional: false, mixin: null }];
     let start = 0;
     let quote = '';
     let interpolation = 0;
@@ -205,22 +206,24 @@ export function walkDeclarations(source) {
         else if (char === '{') {
             const { value } = statement(i);
             const parent = stack[stack.length - 1];
-            if (/^@mixin\b/i.test(value))
-                stack.push({ selectors: [], conditional: true });
+            const mixin = /^@mixin\s+([\w-]+)/i.exec(value)?.[1];
+            if (mixin) stack.push({ selectors: [], conditional: true, mixin });
             else if (value.startsWith('@'))
-                stack.push({ selectors: parent.selectors, conditional: true });
+                stack.push({ ...parent, conditional: true });
             else
                 stack.push({
+                    ...parent,
                     selectors: resolveSelectors(parent.selectors, value),
-                    conditional: parent.conditional,
                 });
         } else if (char === ';' || char === '}') {
             const { value, offset } = statement(i);
             if (value) {
-                const { selectors, conditional } = stack[stack.length - 1];
+                const { selectors, conditional, mixin } =
+                    stack[stack.length - 1];
                 items.push({
                     selectors,
                     conditional,
+                    mixin,
                     declaration: value.replace(/\s+/g, ' '),
                     line: lineAt(text, offset),
                 });

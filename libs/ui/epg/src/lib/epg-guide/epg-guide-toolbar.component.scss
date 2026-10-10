@@ -1,4 +1,5 @@
 @use '../epg-theme' as *;
+@use '../../../../styles/focus-ring';
 
 :host {
     display: block;
@@ -89,8 +90,7 @@
         background: $surface-2;
     }
     &:focus-visible {
-        outline: 2px solid $accent-blue;
-        outline-offset: 1px;
+        @include focus-ring.focus-ring-declarations($offset: 1px);
     }
 }
 
@@ -165,8 +165,7 @@
         cursor: default;
     }
     &:has(input:focus-visible) i {
-        outline: 2px solid $accent-blue;
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 }
 
@@ -232,7 +231,7 @@
         }
     }
     &:focus-within {
-        border-color: $accent-blue;
+        border-color: var(--app-focus-ring);
     }
 }
 

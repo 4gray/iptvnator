@@ -409,7 +409,9 @@ jobs:
             - name: Validate Angular Material token overrides
               run: pnpm run styles:material-tokens:validate
 
-            - name: Validate the global keyboard focus ring
+            # The global :focus-visible fallback, and one ring colour for
+            # every component (tools/nx/check-focus-ring-colour.mjs).
+            - name: Validate the keyboard focus ring
               run: pnpm run styles:focus-visible:validate
 
             # The icon font renders an unknown ligature name as plain text.

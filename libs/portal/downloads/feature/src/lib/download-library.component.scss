@@ -1,5 +1,6 @@
 @use '@angular/material' as mat;
 @use '../../../../shared/ui/src/lib/styles/content-grid' as grid;
+@use '../../../../../ui/styles/focus-ring';
 
 :host {
     display: block;
@@ -47,7 +48,7 @@
         .download-library__artwork {
             border-color: color-mix(
                 in srgb,
-                var(--mat-sys-primary) 38%,
+                var(--app-focus-ring) 38%,
                 var(--app-separator)
             );
             box-shadow: 0 12px 28px
@@ -238,8 +239,7 @@
 
 button:focus-visible {
     border-radius: 6px;
-    outline: 2px solid var(--mat-sys-primary);
-    outline-offset: 2px;
+    @include focus-ring.focus-ring-declarations;
 }
 
 button:disabled {

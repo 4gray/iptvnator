@@ -247,8 +247,14 @@ host by its padding and border on the first move.
 - **Token.** `--app-focus-ring` is declared per theme in `m3-theme.scss`,
   deeper than the selection blue in light, so it keeps 3:1 on every app
   surface and selection tint; `apps/web/src/m3-theme.spec.ts` measures it.
-- **A ring of your own.** A component that needs a different ring styles its
-  `:focus-visible` with the mixin rather than a literal colour. Draw it on
+- **A ring of your own.** A component that needs the ring elsewhere or at
+  another offset includes the mixin (`$offset`); a stylesheet a spec loads
+  as raw CSS uses `var(--app-focus-ring)`. The colour is always the token,
+  for every focus indicator: `tools/nx/check-focus-ring-colour.mjs`, part of
+  the same validate script, reads a focus rule's outline, its unblurred ring
+  or line shadows and its border colours, and rejects any colour other than
+  the token (also inside `color-mix()`), the player's `--pc-*` palette or a
+  neutral boundary, except the few exceptions it lists with their reasons. Draw it on
   the element that owns `overflow: hidden` (the cards' `card-focus-ring`),
   or inside the element (a negative offset) when a clipping parent would cut
   it. When an ancestor or a box shadow draws the ring, set `outline: none` on
@@ -257,10 +263,11 @@ host by its padding and border on the first move.
   fallback, so the element loses its ring (use `border` or a spread
   `box-shadow`, as the selected season tab does).
 - **Removing the outline.** A component rule that sets `outline: none` also
-  outranks the fallback, so it must show focus another way: a `:focus-within`
-  change on a search field's wrapper (the command palette underlines its
-  row), a ring drawn on another element, or a highlight on an item inside an
-  arrow-key composite.
+  outranks the fallback, so it must show focus another way: a search field's
+  wrapper takes a token border on `:focus-within`, optionally with a soft
+  token halo (the command palette underlines its row instead), a ring drawn
+  on another element, or a highlight on an item inside an arrow-key
+  composite.
 - **Material.** Buttons, switches, button toggles and checkboxes take the
   ring over their 12% focus state layer (global rules in `styles.scss`).
   Menu items and select options keep Material's highlight, since arrow keys,
@@ -271,9 +278,10 @@ host by its padding and border on the first move.
   `_player-palette.scss`.
 - **Check.** `keyboard-focus-ring.e2e.ts` (Electron) tabs through the detail
   actions and season tabs, a catalog grid with its refinement chips, the
-  Sources list and Settings in both themes. Each stop must draw exactly one
-  ring, uncut by an ancestor's `overflow: hidden`, at 3:1 where it sits on a
-  flat colour, and a click must draw none.
+  Sources list, the live EPG list, Settings and the command palette in both
+  themes. Each stop must draw exactly one ring in the token's colour, uncut
+  by an ancestor's `overflow: hidden`, at 3:1 where it sits on a flat
+  colour, and a click must draw none.
 
 ## Keyboard Scrolling and Channel Focus
 
