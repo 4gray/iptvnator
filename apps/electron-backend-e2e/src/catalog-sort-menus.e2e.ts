@@ -33,8 +33,13 @@ import { applyTheme, expectTextContrast } from './theme-contrast';
 const locales = ['en', 'de', 'ru', 'hu'] as const;
 type Locale = (typeof locales)[number];
 
-/** Chip texts of the six content sorts, in menu order, per locale. */
-function sortChipLabels(locale: Locale): string[] {
+/**
+ * Per locale, in menu order: the visible chip text of the six content sorts
+ * and the full text screen readers get instead.
+ */
+function sortChipLabels(
+    locale: Locale
+): { visible: string; screenReader: string }[] {
     const workspace = (
         JSON.parse(
             readFileSync(
@@ -43,8 +48,13 @@ function sortChipLabels(locale: Locale): string[] {
             )
         ) as {
             WORKSPACE: {
+                SORT_LABEL: string;
+                SORT_DATE_DESC: string;
+                SORT_DATE_ASC: string;
                 SORT_NAME_ASC: string;
                 SORT_NAME_DESC: string;
+                SORT_TOP_RATED: string;
+                SORT_LOWEST_RATED: string;
                 SORT_CHIP: {
                     NEWEST: string;
                     OLDEST: string;
@@ -54,14 +64,19 @@ function sortChipLabels(locale: Locale): string[] {
             };
         }
     ).WORKSPACE;
-    return [
-        workspace.SORT_CHIP.NEWEST,
-        workspace.SORT_CHIP.OLDEST,
-        workspace.SORT_NAME_ASC,
-        workspace.SORT_NAME_DESC,
-        workspace.SORT_CHIP.TOP_RATED,
-        workspace.SORT_CHIP.LOWEST_RATED,
-    ];
+    return (
+        [
+            [workspace.SORT_CHIP.NEWEST, workspace.SORT_DATE_DESC],
+            [workspace.SORT_CHIP.OLDEST, workspace.SORT_DATE_ASC],
+            [workspace.SORT_NAME_ASC, workspace.SORT_NAME_ASC],
+            [workspace.SORT_NAME_DESC, workspace.SORT_NAME_DESC],
+            [workspace.SORT_CHIP.TOP_RATED, workspace.SORT_TOP_RATED],
+            [workspace.SORT_CHIP.LOWEST_RATED, workspace.SORT_LOWEST_RATED],
+        ] as const
+    ).map(([visible, full]) => ({
+        visible,
+        screenReader: `${workspace.SORT_LABEL}${full}`,
+    }));
 }
 
 function openMenuPanel(page: Page): Locator {
@@ -217,10 +232,17 @@ test.describe('Electron catalog sort menus', () => {
                         .click();
                     await expect(menu).toBeHidden();
 
-                    const sortLabel = page.locator(
-                        'app-category-content-view .sort-refinement-chip .refinement-chip-label'
+                    const sortChip = page.locator(
+                        'app-category-content-view .sort-refinement-chip'
                     );
-                    await expect(sortLabel).toHaveText(chipLabel);
+                    await expect(
+                        sortChip.locator('.refinement-chip-label')
+                    ).toHaveText(chipLabel.visible);
+                    // The accessibility tree holds the full text only; the
+                    // short label is aria-hidden.
+                    await expect(sortChip).toMatchAriaSnapshot(
+                        `- text: ${JSON.stringify(chipLabel.screenReader)}`
+                    );
                     const fits = await chipLabelFits(page);
                     expect(
                         fits.filter((chip) => !chip.fits),

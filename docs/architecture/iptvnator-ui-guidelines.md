@@ -181,10 +181,16 @@ threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
 
 A chip that shows the active state next to its menu trigger, such as the
 catalog sort chip, shows its icon and a short value at every width, for
-example "Newest" or "9.0+". The full text, such as "Sort: Date Added
-(Latest First)", goes in `aria-label`. Do not swap between a full and a
-compact label with container queries: long translations still cut off the
-full label.
+example "Newest" or "9.0+". Do not swap between a full and a compact label
+with container queries: long translations still cut off the full label.
+
+Screen readers must still get the full text, such as "Sort: Date Added
+(Latest First)":
+
+- A chip that is a button carries it in `aria-label`.
+- A plain `div` chip cannot be named, and screen readers may ignore its
+  `aria-label`. Put the full text in a `.visually-hidden` span and mark the
+  short label `aria-hidden="true"`.
 
 ## Detail Views
 

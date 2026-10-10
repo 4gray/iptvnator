@@ -25,17 +25,23 @@
                     <div class="active-refinements" aria-live="polite">
                         @if (canSortContent()) {
                             @let sortLabels = activeSortLabels();
-                            <div
-                                class="refinement-chip sort-refinement-chip"
-                                [attr.aria-label]="
-                                    ('WORKSPACE.SORT_LABEL' | translate) +
-                                    (sortLabels.labelKey | translate)
-                                "
-                            >
+                            <!-- A plain div cannot carry an accessible name:
+                                 screen readers get the full text from the
+                                 hidden span instead of the short label. -->
+                            <div class="refinement-chip sort-refinement-chip">
                                 <mat-icon>sort</mat-icon>
-                                <span class="refinement-chip-label">
+                                <span
+                                    class="refinement-chip-label"
+                                    aria-hidden="true"
+                                >
                                     {{ sortLabels.chipLabelKey | translate }}
                                 </span>
+                                <span class="visually-hidden"
+                                    >{{ 'WORKSPACE.SORT_LABEL' | translate
+                                    }}{{
+                                        sortLabels.labelKey | translate
+                                    }}</span
+                                >
                             </div>
                         }
                         @if (minRating(); as rating) {

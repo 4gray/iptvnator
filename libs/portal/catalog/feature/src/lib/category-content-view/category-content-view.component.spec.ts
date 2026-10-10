@@ -385,7 +385,7 @@ describe('CategoryContentViewComponent', () => {
             'WORKSPACE.SORT_LOWEST_RATED',
         ],
     ] as const)(
-        'shows only the short %s label in the sort chip and the full label in its name',
+        'shows only the short %s label in the sort chip and reads the full label to screen readers',
         (mode, chipKey, menuKey) => {
             contentSortMode.set(mode);
             categoryItemCount.set(12);
@@ -399,7 +399,10 @@ describe('CategoryContentViewComponent', () => {
 
             expect(labels).toHaveLength(1);
             expect(labels[0].textContent?.trim()).toBe(chipKey);
-            expect(sortChip.getAttribute('aria-label')).toBe(
+            // A generic div cannot be named, so the full text must be content
+            // that screen readers read: everything outside aria-hidden.
+            expect(sortChip.hasAttribute('aria-label')).toBe(false);
+            expect(screenReaderText(sortChip)).toBe(
                 `WORKSPACE.SORT_LABEL${menuKey}`
             );
         }
@@ -832,3 +835,18 @@ describe('CategoryContentViewComponent', () => {
         });
     });
 });
+
+/** Text a screen reader reads from `element`: content outside aria-hidden. */
+function screenReaderText(element: Element): string {
+    return Array.from(element.childNodes, (node): string => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent ?? '';
+        }
+        return node instanceof Element &&
+            node.getAttribute('aria-hidden') !== 'true'
+            ? screenReaderText(node)
+            : '';
+    })
+        .join('')
+        .trim();
+}

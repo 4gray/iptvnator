@@ -3,7 +3,7 @@ import { PortalCatalogSortMode } from '@iptvnator/portal/shared/util';
 /** A content sort choice of the refine menu and its active-sort chip. */
 export interface CatalogSortOption {
     readonly mode: PortalCatalogSortMode;
-    /** The menu row, and after "Sort: " the chip's accessible name. */
+    /** The menu row, and after "Sort: " the chip's screen-reader text. */
     readonly labelKey: string;
     /**
      * The chip's visible text: short in every locale, so the chip shows it
