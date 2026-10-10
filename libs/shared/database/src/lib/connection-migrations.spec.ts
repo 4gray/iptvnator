@@ -1,4 +1,8 @@
 import { __databaseConnectionTestHooks } from './connection';
+import {
+    ensurePlaylistsPayloadLast,
+    playlistsTableSql,
+} from './playlists-table';
 
 const {
     columnMigrationStatements,
@@ -9,6 +13,7 @@ const {
     cleanupLegacyTmdbSearchCache,
     upgradeContentTitleFtsTokenizer,
     contentTitleFtsStatement,
+    deduplicateXtreamCache,
 } = __databaseConnectionTestHooks;
 
 type SqliteHandle = Parameters<typeof runMigrations>[0];
@@ -25,7 +30,11 @@ type StatementHandler = {
 
 type HandlerRule = [pattern: string, handler: StatementHandler];
 
-function createSqliteMock(rules: HandlerRule[], exec: jest.Mock = jest.fn()) {
+function createSqliteMock(
+    rules: HandlerRule[],
+    exec: jest.Mock = jest.fn(),
+    pragma: jest.Mock = jest.fn(() => [])
+) {
     const prepare = jest.fn((statement: string) => {
         const compact = compactSql(statement);
         const rule = rules.find(([pattern]) => compact.includes(pattern));
@@ -44,7 +53,13 @@ function createSqliteMock(rules: HandlerRule[], exec: jest.Mock = jest.fn()) {
     return {
         exec,
         prepare,
-        sqlite: { exec, prepare, transaction } as unknown as SqliteHandle,
+        pragma,
+        sqlite: {
+            exec,
+            prepare,
+            pragma,
+            transaction,
+        } as unknown as SqliteHandle,
         transaction,
     };
 }
@@ -412,5 +427,239 @@ describe('content title FTS tokenizer upgrade', () => {
             expect.stringContaining('DROP TABLE IF EXISTS content_title_fts')
         );
         expect(marker.run).not.toHaveBeenCalled();
+    });
+});
+
+describe('deduplicateXtreamCache guard', () => {
+    const uniqueIndexCountRule = (count: number): HandlerRule => [
+        "FROM sqlite_master WHERE type = 'index'",
+        { get: () => ({ count }) },
+    ];
+
+    it('skips the duplicate scans once both unique indexes exist', () => {
+        const categoryGroups = jest.fn(() => []);
+        const contentGroups = jest.fn(() => []);
+        const { sqlite, transaction } = createSqliteMock([
+            uniqueIndexCountRule(2),
+            [
+                'FROM categories GROUP BY playlist_id, type, xtream_id',
+                { all: categoryGroups },
+            ],
+            [
+                'FROM content GROUP BY category_id, type, xtream_id',
+                { all: contentGroups },
+            ],
+        ]);
+
+        deduplicateXtreamCache(sqlite);
+
+        expect(transaction).not.toHaveBeenCalled();
+        expect(categoryGroups).not.toHaveBeenCalled();
+        expect(contentGroups).not.toHaveBeenCalled();
+    });
+
+    it('still scans while one of the unique indexes is missing', () => {
+        const categoryGroups = jest.fn(() => []);
+        const contentGroups = jest.fn(() => []);
+        const { sqlite, transaction } = createSqliteMock([
+            uniqueIndexCountRule(1),
+            [
+                'FROM categories GROUP BY playlist_id, type, xtream_id',
+                { all: categoryGroups },
+            ],
+            [
+                'FROM content GROUP BY category_id, type, xtream_id',
+                { all: contentGroups },
+            ],
+        ]);
+
+        deduplicateXtreamCache(sqlite);
+
+        expect(transaction).toHaveBeenCalledTimes(1);
+        expect(categoryGroups).toHaveBeenCalledTimes(1);
+        expect(contentGroups).toHaveBeenCalledTimes(1);
+    });
+
+    it('names the unique indexes the index migrations create', () => {
+        for (const name of [
+            'categories_playlist_type_xtream_unique',
+            'content_category_type_xtream_unique',
+        ]) {
+            expect(
+                indexMigrationStatements.some((statement) =>
+                    statement.includes(
+                        `CREATE UNIQUE INDEX IF NOT EXISTS ${name} `
+                    )
+                )
+            ).toBe(true);
+        }
+    });
+});
+
+describe('ensurePlaylistsPayloadLast', () => {
+    const canonicalColumns = [
+        'id',
+        'name',
+        'serverUrl',
+        'username',
+        'password',
+        'date_created',
+        'last_updated',
+        'type',
+        'userAgent',
+        'origin',
+        'referrer',
+        'filePath',
+        'epg_urls',
+        'detected_epg_urls',
+        'manual_epg_urls',
+        'disabled_epg_urls',
+        'autoRefresh',
+        'macAddress',
+        'url',
+        'portal_url',
+        'count',
+        'import_date',
+        'update_date',
+        'position',
+        'favorites',
+        'recently_viewed',
+        'last_usage',
+        'payload',
+    ];
+    /** A pre-0.19 table after its ALTER TABLE migrations. */
+    const legacyColumns = [
+        ...canonicalColumns.filter(
+            (name) => !name.endsWith('epg_urls') && name !== 'payload'
+        ),
+        'payload',
+        'epg_urls',
+        'detected_epg_urls',
+        'manual_epg_urls',
+        'disabled_epg_urls',
+    ];
+    /** Rules answering the column list and the foreign key check. */
+    const playlistRules = (
+        columns: string[],
+        foreignKeyCheck: unknown[] = []
+    ): HandlerRule[] => [
+        [
+            "FROM pragma_table_info('playlists')",
+            { all: () => columns.map((name) => ({ name })) },
+        ],
+        [
+            'FROM sqlite_master AS m, pragma_foreign_key_list(m.name)',
+            { all: () => [{ name: 'favorites' }, { name: 'categories' }] },
+        ],
+        [
+            'FROM pragma_foreign_key_check(?)',
+            {
+                get: (table: unknown) => ({
+                    count: foreignKeyCheck.filter(
+                        (row) => (row as { table: string }).table === table
+                    ).length,
+                }),
+            },
+        ],
+    ];
+    const rebuildStatements = (prepare: jest.Mock) =>
+        prepare.mock.calls
+            .map(([statement]) => compactSql(statement as string))
+            .filter((statement) => !statement.includes('pragma_'));
+
+    let warnSpy: jest.SpyInstance;
+    let logSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+        warnSpy = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        warnSpy.mockRestore();
+        logSpy.mockRestore();
+    });
+
+    it('creates fresh tables with payload as the last column', () => {
+        expect(createTableStatements[0]).toMatch(
+            /CREATE TABLE IF NOT EXISTS playlists \([\s\S]*payload TEXT\s*\)$/
+        );
+        expect(playlistsTableSql('rebuilt')).toMatch(
+            /^CREATE TABLE IF NOT EXISTS rebuilt \(/
+        );
+    });
+
+    it('leaves a table whose last column is payload alone', () => {
+        const { sqlite, prepare, pragma, transaction } = createSqliteMock(
+            playlistRules(canonicalColumns)
+        );
+
+        ensurePlaylistsPayloadLast(sqlite);
+
+        expect(transaction).not.toHaveBeenCalled();
+        expect(rebuildStatements(prepare)).toEqual([]);
+        expect(pragma).not.toHaveBeenCalled();
+    });
+
+    it('rebuilds a table whose columns were appended after payload, with foreign keys off', () => {
+        const { sqlite, prepare, pragma, transaction } = createSqliteMock(
+            playlistRules(legacyColumns)
+        );
+
+        ensurePlaylistsPayloadLast(sqlite);
+
+        expect(transaction).toHaveBeenCalledTimes(1);
+        const quoted = canonicalColumns.map((name) => `"${name}"`).join(', ');
+        expect(rebuildStatements(prepare)).toEqual([
+            'DROP TABLE IF EXISTS playlists_payload_rebuild',
+            expect.stringMatching(
+                /^CREATE TABLE IF NOT EXISTS playlists_payload_rebuild \( id TEXT PRIMARY KEY,.* last_usage TEXT, payload TEXT \)$/
+            ),
+            `INSERT INTO playlists_payload_rebuild (${quoted}) SELECT ${quoted} FROM playlists`,
+            "SELECT sql FROM sqlite_master WHERE tbl_name = 'playlists' AND type IN ('index', 'trigger') AND sql IS NOT NULL ORDER BY type = 'trigger', name",
+            'DROP TABLE playlists',
+            'ALTER TABLE playlists_payload_rebuild RENAME TO playlists',
+        ]);
+        // Foreign keys go off before the transaction and come back after it,
+        // and the check runs inside it, after the rename.
+        expect(pragma.mock.calls.map(([statement]) => statement)).toEqual([
+            'foreign_keys = OFF',
+            'foreign_keys = ON',
+        ]);
+        const all = prepare.mock.calls.map(([statement]) =>
+            compactSql(statement as string)
+        );
+        const checks = all.flatMap((statement, index) =>
+            statement.startsWith(
+                'SELECT COUNT(*) AS count FROM pragma_foreign_key_check(?)'
+            )
+                ? [index]
+                : []
+        );
+        const rename = all.indexOf(
+            'ALTER TABLE playlists_payload_rebuild RENAME TO playlists'
+        );
+        // Counted once before the rebuild and once more after the rename.
+        expect(checks[0]).toBeLessThan(rename);
+        expect(checks.at(-1)).toBeGreaterThan(rename);
+        expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not rebuild while a canonical column is still missing', () => {
+        const { sqlite, pragma, transaction } = createSqliteMock(
+            playlistRules(
+                legacyColumns.filter((name) => name !== 'disabled_epg_urls')
+            )
+        );
+
+        ensurePlaylistsPayloadLast(sqlite);
+
+        expect(transaction).not.toHaveBeenCalled();
+        expect(pragma).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('columns missing: disabled_epg_urls')
+        );
     });
 });
