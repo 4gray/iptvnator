@@ -228,6 +228,23 @@ test('lets a listed exception through only in its own file', () => {
     assert.equal(findOffTokenRings('elsewhere.scss', source).length, 1);
 });
 
+test('excuses only the excepted colour, not the rest of the declaration', () => {
+    const player = RING_EXCEPTIONS.find(({ value }) => value === '#ffffff');
+    const source = [
+        '.a:focus-visible { outline: 2px solid #ffffff; }',
+        '.b:focus-visible { outline: 2px solid #FFFFFF; }',
+        // A second ring in another colour beside the excepted one.
+        '.c:focus-visible { box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px red; }',
+        // The excepted colour mixed with another one.
+        '.d:focus-visible { outline: 2px solid color-mix(in srgb, #ffffff 50%, red); }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings(player.file, source).map(({ line }) => line),
+        [3, 4]
+    );
+});
+
 test('reports an exception that no longer matches anything', () => {
     const sources = RING_EXCEPTIONS.slice(1).map(({ file, value }) => ({
         file,

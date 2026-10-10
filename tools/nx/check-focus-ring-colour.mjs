@@ -159,16 +159,19 @@ export const RING_EXCEPTIONS = [
     },
 ];
 
-function exceptionFor(file, declaration) {
+/** The exception that allows this exact colour in this file, if any. */
+function exceptionFor(file, colour) {
     return RING_EXCEPTIONS.find(
         (exception) =>
-            exception.file === file && declaration.includes(exception.value)
+            exception.file === file &&
+            exception.value.toLowerCase() === colour.toLowerCase()
     );
 }
 
 /**
- * Focus indicators in one stylesheet with a colour other than the app ring,
- * the player palette or a neutral boundary, before exceptions apply.
+ * Focus indicators in one stylesheet, each with the colours it draws that
+ * are not the app ring, the player palette or a neutral boundary, before
+ * exceptions apply.
  */
 function offTokenIndicators(file, source) {
     return walkDeclarations(source).flatMap(
@@ -180,35 +183,43 @@ function offTokenIndicators(file, source) {
                 (mixin && /focus/i.test(mixin) ? `@mixin ${mixin}` : null);
             if (!focus) return [];
             const border = /^border/i.test(declaration);
-            const offToken = indicatorColours(declaration).some(
+            const colours = indicatorColours(declaration).filter(
                 (colour) =>
                     !isAppRing(colour) &&
                     !isNeutral(colour) &&
                     !(border && TEXT_COLOUR.test(colour))
             );
-            return offToken
-                ? [{ file, line, selector: focus, declaration }]
+            return colours.length
+                ? [{ file, line, selector: focus, declaration, colours }]
                 : [];
         }
     );
 }
 
-/** Focus indicators in one stylesheet that bypass the app ring colour. */
+/**
+ * Focus indicators in one stylesheet that bypass the app ring colour. An
+ * exception excuses its own colour only: another colour in the same
+ * declaration (a second shadow, a mix) is still reported.
+ */
 export function findOffTokenRings(file, source) {
-    return offTokenIndicators(file, source).filter(
-        ({ declaration }) => !exceptionFor(file, declaration)
-    );
+    return offTokenIndicators(file, source)
+        .filter(({ colours }) =>
+            colours.some((colour) => !exceptionFor(file, colour))
+        )
+        .map(({ colours, ...indicator }) => indicator);
 }
 
 /**
- * Exceptions that no longer excuse any off-token focus indicator, so the list
+ * Exceptions that no longer excuse any off-token focus colour, so the list
  * cannot rot: the same value elsewhere (a text colour) does not count.
  */
 export function findUnusedExceptions(sources) {
     const used = new Set(
         sources.flatMap(({ file, source }) =>
             offTokenIndicators(file, source)
-                .map(({ declaration }) => exceptionFor(file, declaration))
+                .flatMap(({ colours }) =>
+                    colours.map((colour) => exceptionFor(file, colour))
+                )
                 .filter(Boolean)
         )
     );
