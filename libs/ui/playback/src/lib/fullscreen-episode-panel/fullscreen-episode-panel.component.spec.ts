@@ -241,49 +241,67 @@ describe('FullscreenEpisodePanelComponent', () => {
         expect(strip()).toBeNull();
     });
 
-    it('hands the season posters to the tabs dropdown of a long series', () => {
+    it('shows a text-only season menu for a long series, posters or not', () => {
         const many: FullscreenEpisodePanelSeason[] = Array.from(
             { length: 7 },
             (_, index) => ({
                 key: String(index + 1),
                 loadState: 'loaded',
                 episodes: [item(10 * (index + 1), String(index + 1), 1)],
-                ...(index % 2 === 0
-                    ? { posterUrl: `https://img.test/season-${index + 1}.jpg` }
-                    : {}),
+                posterUrl: `https://img.test/season-${index + 1}.jpg`,
             })
         );
         fixture.componentRef.setInput('seasons', many);
         fixture.detectChanges();
 
-        expect(component.seasonPosters()).toEqual({
-            '1': 'https://img.test/season-1.jpg',
-            '3': 'https://img.test/season-3.jpg',
-            '5': 'https://img.test/season-5.jpg',
-            '7': 'https://img.test/season-7.jpg',
-        });
         expect(pills()).toHaveLength(0);
         const trigger = fixture.nativeElement.querySelector(
             '[data-testid="season-dropdown"]'
         ) as HTMLButtonElement;
-        expect(
-            trigger.querySelector<HTMLImageElement>(
-                '[data-testid="season-dropdown-thumb"]'
-            )?.src
-        ).toBe('https://img.test/season-1.jpg');
+        expect(trigger.querySelector('img')).toBeNull();
         trigger.click();
         fixture.detectChanges();
-        const thumbs = Array.from(
-            document.querySelectorAll<HTMLImageElement>(
-                '.mat-mdc-menu-panel [data-testid="season-menu-thumb"]'
-            )
-        ).map((thumb) => thumb.src);
-        expect(thumbs).toEqual([
-            'https://img.test/season-1.jpg',
-            'https://img.test/season-3.jpg',
-            'https://img.test/season-5.jpg',
-            'https://img.test/season-7.jpg',
-        ]);
+        expect(
+            document.querySelectorAll('.season-tabs-menu .mat-mdc-menu-item')
+        ).toHaveLength(7);
+        expect(document.querySelectorAll('.season-tabs-menu img')).toHaveLength(
+            0
+        );
+    });
+
+    it('leaves the count out of the menu for a season still loading or not asked for', () => {
+        // Lazy Stalker VOD: an unanswered season's empty list is not a count.
+        const many: FullscreenEpisodePanelSeason[] = Array.from(
+            { length: 7 },
+            (_, index) => ({
+                key: String(index + 1),
+                loadState: 'loaded',
+                episodes: [item(10 * (index + 1), String(index + 1), 1)],
+            })
+        );
+        many[5] = { key: '6', loadState: 'unloaded', episodes: [] };
+        many[6] = { key: '7', loadState: 'loading', episodes: [] };
+        fixture.componentRef.setInput('seasons', many);
+        fixture.detectChanges();
+
+        (
+            fixture.nativeElement.querySelector(
+                '[data-testid="season-dropdown"]'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+        const items = Array.from(
+            document.querySelectorAll('.season-tabs-menu .mat-mdc-menu-item')
+        );
+        const countOf = (item: Element) =>
+            item.querySelector('[data-testid="season-menu-count"]');
+        expect(items).toHaveLength(7);
+        // Raw key here: this harness loads no translations.
+        expect(countOf(items[0])?.textContent).toContain(
+            'PORTALS.EPISODE_COUNT_ONE'
+        );
+        expect(countOf(items[5])).toBeNull();
+        expect(countOf(items[6])).toBeNull();
     });
 
     it('withholds the season strip for a one-season series', () => {

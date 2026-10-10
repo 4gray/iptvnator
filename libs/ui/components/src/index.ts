@@ -19,6 +19,7 @@ export * from './lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component
 export * from './lib/password-visibility-toggle/password-visibility-toggle.directive';
 export * from './lib/progress-capsule/progress-capsule.component';
 export * from './lib/resizable/resizable.directive';
+export * from './lib/season-container/episode-skeleton.component';
 export * from './lib/season-container/season-container.component';
 export * from './lib/season-container/season-tabs.component';
 export * from './lib/season-container/season-watch-presenter';
@@ -41,6 +42,8 @@ export * from './lib/detail-ui/detail-credits.component';
 export * from './lib/detail-ui/detail-icon-button.component';
 export * from './lib/detail-ui/detail-action-button.component';
 export * from './lib/detail-ui/detail-rail.component';
+export * from './lib/detail-ui/detail-action-skeleton.component';
+export * from './lib/detail-ui/detail-section-header.component';
 export * from './lib/detail-ui/meta-chip.component';
 export * from './lib/detail-ui/similar-rail.component';
 export * from './lib/detail-ui/trailer-dialog.component';

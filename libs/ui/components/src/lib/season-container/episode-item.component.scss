@@ -1,0 +1,551 @@
+@use '@angular/material' as mat;
+
+// ============================================================================
+// Episode item — list row and grid card of the season container
+// ============================================================================
+//
+// Page chrome reads the app's theme tokens, so both themes work. The badge,
+// progress track and play disc sit over the artwork and keep fixed colours,
+// like the player overlay.
+
+:host {
+    --ep-hover-bg: var(--app-widget-bg, #1e2330);
+    --ep-action-hover-bg: var(--app-card-hover-bg, #252b3a);
+    --ep-thumb-bg: color-mix(in srgb, var(--app-on-surface) 8%, transparent);
+    --ep-hairline: color-mix(in srgb, var(--app-on-surface) 12%, transparent);
+    --ep-text-primary: var(--app-heading-color, #d8dce8);
+    --ep-text-secondary: var(--app-body-color, #8b93a8);
+    --ep-text-tertiary: var(--app-eyebrow-color, #6b7494);
+    // Between the secondary and the primary ink: a long plot stays readable
+    // without competing with the title.
+    --ep-description: color-mix(
+        in srgb,
+        var(--app-heading-color, #d8dce8) 55%,
+        var(--app-body-color, #8b93a8)
+    );
+    --ep-accent: var(--app-progress-color, #78adff);
+    --ep-success: var(--app-success-color, #4ade80);
+
+    position: relative;
+    display: grid;
+    min-width: 0;
+    border-radius: 10px;
+    color: var(--ep-text-primary);
+    cursor: pointer;
+}
+
+// The stretched play target covers the item; the actions sit above it.
+.episode-item__target {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    cursor: pointer;
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
+    }
+
+    &[aria-disabled='true'] {
+        cursor: progress;
+    }
+}
+
+// ============================================================================
+// Thumbnail: still (or dimmed fallback), watched badge, progress, play disc
+// ============================================================================
+
+.episode-item__thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    // A hairline keeps the artwork's edge visible on the light theme too.
+    border: 1px solid var(--ep-hairline);
+    border-radius: 6px;
+    background: var(--ep-thumb-bg);
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    // No distinct still (or the provider repeats the series poster): the
+    // image stays as a dimmed texture, never as a bright duplicate poster.
+    &--fallback img {
+        filter: saturate(0.7);
+        opacity: 0.55;
+    }
+}
+
+.episode-item__badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(5, 7, 11, 0.7);
+    color: #4ade80;
+
+    mat-icon {
+        width: 11px;
+        height: 11px;
+        font-size: 11px;
+        line-height: 11px;
+        font-weight: 700;
+    }
+}
+
+.episode-item__progress {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.5);
+
+    i {
+        display: block;
+        height: 100%;
+        background: var(--ep-accent);
+    }
+}
+
+.episode-item__play {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(5, 7, 11, 0.35);
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+
+.episode-item__play-disc {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(242, 244, 248, 0.95);
+    color: #0a0e14;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
+    }
+
+    mat-progress-spinner {
+        @include mat.progress-spinner-overrides(
+            (
+                active-indicator-color: #0a0e14,
+            )
+        );
+    }
+}
+
+:host(:hover),
+:host(:focus-within),
+:host(.episode-item--launching),
+:host(.episode-item--playing) {
+    .episode-item__play {
+        opacity: 1;
+    }
+}
+
+// ============================================================================
+// Text
+// ============================================================================
+
+.episode-item__text {
+    min-width: 0;
+}
+
+.episode-item__title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.episode-item__title {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    color: inherit;
+    font-size: 14.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.episode-item__meta {
+    flex: none;
+    color: var(--ep-text-tertiary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.episode-item__description {
+    display: -webkit-box;
+    max-width: 74ch;
+    margin: 4px 0 0;
+    overflow: hidden;
+    color: var(--ep-description);
+    font-size: 12.5px;
+    line-height: 1.45;
+    text-wrap: pretty;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+
+:host(.episode-item--watched) {
+    .episode-item__title {
+        color: var(--ep-text-secondary);
+    }
+
+    .episode-item__description {
+        color: var(--ep-text-tertiary);
+    }
+}
+
+// ============================================================================
+// Actions: always reserved, shown on hover and keyboard focus
+// ============================================================================
+
+.episode-item__actions {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: flex-end;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+:host(:hover),
+:host(:focus-within) {
+    .episode-item__actions {
+        opacity: 1;
+    }
+}
+
+.episode-item__action {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--ep-text-secondary);
+    cursor: pointer;
+
+    mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+        line-height: 16px;
+    }
+
+    &:hover:not(:disabled) {
+        background: var(--ep-action-hover-bg);
+        color: var(--ep-text-primary);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
+    }
+
+    &:disabled {
+        cursor: default;
+        opacity: 0.6;
+    }
+
+    &--success,
+    &.episode-item__watched-toggle--watched {
+        color: var(--ep-success);
+    }
+}
+
+// ============================================================================
+// List row
+// ============================================================================
+
+:host(.episode-list-item) {
+    grid-template-columns: 36px 168px minmax(0, 1fr) 112px;
+    column-gap: 16px;
+    align-items: center;
+    padding: 10px 12px 10px 8px;
+}
+
+:host(.episode-list-item:hover),
+:host(.episode-list-item:focus-within) {
+    background: var(--ep-hover-bg);
+}
+
+:host(.episode-list-item.episode-item--current) {
+    background: color-mix(in srgb, var(--ep-accent) 6%, transparent);
+
+    .episode-item__number,
+    .episode-item__meta {
+        color: var(--ep-accent);
+    }
+}
+
+.episode-item__number {
+    display: grid;
+    place-items: center;
+    color: var(--ep-text-tertiary);
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+
+    mat-progress-spinner {
+        @include mat.progress-spinner-overrides(
+            (
+                active-indicator-color: var(--ep-accent),
+            )
+        );
+    }
+}
+
+.episode-item__number-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--ep-accent);
+    font-size: 18px;
+    line-height: 18px;
+}
+
+// Bare row: a season without stills or plots. No thumbnail or description,
+// a 44px line with the watched check or the progress inline.
+:host(.episode-list-item.episode-item--bare) {
+    grid-template-columns: 36px minmax(0, 1fr) 112px;
+    min-height: 44px;
+    padding: 0 12px 0 8px;
+
+    .episode-item__title {
+        font-size: 13.5px;
+        font-weight: 500;
+    }
+}
+
+.episode-item__inline-check {
+    flex: none;
+    align-self: center;
+    width: 13px;
+    height: 13px;
+    color: var(--ep-success);
+    font-size: 13px;
+    line-height: 13px;
+    font-weight: 700;
+}
+
+.episode-item__inline-progress {
+    flex: none;
+    align-self: center;
+    width: 72px;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+
+    i {
+        display: block;
+        height: 100%;
+        background: var(--ep-accent);
+    }
+}
+
+// ============================================================================
+// Grid card
+// ============================================================================
+
+:host(.episode-card) {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+
+    .episode-item__thumb {
+        border-radius: 10px;
+    }
+
+    .episode-item__text {
+        margin-top: 10px;
+    }
+
+    .episode-item__title-row {
+        gap: 8px;
+    }
+
+    .episode-item__title {
+        font-size: 13.5px;
+    }
+
+    .episode-item__meta {
+        font-size: 11.5px;
+    }
+
+    .episode-item__description {
+        color: var(--ep-text-tertiary);
+        font-size: 12px;
+    }
+
+    // The actions ride on the artwork's top-right corner in a dark pill.
+    .episode-item__actions {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        border-radius: 8px;
+        background: rgba(5, 7, 11, 0.72);
+    }
+
+    .episode-item__action {
+        width: 30px;
+        height: 30px;
+        color: rgba(242, 244, 248, 0.86);
+
+        &:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.14);
+            color: #fff;
+        }
+
+        &--success,
+        &.episode-item__watched-toggle--watched {
+            color: #4ade80;
+        }
+    }
+
+    .episode-item__badge {
+        // The action pill covers the top-right corner while it is shown.
+        transition: opacity 120ms ease;
+    }
+}
+
+:host(.episode-card:hover),
+:host(.episode-card:focus-within) {
+    .episode-item__badge {
+        opacity: 0;
+    }
+}
+
+:host(.episode-card.episode-item--watched) {
+    .episode-item__title,
+    .episode-item__description {
+        color: var(--ep-text-tertiary);
+    }
+}
+
+:host(.episode-card.episode-item--current) .episode-item__thumb {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ep-accent) 60%, transparent);
+}
+
+.episode-item__chip {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: rgba(5, 7, 11, 0.72);
+    color: #e7ecf3;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .episode-item__play,
+    .episode-item__actions,
+    :host(.episode-card) .episode-item__badge {
+        transition: none;
+    }
+}
+
+// Touch screens have no hover: keep the actions reachable.
+@media (hover: none) {
+    .episode-item__actions {
+        opacity: 1;
+    }
+}
+
+// Narrow details pane (beside the categories panel, phones).
+@container detail (max-width: 640px) {
+    :host(.episode-list-item) {
+        grid-template-columns: 24px 112px minmax(0, 1fr) auto;
+        column-gap: 12px;
+    }
+
+    :host(.episode-list-item.episode-item--bare) {
+        grid-template-columns: 24px minmax(0, 1fr) auto;
+    }
+
+    .episode-item__title-row {
+        flex-wrap: wrap;
+        row-gap: 0;
+    }
+
+    .episode-item__description {
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+    }
+}
+
+// Phone width: the thumbnail shrinks and the actions take a row of their
+// own under the text, so the title keeps the width instead of the slot.
+@container detail (max-width: 480px) {
+    :host(.episode-list-item) {
+        grid-template-columns: 24px 96px minmax(0, 1fr);
+        grid-template-areas:
+            'number thumb text'
+            'number thumb actions';
+        row-gap: 2px;
+        padding: 8px 8px 8px 4px;
+    }
+
+    :host(.episode-list-item.episode-item--bare) {
+        grid-template-columns: 24px minmax(0, 1fr);
+        grid-template-areas:
+            'number text'
+            'number actions';
+    }
+
+    // Only the list row declares these areas; a grid card keeps its
+    // stacked layout (thumbnail, text, actions pinned on the artwork).
+    :host(.episode-list-item) {
+        .episode-item__number {
+            grid-area: number;
+        }
+
+        .episode-item__thumb {
+            grid-area: thumb;
+        }
+
+        .episode-item__text {
+            grid-area: text;
+            align-self: end;
+        }
+
+        .episode-item__actions {
+            grid-area: actions;
+            justify-content: flex-start;
+            margin-left: -8px;
+        }
+    }
+}

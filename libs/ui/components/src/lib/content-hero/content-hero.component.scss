@@ -1,3 +1,5 @@
+@use '../styles/skeleton-shimmer' as shimmer;
+
 // ============================================================================
 // Detail hero — cinematic layout shared by movie and series pages
 // ============================================================================
@@ -50,7 +52,11 @@
     width: 100%;
     // Room for a 16:9 backdrop above the content, capped so the episodes or
     // cast row still starts inside the first screen of a desktop window.
-    min-height: min(480px, 60vh);
+    // `--hero-tail` (set by the detail shell) continues the artwork below
+    // the content, under the first section's heading, so the fade into the
+    // page has room and never ends as a band at the hero's edge.
+    min-height: calc(min(520px, 60vh) + var(--hero-tail, 0px));
+    padding-bottom: var(--hero-tail, 0px);
     box-sizing: border-box;
     // `overflow: hidden` clips the scaled blurred backdrop fallback.
     overflow: hidden;
@@ -138,13 +144,15 @@
                 color-mix(in srgb, var(--surface-bg) 45%, transparent) 64%,
                 color-mix(in srgb, var(--surface-bg) 15%, transparent) 100%
             ),
+            // Ends on the exact page surface, not an alpha of it: the
+            // section below starts on the same colour, so there is no seam.
             linear-gradient(
-                180deg,
-                color-mix(in srgb, var(--surface-bg) 25%, transparent) 0%,
-                transparent 30%,
-                transparent 60%,
-                var(--surface-bg) 100%
-            );
+                    180deg,
+                    color-mix(in srgb, var(--surface-bg) 20%, transparent) 0%,
+                    transparent 28%,
+                    color-mix(in srgb, var(--surface-bg) 55%, transparent) 62%,
+                    var(--surface-bg) 100%
+                );
     }
 
     &__content {
@@ -156,12 +164,8 @@
         width: 100%;
         max-width: var(--content-max-width);
         margin: 0 auto;
-        padding: 48px 32px 24px;
+        padding: 48px 32px 32px;
         box-sizing: border-box;
-
-        &--skeleton {
-            align-items: flex-start;
-        }
     }
 
     &__error {
@@ -483,18 +487,87 @@
     }
 }
 
-// Skeleton Loader Overrides
-ngx-skeleton-loader {
-    display: block;
+// ============================================================================
+// Loading skeleton — the loaded hero's geometry, so nothing moves on load
+// ============================================================================
+
+@include shimmer.keyframes;
+
+.skeleton {
+    @include shimmer.block(4px);
+
+    flex: none;
+
+    &--poster {
+        width: 100%;
+        aspect-ratio: 2 / 3;
+        border-radius: 10px;
+    }
+
+    // 11px eyebrow; the title's own line box (font size × 1.08).
+    &--kind {
+        width: 140px;
+        height: 11px;
+    }
+
+    &--title {
+        width: min(60%, 420px);
+        height: calc(clamp(28px, 3.2vw, 40px) * 1.08);
+        border-radius: 6px;
+    }
+
+    // Meta chip: 22.8px pill.
+    &--chip {
+        width: 64px;
+        height: 22.8px;
+        border-radius: 999px;
+
+        &:nth-child(2) {
+            width: 88px;
+        }
+    }
+
+    &--primary {
+        width: 168px;
+        height: 44px;
+        border-radius: 10px;
+    }
+
+    &--icon-button {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+    }
+}
+
+// Text lines: bars centred in the real line boxes (13.5px × 1.55 for the
+// description, 21.5px credit rows).
+.skeleton-lines {
+    --line-box: 20.925px;
+
+    display: flex;
+    flex-direction: column;
     width: 100%;
 
-    ::ng-deep .loader {
-        display: block;
-        height: 100%;
-        background-color: color-mix(
-            in srgb,
-            var(--app-on-surface, #e6e1e5) 10%,
-            transparent
-        );
+    .skeleton--line {
+        width: 100%;
+        height: 10px;
+        margin-block: calc((var(--line-box) - 10px) / 2);
+
+        & + .skeleton--line {
+            width: 70%;
+        }
+    }
+
+    &--meta {
+        --line-box: 21.5px;
+
+        .skeleton--line {
+            width: min(100%, 320px);
+
+            & + .skeleton--line {
+                width: min(70%, 220px);
+            }
+        }
     }
 }

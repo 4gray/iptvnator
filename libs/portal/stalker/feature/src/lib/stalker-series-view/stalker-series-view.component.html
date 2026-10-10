@@ -111,6 +111,8 @@
                     testId="series-quick-start"
                     (pressed)="playQuickStartEpisode()"
                 />
+            } @else if (episodeListLoading()) {
+                <app-detail-action-skeleton />
             }
             @if (heroPresenter.trailerEmbedUrl()) {
                 <app-detail-action-button
@@ -170,6 +172,9 @@
                 [seriesId]="toSeriesId(serial.id)"
                 [playlistId]="stalkerStore.currentPlaylist()?._id ?? ''"
                 [seriesTitle]="serial.info.name"
+                [seriesDescription]="serial.info.description"
+                [seriesPosterUrl]="serial.info.movie_image"
+                [metadataLoading]="seasonMetadataLoading()"
                 [playbackPositions]="episodePlaybackPositions()"
                 [openingEpisodeId]="openingEpisodeId()"
                 [activeEpisodeId]="activeEpisodeId()"
@@ -180,19 +185,14 @@
                 [seasonPosters]="seasonPosters()"
                 [downloadsEnabled]="!providerOnly()"
                 [downloadAdapter]="episodeDownloadAdapter()"
-                [isLoading]="
-                    isVodSeriesSeasonsLoading() ||
-                    isCurrentSeasonLoading(
-                        $safeNavigationMigration(
-                            seasonContainer?.selectedSeason()
-                        )
-                    )
-                "
+                [isLoading]="episodeListLoading()"
                 [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
                 [hasUnloadedSeasons]="hasUnloadedVodSeasons()"
+                [seasonLoadStates]="vodSeasonLoadStates()"
                 [unloadedSeasonKeys]="unloadedVodSeasonKeys()"
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
+                (episodeRestartRequested)="onEpisodeRestartRequested($event)"
                 (playbackToggleRequested)="
                     handlePlaybackToggleRequestedFromUi($event)
                 "

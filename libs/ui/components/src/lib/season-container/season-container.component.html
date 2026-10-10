@@ -1,35 +1,45 @@
 <section class="seasons-section">
-    <!-- "Episodes · Season 1 · Season 2 · 8 episodes": the season pills sit
-         in the header; season and series actions live in the hero's menu. -->
-    <header class="episodes-header">
-        <h3 class="episodes-header__title" data-test-id="episodes-heading">
-            {{ 'PORTALS.DETAIL.EPISODES' | translate }}
-        </h3>
+    <!-- "Episodes · Season 1 · 8 episodes · 3 watched": the season picker
+         sits in the shared section header; season and series actions live
+         in the hero's menu. -->
+    @let episodeCount = selectedSeasonEpisodes().length;
+    @let watchedCount = watchedCounts()[selectedSeason() ?? ''] ?? 0;
+    <app-detail-section-header
+        class="episodes-header"
+        titleTestId="episodes-heading"
+        [title]="'PORTALS.DETAIL.EPISODES' | translate"
+        [count]="
+            !hasSeasons() || !episodeCount
+                ? null
+                : ((episodeCount === 1
+                      ? 'PORTALS.EPISODE_COUNT_ONE'
+                      : 'PORTALS.EPISODE_COUNT_OTHER'
+                  ) | translate: { count: episodeCount }) +
+                  (watchedCount
+                      ? ' · ' +
+                        ('PORTALS.EPISODES_WATCHED_COUNT'
+                            | translate: { count: watchedCount })
+                      : '')
+        "
+    >
         @if (hasSeasons()) {
             <app-season-tabs
+                section-header-lead
                 class="episodes-header__tabs"
                 [seasonKeys]="sortedSeasonKeys()"
                 [selectedSeason]="selectedSeason()"
                 [episodeCounts]="episodeCounts()"
                 [watchedCounts]="watchedCounts()"
-                [seasonPosters]="seasonPosters()"
+                [seasonLoadStates]="seasonLoadStates()"
                 [playingSeasonKey]="playingSeasonKey()"
                 (seasonSelected)="selectSeason($event)"
                 (backToPlayingRequested)="scrollToPlayingEpisode()"
             />
-            @if (selectedSeasonEpisodes().length; as count) {
-                <span class="episodes-header__count">
-                    {{
-                        (count === 1
-                            ? 'PORTALS.EPISODE_COUNT_ONE'
-                            : 'PORTALS.EPISODE_COUNT_OTHER'
-                        ) | translate: { count }
-                    }}
-                </span>
-            }
         }
-        @if (hasSeasons() && !showSeasonEmptyState()) {
-            <div class="view-toggle">
+        @if (
+            hasSeasons() && !showSeasonEmptyState() && metaState() !== 'bare'
+        ) {
+            <div class="view-toggle" section-header-end>
                 <mat-button-toggle-group
                     [value]="viewMode()"
                     (change)="setViewMode($event.value)"
@@ -52,44 +62,25 @@
                 </mat-button-toggle-group>
             </div>
         }
-    </header>
+    </app-detail-section-header>
 
-    @if (
-        hasSeasons() &&
-        (selectedSeasonPosterUrl() || selectedSeasonDescription())
-    ) {
-        <!-- The selected season's own cover and synopsis, compact, under
-             the header. Without either the row is not rendered at all. -->
-        <div class="season-strip">
-            @if (selectedSeasonPosterUrl(); as posterUrl) {
-                <img
-                    class="season-strip__cover"
-                    data-testid="season-cover"
-                    [src]="posterUrl"
-                    [alt]="
-                        'PORTALS.SEASON_TAB'
-                            | translate: { number: selectedSeason() }
-                    "
-                    loading="lazy"
-                    (error)="onSeasonPosterError(posterUrl)"
-                />
-            }
-            @if (selectedSeasonDescription(); as description) {
-                <app-expandable-text
-                    class="season-strip__description"
-                    data-testid="season-description"
-                    [text]="description"
-                    [clampLines]="3"
-                />
-            }
-        </div>
+    @if (hasSeasons() && selectedSeasonDescription(); as description) {
+        <!-- The selected season's own synopsis, aligned with the number
+             column. No cover beside it, and no row at all without one. -->
+        <app-expandable-text
+            class="season-description"
+            data-testid="season-description"
+            [text]="description"
+            [clampLines]="2"
+        />
     }
 
     <div class="content-container">
-        @if (isLoading()) {
-            <div class="loading-container">
-                <mat-spinner diameter="40"></mat-spinner>
-            </div>
+        @if (metaState() === 'loading') {
+            <app-episode-skeleton
+                [layout]="effectiveViewMode()"
+                [count]="selectedSeasonEpisodes().length"
+            />
         } @else if (showSeriesEmptyState()) {
             <div class="empty-state-panel" role="status">
                 <div class="empty-state-panel__icon" aria-hidden="true">
@@ -118,420 +109,33 @@
                 </p>
             </div>
         } @else {
-            @if (viewMode() === 'grid') {
-                <!-- Episodes Grid View -->
-                <div class="episodes-grid">
-                    @for (episode of selectedSeasonEpisodes(); track $index) {
-                        @let episodeInfo = getEpisodeInfo(episode);
-                        <article
-                            class="episode-card"
-                            [attr.data-episode-id]="
-                                getEpisodeContentId(episode)
-                            "
-                            (click)="selectEpisode(episode)"
-                            [class.episode-card--watched]="
-                                isEpisodeWatched(episode)
-                            "
-                            [class.episode-card--in-progress]="
-                                isEpisodeInProgress(episode)
-                            "
-                            [class.episode-card--launching]="
-                                isEpisodeLaunching(episode)
-                            "
-                            [class.episode-card--active-external]="
-                                isEpisodeActiveExternal(episode)
-                            "
-                            [class.episode-card--playing]="
-                                isEpisodePlayingInline(episode)
-                            "
-                        >
-                            <div class="episode-card__thumbnail">
-                                @if (episodeInfo?.movie_image) {
-                                    <img
-                                        [src]="episodeInfo?.movie_image ?? ''"
-                                        (error)="
-                                            $event.target.src =
-                                                './assets/images/default-poster.png'
-                                        "
-                                        alt="Episode thumbnail"
-                                        loading="lazy"
-                                    />
-                                } @else {
-                                    <div class="episode-card__placeholder">
-                                        <mat-icon>play_circle_outline</mat-icon>
-                                    </div>
-                                }
-                                @if (getEpisodeProgress(episode) > 0) {
-                                    <span
-                                        class="episode-card__progress"
-                                        aria-hidden="true"
-                                    >
-                                        <i
-                                            [style.width.%]="
-                                                getEpisodeProgress(episode)
-                                            "
-                                        ></i>
-                                    </span>
-                                }
-                                <button
-                                    mat-icon-button
-                                    class="episode-card__watched-toggle"
-                                    [class.episode-card__watched-toggle--watched]="
-                                        isEpisodeWatched(episode)
-                                    "
-                                    data-testid="episode-watched-toggle"
-                                    (click)="toggleWatched($event, episode)"
-                                    [matTooltip]="
-                                        (isEpisodeWatched(episode)
-                                            ? 'XTREAM.MARK_UNWATCHED'
-                                            : 'XTREAM.MARK_WATCHED'
-                                        ) | translate
-                                    "
-                                >
-                                    <mat-icon>{{
-                                        isEpisodeWatched(episode)
-                                            ? 'check_circle'
-                                            : 'radio_button_unchecked'
-                                    }}</mat-icon>
-                                </button>
-                                <div class="episode-card__actions">
-                                    @if (
-                                        downloadPresenter.presentationVisible()
-                                    ) {
-                                        @let downloadRow =
-                                            downloadPresenter.rowFor(episode);
-                                        @let downloadState =
-                                            downloadRow.presentation;
-                                        <button
-                                            mat-icon-button
-                                            class="download-btn"
-                                            [class.download-btn--completed]="
-                                                downloadState.action === 'play'
-                                            "
-                                            [class.download-btn--paused]="
-                                                downloadState.action ===
-                                                'resume'
-                                            "
-                                            [class.download-btn--downloading]="
-                                                downloadState.disabled
-                                            "
-                                            [disabled]="downloadState.disabled"
-                                            [attr.data-test-id]="
-                                                'episode-download-' + episode.id
-                                            "
-                                            [attr.aria-label]="
-                                                downloadState.action === 'play'
-                                                    ? ('DOWNLOADS.PLAY_LOCAL'
-                                                          | translate) +
-                                                      ': ' +
-                                                      episode.title
-                                                    : (downloadState.ariaKey
-                                                      | translate
-                                                          : {
-                                                                title: episode.title,
-                                                            })
-                                            "
-                                            [matTooltip]="
-                                                downloadState.action === 'play'
-                                                    ? ('DOWNLOADS.PLAY_LOCAL'
-                                                          | translate) +
-                                                      ': ' +
-                                                      episode.title
-                                                    : (downloadState.ariaKey
-                                                      | translate
-                                                          : {
-                                                                title: episode.title,
-                                                            })
-                                            "
-                                            (click)="
-                                                downloadPresenter.runEpisodeAction(
-                                                    $event,
-                                                    episode
-                                                )
-                                            "
-                                        >
-                                            <mat-icon>{{
-                                                downloadState.icon
-                                            }}</mat-icon>
-                                        </button>
-                                    }
-                                </div>
-                                <div class="episode-card__overlay">
-                                    <div class="episode-card__play">
-                                        @if (isEpisodeLaunching(episode)) {
-                                            <mat-spinner
-                                                diameter="26"
-                                            ></mat-spinner>
-                                        } @else {
-                                            <mat-icon>{{
-                                                isEpisodeActiveExternal(
-                                                    episode
-                                                ) ||
-                                                isEpisodePlayingInline(episode)
-                                                    ? 'equalizer'
-                                                    : 'play_arrow'
-                                            }}</mat-icon>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="episode-card__info">
-                                <div class="episode-card__title-row">
-                                    <h4 class="episode-card__title">
-                                        {{ episode.episode_num }}.
-                                        {{ episode.title }}
-                                    </h4>
-                                    @if (episodeInfo?.plot) {
-                                        <button
-                                            mat-icon-button
-                                            class="episode-card__info-btn"
-                                            data-testid="episode-info-button"
-                                            (click)="
-                                                openEpisodeInfo($event, episode)
-                                            "
-                                            [matTooltip]="
-                                                'PORTALS.EPISODE_INFO'
-                                                    | translate
-                                            "
-                                        >
-                                            <mat-icon>info_outline</mat-icon>
-                                        </button>
-                                    }
-                                </div>
-                                @if (episodeInfo?.plot) {
-                                    <p class="episode-card__plot">
-                                        {{ episodeInfo?.plot }}
-                                    </p>
-                                }
-                                @if (getEpisodeSubline(episode); as subline) {
-                                    <small class="episode-card__subline">
-                                        {{ subline }}
-                                    </small>
-                                }
-                            </div>
-                        </article>
-                    }
-                </div>
-            } @else {
-                <!-- Episodes List View -->
-                <div class="episodes-list">
-                    @for (episode of selectedSeasonEpisodes(); track $index) {
-                        @let episodeInfo = getEpisodeInfo(episode);
-                        <article
-                            class="episode-list-item"
-                            [attr.data-episode-id]="
-                                getEpisodeContentId(episode)
-                            "
-                            (click)="selectEpisode(episode)"
-                            [class.episode-list-item--watched]="
-                                isEpisodeWatched(episode)
-                            "
-                            [class.episode-list-item--in-progress]="
-                                isEpisodeInProgress(episode)
-                            "
-                            [class.episode-list-item--launching]="
-                                isEpisodeLaunching(episode)
-                            "
-                            [class.episode-list-item--active-external]="
-                                isEpisodeActiveExternal(episode)
-                            "
-                            [class.episode-list-item--playing]="
-                                isEpisodePlayingInline(episode)
-                            "
-                        >
-                            @if (listThumbnailsEnabled()) {
-                                <div class="episode-list-item__thumb">
-                                    @if (episodeInfo?.movie_image) {
-                                        <img
-                                            [src]="
-                                                episodeInfo?.movie_image ?? ''
-                                            "
-                                            (error)="
-                                                $event.target.src =
-                                                    './assets/images/default-poster.png'
-                                            "
-                                            alt="Episode thumbnail"
-                                            loading="lazy"
-                                        />
-                                    } @else {
-                                        <mat-icon
-                                            class="episode-list-item__thumb-placeholder"
-                                            >play_circle_outline</mat-icon
-                                        >
-                                    }
-                                    <span
-                                        class="episode-list-item__thumb-number"
-                                        >{{ episode.episode_num }}</span
-                                    >
-                                </div>
-                            } @else {
-                                <div class="episode-list-item__number">
-                                    {{ episode.episode_num }}
-                                </div>
-                            }
-                            <div class="episode-list-item__content">
-                                <div class="episode-list-item__header">
-                                    <h4 class="episode-list-item__title">
-                                        {{ episode.title }}
-                                        @if (isEpisodeWatched(episode)) {
-                                            <mat-icon class="watched-icon"
-                                                >check_circle</mat-icon
-                                            >
-                                        }
-                                    </h4>
-                                    <div class="episode-list-item__meta">
-                                        @if (episodeInfo?.duration) {
-                                            <span
-                                                class="episode-list-item__duration"
-                                            >
-                                                {{ episodeInfo?.duration }}
-                                            </span>
-                                        }
-                                        @if (
-                                            getEpisodePositionText(episode);
-                                            as time
-                                        ) {
-                                            <span
-                                                class="episode-list-item__progress-text"
-                                            >
-                                                {{ time }}
-                                            </span>
-                                        }
-                                    </div>
-                                </div>
-                                @if (episodeInfo?.plot) {
-                                    <p class="episode-list-item__description">
-                                        {{ episodeInfo?.plot }}
-                                    </p>
-                                }
-                                @if (getEpisodeProgress(episode) > 0) {
-                                    <div
-                                        class="episode-list-item__progress-bar"
-                                    >
-                                        <div
-                                            class="episode-list-item__progress-fill"
-                                            [style.width.%]="
-                                                getEpisodeProgress(episode)
-                                            "
-                                        ></div>
-                                    </div>
-                                }
-                            </div>
-                            <div class="episode-list-item__actions">
-                                <button
-                                    mat-icon-button
-                                    class="action-btn play-btn"
-                                    (click)="
-                                        selectEpisode(episode);
-                                        $event.stopPropagation()
-                                    "
-                                    [matTooltip]="'Play'"
-                                    [disabled]="isEpisodeLaunching(episode)"
-                                >
-                                    @if (isEpisodeLaunching(episode)) {
-                                        <mat-spinner
-                                            diameter="18"
-                                        ></mat-spinner>
-                                    } @else {
-                                        <mat-icon>{{
-                                            isEpisodeActiveExternal(episode) ||
-                                            isEpisodePlayingInline(episode)
-                                                ? 'equalizer'
-                                                : 'play_arrow'
-                                        }}</mat-icon>
-                                    }
-                                </button>
-                                @if (downloadPresenter.presentationVisible()) {
-                                    @let downloadRow =
-                                        downloadPresenter.rowFor(episode);
-                                    @let downloadState =
-                                        downloadRow.presentation;
-                                    <button
-                                        mat-icon-button
-                                        class="action-btn"
-                                        [class.action-btn--success]="
-                                            downloadState.action === 'play'
-                                        "
-                                        [disabled]="downloadState.disabled"
-                                        [attr.data-test-id]="
-                                            'episode-download-' + episode.id
-                                        "
-                                        [attr.aria-label]="
-                                            downloadState.action === 'play'
-                                                ? ('DOWNLOADS.PLAY_LOCAL'
-                                                      | translate) +
-                                                  ': ' +
-                                                  episode.title
-                                                : (downloadState.ariaKey
-                                                  | translate
-                                                      : {
-                                                            title: episode.title,
-                                                        })
-                                        "
-                                        [matTooltip]="
-                                            downloadState.action === 'play'
-                                                ? ('DOWNLOADS.PLAY_LOCAL'
-                                                      | translate) +
-                                                  ': ' +
-                                                  episode.title
-                                                : (downloadState.ariaKey
-                                                  | translate
-                                                      : {
-                                                            title: episode.title,
-                                                        })
-                                        "
-                                        (click)="
-                                            downloadPresenter.runEpisodeAction(
-                                                $event,
-                                                episode
-                                            )
-                                        "
-                                    >
-                                        <mat-icon>{{
-                                            downloadState.icon
-                                        }}</mat-icon>
-                                    </button>
-                                }
-                                @if (episodeInfo?.plot) {
-                                    <button
-                                        mat-icon-button
-                                        class="action-btn"
-                                        data-testid="episode-info-button"
-                                        (click)="
-                                            openEpisodeInfo($event, episode)
-                                        "
-                                        [matTooltip]="
-                                            'PORTALS.EPISODE_INFO' | translate
-                                        "
-                                    >
-                                        <mat-icon>info_outline</mat-icon>
-                                    </button>
-                                }
-                                <button
-                                    mat-icon-button
-                                    class="action-btn"
-                                    (click)="toggleWatched($event, episode)"
-                                    [matTooltip]="
-                                        (isEpisodeWatched(episode)
-                                            ? 'XTREAM.MARK_UNWATCHED'
-                                            : 'XTREAM.MARK_WATCHED'
-                                        ) | translate
-                                    "
-                                    [class.action-btn--success]="
-                                        isEpisodeWatched(episode)
-                                    "
-                                >
-                                    <mat-icon>{{
-                                        isEpisodeWatched(episode)
-                                            ? 'check_circle'
-                                            : 'radio_button_unchecked'
-                                    }}</mat-icon>
-                                </button>
-                            </div>
-                        </article>
-                    }
-                </div>
-            }
+            <div
+                [class.episodes-grid]="effectiveViewMode() === 'grid'"
+                [class.episodes-list]="effectiveViewMode() === 'list'"
+                [class.episodes-list--bare]="metaState() === 'bare'"
+            >
+                @for (episode of selectedSeasonEpisodes(); track $index) {
+                    <app-episode-item
+                        [episode]="episode"
+                        [layout]="effectiveViewMode()"
+                        [bare]="metaState() === 'bare'"
+                        [position]="getEpisodePosition(episode)"
+                        [showStill]="hasUsableStill(episode)"
+                        [launching]="isEpisodeLaunching(episode)"
+                        [playing]="
+                            isEpisodeActiveExternal(episode) ||
+                            isEpisodePlayingInline(episode)
+                        "
+                        [current]="
+                            currentEpisodeId() === getEpisodeContentId(episode)
+                        "
+                        (played)="selectEpisode(episode)"
+                        (restartRequested)="restartEpisode(episode)"
+                        (watchedToggled)="toggleWatched($event, episode)"
+                        (infoRequested)="openEpisodeInfo($event, episode)"
+                    />
+                }
+            </div>
         }
     </div>
 </section>

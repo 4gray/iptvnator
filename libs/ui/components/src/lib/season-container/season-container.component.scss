@@ -1,21 +1,5 @@
 .seasons-section {
     width: 100%;
-    margin-top: 4px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .episode-card,
-    .episode-card__thumbnail img {
-        transition: none;
-    }
-}
-
-.loading-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 30px 0;
-    width: 100%;
 }
 
 .empty-state-panel {
@@ -92,768 +76,130 @@
     }
 }
 
-// Grid Layout
-.episodes-grid {
-    display: grid;
-    gap: 16px;
-    width: 100%;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-}
-
-// "Episodes" header: title, season pills, count and the view toggle on one
-// line; the pills wrap first when the pane is narrow.
+// Episodes header: the shared section header with the season picker after
+// the title and the view toggle at the far edge.
 .episodes-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 10px;
-    margin-bottom: 14px;
-
-    &__title {
-        margin: 0 6px 0 0;
-        color: var(--text-primary);
-        font-size: 16px;
-        font-weight: 600;
-        line-height: 1.3;
-    }
-
     &__tabs {
         display: block;
         min-width: 0;
     }
 
-    &__count {
-        color: var(--text-muted);
-        font-size: 12px;
-        white-space: nowrap;
-    }
-
-    .view-toggle {
-        margin-left: auto;
-
-        mat-button-toggle-group {
-            border: 1px solid
-                color-mix(in srgb, var(--app-on-surface) 14%, transparent);
-            border-radius: 6px;
-            overflow: hidden;
-            background: color-mix(
-                in srgb,
-                var(--app-on-surface) 3%,
-                transparent
-            );
-
-            ::ng-deep {
-                .mat-button-toggle {
-                    background: transparent;
-
-                    .mat-button-toggle-button {
-                        padding: 0 8px;
-                        height: 30px;
-                    }
-
-                    mat-icon {
-                        font-size: 18px;
-                        width: 18px;
-                        height: 18px;
-                        color: var(--text-secondary);
-                    }
-
-                    &.mat-button-toggle-checked {
-                        background: var(--app-selection-surface);
-
-                        mat-icon {
-                            color: var(--app-selection-color);
-                        }
-                    }
-
-                    &:hover:not(.mat-button-toggle-checked) {
-                        background: var(--app-hover-overlay);
-                    }
-                }
-
-                .mat-button-toggle-appearance-standard {
-                    .mat-button-toggle-label-content {
-                        line-height: 30px;
-                        padding: 0;
-                    }
-                }
-
-                .mat-button-toggle + .mat-button-toggle {
-                    border-left: 1px solid
-                        color-mix(
-                            in srgb,
-                            var(--app-on-surface) 14%,
-                            transparent
-                        );
-                }
-            }
-        }
-    }
-}
-
-// The selected season's cover (--season-cover-width follows
-// Settings.coverSize) and synopsis under the header.
-.season-strip {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 14px;
-
-    &__cover {
-        display: block;
-        flex: 0 0 auto;
-        width: calc(var(--season-cover-width, 120px) * 0.5);
-        aspect-ratio: 2 / 3;
-        object-fit: cover;
+    // Segmented list/grid switch: a 2px-padded track with 30×26 segments;
+    // the checked one is a neutral raised segment with full-contrast ink.
+    .view-toggle mat-button-toggle-group {
+        gap: 2px;
+        height: auto;
+        padding: 2px;
+        overflow: visible;
+        border: 1px solid
+            color-mix(in srgb, var(--app-on-surface) 14%, transparent);
         border-radius: 8px;
         background: var(--app-widget-bg);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-    }
 
-    &__description {
-        flex: 1 1 auto;
-        min-width: 0;
-        max-width: 760px;
-        font-size: 12.5px;
-        line-height: 1.55;
-        color: var(--text-secondary);
+        ::ng-deep {
+            .mat-button-toggle {
+                border: 0;
+                border-radius: 6px;
+                background: transparent;
+                color: var(--app-eyebrow-color);
+
+                .mat-button-toggle-button {
+                    width: 30px;
+                    height: 26px;
+                    padding: 0;
+                }
+
+                .mat-button-toggle-label-content {
+                    display: grid;
+                    place-items: center;
+                    padding: 0;
+                    line-height: 26px;
+                }
+
+                mat-icon {
+                    width: 16px;
+                    height: 16px;
+                    font-size: 16px;
+                    line-height: 16px;
+                    color: inherit;
+                }
+
+                &:hover:not(.mat-button-toggle-checked) {
+                    color: var(--app-heading-color);
+                }
+
+                &.mat-button-toggle-checked {
+                    background: color-mix(
+                        in srgb,
+                        var(--app-on-surface) 12%,
+                        transparent
+                    );
+                    color: var(--app-heading-color);
+                }
+            }
+
+            .mat-button-toggle + .mat-button-toggle {
+                border-left: 0;
+            }
+        }
     }
 }
 
-// Episode Card — flat: the thumbnail and the text sit on the page, no box.
-.episode-card {
-    position: relative;
-    cursor: pointer;
-    border-radius: 10px;
-    transition: opacity 0.2s ease;
-
-    &--launching,
-    &--active-external {
-        .episode-card__thumbnail {
-            box-shadow: 0 0 0 2px
-                color-mix(in srgb, var(--mat-sys-tertiary) 56%, transparent);
-        }
-    }
-
-    &--launching {
-        .episode-card__overlay {
-            opacity: 1;
-            background: rgba(0, 0, 0, 0.56);
-        }
-    }
-
-    // Playing in the inline player
-    &--playing .episode-card__thumbnail {
-        box-shadow: 0 0 0 2px
-            color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
-    }
-
-    &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
-    }
-
-    // Watched state — the sole indicator is the watched toggle on the
-    // thumbnail (plus the dimmed card); no extra checkmarks elsewhere.
-    &--watched {
-        opacity: 0.7;
-
-        &:hover {
-            opacity: 1;
-        }
-    }
-
-    // Watched indicator + toggle in one control, top-left on the artwork.
-    // Watched: always visible, green (the old badge look). Unwatched: ghost
-    // circle revealed on card hover.
-    &__watched-toggle {
-        position: absolute;
-        top: 6px;
-        left: 6px;
-        z-index: 2;
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: rgba(255, 255, 255, 0.75);
-        background: rgba(0, 0, 0, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        opacity: 0;
-        transition:
-            opacity 0.2s ease,
-            background 0.2s ease,
-            color 0.2s ease;
-
-        mat-icon {
-            font-size: 17px;
-            width: 17px;
-            height: 17px;
-            line-height: 17px;
-        }
-
-        &:hover {
-            color: white;
-            background: rgba(0, 0, 0, 0.85);
-        }
-
-        &:focus-visible {
-            opacity: 1;
-        }
-
-        &--watched {
-            opacity: 1;
-            color: white;
-            background: rgba(70, 211, 105, 0.9);
-            border-color: transparent;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-
-            &:hover {
-                color: white;
-                background: rgba(70, 211, 105, 1);
-            }
-        }
-    }
-
-    &:hover .episode-card__watched-toggle {
-        opacity: 1;
-    }
-
-    &:hover {
-        .episode-card__overlay {
-            opacity: 1;
-        }
-
-        .episode-card__play {
-            transform: scale(1);
-        }
-
-        .episode-card__thumbnail img {
-            transform: scale(1.03);
-        }
-    }
-
-    &__thumbnail {
-        position: relative;
-        aspect-ratio: 16 / 9;
-        background: #000;
-        // A hairline keeps the artwork's edge visible on the light theme too.
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 10px;
-        overflow: hidden;
-
-        img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.2s ease;
-        }
-    }
-
-    // 3px watched share at the bottom of the artwork
-    &__progress {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: 3px;
-        background: rgba(255, 255, 255, 0.15);
-        z-index: 2;
-
-        i {
-            display: block;
-            height: 100%;
-            background: var(--app-selection-color, #98b8ff);
-        }
-    }
-
-    &__placeholder {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
-        color: var(--text-muted);
-
-        mat-icon {
-            font-size: 32px;
-            width: 32px;
-            height: 32px;
-            opacity: 0.3;
-        }
-    }
-
-    &__overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-        z-index: 1;
-    }
-
-    &__actions {
-        position: absolute;
-        top: 4px;
-        right: 4px;
-        z-index: 2;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-        display: flex;
-        gap: 4px;
-
-        .download-btn {
-            color: rgba(255, 255, 255, 0.75);
-            background: rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            width: 28px;
-            height: 28px;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-
-            &:hover {
-                color: white;
-                background: rgba(0, 0, 0, 0.85);
-            }
-
-            mat-icon {
-                font-size: 17px;
-                width: 17px;
-                height: 17px;
-                line-height: 17px;
-            }
-        }
-
-        .download-btn:hover {
-            background: rgba(25, 118, 210, 0.8);
-        }
-
-        .download-btn--completed {
-            color: var(--mat-sys-tertiary) !important;
-
-            &:hover {
-                background: color-mix(
-                    in srgb,
-                    var(--mat-sys-tertiary) 80%,
-                    transparent
-                );
-            }
-        }
-
-        .download-btn--downloading {
-            color: rgba(255, 255, 255, 0.5) !important;
-            cursor: not-allowed;
-        }
-
-        .download-btn--paused {
-            color: #fbbf24 !important;
-
-            &:hover {
-                background: color-mix(in srgb, #fbbf24 20%, transparent);
-            }
-        }
-    }
-
-    &:hover {
-        .episode-card__actions {
-            opacity: 1;
-        }
-    }
-
-    &__play {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: var(--accent-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        transform: scale(0.8);
-        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-
-        mat-icon {
-            font-size: 24px;
-            width: 24px;
-            height: 24px;
-        }
-    }
-
-    &__info {
-        padding: 8px 2px 0;
-    }
-
-    &__title-row {
-        display: flex;
-        align-items: flex-start;
-        gap: 4px;
-        margin-bottom: 2px;
-    }
-
-    &__title {
-        flex: 1;
-        min-width: 0;
-        font-size: 13px;
-        font-weight: 500;
-        margin: 0;
-        color: var(--text-primary);
-        line-height: 1.4;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    // "About the episode" lives with the text, not on the artwork: a quiet
-    // ghost button at the end of the title row, revealed on card hover.
-    &__info-btn {
-        flex: none;
-        width: 22px;
-        height: 22px;
-        padding: 0;
-        margin: -1px -2px 0 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-muted);
-        opacity: 0;
-        transition:
-            opacity 0.2s ease,
-            color 0.2s ease;
-
-        mat-icon {
-            font-size: 17px;
-            width: 17px;
-            height: 17px;
-            line-height: 17px;
-        }
-
-        &:hover {
-            color: var(--text-primary);
-        }
-
-        &:focus-visible {
-            opacity: 1;
-        }
-
-        // The default 48px MDC touch target would swallow clicks on the
-        // title around this tiny button (card click = play).
-        ::ng-deep .mat-mdc-button-touch-target {
-            width: 100%;
-            height: 100%;
-        }
-    }
-
-    &:hover .episode-card__info-btn {
-        opacity: 1;
-    }
-
-    &__plot {
-        font-size: 12px;
-        color: var(--text-secondary);
-        margin: 0 0 4px 0;
-        line-height: 1.4;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    &__subline {
-        display: block;
-        font-size: 11.5px;
-        color: var(--text-muted);
-    }
+// The selected season's own synopsis under the header, offset past the
+// 36px number column and its gap so it lines up with the episode numbers.
+// One that repeats the hero's series description is dropped by the
+// container, and without a synopsis nothing renders.
+.season-description {
+    display: block;
+    max-width: 72ch;
+    margin: 4px 0 24px;
+    padding-left: 52px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-secondary);
 }
 
-// Episodes List View
+// ============================================================================
+// Episodes: list rows and grid cards (app-episode-item)
+// ============================================================================
+
+.episodes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+    gap: 20px 16px;
+    width: 100%;
+}
+
+// Borderless rows separated by a hairline inset past the number column. The
+// hairline gives way around a hovered, focused or highlighted row, so the
+// row's fill never sits against a line.
 .episodes-list {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    width: 100%;
-}
 
-.episode-list-item {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 12px 16px;
-    background: color-mix(in srgb, var(--app-on-surface) 3%, transparent);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    border: 1px solid color-mix(in srgb, var(--app-on-surface) 14%, transparent);
-
-    &:hover {
-        background: var(--app-card-hover-bg);
-        border-color: color-mix(
-            in srgb,
-            var(--app-on-surface) 22%,
-            transparent
-        );
-
-        .episode-list-item__actions {
-            opacity: 1;
-        }
-    }
-
-    &--watched {
-        opacity: 0.6;
-
-        &:hover {
-            opacity: 1;
-        }
-    }
-
-    &--in-progress {
-        border-color: color-mix(
-            in srgb,
-            var(--mat-sys-primary) 40%,
-            transparent
-        );
-        background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
-
-        &:hover {
-            border-color: color-mix(
-                in srgb,
-                var(--mat-sys-primary) 60%,
-                transparent
-            );
-            background: color-mix(
-                in srgb,
-                var(--mat-sys-primary) 8%,
-                transparent
-            );
-        }
-    }
-
-    &__number {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 36px;
-        height: 36px;
-        background: var(--app-hover-overlay);
-        border-radius: 6px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--text-secondary);
-        flex-shrink: 0;
-    }
-
-    // Compact 16:9 episode still (only when the season has distinct
-    // per-episode art); the episode number rides on the image.
-    &__thumb {
-        position: relative;
-        flex-shrink: 0;
-        width: 96px;
-        height: 54px;
-        border-radius: 6px;
-        overflow: hidden;
-        background: rgba(255, 255, 255, 0.05);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-    }
-
-    &__thumb-placeholder {
-        color: var(--text-muted);
-        font-size: 22px;
-        width: 22px;
-        height: 22px;
-    }
-
-    &__thumb-number {
+    > app-episode-item + app-episode-item::before {
+        content: '';
         position: absolute;
-        bottom: 3px;
-        right: 3px;
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        font-size: 0.65rem;
-        font-weight: 600;
-        line-height: 1.5;
-        padding: 0 5px;
-        border-radius: 3px;
+        top: -2px;
+        right: 12px;
+        left: 56px;
+        height: 1px;
+        background: color-mix(in srgb, var(--app-on-surface) 7%, transparent);
+        pointer-events: none;
     }
 
-    &__content {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
+    // Bare rows have no thumbnail: the hairline starts past the number.
+    &--bare > app-episode-item + app-episode-item::before {
+        left: 48px;
     }
 
-    &__header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-    }
-
-    &__title {
-        margin: 0;
-        font-size: 0.9375rem;
-        font-weight: 500;
-        color: var(--text-primary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-
-        .watched-icon {
-            font-size: 16px;
-            width: 16px;
-            height: 16px;
-            color: var(--mat-sys-tertiary);
-        }
-    }
-
-    &__meta {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-shrink: 0;
-    }
-
-    &__duration {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        padding: 2px 8px;
-        background: rgba(255, 255, 255, 0.06);
-        border-radius: 10px;
-    }
-
-    &__progress-text {
-        font-size: 0.75rem;
-        font-weight: 500;
-        color: var(--mat-sys-primary);
-        padding: 2px 8px;
-        background: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
-        border-radius: 10px;
-    }
-
-    &__description {
-        margin: 0;
-        font-size: 0.8125rem;
-        color: var(--text-secondary);
-        line-height: 1.4;
-        display: -webkit-box;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    &__progress-bar {
-        height: 3px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 2px;
-        overflow: hidden;
-        margin-top: 4px;
-    }
-
-    &__progress-fill {
-        height: 100%;
-        background: var(--app-progress-color);
-        border-radius: 2px;
-        transition: width 0.3s ease;
-    }
-
-    &__actions {
-        display: flex;
-        align-items: center;
-        gap: 4px;
+    > app-episode-item:hover::before,
+    > app-episode-item:focus-within::before,
+    > app-episode-item.episode-item--current::before,
+    > app-episode-item:hover + app-episode-item::before,
+    > app-episode-item:focus-within + app-episode-item::before,
+    > app-episode-item.episode-item--current + app-episode-item::before {
         opacity: 0;
-        transition: opacity 0.15s ease;
-
-        .action-btn {
-            width: 36px;
-            height: 36px;
-            color: var(--text-secondary);
-            transition: all 0.15s ease;
-
-            mat-icon {
-                font-size: 20px;
-                width: 20px;
-                height: 20px;
-            }
-
-            &:hover {
-                color: var(--text-primary);
-                background: rgba(255, 255, 255, 0.1);
-            }
-
-            &.play-btn {
-                color: var(--accent-color);
-
-                &:hover {
-                    background: rgba(var(--accent-color-rgb), 0.15);
-                }
-            }
-
-            &--success {
-                color: var(--mat-sys-tertiary);
-
-                &:hover {
-                    background: color-mix(
-                        in srgb,
-                        var(--mat-sys-tertiary) 15%,
-                        transparent
-                    );
-                }
-            }
-
-            &:disabled {
-                color: var(--text-muted);
-                cursor: not-allowed;
-                opacity: 0.5;
-            }
-        }
-    }
-
-    &--launching,
-    &--active-external {
-        border-color: color-mix(
-            in srgb,
-            var(--mat-sys-tertiary) 46%,
-            transparent
-        );
-        background: color-mix(
-            in srgb,
-            var(--mat-sys-tertiary-container) 12%,
-            transparent
-        );
-    }
-
-    &--playing {
-        border-color: color-mix(
-            in srgb,
-            var(--mat-sys-primary) 60%,
-            transparent
-        );
-        background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
-    }
-
-    // Always show actions on touch devices
-    @media (hover: none) {
-        .episode-list-item__actions {
-            opacity: 1;
-        }
     }
 }

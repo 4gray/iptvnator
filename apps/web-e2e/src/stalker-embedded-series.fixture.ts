@@ -52,7 +52,7 @@ export async function openEmbeddedSeriesItem(
 
     await expect(
         page.getByRole('heading', {
-            name: `${episodeCount}. Episode ${episodeCount}`,
+            name: `Episode ${episodeCount}`,
             exact: true,
         })
     ).toBeVisible({ timeout: 10_000 });

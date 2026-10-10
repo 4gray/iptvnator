@@ -116,6 +116,9 @@ html {
     // Live / on-air accent (broadcast indicator)
     --app-live-color: #d12c2c;
 
+    // Done / watched status (episode watched toggle)
+    --app-success-color: #15803d;
+
     // Content area
     --app-content-shadow: -2px 4px 12px rgba(0, 0, 0, 0.06);
 
@@ -218,6 +221,9 @@ html {
 
         // Live / on-air accent (broadcast indicator)
         --app-live-color: #ff8f8f;
+
+        // Done / watched status (episode watched toggle)
+        --app-success-color: #4ade80;
 
         // Content area
         --app-content-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);

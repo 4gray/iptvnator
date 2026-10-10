@@ -587,7 +587,7 @@ describe('buildVlcEnqueueCommands', () => {
     it('clears the playlist and adds the URL with no extra options', () => {
         expect(
             buildVlcEnqueueCommands({ url: 'http://stream.example/a.m3u8' })
-        ).toEqual(['clear', 'add http://stream.example/a.m3u8']);
+        ).toEqual(['clear', 'add http://stream.example/a.m3u8 :start-time=0']);
     });
 
     it('attaches per-input HTTP options inline with the add command', () => {
@@ -601,7 +601,7 @@ describe('buildVlcEnqueueCommands', () => {
 
         expect(commands[0]).toBe('clear');
         expect(commands[1]).toBe(
-            'add http://stream.example/a.m3u8 :http-user-agent=Custom/1.0 :http-referrer=https://referer.example :http-header=X-Token: abc :meta-title=Channel One'
+            'add http://stream.example/a.m3u8 :start-time=0 :http-user-agent=Custom/1.0 :http-referrer=https://referer.example :http-header=X-Token: abc :meta-title=Channel One'
         );
     });
 
@@ -622,7 +622,7 @@ describe('buildVlcEnqueueCommands', () => {
 
         expect(commands).toEqual([
             'clear',
-            'add http://stream.example/a.m3u8',
+            'add http://stream.example/a.m3u8 :start-time=42',
             'seek 42',
         ]);
     });
