@@ -11,6 +11,19 @@ import {
     traceExternalPlayer,
 } from './external-player-runtime';
 
+/**
+ * The per-file start of a reuse load: the requested offset, else zero. A
+ * `seek` right after `loadfile` runs before the file is loaded and fails,
+ * so the offset travels with the load itself.
+ */
+function reuseStartSeconds(startTime: number | undefined): number {
+    return typeof startTime === 'number' &&
+        Number.isFinite(startTime) &&
+        startTime >= 0
+        ? startTime
+        : 0;
+}
+
 const MPV_IPC_COMMAND_TIMEOUT_MS = 2_000;
 
 export interface MpvReuseAttemptState {
@@ -309,10 +322,19 @@ export class MpvReusableProcess {
             if (!dispatched) return;
         }
         if (!shouldDispatch()) return;
-        const loadFileArgs: Array<string | number> = [options.url, 'replace'];
+        // The reused process was launched with a global `--start=<resume>`,
+        // which mpv applies to every later file too. A per-file `start`
+        // (0 when nothing is resumed) keeps each load at its own offset.
+        const fileOptions = [`start=${reuseStartSeconds(options.startTime)}`];
         if (options.title) {
-            loadFileArgs.push(-1, `force-media-title=${options.title}`);
+            fileOptions.push(`force-media-title=${options.title}`);
         }
+        const loadFileArgs: Array<string | number> = [
+            options.url,
+            'replace',
+            -1,
+            fileOptions.join(','),
+        ];
         const dispatched = await sendMpvCommand(
             socketPath,
             'loadfile',

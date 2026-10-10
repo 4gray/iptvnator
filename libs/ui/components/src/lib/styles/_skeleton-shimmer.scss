@@ -1,0 +1,48 @@
+// Placeholder blocks for detail-page loading states (hero, episode rows).
+//
+// A block is a flat fill a step above the page surface with a moving
+// highlight a step higher, both mixed from the theme's on-surface ink so the
+// placeholders read on the light and the dark theme alike. Under
+// `prefers-reduced-motion` the highlight stays put.
+//
+// Include `keyframes` once in a component stylesheet that uses `block`:
+// Angular scopes keyframes to the component that declares them.
+
+$duration: 1.4s;
+
+@mixin keyframes {
+    @keyframes skeleton-shimmer {
+        from {
+            background-position: 100% 0;
+        }
+
+        to {
+            background-position: -100% 0;
+        }
+    }
+}
+
+@mixin block($radius: 4px) {
+    --skeleton-base: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
+    --skeleton-highlight: color-mix(
+        in srgb,
+        var(--app-on-surface) 11%,
+        transparent
+    );
+
+    display: block;
+    border-radius: $radius;
+    background: linear-gradient(
+        90deg,
+        var(--skeleton-base) 25%,
+        var(--skeleton-highlight) 50%,
+        var(--skeleton-base) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer $duration ease-in-out infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+        background: var(--skeleton-base);
+    }
+}

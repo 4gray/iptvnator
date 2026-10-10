@@ -803,12 +803,12 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
 
     // Snapshot episodes are visible immediately…
     await expect(
-        page.getByRole('heading', { name: '1. Episode 1', exact: true })
+        page.getByRole('heading', { name: 'Episode 1', exact: true })
     ).toBeVisible({ timeout: 10_000 });
     // …and the newly released episode appears after the background refresh
     await expect(
         page.getByRole('heading', {
-            name: `${episodeCount + 1}. Episode ${episodeCount + 1}`,
+            name: `Episode ${episodeCount + 1}`,
             exact: true,
         })
     ).toBeVisible({ timeout: 10_000 });
@@ -847,7 +847,7 @@ test('@stalker season watched toggle — embedded series marks and clears every 
     await expect(seasonToggle).toContainText(
         `Mark season as watched (${episodeCount})`
     );
-    const watchedCards = page.locator('.episode-card--watched');
+    const watchedCards = page.locator('.episode-item--watched');
     await expect(watchedCards).toHaveCount(0);
 
     await seasonToggle.click();
@@ -857,7 +857,7 @@ test('@stalker season watched toggle — embedded series marks and clears every 
     await expect(watchedCards).toHaveCount(episodeCount, { timeout: 15_000 });
     await expect(
         page.locator(
-            '[data-testid="episode-watched-toggle"].episode-card__watched-toggle--watched'
+            '[data-testid="episode-watched-toggle"].episode-item__watched-toggle--watched'
         )
     ).toHaveCount(episodeCount);
     seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
@@ -904,7 +904,7 @@ test('@stalker series watched toggle — embedded series marks and clears from t
 
     // Every episode of the embedded season flips to watched and the action
     // becomes unwatch-all.
-    const watchedCards = page.locator('.episode-card--watched');
+    const watchedCards = page.locator('.episode-item--watched');
     await expect(watchedCards).toHaveCount(episodeCount, {
         timeout: 15_000,
     });

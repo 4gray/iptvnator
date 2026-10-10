@@ -212,17 +212,22 @@ export class SerialDetailsPlaybackService {
         this.activeEpisodeId.set(null);
     }
 
-    /** `player` forces MPV/VLC (the "…" menu); history and the launch position are recorded either way. */
+    /**
+     * `player` forces MPV/VLC (the "…" menu); history and the launch position
+     * are recorded either way. `fromStart` ignores the saved position (the
+     * episode menu's "Play from beginning").
+     */
     playEpisode(
         episode: XtreamSerieEpisode,
-        player?: ExternalPlayerName
+        player?: ExternalPlayerName,
+        fromStart = false
     ): Promise<ExternalPlayerSession | void> | void {
         // A forced launch still settling owns the next start: the latest
         // choice made meanwhile replaces its player once it settled.
         const owner = this.launchOwner();
         if (!player && owner && this.forcedLaunchPending()) {
             queueEpisodeChoice(this, owner, episode, (queued) =>
-                this.playEpisode(queued)
+                this.playEpisode(queued, undefined, fromStart)
             );
             return;
         }
@@ -246,7 +251,7 @@ export class SerialDetailsPlaybackService {
             selectedItem,
             episode,
             streamUrl,
-            startTime: position?.positionSeconds,
+            startTime: fromStart ? 0 : position?.positionSeconds,
         });
         return this.startPlayback(playback, episodeState, player);
     }

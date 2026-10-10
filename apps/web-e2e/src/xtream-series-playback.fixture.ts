@@ -225,7 +225,7 @@ export async function playFirstSeriesEpisode(
     await expect(seriesCard).toBeVisible({ timeout: 10_000 });
     await seriesCard.click();
 
-    const episodeCards = page.locator('.episode-card');
+    const episodeCards = page.locator('.episode-item');
     await expect(episodeCards).toHaveCount(8, { timeout: 15_000 });
     await episodeCards.first().click();
 

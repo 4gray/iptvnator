@@ -103,19 +103,23 @@ export class FullscreenEpisodePanelComponent {
     private readonly shownSeasonKey = computed(
         () => this.selectedSeason()?.key ?? null
     );
+    /**
+     * Seasons still loading or not asked for yet: the picker's menu shows no
+     * count for them, since their empty list is not a count.
+     */
+    readonly seasonLoadStates = computed(() => {
+        const states: Record<string, 'loading' | 'unloaded'> = {};
+        for (const season of this.seasons()) {
+            if (season.loadState !== 'loaded') {
+                states[season.key] = season.loadState;
+            }
+        }
+        return states;
+    });
+
     readonly episodeCounts = computed(() =>
         countBySeason(this.seasons(), (season) => season.episodes.length)
     );
-    /** Season poster URLs keyed by season, for the tabs' dropdown thumbnails. */
-    readonly seasonPosters = computed<Record<string, string>>(() => {
-        const posters: Record<string, string> = {};
-        for (const season of this.seasons()) {
-            if (season.posterUrl) {
-                posters[season.key] = season.posterUrl;
-            }
-        }
-        return posters;
-    });
     /** Season poster URLs whose image request failed; the strip then folds. */
     private readonly failedPosters = signal<ReadonlySet<string>>(new Set());
     /**

@@ -15,8 +15,7 @@ export interface SeasonContainerSeriesPlaybackToggleRequest {
     requests: SeasonContainerPlaybackToggleRequest[];
 }
 
-export interface SeasonContainerSeasonPlaybackToggleRequest
-    extends SeasonContainerSeriesPlaybackToggleRequest {
+export interface SeasonContainerSeasonPlaybackToggleRequest extends SeasonContainerSeriesPlaybackToggleRequest {
     seasonKey: string;
 }
 
