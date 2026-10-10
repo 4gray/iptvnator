@@ -243,7 +243,8 @@ pnpm run coverage:e2e:v8:web
 
 ```bash
 pnpm run i18n:validate          # checker unit tests, then the check (CI)
-pnpm run i18n:check             # the check only
+pnpm run i18n:check             # the check only: locale drift, then key usage
+pnpm run i18n:usage             # key usage only
 pnpm run i18n:baseline:update   # deliberate: rewrite the English-identical baseline
 ```
 
@@ -266,8 +267,19 @@ that is legitimately identical in that language; review the diff, and never
 run it in CI. A new locale starts with no baseline entries, so it has to
 record its legitimate identical values the same way.
 `node tools/i18n/check-drift.mjs --fail-on-identical` ignores the baseline for
-a full translation audit. CI runs `pnpm run i18n:validate` in the unit test
-job.
+a full translation audit.
+
+The usage check (`tools/i18n/check-usage.mjs`) fails on a key that renderer
+code uses but `en.json` lacks, because ngx-translate shows such a key raw. It
+reads production `.ts` and `.html` files under `apps/web/src`,
+`apps/remote-control-web/src` and `libs`, without comments, and treats as a
+use: a quoted key before `| translate`; the first argument of `instant`, `get`
+or `stream` on a translate service, or of a function named like `translate*`,
+`marker` or `t`; and a dotted upper-case literal in an `en.json` namespace,
+which may also name a group of keys that code completes. The static prefix of
+a template literal such as `` `EPG.DIALOG.${name}` `` must name a group. Keys
+built entirely at runtime are not checked. CI runs `pnpm run i18n:validate` in
+the unit test job.
 
 ## Performance
 

@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Playlist Xtream",
             "STALKER_PORTAL": "Portale Stalker",
             "CHANNELS": "Canali",
+            "CHANNELS_COUNT": "Canali: {{count}}",
             "ADDED": "Aggiunto",
             "SHOW_DETAILS": "Visualizza i dettagli della playlist",
             "REMOVE": "Rimuovi playlist",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "Indirizzo MAC",
                 "PLAYLIST_EXPORT_SUCCESS": "Playlist esportata correttamente.",
                 "PLAYLIST_EXPORT_ERROR": "Errore: esportazione della playlist fallita.",
+                "EXPORT_PLAYLIST_FAILED": "Esportazione della playlist non riuscita.",
                 "COPY_URL": "Copia URL negli appunti",
                 "URL_COPIED": "URL copiato negli appunti"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "Aggiornata",
             "REFRESH": "Aggiorna playlist",
+            "REFRESH_FETCHING": "Recupero della playlist…",
+            "REFRESH_READING_FILE": "Lettura del file della playlist…",
+            "REFRESH_PARSING": "Analisi della playlist…",
+            "REFRESH_SAVING": "Salvataggio della playlist…",
             "REFRESH_XTREAM": "Aggiorna playlist Xtream dal server remoto",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "Aggiorna playlist Xtream",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "tutte le playlist disponibili",
             "PLAYLIST_UPDATE_SUCCESS": "La playlist è stata correttamente aggiornata.",
             "PLAYLIST_UPDATE_ERROR": "Errore durante l'aggiornamento dei dettagli della playlist.",
+            "PLAYLIST_UPDATE_FAILED": "Impossibile aggiornare la playlist.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Aggiornamento della playlist non riuscito. Il file locale non è più disponibile. Controlla il percorso del file o reimporta la playlist.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Aggiornamento della playlist non riuscito. L'app non può più accedere al file locale.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Le playlist sono state aggiornate correttamente",
@@ -166,6 +173,7 @@
             "ERROR_403": "Accesso negato (403): il server ha rifiutato la richiesta. L'URL potrebbe richiedere autenticazione o la playlist è soggetta a restrizioni.",
             "ERROR_404": "Playlist non trovata (404): l'URL non punta a una playlist valida. Controlla l'URL.",
             "ERROR_401": "Non autorizzato (401): è richiesta l'autenticazione per accedere a questa playlist.",
+            "ERROR_413": "Il file è troppo grande. Usa la versione standalone o self-hosted dell'app.",
             "ERROR_INVALID_TLS": "Il certificato di questo host della playlist non è valido.",
             "ERROR_TLS_HOST_UNKNOWN": "Impossibile determinare l’host della playlist. Riprova manualmente.",
             "TRUST_TLS_HOST": "Considera attendibile l’host",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "Importa",
         "EXPORT_DATA": "Esporta",
         "EXPORTING_DATA": "Esportazione...",
+        "BACKUP_EXPORTED": "Copia di sicurezza delle playlist esportata.",
+        "BACKUP_EXPORT_FAILED": "Esportazione della copia di sicurezza delle playlist non riuscita.",
         "REMOVE_ALL": "Elimina tutte le playlist e i dati delle playlist",
         "REMOVE_ALL_BUTTON": "Elimina tutto",
         "REMOVE_ALL_DESCRIPTION": "Elimina ogni playlist M3U, Xtream e Stalker salvata nell’app.",
@@ -483,6 +493,7 @@
             "CONFIRM": "Elimina tutto"
         },
         "IMPORT_ERROR": "Errore di importazione, prova con un altro file.",
+        "BACKUP_IMPORT_SUMMARY": "Importazione della copia di sicurezza completata: importate {{imported}}, unite {{merged}}, ignorate {{skipped}}, non riuscite {{failed}}.",
         "PLAYLISTS_REMOVED": "Tutte le playlist e i dati delle playlist sono stati rimossi.",
         "MPV_PLAYER_PATH_LABEL": "Percorso mpv",
         "MPV_PLAYER_PATH_DESCRIPTION": "Imposta il percorso di MPV. Su macOS puoi usare il bundle dell’app MPV, come /Applications/mpv.app, oppure il percorso dell’eseguibile.",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "Stazione successiva",
         "MUTE": "Disattiva audio",
         "UNMUTE": "Attiva audio",
-        "VOLUME": "Volume"
+        "VOLUME": "Volume",
+        "RADIO": "Radio",
+        "PAUSED_BADGE": "IN PAUSA"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -847,6 +860,9 @@
         "SORT_BY_DATE": "Data inserimento (prima più recenti)",
         "SORT_BY_RATING": "Valutazione",
         "SORT_BY_NAME": "Nome (A-Z)",
+        "SORT_CHANNELS": "Ordina canali",
+        "SORT_SERVER_ORDER": "Ordine del server",
+        "SORT_PLAYLIST_ORDER": "Ordine della playlist",
         "LOAD_MORE": "Carica altri",
         "REMAINING": "rimanenti",
         "LOADING": "Caricamento canali...",
@@ -1129,6 +1145,7 @@
         "DURATION": "Durata",
         "CAST": "Interpreti",
         "EPISODE_RUN_TIME": "Durata episodio",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}} min/episodio",
         "RATING": "Classifica",
         "IMDB_RATING": "Valutazione IMDb",
         "KINOPOISK_RATING": "Valutazione Kinopoisk",
@@ -1210,8 +1227,10 @@
             "SEARCH_PLACEHOLDER": "Cerca categorie...",
             "NO_RESULTS": "Nessuna categoria corrispondente",
             "NO_CATEGORIES": "Nessuna categoria disponibile",
-            "SAVE": "Salva"
-        }
+            "SAVE": "Salva",
+            "SAVE_FAILED": "Impossibile salvare la visibilità delle categorie"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "Elementi trovati: {{count}} in {{playlists}} playlist"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1220,6 +1239,11 @@
             "RETRY": "Riprova ora"
         },
         "ALL_CATEGORIES": "Tutte le categorie",
+        "ALL_ITEMS": "Tutti gli elementi",
+        "LIVE_BADGE": "DIRETTA",
+        "UNNAMED_CATEGORY": "Categoria senza nome",
+        "NO_CATEGORIES": "Nessuna categoria disponibile",
+        "UNTITLED": "Senza titolo",
         "MY_FAVORITES": "I miei preferiti",
         "ADD_TO_FAVORITES": "Aggiungi ai preferiti",
         "REMOVE_FROM_FAVORITES": "Rimuovi dai preferiti",
@@ -1416,6 +1440,16 @@
             "TRAILER_UNMUTE": "Attiva audio del trailer",
             "PROGRESS_RESET": "Avanzamento azzerato",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Nascosto da «Continua a guardare»"
+        },
+        "SCROLL_LEFT": "Scorri a sinistra",
+        "SCROLL_RIGHT": "Scorri a destra",
+        "EPISODE_NAVIGATION": "Navigazione episodi",
+        "INLINE_PLAYER": "Lettore",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Richiesta Xtream non riuscita: {{message}}",
+            "XTREAM_CONNECTION": "Impossibile connettersi al server Xtream",
+            "STALKER": "Richiesta Stalker non riuscita: {{message}} (stato {{status}})",
+            "NOT_FOUND": "Non trovato"
         }
     },
     "INFORMATION": "Informazioni",
@@ -1667,6 +1701,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "Apri nella playlist",
             "RAIL_ALL_CHANNELS": "Tutti i canali",
             "RAIL_GROUPS": "Gruppi",
             "RAIL_CONTEXT_ACTIONS": "Azioni sezione",
@@ -2011,5 +2046,28 @@
         "UNLOCK_TO_SHOW": "Inserisci il PIN per mostrare",
         "HEADER_LOCK": "Blocca ora (controllo parentale)",
         "HEADER_UNLOCK": "Inserisci il PIN parentale"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "Apertura in {{player}}…",
+        "STOP": "Arresta {{player}}",
+        "ERRORS": {
+            "START_FAILED": "Impossibile avviare {{player}}. Assicurati che sia installato e che il suo percorso nelle Impostazioni sia corretto.",
+            "PREVIOUS_CLOSING": "Il lettore precedente è ancora in chiusura. Riprova tra un momento.",
+            "CLOSED_UNEXPECTEDLY": "{{player}} si è chiuso inaspettatamente.",
+            "STREAM_OPEN_FAILED": "{{player}} non è riuscito ad aprire lo stream. L'URL potrebbe non essere valido o il server non risponde.",
+            "UNSUPPORTED_PROTOCOL": "{{player}} non supporta il protocollo di questo stream. Controlla l'URL dello stream.",
+            "CONNECTION_FAILED": "{{player}} non riesce a connettersi al server dello stream. Controlla la connessione a internet.",
+            "ACCESS_DENIED": "Accesso negato. Lo stream potrebbe richiedere credenziali o intestazioni valide.",
+            "STREAM_NOT_FOUND": "Stream non trovato. L'URL potrebbe essere errato o scaduto.",
+            "TIMED_OUT": "Tempo di connessione scaduto. Il server non risponde.",
+            "LAUNCH_FAILED": "Impossibile avviare {{player}}.",
+            "UNKNOWN": "Errore di {{player}}: {{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "Il video è in riproduzione nella finestra del lettore esterno.",
+            "INSTALL_HINT": "Assicurati che MPV o VLC sia installato correttamente sul tuo sistema.",
+            "INSTALL_INSTRUCTIONS": "Istruzioni di installazione",
+            "DONT_SHOW_AGAIN": "Non mostrare più"
+        }
     }
 }

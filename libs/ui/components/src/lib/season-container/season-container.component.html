@@ -153,7 +153,7 @@
                                             $event.target.src =
                                                 './assets/images/default-poster.png'
                                         "
-                                        alt="Episode thumbnail"
+                                        alt=""
                                         loading="lazy"
                                     />
                                 } @else {
@@ -350,7 +350,7 @@
                                                 $event.target.src =
                                                     './assets/images/default-poster.png'
                                             "
-                                            alt="Episode thumbnail"
+                                            alt=""
                                             loading="lazy"
                                         />
                                     } @else {
@@ -425,7 +425,7 @@
                                         selectEpisode(episode);
                                         $event.stopPropagation()
                                     "
-                                    [matTooltip]="'Play'"
+                                    [matTooltip]="'XTREAM.PLAY' | translate"
                                     [disabled]="isEpisodeLaunching(episode)"
                                 >
                                     @if (isEpisodeLaunching(episode)) {

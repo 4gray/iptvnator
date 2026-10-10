@@ -1,4 +1,5 @@
 import {
+    ExternalPlayerErrorCode,
     ExternalPlayerName,
     ExternalPlayerSession,
     PlayerContentInfo,
@@ -15,6 +16,7 @@ interface CreateExternalPlayerSessionOptions {
 interface UpdateExternalPlayerSessionOptions {
     status?: ExternalPlayerSession['status'];
     error?: string;
+    errorCode?: ExternalPlayerErrorCode;
     canClose?: boolean;
 }
 
@@ -25,6 +27,8 @@ interface ExternalPlayerSessionRuntime {
 
 interface MarkExternalPlayerSessionErrorOptions {
     canClose?: boolean;
+    /** What the renderer shows; without one it shows a generic failure. */
+    code?: ExternalPlayerErrorCode;
 }
 
 function isRestorableSession(session: ExternalPlayerSession): boolean {
@@ -179,6 +183,7 @@ export class ExternalPlayerSessionRegistry {
         return this.updateSession(id, {
             status: 'error',
             error,
+            errorCode: options.code,
             canClose: options.canClose ?? false,
         });
     }

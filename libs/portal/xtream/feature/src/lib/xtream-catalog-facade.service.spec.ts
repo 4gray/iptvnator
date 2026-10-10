@@ -121,6 +121,15 @@ describe('XtreamCatalogFacadeService', () => {
         service = TestBed.inject(XtreamCatalogFacadeService);
     });
 
+    it('titles a selected category and leaves the every-item title to the view', () => {
+        expect(service.selectedCategoryTitle()).toBe('Movies');
+
+        selectedCategoryId.set(null);
+        selectedCategory.set({ id: 0, name: '' });
+
+        expect(service.selectedCategoryTitle()).toBeNull();
+    });
+
     it('delegates category search to the Xtream store', () => {
         service.setSearchQuery('matrix');
 

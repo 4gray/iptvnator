@@ -14,13 +14,18 @@ import {
     AutoUpdatePlaylistsResult,
     CONNECTIVITY_GUARD_RESET,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
+    ElectronBridgePlayerError,
     ERROR,
+    EXTERNAL_PLAYER_ERROR_KEYS,
+    EXTERNAL_PLAYER_LAUNCH_FAILED_KEY,
+    EXTERNAL_PLAYER_UNKNOWN_ERROR_KEY,
     normalizeHost,
     parseSecurityPolicyError,
     PlayerContentInfo,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
+    readExternalPlayerErrorCode,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
     XtreamCodeActions,
@@ -87,27 +92,37 @@ export class ElectronService extends DataService {
     private setupPlayerErrorListener() {
         // Listen for player errors from the backend
         if (window.electron?.onPlayerError) {
-            window.electron.onPlayerError(
-                (data: {
-                    player: string;
-                    error: string;
-                    originalError: string;
-                }) => {
-                    this.logger.error(
-                        `${data.player} Error:`,
-                        data.originalError
-                    );
-                    this.snackBar.open(
-                        `${data.player} Error: ${data.error}`,
-                        'Close',
-                        {
-                            duration: 7000,
-                            panelClass: ['error-snackbar'],
-                        }
-                    );
-                }
-            );
+            window.electron.onPlayerError((data: ElectronBridgePlayerError) => {
+                this.logger.error(`${data.player} Error:`, data.error);
+                this.snackBar.open(
+                    this.translateService.instant(
+                        data.code
+                            ? EXTERNAL_PLAYER_ERROR_KEYS[data.code]
+                            : EXTERNAL_PLAYER_UNKNOWN_ERROR_KEY,
+                        { player: data.player, error: data.error }
+                    ),
+                    this.translateService.instant('CLOSE'),
+                    {
+                        duration: 7000,
+                        panelClass: ['error-snackbar'],
+                    }
+                );
+            });
         }
+    }
+
+    private showPlayerLaunchError(player: 'MPV' | 'VLC', error: unknown): void {
+        const code = readExternalPlayerErrorCode(error);
+        this.snackBar.open(
+            this.translateService.instant(
+                code
+                    ? EXTERNAL_PLAYER_ERROR_KEYS[code]
+                    : EXTERNAL_PLAYER_LAUNCH_FAILED_KEY,
+                { player }
+            ),
+            this.translateService.instant('CLOSE'),
+            { duration: 5000 }
+        );
     }
 
     private setupPortalDebugListener() {
@@ -197,15 +212,7 @@ export class ElectronService extends DataService {
                     data.headers ?? undefined
                 )) as T;
             } catch (error: unknown) {
-                const errorMessage =
-                    this.getErrorDetails(error)?.message ?? String(error);
-                this.snackBar.open(
-                    `Error launching MPV: ${errorMessage}`,
-                    'Close',
-                    {
-                        duration: 5000,
-                    }
-                );
+                this.showPlayerLaunchError('MPV', error);
                 this.logger.error('MPV launch error:', error);
                 throw error;
             }
@@ -226,15 +233,7 @@ export class ElectronService extends DataService {
                     data.headers ?? undefined
                 )) as T;
             } catch (error: unknown) {
-                const errorMessage =
-                    this.getErrorDetails(error)?.message ?? String(error);
-                this.snackBar.open(
-                    `Error launching VLC: ${errorMessage}`,
-                    'Close',
-                    {
-                        duration: 5000,
-                    }
-                );
+                this.showPlayerLaunchError('VLC', error);
                 this.logger.error('VLC launch error:', error);
                 throw error;
             }
@@ -322,8 +321,18 @@ export class ElectronService extends DataService {
             this.logger.error('Stalker request error:', err);
             if (!payload.silent) {
                 this.snackBar.open(
-                    `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
-                    'Close',
+                    this.translateService.instant(
+                        'PORTALS.REQUEST_ERRORS.STALKER',
+                        {
+                            message:
+                                errorInfo?.message ??
+                                this.translateService.instant(
+                                    'PORTALS.REQUEST_ERRORS.NOT_FOUND'
+                                ),
+                            status: errorInfo?.status ?? 404,
+                        }
+                    ),
+                    this.translateService.instant('CLOSE'),
                     {
                         duration: 5000,
                     }
@@ -669,8 +678,11 @@ export class ElectronService extends DataService {
             // Only show snackbar for user-triggered Xtream requests
             if (!isSilentAction) {
                 this.snackBar.open(
-                    `Xtream request failed: ${normalizedMessage}`,
-                    'Close',
+                    this.translateService.instant(
+                        'PORTALS.REQUEST_ERRORS.XTREAM',
+                        { message: normalizedMessage }
+                    ),
+                    this.translateService.instant('CLOSE'),
                     {
                         duration: 5000,
                     }
@@ -686,7 +698,9 @@ export class ElectronService extends DataService {
     }
 
     private getReadableXtreamErrorMessage(error: unknown): string {
-        const fallback = 'Failed to connect to Xtream server';
+        const fallback = this.translateService.instant(
+            'PORTALS.REQUEST_ERRORS.XTREAM_CONNECTION'
+        );
         if (!error) {
             return fallback;
         }

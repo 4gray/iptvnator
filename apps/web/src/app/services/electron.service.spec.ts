@@ -17,6 +17,7 @@ import {
     XTREAM_REQUEST,
     Playlist,
     SECURITY_ERROR_PREFIX,
+    tagExternalPlayerError,
 } from '@iptvnator/shared/interfaces';
 import { ElectronService } from './electron.service';
 
@@ -200,13 +201,78 @@ describe('ElectronService', () => {
 
         listener({
             player: 'MPV',
-            error: 'Playback failed',
-            originalError: `Request failed: token=${secret}&channel=news`,
+            code: null,
+            error: `Request failed: token=${secret}&channel=news`,
         });
 
         const output = JSON.stringify((console.error as jest.Mock).mock.calls);
         expect(output).not.toContain(secret);
         expect(output).toContain('channel=news');
+    });
+
+    it('translates a classified player error by its code', () => {
+        const listener = electronBridge.onPlayerError.mock.calls[0][0];
+
+        listener({ player: 'VLC', code: 'access-denied', error: 'HTTP 403' });
+
+        expect(translateService.instant).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.ACCESS_DENIED',
+            { player: 'VLC', error: 'HTTP 403' }
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.ACCESS_DENIED',
+            'CLOSE',
+            expect.objectContaining({ duration: 7000 })
+        );
+    });
+
+    it('keeps unclassified player output in the translated message', () => {
+        const listener = electronBridge.onPlayerError.mock.calls[0][0];
+
+        listener({ player: 'MPV', code: null, error: 'demuxer gave up' });
+
+        expect(translateService.instant).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.UNKNOWN',
+            { player: 'MPV', error: 'demuxer gave up' }
+        );
+    });
+
+    it('translates a rejected launch by the code the main process tagged', async () => {
+        electronBridge.openInVlc.mockRejectedValueOnce(
+            new Error(
+                `Error invoking remote method 'OPEN_VLC_PLAYER': Error: ${tagExternalPlayerError(
+                    'previous-closing',
+                    'Cannot launch player'
+                )}`
+            )
+        );
+
+        await expect(
+            service.sendIpcEvent('OPEN_VLC_PLAYER', {
+                url: 'https://example.test/live.m3u8',
+            })
+        ).rejects.toThrow('Cannot launch player');
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.PREVIOUS_CLOSING',
+            'CLOSE',
+            { duration: 5000 }
+        );
+    });
+
+    it('shows a generic launch failure for an untagged rejection', async () => {
+        electronBridge.openInMpv.mockRejectedValueOnce(new Error('boom'));
+
+        await expect(
+            service.sendIpcEvent('OPEN_MPV_PLAYER', {
+                url: 'https://example.test/live.m3u8',
+            })
+        ).rejects.toThrow('boom');
+
+        expect(translateService.instant).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.LAUNCH_FAILED',
+            { player: 'MPV' }
+        );
     });
 
     it('shows the trust-host action for Electron-wrapped security errors', async () => {

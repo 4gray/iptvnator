@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "قائمة تشغيل Xtream",
             "STALKER_PORTAL": "بوابة Stalker",
             "CHANNELS": "القنوات",
+            "CHANNELS_COUNT": "{{count}} قناة",
             "ADDED": "تمت الإضافة",
             "SHOW_DETAILS": "عرض تفاصيل القائمة",
             "REMOVE": "حذف القائمة",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "عنوان MAC",
                 "PLAYLIST_EXPORT_SUCCESS": "تم تصدير القائمة بنجاح.",
                 "PLAYLIST_EXPORT_ERROR": "خطأ: فشل تصدير القائمة.",
+                "EXPORT_PLAYLIST_FAILED": "فشل تصدير القائمة.",
                 "COPY_URL": "نسخ الرابط إلى الحافظة",
                 "URL_COPIED": "تم نسخ الرابط إلى الحافظة"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "تم التحديث",
             "REFRESH": "تحديث القائمة",
+            "REFRESH_FETCHING": "جارٍ جلب قائمة التشغيل…",
+            "REFRESH_READING_FILE": "جارٍ قراءة ملف قائمة التشغيل…",
+            "REFRESH_PARSING": "جارٍ تحليل قائمة التشغيل…",
+            "REFRESH_SAVING": "جارٍ حفظ قائمة التشغيل…",
             "REFRESH_XTREAM": "تحديث قائمة Xtream من الخادم البعيد",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "تحديث قائمة Xtream",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "جميع القوائم المتاحة",
             "PLAYLIST_UPDATE_SUCCESS": "نجاح! تم تحديث القائمة.",
             "PLAYLIST_UPDATE_ERROR": "خطأ في تحديث تفاصيل القائمة.",
+            "PLAYLIST_UPDATE_FAILED": "تعذّر تحديث قائمة التشغيل.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "فشل تحديث قائمة التشغيل. الملف المحلي لم يعد متاحًا. تحقق من مسار الملف أو أعد استيراد قائمة التشغيل.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "فشل تحديث قائمة التشغيل. لم يعد بإمكان التطبيق الوصول إلى الملف المحلي.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "نجاح! تم تحديث قوائم التشغيل بنجاح",
@@ -166,6 +173,7 @@
             "ERROR_403": "تم رفض الوصول (403): رفض الخادم الطلب. قد يتطلب الرابط مصادقة أو أن قائمة التشغيل مقيدة.",
             "ERROR_404": "قائمة التشغيل غير موجودة (404): الرابط لا يشير إلى قائمة تشغيل صالحة. يرجى التحقق من الرابط.",
             "ERROR_401": "غير مصرح (401): المصادقة مطلوبة للوصول إلى قائمة التشغيل هذه.",
+            "ERROR_413": "هذا الملف كبير جدًا. استخدم الإصدار المستقل أو الإصدار المستضاف ذاتيًا من التطبيق.",
             "ERROR_INVALID_TLS": "شهادة مضيف قائمة التشغيل هذه غير صالحة.",
             "ERROR_TLS_HOST_UNKNOWN": "تعذر تحديد مضيف قائمة التشغيل. يرجى إعادة المحاولة يدويًا.",
             "TRUST_TLS_HOST": "الثقة بالمضيف",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "استيراد",
         "EXPORT_DATA": "تصدير",
         "EXPORTING_DATA": "جارٍ التصدير…",
+        "BACKUP_EXPORTED": "تم تصدير النسخة الاحتياطية لقوائم التشغيل.",
+        "BACKUP_EXPORT_FAILED": "فشل تصدير النسخة الاحتياطية لقوائم التشغيل.",
         "REMOVE_ALL": "حذف كل قوائم التشغيل وبياناتها",
         "REMOVE_ALL_BUTTON": "حذف الكل",
         "REMOVE_ALL_DESCRIPTION": "احذف كل قوائم تشغيل M3U و Xtream و Stalker المخزنة في التطبيق.",
@@ -483,6 +493,7 @@
             "CONFIRM": "حذف كل شيء"
         },
         "IMPORT_ERROR": "خطأ في الاستيراد، يرجى تجربة ملف آخر.",
+        "BACKUP_IMPORT_SUMMARY": "اكتمل استيراد النسخة الاحتياطية: تم استيراد {{imported}}، ودمج {{merged}}، وتخطي {{skipped}}، وفشل {{failed}}.",
         "PLAYLISTS_REMOVED": "تمت إزالة كل قوائم التشغيل وبياناتها.",
         "MPV_PLAYER_PATH_LABEL": "مسار mpv",
         "MPV_PLAYER_PATH_DESCRIPTION": "حدد مسار MPV. على macOS يمكنك استخدام حزمة تطبيق MPV مثل /Applications/mpv.app أو مسار الملف التنفيذي.",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "المحطة التالية",
         "MUTE": "كتم الصوت",
         "UNMUTE": "إلغاء كتم الصوت",
-        "VOLUME": "مستوى الصوت"
+        "VOLUME": "مستوى الصوت",
+        "RADIO": "راديو",
+        "PAUSED_BADGE": "متوقف مؤقتًا"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -847,6 +860,9 @@
         "SORT_BY_DATE": "تاريخ الإضافة (الأحدث أولاً)",
         "SORT_BY_RATING": "التقييم",
         "SORT_BY_NAME": "الاسم (أ-ي)",
+        "SORT_CHANNELS": "ترتيب القنوات",
+        "SORT_SERVER_ORDER": "ترتيب الخادم",
+        "SORT_PLAYLIST_ORDER": "ترتيب قائمة التشغيل",
         "LOAD_MORE": "تحميل المزيد",
         "REMAINING": "متبقية",
         "LOADING": "جارٍ تحميل القنوات...",
@@ -1129,6 +1145,7 @@
         "DURATION": "المدة",
         "CAST": "طاقم التمثيل",
         "EPISODE_RUN_TIME": "مدة الحلقة",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}} د/حلقة",
         "RATING": "التقييم",
         "IMDB_RATING": "تقييم IMDb",
         "KINOPOISK_RATING": "تقييم Kinopoisk",
@@ -1210,8 +1227,10 @@
             "SEARCH_PLACEHOLDER": "بحث في الفئات...",
             "NO_RESULTS": "لم يتم العثور على فئات مطابقة",
             "NO_CATEGORIES": "لا توجد فئات متاحة",
-            "SAVE": "حفظ"
-        }
+            "SAVE": "حفظ",
+            "SAVE_FAILED": "فشل حفظ حالة عرض الفئات"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "تم العثور على {{count}} عنصر في {{playlists}} من قوائم التشغيل"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1220,6 +1239,11 @@
             "RETRY": "إعادة المحاولة الآن"
         },
         "ALL_CATEGORIES": "جميع الفئات",
+        "ALL_ITEMS": "جميع العناصر",
+        "LIVE_BADGE": "مباشر",
+        "UNNAMED_CATEGORY": "فئة بدون اسم",
+        "NO_CATEGORIES": "لا توجد فئات متاحة",
+        "UNTITLED": "بدون عنوان",
         "MY_FAVORITES": "المفضلة",
         "ADD_TO_FAVORITES": "إضافة للمفضلة",
         "REMOVE_FROM_FAVORITES": "إزالة من المفضلة",
@@ -1416,6 +1440,16 @@
             "TRAILER_UNMUTE": "تشغيل صوت الإعلان",
             "PROGRESS_RESET": "تمت إعادة ضبط التقدم",
             "HIDDEN_FROM_CONTINUE_WATCHING": "تم الإخفاء من «متابعة المشاهدة»"
+        },
+        "SCROLL_LEFT": "التمرير لليسار",
+        "SCROLL_RIGHT": "التمرير لليمين",
+        "EPISODE_NAVIGATION": "التنقل بين الحلقات",
+        "INLINE_PLAYER": "المشغّل",
+        "REQUEST_ERRORS": {
+            "XTREAM": "فشل طلب Xtream: {{message}}",
+            "XTREAM_CONNECTION": "فشل الاتصال بخادم Xtream",
+            "STALKER": "فشل طلب Stalker: {{message}} (الحالة {{status}})",
+            "NOT_FOUND": "غير موجود"
         }
     },
     "INFORMATION": "معلومات",
@@ -1667,6 +1701,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "فتح في قائمة التشغيل",
             "RAIL_ALL_CHANNELS": "جميع القنوات",
             "RAIL_GROUPS": "المجموعات",
             "RAIL_CONTEXT_ACTIONS": "إجراءات السياق",
@@ -2011,5 +2046,28 @@
         "UNLOCK_TO_SHOW": "أدخل رمز PIN للإظهار",
         "HEADER_LOCK": "القفل الآن (الرقابة الأبوية)",
         "HEADER_UNLOCK": "أدخل رمز PIN للرقابة الأبوية"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "جارٍ الفتح في {{player}}…",
+        "STOP": "إيقاف {{player}}",
+        "ERRORS": {
+            "START_FAILED": "تعذّر بدء تشغيل {{player}}. تأكد من تثبيته ومن صحة مساره في الإعدادات.",
+            "PREVIOUS_CLOSING": "لا يزال المشغل السابق قيد الإغلاق. حاول مرة أخرى بعد لحظات.",
+            "CLOSED_UNEXPECTEDLY": "أُغلق {{player}} بشكل غير متوقع.",
+            "STREAM_OPEN_FAILED": "تعذّر على {{player}} فتح البث. قد يكون الرابط غير صالح أو أن الخادم لا يستجيب.",
+            "UNSUPPORTED_PROTOCOL": "لا يدعم {{player}} بروتوكول هذا البث. تحقق من رابط البث.",
+            "CONNECTION_FAILED": "تعذّر على {{player}} الاتصال بخادم البث. تحقق من اتصالك بالإنترنت.",
+            "ACCESS_DENIED": "تم رفض الوصول. قد يتطلب البث بيانات اعتماد أو ترويسات صالحة.",
+            "STREAM_NOT_FOUND": "البث غير موجود. قد يكون الرابط غير صحيح أو منتهي الصلاحية.",
+            "TIMED_OUT": "انتهت مهلة الاتصال. الخادم لا يستجيب.",
+            "LAUNCH_FAILED": "تعذّر بدء تشغيل {{player}}.",
+            "UNKNOWN": "خطأ في {{player}}: {{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "يتم تشغيل الفيديو في نافذة المشغل الخارجي.",
+            "INSTALL_HINT": "تأكد من تثبيت MPV أو VLC بشكل صحيح على نظامك.",
+            "INSTALL_INSTRUCTIONS": "تعليمات التثبيت",
+            "DONT_SHOW_AGAIN": "عدم الإظهار مرة أخرى"
+        }
     }
 }

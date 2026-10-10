@@ -371,6 +371,7 @@
         "PORTALS.DETAIL.EPISODE_NUMBER": "Episode {{episode}}",
         "PORTALS.DETAIL.TRAILER": "Trailer",
         "PORTALS.DETAIL.TRAILER_OF": "{{title}} · Trailer",
+        "PORTALS.LIVE_BADGE": "LIVE",
         "PORTALS.MULTI_SOURCE.FILTER_HD": "HD+",
         "PORTALS.SIDEBAR.LIVE_TV": "Live TV",
         "SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY": "Nightly",
@@ -561,6 +562,7 @@
         "XTREAM.YOUTUBE_TRAILER": "YouTube Trailer"
     },
     "es": {
+        "AUDIO_PLAYER.RADIO": "Radio",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
         "CHANNELS.DETAILS_DIALOG.HTTP_USER_AGENT": "User-Agent",
@@ -689,6 +691,7 @@
     "fr": {
         "ABOUT.VERSION": "Version",
         "AUDIO_PLAYER.PAUSE": "Pause",
+        "AUDIO_PLAYER.RADIO": "Radio",
         "AUDIO_PLAYER.VOLUME": "Volume",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
@@ -959,6 +962,7 @@
         "XTREAM.SERIES_STATUS_PILOT": "Pilot"
     },
     "it": {
+        "AUDIO_PLAYER.RADIO": "Radio",
         "AUDIO_PLAYER.VOLUME": "Volume",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
@@ -1317,6 +1321,7 @@
         "YES": "Yes"
     },
     "nl": {
+        "AUDIO_PLAYER.RADIO": "Radio",
         "AUDIO_PLAYER.VOLUME": "Volume",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
@@ -1382,6 +1387,7 @@
         "PORTALS.ERROR_VIEW.HOME": "Home",
         "PORTALS.ITEM": "item",
         "PORTALS.ITEMS": "items",
+        "PORTALS.LIVE_BADGE": "LIVE",
         "PORTALS.MULTI_SOURCE.FILTER_HD": "HD+",
         "PORTALS.SERIES": "Series",
         "PORTALS.SIDEBAR.RECENT": "Recent",
@@ -1481,6 +1487,7 @@
         "XTREAM.YOUTUBE_TRAILER": "YouTube Trailer"
     },
     "pl": {
+        "AUDIO_PLAYER.RADIO": "Radio",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
         "CHANNELS.DETAILS_DIALOG.HTTP_USER_AGENT": "User-Agent",

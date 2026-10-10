@@ -71,9 +71,10 @@
                 </app-meta-chip>
             }
             @if (info.episode_run_time) {
-                <app-meta-chip
-                    >{{ info.episode_run_time }} min/ep</app-meta-chip
-                >
+                <app-meta-chip>{{
+                    'XTREAM.EPISODE_RUN_TIME_MINUTES'
+                        | translate: { minutes: info.episode_run_time }
+                }}</app-meta-chip>
             }
             @for (country of hero.countryChips(); track country.label) {
                 <app-meta-chip>

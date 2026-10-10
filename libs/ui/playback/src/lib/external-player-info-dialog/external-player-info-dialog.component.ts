@@ -13,10 +13,10 @@ import { TranslateModule } from '@ngx-translate/core';
             <div class="centered">
                 <mat-icon class="icon">live_tv</mat-icon>
                 <div>
-                    The video is playing in external player window.<br />
-                    Please make sure that mpv/vlc player is correctly installed
-                    on your system.<br />
-                    See
+                    {{ 'EXTERNAL_PLAYER.INFO_DIALOG.PLAYING' | translate
+                    }}<br />
+                    {{ 'EXTERNAL_PLAYER.INFO_DIALOG.INSTALL_HINT' | translate
+                    }}<br />
                     <a
                         [routerLink]
                         style="cursor: pointer"
@@ -25,17 +25,19 @@ import { TranslateModule } from '@ngx-translate/core';
                                 'https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F'
                             )
                         "
-                        >installation instructions</a
+                        >{{
+                            'EXTERNAL_PLAYER.INFO_DIALOG.INSTALL_INSTRUCTIONS'
+                                | translate
+                        }}</a
                     >
-                    for more details.
                 </div>
             </div>
         </mat-dialog-content>
         <mat-dialog-actions style="justify-content: space-between;">
             <div>
-                <mat-checkbox (change)="setVisibility($event.checked)"
-                    >Don't show anymore</mat-checkbox
-                >
+                <mat-checkbox (change)="setVisibility($event.checked)">{{
+                    'EXTERNAL_PLAYER.INFO_DIALOG.DONT_SHOW_AGAIN' | translate
+                }}</mat-checkbox>
             </div>
             <button mat-button mat-dialog-close cdkFocusInitial>
                 {{ 'CLOSE' | translate }}

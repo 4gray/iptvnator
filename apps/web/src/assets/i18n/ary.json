@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "قائمة تشغيل Xtream",
             "STALKER_PORTAL": "بوابة Stalker",
             "CHANNELS": "القنوات",
+            "CHANNELS_COUNT": "{{count}} قناة",
             "ADDED": "تزادت",
             "SHOW_DETAILS": "وري تفاصيل قائمة التشغيل",
             "REMOVE": "حيد قائمة التشغيل",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "عنوان MAC",
                 "PLAYLIST_EXPORT_SUCCESS": "قائمة التشغيل تصدرات بنجاح.",
                 "PLAYLIST_EXPORT_ERROR": "خطأ: تصدير قائمة التشغيل فشل.",
+                "EXPORT_PLAYLIST_FAILED": "فشل تصدير قائمة التشغيل.",
                 "COPY_URL": "نسخ الرابط للحافظة",
                 "URL_COPIED": "الرابط تنسخ للحافظة"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "تحدثات",
             "REFRESH": "حدث قائمة التشغيل",
+            "REFRESH_FETCHING": "جاري جلب قائمة التشغيل…",
+            "REFRESH_READING_FILE": "جاري قراية ملف قائمة التشغيل…",
+            "REFRESH_PARSING": "جاري تحليل قائمة التشغيل…",
+            "REFRESH_SAVING": "جاري حفظ قائمة التشغيل…",
             "REFRESH_XTREAM": "حدث قائمة Xtream من السيرفر",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "حدث قائمة Xtream",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "جميع قوائم التشغيل المتوفرة",
             "PLAYLIST_UPDATE_SUCCESS": "نجاح! قائمة التشغيل تحدثات بنجاح.",
             "PLAYLIST_UPDATE_ERROR": "خطأ في تحديث تفاصيل قائمة التشغيل.",
+            "PLAYLIST_UPDATE_FAILED": "ما قدرناش نحدّثو قائمة التشغيل.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "فشل تحديث قائمة التشغيل. الملف المحلي ما بقاش متوفر. تحقق من مسار الملف ولا استورد قائمة التشغيل من جديد.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "فشل تحديث قائمة التشغيل. التطبيق ما قدرش يوصل للملف المحلي.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "نجاح! قوائم التشغيل تحدثات بنجاح",
@@ -166,6 +173,7 @@
             "ERROR_403": "الوصول مرفوض (403): السيرفر رفض الطلب. يمكن الرابط محتاج مصادقة ولا قائمة التشغيل مقيدة.",
             "ERROR_404": "قائمة التشغيل ما تلقاتش (404): الرابط ما كيوجهش لقائمة تشغيل صحيحة. عفاك تحقق من الرابط.",
             "ERROR_401": "غير مصرح (401): المصادقة مطلوبة باش تدخل لهاد قائمة التشغيل.",
+            "ERROR_413": "هاد الملف كبير بزاف. استعمل النسخة المستقلة ديال التطبيق ولا النسخة اللي كتستضافها بنفسك.",
             "ERROR_INVALID_TLS": "الشهادة ديال مضيف قائمة التشغيل هادي ما صالحةش.",
             "ERROR_TLS_HOST_UNKNOWN": "ما قدرناش نحددو مضيف قائمة التشغيل. عفاك عاود جرّب يدوياً.",
             "TRUST_TLS_HOST": "وثق فالمضيف",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "استورد",
         "EXPORT_DATA": "صدّر",
         "EXPORTING_DATA": "جاري التصدير…",
+        "BACKUP_EXPORTED": "النسخة الاحتياطية ديال قوائم التشغيل تصدّرات.",
+        "BACKUP_EXPORT_FAILED": "فشل تصدير النسخة الاحتياطية ديال قوائم التشغيل.",
         "REMOVE_ALL": "حيد جميع لوائح التشغيل والمعطيات ديالهم",
         "REMOVE_ALL_BUTTON": "حيد الكل",
         "REMOVE_ALL_DESCRIPTION": "حيد كل لوائح M3U و Xtream و Stalker المخزنة فالتطبيق.",
@@ -483,6 +493,7 @@
             "CONFIRM": "حيد كلشي"
         },
         "IMPORT_ERROR": "خطأ في الاستيراد، عفاك جرب بملف آخر.",
+        "BACKUP_IMPORT_SUMMARY": "سالا استيراد النسخة الاحتياطية: تستوردو {{imported}}، تدمجو {{merged}}، تخطّاو {{skipped}}، فشلو {{failed}}.",
         "PLAYLISTS_REMOVED": "تحيدو جميع لوائح التشغيل والمعطيات ديالهم.",
         "MPV_PLAYER_PATH_LABEL": "مسار mpv",
         "MPV_PLAYER_PATH_DESCRIPTION": "حدد مسار MPV. فـ macOS تقدر تستعمل باقة تطبيق MPV بحال /Applications/mpv.app أو مسار الملف التنفيذي.",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "المحطة التالية",
         "MUTE": "كتم الصوت",
         "UNMUTE": "رجّع الصوت",
-        "VOLUME": "الصوت"
+        "VOLUME": "الصوت",
+        "RADIO": "راديو",
+        "PAUSED_BADGE": "موقوف"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -847,6 +860,9 @@
         "SORT_BY_DATE": "رتب بتاريخ الإضافة (الأحدث أولاً)",
         "SORT_BY_RATING": "رتب بالتقييم",
         "SORT_BY_NAME": "رتب بالاسم (أ-ي)",
+        "SORT_CHANNELS": "رتب القنوات",
+        "SORT_SERVER_ORDER": "ترتيب السيرفر",
+        "SORT_PLAYLIST_ORDER": "ترتيب قائمة التشغيل",
         "LOAD_MORE": "شارجي كثر",
         "REMAINING": "باقي",
         "LOADING": "جاري تشريج القنوات...",
@@ -1129,6 +1145,7 @@
         "DURATION": "المدة",
         "CAST": "طاقم التمثيل",
         "EPISODE_RUN_TIME": "مدة الحلقة",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}} د/حلقة",
         "RATING": "التقييم",
         "IMDB_RATING": "تقييم IMDb",
         "KINOPOISK_RATING": "تقييم Kinopoisk",
@@ -1210,8 +1227,10 @@
             "SEARCH_PLACEHOLDER": "قلب على فئات...",
             "NO_RESULTS": "ما تلقاتش حتى فئة مطابقة",
             "NO_CATEGORIES": "ما كاينش فئات متوفرة",
-            "SAVE": "حفظ"
-        }
+            "SAVE": "حفظ",
+            "SAVE_FAILED": "فشل حفظ ظهور الفئات"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "تلقاو {{count}} ديال العناصر فـ {{playlists}} ديال قوائم التشغيل"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1220,6 +1239,11 @@
             "RETRY": "عاود جرّب دابا"
         },
         "ALL_CATEGORIES": "جميع الفئات",
+        "ALL_ITEMS": "جميع العناصر",
+        "LIVE_BADGE": "مباشر",
+        "UNNAMED_CATEGORY": "فئة بدون اسم",
+        "NO_CATEGORIES": "ما كاينش فئات متوفرة",
+        "UNTITLED": "بلا عنوان",
         "MY_FAVORITES": "المفضلة ديالي",
         "ADD_TO_FAVORITES": "زيد للمفضلة",
         "REMOVE_FROM_FAVORITES": "حيد من المفضلة",
@@ -1416,6 +1440,16 @@
             "TRAILER_UNMUTE": "خدّم صوت الإعلان",
             "PROGRESS_RESET": "ترجّع التقدم",
             "HIDDEN_FROM_CONTINUE_WATCHING": "تخبّى من «كمّل المشاهدة»"
+        },
+        "SCROLL_LEFT": "مرّر لليسار",
+        "SCROLL_RIGHT": "مرّر لليمين",
+        "EPISODE_NAVIGATION": "التنقل بين الحلقات",
+        "INLINE_PLAYER": "المشغّل",
+        "REQUEST_ERRORS": {
+            "XTREAM": "فشل طلب Xtream: {{message}}",
+            "XTREAM_CONNECTION": "ما قدرناش نتاصلو بسيرفر Xtream",
+            "STALKER": "فشل طلب Stalker: {{message}} (الحالة {{status}})",
+            "NOT_FOUND": "ما تلقاش"
         }
     },
     "INFORMATION": "معلومات",
@@ -1667,6 +1701,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "حلّ فقائمة التشغيل",
             "RAIL_ALL_CHANNELS": "جميع القنوات",
             "RAIL_GROUPS": "المجموعات",
             "RAIL_CONTEXT_ACTIONS": "إجراءات القسم",
@@ -2011,5 +2046,28 @@
         "UNLOCK_TO_SHOW": "دخّل رمز PIN باش يبان",
         "HEADER_LOCK": "قفل دابا (الرقابة الأبوية)",
         "HEADER_UNLOCK": "دخّل رمز PIN ديال الرقابة الأبوية"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "كيتحلّ فـ {{player}}…",
+        "STOP": "وقّف {{player}}",
+        "ERRORS": {
+            "START_FAILED": "ما قدرناش نشعلو {{player}}. تأكد بلي مثبّت وبلي المسار ديالو فالإعدادات صحيح.",
+            "PREVIOUS_CLOSING": "المشغّل اللي قبل مازال كيتسدّ. عاود جرّب من بعد شوية.",
+            "CLOSED_UNEXPECTEDLY": "{{player}} تسدّ فجأة.",
+            "STREAM_OPEN_FAILED": "{{player}} ما قدرش يحلّ البث. يمكن الرابط ماشي صحيح ولا السيرفر ما كيجاوبش.",
+            "UNSUPPORTED_PROTOCOL": "{{player}} ما كيدعمش البروتوكول ديال هاد البث. تحقق من رابط البث.",
+            "CONNECTION_FAILED": "{{player}} ما قدرش يتاصل بسيرفر البث. تحقق من الاتصال ديالك بالإنترنت.",
+            "ACCESS_DENIED": "الوصول مرفوض. يمكن البث محتاج بيانات اعتماد ولا هيدرز صحيحين.",
+            "STREAM_NOT_FOUND": "البث ما تلقاش. يمكن الرابط غالط ولا سالات الصلاحية ديالو.",
+            "TIMED_OUT": "مهلة الاتصال سالات. السيرفر ما كيجاوبش.",
+            "LAUNCH_FAILED": "ما قدرناش نشعلو {{player}}.",
+            "UNKNOWN": "خطأ فـ {{player}}: {{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "الفيديو خدام فنافذة المشغّل الخارجي.",
+            "INSTALL_HINT": "تأكد بلي MPV ولا VLC مثبّت مزيان فالنظام ديالك.",
+            "INSTALL_INSTRUCTIONS": "تعليمات التثبيت",
+            "DONT_SHOW_AGAIN": "ما توريهاش عاوتاني"
+        }
     }
 }

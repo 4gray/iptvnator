@@ -5,6 +5,7 @@ import {
     formatRemainingLabel,
     parseDurationSeconds,
     playbackProgressPercent,
+    type ExternalPlaybackButtonLabel,
     shortCountryList,
     shortCountryName,
     type RemainingTimeLabel,
@@ -51,7 +52,7 @@ interface VodDetailsHeroBindings {
     readonly position: Signal<PlaybackPositionData | null>;
     readonly hasPlaybackPosition: Signal<boolean>;
     readonly isOfflinePrimary: Signal<boolean>;
-    readonly externalLabel: Signal<string | null>;
+    readonly externalLabel: Signal<ExternalPlaybackButtonLabel | null>;
     readonly externalIcon: Signal<string>;
     readonly externalState: Signal<DetailActionButtonState>;
     readonly formatPosition: () => string;
@@ -140,7 +141,15 @@ export class VodDetailsHeroPresenter {
             : (bindings?.externalIcon() ?? 'play_arrow');
         const externalLabel = bindings?.externalLabel();
         if (externalLabel) {
-            return { label: externalLabel, meta: null, icon, state };
+            return {
+                label: this.translate.instant(
+                    externalLabel.key,
+                    externalLabel.params
+                ),
+                meta: null,
+                icon,
+                state,
+            };
         }
         if (bindings?.isOfflinePrimary()) {
             return {

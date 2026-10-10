@@ -350,6 +350,10 @@ describe('VodDetailsComponent offline playback', () => {
                 MARK_UNWATCHED: 'Mark as Unwatched',
             },
             WORKSPACE: { DASHBOARD: { HERO_CONTINUE: 'Continue' } },
+            EXTERNAL_PLAYER: {
+                OPENING_IN: 'Opening in {{player}}…',
+                STOP: 'Stop {{player}}',
+            },
             PORTALS: {
                 ADD_TO_FAVORITES: 'Add to favorites',
                 REMOVE_FROM_FAVORITES: 'Remove from favorites',
@@ -476,7 +480,7 @@ describe('VodDetailsComponent offline playback', () => {
             externalPlayback: MATCHING_LAUNCHING_MPV_SESSION,
         });
 
-        expect(buttonText(primaryButton())).toContain('Opening in MPV...');
+        expect(buttonText(primaryButton())).toContain('Opening in MPV…');
         expect(primaryButton().disabled).toBe(true);
         expect(providerPlayButton()).toBeNull();
         expect(playDownload).not.toHaveBeenCalled();
@@ -490,7 +494,7 @@ describe('VodDetailsComponent offline playback', () => {
             externalPlayback: MATCHING_LAUNCHING_MPV_SESSION,
         });
 
-        expect(buttonText(primaryButton())).toContain('Opening in MPV...');
+        expect(buttonText(primaryButton())).toContain('Opening in MPV…');
         expect(primaryButton().disabled).toBe(true);
         expect(playClicked).not.toHaveBeenCalled();
         expect(resumeClicked).not.toHaveBeenCalled();

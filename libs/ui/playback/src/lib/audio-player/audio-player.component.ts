@@ -56,16 +56,17 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
                 </div>
 
                 <h2 class="station-name">
-                    {{ channelName() || 'Radio' }}
+                    {{ channelName() || ('AUDIO_PLAYER.RADIO' | translate) }}
                 </h2>
                 <span
                     class="station-badge"
                     [class.live]="playState() === 'play'"
                 >
                     @if (playState() === 'play') {
-                        <span class="pulse"></span> LIVE
+                        <span class="pulse"></span>
+                        {{ 'PORTALS.LIVE_BADGE' | translate }}
                     } @else {
-                        PAUSED
+                        {{ 'AUDIO_PLAYER.PAUSED_BADGE' | translate }}
                     }
                 </span>
 

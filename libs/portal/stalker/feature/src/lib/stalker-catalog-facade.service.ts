@@ -84,6 +84,9 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
      */
     private readonly savedScrollPositions = new Map<string, number>();
     readonly selectedCategoryTitle = computed(() => {
+        if (!this.stalkerStore.selectedCategoryId()) {
+            return null;
+        }
         const category = this.selectedCategory();
         const fromCategory = category
             ? String(category.category_name ?? '')

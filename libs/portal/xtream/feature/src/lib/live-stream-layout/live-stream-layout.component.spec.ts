@@ -489,11 +489,11 @@ describe('LiveStreamLayoutComponent', () => {
         expect(grid.componentInstance.type()).toBe('live');
         expect(
             fixture.nativeElement.querySelector('.category-title').textContent
-        ).toContain('All Items');
+        ).toContain('PORTALS.ALL_ITEMS');
         expect(
             fixture.nativeElement.querySelector('.category-subtitle')
                 .textContent
-        ).toContain('3 channels');
+        ).toContain('WORKSPACE.SHELL.CHANNELS_COUNT');
         expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
         expect(
             fixture.debugElement.query(

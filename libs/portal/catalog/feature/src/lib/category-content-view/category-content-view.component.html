@@ -11,7 +11,10 @@
             <div class="category-content-header">
                 <div class="category-meta">
                     <h2 class="category-title">
-                        {{ selectedCategoryTitle() }}
+                        {{
+                            selectedCategoryTitle() ??
+                                ('PORTALS.ALL_ITEMS' | translate)
+                        }}
                     </h2>
                     <div class="category-subtitle">
                         {{ categoryItemSubtitle() }}

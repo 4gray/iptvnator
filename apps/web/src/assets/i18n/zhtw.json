@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Xtream 播放清單",
             "STALKER_PORTAL": "Stalker 入口網站",
             "CHANNELS": "頻道",
+            "CHANNELS_COUNT": "{{count}} 個頻道",
             "ADDED": "已新增",
             "SHOW_DETAILS": "顯示播放清單詳細資訊",
             "REMOVE": "移除播放清單",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "MAC 位址",
                 "PLAYLIST_EXPORT_SUCCESS": "播放清單已成功匯出。",
                 "PLAYLIST_EXPORT_ERROR": "錯誤：播放清單匯出失敗。",
+                "EXPORT_PLAYLIST_FAILED": "播放清單匯出失敗。",
                 "COPY_URL": "複製網址至剪貼簿",
                 "URL_COPIED": "已將網址複製至剪貼簿"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "已更新",
             "REFRESH": "重新整理播放清單",
+            "REFRESH_FETCHING": "正在擷取播放清單…",
+            "REFRESH_READING_FILE": "正在讀取播放清單檔案…",
+            "REFRESH_PARSING": "正在解析播放清單…",
+            "REFRESH_SAVING": "正在儲存播放清單…",
             "REFRESH_XTREAM": "從遠端重新整理 Xtream 播放清單",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "重新整理 Xtream 播放清單",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "所有可用清單",
             "PLAYLIST_UPDATE_SUCCESS": "成功！播放清單已成功更新。",
             "PLAYLIST_UPDATE_ERROR": "更新播放清單詳細資訊時發生錯誤。",
+            "PLAYLIST_UPDATE_FAILED": "無法更新播放清單。",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "播放清單重新整理失敗。本機檔案已不存在。請檢查檔案路徑或重新匯入播放清單。",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "播放清單重新整理失敗。應用程式無法再存取本機檔案。",
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！播放清單已成功更新",
@@ -166,6 +173,7 @@
             "ERROR_403": "存取被拒（403）：伺服器拒絕了此請求。該網址可能需要驗證，或播放清單存取受限。",
             "ERROR_404": "找不到播放清單（404）：該網址未指向有效的播放清單。請檢查網址。",
             "ERROR_401": "未授權（401）：存取此播放清單需要驗證。",
+            "ERROR_413": "此檔案過大。請使用應用程式的獨立版本或自架版本。",
             "ERROR_INVALID_TLS": "此播放清單主機的憑證無效。",
             "ERROR_TLS_HOST_UNKNOWN": "無法判斷播放清單主機。請手動重試。",
             "TRUST_TLS_HOST": "信任主機",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "匯入",
         "EXPORT_DATA": "匯出",
         "EXPORTING_DATA": "正在匯出…",
+        "BACKUP_EXPORTED": "播放清單備份已匯出。",
+        "BACKUP_EXPORT_FAILED": "播放清單備份匯出失敗。",
         "REMOVE_ALL": "刪除所有播放清單和播放清單資料",
         "REMOVE_ALL_BUTTON": "全部刪除",
         "REMOVE_ALL_DESCRIPTION": "刪除應用程式中儲存的每個 M3U、Xtream 和 Stalker 播放清單。",
@@ -483,6 +493,7 @@
             "CONFIRM": "全部刪除"
         },
         "IMPORT_ERROR": "匯入錯誤，請嘗試另外一個檔案。",
+        "BACKUP_IMPORT_SUMMARY": "備份匯入完成：已匯入 {{imported}} 個，已合併 {{merged}} 個，已略過 {{skipped}} 個，{{failed}} 個失敗。",
         "PLAYLISTS_REMOVED": "已移除所有播放清單和播放清單資料。",
         "MPV_PLAYER_PATH_LABEL": "mpv 路徑",
         "MPV_PLAYER_PATH_DESCRIPTION": "設定 MPV 路徑。在 macOS 上可以使用 MPV App bundle，例如 /Applications/mpv.app，也可以使用可執行檔路徑。",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "下一個電台",
         "MUTE": "靜音",
         "UNMUTE": "取消靜音",
-        "VOLUME": "音量"
+        "VOLUME": "音量",
+        "RADIO": "廣播",
+        "PAUSED_BADGE": "已暫停"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -847,6 +860,9 @@
         "SORT_BY_DATE": "依新增日期排序（最新優先）",
         "SORT_BY_RATING": "依評分排序",
         "SORT_BY_NAME": "依名稱排序（A-Z）",
+        "SORT_CHANNELS": "排序頻道",
+        "SORT_SERVER_ORDER": "伺服器順序",
+        "SORT_PLAYLIST_ORDER": "播放清單順序",
         "LOAD_MORE": "載入更多",
         "REMAINING": "剩餘",
         "LOADING": "正在載入頻道...",
@@ -1129,6 +1145,7 @@
         "DURATION": "片長",
         "CAST": "演員陣容",
         "EPISODE_RUN_TIME": "集數時長",
+        "EPISODE_RUN_TIME_MINUTES": "每集 {{minutes}} 分鐘",
         "RATING": "評分",
         "IMDB_RATING": "IMDb 評分",
         "KINOPOISK_RATING": "Kinopoisk 評分",
@@ -1210,8 +1227,10 @@
             "SEARCH_PLACEHOLDER": "搜尋類別...",
             "NO_RESULTS": "找不到符合的類別",
             "NO_CATEGORIES": "沒有可用的類別",
-            "SAVE": "儲存"
-        }
+            "SAVE": "儲存",
+            "SAVE_FAILED": "無法儲存類別可見性"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "在 {{playlists}} 個播放清單中找到 {{count}} 個項目"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1220,6 +1239,11 @@
             "RETRY": "立即重試"
         },
         "ALL_CATEGORIES": "所有類別",
+        "ALL_ITEMS": "所有項目",
+        "LIVE_BADGE": "直播",
+        "UNNAMED_CATEGORY": "未命名類別",
+        "NO_CATEGORIES": "沒有可用的類別",
+        "UNTITLED": "未命名",
         "MY_FAVORITES": "我的最愛",
         "ADD_TO_FAVORITES": "新增至最愛",
         "REMOVE_FROM_FAVORITES": "從最愛中移除",
@@ -1416,6 +1440,16 @@
             "TRAILER_UNMUTE": "取消預告片靜音",
             "PROGRESS_RESET": "進度已重設",
             "HIDDEN_FROM_CONTINUE_WATCHING": "已從「繼續觀看」隱藏"
+        },
+        "SCROLL_LEFT": "向左捲動",
+        "SCROLL_RIGHT": "向右捲動",
+        "EPISODE_NAVIGATION": "集數導覽",
+        "INLINE_PLAYER": "播放器",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Xtream 請求失敗：{{message}}",
+            "XTREAM_CONNECTION": "無法連線至 Xtream 伺服器",
+            "STALKER": "Stalker 請求失敗：{{message}}（狀態 {{status}}）",
+            "NOT_FOUND": "找不到"
         }
     },
     "INFORMATION": "資訊",
@@ -1667,6 +1701,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "在播放清單中開啟",
             "RAIL_ALL_CHANNELS": "所有頻道",
             "RAIL_GROUPS": "群組",
             "RAIL_CONTEXT_ACTIONS": "區段操作",
@@ -2011,5 +2046,28 @@
         "UNLOCK_TO_SHOW": "輸入 PIN 碼以顯示",
         "HEADER_LOCK": "立即鎖定（家長監護）",
         "HEADER_UNLOCK": "輸入家長 PIN 碼"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "正在 {{player}} 中開啟…",
+        "STOP": "停止 {{player}}",
+        "ERRORS": {
+            "START_FAILED": "無法啟動 {{player}}。請確認已安裝，且設定中的路徑正確。",
+            "PREVIOUS_CLOSING": "上一個播放器仍在關閉中。請稍後再試。",
+            "CLOSED_UNEXPECTEDLY": "{{player}} 意外關閉。",
+            "STREAM_OPEN_FAILED": "{{player}} 無法開啟串流。URL 可能無效，或伺服器沒有回應。",
+            "UNSUPPORTED_PROTOCOL": "{{player}} 不支援此串流通訊協定。請檢查串流 URL。",
+            "CONNECTION_FAILED": "{{player}} 無法連線至串流伺服器。請檢查您的網路連線。",
+            "ACCESS_DENIED": "存取被拒。此串流可能需要有效的憑證或請求標頭。",
+            "STREAM_NOT_FOUND": "找不到串流。URL 可能不正確或已過期。",
+            "TIMED_OUT": "連線逾時。伺服器沒有回應。",
+            "LAUNCH_FAILED": "無法啟動 {{player}}。",
+            "UNKNOWN": "{{player}} 錯誤：{{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "影片正在外部播放器視窗中播放。",
+            "INSTALL_HINT": "請確認您的系統已正確安裝 MPV 或 VLC。",
+            "INSTALL_INSTRUCTIONS": "安裝說明",
+            "DONT_SHOW_AGAIN": "不再顯示"
+        }
     }
 }

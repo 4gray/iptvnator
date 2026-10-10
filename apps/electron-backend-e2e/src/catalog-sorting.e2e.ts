@@ -361,7 +361,7 @@ const largeXtreamCredentials = {
 
 async function setLiveSortMode(
     page: Page,
-    label: 'Server Order' | 'Name A-Z' | 'Name Z-A'
+    label: 'Server order' | 'Name A-Z' | 'Name Z-A'
 ): Promise<void> {
     await page.getByRole('button', { name: 'Sort channels' }).click();
     await page.getByRole('menuitem', { name: label, exact: true }).click();

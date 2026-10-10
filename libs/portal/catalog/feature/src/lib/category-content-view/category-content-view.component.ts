@@ -107,8 +107,13 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             );
         }
 
-        const itemCount = this.categoryItemCount();
-        return `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
+        const count = this.categoryItemCount();
+        return this.translate.instant(
+            count === 1
+                ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
+                : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER',
+            { count }
+        );
     });
     readonly canSortContent = computed(() => this.contentSortMode() !== null);
     readonly supportsRatingSort = computed(

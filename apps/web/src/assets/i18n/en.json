@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Xtream playlist",
             "STALKER_PORTAL": "Stalker portal",
             "CHANNELS": "Channels",
+            "CHANNELS_COUNT": "{{count}} channels",
             "ADDED": "Added",
             "SHOW_DETAILS": "Show playlist details",
             "REMOVE": "Remove playlist",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "MAC address",
                 "PLAYLIST_EXPORT_SUCCESS": "Playlist was exported successfully.",
                 "PLAYLIST_EXPORT_ERROR": "Error: Playlist export failed.",
+                "EXPORT_PLAYLIST_FAILED": "Playlist export failed.",
                 "COPY_URL": "Copy URL to clipboard",
                 "URL_COPIED": "URL copied to clipboard"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "Updated",
             "REFRESH": "Refresh playlist",
+            "REFRESH_FETCHING": "Fetching playlist…",
+            "REFRESH_READING_FILE": "Reading playlist file…",
+            "REFRESH_PARSING": "Parsing playlist…",
+            "REFRESH_SAVING": "Saving playlist…",
             "REFRESH_XTREAM": "Refresh Xtream playlist from remote",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "Refresh Xtream Playlist",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "all available playlists",
             "PLAYLIST_UPDATE_SUCCESS": "Success! The playlist was successfully updated.",
             "PLAYLIST_UPDATE_ERROR": "Error updating playlist details.",
+            "PLAYLIST_UPDATE_FAILED": "Couldn't update the playlist.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Playlist refresh failed. The app can no longer access the local file.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Success! The playlists were successfully updated",
@@ -166,6 +173,7 @@
             "ERROR_403": "Access denied (403): The server refused the request. The URL may require authentication or the playlist is restricted.",
             "ERROR_404": "Playlist not found (404): The URL does not point to a valid playlist. Please check the URL.",
             "ERROR_401": "Unauthorized (401): Authentication is required to access this playlist.",
+            "ERROR_413": "This file is too big. Use the standalone or self-hosted version of the app.",
             "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
             "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
             "TRUST_TLS_HOST": "Trust host",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "Import",
         "EXPORT_DATA": "Export",
         "EXPORTING_DATA": "Exporting…",
+        "BACKUP_EXPORTED": "Playlist backup exported.",
+        "BACKUP_EXPORT_FAILED": "Playlist backup export failed.",
         "REMOVE_ALL": "Delete all playlists and playlist data",
         "REMOVE_ALL_BUTTON": "Delete all",
         "REMOVE_ALL_DESCRIPTION": "Delete every M3U, Xtream, and Stalker playlist stored in the app.",
@@ -483,6 +493,7 @@
             "CONFIRM": "Delete everything"
         },
         "IMPORT_ERROR": "Import error, please try with another file.",
+        "BACKUP_IMPORT_SUMMARY": "Backup import finished: {{imported}} imported, {{merged}} merged, {{skipped}} skipped, {{failed}} failed.",
         "PLAYLISTS_REMOVED": "All playlists and playlist data were removed.",
         "MPV_PLAYER_PATH_LABEL": "mpv path",
         "MPV_PLAYER_PATH_DESCRIPTION": "Set the path to MPV. On macOS you can use the MPV app bundle, such as /Applications/mpv.app, or the executable path.",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "Next station",
         "MUTE": "Mute",
         "UNMUTE": "Unmute",
-        "VOLUME": "Volume"
+        "VOLUME": "Volume",
+        "RADIO": "Radio",
+        "PAUSED_BADGE": "PAUSED"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -847,6 +860,9 @@
         "SORT_BY_DATE": "Sort by Date Added (Newest First)",
         "SORT_BY_RATING": "Sort by Rating",
         "SORT_BY_NAME": "Sort by Name (A-Z)",
+        "SORT_CHANNELS": "Sort channels",
+        "SORT_SERVER_ORDER": "Server order",
+        "SORT_PLAYLIST_ORDER": "Playlist order",
         "LOAD_MORE": "Load more",
         "REMAINING": "remaining",
         "LOADING": "Loading channels...",
@@ -1129,6 +1145,7 @@
         "DURATION": "Duration",
         "CAST": "Cast",
         "EPISODE_RUN_TIME": "Episode run time",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}} min/ep",
         "RATING": "Rating",
         "IMDB_RATING": " Rating IMDB",
         "KINOPOISK_RATING": "Rating Kinopoisk",
@@ -1210,8 +1227,10 @@
             "SEARCH_PLACEHOLDER": "Search categories...",
             "NO_RESULTS": "No matching categories found",
             "NO_CATEGORIES": "No categories available",
-            "SAVE": "Save"
-        }
+            "SAVE": "Save",
+            "SAVE_FAILED": "Failed to save category visibility"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "Found {{count}} items across {{playlists}} playlists"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1220,6 +1239,11 @@
             "RETRY": "Retry now"
         },
         "ALL_CATEGORIES": "All categories",
+        "ALL_ITEMS": "All items",
+        "LIVE_BADGE": "LIVE",
+        "UNNAMED_CATEGORY": "Unnamed category",
+        "NO_CATEGORIES": "No categories available",
+        "UNTITLED": "Untitled",
         "MY_FAVORITES": "My favorites",
         "ADD_TO_FAVORITES": "Add to favorites",
         "REMOVE_FROM_FAVORITES": "Remove from favorites",
@@ -1416,6 +1440,16 @@
             "TRAILER_UNMUTE": "Unmute trailer",
             "PROGRESS_RESET": "Progress reset",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Hidden from Continue Watching"
+        },
+        "SCROLL_LEFT": "Scroll left",
+        "SCROLL_RIGHT": "Scroll right",
+        "EPISODE_NAVIGATION": "Episode navigation",
+        "INLINE_PLAYER": "Player",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Xtream request failed: {{message}}",
+            "XTREAM_CONNECTION": "Failed to connect to Xtream server",
+            "STALKER": "Stalker request failed: {{message}} (status {{status}})",
+            "NOT_FOUND": "Not found"
         }
     },
     "INFORMATION": "Information",
@@ -1667,6 +1701,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "Open in playlist",
             "RAIL_ALL_CHANNELS": "All channels",
             "RAIL_GROUPS": "Groups",
             "RAIL_CONTEXT_ACTIONS": "Section actions",
@@ -2011,5 +2046,28 @@
         "UNLOCK_TO_SHOW": "Enter PIN to show",
         "HEADER_LOCK": "Lock now (parental lock)",
         "HEADER_UNLOCK": "Enter parental PIN"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "Opening in {{player}}…",
+        "STOP": "Stop {{player}}",
+        "ERRORS": {
+            "START_FAILED": "Could not start {{player}}. Make sure it is installed and its path in Settings is correct.",
+            "PREVIOUS_CLOSING": "The previous player is still closing. Try again in a moment.",
+            "CLOSED_UNEXPECTEDLY": "{{player}} closed unexpectedly.",
+            "STREAM_OPEN_FAILED": "{{player}} could not open the stream. The URL may be invalid or the server is not responding.",
+            "UNSUPPORTED_PROTOCOL": "{{player}} does not support this stream protocol. Check the stream URL.",
+            "CONNECTION_FAILED": "{{player}} cannot connect to the stream server. Check your internet connection.",
+            "ACCESS_DENIED": "Access denied. The stream may require valid credentials or headers.",
+            "STREAM_NOT_FOUND": "Stream not found. The URL may be incorrect or expired.",
+            "TIMED_OUT": "Connection timed out. The server is not responding.",
+            "LAUNCH_FAILED": "Could not start {{player}}.",
+            "UNKNOWN": "{{player}} error: {{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "The video is playing in the external player window.",
+            "INSTALL_HINT": "Make sure that MPV or VLC is installed correctly on your system.",
+            "INSTALL_INSTRUCTIONS": "Installation instructions",
+            "DONT_SHOW_AGAIN": "Don't show again"
+        }
     }
 }

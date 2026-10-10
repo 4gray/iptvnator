@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Xtream-lejátszási lista",
             "STALKER_PORTAL": "Stalker-portál",
             "CHANNELS": "Csatornák",
+            "CHANNELS_COUNT": "{{count}} csatorna",
             "ADDED": "Hozzáadva",
             "SHOW_DETAILS": "Lejátszási lista részleteinek megjelenítése",
             "REMOVE": "Lejátszási lista eltávolítása",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "MAC-cím",
                 "PLAYLIST_EXPORT_SUCCESS": "A lejátszási lista exportálása sikerült.",
                 "PLAYLIST_EXPORT_ERROR": "Hiba: nem sikerült exportálni a lejátszási listát.",
+                "EXPORT_PLAYLIST_FAILED": "Nem sikerült exportálni a lejátszási listát.",
                 "COPY_URL": "URL-cím másolása a vágólapra",
                 "URL_COPIED": "Az URL-cím a vágólapra került"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "Frissítve",
             "REFRESH": "Lejátszási lista frissítése",
+            "REFRESH_FETCHING": "Lejátszási lista lekérése…",
+            "REFRESH_READING_FILE": "Lejátszási lista fájljának beolvasása…",
+            "REFRESH_PARSING": "Lejátszási lista feldolgozása…",
+            "REFRESH_SAVING": "Lejátszási lista mentése…",
             "REFRESH_XTREAM": "Xtream-lejátszási lista frissítése a távoli forrásból",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "Xtream-lejátszási lista frissítése",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "Az összes elérhető lejátszási lista",
             "PLAYLIST_UPDATE_SUCCESS": "Sikeresen frissült a lejátszási lista.",
             "PLAYLIST_UPDATE_ERROR": "Hiba történt a lejátszási lista adatainak frissítésekor.",
+            "PLAYLIST_UPDATE_FAILED": "Nem sikerült frissíteni a lejátszási listát.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Nem sikerült frissíteni a lejátszási listát, mert a helyi fájl már nem érhető el. Ellenőrizze a fájl elérési útját, vagy importálja újra a listát.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Nem sikerült frissíteni a lejátszási listát, mert az alkalmazás már nem fér hozzá a helyi fájlhoz.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Sikeresen frissültek a lejátszási listák.",
@@ -166,6 +173,7 @@
             "ERROR_403": "Hozzáférés megtagadva (403): a kiszolgáló elutasította a kérést. Elképzelhető, hogy az URL-cím hitelesítést igényel, vagy a lejátszási lista korlátozott hozzáférésű.",
             "ERROR_404": "A lejátszási lista nem található (404): az URL-cím nem érvényes lejátszási listára mutat. Ellenőrizze a címet.",
             "ERROR_401": "Nincs jogosultság (401): a lejátszási lista eléréséhez hitelesítés szükséges.",
+            "ERROR_413": "Ez a fájl túl nagy. Használja az alkalmazás asztali vagy saját kiszolgálón futtatott változatát.",
             "ERROR_INVALID_TLS": "A lejátszási lista kiszolgálójának tanúsítványa érvénytelen.",
             "ERROR_TLS_HOST_UNKNOWN": "Nem sikerült meghatározni a lejátszási lista kiszolgálóját. Próbálja újra kézzel.",
             "TRUST_TLS_HOST": "Kiszolgáló megbízhatónak jelölése",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "Importálás",
         "EXPORT_DATA": "Exportálás",
         "EXPORTING_DATA": "Exportálás…",
+        "BACKUP_EXPORTED": "A lejátszási listák biztonsági mentésének exportálása sikerült.",
+        "BACKUP_EXPORT_FAILED": "Nem sikerült exportálni a lejátszási listák biztonsági mentését.",
         "REMOVE_ALL": "Az összes lejátszási lista és kapcsolódó adat törlése",
         "REMOVE_ALL_BUTTON": "Összes törlése",
         "REMOVE_ALL_DESCRIPTION": "Az alkalmazásban tárolt összes M3U-, Xtream- és Stalker-lejátszási lista törlése.",
@@ -483,6 +493,7 @@
             "CONFIRM": "Minden törlése"
         },
         "IMPORT_ERROR": "Importálási hiba. Próbálkozzon másik fájllal.",
+        "BACKUP_IMPORT_SUMMARY": "A biztonsági mentés importálása befejeződött: {{imported}} importálva, {{merged}} egyesítve, {{skipped}} kihagyva, {{failed}} sikertelen.",
         "PLAYLISTS_REMOVED": "Eltávolítottuk az összes lejátszási listát és kapcsolódó adatot.",
         "MPV_PLAYER_PATH_LABEL": "MPV elérési útvonala",
         "MPV_PLAYER_PATH_DESCRIPTION": "Adja meg az MPV elérési útját. macOS rendszeren használható az MPV alkalmazáscsomag, például /Applications/mpv.app, vagy a futtatható fájl elérési útja.",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "Következő állomás",
         "MUTE": "Némítás",
         "UNMUTE": "Némítás feloldása",
-        "VOLUME": "Hangerő"
+        "VOLUME": "Hangerő",
+        "RADIO": "Rádió",
+        "PAUSED_BADGE": "SZÜNET"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -847,6 +860,9 @@
         "SORT_BY_DATE": "Hozzáadás dátuma szerint (legújabb elöl)",
         "SORT_BY_RATING": "Értékelés szerint",
         "SORT_BY_NAME": "Név szerint (A–Z)",
+        "SORT_CHANNELS": "Csatornák rendezése",
+        "SORT_SERVER_ORDER": "Kiszolgáló szerinti sorrend",
+        "SORT_PLAYLIST_ORDER": "Lejátszási lista szerinti sorrend",
         "LOAD_MORE": "Továbbiak betöltése",
         "REMAINING": "van hátra",
         "LOADING": "Csatornák betöltése…",
@@ -1129,6 +1145,7 @@
         "DURATION": "Időtartam",
         "CAST": "Szereplők",
         "EPISODE_RUN_TIME": "Epizód hossza",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}} perc/epizód",
         "RATING": "Értékelés",
         "IMDB_RATING": "IMDb-értékelés",
         "KINOPOISK_RATING": "Kinopoisk-értékelés",
@@ -1210,8 +1227,10 @@
             "SEARCH_PLACEHOLDER": "Keresés a kategóriák között…",
             "NO_RESULTS": "Nem található a keresésnek megfelelő kategória",
             "NO_CATEGORIES": "Nincs elérhető kategória",
-            "SAVE": "Mentés"
-        }
+            "SAVE": "Mentés",
+            "SAVE_FAILED": "Nem sikerült menteni a kategóriák láthatóságát"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "{{count}} találat {{playlists}} lejátszási listában"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1220,6 +1239,11 @@
             "RETRY": "Újrapróbálkozás most"
         },
         "ALL_CATEGORIES": "Összes kategória",
+        "ALL_ITEMS": "Összes elem",
+        "LIVE_BADGE": "ÉLŐ",
+        "UNNAMED_CATEGORY": "Névtelen kategória",
+        "NO_CATEGORIES": "Nincs elérhető kategória",
+        "UNTITLED": "Névtelen",
         "MY_FAVORITES": "Saját kedvencek",
         "ADD_TO_FAVORITES": "Hozzáadás a kedvencekhez",
         "REMOVE_FROM_FAVORITES": "Eltávolítás a kedvencek közül",
@@ -1416,6 +1440,16 @@
             "TRAILER_UNMUTE": "Előzetes hangjának bekapcsolása",
             "PROGRESS_RESET": "Haladás törölve",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Elrejtve a „Folytatás” sorból"
+        },
+        "SCROLL_LEFT": "Görgetés balra",
+        "SCROLL_RIGHT": "Görgetés jobbra",
+        "EPISODE_NAVIGATION": "Epizódnavigáció",
+        "INLINE_PLAYER": "Lejátszó",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Sikertelen Xtream-kérés: {{message}}",
+            "XTREAM_CONNECTION": "Nem sikerült kapcsolódni az Xtream-kiszolgálóhoz",
+            "STALKER": "Sikertelen Stalker-kérés: {{message}} (állapotkód: {{status}})",
+            "NOT_FOUND": "Nem található"
         }
     },
     "INFORMATION": "Információk",
@@ -1667,6 +1701,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "Megnyitás a lejátszási listában",
             "RAIL_ALL_CHANNELS": "Összes csatorna",
             "RAIL_GROUPS": "Csoportok",
             "RAIL_CONTEXT_ACTIONS": "Szakaszműveletek",
@@ -2011,5 +2046,28 @@
         "UNLOCK_TO_SHOW": "A megjelenítéshez adja meg a PIN-kódot",
         "HEADER_LOCK": "Zárolás most (szülői felügyelet)",
         "HEADER_UNLOCK": "Szülői PIN-kód megadása"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "{{player}} megnyitása…",
+        "STOP": "{{player}} leállítása",
+        "ERRORS": {
+            "START_FAILED": "A(z) {{player}} nem indítható el. Ellenőrizze, hogy telepítve van-e, és hogy helyes-e az elérési útja a Beállításokban.",
+            "PREVIOUS_CLOSING": "Az előző lejátszó bezárása még folyamatban van. Próbálja újra egy kis idő múlva.",
+            "CLOSED_UNEXPECTEDLY": "A(z) {{player}} váratlanul bezárult.",
+            "STREAM_OPEN_FAILED": "A(z) {{player}} nem tudta megnyitni az adatfolyamot. Lehet, hogy az URL-cím érvénytelen, vagy a kiszolgáló nem válaszol.",
+            "UNSUPPORTED_PROTOCOL": "A(z) {{player}} nem támogatja ennek az adatfolyamnak a protokollját. Ellenőrizze az adatfolyam URL-címét.",
+            "CONNECTION_FAILED": "A(z) {{player}} nem tud kapcsolódni az adatfolyam kiszolgálójához. Ellenőrizze az internetkapcsolatot.",
+            "ACCESS_DENIED": "Hozzáférés megtagadva. Az adatfolyamhoz érvényes hitelesítési adatok vagy fejlécek szükségesek lehetnek.",
+            "STREAM_NOT_FOUND": "Az adatfolyam nem található. Lehet, hogy az URL-cím hibás, vagy lejárt.",
+            "TIMED_OUT": "Időtúllépés a kapcsolódáskor. A kiszolgáló nem válaszol.",
+            "LAUNCH_FAILED": "A(z) {{player}} nem indítható el.",
+            "UNKNOWN": "{{player}}-hiba: {{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "A videó lejátszása a külső lejátszó ablakában történik.",
+            "INSTALL_HINT": "Ellenőrizze, hogy az MPV vagy a VLC megfelelően telepítve van-e a rendszerén.",
+            "INSTALL_INSTRUCTIONS": "Telepítési útmutató",
+            "DONT_SHOW_AGAIN": "Ne jelenjen meg újra"
+        }
     }
 }

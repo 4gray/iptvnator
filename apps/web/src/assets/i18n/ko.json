@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Xtream 재생목록",
             "STALKER_PORTAL": "Stalker 포털",
             "CHANNELS": "채널",
+            "CHANNELS_COUNT": "{{count}}개 채널",
             "ADDED": "추가되었습니다",
             "SHOW_DETAILS": "재생 목록 세부 정보 표시",
             "REMOVE": "재생 목록 제거",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "MAC 주소",
                 "PLAYLIST_EXPORT_SUCCESS": "재생목록을 성공적으로 내보냈습니다.",
                 "PLAYLIST_EXPORT_ERROR": "오류: 재생목록 내보내기에 실패했습니다.",
+                "EXPORT_PLAYLIST_FAILED": "재생목록 내보내기에 실패했습니다.",
                 "COPY_URL": "URL을 클립보드에 복사",
                 "URL_COPIED": "URL이 클립보드에 복사되었습니다"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "업데이트 됨",
             "REFRESH": "재생 목록 새로 고침",
+            "REFRESH_FETCHING": "재생목록을 가져오는 중…",
+            "REFRESH_READING_FILE": "재생목록 파일을 읽는 중…",
+            "REFRESH_PARSING": "재생목록을 파싱하는 중…",
+            "REFRESH_SAVING": "재생목록을 저장하는 중…",
             "REFRESH_XTREAM": "원격 서버에서 Xtream 재생목록 새로 고침",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "Xtream 재생목록 새로 고침",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "사용 가능한 모든 재생목록",
             "PLAYLIST_UPDATE_SUCCESS": "성공! 재생목록이 성공적으로 업데이트되었습니다.",
             "PLAYLIST_UPDATE_ERROR": "재생목록 정보 업데이트 중 오류가 발생했습니다.",
+            "PLAYLIST_UPDATE_FAILED": "재생목록을 업데이트하지 못했습니다.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "재생목록 새로 고침에 실패했습니다. 로컬 파일을 더 이상 사용할 수 없습니다. 파일 경로를 확인하거나 재생목록을 다시 가져오세요.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "재생목록 새로 고침에 실패했습니다. 앱이 더 이상 로컬 파일에 접근할 수 없습니다.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "성공! 재생목록이 성공적으로 업데이트되었습니다",
@@ -166,6 +173,7 @@
             "ERROR_403": "접근 거부됨 (403): 서버가 요청을 거부했습니다. URL에 인증이 필요하거나 재생목록이 제한되어 있을 수 있습니다.",
             "ERROR_404": "재생목록을 찾을 수 없습니다 (404): URL이 유효한 재생목록을 가리키지 않습니다. URL을 확인해 주세요.",
             "ERROR_401": "권한 없음 (401): 이 재생목록에 접근하려면 인증이 필요합니다.",
+            "ERROR_413": "파일이 너무 큽니다. 독립 실행형 또는 자체 호스팅 버전의 앱을 사용하세요.",
             "ERROR_INVALID_TLS": "이 플레이리스트 호스트의 인증서가 유효하지 않습니다.",
             "ERROR_TLS_HOST_UNKNOWN": "플레이리스트 호스트를 확인할 수 없습니다. 수동으로 다시 시도해 주세요.",
             "TRUST_TLS_HOST": "호스트 신뢰",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "가져오기",
         "EXPORT_DATA": "내보내기",
         "EXPORTING_DATA": "내보내는 중…",
+        "BACKUP_EXPORTED": "플레이리스트 백업을 내보냈습니다.",
+        "BACKUP_EXPORT_FAILED": "플레이리스트 백업을 내보내지 못했습니다.",
         "REMOVE_ALL": "모든 플레이리스트와 플레이리스트 데이터 삭제",
         "REMOVE_ALL_BUTTON": "모두 삭제",
         "REMOVE_ALL_DESCRIPTION": "앱에 저장된 모든 M3U, Xtream, Stalker 플레이리스트를 삭제합니다.",
@@ -483,6 +493,7 @@
             "CONFIRM": "모두 삭제"
         },
         "IMPORT_ERROR": "가져오기 오류가 발생했습니다. 다른 파일로 시도해 보세요.",
+        "BACKUP_IMPORT_SUMMARY": "백업 가져오기 완료: {{imported}}개 가져옴, {{merged}}개 병합, {{skipped}}개 건너뜀, {{failed}}개 실패.",
         "PLAYLISTS_REMOVED": "모든 플레이리스트와 플레이리스트 데이터가 삭제되었습니다.",
         "MPV_PLAYER_PATH_LABEL": "mpv 경로",
         "MPV_PLAYER_PATH_DESCRIPTION": "MPV 경로를 설정합니다. macOS에서는 /Applications/mpv.app 같은 MPV 앱 번들이나 실행 파일 경로를 사용할 수 있습니다.",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "다음 방송국",
         "MUTE": "음소거",
         "UNMUTE": "음소거 해제",
-        "VOLUME": "볼륨"
+        "VOLUME": "볼륨",
+        "RADIO": "라디오",
+        "PAUSED_BADGE": "일시정지"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -847,6 +860,9 @@
         "SORT_BY_DATE": "추가 날짜순 정렬 (최신순)",
         "SORT_BY_RATING": "평점순 정렬",
         "SORT_BY_NAME": "이름순 정렬 (A-Z)",
+        "SORT_CHANNELS": "채널 정렬",
+        "SORT_SERVER_ORDER": "서버 순서",
+        "SORT_PLAYLIST_ORDER": "재생목록 순서",
         "LOAD_MORE": "더 불러오기",
         "REMAINING": "남음",
         "LOADING": "채널을 불러오는 중...",
@@ -1129,6 +1145,7 @@
         "DURATION": "재생 시간",
         "CAST": "출연진",
         "EPISODE_RUN_TIME": "에피소드 재생 시간",
+        "EPISODE_RUN_TIME_MINUTES": "편당 {{minutes}}분",
         "RATING": "평가",
         "IMDB_RATING": "IMDb 평점",
         "KINOPOISK_RATING": "Kinopoisk 평점",
@@ -1210,8 +1227,10 @@
             "SEARCH_PLACEHOLDER": "카테고리 검색...",
             "NO_RESULTS": "일치하는 카테고리를 찾을 수 없습니다",
             "NO_CATEGORIES": "사용 가능한 카테고리가 없습니다",
-            "SAVE": "저장"
-        }
+            "SAVE": "저장",
+            "SAVE_FAILED": "카테고리 표시 여부를 저장하지 못했습니다"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "재생목록 {{playlists}}개에서 항목 {{count}}개를 찾았습니다"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1220,6 +1239,11 @@
             "RETRY": "지금 다시 시도"
         },
         "ALL_CATEGORIES": "모든 카테고리",
+        "ALL_ITEMS": "모든 항목",
+        "LIVE_BADGE": "라이브",
+        "UNNAMED_CATEGORY": "이름 없는 카테고리",
+        "NO_CATEGORIES": "사용 가능한 카테고리가 없습니다",
+        "UNTITLED": "제목 없음",
         "MY_FAVORITES": "내가 좋아하는 것들",
         "ADD_TO_FAVORITES": "즐겨 찾기에 추가",
         "REMOVE_FROM_FAVORITES": "즐겨 찾기에서 삭제하기",
@@ -1416,6 +1440,16 @@
             "TRAILER_UNMUTE": "예고편 소리 켜기",
             "PROGRESS_RESET": "진행 상태를 초기화했습니다",
             "HIDDEN_FROM_CONTINUE_WATCHING": "‘이어서 보기’에서 숨겼습니다"
+        },
+        "SCROLL_LEFT": "왼쪽으로 스크롤",
+        "SCROLL_RIGHT": "오른쪽으로 스크롤",
+        "EPISODE_NAVIGATION": "에피소드 탐색",
+        "INLINE_PLAYER": "플레이어",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Xtream 요청에 실패했습니다: {{message}}",
+            "XTREAM_CONNECTION": "Xtream 서버에 연결하지 못했습니다",
+            "STALKER": "Stalker 요청에 실패했습니다: {{message}} (상태 {{status}})",
+            "NOT_FOUND": "찾을 수 없음"
         }
     },
     "INFORMATION": "정보",
@@ -1667,6 +1701,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "재생목록에서 열기",
             "RAIL_ALL_CHANNELS": "모든 채널",
             "RAIL_GROUPS": "그룹",
             "RAIL_CONTEXT_ACTIONS": "컨텍스트 작업",
@@ -2011,5 +2046,28 @@
         "UNLOCK_TO_SHOW": "PIN을 입력하여 표시",
         "HEADER_LOCK": "지금 잠그기(자녀 보호)",
         "HEADER_UNLOCK": "보호자 PIN 입력"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "{{player}}에서 여는 중…",
+        "STOP": "{{player}} 중지",
+        "ERRORS": {
+            "START_FAILED": "{{player}}을(를) 시작할 수 없습니다. 설치되어 있는지, 설정의 경로가 올바른지 확인하세요.",
+            "PREVIOUS_CLOSING": "이전 플레이어가 아직 종료되는 중입니다. 잠시 후 다시 시도하세요.",
+            "CLOSED_UNEXPECTEDLY": "{{player}}이(가) 예기치 않게 종료되었습니다.",
+            "STREAM_OPEN_FAILED": "{{player}}에서 스트림을 열 수 없습니다. URL이 잘못되었거나 서버가 응답하지 않을 수 있습니다.",
+            "UNSUPPORTED_PROTOCOL": "{{player}}에서 이 스트림 프로토콜을 지원하지 않습니다. 스트림 URL을 확인하세요.",
+            "CONNECTION_FAILED": "{{player}}에서 스트림 서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.",
+            "ACCESS_DENIED": "접근이 거부되었습니다. 스트림에 유효한 자격 증명이나 헤더가 필요할 수 있습니다.",
+            "STREAM_NOT_FOUND": "스트림을 찾을 수 없습니다. URL이 잘못되었거나 만료되었을 수 있습니다.",
+            "TIMED_OUT": "연결 시간이 초과되었습니다. 서버가 응답하지 않습니다.",
+            "LAUNCH_FAILED": "{{player}}을(를) 시작할 수 없습니다.",
+            "UNKNOWN": "{{player}} 오류: {{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "외부 플레이어 창에서 비디오를 재생하고 있습니다.",
+            "INSTALL_HINT": "시스템에 MPV 또는 VLC가 올바르게 설치되어 있는지 확인하세요.",
+            "INSTALL_INSTRUCTIONS": "설치 안내",
+            "DONT_SHOW_AGAIN": "다시 표시 안 함"
+        }
     }
 }

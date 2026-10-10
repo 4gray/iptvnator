@@ -40,7 +40,13 @@
                     (click)="livePanels.openCategoriesPopover(categoryDropdown)"
                 >
                     <span class="category-title">
-                        {{ selectedCategoryInfo()?.name ?? 'All Items' }}
+                        {{
+                            selectedCategoryInfo()?.name ??
+                                ((selectedCategoryInfo()
+                                    ? 'HOME.PLAYLISTS.CHANNELS'
+                                    : 'PORTALS.ALL_ITEMS'
+                                ) | translate)
+                        }}
                     </span>
                     @if (selectedCategoryInfo()?.count) {
                         <span class="category-count">{{
@@ -54,7 +60,13 @@
             } @else {
                 <div class="category-heading">
                     <h2 class="category-title">
-                        {{ selectedCategoryInfo()?.name ?? 'All Items' }}
+                        {{
+                            selectedCategoryInfo()?.name ??
+                                ((selectedCategoryInfo()
+                                    ? 'HOME.PLAYLISTS.CHANNELS'
+                                    : 'PORTALS.ALL_ITEMS'
+                                ) | translate)
+                        }}
                     </h2>
                     @if (selectedCategoryInfo()?.count) {
                         <span class="category-count">{{
@@ -79,8 +91,11 @@
             <button
                 mat-icon-button
                 [matMenuTriggerFor]="channelSortMenu"
-                [matTooltip]="'Sort: ' + liveChannelSortLabel()"
-                aria-label="Sort channels"
+                [matTooltip]="
+                    ('WORKSPACE.SORT_LABEL' | translate) +
+                    (liveChannelSortLabelKey() | translate)
+                "
+                [attr.aria-label]="'CHANNELS.SORT_CHANNELS' | translate"
             >
                 <mat-icon>sort_by_alpha</mat-icon>
             </button>
@@ -98,7 +113,7 @@
                     mat-menu-item
                     (click)="setLiveChannelSortMode('server')"
                 >
-                    <span>Server Order</span>
+                    <span>{{ 'CHANNELS.SORT_SERVER_ORDER' | translate }}</span>
                     @if (liveChannelSortMode() === 'server') {
                         <mat-icon>check</mat-icon>
                     }
@@ -107,7 +122,7 @@
                     mat-menu-item
                     (click)="setLiveChannelSortMode('name-asc')"
                 >
-                    <span>Name A-Z</span>
+                    <span>{{ 'WORKSPACE.SORT_NAME_ASC' | translate }}</span>
                     @if (liveChannelSortMode() === 'name-asc') {
                         <mat-icon>check</mat-icon>
                     }
@@ -116,7 +131,7 @@
                     mat-menu-item
                     (click)="setLiveChannelSortMode('name-desc')"
                 >
-                    <span>Name Z-A</span>
+                    <span>{{ 'WORKSPACE.SORT_NAME_DESC' | translate }}</span>
                     @if (liveChannelSortMode() === 'name-desc') {
                         <mat-icon>check</mat-icon>
                     }
@@ -189,9 +204,14 @@
             <div class="live-all-items-content category-content-layout">
                 <div class="category-content-header">
                     <div class="category-meta">
-                        <h2 class="category-title">All Items</h2>
+                        <h2 class="category-title">
+                            {{ 'PORTALS.ALL_ITEMS' | translate }}
+                        </h2>
                         <div class="category-subtitle">
-                            {{ liveRootSubtitle() }}
+                            {{
+                                'WORKSPACE.SHELL.CHANNELS_COUNT'
+                                    | translate: { count: liveRootItemCount() }
+                            }}
                         </div>
                     </div>
                 </div>

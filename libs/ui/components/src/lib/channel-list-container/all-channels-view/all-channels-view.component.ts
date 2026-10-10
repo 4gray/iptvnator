@@ -28,7 +28,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     PlaylistChannelSortMode,
-    getPlaylistChannelSortModeLabel,
+    getPlaylistChannelSortModeLabelKey,
     persistPlaylistChannelSortMode,
     restorePlaylistChannelSortMode,
     sortPlaylistChannelItems,
@@ -119,8 +119,8 @@ export class AllChannelsViewComponent {
     readonly allChannelsSortMode = signal<PlaylistChannelSortMode>(
         restorePlaylistChannelSortMode(ALL_CHANNELS_SORT_STORAGE_KEY)
     );
-    readonly allChannelsSortLabel = computed(() =>
-        getPlaylistChannelSortModeLabel(this.allChannelsSortMode())
+    readonly allChannelsSortLabelKey = computed(() =>
+        getPlaylistChannelSortModeLabelKey(this.allChannelsSortMode())
     );
 
     /**

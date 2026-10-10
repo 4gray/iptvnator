@@ -486,7 +486,7 @@ test.describe('Electron Workspace Search', () => {
             await expectQueryParam(app.mainWindow, 'q', sample.targetTitle);
             await expectWorkspaceSearchScope(
                 app.mainWindow,
-                'Live TV / All Items'
+                'Live TV / All items'
             );
             await expect(
                 liveChannelSidebar(app.mainWindow)
@@ -1524,7 +1524,7 @@ async function expectXtreamRootCatalogSearch(
     await expectQueryParam(page, 'q', options.sample.targetTitle);
     await expectWorkspaceSearchScope(
         page,
-        `${options.sectionLabel} / All Items`
+        `${options.sectionLabel} / All items`
     );
     const contentLayout = page.locator('.category-content-layout');
     await expect(contentLayout).toContainText(

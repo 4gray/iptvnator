@@ -26,18 +26,19 @@ export function persistPlaylistChannelSortMode(
     localStorage.setItem(storageKey, mode);
 }
 
-export function getPlaylistChannelSortModeLabel(
+/** Translation key of the sort mode's menu label. */
+export function getPlaylistChannelSortModeLabelKey(
     mode: PlaylistChannelSortMode
 ): string {
     if (mode === 'name-asc') {
-        return 'Name A-Z';
+        return 'WORKSPACE.SORT_NAME_ASC';
     }
 
     if (mode === 'name-desc') {
-        return 'Name Z-A';
+        return 'WORKSPACE.SORT_NAME_DESC';
     }
 
-    return 'Playlist Order';
+    return 'CHANNELS.SORT_PLAYLIST_ORDER';
 }
 
 export function sortPlaylistChannelItems<T>(
