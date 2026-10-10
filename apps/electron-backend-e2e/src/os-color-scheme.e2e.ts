@@ -9,10 +9,7 @@ import {
     saveSettings,
     test,
 } from './electron-test-fixtures';
-import {
-    expectTextContrast,
-    measureBackdropTextContrast,
-} from './theme-contrast';
+import { measureBackdropTextContrast } from './theme-contrast';
 
 type Theme = 'light' | 'dark';
 
@@ -71,10 +68,11 @@ async function settleAnimations(page: Page): Promise<void> {
 interface Surface {
     name: string;
     scope: Locator;
-    /** Text on a solid or translucent CSS background. */
+    /**
+     * Text measured against the rendered pixels under it, so gradient cards,
+     * tinted chips and filled buttons all count.
+     */
     texts: Locator[];
-    /** Labels over a gradient fill, measured from the rendered pixels. */
-    filledLabels?: Locator[];
 }
 
 /**
@@ -126,13 +124,10 @@ async function expectFollowsAppTheme(
         path: shot,
         contentType: 'image/png',
     });
-    for (const text of surface.texts) {
-        await expectTextContrast(text);
-    }
-    for (const label of surface.filledLabels ?? []) {
+    for (const [index, text] of surface.texts.entries()) {
         expect(
-            await measureBackdropTextContrast(page, label),
-            `${surface.name}: filled label in the ${theme} theme`
+            await measureBackdropTextContrast(page, text),
+            `${surface.name}: text ${index} in the ${theme} theme`
         ).toBeGreaterThanOrEqual(4.5);
     }
     return underMatchingOs;
@@ -201,8 +196,6 @@ test.describe('App theme over the OS colour scheme', () => {
                             ),
                             dashboard.locator('.feature-card__title').first(),
                             dashboard.locator('.feature-card__desc').first(),
-                        ],
-                        filledLabels: [
                             dashboard.locator(
                                 '.welcome-dashboard__cta .mdc-button__label'
                             ),
@@ -226,8 +219,6 @@ test.describe('App theme over the OS colour scheme', () => {
                             sources.locator('.source-card__name').first(),
                             sources.locator('.source-card__needs').first(),
                             sources.locator('.source-card__chip').first(),
-                        ],
-                        filledLabels: [
                             sources
                                 .locator('.source-card__cta .mdc-button__label')
                                 .first(),
