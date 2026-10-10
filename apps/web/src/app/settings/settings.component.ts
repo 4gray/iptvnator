@@ -22,6 +22,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,
     RuntimeCapabilitiesService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import {
@@ -29,7 +30,7 @@ import {
     Language,
     StreamFormat,
 } from '@iptvnator/shared/interfaces';
-import { firstValueFrom, map, startWith } from 'rxjs';
+import { firstValueFrom, map } from 'rxjs';
 import { BUILD_COMMIT } from '../../environments/build-commit';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
 import { SettingsAppUpdateFacade } from './settings-app-update.facade';
@@ -199,10 +200,7 @@ export class SettingsComponent
     });
 
     /** Re-reads translated text after a language switch */
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     /** Rows whose saved change waits for a restart, as one readable list */
     readonly restartPendingLabels = computed(() => {

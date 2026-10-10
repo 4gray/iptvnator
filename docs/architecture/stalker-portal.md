@@ -405,6 +405,17 @@ would not reload by itself, so the session calls `reloadCategories()` once
 it has installed that playlist. This contract applies to collection details as well as routed
 catalogs, because both use the root Stalker store.
 
+The store adds an every-item genre (`category_id: '*'`) in front of a
+portal's list when the portal sends none. That entry holds no translated
+name: its `category_name` is empty and its `labelKey` is
+`PORTALS.ALL_CATEGORIES` (`PORTALS.ALL_RADIO` for radio). The category lists
+render the key with the translate pipe. `getSelectedCategoryLabel()` returns
+`{ name, labelKey }` for the selected genre. Text consumers (live header,
+fullscreen panel title, catalog title, search scope) turn it into a string
+with `stalkerCategoryLabelText()` inside a computed that reads
+`injectTranslationTick()`. The root store outlives a runtime language switch, so a name
+translated at load time would keep the old language until the next reload.
+
 Failure-handling rule:
 
 - Failed category or content requests must degrade into empty/error UI state,
@@ -1311,8 +1322,8 @@ The Stalker live route and radio route intentionally share
   `create_link` with `type=radio`, skips EPG loading, and renders the same
   `AudioPlayerComponent` layout instead of the Stalker VOD detail layout.
 - Some Stalker portals do not expose radio categories. Radio category loading
-  falls back to a synthetic `PORTALS.ALL_RADIO` category with
-  `category_id: '*'` so the station list can still be loaded.
+  falls back to a synthetic every-item category (`category_id: '*'`,
+  `labelKey: 'PORTALS.ALL_RADIO'`) so the station list can still be loaded.
 - A category click in the shell context panel only re-filters the channel
   sidebar; the selected channel or station keeps playing (Xtream live #936 and
   M3U group parity). `onStalkerCategoryClicked` therefore must NOT

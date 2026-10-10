@@ -11,9 +11,10 @@ import {
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
 import { normalizeDateLocale } from '@iptvnator/pipes';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { startWith } from 'rxjs';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
 import { PlaylistMeta, sourceHealthType } from '@iptvnator/shared/interfaces';
 
@@ -65,9 +66,7 @@ export class SourceHealthIndicatorComponent {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly injector = inject(Injector);
     private readonly translate = inject(TranslateService);
-    private readonly language = toSignal(
-        this.translate.onLangChange.pipe(startWith(null))
-    );
+    private readonly language = injectTranslationTick();
     readonly supported = computed(
         () =>
             this.runtime.supportsSourceHealth &&

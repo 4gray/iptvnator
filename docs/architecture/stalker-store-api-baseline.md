@@ -46,7 +46,9 @@ Direct signal properties currently exposed by `signalStore`:
 - `getCategoryResource: StalkerCategoryItem[]`
 - `isCategoryResourceLoading: boolean`
 - `isCategoryResourceFailed: unknown`
-- `getSelectedCategoryName: string`
+- `getSelectedCategoryLabel: StalkerCategoryLabel` (`{ name, labelKey }`;
+  render with `stalkerCategoryLabelText()` inside a computed that reads
+  `injectTranslationTick()`)
 
 ## Exposed Resources/Props
 
@@ -74,6 +76,12 @@ Removed:
   page size: the portal decides how large a page is. No facade alias is
   provided, because a surviving `limit` would advertise a client-side window
   that the append path does not honour.
+- `getSelectedCategoryName` — replaced by `getSelectedCategoryLabel`. The
+  every-item genre the store adds (`category_id: '*'`) has no portal name: it
+  carries a `labelKey` that the caller translates, so the label follows a
+  runtime language switch. No alias is provided, because a name-only
+  selector is empty for that entry, and translating in the root store would
+  keep the language the list was loaded in.
 
 During refactor:
 

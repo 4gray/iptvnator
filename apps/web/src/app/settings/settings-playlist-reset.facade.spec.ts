@@ -96,6 +96,24 @@ describe('SettingsPlaylistResetFacade', () => {
         window.electron = originalElectron;
     });
 
+    it('rewords the removal progress after a language switch mid-run', () => {
+        (translate.instant as jest.Mock).mockRestore();
+        translate.setTranslation('en', {
+            SETTINGS: { REMOVE_ALL_IN_PROGRESS: 'Removing playlists…' },
+        });
+        translate.setTranslation('ru', {
+            SETTINGS: { REMOVE_ALL_IN_PROGRESS: 'Удаление плейлистов…' },
+        });
+        translate.use('en');
+        facade.isRemovingAllPlaylists.set(true);
+
+        expect(facade.removeAllProgressLabel()).toBe('Removing playlists…');
+
+        translate.use('ru');
+
+        expect(facade.removeAllProgressLabel()).toBe('Удаление плейлистов…');
+    });
+
     it('refuses the global wipe when there are no playlists', () => {
         setPlaylists([]);
 

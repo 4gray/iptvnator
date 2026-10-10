@@ -170,6 +170,24 @@ describe('M3uVodDetailComponent', () => {
         fixture?.destroy();
     });
 
+    it('re-words the kind label after a runtime language switch', async () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            WORKSPACE: { DASHBOARD: { TYPE_MOVIE: 'Movie' } },
+        });
+        translate.setTranslation('ru', {
+            WORKSPACE: { DASHBOARD: { TYPE_MOVIE: 'Фильм' } },
+        });
+        translate.use('en');
+        await create({ channel: channel(), playback: playback() });
+
+        expect(fixture.componentInstance.kindLabel()).toBe('Movie');
+
+        translate.use('ru');
+
+        expect(fixture.componentInstance.kindLabel()).toBe('Фильм');
+    });
+
     it('starts in watch state — activation means play in M3U', async () => {
         await create({ channel: channel(), playback: playback() });
 

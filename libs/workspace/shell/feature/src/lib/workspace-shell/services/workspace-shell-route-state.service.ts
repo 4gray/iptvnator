@@ -5,18 +5,21 @@ import {
     Injectable,
     signal,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { filter, startWith } from 'rxjs';
+import { filter } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     buildPortalRailLinks,
     PortalRailLink,
 } from '@iptvnator/portal/shared/util';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    injectTranslationTick,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import {
     parseWorkspaceShellRoute,
     WorkspacePortalContext,
@@ -37,10 +40,7 @@ export class WorkspaceShellRouteStateService {
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly activePlaylist = this.playlistContext.activePlaylist;
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);

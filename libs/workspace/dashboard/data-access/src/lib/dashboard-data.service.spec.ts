@@ -6,7 +6,7 @@ import {
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { of, Subject } from 'rxjs';
+import { EMPTY, of, Subject } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
@@ -223,6 +223,8 @@ describe('DashboardDataService', () => {
                 useValue: {
                     instant: (key: string) => key,
                     onLangChange: of(null),
+                    onDefaultLangChange: EMPTY,
+                    onTranslationChange: EMPTY,
                     currentLang: 'en',
                     defaultLang: 'en',
                 },

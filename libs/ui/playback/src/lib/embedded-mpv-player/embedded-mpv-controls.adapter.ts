@@ -8,7 +8,6 @@ import {
     signal,
     untracked,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
@@ -17,7 +16,7 @@ import {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { merge } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/services';
 import {
     DEFAULT_ASPECT_PRESETS,
     DEFAULT_PLAYER_CAPABILITIES,
@@ -62,14 +61,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
     private readonly controller = inject(EmbeddedMpvSessionController);
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly translationsTick = toSignal(
-        merge(
-            this.translate.onLangChange,
-            this.translate.onTranslationChange,
-            this.translate.onDefaultLangChange
-        ),
-        { initialValue: null }
-    );
+    private readonly translationsTick = injectTranslationTick();
 
     private readonly configuredContext =
         signal<EmbeddedMpvControlsContext | null>(null);

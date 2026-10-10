@@ -48,7 +48,11 @@ import {
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SettingsStore,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { RecordingStoppedEvent } from '@iptvnator/shared/interfaces';
 import {
     createUnifiedLiveCatchup,
@@ -116,6 +120,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     private readonly settingsStore = inject(SettingsStore);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = injectTranslationTick();
     private readonly router = inject(Router);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
 
@@ -130,13 +135,15 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             ? null
             : (this.fullscreenChannelPanelTemplate() ?? null)
     );
-    readonly panelTitle = computed(() =>
-        this.translate.instant(
+    /** Worded per language: the tick re-runs this after a switch. */
+    readonly panelTitle = computed(() => {
+        this.languageTick();
+        return this.translate.instant(
             this.mode() === 'favorites'
                 ? 'HOME.PLAYLISTS.GLOBAL_FAVORITES'
                 : 'PORTALS.SIDEBAR.RECENT'
-        )
-    );
+        );
+    });
 
     readonly activeDetail = signal<ResolvedLiveCollectionDetail | null>(null);
     readonly activeUid = signal<string | null>(null);

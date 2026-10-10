@@ -42,6 +42,7 @@ import {
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { isStalkerPlaybackRequestLockCurrent } from './stalker-live-lock-guard';
 import {
@@ -99,6 +100,7 @@ import {
     StalkerItvChannel,
     StalkerStore,
     normalizeStalkerEntityId,
+    stalkerCategoryLabelText,
 } from '@iptvnator/portal/stalker/data-access';
 import {
     PanelSearchWindow,
@@ -203,7 +205,18 @@ export class StalkerLiveStreamLayoutComponent
         LiveLayoutSidebarStateService
     );
     private readonly logger = createLogger('StalkerLiveStream');
-    readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
+    private readonly languageTick = injectTranslationTick();
+    /**
+     * The portal's genre name, or the store's every-item entry translated
+     * in the current language: the tick re-runs this after a switch.
+     */
+    readonly selectedCategoryTitle = computed(() => {
+        this.languageTick();
+        return stalkerCategoryLabelText(
+            this.stalkerStore.getSelectedCategoryLabel(),
+            (key) => this.translate.instant(key)
+        );
+    });
 
     /** Channels */
     readonly isRadioMode = computed(

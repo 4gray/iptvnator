@@ -252,10 +252,10 @@ describe('SettingsAppUpdateFacade', () => {
 
             facade.showVersionInformation(latestVersion);
 
+            expect(facade.updateMessage()).toBe('New version available: 1.0.0');
             expect(translate.instant).toHaveBeenCalledWith(
                 'SETTINGS.NEW_VERSION_AVAILABLE'
             );
-            expect(facade.updateMessage()).toBe('New version available: 1.0.0');
         });
 
         it('reports the installed version as current when it matches', () => {
@@ -267,6 +267,27 @@ describe('SettingsAppUpdateFacade', () => {
 
             expect(facade.updateMessage()).toBe('Latest version installed');
             expect(facade.version()).toBe(latestVersion);
+        });
+
+        it('rewords the version note after a language switch on this page', () => {
+            (translate.instant as jest.Mock).mockRestore();
+            translate.setTranslation('en', {
+                SETTINGS: { LATEST_VERSION: 'Latest version installed' },
+            });
+            translate.setTranslation('ru', {
+                SETTINGS: { LATEST_VERSION: 'Установлена последняя версия' },
+            });
+            translate.use('en');
+            jest.spyOn(dataService, 'getAppVersion').mockReturnValue(
+                latestVersion
+            );
+
+            facade.showVersionInformation(latestVersion);
+            expect(facade.updateMessage()).toBe('Latest version installed');
+
+            translate.use('ru');
+
+            expect(facade.updateMessage()).toBe('Установлена последняя версия');
         });
     });
 });

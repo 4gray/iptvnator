@@ -1,10 +1,11 @@
 import { computed, inject, Injectable } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import type { XtreamImportPhaseTone } from './helpers/workspace-shell-constants';
 import {
     buildXtreamImportDetailLabel,
@@ -29,10 +30,7 @@ export class WorkspaceShellXtreamImportService {
     private readonly translate = inject(TranslateService);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     isSourceBusy(playlistId: string): boolean {
         return (
@@ -106,6 +104,7 @@ export class WorkspaceShellXtreamImportService {
     });
 
     readonly xtreamImportTitleLabel = computed(() => {
+        this.languageTick();
         if (this.activeRefreshPreparation()) {
             return this.translateText('WORKSPACE.SHELL.XTREAM_REFRESH_TITLE');
         }
@@ -122,6 +121,7 @@ export class WorkspaceShellXtreamImportService {
     });
 
     readonly xtreamImportProgressLabel = computed(() => {
+        this.languageTick();
         const formatNumber = (value: number): string =>
             formatLocalizedNumber(
                 value,

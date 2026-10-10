@@ -8,13 +8,12 @@ import {
     linkedSignal,
     output,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
+import { injectTranslationTick } from '@iptvnator/services';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
 
 /** Channel-like cards always keep their label: logos rarely identify them. */
@@ -32,10 +31,7 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
 export class ContentCardComponent {
     private readonly translate = inject(TranslateService);
     private readonly coverTitles = inject(CoverTitlesService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     /** URL of the poster image */
     readonly posterUrl = input<string>();

@@ -8,9 +8,8 @@ import {
     signal,
     untracked,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/services';
 import { splitSeasonSuffix } from '@iptvnator/portal/shared/util';
 import {
     playlistDisplayLabel,
@@ -78,10 +77,7 @@ export class DashboardHeroSlidesPresenter {
     private readonly liveEpg = inject(DashboardLiveEpgPresenter);
     private readonly heroTmdb = inject(DashboardHeroTmdbService);
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     private readonly failedImages = signal<Record<string, true>>({});
     private readonly tmdbExtras = signal<

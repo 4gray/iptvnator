@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import type { TmdbEnrichedCastMember } from '@iptvnator/shared/interfaces';
 import { CastCrewRowComponent } from './cast-crew-row.component';
 
@@ -37,6 +37,28 @@ describe('CastCrewRowComponent', () => {
         expect(person().getAttribute('tabindex')).toBe('0');
         person().click();
         expect(personSelected).toHaveBeenCalledWith(ACTOR);
+    });
+
+    it('re-words the director role after a runtime language switch', () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', { XTREAM: { DIRECTOR: 'Director' } });
+        translate.setTranslation('ru', { XTREAM: { DIRECTOR: 'Режиссёр' } });
+        translate.use('en');
+        fixture.componentRef.setInput('directors', [
+            { name: 'Lee Park' } as TmdbEnrichedCastMember,
+        ]);
+        fixture.detectChanges();
+        const role = () =>
+            (fixture.nativeElement as HTMLElement)
+                .querySelector('.person__role')
+                ?.textContent?.trim();
+
+        expect(role()).toBe('Director');
+
+        translate.use('ru');
+        fixture.detectChanges();
+
+        expect(role()).toBe('Режиссёр');
     });
 
     it('renders plain entries for a host without an actor page', () => {

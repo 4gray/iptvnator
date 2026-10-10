@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import {
@@ -57,7 +57,7 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
     const resolveItvPlayback = jest.fn();
     const snackBar = { open: jest.fn() };
     const store = {
-        getSelectedCategoryName: signal('All'),
+        getSelectedCategoryLabel: signal({ name: 'All', labelKey: null }),
         currentPlaylist: playlist,
         selectedContentType,
         selectedCategoryId: signal<string | null>('all'),
@@ -150,7 +150,12 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
                 { provide: MatSnackBar, useValue: snackBar },
                 {
                     provide: TranslateService,
-                    useValue: { instant: (key: string) => key },
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: EMPTY,
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
+                    },
                 },
             ],
         })

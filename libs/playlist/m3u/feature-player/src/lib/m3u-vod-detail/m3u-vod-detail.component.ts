@@ -16,6 +16,7 @@ import {
     tmdbBackdropUrl,
     tmdbPosterUrl,
     topCast,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -77,6 +78,8 @@ import {
 export class M3uVodDetailComponent {
     private readonly metadata = inject(M3uVodMetadataService);
     private readonly translate = inject(TranslateService);
+    /** Read by the worded labels below, so a language switch re-words them. */
+    private readonly languageTick = injectTranslationTick();
 
     readonly channel = input.required<Channel>();
     /** Parent-owned playback payload (headers/DRM already resolved). */
@@ -149,12 +152,14 @@ export class M3uVodDetailComponent {
             .join(', ')
     );
     readonly runtimeLabel = computed(() => {
+        this.languageTick();
         const label = formatDurationLabel((this.tmdb()?.runtime ?? 0) * 60);
         return label ? this.translate.instant(label.key, label.params) : '';
     });
-    readonly kindLabel = computed(() =>
-        this.translate.instant('WORKSPACE.DASHBOARD.TYPE_MOVIE')
-    );
+    readonly kindLabel = computed(() => {
+        this.languageTick();
+        return this.translate.instant('WORKSPACE.DASHBOARD.TYPE_MOVIE');
+    });
     readonly rating = computed(() => {
         const details = this.tmdb();
         const average = details?.vote_average ?? 0;

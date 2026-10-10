@@ -12,11 +12,9 @@ import {
     viewChild,
 } from '@angular/core';
 import { Location } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
 import { withEpisodeTitleFallback } from './stalker-series-episode-titles';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import {
@@ -98,6 +96,7 @@ import {
     CrossPortalSimilarService,
     PlaybackPositionRuntimeBridgeService,
     TmdbEnrichmentService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
 import { StalkerSeriesHeroPresenter } from './stalker-series-hero.presenter';
@@ -186,10 +185,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     );
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translateService.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     readonly backClicked = output<void>();
     private readonly logger = createLogger('StalkerSeriesView');
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);

@@ -128,6 +128,8 @@ export const translateServiceProvider = {
     useValue: {
         instant: (key: string) => key,
         onLangChange: EMPTY,
+        onDefaultLangChange: EMPTY,
+        onTranslationChange: EMPTY,
     },
 };
 

@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { SettingsStore } from '@iptvnator/services';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
@@ -38,6 +38,8 @@ describe('UnifiedGridTabComponent posters-only wall', () => {
                     provide: TranslateService,
                     useValue: {
                         onLangChange: of(),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                         currentLang: 'en',
                         defaultLang: 'en',
                     },
