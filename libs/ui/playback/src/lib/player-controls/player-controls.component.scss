@@ -25,7 +25,9 @@
     // text read 6.2:1 on the glass over a black frame.
     --pc-live: #d32f2f;
     --pc-danger: #ff5252;
-    --pc-text: #{palette.$text};
+    // Literal, like the rest (the palette spec reads it); `palette.$text`
+    // repeats it for the focus ring over video.
+    --pc-text: #e7ecf3;
     --pc-text-secondary: #9aa3b2;
     --pc-text-tertiary: #6b7384;
     --pc-text-dim: rgba(255, 255, 255, 0.82);

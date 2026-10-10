@@ -13,8 +13,9 @@
 // Accent blue: the primary action and watch progress over video.
 $accent-blue: #4f8eff;
 
-// Overlay text (`--pc-text`), which is also the keyboard focus ring over
-// video.
+// Overlay text, the keyboard focus ring over video. The controls host
+// declares `--pc-text` with the same literal; the palette spec keeps the two
+// in step.
 $text: #e7ecf3;
 
 // `--pc-progress`, the watch-progress fill over video. Literal like the rest
