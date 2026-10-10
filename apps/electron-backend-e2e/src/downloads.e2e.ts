@@ -129,7 +129,7 @@ async function selectDownloadCoverSize(
     await expect
         .poll(() =>
             page.evaluate(
-                () => document.documentElement.dataset.coverSize ?? null
+                () => document.documentElement.dataset['coverSize'] ?? null
             )
         )
         .toBe(size);

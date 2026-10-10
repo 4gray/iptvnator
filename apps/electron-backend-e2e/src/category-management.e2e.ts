@@ -619,38 +619,43 @@ async function pickSidebarCategory(
     } | null = null;
 
     await expect
-        .poll(async () => {
-            const candidates = (
-                await readVisibleSidebarCategories(page)
-            ).filter(
-                (candidate) =>
-                    candidate.id && candidate.name && candidate.itemCount > 0
-            );
-
-            if (candidates.length === 0) {
-                preferredCandidate = null;
-                return false;
-            }
-
-            const nameCounts = new Map<string, number>();
-            for (const candidate of candidates) {
-                nameCounts.set(
-                    candidate.name,
-                    (nameCounts.get(candidate.name) ?? 0) + 1
+        .poll(
+            async () => {
+                const candidates = (
+                    await readVisibleSidebarCategories(page)
+                ).filter(
+                    (candidate) =>
+                        candidate.id &&
+                        candidate.name &&
+                        candidate.itemCount > 0
                 );
+
+                if (candidates.length === 0) {
+                    preferredCandidate = null;
+                    return false;
+                }
+
+                const nameCounts = new Map<string, number>();
+                for (const candidate of candidates) {
+                    nameCounts.set(
+                        candidate.name,
+                        (nameCounts.get(candidate.name) ?? 0) + 1
+                    );
+                }
+
+                preferredCandidate =
+                    candidates.find(
+                        (candidate) => nameCounts.get(candidate.name) === 1
+                    ) ?? candidates[0];
+
+                return preferredCandidate !== null;
+            },
+            {
+                message: 'No visible Xtream category with content was found.',
+                timeout: 15000,
             }
-
-            preferredCandidate =
-                candidates.find(
-                    (candidate) => nameCounts.get(candidate.name) === 1
-                ) ?? candidates[0];
-
-            return preferredCandidate !== null;
-        })
-        .toBe(true, {
-            message: 'No visible Xtream category with content was found.',
-            timeout: 15000,
-        });
+        )
+        .toBe(true);
 
     return preferredCandidate!;
 }
