@@ -560,7 +560,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         patch: ContentMetadataPatch
     ): Promise<void> {
         void playlistId;
-        await this.dbService.setContentMetadataIfMissing(xtreamCollectionId(contentId), patch);
+        await this.dbService.setContentMetadataIfMissing(
+            xtreamCollectionId(contentId),
+            patch
+        );
     }
 
     // =========================================================================

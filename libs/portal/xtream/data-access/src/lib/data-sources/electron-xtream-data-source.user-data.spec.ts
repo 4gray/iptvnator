@@ -38,10 +38,10 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                     'backdrop.jpg'
                 );
                 await harness.dataSource.removeRecentItem(ref, playlistId);
-                await harness.dataSource.setContentBackdropIfMissing(
+                await harness.dataSource.setContentMetadataIfMissing(
                     ref,
                     playlistId,
-                    'backdrop.jpg'
+                    { backdropUrl: 'backdrop.jpg' }
                 );
                 expect(harness.dbService.addToFavorites).toHaveBeenCalledWith(
                     202,
@@ -65,8 +65,8 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                     playlistId
                 );
                 expect(
-                    harness.dbService.setContentBackdropIfMissing
-                ).toHaveBeenCalledWith(202, 'backdrop.jpg');
+                    harness.dbService.setContentMetadataIfMissing
+                ).toHaveBeenCalledWith(202, { backdropUrl: 'backdrop.jpg' });
             }
         );
 

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { PlaylistsService } from '@iptvnator/services';
+import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
 import { XtreamApiService } from '../services/xtream-api.service';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
@@ -20,6 +20,13 @@ describe('PWA Xtream collection identity', () => {
         TestBed.configureTestingModule({
             providers: [
                 PwaXtreamDataSource,
+                {
+                    provide: ParentalLockService,
+                    useValue: {
+                        active: () => false,
+                        lockedXtreamIds: () => [],
+                    },
+                },
                 { provide: XtreamApiService, useValue: api },
                 { provide: PlaylistsService, useValue: playlists },
             ],
@@ -68,21 +75,20 @@ describe('PWA Xtream collection identity', () => {
             );
         const quota = storedSize() + extraCharacters;
         const setItem = Storage.prototype.setItem;
-        jest.spyOn(Storage.prototype, 'setItem').mockImplementation(
-            function (key, value) {
-                const oldValue = this.getItem(key);
-                const growth =
-                    value.length -
-                    (oldValue?.length ?? 0) +
-                    (oldValue === null ? key.length : 0);
-                if (storedSize() + growth > quota)
-                    throw new DOMException(
-                        'Storage full',
-                        'QuotaExceededError'
-                    );
-                setItem.call(this, key, value);
-            }
-        );
+        jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+            this: Storage,
+            key,
+            value
+        ) {
+            const oldValue = this.getItem(key);
+            const growth =
+                value.length -
+                (oldValue?.length ?? 0) +
+                (oldValue === null ? key.length : 0);
+            if (storedSize() + growth > quota)
+                throw new DOMException('Storage full', 'QuotaExceededError');
+            setItem.call(this, key, value);
+        });
     };
 
     beforeEach(() => {
@@ -395,10 +401,10 @@ describe('PWA Xtream collection identity', () => {
             await source.addFavorite({ id: 42, type }, 'p1');
             await source.addRecentItem({ id: 42, type }, 'p1');
         }
-        await source.setContentBackdropIfMissing(
+        await source.setContentMetadataIfMissing(
             { id: 42, type: 'movie' },
             'p1',
-            'movie.jpg'
+            { backdropUrl: 'movie.jpg' }
         );
         expect(
             (await source.getFavorites('p1')).map((item) => [
@@ -495,7 +501,7 @@ describe('PWA Xtream collection identity', () => {
             const adding =
                 operation === 'addFavorite' || operation === 'addRecentItem';
             let settled = false;
-            let result: boolean | void;
+            let result: boolean | void = undefined;
             const action = source[operation](
                 { id: 42, type: adding ? 'live' : 'movie' },
                 'p1'

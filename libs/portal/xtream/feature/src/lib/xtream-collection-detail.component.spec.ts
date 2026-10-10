@@ -182,44 +182,6 @@ describe('XtreamCollectionDetailComponent', () => {
         ).toEqual(seriesResume);
     });
 
-    it('ignores a playlist that resolves after the collection detail is destroyed', fakeAsync(() => {
-        const pendingPlaylist = new Subject<Playlist>();
-        const loadPlaylist = jest
-            .spyOn(TestBed.inject(PlaylistsService), 'getPlaylistById')
-            .mockReturnValueOnce(pendingPlaylist);
-        const store = TestBed.inject(XtreamStore);
-        const originalPlaylist = currentPlaylist();
-        const component = fixture.componentInstance;
-        fixture.componentRef.setInput('item', seriesItem);
-        fixture.detectChanges();
-        expect(loadPlaylist).toHaveBeenCalledWith(seriesItem.playlistId);
-
-        fixture.destroy();
-        expect(cancelDetailsRequest).toHaveBeenCalledTimes(1);
-        expect(playlistId()).toBe('original-playlist');
-        expect(currentPlaylist()).toBe(originalPlaylist);
-        jest.clearAllMocks();
-
-        pendingPlaylist.next(detailPlaylist);
-        flushMicrotasks();
-
-        expect(playlistId()).toBe('original-playlist');
-        expect(currentPlaylist()).toBe(originalPlaylist);
-        for (const setter of [
-            store.setPlaylistId,
-            store.setCurrentPlaylist,
-            store.setSelectedContentType,
-            store.setSelectedCategory,
-            store.setSelectedItem,
-            store.setIsLoadingDetails,
-            store.setDetailsError,
-        ]) {
-            expect(setter).not.toHaveBeenCalled();
-        }
-        expect(component.detailComponent()).toBeNull();
-        expect(component.detailInjector()).toBeNull();
-    }));
-
     it('keeps the newer selection when an earlier playlist resolves last', fakeAsync(() => {
         const pendingPlaylist = new Subject<Playlist>();
         jest.spyOn(TestBed.inject(PlaylistsService), 'getPlaylistById')

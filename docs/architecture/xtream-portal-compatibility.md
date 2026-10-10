@@ -44,9 +44,12 @@ on Electron and the provider ID on PWA. Electron unwraps the row ID at its
 existing database boundary. Typed lookups, favorite toggles, recent updates,
 removals, backdrops and backup/restore retain the content type. A favorite toggle
 reads persisted status for its exact typed target instead of borrowing the last
-detail's favorite state. Like VOD and series, live history records a valid
-playback request without waiting for the media engine to confirm playback.
-Live selection without a start or a resolved stream URL does not update history.
+detail's favorite state. Live history uses the same confirmed-playback gate as
+VOD and series: inline playback confirms its playlist-scoped session key, while
+external playback confirms its URL. The initiating playlist and typed identity
+remain captured across delayed confirmation. Selection without playback or a
+resolved URL does not update history. See the
+[playback-history contract](./embedded-inline-playback.md#recently-viewed-confirmation).
 
 PWA keeps the existing localStorage keys. `xtream-favorites` contains ordered
 `type:id` keys (for example `movie:42`); `xtream-recent-items` uses the same

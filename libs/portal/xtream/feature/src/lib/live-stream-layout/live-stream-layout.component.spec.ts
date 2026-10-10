@@ -42,6 +42,7 @@ import { PortalChannelsListComponent } from '../portal-channels-list/portal-chan
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { liveHistoryTestCases } from './live-stream-layout-history.spec-data';
 
 import {
     sampleChannel,
@@ -346,25 +347,7 @@ describe('LiveStreamLayoutComponent', () => {
         settingsStore.resolvedEpgViewMode.set('timeline'); // restore for sibling tests
     });
 
-    it('records the typed live item when playback starts', () => {
-        component.playLive(sampleChannel, true);
-        expect(xtreamStore.addRecentItem).toHaveBeenCalledWith({
-            xtreamId: 101,
-            contentType: 'live',
-            playlist: currentPlaylist,
-        });
-    });
-
-    it('does not record a live start when no stream URL can be resolved', () => {
-        xtreamStore.constructStreamUrl.mockReturnValueOnce('');
-        component.playLive(sampleChannel, true);
-        expect(xtreamStore.addRecentItem).not.toHaveBeenCalled();
-    });
-
-    it('does not record a live channel selected without starting playback', () => {
-        component.playLive(sampleChannel, false);
-        expect(xtreamStore.addRecentItem).not.toHaveBeenCalled();
-    });
+    liveHistoryTestCases(() => ({ component, xtreamStore, portalPlayer }));
 
     it('hides the EPG panel in browser/PWA playback', () => {
         fixture.destroy();

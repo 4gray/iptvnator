@@ -324,10 +324,6 @@ Collection behavior to preserve:
 - Back from a collection-owned detail should restore the previous collection
   view state, including the active content tab and playlist/all-playlists
   scope.
-- Closing an Xtream collection detail invalidates pending playlist
-  initialization before restoring the captured store state. A late playlist
-  result must neither overwrite the restored context nor create a detail
-  injector; switching items likewise accepts only the latest selection.
 - Live streams can still open through the player path rather than a detail
   route.
 

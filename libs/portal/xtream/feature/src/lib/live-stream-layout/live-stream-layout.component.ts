@@ -104,6 +104,7 @@ import {
 } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
 import {
     XtreamLiveChannelNavigationService,
@@ -155,6 +156,7 @@ export class LiveStreamLayoutComponent
     private readonly router = inject(Router);
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly recordRecentItem = injectXtreamRecentHistory();
     readonly archiveContextKey = computed(() =>
         JSON.stringify([
             this.xtreamStore.currentPlaylist()?.id,
@@ -695,11 +697,13 @@ export class LiveStreamLayoutComponent
             isLive: true,
         });
         if (startPlayback && streamUrl) {
-            this.xtreamStore.addRecentItem({
-                xtreamId: item.xtream_id,
-                contentType: 'live',
-                playlist: this.xtreamStore.currentPlaylist,
-            });
+            this.recordRecentItem(
+                streamUrl,
+                { xtreamId: item.xtream_id, contentType: 'live' },
+                this.usesEmbeddedPlayer()
+                    ? this.playbackSessionKey()
+                    : undefined
+            );
         }
         if (this.usesEmbeddedPlayer() || !startPlayback) {
             return;

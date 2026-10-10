@@ -665,9 +665,13 @@ describe('PwaXtreamDataSource', () => {
             localStorage.getItem('xtream-recent-items') || '{}'
         )['playlist-1'][0].viewedAt;
 
-        await dataSource.setContentMetadataIfMissing({ id: 202, type: 'movie' }, 'playlist-1', {
-            backdropUrl: ' https://example.com/backdrop.png ',
-        });
+        await dataSource.setContentMetadataIfMissing(
+            { id: 202, type: 'movie' },
+            'playlist-1',
+            {
+                backdropUrl: ' https://example.com/backdrop.png ',
+            }
+        );
 
         const stored = JSON.parse(
             localStorage.getItem('xtream-recent-items') || '{}'
