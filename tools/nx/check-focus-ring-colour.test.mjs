@@ -238,6 +238,30 @@ test('tells a width given through var() or calc() from the colour', () => {
     );
 });
 
+test('reads a shadow ring whose spread is computed', () => {
+    const source = [
+        '.a:focus-visible { box-shadow: 0 0 0 calc(1px + 1px) red; }',
+        '.b:focus-visible { box-shadow: 0 0 0 var(--ring-width) red; }',
+        '.c:focus-visible { box-shadow: 0 0 0 var(--ring-width) var(--mat-sys-primary); }',
+        // Checked and accepted, not skipped as flat.
+        '.d:focus-visible { box-shadow: 0 0 0 var(--ring-width) var(--app-focus-ring); }',
+        // Provably not a ring: flat, or a lift shadow with a literal blur.
+        '.e:focus-visible { box-shadow: 0 0 0 0 red; }',
+        '.f:focus-within { box-shadow: 0 12px 28px red; }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('i.scss', source).map(({ line }) => line),
+        [1, 2, 3]
+    );
+    assert.deepEqual(
+        indicatorColours(
+            'box-shadow: 0 0 0 var(--ring-width) var(--app-focus-ring)'
+        ),
+        ['var(--app-focus-ring)']
+    );
+});
+
 test('lets a listed exception through only in its own file', () => {
     const [exception] = RING_EXCEPTIONS;
     const source = `.x:focus-visible { outline: 2px solid ${exception.value}; }`;

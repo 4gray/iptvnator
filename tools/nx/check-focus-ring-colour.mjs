@@ -144,15 +144,26 @@ export function indicatorColours(declaration) {
             const tokens = splitTopLevel(shadow, /\s/).filter(
                 (token) => token.toLowerCase() !== 'inset'
             );
-            const lengths = tokens.filter((token) => LENGTH.test(token));
-            const [x = '0', y = '0', blur = '0', spread = '0'] = lengths;
-            const drawn = [x, y, spread].some((n) => parseFloat(n) !== 0);
-            if (parseFloat(blur) !== 0 || !drawn) return [];
+            const isLength = (token) =>
+                LENGTH.test(token) || LENGTH_FUNCTION.test(token);
+            // Not a ring only when provably so: a literal non-zero blur in
+            // the third place (a lift shadow), or every length a literal
+            // zero with no `var()` that could be a spread. A computed
+            // offset, blur or spread is assumed to draw a ring.
+            const blurred =
+                tokens.slice(0, 3).every((token) => LENGTH.test(token)) &&
+                parseFloat(tokens[2]) !== 0;
+            const lengths = tokens.filter(isLength);
+            const zeros = lengths.filter(
+                (token) => LENGTH.test(token) && parseFloat(token) === 0
+            );
+            const flat =
+                zeros.length === lengths.length &&
+                (zeros.length >= 4 ||
+                    !tokens.some((token) => /^var\(/i.test(token)));
+            if (blurred || flat) return [];
             const colours = shorthandColour(
-                tokens.filter(
-                    (token) =>
-                        !LENGTH.test(token) && !LENGTH_FUNCTION.test(token)
-                )
+                tokens.filter((token) => !isLength(token))
             );
             return (colours.length ? colours : ['currentcolor']).flatMap(
                 colourAtoms
