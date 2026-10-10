@@ -65,6 +65,29 @@ When changing initialization:
   install, and repeated startup. If a release changes migration ordering, cover
   each distinct affected historical schema.
 
+Two startup costs found on a 4 GB profile (3.9M catalog titles, 182
+playlists) are guarded in `runMigrations()`:
+
+- `deduplicateXtreamCache()` returns at once when both unique indexes
+  (`categories_playlist_type_xtream_unique`,
+  `content_category_type_xtream_unique`) exist: they make duplicates
+  impossible, and its two `GROUP BY ... HAVING COUNT(*) > 1` scans cost a full
+  pass over `content` on every launch otherwise (7.8 s cold on that profile).
+  A profile whose unique index could not be created yet still gets the repair.
+- `payload` must be the last column of `playlists` (`PLAYLISTS_COLUMNS`): SQLite
+  reads a row's columns in order and walks the overflow pages of every column
+  before the one it needs, so a column after an M3U payload costs the whole
+  payload on each read (`getAppPlaylistMetas` took 4-22 s for 70 MB of
+  payloads). Tables created before 0.19 got `payload` appended by `ALTER TABLE`
+  with the EPG URL columns after it, and fresh installs up to 0.25 created
+  `last_usage` after it; `ensurePlaylistsPayloadLast()` rebuilds such a table
+  once (new table, copy, drop, rename, with foreign keys off and
+  `foreign_key_check` on the tables referencing playlists before commit) and
+  is a no-op afterwards. The rebuild rewrites every payload, about 4 s on that
+  profile; later starts open the database in about 40 ms instead of 5-8 s. Never append a
+  column after `payload`; add it to `PLAYLISTS_COLUMNS` before `payload` and to
+  `COLUMN_MIGRATION_STATEMENTS`, and the rebuild moves it on the next start.
+
 The #1580 index-ordering fix is included in 0.24 through PR #1550.
 `src/lib/connection-upgrades.spec.ts` exercises `initDatabase()` with real
 SQLite under the Electron runtime, using fresh-install schema snapshots from
@@ -72,7 +95,9 @@ tags 0.19–0.23 and a fresh current database. The `epg_channel_id` column is ab
 in 0.19, present from 0.20, and indexed from 0.23. Each case checks current Drizzle
 tables, columns/types, and named indexes/uniqueness, as well as preserved user
 rows, foreign keys, database integrity, index availability, and repeated startup;
-an existing EPG index must keep its definition and root page. Snapshots live in
+an existing EPG index must keep its definition and root page, and `payload` must
+end up as the last `playlists` column (the 0.19 snapshot reaches the current
+schema through the ALTER list, so it reproduces an upgraded profile's order). Snapshots live in
 `src/lib/testing/fixtures/` and are independent of the current schema, so moving
 the index ahead of its column migration makes the 0.19 case fail again.
 

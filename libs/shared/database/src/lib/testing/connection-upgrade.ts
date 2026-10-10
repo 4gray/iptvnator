@@ -37,6 +37,38 @@ function seed(sqlite: Database.Database) {
     if (columns.some(({ name }) => name === 'epg_channel_id')) {
         sqlite.exec("UPDATE content SET epg_channel_id = 'retained-epg-id'");
     }
+    // An M3U source with a channel payload and every playlist column the
+    // schema has: the payload-last rebuild of `playlists` must carry them all
+    // across unchanged.
+    const playlistColumns = new Set(
+        (sqlite.pragma('table_info(playlists)') as { name: string }[]).map(
+            ({ name }) => name
+        )
+    );
+    if (playlistColumns.has('payload')) {
+        const values: Record<string, string | number> = {
+            id: 'm3u',
+            name: 'Saved list',
+            type: 'm3u-url',
+            url: 'https://list.invalid/a.m3u',
+            payload: '{"channels":[{"name":"One"}]}',
+            epg_urls: '["https://epg.invalid/a.xml"]',
+            detected_epg_urls: '["https://epg.invalid/b.xml"]',
+            favorites: '["one"]',
+            recently_viewed: '["one"]',
+            last_usage: '2026-01-01T00:00:00.000Z',
+            count: 1,
+        };
+        const present = Object.keys(values).filter((name) =>
+            playlistColumns.has(name)
+        );
+        sqlite
+            .prepare(
+                `INSERT INTO playlists (${present.join(', ')})
+                 VALUES (${present.map(() => '?').join(', ')})`
+            )
+            .run(...present.map((name) => values[name]));
+    }
 }
 
 /**
@@ -145,6 +177,15 @@ async function main() {
             const sqlite = new Database(databasePath, { readonly: true });
             try {
                 verifyCurrentSchema(sqlite);
+                assert.equal(
+                    (
+                        sqlite.pragma('table_info(playlists)') as {
+                            name: string;
+                        }[]
+                    ).at(-1)?.name,
+                    'payload',
+                    'payload must be the last playlists column'
+                );
                 for (const { query, rows } of before) {
                     assert.deepEqual(sqlite.prepare(query).all(), rows, query);
                 }
