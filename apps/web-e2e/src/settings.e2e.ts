@@ -232,6 +232,14 @@ test.describe('Settings', () => {
     test('@settings @web About keeps its label and clears the window bottom', async ({
         page,
     }) => {
+        // The sidebar shows the version only once the GitHub releases check
+        // answers; CI runners are often rate-limited there, so answer locally
+        // with an older release (no update badge replaces the version).
+        await page.route('**/repos/4gray/iptvnator/releases*', (route) =>
+            route.fulfill({
+                json: [{ created_at: '2020-01-01T00:00:00Z', name: '0.0.1' }],
+            })
+        );
         await openSettings(page);
         const about = page.locator(
             '.settings-nav__footer [data-test-id="settings-section-about"]'
