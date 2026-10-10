@@ -6,6 +6,11 @@ import {
     DATABASE_WORKER_PEAK_MEMORY_INVALID_REASON,
 } from './database-worker-peak-memory-validity';
 
+type PeakMemoryIteration = Parameters<
+    typeof assessDatabaseWorkerPeakMemoryValidity
+>[0][number];
+type PeakMemoryWorker = PeakMemoryIteration['main']['workers'][number];
+
 describe('database worker peak-memory validity', () => {
     it('requires successful heap and external-memory samples in every measured run', () => {
         const validity = assessDatabaseWorkerPeakMemoryValidity([
@@ -96,8 +101,8 @@ describe('database worker peak-memory validity', () => {
 function iteration(
     runId: string,
     kind: string,
-    databaseWorker: Record<string, unknown>
-) {
+    databaseWorker: PeakMemoryWorker
+): PeakMemoryIteration {
     return {
         kind,
         main: { workers: [databaseWorker] },

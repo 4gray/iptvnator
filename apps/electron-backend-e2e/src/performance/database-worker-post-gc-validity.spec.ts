@@ -86,7 +86,7 @@ test('validates database post-GC heap per measured iteration without losing raw 
     const module = await validityModulePromise;
     assert.ok(module, 'database worker post-GC validity helper must exist');
     const assess = module.assessDatabaseWorkerPostGcValidity;
-    assert.equal(typeof assess, 'function');
+    assert.ok(typeof assess === 'function');
 
     const valid = assess([
         iteration('warmup-broken', 'warmup', []),
@@ -183,7 +183,7 @@ test('marks parsing cancellation before persistence as DB N/A without accepting 
     const module = await validityModulePromise;
     assert.ok(module);
     const assess = module.assessDatabaseWorkerPostGcValidity;
-    assert.equal(typeof assess, 'function');
+    assert.ok(typeof assess === 'function');
 
     const noDatabasePhase = assess([
         iteration(

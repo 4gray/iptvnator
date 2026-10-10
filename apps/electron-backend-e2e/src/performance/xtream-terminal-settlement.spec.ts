@@ -99,7 +99,7 @@ describe('Xtream terminal settlement ordering', () => {
         });
 
         await Promise.resolve();
-        assert.deepEqual(calls, []);
+        assert.deepEqual<string[]>(calls, []);
 
         rendererTerminal.resolve();
         await waitFor(() => calls.includes('stop-main'));

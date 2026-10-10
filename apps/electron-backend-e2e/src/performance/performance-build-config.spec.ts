@@ -43,7 +43,7 @@ function readProject(relativePath: string): ProjectConfiguration {
 }
 
 function readResolvedWebBuildTask(): NxGraphTask | undefined {
-    const environment = {
+    const environment: NodeJS.ProcessEnv = {
         ...process.env,
         FORCE_COLOR: '0',
         NX_DAEMON: 'false',

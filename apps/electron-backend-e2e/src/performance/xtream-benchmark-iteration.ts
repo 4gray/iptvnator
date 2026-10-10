@@ -369,8 +369,14 @@ export async function runXtreamBenchmarkIteration(
         await prepared?.dispose().catch(() => undefined);
         await renderer?.dispose().catch(() => undefined);
         if (app && dataDirectory) {
+            const launchedApp = app;
+            const launchedDataDirectory = dataDirectory;
             await runXtreamFinalTeardown(
-                () => disposeXtreamBenchmarkApp(app, dataDirectory),
+                () =>
+                    disposeXtreamBenchmarkApp(
+                        launchedApp,
+                        launchedDataDirectory
+                    ),
                 propagatedFailure
             );
         }

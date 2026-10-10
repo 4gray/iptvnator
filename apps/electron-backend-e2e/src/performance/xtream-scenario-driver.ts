@@ -97,7 +97,6 @@ export async function prepareXtreamScenario(
     options: PrepareXtreamScenarioOptions
 ): Promise<PreparedXtreamScenario> {
     validateOptions(options);
-    const cancellationObserver: XtreamCancellationObserver | null = null;
     let backgroundOperation: XtreamOperationWindow | null = null;
     try {
         if (options.scenarioId === XTREAM_SCENARIO_ID.BACKGROUND_UI) {
@@ -106,16 +105,13 @@ export async function prepareXtreamScenario(
         const trigger = await prepareFinalTrigger(page, options);
         return createPreparedScenario({
             backgroundOperation,
-            cancellationObserver,
+            cancellationObserver: null,
             options,
             page,
             trigger,
         });
     } catch (error) {
-        await Promise.allSettled([
-            cancellationObserver?.dispose(),
-            backgroundOperation?.dispose(),
-        ]);
+        await Promise.allSettled([backgroundOperation?.dispose()]);
         throw error;
     }
 }

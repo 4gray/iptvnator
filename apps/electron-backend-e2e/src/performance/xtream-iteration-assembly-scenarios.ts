@@ -107,6 +107,7 @@ function backgroundMetrics(
         operation.startedEpochMs > background.startedEpochMs ||
         operation.terminalEpochMs > input.terminal.terminalEpochMs ||
         background.completedEpochMs > input.terminal.terminalEpochMs ||
+        input.renderer.probe.uiPaintedEpochMs === null ||
         background.completedEpochMs >= input.renderer.probe.uiPaintedEpochMs
     ) {
         invalid();
