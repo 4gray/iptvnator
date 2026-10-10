@@ -50,6 +50,7 @@ import {
     resolveSourceExpiryBadge,
 } from '@iptvnator/workspace/dashboard/data-access';
 import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
+import { connectDashboardTmdbRails } from './dashboard-tmdb-rails';
 import { DashboardRailComponent } from './dashboard-rail.component';
 import type {
     DashboardRailCard,
@@ -341,38 +342,15 @@ export class WorkspaceDashboardRailsComponent {
             untracked(() => void this.sourceExpiry.refresh(playlists));
         });
 
-        // Trending rail: needs the TMDB opt-in and the Electron DB worker.
-        // Deferred until the dashboard's own recent/favorites data is in so
-        // the batched title match never competes for the worker at startup.
-        effect(() => {
-            if (
-                !this.dashboardRails().tmdbTrending ||
-                !this.data.globalFavoritesLoaded()
-            ) {
-                return;
-            }
-            untracked(() => void this.trendingService.load());
-        });
-
-        // Recommendations rail: same gating as trending, plus tracked
-        // reads of the seed source, the favorites (both feed the
-        // exclusion set) and the playlist set (feeds the catalog key) so
-        // a newly watched/favorited title or an imported/deleted playlist
-        // re-runs the load — the service keys loads by seed + exclusion +
-        // catalog set and skips no-ops.
-        effect(() => {
-            if (
-                !this.dashboardRails().tmdbRecommendations ||
-                !this.data.globalFavoritesLoaded()
-            ) {
-                return;
-            }
-            this.data.globalRecentVodItems();
-            this.data.globalFavoriteItems();
-            this.data.playlists();
-            // Language feeds the service's load key (localized payloads)
-            this.languageTick();
-            untracked(() => void this.recommendationsService.load());
+        // Trending and recommendations: after the favorites and Continue
+        // Watching, so their title match never holds the DB worker while
+        // the playback positions wait (see connectDashboardTmdbRails).
+        connectDashboardTmdbRails({
+            dashboardRails: this.dashboardRails,
+            languageTick: this.languageTick,
+            data: this.data,
+            trendingService: this.trendingService,
+            recommendationsService: this.recommendationsService,
         });
     }
 
