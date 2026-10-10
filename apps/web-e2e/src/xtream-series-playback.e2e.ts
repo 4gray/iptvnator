@@ -223,6 +223,24 @@ test.describe('@xtream inline series fullscreen', () => {
         await expect(rows).toHaveCount(8);
         await expect(rows.first()).toHaveAttribute('aria-current', 'true');
 
+        // Keyboard focus in the panel wears the player's ring, not the
+        // theme's: the panel carries `dark-theme` for its tokens, and that
+        // context declares the app's ring colour again.
+        await page.keyboard.press('Tab');
+        expect(
+            await page.evaluate(() => {
+                const focused = document.activeElement as HTMLElement;
+                const style = getComputedStyle(focused);
+                return {
+                    control: focused.dataset['testId'],
+                    ring: `${style.outlineStyle} ${style.outlineColor}`,
+                };
+            })
+        ).toEqual({
+            control: 'fullscreen-channel-panel-close',
+            ring: 'solid rgb(231, 236, 243)',
+        });
+
         // Picking an episode plays it inline through the same path as the Up
         // Next rail: fullscreen survives the engine remount, the panel closes.
         await rows.nth(2).click();

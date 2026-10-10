@@ -110,10 +110,14 @@ export function isBlanketSelector(selector) {
     });
 }
 
-/** Whether a selector is the global `:focus-visible` fallback. */
+/**
+ * Whether a selector is the global `:focus-visible` fallback: the whole
+ * selector, not only its subject, so `.panel :focus-visible` (which leaves
+ * everything outside the panel without a ring) is not one.
+ */
 function isFallbackSelector(selector) {
     return expandBranches(selector).some((branch) =>
-        /^\*?:focus-visible$/i.test(subjectOf(branch).replace(/\s+/g, ''))
+        /^\*?:focus-visible$/i.test(branch.replace(/\s+/g, ''))
     );
 }
 
@@ -128,11 +132,13 @@ function lineAt(source, index) {
  * Walks the rules of a stylesheet: each declaration and `@include` with the
  * fully resolved selectors it applies to. Mixin bodies are walked as if they
  * were included at the top level, the widest place a caller could use them.
+ * `conditional` marks a declaration inside an at-rule (`@mixin`, `@media`,
+ * `@if`, an `@include` content block…), which may never reach the page.
  */
 export function walkDeclarations(source) {
     const text = stripScssComments(source);
     const items = [];
-    const stack = [{ selectors: [] }];
+    const stack = [{ selectors: [], conditional: false }];
     let start = 0;
     let quote = '';
     let interpolation = 0;
@@ -158,18 +164,23 @@ export function walkDeclarations(source) {
         else if (interpolation > 0) continue;
         else if (char === '{') {
             const { value } = statement(i);
-            const parent = stack[stack.length - 1].selectors;
-            if (/^@mixin\b/i.test(value)) stack.push({ selectors: [] });
-            else if (value.startsWith('@')) stack.push({ selectors: parent });
+            const parent = stack[stack.length - 1];
+            if (/^@mixin\b/i.test(value))
+                stack.push({ selectors: [], conditional: true });
+            else if (value.startsWith('@'))
+                stack.push({ selectors: parent.selectors, conditional: true });
             else
                 stack.push({
-                    selectors: resolveSelectors(parent, value),
+                    selectors: resolveSelectors(parent.selectors, value),
+                    conditional: parent.conditional,
                 });
         } else if (char === ';' || char === '}') {
             const { value, offset } = statement(i);
             if (value) {
+                const { selectors, conditional } = stack[stack.length - 1];
                 items.push({
-                    selectors: stack[stack.length - 1].selectors,
+                    selectors,
+                    conditional,
                     declaration: value.replace(/\s+/g, ' '),
                     line: lineAt(text, offset),
                 });
@@ -195,10 +206,15 @@ export function findBlanketOutlineRemovals(file, source) {
     );
 }
 
-/** Whether a stylesheet draws the bare `:focus-visible` fallback ring. */
+/**
+ * Whether a stylesheet always draws the bare `:focus-visible` fallback ring:
+ * an unconditional rule, not one in a mixin body nobody may include or under
+ * a media query.
+ */
 export function hasFocusVisibleFallback(source) {
     return walkDeclarations(source).some(
-        ({ selectors, declaration }) =>
+        ({ selectors, conditional, declaration }) =>
+            !conditional &&
             selectors.some(isFallbackSelector) &&
             ((OUTLINE_PROPERTY.test(declaration) &&
                 !REMOVES_OUTLINE.test(declaration)) ||

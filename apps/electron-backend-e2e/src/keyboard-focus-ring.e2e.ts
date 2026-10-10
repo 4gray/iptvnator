@@ -21,7 +21,8 @@ import { applyTheme } from './theme-contrast';
 // keeps it. Every Tab stop below must show exactly one ring, on itself or on
 // the ancestor or sibling that draws it for it (a content card, a checkbox,
 // a select's form-field outline), in both themes, at 3:1 against what it
-// sits on where that is a flat colour. A mouse click leaves no ring.
+// sits on where that is a flat colour, and not cut by an ancestor's
+// `overflow: hidden`. A mouse click leaves no ring.
 // ---------------------------------------------------------------------------
 
 type Ring = {
@@ -30,6 +31,8 @@ type Ring = {
     color: string;
     /** Null where the ring sits on artwork or a gradient. */
     contrast: number | null;
+    /** The `overflow: hidden` ancestor that cuts the outline, if any. */
+    clippedBy: string | null;
 };
 
 type Stop = { element: string; label: string; rings: Ring[] };
@@ -126,6 +129,46 @@ async function installProbe(page: Page): Promise<void> {
             }
             return layers;
         };
+        /**
+         * The ancestor whose `overflow: hidden` cuts `el`'s outline, looking
+         * up to the nearest scroll container: past it, whether a ring at the
+         * edge shows depends on the scroll position, not on the styles.
+         */
+        const clipperOf = (el: Element) => {
+            const style = getComputedStyle(el);
+            if (style.outlineStyle === 'none') return null;
+            const reach = Math.max(
+                0,
+                (parseFloat(style.outlineOffset) || 0) +
+                    parseFloat(style.outlineWidth)
+            );
+            const box = el.getBoundingClientRect();
+            for (let node = el.parentElement; node; node = node.parentElement) {
+                const clip = getComputedStyle(node);
+                const axes = [clip.overflowX, clip.overflowY];
+                if (axes.some((axis) => axis === 'auto' || axis === 'scroll')) {
+                    return null;
+                }
+                if (
+                    !axes.some((axis) => axis === 'hidden' || axis === 'clip')
+                ) {
+                    continue;
+                }
+                const edge = node.getBoundingClientRect();
+                const inset = (side: string) =>
+                    parseFloat(clip.getPropertyValue(`border-${side}-width`)) -
+                    0.5;
+                if (
+                    box.left - reach < edge.left + inset('left') ||
+                    box.top - reach < edge.top + inset('top') ||
+                    box.right + reach > edge.right - inset('right') ||
+                    box.bottom + reach > edge.bottom - inset('bottom')
+                ) {
+                    return name(node);
+                }
+            }
+            return null;
+        };
         const contrastOf = (on: Element, color: string, inside: boolean) => {
             const layers = layersUnder(inside ? on : on.parentElement);
             if (!layers) return null;
@@ -138,7 +181,9 @@ async function installProbe(page: Page): Promise<void> {
 
         let pending: {
             candidates: Element[];
-            before: ReturnType<typeof ringOf>[];
+            before: (ReturnType<typeof ringOf> & {
+                clippedBy: string | null;
+            })[];
         } | null = null;
 
         window.__focusRingProbe = {
@@ -159,7 +204,14 @@ async function installProbe(page: Page): Promise<void> {
                     .closest('.mat-mdc-form-field')
                     ?.querySelector('.mdc-notched-outline__leading');
                 if (fieldOutline) candidates.push(fieldOutline);
-                pending = { candidates, before: candidates.map(ringOf) };
+                // Geometry is read while focused: moving on may scroll.
+                pending = {
+                    candidates,
+                    before: candidates.map((candidate) => ({
+                        ...ringOf(candidate),
+                        clippedBy: clipperOf(candidate),
+                    })),
+                };
                 return {
                     element: name(el),
                     label: (
@@ -190,6 +242,7 @@ async function installProbe(page: Page): Promise<void> {
                                 was.outline,
                                 was.offset < 0
                             ),
+                            clippedBy: was.clippedBy,
                         });
                     }
                     if (was.shadow && was.shadow !== now.shadow) {
@@ -198,6 +251,7 @@ async function installProbe(page: Page): Promise<void> {
                             on: name(on),
                             color: was.shadow,
                             contrast: contrastOf(on, was.shadow, false),
+                            clippedBy: null,
                         });
                     }
                     if (was.border && was.border !== now.border) {
@@ -212,6 +266,7 @@ async function installProbe(page: Page): Promise<void> {
                                 focused === color
                                     ? null
                                     : contrastOf(on, focused, true),
+                            clippedBy: null,
                         });
                     }
                     return rings;
@@ -260,13 +315,14 @@ async function tabThrough(
     return stops;
 }
 
-/** Every stop shows one ring with 3:1 against a flat background. */
+/** Every stop shows one uncut ring with 3:1 against a flat background. */
 function expectOneVisibleRing(stops: Stop[], context: string): void {
     expect(stops.length, `${context}: Tab stops`).toBeGreaterThan(1);
     for (const stop of stops) {
         const where = `${context}: ${stop.element} "${stop.label}"`;
         expect(stop.rings, where).toHaveLength(1);
         const [ring] = stop.rings;
+        expect(ring.clippedBy, `${where} ring clipped`).toBeNull();
         if (ring.contrast !== null) {
             expect(
                 ring.contrast,

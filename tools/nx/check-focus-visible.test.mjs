@@ -133,12 +133,26 @@ test('requires a :focus-visible fallback that draws an outline', () => {
         ),
         true
     );
-    // A scoped rule is not the global fallback.
+    // A scoped rule is not the global fallback: not on the focused element,
+    // not on a container's descendants, not nested in one.
+    for (const scoped of [
+        '.card:focus-visible { outline: 2px solid red; }',
+        '.panel :focus-visible { outline: 2px solid red; }',
+        '.dark-theme { :focus-visible { outline: 2px solid red; } }',
+        '.panel { :where(:focus-visible) { @include focus-ring.ring; } }',
+    ]) {
+        assert.equal(hasFocusVisibleFallback(scoped), false, scoped);
+    }
+    // Nor is one that may never reach the page.
+    for (const conditional of [
+        '@mixin ring { :focus-visible { outline: 2px solid red; } }',
+        '@media print { :focus-visible { outline: 2px solid red; } }',
+    ]) {
+        assert.equal(hasFocusVisibleFallback(conditional), false, conditional);
+    }
     assert.equal(
-        hasFocusVisibleFallback(
-            '.card:focus-visible { outline: 2px solid red; }'
-        ),
-        false
+        hasFocusVisibleFallback('*:focus-visible { outline: 2px solid red; }'),
+        true
     );
     // Neither is one that removes the outline, which is also reported.
     const removed = checkFocusVisible([

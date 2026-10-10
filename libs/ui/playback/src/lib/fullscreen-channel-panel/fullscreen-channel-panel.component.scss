@@ -9,8 +9,14 @@
     // Never take layout space beside the engine; every child is absolutely
     // positioned inside the `.web-player-view` box.
     display: contents;
-    // The panel sits on video: the stamped host lists (channels, episodes)
-    // take the player's focus ring, not the theme's.
+    // On video: the edge tab and the panel take the player's focus ring.
+    @include palette.focus-ring-token;
+}
+
+// The panel carries `dark-theme` for its tokens, and that context declares
+// the theme's ring again (`html .dark-theme`); point it back at the player's
+// here, more specifically, for the header and the stamped host lists.
+.fullscreen-channel-panel.dark-theme {
     @include palette.focus-ring-token;
 }
 

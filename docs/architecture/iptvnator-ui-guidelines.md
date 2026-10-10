@@ -260,7 +260,8 @@ host by its padding and border on the first move.
 - **Check.** `keyboard-focus-ring.e2e.ts` (Electron) tabs through the detail
   actions and season tabs, a catalog grid with its refinement chips, the
   Sources list and Settings in both themes. Each stop must draw exactly one
-  ring, at 3:1 where it sits on a flat colour, and a click must draw none.
+  ring, uncut by an ancestor's `overflow: hidden`, at 3:1 where it sits on a
+  flat colour, and a click must draw none.
 
 ## Keyboard Scrolling and Channel Focus
 
