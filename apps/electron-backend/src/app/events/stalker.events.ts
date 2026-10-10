@@ -9,16 +9,19 @@ import axios from 'axios';
 import { ipcMain } from 'electron';
 import {
     classifyStalkerAuthFailureBody,
+    createPortalRequestFailureEnvelope,
     createStalkerAuthFailureMarker,
     PortalDebugEvent,
     STALKER_REQUEST,
     buildStalkerIdentityRequestContext,
     buildStalkerRequestUrl,
 } from '@iptvnator/shared/interfaces';
-import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
-import { formatPortalRequestError } from './portal-request-error.util';
+import {
+    classifyExpectedPortalFailure,
+    logPortalRequestFailure,
+} from './portal-request-outcome';
 import { assertRemoteUrlAllowed } from './url-safety';
 import {
     requestWithValidatedRedirects,
@@ -156,8 +159,9 @@ ipcMain.handle(
                 // next candidate) from a network failure (stop probing).
                 const httpError = new Error(
                     `HTTP Error ${response.status}: ${response.statusText}`
-                ) as Error & { status: number };
+                ) as Error & { status: number; statusText?: string };
                 httpError.status = response.status;
+                httpError.statusText = response.statusText;
                 throw httpError;
             }
 
@@ -240,16 +244,24 @@ ipcMain.handle(
                 connected: socketConnected,
             });
 
-            console.error(
-                '[STALKER_REQUEST] Failed',
-                redactSensitiveData(
-                    formatPortalRequestError(
-                        error,
-                        requestUrlForLog,
-                        String(payload.params?.action ?? 'unknown')
-                    )
-                )
+            // A cancelled request and an HTTP 401/403 are routine: resolve
+            // them as a structured envelope so Electron does not log the
+            // handler as failed. The renderer's data service rethrows them as
+            // the errors the Stalker layers classify (an AbortError, or an
+            // `HTTP Error <code>` carrying `status`), so a cancellation is
+            // never read as an empty answer. Everything else keeps the
+            // rejection shapes below and their error log.
+            const expected = classifyExpectedPortalFailure(error);
+            logPortalRequestFailure(
+                STALKER_REQUEST,
+                expected,
+                error,
+                requestUrlForLog,
+                String(payload.params?.action ?? 'unknown')
             );
+            if (expected) {
+                return createPortalRequestFailureEnvelope(expected);
+            }
 
             // Format error response
             if (axios.isAxiosError(error) && error.response) {

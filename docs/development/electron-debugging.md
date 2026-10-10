@@ -24,7 +24,7 @@ IPTVNATOR_TRACE_STARTUP=1 pnpm nx serve electron-backend
 ```
 
 - Narrower trace flags:
-    - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls
+    - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls and reports cancelled Stalker/Xtream portal requests, which are otherwise not logged (an HTTP 401/403 is always one `Refused` warning; other failures stay errors)
     - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and request-scoped DB events
     - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in the main process and DB worker
     - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events

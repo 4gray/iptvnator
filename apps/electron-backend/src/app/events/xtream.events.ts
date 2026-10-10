@@ -12,12 +12,15 @@ import {
     XTREAM_CANCEL_SESSION,
     XTREAM_CLIENT_USER_AGENT,
     XTREAM_MAIN_PERFORMANCE_PHASE,
+    createPortalRequestFailureEnvelope,
     normalizeXtreamServerUrl,
     describeXtreamConnectionFailure,
 } from '@iptvnator/shared/interfaces';
-import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { emitPortalDebugEvent } from './portal-debug.events';
-import { formatPortalRequestError } from './portal-request-error.util';
+import {
+    classifyExpectedPortalFailure,
+    logPortalRequestFailure,
+} from './portal-request-outcome';
 import { UnsafeUrlError } from './url-safety';
 import {
     requestWithValidatedRedirects,
@@ -159,11 +162,14 @@ ipcMain.handle(
 
             // Check if response is successful
             if (response.status >= 400) {
-                if (payload.probe) throw new Error(`HTTP Error ${response.status}`);
-                throw {
-                    message: `HTTP Error: ${response.statusText}`,
-                    status: response.status,
-                };
+                // `status` lets the catch block tell a 401/403 (resolved as
+                // an envelope) from the other 4xx, which keep rejecting.
+                throw Object.assign(
+                    payload.probe
+                        ? new Error(`HTTP Error ${response.status}`)
+                        : { message: `HTTP Error: ${response.statusText}` },
+                    { status: response.status, statusText: response.statusText }
+                );
             }
 
             if (requestId) {
@@ -265,17 +271,24 @@ ipcMain.handle(
                 connected: socketConnected,
             });
 
+            // A cancelled request and an HTTP 401/403 are routine: resolve
+            // them as a structured envelope so Electron does not log the
+            // handler as failed. The renderer's data service rethrows them
+            // (an AbortError, or an `HTTP Error <code>` carrying `status`),
+            // so a cancellation is never read as an empty answer. Everything
+            // else keeps the rejection shapes below and their error log.
+            const expected = classifyExpectedPortalFailure(error);
             if (!payload.suppressErrorLog) {
-                console.error(
-                    '[XTREAM_REQUEST] Failed',
-                    redactSensitiveData(
-                        formatPortalRequestError(
-                            error,
-                            requestUrlForLog,
-                            payload.params?.action
-                        )
-                    )
+                logPortalRequestFailure(
+                    'XTREAM_REQUEST',
+                    expected,
+                    error,
+                    requestUrlForLog,
+                    payload.params?.action
                 );
+            }
+            if (expected) {
+                return createPortalRequestFailureEnvelope(expected);
             }
 
             // Format error response
@@ -283,17 +296,9 @@ ipcMain.handle(
                 if (payload.probe) {
                     if (typeof error.response?.status === 'number')
                         throw new Error(`HTTP Error ${error.response.status}`);
-                    throw new Error(error.code === 'ERR_CANCELED'
-                        ? 'Xtream request cancelled'
-                        : error.message || 'Xtream network request failed');
-                }
-                if (error.code === 'ERR_CANCELED') {
-                    throw {
-                        type: 'ERROR',
-                        name: 'AbortError',
-                        message: 'Xtream request cancelled',
-                        status: 499,
-                    };
+                    throw new Error(
+                        error.message || 'Xtream network request failed'
+                    );
                 }
                 const errorResponse = {
                     type: 'ERROR',

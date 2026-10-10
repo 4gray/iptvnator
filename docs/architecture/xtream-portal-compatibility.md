@@ -100,6 +100,22 @@ connection failures, never reported as provider HTTP statuses or used to
 authorize HTTP. Older backends without the envelope cannot authorize HTTP discovery.
 Provider JSON remains nested in `payload` and cannot provide this evidence.
 
+Electron resolves two more outcomes instead of rejecting them, because Electron
+logs every rejected `ipcMain.handle` promise as a handler error with a stack
+trace: a cancelled request (`XTREAM_CANCEL_SESSION`, a cancelled or expired
+source-health probe) and an HTTP 401/403. Both return a
+`{ portalRequestFailure }` envelope
+(`libs/shared/interfaces/src/lib/portal-request-failure.util.ts`, classified in
+`apps/electron-backend/src/app/events/portal-request-outcome.ts`) that
+`ElectronService.forwardXtreamRequest` turns back into what its callers already
+handle: health probes get an `AbortError` or an `HTTP Error <code>` Error
+carrying `status`; catalog calls get the usual `{ type: ERROR, status, message }`
+result — status 499 and no snackbar for a cancellation, the real 401/403
+(previously lost as `[object Object]`) for a refusal. The main process logs a
+refusal as one credential-free `console.warn` (unless `suppressErrorLog`), a
+cancellation only under `IPTVNATOR_TRACE_IPC`, and everything else as before
+at error level with a rejection.
+
 The saved base drives catalog refresh, provider EPG, live/VOD/series/catch-up URL
 construction and fresh Favorites/Recent resolution. The routed Xtream session
 observes metadata connection changes and bootstraps the new connection. Separate
