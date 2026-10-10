@@ -12,6 +12,7 @@ import {
     findBlanketOutlineRemovals,
     hasFocusVisibleFallback,
     isBlanketSelector,
+    removesOutline,
     listScannedFiles,
 } from './check-focus-visible.mjs';
 
@@ -76,6 +77,49 @@ test('reports every way of hiding the outline, nested or not', () => {
             ':focus',
         ]
     );
+});
+
+test('reads an invisible outline from any part of the shorthand', () => {
+    for (const hidden of [
+        'outline: 0 solid transparent',
+        'outline: 2px solid transparent',
+        'outline: 1px solid rgba(0, 0, 0, 0)',
+        'outline: 1px solid rgb(0 0 0 / 0%)',
+        'outline: thin dotted #0000',
+        'outline: 0.0em solid red',
+        'outline-color: transparent',
+        'outline-width: 0px',
+        'outline-style: hidden',
+    ]) {
+        assert.equal(removesOutline(hidden), true, hidden);
+    }
+    for (const visible of [
+        'outline: 2px solid var(--app-focus-ring)',
+        // A zero blue channel is not a zero alpha.
+        'outline: 2px solid rgb(255, 0, 0)',
+        'outline: 2px solid rgba(0, 0, 0, 0.5)',
+        'outline: 2px solid #ff000080',
+        'outline: auto',
+        'outline-offset: 0',
+    ]) {
+        assert.equal(removesOutline(visible), false, visible);
+    }
+
+    // Both checks use it: a transparent ring hides focus and is no fallback.
+    const problems = checkFocusVisible([
+        {
+            file: 'f.scss',
+            source: [
+                ':focus { outline: 0 solid transparent; }',
+                ':focus-visible { outline: 2px solid transparent; }',
+            ].join('\n'),
+        },
+    ]);
+    assert.deepEqual(problems, [
+        'f.scss:1 `:focus` sets `outline: 0 solid transparent`',
+        'f.scss:2 `:focus-visible` sets `outline: 2px solid transparent`',
+        'No global `:focus-visible` rule draws the fallback outline (`@include focus-ring.focus-ring-declarations`).',
+    ]);
 });
 
 test('accepts removals that keep visible focus or target scoped elements', () => {

@@ -18,10 +18,15 @@ import { stripScssComments } from './check-stylesheet-inputs.mjs';
 /** The global entry stylesheets and the partials beside them. */
 const SCANNED_PATHSPECS = [':(glob)apps/web/src/*.scss'];
 
-const REMOVES_OUTLINE =
-    /^(?:outline\s*:\s*(?:none|0(?:px)?)(?:\s+none)?|outline-style\s*:\s*(?:none|hidden)|outline-width\s*:\s*0(?:px)?|outline-color\s*:\s*transparent)\s*(?:!important)?$/i;
+const OUTLINE_DECLARATION =
+    /^(outline(?:-style|-width|-color)?)\s*:\s*(.+?)\s*(?:!important)?$/i;
 
-const OUTLINE_PROPERTY = /^outline\s*:/i;
+/** A zero length: `0`, `0px`, `0.0em`. */
+const ZERO_WIDTH = /^[+-]?0*\.?0+(?:[a-z]+)?$/i;
+const NO_STYLE = /^(?:none|hidden)$/i;
+/** `transparent`, or a colour whose alpha (4th or slashed) is zero. */
+const NO_COLOR =
+    /^(?:transparent|#[0-9a-f]{3}0|#[0-9a-f]{6}00|(?:rgb|hsl)a?\((?:[^,()]+,){3}\s*0*\.?0+%?\s*\)|(?:rgb|hsl)a?\([^/()]*\/\s*0*\.?0+%?\s*\))$/i;
 
 /** Splits `text` on `separator` outside parentheses and brackets. */
 function splitTopLevel(text, separator) {
@@ -52,6 +57,33 @@ function resolveSelectors(parents, selectorList) {
                 : `${parent} ${selector}`
         )
     );
+}
+
+/**
+ * Whether an `outline*` declaration leaves no visible outline: a `none` or
+ * `hidden` style, a zero width or a transparent colour, in the longhands or
+ * anywhere in the shorthand (`outline: 0 solid transparent`).
+ */
+export function removesOutline(declaration) {
+    const match = OUTLINE_DECLARATION.exec(declaration);
+    if (!match) return false;
+    const property = match[1].toLowerCase();
+    const tokens = splitTopLevel(match[2], /\s/);
+    const invisible = {
+        'outline-style': (token) => NO_STYLE.test(token),
+        'outline-width': (token) => ZERO_WIDTH.test(token),
+        'outline-color': (token) => NO_COLOR.test(token),
+        outline: (token) =>
+            NO_STYLE.test(token) ||
+            ZERO_WIDTH.test(token) ||
+            NO_COLOR.test(token),
+    }[property];
+    return tokens.some(invisible);
+}
+
+/** Whether a declaration draws a visible outline. */
+function drawsOutline(declaration) {
+    return /^outline\s*:/i.test(declaration) && !removesOutline(declaration);
 }
 
 /** Expands `:is()` / `:where()` / `:matches()` lists into plain branches. */
@@ -195,7 +227,7 @@ export function walkDeclarations(source) {
 export function findBlanketOutlineRemovals(file, source) {
     return walkDeclarations(source).flatMap(
         ({ selectors, declaration, line }) =>
-            REMOVES_OUTLINE.test(declaration)
+            removesOutline(declaration)
                 ? selectors.filter(isBlanketSelector).map((selector) => ({
                       file,
                       line,
@@ -216,8 +248,7 @@ export function hasFocusVisibleFallback(source) {
         ({ selectors, conditional, declaration }) =>
             !conditional &&
             selectors.some(isFallbackSelector) &&
-            ((OUTLINE_PROPERTY.test(declaration) &&
-                !REMOVES_OUTLINE.test(declaration)) ||
+            (drawsOutline(declaration) ||
                 /^@include\s+[\w.-]*focus-ring/i.test(declaration))
     );
 }

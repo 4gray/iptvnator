@@ -249,6 +249,11 @@ host by its padding and border on the first move.
   decorative border on something focusable: any outline outranks the
   fallback, so the element loses its ring (use `border` or a spread
   `box-shadow`, as the selected season tab does).
+- **Removing the outline.** A component rule that sets `outline: none` also
+  outranks the fallback, so it must show focus another way: a `:focus-within`
+  change on a search field's wrapper (the command palette underlines its
+  row), a ring drawn on another element, or a highlight on an item inside an
+  arrow-key composite.
 - **Material.** Buttons, switches, button toggles and checkboxes take the
   ring over their 12% focus state layer (global rules in `styles.scss`).
   Menu items and select options keep Material's highlight, since arrow keys,

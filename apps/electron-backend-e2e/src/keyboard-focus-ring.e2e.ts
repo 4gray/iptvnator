@@ -1,17 +1,24 @@
-import type { Locator, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import {
     addXtreamPortal,
+    channelItemByTitle,
+    clickCategoryByNameExact,
     clickFirstGridListCard,
     closeElectronApp,
+    defaultXtreamPassword,
+    defaultXtreamUsername,
     expect,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     openSources,
     openWorkspaceSection,
     resetMockServers,
+    saveSettings,
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
+import { fetchXtreamLiveFixture, getXtreamTitle } from './portal-mock-fixtures';
 import { applyTheme } from './theme-contrast';
 
 // ---------------------------------------------------------------------------
@@ -82,14 +89,23 @@ async function installProbe(page: Page): Promise<void> {
                 !transparent(style.outlineColor)
                     ? style.outlineColor
                     : '';
-            // A focus ring drawn as a spread shadow: `<color> 0 0 0 2px`.
-            const shadow = /(rgba?\([^)]*\)) 0px 0px 0px [1-9]/.exec(
-                style.boxShadow
-            );
+            // A focus ring or line drawn as an unblurred shadow: a spread
+            // ring (`<color> 0 0 0 2px`) or an offset line, inset or not.
+            const line =
+                /(rgba?\([^)]*\)) (-?[\d.]+)px (-?[\d.]+)px 0px(?: (-?[\d.]+)px)?( inset)?/.exec(
+                    style.boxShadow
+                );
+            const shadow =
+                line &&
+                [line[2], line[3], line[4] ?? '0'].some(
+                    (length) => parseFloat(length) !== 0
+                )
+                    ? line[0]
+                    : '';
             return {
                 outline,
                 offset: parseFloat(style.outlineOffset) || 0,
-                shadow: shadow?.[1] ?? '',
+                shadow,
                 // A Material form field shows focus on its outline's border.
                 border: el.classList.contains('mdc-notched-outline__leading')
                     ? `${style.borderTopWidth} ${style.borderTopColor}`
@@ -246,11 +262,16 @@ async function installProbe(page: Page): Promise<void> {
                         });
                     }
                     if (was.shadow && was.shadow !== now.shadow) {
+                        const color = was.shadow.replace(/\) .*$/, ')');
                         rings.push({
                             kind: 'box-shadow',
                             on: name(on),
-                            color: was.shadow,
-                            contrast: contrastOf(on, was.shadow, false),
+                            color,
+                            contrast: contrastOf(
+                                on,
+                                color,
+                                was.shadow.endsWith(' inset')
+                            ),
                             clippedBy: null,
                         });
                     }
@@ -367,6 +388,44 @@ async function openMoviesWithRatingFilter(page: Page): Promise<void> {
     await expect(view.locator('.rating-refinement-chip')).toBeVisible();
 }
 
+/** Switches the guide to its list view and opens a live channel's EPG. */
+async function openLiveEpgList(page: Page, request: APIRequestContext) {
+    const fixture = await fetchXtreamLiveFixture(request, {
+        username: defaultXtreamUsername,
+        password: defaultXtreamPassword,
+    });
+    const channel = fixture.items[0];
+    if (!channel) throw new Error('Expected a live channel in the mock.');
+    // The mock's live streams redirect to an external demo stream; the
+    // guide needs none of it, so keep that request pending.
+    await page.route('https://test-streams.mux.dev/**', () => undefined);
+    await openSettings(page);
+    await openSettingsSection(page, 'epg');
+    await page.getByTestId('epg-view-mode-list').click();
+    await saveSettings(page);
+    await openWorkspaceSection(page, 'Live TV');
+    await clickCategoryByNameExact(page, fixture.categoryName);
+    await channelItemByTitle(page, getXtreamTitle(channel)).first().click();
+    const guide = page.locator('app-epg-list-view');
+    await expect(guide.locator('app-epg-list-view-row').first()).toBeVisible({
+        timeout: 20_000,
+    });
+    return guide;
+}
+
+/** Opens the command palette from the keyboard. */
+async function openCommandPalette(page: Page): Promise<Locator> {
+    await page.locator('body').focus();
+    await page.keyboard.press(
+        `${process.platform === 'darwin' ? 'Meta' : 'Control'}+K`
+    );
+    const palette = page.locator(
+        'mat-dialog-container app-workspace-command-palette'
+    );
+    await expect(palette).toBeVisible();
+    return palette;
+}
+
 test.describe('Keyboard focus ring', () => {
     test('@electron @theme every Tab stop shows one visible ring in both themes, a click none', async ({
         dataDir,
@@ -452,6 +511,19 @@ test.describe('Keyboard focus ring', () => {
                 report['sources list (dark)'].map((stop) => stop.label)
             ).toContain('Check again');
 
+            // The live EPG list: its rows are Tab stops (`role="button"`)
+            // with their own inset ring, then the row's info button.
+            const guide = await openLiveEpgList(page, request);
+            await walk(
+                'epg list',
+                guide,
+                guide.locator('app-epg-list-view-row').first(),
+                4
+            );
+            expect(
+                report['epg list (dark)'].map((stop) => stop.element)
+            ).toContainEqual(expect.stringMatching(/^app-epg-list-view-row\b/));
+
             // Settings: the section navigation, then the first page's
             // controls (selects, switches, the theme switcher).
             await openSettings(page);
@@ -470,6 +542,18 @@ test.describe('Keyboard focus ring', () => {
                 .first();
             await expectNoRingAfterClick(page, toggle, 'settings switch');
             await toggle.click();
+
+            // The command palette: its search field draws no outline, so the
+            // row underlines it; then the commands.
+            const palette = await openCommandPalette(page);
+            await walk(
+                'command palette',
+                palette,
+                palette.locator('.palette-search input'),
+                3
+            );
+            await page.keyboard.press('Escape');
+            await expect(palette).toBeHidden();
         } finally {
             // Every stop and the rings it drew, for a failure on CI.
             await test.info().attach('focus-stops.json', {
