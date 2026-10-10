@@ -6,6 +6,7 @@
 // player's `--pc-progress`, so an episode's bar matches the dock's Up next card.
 :host {
     @include palette.progress-token;
+    @include palette.focus-ring-token;
     display: block;
     height: 100%;
     min-height: 0;

@@ -1,4 +1,5 @@
 @use '../../epg-theme' as *;
+@use '../../../../../styles/focus-ring';
 
 :host {
     box-sizing: border-box;
@@ -11,7 +12,12 @@
     cursor: pointer;
     border-left: 3px solid transparent;
     transition: background 120ms ease;
-    outline: none;
+}
+
+/* The row is a Tab stop (role=button). Its ring sits inside: the list's
+ * scroller would cut one drawn outside the full-width row. */
+:host(:focus-visible) {
+    @include focus-ring.focus-ring-declarations($offset: -2px);
 }
 :host *,
 :host *::before {

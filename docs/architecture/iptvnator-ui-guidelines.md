@@ -62,6 +62,7 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-shell-bg` / `--app-rail-bg` / `--app-header-bg` / `--app-content-bg`
 - `--app-widget-bg` / `--app-widget-header-bg` — panels and popovers
 - `--app-card-hover-bg` — raised or hovered rows
+- `--app-focus-ring` — the keyboard focus ring (see Keyboard Focus)
 - `--app-widget-border` / `--app-rail-border` — hairlines
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
@@ -232,6 +233,47 @@ sizes, not from `offsetWidth`. Hosts may be `content-box` (the workspace
 context panels and the Favorites sidebar) or `border-box` (live-layout and
 groups rails); starting from the border box widened a padded `content-box`
 host by its padding and border on the first move.
+
+## Keyboard Focus
+
+- **Always a ring for the keyboard, none for the pointer.**
+  `apps/web/src/styles.scss` removes the outline only under
+  `:focus:not(:focus-visible)` and draws a fallback ring on every other
+  `:focus-visible` element: 2px of `--app-focus-ring` at a 2px offset, from
+  `focus-ring-declarations` in `libs/ui/styles/_focus-ring.scss`. Both rules
+  sit in `:where()`, so any component rule that styles focus wins. Never
+  bring back a global `outline: none`: `pnpm run styles:focus-visible:validate`
+  (CI) rejects one on an unscoped selector, and a missing fallback.
+- **Token.** `--app-focus-ring` is declared per theme in `m3-theme.scss`,
+  deeper than the selection blue in light, so it keeps 3:1 on every app
+  surface and selection tint; `apps/web/src/m3-theme.spec.ts` measures it.
+- **A ring of your own.** A component that needs a different ring styles its
+  `:focus-visible` with the mixin rather than a literal colour. Draw it on
+  the element that owns `overflow: hidden` (the cards' `card-focus-ring`),
+  or inside the element (a negative offset) when a clipping parent would cut
+  it. When an ancestor or a box shadow draws the ring, set `outline: none` on
+  the focused element so it never shows two. Never use `outline` as a
+  decorative border on something focusable: any outline outranks the
+  fallback, so the element loses its ring (use `border` or a spread
+  `box-shadow`, as the selected season tab does).
+- **Removing the outline.** A component rule that sets `outline: none` also
+  outranks the fallback, so it must show focus another way: a `:focus-within`
+  change on a search field's wrapper (the command palette underlines its
+  row), a ring drawn on another element, or a highlight on an item inside an
+  arrow-key composite.
+- **Material.** Buttons, switches, button toggles and checkboxes take the
+  ring over their 12% focus state layer (global rules in `styles.scss`).
+  Menu items and select options keep Material's highlight, since arrow keys,
+  not Tab, move within them.
+- **Over video** the ring is the player's text colour, not the theme's:
+  the player controls, vendor chrome, the fullscreen channel and episode
+  panels and the Up Next rail include `focus-ring-token` from
+  `_player-palette.scss`.
+- **Check.** `keyboard-focus-ring.e2e.ts` (Electron) tabs through the detail
+  actions and season tabs, a catalog grid with its refinement chips, the
+  Sources list and Settings in both themes. Each stop must draw exactly one
+  ring, uncut by an ancestor's `overflow: hidden`, at 3:1 where it sits on a
+  flat colour, and a click must draw none.
 
 ## Keyboard Scrolling and Channel Focus
 

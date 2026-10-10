@@ -200,6 +200,22 @@ describe('player controls overlay palette', () => {
         }
     });
 
+    it('points the app focus ring over video at the overlay text colour', () => {
+        // Surfaces beside the controls host (the fullscreen panels, the Up
+        // Next rail, vendor chrome) have no `--pc-text`, so the ring token
+        // carries the colour itself.
+        const text = PALETTE_STYLES.match(/\$text:\s*(#[0-9a-f]{6});/i)?.[1];
+        expect(text?.toLowerCase()).toBe(
+            HOST_STYLES.match(
+                /--pc-text:\s*(#[0-9a-f]{6});/i
+            )?.[1].toLowerCase()
+        );
+        expect(PALETTE_STYLES).toMatch(
+            /@mixin focus-ring-token\s*\{\s*--app-focus-ring:\s*#\{\$text\};/
+        );
+        expect(HOST_STYLES).toMatch(/@include palette\.focus-ring-token;/);
+    });
+
     it('tells a focused selected swatch from one that is only selected', () => {
         const selected = ruleBody(
             SETTINGS_STYLES,

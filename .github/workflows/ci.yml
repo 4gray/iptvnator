@@ -409,6 +409,9 @@ jobs:
             - name: Validate Angular Material token overrides
               run: pnpm run styles:material-tokens:validate
 
+            - name: Validate the global keyboard focus ring
+              run: pnpm run styles:focus-visible:validate
+
             # The icon font renders an unknown ligature name as plain text.
             - name: Validate Material icon names
               run: pnpm run styles:icon-ligatures:validate

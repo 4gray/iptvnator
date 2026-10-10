@@ -7,6 +7,8 @@
 //   @include grid.content-grid;
 //   @include grid.content-card;
 
+@use 'focus-ring';
+
 @mixin content-grid(
     $min-width: var(--cover-grid-min-width, 148px),
     $gap: var(--cover-gap, 16px)
@@ -154,16 +156,16 @@
     }
 }
 
-// Draw the ring on the element that owns `overflow: hidden` (or on one of
-// its ancestors): an outline on a clipped descendant is cut on every edge.
-@mixin focus-ring-declarations {
-    outline: 2px solid var(--app-selection-color, #2f7bff);
-    outline-offset: 3px;
+// The app focus ring at the cards' 3px offset. Draw it on the element that
+// owns `overflow: hidden` (or on one of its ancestors): an outline on a
+// clipped descendant is cut on every edge.
+@mixin card-focus-ring-declarations {
+    @include focus-ring.focus-ring-declarations($offset: 3px);
 }
 
 @mixin card-focus-ring {
     &:focus-visible {
-        @include focus-ring-declarations;
+        @include card-focus-ring-declarations;
     }
 }
 

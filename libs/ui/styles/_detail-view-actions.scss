@@ -1,3 +1,5 @@
+@use 'focus-ring';
+
 @mixin play-button-copy($meta-color: currentColor) {
     &__copy {
         display: inline-flex;
@@ -343,8 +345,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 
     &:disabled {
@@ -382,8 +383,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 }
 

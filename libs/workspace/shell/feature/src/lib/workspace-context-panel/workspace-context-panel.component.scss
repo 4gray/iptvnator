@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/focus-ring';
+
 :host {
     display: flex;
     flex-direction: column;
@@ -289,8 +291,7 @@ app-workspace-context-category-view {
 
     &:focus-visible {
         color: var(--app-heading-color);
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     mat-icon {

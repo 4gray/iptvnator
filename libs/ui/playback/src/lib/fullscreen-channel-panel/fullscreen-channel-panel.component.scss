@@ -1,4 +1,5 @@
 @use '@angular/material' as mat;
+@use '../player-controls/player-palette' as palette;
 // Global styles on purpose (ViewEncapsulation.None): the host page's list is
 // stamped into the panel body through an ng-template, so its nodes carry the
 // host's scoping attribute and an emulated `.body > *` rule could never reach
@@ -8,6 +9,15 @@
     // Never take layout space beside the engine; every child is absolutely
     // positioned inside the `.web-player-view` box.
     display: contents;
+    // On video: the edge tab and the panel take the player's focus ring.
+    @include palette.focus-ring-token;
+}
+
+// The panel carries `dark-theme` for its tokens, and that context declares
+// the theme's ring again (`html .dark-theme`); point it back at the player's
+// here, more specifically, for the header and the stamped host lists.
+.fullscreen-channel-panel.dark-theme {
+    @include palette.focus-ring-token;
 }
 
 // ─── Closed state ────────────────────────────────────────────────────────────

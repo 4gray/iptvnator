@@ -7,6 +7,7 @@
 // declares the player's progress colour itself.
 :host {
     @include palette.progress-token;
+    @include palette.focus-ring-token;
     display: flex;
     flex-direction: column;
     min-height: 0;

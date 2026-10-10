@@ -107,6 +107,11 @@ html {
     // Watch progress in app chrome (rail cards, catalog capsules, the hero).
     // Over video the player's fixed `--pc-progress` applies instead.
     --app-progress-color: var(--app-selection-color);
+    // Keyboard focus ring (`libs/ui/styles/_focus-ring.scss`), drawn 2px
+    // outside the focused element. A deeper blue than the selection colour:
+    // at least 3.6:1 on every light surface and selection tint, where
+    // #2f7bff falls to 2.6:1 on the stronger tint.
+    --app-focus-ring: #1d63e0;
 
     // Live / on-air accent (broadcast indicator)
     --app-live-color: #d12c2c;
@@ -210,6 +215,9 @@ html {
         // Re-declared so it resolves against this context's selection colour
         // rather than inheriting the light value computed on `html`.
         --app-progress-color: var(--app-selection-color);
+        // Keyboard focus ring: at least 4.1:1 on every dark surface and
+        // selection tint.
+        --app-focus-ring: #8cbaff;
 
         // Live / on-air accent (broadcast indicator)
         --app-live-color: #ff8f8f;
