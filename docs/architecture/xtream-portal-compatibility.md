@@ -77,9 +77,14 @@ Migration writes and snapshot-cache writes are best effort when browser storage
 is full. Reads still resolve the retained legacy evidence in memory. Typed
 status and mutations match original numeric references through that evidence;
 removal filters the original stored keys without first expanding the remaining
-keys. Favorite/recent writes requested by the user still propagate storage
-failures. A new reference that fits can be saved without its optional snapshot
-and hydrated on a later collection load.
+keys. Typed favorite-status checks never write storage. Additions save the
+requested reference before attempting optional migration or snapshot copies, so
+those copies cannot consume space needed by the requested save. Recent aliases
+are deduplicated in memory before the 50-item limit, keeping the newest timestamp
+and its original saved key until optional migration. Favorite/recent
+writes requested by the user still propagate storage failures. A new reference
+that fits can be saved without its optional snapshot and hydrated on a later
+collection load.
 
 ## Connection Input
 

@@ -34,6 +34,7 @@ import {
 import {
     CollectionKey,
     collectionKey,
+    deduplicateRecentItems,
     typedCollectionRef,
     itemCollectionKey,
     findCollectionItems,
@@ -706,7 +707,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
-        this.collectionStorage.getLocalFavorites(playlistId);
         const allFavorites = this.collectionStorage.getFavoritesFromStorage();
         if (!allFavorites[playlistId]) {
             allFavorites[playlistId] = [];
@@ -720,6 +720,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             allFavorites[playlistId].push(normalizedContentId);
         }
         this.collectionStorage.saveFavoritesToStorage(allFavorites);
+        this.collectionStorage.getLocalFavorites(playlistId);
         this.collectionStorage.saveCollectionItemSnapshot(
             playlistId,
             normalizedContentId,
@@ -765,7 +766,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return false;
         }
 
-        this.collectionStorage.getLocalFavorites(playlistId);
         const allFavorites = this.collectionStorage.getFavoritesFromStorage();
         const ids = allFavorites[playlistId] || [];
         const matchingKeys = this.getMatchingCollectionKeys(
@@ -990,11 +990,23 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
         const normalizedBackdropUrl = _backdropUrl?.trim();
 
-        this.collectionStorage.getLocalRecentItems(playlistId);
         const allRecent = this.collectionStorage.getRecentItemsFromStorage();
         if (!allRecent[playlistId]) {
             allRecent[playlistId] = [];
         }
+
+        // Compare logical identities without expanding legacy keys before the save.
+        const storedItems = this.getCollectionItemsById(
+            playlistId,
+            allRecent[playlistId].map((item) => item.id)
+        );
+        allRecent[playlistId] = deduplicateRecentItems(
+            allRecent[playlistId],
+            (entry) => {
+                const item = storedItems.get(entry.id);
+                return item ? (itemCollectionKey(item) ?? entry.id) : entry.id;
+            }
+        );
 
         // Remove existing entry if present
         const matchingKeys = this.getMatchingCollectionKeys(
@@ -1019,6 +1031,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         allRecent[playlistId] = allRecent[playlistId].slice(0, 50);
 
         this.collectionStorage.saveRecentItemsToStorage(allRecent);
+        this.collectionStorage.getLocalRecentItems(playlistId);
         this.collectionStorage.saveCollectionItemSnapshot(
             playlistId,
             normalizedContentId,

@@ -142,16 +142,18 @@ export function findCollectionItems(
 }
 
 export function deduplicateRecentItems(
-    items: StoredRecentItem[]
+    items: StoredRecentItem[],
+    keyForItem: (item: StoredRecentItem) => CollectionKey = (item) => item.id
 ): StoredRecentItem[] {
     const unique = new Map<CollectionKey, StoredRecentItem>();
     for (const item of items) {
-        const previous = unique.get(item.id);
+        const key = keyForItem(item);
+        const previous = unique.get(key);
         if (
             !previous ||
             Date.parse(item.viewedAt) > Date.parse(previous.viewedAt)
         )
-            unique.set(item.id, item);
+            unique.set(key, item);
     }
     return [...unique.values()];
 }

@@ -219,6 +219,89 @@ describe('PWA Xtream collection identity', () => {
         }
     );
 
+    it.each(['addFavorite', 'addRecentItem', 'statusThenAddFavorite'] as const)(
+        '%s saves the requested reference before optional copies consume its space',
+        async (operation) => {
+            seedLegacyCollection();
+            const snapshots = read('xtream-collection-items');
+            const copyGrowth =
+                JSON.stringify({
+                    p1: { ...snapshots.p1, 'movie:42': snapshots.p1[42] },
+                }).length - JSON.stringify(snapshots).length;
+            const keyGrowth =
+                JSON.stringify({ p1: ['movie:42'] }).length -
+                JSON.stringify({ p1: [42] }).length;
+            // Both optional writes fit exactly, but then leave no room for an addition.
+            limitStorageGrowth(copyGrowth + keyGrowth);
+            const target = { id: 99, type: 'series' } as const;
+            if (operation === 'statusThenAddFavorite') {
+                expect(await source.isFavorite(target, 'p1')).toBe(false);
+                expect(
+                    await source.isFavorite({ id: 42, type: 'movie' }, 'p1')
+                ).toBe(true);
+                expect(Storage.prototype.setItem).not.toHaveBeenCalled();
+            }
+            const mutation =
+                operation === 'addRecentItem' ? operation : 'addFavorite';
+            await expect(
+                source[mutation](target, 'p1')
+            ).resolves.toBeUndefined();
+            const storedIds =
+                mutation === 'addFavorite'
+                    ? read('xtream-favorites').p1
+                    : read('xtream-recent-items').p1.map(
+                          (entry: { id: unknown }) => entry.id
+                      );
+            expect(storedIds).toContain('series:99');
+            expect(read('xtream-collection-items').p1[42]).toEqual(
+                snapshots.p1[42]
+            );
+            expect(api.getStreams).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each([42, 'movie:42'])(
+        'deduplicates before the 50-item limit while preserving the newer %s key until the save',
+        async (newerKey) => {
+            seedLegacyCollection();
+            localStorage.setItem(
+                'xtream-recent-items',
+                JSON.stringify({
+                    p1: [
+                        {
+                            id: newerKey === 42 ? 'movie:42' : 42,
+                            viewedAt: '2026-09-30T00:00:00.000Z',
+                        },
+                        { id: newerKey, viewedAt: '2026-10-02T00:00:00.000Z' },
+                        ...Array.from({ length: 48 }, (_, index) => ({
+                            id: `series:${100 + index}`,
+                            viewedAt: '2026-10-01T00:00:00.000Z',
+                        })),
+                    ],
+                })
+            );
+            const writes = jest.spyOn(Storage.prototype, 'setItem');
+            await source.addRecentItem({ id: 99, type: 'series' }, 'p1');
+            expect(writes.mock.calls[0][0]).toBe('xtream-recent-items');
+            expect(JSON.parse(writes.mock.calls[0][1]).p1).toContainEqual({
+                id: newerKey,
+                viewedAt: '2026-10-02T00:00:00.000Z',
+            });
+            const recent = read('xtream-recent-items').p1;
+            expect(recent).toHaveLength(50);
+            expect(recent).toContainEqual({
+                id: 'series:147',
+                viewedAt: '2026-10-01T00:00:00.000Z',
+            });
+            expect(recent).toContainEqual({
+                id: 'movie:42',
+                viewedAt: '2026-10-02T00:00:00.000Z',
+            });
+            expect(recent[0].id).toBe('series:99');
+            expect(api.getStreams).not.toHaveBeenCalled();
+        }
+    );
+
     it('preserves restored colliding types through hydration and clear/restore', async () => {
         await source.restoreUserData('p1', {
             hiddenCategories: [],
@@ -436,7 +519,7 @@ describe('PWA Xtream collection identity', () => {
                     ? [77, 'series:99']
                     : adding
                       ? ['movie:42', 77, 'series:99', 'live:42']
-                      : ['movie:42', 77, 'series:99'];
+                      : [42, 77, 'series:99'];
                 expect([...storedIds].sort()).toEqual(expectedIds.sort());
             } finally {
                 releaseCatalog([]);
