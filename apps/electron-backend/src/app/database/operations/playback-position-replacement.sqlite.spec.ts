@@ -1,10 +1,12 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { getTableColumns } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import {
     getAllPlaybackPositions,
     replaceAllPlaybackPositions,
+    savePlaybackPosition,
 } from './playback-position.operations';
 
 describe('atomic playback-position replacement against SQLite', () => {
@@ -31,8 +33,15 @@ describe('atomic playback-position replacement against SQLite', () => {
         sqlite = new Database(':memory:');
         sqlite.pragma('foreign_keys = ON');
         sqlite.exec(`
-            CREATE TABLE playlists (id TEXT PRIMARY KEY);
-            INSERT INTO playlists VALUES ('target'), ('other');
+            CREATE TABLE playlists (${Object.values(
+                getTableColumns(schema.playlists)
+            )
+                .map(
+                    (column) =>
+                        `"${column.name}" ${column.getSQLType()}${column.primary ? ' PRIMARY KEY' : ''}`
+                )
+                .join(', ')});
+            INSERT INTO playlists (id) VALUES ('target'), ('other');
             CREATE TABLE playback_positions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
@@ -108,6 +117,36 @@ describe('atomic playback-position replacement against SQLite', () => {
                 positionSeconds: 90,
             }),
         ]);
+    });
+
+    it('preserves earlier episode metadata when a duplicate only updates position', async () => {
+        const items = [
+            { ...replacement[1], durationSeconds: 2400 },
+            {
+                contentXtreamId: 42,
+                contentType: 'episode' as const,
+                positionSeconds: 600,
+            },
+        ];
+        // Compare with the former restore loop's actual SQLite update behavior.
+        for (const item of items) await savePlaybackPosition(db, 'other', item);
+        await replaceAllPlaybackPositions(db, 'target', items);
+        const [restored] = await getAllPlaybackPositions(db, 'target');
+        const prior = (await getAllPlaybackPositions(db, 'other')).find(
+            (item) => item.contentType === 'episode'
+        );
+        expect(restored).toEqual(
+            expect.objectContaining({
+                contentXtreamId: prior?.contentXtreamId,
+                contentType: 'episode',
+                positionSeconds: 600,
+                seriesXtreamId: prior?.seriesXtreamId,
+                seasonNumber: prior?.seasonNumber,
+                episodeNumber: prior?.episodeNumber,
+                durationSeconds: prior?.durationSeconds,
+            })
+        );
+        expect(prior?.seriesXtreamId).toBe(2);
     });
 
     it('rolls back both deletion and earlier inserts when a later insert fails', async () => {
