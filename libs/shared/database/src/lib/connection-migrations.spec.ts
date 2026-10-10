@@ -618,6 +618,7 @@ describe('ensurePlaylistsPayloadLast', () => {
                 /^CREATE TABLE IF NOT EXISTS playlists_payload_rebuild \( id TEXT PRIMARY KEY,.* last_usage TEXT, payload TEXT \)$/
             ),
             `INSERT INTO playlists_payload_rebuild (${quoted}) SELECT ${quoted} FROM playlists`,
+            "SELECT sql FROM sqlite_master WHERE tbl_name = 'playlists' AND type IN ('index', 'trigger') AND sql IS NOT NULL ORDER BY type = 'trigger', name",
             'DROP TABLE playlists',
             'ALTER TABLE playlists_payload_rebuild RENAME TO playlists',
         ]);

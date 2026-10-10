@@ -12,6 +12,8 @@ interface RebuildOutcome {
     leftoverRebuildTable: boolean;
     foreignKeys: number;
     integrity: string;
+    dependents: { type: string; name: string }[];
+    triggerFires: boolean;
 }
 
 /**
@@ -74,6 +76,11 @@ function rebuildLegacyPlaylists(options: {
         sqlite.pragma('foreign_keys = OFF');
         sqlite.exec("INSERT INTO favorites (content_id, playlist_id) VALUES (3, 'deleted')");
         sqlite.pragma('foreign_keys = ON');
+        sqlite.exec(\`
+            CREATE INDEX playlists_type_idx ON playlists(type);
+            CREATE TRIGGER playlists_reject_blocked BEFORE INSERT ON playlists
+            WHEN NEW.id = 'blocked' BEGIN SELECT RAISE(ABORT, 'blocked id'); END;
+        \`);
         if (${options.blockingView}) {
             sqlite.exec('CREATE VIEW playlist_names AS SELECT name FROM playlists');
         }
@@ -81,6 +88,12 @@ function rebuildLegacyPlaylists(options: {
         console.warn = (...args) => warnings.push(args.map(String).join(' '));
         console.log = () => undefined;
         ensurePlaylistsPayloadLast(sqlite);
+        let triggerFires = false;
+        try {
+            sqlite.prepare("INSERT INTO playlists (id, name, type) VALUES ('blocked', 'B', 'm3u-url')").run();
+        } catch (error) {
+            triggerFires = String(error).includes('blocked id');
+        }
         const byName = (rows) => rows.map((row) =>
             Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b))));
         process.stdout.write(JSON.stringify({
@@ -92,6 +105,9 @@ function rebuildLegacyPlaylists(options: {
             leftoverRebuildTable: Boolean(sqlite.prepare(
                 "SELECT 1 FROM sqlite_master WHERE name = 'playlists_payload_rebuild'").get()),
             foreignKeys: sqlite.pragma('foreign_keys', { simple: true }),
+            dependents: sqlite.prepare(
+                "SELECT type, name FROM sqlite_master WHERE tbl_name = 'playlists' AND sql IS NOT NULL AND type IN ('index', 'trigger') ORDER BY name").all(),
+            triggerFires,
             integrity: sqlite.pragma('integrity_check', { simple: true }),
         }));
         sqlite.close();
@@ -135,6 +151,11 @@ const expectedPlaylists = [
     }),
 ];
 
+const expectedDependents = [
+    { type: 'trigger', name: 'playlists_reject_blocked' },
+    { type: 'index', name: 'playlists_type_idx' },
+];
+
 const expectedFavorites = [
     { id: 1, content_id: 1, playlist_id: 'm3u' },
     { id: 2, content_id: 2, playlist_id: 'xtream' },
@@ -142,7 +163,7 @@ const expectedFavorites = [
 ];
 
 describe('ensurePlaylistsPayloadLast on real SQLite', () => {
-    it('moves payload last and keeps every row, favorite and pre-existing orphan', () => {
+    it('moves payload last and keeps every row, favorite, pre-existing orphan, index and trigger', () => {
         const outcome = rebuildLegacyPlaylists({ blockingView: false });
 
         expect(outcome.warnings).toEqual([]);
@@ -155,6 +176,8 @@ describe('ensurePlaylistsPayloadLast on real SQLite', () => {
         expect(outcome.leftoverRebuildTable).toBe(false);
         expect(outcome.foreignKeys).toBe(1);
         expect(outcome.integrity).toBe('ok');
+        expect(outcome.dependents).toEqual(expectedDependents);
+        expect(outcome.triggerFires).toBe(true);
     });
 
     it('rolls everything back when a step fails, and turns foreign keys back on', () => {
@@ -173,5 +196,7 @@ describe('ensurePlaylistsPayloadLast on real SQLite', () => {
         expect(outcome.leftoverRebuildTable).toBe(false);
         expect(outcome.foreignKeys).toBe(1);
         expect(outcome.integrity).toBe('ok');
+        expect(outcome.dependents).toEqual(expectedDependents);
+        expect(outcome.triggerFires).toBe(true);
     });
 });

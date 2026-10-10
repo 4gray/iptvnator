@@ -90,7 +90,9 @@ function countChildViolations(sqliteDb: Database.Database): number {
  * and pins reference playlists ON DELETE CASCADE: the drop must not cascade,
  * and the rename of the new table leaves their REFERENCES clauses alone),
  * and the transaction commits only if the tables referencing playlists hold
- * no more foreign key violations than before.
+ * no more foreign key violations than before. Indexes and triggers on the
+ * table are recreated on the new one; a view on it makes the rename fail and
+ * rolls the rebuild back.
  */
 export function ensurePlaylistsPayloadLast(sqliteDb: Database.Database): void {
     const names = (
@@ -124,12 +126,28 @@ export function ensurePlaylistsPayloadLast(sqliteDb: Database.Database): void {
                      SELECT ${columnList} FROM playlists`
                 )
                 .run();
+            // DROP TABLE takes the table's own indexes and triggers with it;
+            // put them back on the new table after the rename.
+            const dependents = (
+                sqliteDb
+                    .prepare(
+                        `SELECT sql FROM sqlite_master
+                         WHERE tbl_name = 'playlists'
+                           AND type IN ('index', 'trigger')
+                           AND sql IS NOT NULL
+                         ORDER BY type = 'trigger', name`
+                    )
+                    .all() as { sql: string }[]
+            ).map(({ sql }) => sql);
             sqliteDb.prepare(`DROP TABLE playlists`).run();
             sqliteDb
                 .prepare(
                     `ALTER TABLE ${PLAYLISTS_REBUILD_TABLE} RENAME TO playlists`
                 )
                 .run();
+            for (const statement of dependents) {
+                sqliteDb.prepare(statement).run();
+            }
             // The rebuild must not orphan a row. Rows a legacy profile already
             // orphaned (written with foreign keys off) are not its doing and
             // must not block it on every start.
