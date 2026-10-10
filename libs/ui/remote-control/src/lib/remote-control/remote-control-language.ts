@@ -1,7 +1,33 @@
-import { Language } from '@iptvnator/shared/interfaces';
+/**
+ * Translation files the page loads from `apps/web/src/assets/i18n` (copied
+ * by the build). Kept here instead of importing the app's `Language` enum:
+ * a dependency on shared-interfaces pulls its build cycle into this app's
+ * build. The spec checks the list against the files.
+ */
+export const REMOTE_CONTROL_TRANSLATIONS: readonly string[] = [
+    'ar',
+    'ary',
+    'by',
+    'de',
+    'el',
+    'en',
+    'es',
+    'fr',
+    'hu',
+    'it',
+    'ja',
+    'ko',
+    'nl',
+    'pl',
+    'pt',
+    'ru',
+    'tr',
+    'zh',
+    'zhtw',
+];
 
 const TRANSLATED_LANGUAGES: ReadonlySet<string> = new Set(
-    Object.values(Language)
+    REMOTE_CONTROL_TRANSLATIONS
 );
 const TRADITIONAL_CHINESE_SUBTAGS = new Set(['hant', 'tw', 'hk', 'mo']);
 
@@ -26,21 +52,21 @@ export function resolveRemoteControlLanguage(
             return { translation, documentLanguage: tag };
         }
     }
-    return { translation: Language.ENGLISH, documentLanguage: 'en' };
+    return { translation: 'en', documentLanguage: 'en' };
 }
 
 function toTranslationCode(tag: string): string | null {
     const [language, ...subtags] = tag.trim().toLowerCase().split(/[-_]/);
     if (language === 'zh') {
         return subtags.some((subtag) => TRADITIONAL_CHINESE_SUBTAGS.has(subtag))
-            ? Language.TRADITIONAL_CHINESE
-            : Language.CHINESE;
+            ? 'zhtw'
+            : 'zh';
     }
     if (language === 'ar' && subtags.includes('ma')) {
-        return Language.MOROCCAN_ARABIC;
+        return 'ary';
     }
     if (language === 'be') {
-        return Language.BELARUSIAN;
+        return 'by';
     }
     return TRANSLATED_LANGUAGES.has(language) ? language : null;
 }

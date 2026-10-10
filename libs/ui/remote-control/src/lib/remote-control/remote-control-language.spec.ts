@@ -1,4 +1,9 @@
-import { resolveRemoteControlLanguage } from './remote-control-language';
+import { readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import {
+    REMOTE_CONTROL_TRANSLATIONS,
+    resolveRemoteControlLanguage,
+} from './remote-control-language';
 
 describe('resolveRemoteControlLanguage', () => {
     it.each([
@@ -37,5 +42,18 @@ describe('resolveRemoteControlLanguage', () => {
             translation: 'en',
             documentLanguage: 'en',
         });
+    });
+
+    it('lists exactly the translation files the page loads', () => {
+        const directory = resolve(
+            __dirname,
+            '../../../../../../apps/web/src/assets/i18n'
+        );
+        const files = readdirSync(directory)
+            .filter((file) => file.endsWith('.json'))
+            .map((file) => file.replace(/\.json$/, ''))
+            .sort();
+
+        expect([...REMOTE_CONTROL_TRANSLATIONS].sort()).toEqual(files);
     });
 });
