@@ -17,7 +17,7 @@ app-settings-epg-section {
     overflow: hidden;
 
     &:focus-within {
-        border-color: var(--app-selection-color);
+        border-color: var(--app-focus-ring);
     }
 
     input {

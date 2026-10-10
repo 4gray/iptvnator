@@ -138,7 +138,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     background: var(--app-card-hover-bg);
 
     &:focus-within {
-        border-color: var(--app-selection-color);
+        border-color: var(--app-focus-ring);
     }
 }
 

@@ -3,15 +3,22 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { removesOutline, walkDeclarations } from './check-focus-visible.mjs';
+import {
+    removesOutline,
+    splitTopLevel,
+    walkDeclarations,
+} from './check-focus-visible.mjs';
 
 /**
- * Every keyboard focus ring is the app ring: the `focus-ring-declarations`
- * mixin from `libs/ui/styles/_focus-ring.scss`, or `var(--app-focus-ring)`.
- * Rings drawn in their own colour drifted from it: the selection blue many
- * components used falls to 2.6:1 on the stronger selection tint, where the
- * token keeps 3:1 on every surface. Surfaces over video keep the player's
- * `--pc-*` palette; the few deliberate exceptions are listed below.
+ * Every keyboard focus indicator is drawn in the app ring colour: the
+ * `focus-ring-declarations` mixin from `libs/ui/styles/_focus-ring.scss`, or
+ * `var(--app-focus-ring)` (also inside `color-mix()`). Indicators drawn in
+ * their own colour drifted from it: the selection blue many components used
+ * falls to 2.6:1 on the stronger selection tint, where the token keeps 3:1
+ * on every surface. A focus rule's outline, its ring- or line-shaped shadows
+ * (unblurred) and its border colours are checked; a neutral boundary and a
+ * blurred lift shadow are not indicators. Surfaces over video keep the
+ * player's `--pc-*` palette; the few deliberate exceptions are listed below.
  */
 
 /** Every app and library stylesheet. */
@@ -26,6 +33,51 @@ const FOCUS_SELECTOR =
 
 /** The app ring token, or the player's own palette over video. */
 const APP_RING = /var\(\s*--(?:app-focus-ring|pc-)/i;
+
+/** A boundary colour that does not signal focus. */
+const NEUTRAL =
+    /^(?:transparent|currentcolor|inherit|none|var\(\s*--app-(?:separator|widget-border|rail-border|search-border)\b.*\))$/i;
+
+const LENGTH = /^-?(?:\d+|\d*\.\d+)(?:px|em|rem)?$/i;
+const BORDER_STYLE =
+    /^(?:none|hidden|solid|dashed|dotted|double|groove|ridge|inset|outset)$/i;
+
+/**
+ * The colours a focus rule's declaration draws its indicator with, or an
+ * empty list when it draws none: an outline, the shadows that are rings or
+ * lines (no blur, with a spread or an offset), and border colours.
+ */
+export function indicatorColours(declaration) {
+    const match = /^([a-z-]+)\s*:\s*(.+?)\s*(?:!important)?$/i.exec(
+        declaration
+    );
+    if (!match) return [];
+    const property = match[1].toLowerCase();
+    const value = match[2];
+    if (/^outline(?:-color)?$/.test(property)) {
+        return removesOutline(declaration) ? [] : [value];
+    }
+    if (property === 'box-shadow') {
+        return splitTopLevel(value, /,/).flatMap((shadow) => {
+            const tokens = splitTopLevel(shadow, /\s/).filter(
+                (token) => token.toLowerCase() !== 'inset'
+            );
+            const lengths = tokens.filter((token) => LENGTH.test(token));
+            const [x = '0', y = '0', blur = '0', spread = '0'] = lengths;
+            const drawn = [x, y, spread].some((n) => parseFloat(n) !== 0);
+            return parseFloat(blur) === 0 && drawn
+                ? [tokens.filter((token) => !LENGTH.test(token)).join(' ')]
+                : [];
+        });
+    }
+    if (/^border(?:-(?:top|right|bottom|left))?(?:-color)?$/.test(property)) {
+        const colours = splitTopLevel(value, /\s/).filter(
+            (token) => !LENGTH.test(token) && !BORDER_STYLE.test(token)
+        );
+        return colours.length ? [colours.join(' ')] : [];
+    }
+    return [];
+}
 
 /** Rings that deliberately differ, matched by file and value. */
 export const RING_EXCEPTIONS = [
@@ -53,20 +105,17 @@ function isException(file, declaration) {
     );
 }
 
-/** Focus rings in one stylesheet that bypass the app ring. */
+/** Focus indicators in one stylesheet that bypass the app ring colour. */
 export function findOffTokenRings(file, source) {
     return walkDeclarations(source).flatMap(
         ({ selectors, declaration, line }) => {
             const focus = selectors.find((selector) =>
                 FOCUS_SELECTOR.test(selector)
             );
-            const drawsRing =
-                /^outline(?:-color)?\s*:/i.test(declaration) &&
-                !removesOutline(declaration);
-            return focus &&
-                drawsRing &&
-                !APP_RING.test(declaration) &&
-                !isException(file, declaration)
+            const offToken = indicatorColours(declaration).some(
+                (colour) => !APP_RING.test(colour) && !NEUTRAL.test(colour)
+            );
+            return focus && offToken && !isException(file, declaration)
                 ? [{ file, line, selector: focus, declaration }]
                 : [];
         }

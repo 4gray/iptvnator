@@ -61,7 +61,7 @@
     cursor: text;
 
     &:focus-within {
-        border-color: var(--app-selection-color);
+        border-color: var(--app-focus-ring);
     }
 
     &__icon {

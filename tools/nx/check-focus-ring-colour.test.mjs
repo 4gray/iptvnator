@@ -11,6 +11,7 @@ import {
     checkFocusRingColour,
     findOffTokenRings,
     findUnusedExceptions,
+    indicatorColours,
     listScannedFiles,
 } from './check-focus-ring-colour.mjs';
 
@@ -62,6 +63,49 @@ test('accepts the app ring, the player palette, removals and decorative outlines
     ].join('\n');
 
     assert.deepEqual(findOffTokenRings('b.scss', source), []);
+});
+
+test('reads ring-shaped shadows and border colours as focus indicators', () => {
+    const source = [
+        '.search:focus-within {',
+        '    border-color: var(--mat-sys-primary);',
+        '    box-shadow: 0 0 0 3px',
+        '        color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);',
+        '}',
+        '.cell.is-focused { box-shadow: inset 0 0 0 2px $accent-blue; }',
+        '.field:focus-within { border: 1px solid #2f7bff; }',
+        '.tab:focus-visible { box-shadow: inset 0 -2px 0 var(--app-selection-color); }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('c.scss', source).map(({ line }) => line),
+        [2, 3, 6, 7, 8]
+    );
+});
+
+test('leaves neutral boundaries, lift shadows and token colours alone', () => {
+    const source = [
+        '.row:focus-within { border-color: var(--app-separator); }',
+        '.row:focus-within { border-color: transparent; border-radius: 8px; }',
+        '.card:focus-within { box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14); }',
+        '.search:focus-within {',
+        '    border-color: var(--app-focus-ring);',
+        '    box-shadow: 0 0 0 3px',
+        '        color-mix(in srgb, var(--app-focus-ring) 12%, transparent);',
+        '}',
+        ':host(:focus-visible) {',
+        '    box-shadow: 0 0 0 2px var(--pc-text), 0 12px 32px rgba(0, 0, 0, 0.45);',
+        '}',
+    ].join('\n');
+
+    assert.deepEqual(findOffTokenRings('d.scss', source), []);
+    // The blurred shadow in a mixed list is not an indicator.
+    assert.deepEqual(
+        indicatorColours(
+            'box-shadow: 0 0 0 2px var(--pc-text), 0 12px 32px rgba(0, 0, 0, 0.45)'
+        ),
+        ['var(--pc-text)']
+    );
 });
 
 test('lets a listed exception through only in its own file', () => {

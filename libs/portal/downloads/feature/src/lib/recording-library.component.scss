@@ -43,7 +43,7 @@
         &:focus-within .recording-library__artwork {
             border-color: color-mix(
                 in srgb,
-                var(--mat-sys-primary) 55%,
+                var(--app-focus-ring) 55%,
                 var(--app-separator, var(--mat-sys-outline-variant))
             );
             transform: translateY(-2px);

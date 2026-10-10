@@ -281,7 +281,7 @@
 }
 
 .search-container:focus-within {
-    border-color: var(--mat-sys-primary);
+    border-color: var(--app-focus-ring);
     background: var(--mat-sys-surface-container-highest);
 }
 

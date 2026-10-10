@@ -33,7 +33,7 @@ const NO_COLOR =
     /^(?:transparent|#[0-9a-f]{3}0|#[0-9a-f]{6}00|(?:rgb|hsl)a?\((?:[^,()]+,){3}\s*0*\.?0+%?\s*\)|(?:rgb|hsl)a?\([^/()]*\/\s*0*\.?0+%?\s*\))$/i;
 
 /** Splits `text` on `separator` outside parentheses and brackets. */
-function splitTopLevel(text, separator) {
+export function splitTopLevel(text, separator) {
     const parts = [];
     let depth = 0;
     let start = 0;

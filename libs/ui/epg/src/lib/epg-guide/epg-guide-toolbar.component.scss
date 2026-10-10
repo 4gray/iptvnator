@@ -231,7 +231,7 @@
         }
     }
     &:focus-within {
-        border-color: $accent-blue;
+        border-color: var(--app-focus-ring);
     }
 }
 
