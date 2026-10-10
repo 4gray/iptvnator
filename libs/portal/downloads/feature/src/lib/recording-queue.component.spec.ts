@@ -10,6 +10,7 @@ import { RecordingQueueComponent } from './recording-queue.component';
 const TEST_TRANSLATIONS = {
     DOWNLOADS: {
         RECORDING_NOW: 'Recording now',
+        RECORDING_CHIP: 'REC',
         NEEDS_ATTENTION: 'Needs attention',
         STOP_RECORDING: 'Stop recording',
         REMOVE_FROM_MANAGER: 'Remove from manager',

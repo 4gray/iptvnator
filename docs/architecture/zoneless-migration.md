@@ -60,7 +60,7 @@ must be ticked here.
 
 ## Eager components
 
-66 production files, 67 components (`epg-progress-panel.component.ts` holds
+65 production files, 66 components (`epg-progress-panel.component.ts` holds
 two). Tick an entry by deleting `changeDetection: ChangeDetectionStrategy.Eager`
 (or setting OnPush) once its template state is signals, signal inputs or
 explicitly marked. The guard spec compares the unticked entries with the
@@ -146,9 +146,8 @@ picker), so each marks itself on the form's `events` through
 
 `libs/playlist/m3u/feature-player` (2) goes with the playback PR.
 
-### libs/portal (9)
+### libs/portal (8)
 
-- [x] `libs/portal/shared/ui/src/lib/components/favorites-layout/favorites-layout.component.ts`
 - [x] `libs/portal/shared/ui/src/lib/components/playlist-error-view/playlist-error-view.component.ts`
 - [x] `libs/portal/shared/ui/src/lib/components/search-form/search-form.component.ts`
 - [x] `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`

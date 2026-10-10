@@ -2,7 +2,9 @@
     <section
         class="hero"
         data-test-id="dashboard-hero"
-        aria-roledescription="carousel"
+        [attr.aria-roledescription]="
+            'WORKSPACE.DASHBOARD.HERO_ROLE_CAROUSEL' | translate
+        "
         tabindex="0"
         [attr.aria-label]="'WORKSPACE.DASHBOARD.HERO_LABEL' | translate"
         [class.hero--paused]="paused()"
@@ -67,7 +69,9 @@
             <div
                 class="hero__content"
                 role="group"
-                aria-roledescription="slide"
+                [attr.aria-roledescription]="
+                    'WORKSPACE.DASHBOARD.HERO_ROLE_SLIDE' | translate
+                "
                 [attr.data-test-id]="current ? 'dashboard-hero-slide' : null"
                 [attr.inert]="current ? null : ''"
                 [attr.data-hero-kind]="slide.kind"

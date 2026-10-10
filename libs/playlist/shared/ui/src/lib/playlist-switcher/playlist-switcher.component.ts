@@ -156,8 +156,9 @@ export class PlaylistSwitcherComponent {
         );
     });
     readonly displayTitle = computed(() => {
+        this.languageTick();
         if (!this.activePlaylistId()) {
-            return 'Select playlist';
+            return this.translate.instant('HOME.PLAYLISTS.SELECT_PLAYLIST');
         }
 
         return (
@@ -166,7 +167,7 @@ export class PlaylistSwitcherComponent {
             this.activePlaylist()?.filename ||
             this.activePlaylist()?.url ||
             this.activePlaylist()?.portalUrl ||
-            'Untitled playlist'
+            this.translate.instant('HOME.PLAYLISTS.UNTITLED_PLAYLIST')
         );
     });
 

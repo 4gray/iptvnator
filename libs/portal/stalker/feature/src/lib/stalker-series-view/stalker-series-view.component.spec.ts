@@ -57,7 +57,11 @@ describe('StalkerSeriesViewComponent', () => {
 
         expect(quickStartButton).not.toBeNull();
         expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
-        expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
+        // Regular series episodes have no names: the view labels them
+        // (the harness translates a key to itself).
+        expect(quickStartButton?.textContent).toContain(
+            'S01E01 · PORTALS.DETAIL.EPISODE_NUMBER'
+        );
 
         quickStartButton?.click();
         await fixture.whenStable();

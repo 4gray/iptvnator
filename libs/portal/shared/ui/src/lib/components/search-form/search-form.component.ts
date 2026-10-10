@@ -89,7 +89,8 @@ export interface SearchFilter {
 })
 export class SearchFormComponent {
     @ViewChild('searchInput') searchInput!: ElementRef;
-    @Input() placeholder = 'Search';
+    /** Empty means the generic "Search" label */
+    @Input() placeholder = '';
     @Input() filters: SearchFilters = {};
     @Input() filterConfig: SearchFilter[] = [];
     @Input() singleSelection = false; // Add this new input

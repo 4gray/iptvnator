@@ -2,56 +2,78 @@
     <div class="remote__body">
         <div class="now-card">
             <div class="now-card__top">
-                <div class="now-card__label">Now Playing</div>
+                <div class="now-card__label">
+                    {{ 'REMOTE_CONTROL.NOW_PLAYING' | translate }}
+                </div>
                 <div class="now-card__statusline">
                     <span class="status-dot" [class.is-active]="isReady"></span>
-                    <span>{{ isLoading ? 'Executing' : portalLabel }}</span>
+                    <span>{{
+                        (isLoading
+                            ? 'REMOTE_CONTROL.EXECUTING'
+                            : portalLabelKey
+                        ) | translate
+                    }}</span>
                 </div>
             </div>
             <div class="now-card__channel">
-                {{ status?.channelName || 'No live stream selected' }}
+                {{
+                    status?.channelName ||
+                        ('REMOTE_CONTROL.NO_STREAM' | translate)
+                }}
             </div>
             <div class="now-card__meta">
                 <span>
-                    @if (status?.channelNumber) {
-                        CH {{ status?.channelNumber }}
-                    } @else {
-                        CH -
-                    }
+                    {{ 'REMOTE_CONTROL.CHANNEL_ABBR' | translate }}
+                    {{ status?.channelNumber || '-' }}
                 </span>
-                <span>{{ status?.portal || 'unknown' }}</span>
+                <span>{{
+                    hasKnownPortal
+                        ? status?.portal
+                        : ('REMOTE_CONTROL.UNKNOWN_SOURCE' | translate)
+                }}</span>
             </div>
             <div class="now-card__program">
-                {{ status?.epgTitle || 'No current EPG program' }}
+                {{
+                    status?.epgTitle ||
+                        ('REMOTE_CONTROL.NO_PROGRAM' | translate)
+                }}
             </div>
         </div>
 
         @if (error) {
             <div class="remote__error">
-                {{ error }}
+                {{ error | translate }}
             </div>
         }
 
         <div class="cluster">
-            <div class="cluster__title">Channel Navigation</div>
+            <div class="cluster__title">
+                {{ 'REMOTE_CONTROL.CHANNEL_NAVIGATION' | translate }}
+            </div>
             <div class="touchpad__glass">
                 <button
                     class="touchpad__button touchpad__button--up"
                     (click)="changeChannelUp()"
                     [disabled]="isLoading"
                     [class.is-loading]="isLoading"
-                    aria-label="Channel Up"
+                    [attr.aria-label]="'REMOTE_CONTROL.UP_CHANNEL' | translate"
                 >
-                    <span>CH +</span>
+                    <span
+                        >{{ 'REMOTE_CONTROL.CHANNEL_ABBR' | translate }} +</span
+                    >
                 </button>
                 <button
                     class="touchpad__button touchpad__button--down"
                     (click)="changeChannelDown()"
                     [disabled]="isLoading"
                     [class.is-loading]="isLoading"
-                    aria-label="Channel Down"
+                    [attr.aria-label]="
+                        'REMOTE_CONTROL.DOWN_CHANNEL' | translate
+                    "
                 >
-                    <span>CH -</span>
+                    <span
+                        >{{ 'REMOTE_CONTROL.CHANNEL_ABBR' | translate }} -</span
+                    >
                 </button>
                 <div class="touchpad__center">
                     <span>{{ status?.channelNumber || '-' }}</span>
@@ -60,7 +82,9 @@
         </div>
 
         <div class="cluster">
-            <div class="cluster__title">Channel Number</div>
+            <div class="cluster__title">
+                {{ 'REMOTE_CONTROL.CHANNEL_NUMBER' | translate }}
+            </div>
             <div class="digit-display">{{ numericInput || '----' }}</div>
             <div class="keypad">
                 @for (digit of digits; track digit) {
@@ -77,14 +101,14 @@
                     (click)="backspaceDigit()"
                     [disabled]="isLoading"
                 >
-                    DEL
+                    {{ 'REMOTE_CONTROL.KEYPAD_DELETE' | translate }}
                 </button>
                 <button
                     class="keypad__key keypad__key--alt"
                     (click)="clearDigits()"
                     [disabled]="isLoading"
                 >
-                    CLR
+                    {{ 'REMOTE_CONTROL.KEYPAD_CLEAR' | translate }}
                 </button>
                 <button
                     class="keypad__key keypad__key--go"
@@ -97,32 +121,35 @@
         </div>
 
         <div class="cluster">
-            <div class="cluster__title">Volume</div>
+            <div class="cluster__title">
+                {{ 'REMOTE_CONTROL.VOLUME' | translate }}
+            </div>
             <div class="volume-row">
                 <button
                     class="volume-row__button"
                     (click)="volumeDown()"
                     [disabled]="isLoading || !status?.supportsVolume"
                 >
-                    VOL -
+                    {{ 'REMOTE_CONTROL.VOLUME_ABBR' | translate }} -
                 </button>
                 <button
                     class="volume-row__button volume-row__button--mute"
                     (click)="toggleMute()"
                     [disabled]="isLoading || !status?.supportsVolume"
                 >
-                    @if (status?.muted) {
-                        UNMUTE
-                    } @else {
-                        MUTE
-                    }
+                    {{
+                        (status?.muted
+                            ? 'REMOTE_CONTROL.UNMUTE'
+                            : 'REMOTE_CONTROL.MUTE'
+                        ) | translate
+                    }}
                 </button>
                 <button
                     class="volume-row__button"
                     (click)="volumeUp()"
                     [disabled]="isLoading || !status?.supportsVolume"
                 >
-                    VOL +
+                    {{ 'REMOTE_CONTROL.VOLUME_ABBR' | translate }} +
                 </button>
             </div>
             <div class="volume-meter">
@@ -135,22 +162,27 @@
                 @if (status?.supportsVolume) {
                     {{ volumePercent ?? 0 }}%
                 } @else {
-                    Volume control unavailable for this player mode
+                    {{ 'REMOTE_CONTROL.VOLUME_UNAVAILABLE' | translate }}
                 }
             </div>
         </div>
 
         <div class="remote__footer">
             @if (isStatusLoading) {
-                Syncing status...
+                {{ 'REMOTE_CONTROL.SYNCING_STATUS' | translate }}
             } @else if (status?.updatedAt) {
-                Updated
                 {{
-                    $safeNavigationMigration(status?.updatedAt)
-                        | date: 'HH:mm:ss'
+                    'REMOTE_CONTROL.UPDATED_AT'
+                        | translate
+                            : {
+                                  time:
+                                      ($safeNavigationMigration(
+                                          status?.updatedAt
+                                      ) | date: 'HH:mm:ss'),
+                              }
                 }}
             } @else {
-                Waiting for status...
+                {{ 'REMOTE_CONTROL.WAITING_FOR_STATUS' | translate }}
             }
         </div>
     </div>

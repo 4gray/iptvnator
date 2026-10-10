@@ -216,7 +216,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
         if (session?.status === 'error') {
             return (
-                session.error ??
+                session.error ||
                 this.translate.instant('EMBEDDED_MPV.PLAYER.PLAYBACK_FAILED')
             );
         }
@@ -230,7 +230,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
         if (!this.isSupported()) {
             return (
-                this.support()?.reason ??
+                this.support()?.reason ||
                 this.translate.instant('EMBEDDED_MPV.PLAYER.NOT_AVAILABLE')
             );
         }

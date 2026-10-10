@@ -12,7 +12,7 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { injectTranslationTick, normalizeDateLocale } from '@iptvnator/pipes';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
 
 /** Channel-like cards always keep their label: logos rarely identify them. */
@@ -21,7 +21,7 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
 @Component({
     selector: 'app-content-card',
     standalone: true,
-    imports: [DatePipe, MatIcon, MatIconButton, MatTooltip],
+    imports: [DatePipe, MatIcon, MatIconButton, MatTooltip, TranslatePipe],
     templateUrl: './content-card.component.html',
     styleUrl: './content-card.component.scss',
     host: { '[class.content-card--posters-only]': 'postersOnly()' },
@@ -47,8 +47,8 @@ export class ContentCardComponent {
     /** Whether to show the remove button */
     readonly showRemoveButton = input<boolean>(false);
 
-    /** Tooltip text for the remove button */
-    readonly removeTooltip = input<string>('Remove');
+    /** Tooltip text for the remove button; empty means the generic "Remove" */
+    readonly removeTooltip = input<string>('');
 
     /** Whether to show placeholder when no poster */
     readonly showPlaceholder = input<boolean>(true);

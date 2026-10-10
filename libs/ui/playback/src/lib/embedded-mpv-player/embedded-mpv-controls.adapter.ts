@@ -307,7 +307,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             return {
                 status: 'idle',
                 statusMessage:
-                    support.reason ??
+                    support.reason ||
                     this.translate.instant('EMBEDDED_MPV.PLAYER.NOT_AVAILABLE'),
             };
         }
@@ -364,7 +364,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
                 return {
                     status: 'error',
                     statusMessage:
-                        session.error ??
+                        session.error ||
                         this.translate.instant(
                             'EMBEDDED_MPV.PLAYER.PLAYBACK_FAILED'
                         ),
