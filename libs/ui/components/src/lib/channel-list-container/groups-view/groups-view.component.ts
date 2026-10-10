@@ -32,7 +32,7 @@ import {
 import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import {
     PlaylistChannelSortMode,
-    getPlaylistChannelSortModeLabel,
+    getPlaylistChannelSortModeLabelKey,
     persistPlaylistChannelSortMode,
     restorePlaylistChannelSortMode,
     sortPlaylistChannelItems,
@@ -210,8 +210,8 @@ export class GroupsViewComponent {
     readonly groupChannelSortMode = signal<PlaylistChannelSortMode>(
         restorePlaylistChannelSortMode(GROUP_CHANNEL_SORT_STORAGE_KEY)
     );
-    readonly groupChannelSortLabel = computed(() =>
-        getPlaylistChannelSortModeLabel(this.groupChannelSortMode())
+    readonly groupChannelSortLabelKey = computed(() =>
+        getPlaylistChannelSortModeLabelKey(this.groupChannelSortMode())
     );
     readonly hasSearchQuery = computed(
         () =>

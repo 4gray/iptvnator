@@ -427,10 +427,11 @@ export function withSelection() {
                  */
                 getSelectedCategory: computed(() => {
                     const categoryId = store.selectedCategoryId();
+                    // Every item: the view supplies the translated title.
                     if (!categoryId) {
                         return {
                             id: 0,
-                            name: 'All Items',
+                            name: '',
                             type: store.selectedContentType(),
                         };
                     }

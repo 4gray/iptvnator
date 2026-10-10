@@ -150,6 +150,24 @@ describe('StalkerCatalogFacadeService', () => {
         expect(service.selectedCategoryTitle()).toBe('Все категории');
     });
 
+    it('leaves the every-item title to the view while no category is selected', () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        const categoryId = stalkerStoreMock['selectedCategoryId'] as ReturnType<
+            typeof signal<string | null>
+        >;
+        (
+            stalkerStoreMock['getSelectedCategoryLabel'] as ReturnType<
+                typeof signal<StalkerCategoryLabel>
+            >
+        ).set({ name: 'News', labelKey: null });
+
+        expect(service.selectedCategoryTitle()).toBe('News');
+
+        categoryId.set(null);
+
+        expect(service.selectedCategoryTitle()).toBeNull();
+    });
+
     it('delegates category search query updates to the Stalker store', () => {
         const service = TestBed.inject(StalkerCatalogFacadeService);
 

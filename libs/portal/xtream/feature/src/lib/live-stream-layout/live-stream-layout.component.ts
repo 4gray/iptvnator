@@ -39,7 +39,7 @@ import {
     createLivePanelsController,
     PORTAL_PLAYER,
     PortalChannelSortMode,
-    getPortalChannelSortModeLabel,
+    getPortalChannelSortModeLabelKey,
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
@@ -104,6 +104,7 @@ import {
 } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
 import {
     XtreamLiveChannelNavigationService,
@@ -155,6 +156,7 @@ export class LiveStreamLayoutComponent
     private readonly router = inject(Router);
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly recordRecentItem = injectXtreamRecentHistory();
     readonly archiveContextKey = computed(() =>
         JSON.stringify([
             this.xtreamStore.currentPlaylist()?.id,
@@ -381,8 +383,8 @@ export class LiveStreamLayoutComponent
     readonly showReturnToLive = computed(
         () => this.activeCatchupProgram() !== null
     );
-    readonly liveChannelSortLabel = computed(() =>
-        getPortalChannelSortModeLabel(this.liveChannelSortMode())
+    readonly liveChannelSortLabelKey = computed(() =>
+        getPortalChannelSortModeLabelKey(this.liveChannelSortMode())
     );
     readonly liveRootItems = computed(
         () =>
@@ -394,10 +396,6 @@ export class LiveStreamLayoutComponent
     readonly liveRootItemCount = computed(
         () => this.xtreamStore.selectItemsFromSelectedCategory().length
     );
-    readonly liveRootSubtitle = computed(() => {
-        const count = this.liveRootItemCount();
-        return `${count} ${count === 1 ? 'channel' : 'channels'}`;
-    });
     readonly liveRootHasMore = this.xtreamStore.hasMoreContent;
 
     readonly selectedCategoryInfo = computed(() => {
@@ -413,8 +411,9 @@ export class LiveStreamLayoutComponent
         );
         const count = this.categoryItemCounts()?.get(categoryId) ?? 0;
 
+        // A null name falls back to a translated label in the template.
         return {
-            name: category?.category_name ?? category?.name ?? 'Channels',
+            name: category?.category_name ?? category?.name ?? null,
             count,
         };
     });
@@ -694,6 +693,15 @@ export class LiveStreamLayoutComponent
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
         });
+        if (startPlayback && streamUrl) {
+            this.recordRecentItem(
+                streamUrl,
+                { xtreamId: item.xtream_id, contentType: 'live' },
+                this.usesEmbeddedPlayer()
+                    ? this.playbackSessionKey()
+                    : undefined
+            );
+        }
         if (this.usesEmbeddedPlayer() || !startPlayback) {
             return;
         }

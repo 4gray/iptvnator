@@ -1103,10 +1103,11 @@ export function withStalkerContent() {
                 ),
                 getSelectedCategory: computed(() => {
                     const categoryId = storeContext.selectedCategoryId();
+                    // Every item: the view supplies the translated title.
                     if (!categoryId) {
                         return {
                             id: 0,
-                            category_name: 'All Items',
+                            category_name: '',
                             type: storeContext.selectedContentType(),
                         };
                     }

@@ -32,7 +32,7 @@
                         {{
                             item.category_name ||
                                 $any(item).name ||
-                                'No category name'
+                                ('PORTALS.UNNAMED_CATEGORY' | translate)
                         }}
                     }
                 </span>
@@ -67,7 +67,7 @@
 } @else {
     <div class="category-empty-state">
         <app-workspace-context-error-view
-            [title]="'No categories available'"
+            [title]="'PORTALS.NO_CATEGORIES' | translate"
             [showIllustration]="false"
             [showActionButtons]="false"
             [viewType]="'EMPTY_CATEGORY'"

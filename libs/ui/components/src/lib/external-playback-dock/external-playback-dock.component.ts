@@ -12,7 +12,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
+import {
+    EXTERNAL_PLAYER_ERROR_KEYS,
+    ExternalPlayerSession,
+} from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 
@@ -67,7 +70,9 @@ export class ExternalPlaybackDockComponent {
             case 'playing':
                 return 'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_PLAYING';
             case 'error':
-                return 'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_FAILED';
+                return session.errorCode
+                    ? EXTERNAL_PLAYER_ERROR_KEYS[session.errorCode]
+                    : 'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_FAILED';
             default:
                 return 'WORKSPACE.SHELL.EXTERNAL_PLAYBACK_CLOSED';
         }

@@ -205,6 +205,8 @@ export interface XtreamMainCaptureResult {
 }
 
 type MainCaptureStopTransport = XtreamMainCaptureTransport;
+type MainCaptureWorkerTransport =
+    MainCaptureGenerationTransport['workers'][number];
 
 export async function installMainCapture(
     electronApp: ElectronApplication
@@ -1897,7 +1899,7 @@ export async function installMainCapture(
                             record.kind === 'database.worker' ||
                             record.kind === 'playlist-refresh.worker'
                     )
-                    .map((record) => ({
+                    .map((record): MainCaptureWorkerTransport => ({
                         captureGeneration: record.captureGeneration,
                         metrics: {
                             cancelPostedEpochMs: record.cancelPostedEpochMs,

@@ -56,7 +56,10 @@ describe('WorkspaceShellSearchService on settings routes', () => {
                 { provide: Router, useValue: { navigate: jest.fn() } },
                 {
                     provide: XtreamStore,
-                    useValue: { getSelectedCategory: () => null },
+                    useValue: {
+                        getSelectedCategory: () => null,
+                        selectedCategoryId: () => null,
+                    },
                 },
                 {
                     provide: StalkerStore,

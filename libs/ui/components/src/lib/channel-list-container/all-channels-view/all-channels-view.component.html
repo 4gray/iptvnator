@@ -7,8 +7,11 @@
                 mat-icon-button
                 class="all-channels-sort-button"
                 [matMenuTriggerFor]="channelSortMenu"
-                [matTooltip]="'Sort: ' + allChannelsSortLabel()"
-                aria-label="Sort channels"
+                [matTooltip]="
+                    ('WORKSPACE.SORT_LABEL' | translate) +
+                    (allChannelsSortLabelKey() | translate)
+                "
+                [attr.aria-label]="'CHANNELS.SORT_CHANNELS' | translate"
             >
                 <mat-icon>sort_by_alpha</mat-icon>
             </button>
@@ -27,21 +30,21 @@
         <mat-menu #channelSortMenu="matMenu">
             <button mat-menu-item (click)="setAllChannelsSortMode('server')">
                 <mat-icon>drag_indicator</mat-icon>
-                <span>Playlist Order</span>
+                <span>{{ 'CHANNELS.SORT_PLAYLIST_ORDER' | translate }}</span>
                 @if (allChannelsSortMode() === 'server') {
                     <mat-icon>check</mat-icon>
                 }
             </button>
             <button mat-menu-item (click)="setAllChannelsSortMode('name-asc')">
                 <mat-icon>sort_by_alpha</mat-icon>
-                <span>Name A-Z</span>
+                <span>{{ 'WORKSPACE.SORT_NAME_ASC' | translate }}</span>
                 @if (allChannelsSortMode() === 'name-asc') {
                     <mat-icon>check</mat-icon>
                 }
             </button>
             <button mat-menu-item (click)="setAllChannelsSortMode('name-desc')">
                 <mat-icon>sort_by_alpha</mat-icon>
-                <span>Name Z-A</span>
+                <span>{{ 'WORKSPACE.SORT_NAME_DESC' | translate }}</span>
                 @if (allChannelsSortMode() === 'name-desc') {
                     <mat-icon>check</mat-icon>
                 }

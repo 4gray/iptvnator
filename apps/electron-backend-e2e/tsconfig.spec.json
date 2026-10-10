@@ -7,5 +7,5 @@
         "lib": ["es2022", "dom"],
         "types": ["node"]
     },
-    "include": ["src/performance/*journey*.ts", "src/journeys/**/*.ts"]
+    "include": ["src/**/*.ts", "*.ts"]
 }

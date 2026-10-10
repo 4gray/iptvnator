@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'child_process';
+import { tagExternalPlayerError } from '@iptvnator/shared/interfaces';
 
 const TERMINATION_GRACE_PERIOD_MS = 3_000;
 const FORCED_TERMINATION_WAIT_MS = 2_000;
@@ -7,8 +8,10 @@ interface TerminateExternalPlayerProcessOptions {
     sendTerminationSignal?: boolean;
 }
 
-const EXTERNAL_PLAYER_TEARDOWN_PENDING_ERROR =
-    'Cannot launch player because the previous external player is still shutting down';
+const EXTERNAL_PLAYER_TEARDOWN_PENDING_ERROR = tagExternalPlayerError(
+    'previous-closing',
+    'Cannot launch player because the previous external player is still shutting down'
+);
 
 /**
  * Serializes replacement launches against exact children whose exit has not

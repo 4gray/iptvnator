@@ -330,7 +330,10 @@ export class SerialDetailsMenuService {
             if (!content?.id) {
                 return;
             }
-            await this.dataSource.removeRecentItem(content.id, playlistId);
+            await this.dataSource.removeRecentItem(
+                { id: content.id, type: 'series' },
+                playlistId
+            );
             // The refreshed list drops the row, and brings it back once the
             // series is played again.
             this.xtreamStore.loadRecentItems({ id: playlistId });

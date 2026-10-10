@@ -63,10 +63,9 @@ whose types drifted from the code it exercises. CI runs it in the
   the harness's `import.meta`, BigInt literals and ES2022 library names. It
   also sets `types: ["node"]`: the specs import `describe` and `it` from
   `node:test`, so a Jest or Mocha global fails the check. Its `include` covers
-  the journey harness (`src/performance/*journey*.ts` and `src/journeys/**`);
-  the older benchmark files and the Electron E2E specs still have type errors,
-  so widen the `include` as they are fixed instead of adding a baseline or an
-  ignore list.
+  the whole project (`src/**/*.ts` and the root Playwright configs): the
+  journey harness, the benchmark harness and its specs, and the Electron E2E
+  specs, with no baseline or ignore list.
 - Type test doubles instead of casting to `any`: `jest.Mocked<T>`,
   `InstanceType<typeof SomeStore>` for signal stores, and
   `Object.defineProperty` or a writable mapped type for read-only capability
@@ -258,7 +257,8 @@ pnpm run coverage:e2e:v8:web
 
 ```bash
 pnpm run i18n:validate          # checker unit tests, then the check (CI)
-pnpm run i18n:check             # the check only
+pnpm run i18n:check             # the check only: locale drift, then key usage
+pnpm run i18n:usage             # key usage only
 pnpm run i18n:baseline:update   # deliberate: rewrite the English-identical baseline
 ```
 
@@ -281,8 +281,20 @@ that is legitimately identical in that language; review the diff, and never
 run it in CI. A new locale starts with no baseline entries, so it has to
 record its legitimate identical values the same way.
 `node tools/i18n/check-drift.mjs --fail-on-identical` ignores the baseline for
-a full translation audit. CI runs `pnpm run i18n:validate` in the unit test
-job.
+a full translation audit.
+
+The usage check (`tools/i18n/check-usage.mjs`) fails on a key that renderer
+code uses but `en.json` lacks, because ngx-translate shows such a key raw. It
+reads production `.ts` and `.html` files under `apps/web/src`,
+`apps/remote-control-web/src` and `libs`, without comments, and treats as a
+use: a quoted key before `| translate`, or a ternary or fallback branch of a
+parenthesised operand before it; the first argument of `instant`, `get`
+or `stream` on a translate service, or of a function named like `translate*`,
+`marker` or `t`; and a dotted upper-case literal in an `en.json` namespace,
+which may also name a group of keys that code completes. The static prefix of
+a template literal such as `` `EPG.DIALOG.${name}` `` must name a group. Keys
+built entirely at runtime are not checked. CI runs `pnpm run i18n:validate` in
+the unit test job.
 
 ## Performance
 
@@ -318,7 +330,7 @@ written to the same summary file; its probe specs run with
 `pnpm nx run electron-backend-e2e:test-performance-harness`, which CI runs in
 the `Unit Tests and Typechecks` job of `ci.yml` on every run. `tsx` runs them
 without type checking; `pnpm run typecheck:spec electron-backend-e2e` checks
-the journey harness (see Unit And Type Checks). The
+the whole project, those specs included (see Unit And Type Checks). The
 `electron-backend-e2e` command targets call `tsx` and `playwright` directly,
 not through `pnpm exec`: under `pnpm nx`, a nested `pnpm exec` can run from the
 workspace root instead of the target `cwd` and miss cwd-relative specs, globs

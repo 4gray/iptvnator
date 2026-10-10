@@ -458,7 +458,9 @@ async function waitForRemoteStatus(
     port: number,
     predicate: (status: RemoteControlStatus) => boolean
 ): Promise<RemoteControlStatus> {
-    let latestStatus: RemoteControlStatus | null = null;
+    // Typed through an assertion so the poll callback's writes stay visible
+    // to the return below instead of narrowing to the initial null.
+    let latestStatus = null as RemoteControlStatus | null;
 
     try {
         await expect
@@ -479,7 +481,10 @@ async function waitForRemoteStatus(
         );
     }
 
-    return latestStatus as RemoteControlStatus;
+    if (!latestStatus) {
+        throw new Error('Remote status poll passed without a status payload');
+    }
+    return latestStatus;
 }
 
 async function getRemoteStatus(

@@ -10,7 +10,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { DialogService } from '@iptvnator/ui/components';
@@ -214,6 +214,29 @@ describe('PlaylistSwitcherComponent', () => {
             value: originalElectron,
         });
         jest.restoreAllMocks();
+    });
+
+    it('labels each playlist row with translated text', async () => {
+        await createComponent();
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            HOME: { PLAYLISTS: { CHANNELS_COUNT: '{{count}} channels' } },
+            WORKSPACE: {
+                SHELL: {
+                    STALKER_PORTAL: 'Stalker Portal',
+                    XTREAM_CODE: 'Xtream Code',
+                },
+            },
+        });
+        translate.use('en');
+
+        expect(component.getPlaylistMetaLabel(m3uPlaylist)).toBe('24 channels');
+        expect(component.getPlaylistMetaLabel(stalkerPlaylist)).toBe(
+            'Stalker Portal'
+        );
+        expect(component.getPlaylistMetaLabel(xtreamPlaylist)).toBe(
+            'Xtream Code'
+        );
     });
 
     it('reads persisted search and type filters on startup and filters playlists accordingly', async () => {

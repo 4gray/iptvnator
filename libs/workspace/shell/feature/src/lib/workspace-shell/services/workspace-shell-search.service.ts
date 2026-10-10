@@ -155,7 +155,10 @@ export class WorkspaceShellSearchService {
                 context,
                 section,
                 translate: (key, params) => this.translateText(key, params),
-                xtreamCategory: this.xtreamStore.getSelectedCategory(),
+                // No selected category means the grid lists every item.
+                xtreamCategory: this.xtreamStore.selectedCategoryId()
+                    ? this.xtreamStore.getSelectedCategory()
+                    : { name: this.translateText('PORTALS.ALL_ITEMS') },
                 // This computed reads the language tick, so the every-item
                 // genre is translated in the current language.
                 stalkerCategoryName: stalkerCategoryLabelText(

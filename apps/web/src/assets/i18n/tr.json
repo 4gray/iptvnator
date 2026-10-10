@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Xtream oynatma listesi",
             "STALKER_PORTAL": "Stalker portalı",
             "CHANNELS": "Kanallar",
+            "CHANNELS_COUNT": "{{count}} kanal",
             "ADDED": "Eklendi",
             "SHOW_DETAILS": "Oynatma listesi ayrıntılarını göster",
             "REMOVE": "Oynatma listesini kaldır",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "MAC adresi",
                 "PLAYLIST_EXPORT_SUCCESS": "Oynatma listesi başarıyla dışa aktarıldı.",
                 "PLAYLIST_EXPORT_ERROR": "Hata: Oynatma listesi dışa aktarılamadı.",
+                "EXPORT_PLAYLIST_FAILED": "Oynatma listesi dışa aktarılamadı.",
                 "COPY_URL": "URL'yi panoya kopyala",
                 "URL_COPIED": "URL panoya kopyalandı"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "Güncellendi",
             "REFRESH": "Oynatma listesini yenile",
+            "REFRESH_FETCHING": "Oynatma listesi alınıyor…",
+            "REFRESH_READING_FILE": "Oynatma listesi dosyası okunuyor…",
+            "REFRESH_PARSING": "Oynatma listesi ayrıştırılıyor…",
+            "REFRESH_SAVING": "Oynatma listesi kaydediliyor…",
             "REFRESH_XTREAM": "Xtream oynatma listesini uzaktan yenile",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "Xtream Oynatma Listesini Yenile",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "tüm oynatma listeleri",
             "PLAYLIST_UPDATE_SUCCESS": "Başarılı! Oynatma listesi başarıyla güncellendi.",
             "PLAYLIST_UPDATE_ERROR": "Oynatma listesi ayrıntıları güncellenirken hata oluştu.",
+            "PLAYLIST_UPDATE_FAILED": "Oynatma listesi güncellenemedi.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Oynatma listesi yenileme başarısız oldu. Yerel dosya artık kullanılabilir değil. Dosya yolunu kontrol edin veya oynatma listesini yeniden içe aktarın.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Oynatma listesi yenileme başarısız oldu. Uygulama artık yerel dosyaya erişemiyor.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Başarılı! Oynatma listeleri başarıyla güncellendi",
@@ -166,6 +173,7 @@
             "ERROR_403": "Erişim reddedildi (403): Sunucu isteği reddetti. URL kimlik doğrulama gerektiriyor olabilir veya oynatma listesi kısıtlanmış olabilir.",
             "ERROR_404": "Oynatma listesi bulunamadı (404): URL geçerli bir oynatma listesine işaret etmiyor. Lütfen URL'yi kontrol edin.",
             "ERROR_401": "Yetkisiz (401): Bu oynatma listesine erişmek için kimlik doğrulama gerekiyor.",
+            "ERROR_413": "Bu dosya çok büyük. Uygulamanın bağımsız veya kendi sunucunuzda barındırılan sürümünü kullanın.",
             "ERROR_INVALID_TLS": "Bu oynatma listesi ana bilgisayarının sertifikası geçersiz.",
             "ERROR_TLS_HOST_UNKNOWN": "Oynatma listesi ana bilgisayarı belirlenemedi. Lütfen el ile yeniden deneyin.",
             "TRUST_TLS_HOST": "Ana bilgisayara güven",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "İçe aktar",
         "EXPORT_DATA": "Dışa aktar",
         "EXPORTING_DATA": "Dışa aktarılıyor…",
+        "BACKUP_EXPORTED": "Oynatma listesi yedeği dışa aktarıldı.",
+        "BACKUP_EXPORT_FAILED": "Oynatma listesi yedeği dışa aktarılamadı.",
         "REMOVE_ALL": "Tüm oynatma listelerini ve oynatma listesi verilerini sil",
         "REMOVE_ALL_BUTTON": "Tümünü sil",
         "REMOVE_ALL_DESCRIPTION": "Uygulamada saklanan tüm M3U, Xtream ve Stalker oynatma listelerini silin.",
@@ -483,6 +493,7 @@
             "CONFIRM": "Her şeyi sil"
         },
         "IMPORT_ERROR": "İçe aktarma hatası, lütfen başka bir dosyayla deneyin.",
+        "BACKUP_IMPORT_SUMMARY": "Yedek içe aktarma tamamlandı: {{imported}} içe aktarıldı, {{merged}} birleştirildi, {{skipped}} atlandı, {{failed}} başarısız.",
         "PLAYLISTS_REMOVED": "Tüm oynatma listeleri ve oynatma listesi verileri kaldırıldı.",
         "MPV_PLAYER_PATH_LABEL": "mpv yolu",
         "MPV_PLAYER_PATH_DESCRIPTION": "MPV yolunu ayarlayın. macOS’ta /Applications/mpv.app gibi MPV uygulama paketini veya yürütülebilir dosya yolunu kullanabilirsiniz.",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "Sonraki istasyon",
         "MUTE": "Sesi kapat",
         "UNMUTE": "Sesi aç",
-        "VOLUME": "Ses seviyesi"
+        "VOLUME": "Ses seviyesi",
+        "RADIO": "Radyo",
+        "PAUSED_BADGE": "DURAKLATILDI"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -850,6 +863,9 @@
         "SORT_BY_DATE": "Eklenme tarihine göre sırala (Önce En Yeni)",
         "SORT_BY_RATING": "Puana göre sırala",
         "SORT_BY_NAME": "İsme göre sırala (A-Z)",
+        "SORT_CHANNELS": "Kanalları sırala",
+        "SORT_SERVER_ORDER": "Sunucu sıralaması",
+        "SORT_PLAYLIST_ORDER": "Oynatma listesi sıralaması",
         "LOAD_MORE": "Daha fazla yükle",
         "REMAINING": "kalan",
         "LOADING": "Kanallar yükleniyor...",
@@ -1132,6 +1148,7 @@
         "DURATION": "Süre",
         "CAST": "Oyuncular",
         "EPISODE_RUN_TIME": "Bölüm süresi",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}} dk/bölüm",
         "RATING": "Değerlendirme",
         "IMDB_RATING": "IMDb puanı",
         "KINOPOISK_RATING": "Kinopoisk puanı",
@@ -1213,8 +1230,10 @@
             "SEARCH_PLACEHOLDER": "Kategorileri ara...",
             "NO_RESULTS": "Eşleşen kategori bulunamadı",
             "NO_CATEGORIES": "Kategori mevcut değil",
-            "SAVE": "Kaydet"
-        }
+            "SAVE": "Kaydet",
+            "SAVE_FAILED": "Kategori görünürlüğü kaydedilemedi"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "{{playlists}} oynatma listesinde {{count}} öğe bulundu"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1223,6 +1242,10 @@
             "RETRY": "Şimdi yeniden dene"
         },
         "ALL_CATEGORIES": "Tüm kategoriler",
+        "ALL_ITEMS": "Tüm öğeler",
+        "UNNAMED_CATEGORY": "İsimsiz kategori",
+        "NO_CATEGORIES": "Kategori mevcut değil",
+        "UNTITLED": "Adsız",
         "MY_FAVORITES": "Favorilerim",
         "ADD_TO_FAVORITES": "Favorilere ekle",
         "REMOVE_FROM_FAVORITES": "Favorilerden kaldır",
@@ -1422,6 +1445,16 @@
             "TRAILER_UNMUTE": "Fragman sesini aç",
             "PROGRESS_RESET": "İlerleme sıfırlandı",
             "HIDDEN_FROM_CONTINUE_WATCHING": "“İzlemeye devam et”ten gizlendi"
+        },
+        "SCROLL_LEFT": "Sola kaydır",
+        "SCROLL_RIGHT": "Sağa kaydır",
+        "EPISODE_NAVIGATION": "Bölüm gezinmesi",
+        "INLINE_PLAYER": "Oynatıcı",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Xtream isteği başarısız oldu: {{message}}",
+            "XTREAM_CONNECTION": "Xtream sunucusuna bağlanılamadı",
+            "STALKER": "Stalker isteği başarısız oldu: {{message}} (durum {{status}})",
+            "NOT_FOUND": "Bulunamadı"
         }
     },
     "INFORMATION": "Bilgi",
@@ -1673,6 +1706,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "Oynatma listesinde aç",
             "RAIL_ALL_CHANNELS": "Tüm kanallar",
             "RAIL_GROUPS": "Gruplar",
             "RAIL_CONTEXT_ACTIONS": "Bölüm eylemleri",
@@ -2015,5 +2049,28 @@
         "UNLOCK_TO_SHOW": "Göstermek için PIN girin",
         "HEADER_LOCK": "Şimdi kilitle (ebeveyn kilidi)",
         "HEADER_UNLOCK": "Ebeveyn PIN'ini gir"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "{{player}} ile açılıyor…",
+        "STOP": "{{player}} oynatıcısını durdur",
+        "ERRORS": {
+            "START_FAILED": "{{player}} başlatılamadı. Kurulu olduğundan ve Ayarlar’daki yolunun doğru olduğundan emin olun.",
+            "PREVIOUS_CLOSING": "Önceki oynatıcı hâlâ kapanıyor. Birazdan tekrar deneyin.",
+            "CLOSED_UNEXPECTEDLY": "{{player}} beklenmedik şekilde kapandı.",
+            "STREAM_OPEN_FAILED": "{{player}} yayını açamadı. URL geçersiz olabilir veya sunucu yanıt vermiyor.",
+            "UNSUPPORTED_PROTOCOL": "{{player}} bu yayın protokolünü desteklemiyor. Yayın URL’sini kontrol edin.",
+            "CONNECTION_FAILED": "{{player}} yayın sunucusuna bağlanamıyor. İnternet bağlantınızı kontrol edin.",
+            "ACCESS_DENIED": "Erişim reddedildi. Yayın geçerli kimlik bilgileri veya başlıklar gerektirebilir.",
+            "STREAM_NOT_FOUND": "Yayın bulunamadı. URL yanlış olabilir veya süresi dolmuş olabilir.",
+            "TIMED_OUT": "Bağlantı zaman aşımına uğradı. Sunucu yanıt vermiyor.",
+            "LAUNCH_FAILED": "{{player}} başlatılamadı.",
+            "UNKNOWN": "{{player}} hatası: {{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "Video harici oynatıcı penceresinde oynatılıyor.",
+            "INSTALL_HINT": "MPV veya VLC’nin sisteminizde doğru şekilde kurulu olduğundan emin olun.",
+            "INSTALL_INSTRUCTIONS": "Kurulum talimatları",
+            "DONT_SHOW_AGAIN": "Bir daha gösterme"
+        }
     }
 }

@@ -567,6 +567,7 @@
         "XTREAM.YOUTUBE_TRAILER": "YouTube Trailer"
     },
     "es": {
+        "AUDIO_PLAYER.RADIO": "Radio",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
         "CHANNELS.DETAILS_DIALOG.HTTP_USER_AGENT": "User-Agent",
@@ -696,6 +697,7 @@
     "fr": {
         "ABOUT.VERSION": "Version",
         "AUDIO_PLAYER.PAUSE": "Pause",
+        "AUDIO_PLAYER.RADIO": "Radio",
         "AUDIO_PLAYER.VOLUME": "Volume",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
@@ -968,6 +970,7 @@
         "XTREAM.SERIES_STATUS_PILOT": "Pilot"
     },
     "it": {
+        "AUDIO_PLAYER.RADIO": "Radio",
         "AUDIO_PLAYER.VOLUME": "Volume",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
@@ -1329,6 +1332,7 @@
         "YES": "Yes"
     },
     "nl": {
+        "AUDIO_PLAYER.RADIO": "Radio",
         "AUDIO_PLAYER.VOLUME": "Volume",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
@@ -1495,6 +1499,7 @@
         "XTREAM.YOUTUBE_TRAILER": "YouTube Trailer"
     },
     "pl": {
+        "AUDIO_PLAYER.RADIO": "Radio",
         "CHANNELS.DETAILS_DIALOG.HTTP_ORIGIN": "Origin",
         "CHANNELS.DETAILS_DIALOG.HTTP_REFERRER": "Referrer",
         "CHANNELS.DETAILS_DIALOG.HTTP_USER_AGENT": "User-Agent",

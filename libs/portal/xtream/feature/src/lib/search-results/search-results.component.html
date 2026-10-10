@@ -105,8 +105,15 @@
                 <!-- Grouped by playlist -->
                 <div class="playlist-section">
                     <h2 class="section-title">
-                        Found {{ xtreamStore.searchResults().length }} items
-                        across {{ groupedResults().length }} playlists
+                        {{
+                            'XTREAM.GLOBAL_SEARCH_SUMMARY'
+                                | translate
+                                    : {
+                                          count: xtreamStore.searchResults()
+                                              .length,
+                                          playlists: groupedResults().length,
+                                      }
+                        }}
                     </h2>
                     @for (group of groupedResults(); track group.playlistId) {
                         <div class="playlist-group">
@@ -114,7 +121,14 @@
                                 <mat-icon>playlist_play</mat-icon>
                                 {{ group.playlistName }}
                                 <span class="item-count"
-                                    >({{ group.items.length }} items)</span
+                                    >({{
+                                        (group.items.length === 1
+                                            ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
+                                            : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER'
+                                        )
+                                            | translate
+                                                : { count: group.items.length }
+                                    }})</span
                                 >
                             </h3>
                             <div class="results-grid">

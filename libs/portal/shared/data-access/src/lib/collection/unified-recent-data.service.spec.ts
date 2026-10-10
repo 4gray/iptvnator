@@ -305,7 +305,7 @@ describe('UnifiedRecentDataService', () => {
             'movie'
         );
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-            290,
+            { id: 290, type: 'movie' },
             'xtream-1'
         );
         expect(dbService.addRecentItem).not.toHaveBeenCalled();
@@ -335,7 +335,7 @@ describe('UnifiedRecentDataService', () => {
         } satisfies UnifiedCollectionItem);
 
         expect(xtreamDataSource.removeRecentItem).toHaveBeenCalledWith(
-            444,
+            { id: 444, type: 'movie' },
             'xtream-1'
         );
         expect(dbService.removeRecentItem).not.toHaveBeenCalled();

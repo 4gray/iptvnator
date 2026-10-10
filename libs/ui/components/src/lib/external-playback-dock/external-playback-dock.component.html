@@ -11,7 +11,12 @@
             artworkInteractive()
         "
         [disabled]="!artworkInteractive()"
-        [attr.aria-label]="artworkInteractive() ? 'Open in playlist' : null"
+        [attr.aria-label]="
+            artworkInteractive()
+                ? ('WORKSPACE.SHELL.EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST'
+                  | translate)
+                : null
+        "
         (click)="onArtworkClick()"
     >
         @if (showArtwork()) {
@@ -52,12 +57,13 @@
                     >{{ statusIcon() }}</mat-icon
                 >
             }
-            <span class="external-playback-dock__status-text">
-                @if (session().status === 'error' && session().error) {
-                    {{ session().error }}
-                } @else {
-                    {{ statusLabelKey() | translate }}
-                }
+            <span
+                class="external-playback-dock__status-text"
+                [attr.title]="
+                    session().status === 'error' ? session().error : null
+                "
+            >
+                {{ statusLabelKey() | translate: { player: playerLabel() } }}
             </span>
         </div>
     </div>

@@ -8,17 +8,18 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslatePipe } from '@ngx-translate/core';
 import type { SeriesPlaybackNavigation } from './series-playback-navigation';
 
 @Component({
     selector: 'app-series-playback-navigation-controls',
-    imports: [MatButtonModule, MatIconModule, MatTooltipModule],
+    imports: [MatButtonModule, MatIconModule, MatTooltipModule, TranslatePipe],
     template: `
         @if (navigation()) {
             <nav
                 class="series-playback-navigation-controls"
                 data-test-id="series-playback-navigation-controls"
-                aria-label="Series episode navigation"
+                [attr.aria-label]="'PORTALS.EPISODE_NAVIGATION' | translate"
             >
                 <button
                     mat-icon-button
@@ -27,8 +28,12 @@ import type { SeriesPlaybackNavigation } from './series-playback-navigation';
                     data-test-id="series-playback-previous-episode"
                     [disabled]="!canPrevious()"
                     (click)="requestPreviousEpisode()"
-                    aria-label="Previous episode"
-                    matTooltip="Previous episode"
+                    [attr.aria-label]="
+                        'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE' | translate
+                    "
+                    [matTooltip]="
+                        'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE' | translate
+                    "
                     matTooltipPosition="above"
                 >
                     <mat-icon>skip_previous</mat-icon>
@@ -41,8 +46,12 @@ import type { SeriesPlaybackNavigation } from './series-playback-navigation';
                     data-test-id="series-playback-next-episode"
                     [disabled]="!canNext()"
                     (click)="requestNextEpisode()"
-                    aria-label="Next episode"
-                    matTooltip="Next episode"
+                    [attr.aria-label]="
+                        'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
+                    "
+                    [matTooltip]="
+                        'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
+                    "
                     matTooltipPosition="above"
                 >
                     <mat-icon>skip_next</mat-icon>

@@ -63,6 +63,7 @@
             "XTREAM_PLAYLIST": "Xtream afspeellijst",
             "STALKER_PORTAL": "Stalker portal",
             "CHANNELS": "Kanalen",
+            "CHANNELS_COUNT": "Kanalen: {{count}}",
             "ADDED": "Toegevoegd",
             "SHOW_DETAILS": "Toon afspeellijstdetails",
             "REMOVE": "Verwijder afspeellijst",
@@ -89,6 +90,7 @@
                 "MAC_ADDRESS": "MAC-adres",
                 "PLAYLIST_EXPORT_SUCCESS": "Afspeellijst succesvol geëxporteerd.",
                 "PLAYLIST_EXPORT_ERROR": "Fout: exporteren van afspeellijst mislukt.",
+                "EXPORT_PLAYLIST_FAILED": "Exporteren van afspeellijst mislukt.",
                 "COPY_URL": "URL naar klembord kopiëren",
                 "URL_COPIED": "URL naar klembord gekopieerd"
             },
@@ -107,6 +109,10 @@
             },
             "UPDATED": "Bijgewerkt",
             "REFRESH": "Afspeellijst vernieuwen",
+            "REFRESH_FETCHING": "Afspeellijst ophalen…",
+            "REFRESH_READING_FILE": "Afspeellijstbestand lezen…",
+            "REFRESH_PARSING": "Afspeellijst verwerken…",
+            "REFRESH_SAVING": "Afspeellijst opslaan…",
             "REFRESH_XTREAM": "Xtream-afspeellijst vernieuwen vanaf de server",
             "REFRESH_XTREAM_DIALOG": {
                 "TITLE": "Xtream-afspeellijst vernieuwen",
@@ -124,6 +130,7 @@
             "MY_PLAYLISTS_SUBTITLE": "Alle beschikbare afspeellijsten",
             "PLAYLIST_UPDATE_SUCCESS": "De afspeellijst is succesvol bijgewerkt.",
             "PLAYLIST_UPDATE_ERROR": "Fout bij het bijwerken van de afspeellijst.",
+            "PLAYLIST_UPDATE_FAILED": "De afspeellijst kon niet worden bijgewerkt.",
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Vernieuwen van afspeellijst mislukt. Het lokale bestand is niet meer beschikbaar. Controleer het bestandspad of importeer de afspeellijst opnieuw.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Vernieuwen van afspeellijst mislukt. De app heeft geen toegang meer tot het lokale bestand.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Gelukt! De afspeellijsten zijn succesvol bijgewerkt",
@@ -166,6 +173,7 @@
             "ERROR_403": "Toegang geweigerd (403): de server heeft het verzoek geweigerd. De URL vereist mogelijk authenticatie of de afspeellijst is beperkt.",
             "ERROR_404": "Afspeellijst niet gevonden (404): de URL verwijst niet naar een geldige afspeellijst. Controleer de URL.",
             "ERROR_401": "Niet geautoriseerd (401): authenticatie is vereist om deze afspeellijst te openen.",
+            "ERROR_413": "Dit bestand is te groot. Gebruik de zelfstandige of zelfgehoste versie van de app.",
             "ERROR_INVALID_TLS": "Het certificaat voor deze afspeellijsthost is ongeldig.",
             "ERROR_TLS_HOST_UNKNOWN": "Kan de afspeellijsthost niet bepalen. Probeer het handmatig opnieuw.",
             "TRUST_TLS_HOST": "Host vertrouwen",
@@ -466,6 +474,8 @@
         "IMPORT_DATA": "Importeren",
         "EXPORT_DATA": "Exporteren",
         "EXPORTING_DATA": "Exporteren…",
+        "BACKUP_EXPORTED": "Back-up van afspeellijsten geëxporteerd.",
+        "BACKUP_EXPORT_FAILED": "Exporteren van back-up van afspeellijsten mislukt.",
         "REMOVE_ALL": "Alle afspeellijsten en afspeellijstgegevens verwijderen",
         "REMOVE_ALL_BUTTON": "Alles verwijderen",
         "REMOVE_ALL_DESCRIPTION": "Verwijder elke M3U-, Xtream- en Stalker-afspeellijst die in de app is opgeslagen.",
@@ -483,6 +493,7 @@
             "CONFIRM": "Alles verwijderen"
         },
         "IMPORT_ERROR": "Fout bij importeren, probeer een ander bestand.",
+        "BACKUP_IMPORT_SUMMARY": "Back-up importeren voltooid: {{imported}} geïmporteerd, {{merged}} samengevoegd, {{skipped}} overgeslagen, {{failed}} mislukt.",
         "PLAYLISTS_REMOVED": "Alle afspeellijsten en afspeellijstgegevens zijn verwijderd.",
         "MPV_PLAYER_PATH_LABEL": "mpv-pad",
         "MPV_PLAYER_PATH_DESCRIPTION": "Stel het pad naar MPV in. Op macOS kun je de MPV-appbundel gebruiken, zoals /Applications/mpv.app, of het pad naar het uitvoerbare bestand.",
@@ -623,7 +634,9 @@
         "NEXT_STATION": "Volgende zender",
         "MUTE": "Dempen",
         "UNMUTE": "Dempen opheffen",
-        "VOLUME": "Volume"
+        "VOLUME": "Volume",
+        "RADIO": "Radio",
+        "PAUSED_BADGE": "PAUZE"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
@@ -850,6 +863,9 @@
         "SORT_BY_DATE": "Sorteren op datum toegevoegd (Nieuwste eerst)",
         "SORT_BY_RATING": "Sorteren op beoordeling",
         "SORT_BY_NAME": "Sorteren op naam (A-Z)",
+        "SORT_CHANNELS": "Kanalen sorteren",
+        "SORT_SERVER_ORDER": "Servervolgorde",
+        "SORT_PLAYLIST_ORDER": "Afspeellijstvolgorde",
         "LOAD_MORE": "Meer laden",
         "REMAINING": "resterend",
         "LOADING": "Kanalen laden...",
@@ -1132,6 +1148,7 @@
         "DURATION": "Duur",
         "CAST": "Rolverdeling",
         "EPISODE_RUN_TIME": "Afleveringsduur",
+        "EPISODE_RUN_TIME_MINUTES": "{{minutes}} min/afl.",
         "RATING": "Score",
         "IMDB_RATING": "IMDb-beoordeling",
         "KINOPOISK_RATING": "Kinopoisk-beoordeling",
@@ -1213,8 +1230,10 @@
             "SEARCH_PLACEHOLDER": "Zoek categorieën...",
             "NO_RESULTS": "Geen overeenkomende categorieën gevonden",
             "NO_CATEGORIES": "Geen categorieën beschikbaar",
-            "SAVE": "Opslaan"
-        }
+            "SAVE": "Opslaan",
+            "SAVE_FAILED": "Zichtbaarheid van categorieën kon niet worden opgeslagen"
+        },
+        "GLOBAL_SEARCH_SUMMARY": "{{count}} item(s) gevonden in {{playlists}} afspeellijst(en)"
     },
     "PORTALS": {
         "REQUESTS_PAUSED": {
@@ -1223,6 +1242,10 @@
             "RETRY": "Nu opnieuw proberen"
         },
         "ALL_CATEGORIES": "Alle categorieën",
+        "ALL_ITEMS": "Alle items",
+        "UNNAMED_CATEGORY": "Naamloze categorie",
+        "NO_CATEGORIES": "Geen categorieën beschikbaar",
+        "UNTITLED": "Zonder titel",
         "MY_FAVORITES": "Mijn favorieten",
         "ADD_TO_FAVORITES": "Voeg toe aan favorieten",
         "REMOVE_FROM_FAVORITES": "Uit favorieten verwijderen",
@@ -1422,6 +1445,16 @@
             "TRAILER_UNMUTE": "Trailergeluid aan",
             "PROGRESS_RESET": "Voortgang gewist",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Verborgen uit ‘Verder kijken’"
+        },
+        "SCROLL_LEFT": "Naar links scrollen",
+        "SCROLL_RIGHT": "Naar rechts scrollen",
+        "EPISODE_NAVIGATION": "Afleveringsnavigatie",
+        "INLINE_PLAYER": "Speler",
+        "REQUEST_ERRORS": {
+            "XTREAM": "Xtream-verzoek mislukt: {{message}}",
+            "XTREAM_CONNECTION": "Kan geen verbinding maken met de Xtream-server",
+            "STALKER": "Stalker-verzoek mislukt: {{message}} (status {{status}})",
+            "NOT_FOUND": "Niet gevonden"
         }
     },
     "INFORMATION": "Informatie",
@@ -1673,6 +1706,7 @@
             "EXTERNAL_PLAYBACK_PLAYING": "Playing",
             "EXTERNAL_PLAYBACK_FAILED": "External player error",
             "EXTERNAL_PLAYBACK_CLOSED": "Closed",
+            "EXTERNAL_PLAYBACK_OPEN_IN_PLAYLIST": "Openen in afspeellijst",
             "RAIL_ALL_CHANNELS": "Alle kanalen",
             "RAIL_GROUPS": "Groepen",
             "RAIL_CONTEXT_ACTIONS": "Sectieacties",
@@ -2015,5 +2049,28 @@
         "UNLOCK_TO_SHOW": "Voer de pincode in om te tonen",
         "HEADER_LOCK": "Nu vergrendelen (ouderlijk toezicht)",
         "HEADER_UNLOCK": "Ouderpincode invoeren"
+    },
+    "EXTERNAL_PLAYER": {
+        "OPENING_IN": "Wordt geopend in {{player}}…",
+        "STOP": "{{player}} stoppen",
+        "ERRORS": {
+            "START_FAILED": "Kan {{player}} niet starten. Controleer of het is geïnstalleerd en of het pad in Instellingen juist is.",
+            "PREVIOUS_CLOSING": "De vorige speler wordt nog afgesloten. Probeer het zo opnieuw.",
+            "CLOSED_UNEXPECTEDLY": "{{player}} is onverwacht afgesloten.",
+            "STREAM_OPEN_FAILED": "{{player}} kan de stream niet openen. De URL is mogelijk ongeldig of de server reageert niet.",
+            "UNSUPPORTED_PROTOCOL": "{{player}} ondersteunt dit streamprotocol niet. Controleer de stream-URL.",
+            "CONNECTION_FAILED": "{{player}} kan geen verbinding maken met de streamserver. Controleer uw internetverbinding.",
+            "ACCESS_DENIED": "Toegang geweigerd. De stream vereist mogelijk geldige inloggegevens of headers.",
+            "STREAM_NOT_FOUND": "Stream niet gevonden. De URL is mogelijk onjuist of verlopen.",
+            "TIMED_OUT": "Time-out van de verbinding. De server reageert niet.",
+            "LAUNCH_FAILED": "Kan {{player}} niet starten.",
+            "UNKNOWN": "{{player}}-fout: {{error}}"
+        },
+        "INFO_DIALOG": {
+            "PLAYING": "De video wordt afgespeeld in het venster van de externe speler.",
+            "INSTALL_HINT": "Controleer of MPV of VLC correct op uw systeem is geïnstalleerd.",
+            "INSTALL_INSTRUCTIONS": "Installatie-instructies",
+            "DONT_SHOW_AGAIN": "Niet meer tonen"
+        }
     }
 }

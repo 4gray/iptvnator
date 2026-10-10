@@ -114,6 +114,7 @@ describe('WorkspaceShellSearchSyncService', () => {
                         setSearchTerm: jest.fn(),
                         setCategorySearchTerm: jest.fn(),
                         getSelectedCategory: signal(null),
+                        selectedCategoryId: signal(null),
                     },
                 },
                 {

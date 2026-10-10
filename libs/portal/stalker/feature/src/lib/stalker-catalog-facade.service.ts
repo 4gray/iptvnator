@@ -89,18 +89,17 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
      */
     private readonly savedScrollPositions = new Map<string, number>();
     readonly selectedCategoryTitle = computed(() => {
-        // The store's every-item entry is named by a key, translated in the
+        // No category means every item: the view supplies that title.
+        if (!this.stalkerStore.selectedCategoryId()) {
+            return null;
+        }
+        // The store's every-item genre is named by a key, translated in the
         // current language; the tick re-runs this after a switch.
         this.languageTick();
-        const label = stalkerCategoryLabelText(
+        return stalkerCategoryLabelText(
             this.stalkerStore.getSelectedCategoryLabel(),
             (key) => this.translate.instant(key)
         );
-        if (label) {
-            return label;
-        }
-        const category = this.selectedCategory();
-        return category ? String(category.category_name ?? '') : '';
     });
     readonly categoryItemCount = computed(() => this.stalkerStore.totalCount());
     readonly contentSortMode = computed<PortalCatalogSortMode | null>(

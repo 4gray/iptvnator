@@ -3,6 +3,7 @@ import type { TranslateService } from '@ngx-translate/core';
 import {
     formatDurationLabel,
     playbackProgressPercent,
+    type ExternalPlaybackButtonLabel,
 } from '@iptvnator/portal/shared/util';
 import type { CrossPortalSimilarItem } from '@iptvnator/services';
 import {
@@ -36,7 +37,7 @@ export interface VodDetailsHeroStateDeps {
     /** Play/Resume clicked, stream still resolving (Stalker `create_link`). */
     readonly playbackStartPending: Signal<boolean>;
     readonly isOfflinePrimary: Signal<boolean>;
-    readonly externalLabel: Signal<string | null>;
+    readonly externalLabel: Signal<ExternalPlaybackButtonLabel | null>;
     readonly externalIcon: Signal<string>;
     readonly externalState: Signal<DetailActionButtonState>;
     readonly similarInPortals: Signal<readonly CrossPortalSimilarItem[]>;

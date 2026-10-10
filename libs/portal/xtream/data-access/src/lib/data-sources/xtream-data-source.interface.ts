@@ -18,6 +18,20 @@ import {
 // Re-export for backward compatibility
 export type { PlaybackPositionData };
 
+export const XTREAM_CONTENT_TYPES = ['live', 'movie', 'series'] as const;
+export type XtreamContentType = (typeof XTREAM_CONTENT_TYPES)[number];
+
+/** SQLite row id on Electron; provider id on PWA. Always carry type for PWA. */
+export interface TypedXtreamCollectionRef {
+    readonly id: number;
+    readonly type: XtreamContentType;
+}
+export type XtreamCollectionRef = number | TypedXtreamCollectionRef;
+
+export function xtreamCollectionId(ref: XtreamCollectionRef): number {
+    return typeof ref === 'number' ? ref : ref.id;
+}
+
 /**
  * Playlist representation in the data source
  */
@@ -327,7 +341,7 @@ export interface IXtreamDataSource {
      * a cinematic backdrop without a separate round-trip.
      */
     addFavorite(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string,
         backdropUrl?: string
     ): Promise<void>;
@@ -335,12 +349,18 @@ export interface IXtreamDataSource {
     /**
      * Remove content from favorites
      */
-    removeFavorite(contentId: number, playlistId: string): Promise<void>;
+    removeFavorite(
+        contentId: XtreamCollectionRef,
+        playlistId: string
+    ): Promise<void>;
 
     /**
      * Check if content is favorited
      */
-    isFavorite(contentId: number, playlistId: string): Promise<boolean>;
+    isFavorite(
+        contentId: XtreamCollectionRef,
+        playlistId: string
+    ): Promise<boolean>;
 
     // =========================================================================
     // Recently Viewed Operations
@@ -355,7 +375,7 @@ export interface IXtreamDataSource {
      * Add item to recently viewed. See `addFavorite` for `backdropUrl`.
      */
     addRecentItem(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string,
         backdropUrl?: string
     ): Promise<void>;
@@ -363,7 +383,10 @@ export interface IXtreamDataSource {
     /**
      * Remove item from recently viewed
      */
-    removeRecentItem(contentId: number, playlistId: string): Promise<void>;
+    removeRecentItem(
+        contentId: XtreamCollectionRef,
+        playlistId: string
+    ): Promise<void>;
 
     /**
      * Clear recently viewed for a playlist
@@ -391,7 +414,7 @@ export interface IXtreamDataSource {
      * ordering, and never overwrites a column that already has a value.
      */
     setContentMetadataIfMissing(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string,
         patch: ContentMetadataPatch
     ): Promise<void>;

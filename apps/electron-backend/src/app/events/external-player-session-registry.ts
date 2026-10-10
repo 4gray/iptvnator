@@ -1,7 +1,9 @@
 import {
+    ExternalPlayerErrorCode,
     ExternalPlayerName,
     ExternalPlayerSession,
     PlayerContentInfo,
+    stripExternalPlayerErrorTag,
 } from '@iptvnator/shared/interfaces';
 
 interface CreateExternalPlayerSessionOptions {
@@ -15,6 +17,7 @@ interface CreateExternalPlayerSessionOptions {
 interface UpdateExternalPlayerSessionOptions {
     status?: ExternalPlayerSession['status'];
     error?: string;
+    errorCode?: ExternalPlayerErrorCode;
     canClose?: boolean;
 }
 
@@ -25,6 +28,8 @@ interface ExternalPlayerSessionRuntime {
 
 interface MarkExternalPlayerSessionErrorOptions {
     canClose?: boolean;
+    /** What the renderer shows; without one it shows a generic failure. */
+    code?: ExternalPlayerErrorCode;
 }
 
 function isRestorableSession(session: ExternalPlayerSession): boolean {
@@ -176,9 +181,12 @@ export class ExternalPlayerSessionRegistry {
             return current;
         }
 
+        // The code tag only carries the code across IPC; the renderer shows
+        // the stored error as detail.
         return this.updateSession(id, {
             status: 'error',
-            error,
+            error: stripExternalPlayerErrorTag(error),
+            errorCode: options.code,
             canClose: options.canClose ?? false,
         });
     }

@@ -19,7 +19,10 @@ import { ContentMetadataPatch } from './content-metadata.interface';
 import { DownloadMetadataSnapshot } from './download-metadata.interface';
 import { EpgChannelMetadata } from './epg-channel-metadata.model';
 import { EpgProgram } from './epg-program.model';
-import { ExternalPlayerSession } from './external-player-session.interface';
+import {
+    ExternalPlayerErrorCode,
+    ExternalPlayerSession,
+} from './external-player-session.interface';
 import {
     GlobalSearchPaginationOptions,
     GlobalSearchResult,
@@ -603,10 +606,13 @@ export interface ElectronBridgeRemoteControlStatus {
     muted?: boolean;
 }
 
+/** Payload of the main process `player-error` event. */
 export interface ElectronBridgePlayerError {
-    player: string;
+    player: 'MPV' | 'VLC';
+    /** Null when no code describes the output; see `error`. */
+    code: ExternalPlayerErrorCode | null;
+    /** Raw player output, for logs and the unknown-error message. */
     error: string;
-    originalError: string;
 }
 
 export interface ElectronBridgePlaybackPositionInput extends Omit<
