@@ -34,8 +34,12 @@ export class SettingsAppUpdateFacade {
     /** Latest updater status, polled once and then pushed by the backend */
     readonly status = signal<ElectronBridgeAppUpdateStatus | null>(null);
 
-    /** Current version of the app */
-    readonly version = signal('');
+    /**
+     * Installed version of the app. Known locally from the start, so it does
+     * not wait on (or vanish with) the GitHub releases check, which fails
+     * offline and when api.github.com rate-limits the client.
+     */
+    readonly version = signal(this.dataService.getAppVersion());
 
     /** Outcome of the last version check, kept apart from its wording. */
     private readonly versionCheck = signal<{
@@ -148,7 +152,12 @@ export class SettingsAppUpdateFacade {
         this.settingsService
             .getAppVersion()
             .pipe(take(1))
-            .subscribe((version) => this.showVersionInformation(version));
+            .subscribe({
+                next: (version) => this.showVersionInformation(version),
+                // SettingsService already logs the failure; without an
+                // answer there is simply no update note to show.
+                error: () => undefined,
+            });
     }
 
     /**
