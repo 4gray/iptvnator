@@ -1083,6 +1083,10 @@ const electronApi: ElectronBridgeApi = {
         ),
     dbGetAllPlaybackPositions: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_ALL_PLAYBACK_POSITIONS', playlistId),
+    dbReplaceAllPlaybackPositions: (
+        playlistId: string,
+        items: ElectronBridgePlaybackPositionInput[]
+    ) => ipcRenderer.invoke('DB_REPLACE_ALL_PLAYBACK_POSITIONS', playlistId, items),
     dbClearAllPlaybackPositions: (playlistId: string) =>
         ipcRenderer.invoke('DB_CLEAR_ALL_PLAYBACK_POSITIONS', playlistId),
     dbClearPlaybackPosition: (

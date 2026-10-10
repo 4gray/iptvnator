@@ -18,6 +18,8 @@ describe('PlaybackPositionService', () => {
             | 'getSeriesPlaybackPositions'
             | 'getRecentPlaybackPositions'
             | 'getAllPlaybackPositions'
+            | 'getAllPlaybackPositionsOrThrow'
+            | 'replaceAllPlaybackPositions'
             | 'clearAllPlaybackPositions'
             | 'clearPlaybackPosition'
             | 'savePlaybackPositionsBatch'
@@ -32,6 +34,8 @@ describe('PlaybackPositionService', () => {
             getSeriesPlaybackPositions: jest.fn().mockResolvedValue([]),
             getRecentPlaybackPositions: jest.fn().mockResolvedValue([]),
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
+            getAllPlaybackPositionsOrThrow: jest.fn().mockResolvedValue([]),
+            replaceAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             clearAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
             savePlaybackPositionsBatch: jest.fn().mockResolvedValue(undefined),
@@ -56,6 +60,24 @@ describe('PlaybackPositionService', () => {
     afterEach(() => {
         injector.destroy();
         jest.restoreAllMocks();
+    });
+
+    it('propagates strict backup read and replacement failures', async () => {
+        const error = new Error('SQLITE_BUSY');
+        bridge.getAllPlaybackPositionsOrThrow.mockRejectedValue(error);
+        bridge.replaceAllPlaybackPositions.mockRejectedValue(error);
+        await expect(
+            service.getAllPlaybackPositionsOrThrow('playlist-1')
+        ).rejects.toBe(error);
+        await expect(
+            service.replaceAllPlaybackPositions('playlist-1', [])
+        ).rejects.toBe(error);
+        expect(bridge.getAllPlaybackPositions).not.toHaveBeenCalled();
+        expect(bridge.clearAllPlaybackPositions).not.toHaveBeenCalled();
+        expect(bridge.replaceAllPlaybackPositions).toHaveBeenCalledWith(
+            'playlist-1',
+            []
+        );
     });
 
     it('delegates playback-position storage through the runtime bridge', async () => {
@@ -192,9 +214,7 @@ describe('PlaybackPositionService', () => {
         bridge.clearPlaybackPositionsBatch.mockRejectedValue(clearError);
 
         await expect(
-            service.savePlaybackPositionsBatch('playlist-1', [
-                createPosition(),
-            ])
+            service.savePlaybackPositionsBatch('playlist-1', [createPosition()])
         ).rejects.toBe(saveError);
         await expect(
             service.clearPlaybackPositionsBatch('playlist-1', [

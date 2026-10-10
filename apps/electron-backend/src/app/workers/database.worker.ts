@@ -52,6 +52,7 @@ import {
 import { setContentMetadataIfMissing } from '../database/operations/content-metadata.operations';
 import {
     clearAllPlaybackPositions,
+    replaceAllPlaybackPositions,
     clearPlaybackPosition,
     clearPlaybackPositionsBatch,
     getAllPlaybackPositions,
@@ -1199,6 +1200,14 @@ async function executeRequest(
         case 'DB_GET_ALL_PLAYBACK_POSITIONS': {
             const payload = message.payload as { playlistId: string };
             return getAllPlaybackPositions(db, payload.playlistId);
+        }
+
+        case 'DB_REPLACE_ALL_PLAYBACK_POSITIONS': {
+            const payload = message.payload as {
+                playlistId: string;
+                items: Parameters<typeof replaceAllPlaybackPositions>[2];
+            };
+            return replaceAllPlaybackPositions(db, payload.playlistId, payload.items);
         }
 
         case 'DB_CLEAR_ALL_PLAYBACK_POSITIONS': {

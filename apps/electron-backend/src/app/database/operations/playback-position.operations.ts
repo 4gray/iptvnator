@@ -232,6 +232,43 @@ export async function getAllPlaybackPositions(
         .where(eq(schema.playbackPositions.playlistId, playlistId));
 }
 
+/** Backup replacement must never commit deletion without all restored rows. */
+export async function replaceAllPlaybackPositions(
+    db: AppDatabase,
+    playlistId: string,
+    items: PlaybackPositionPayload[]
+): Promise<{ success: boolean }> {
+    // Older snapshots can repeat an identity; the former save loop kept its
+    // last value, while VOD and episode IDs remain separate namespaces.
+    const uniqueItems = new Map(
+        items.map((item) => [
+            `${item.contentType}:${item.contentXtreamId}`,
+            item,
+        ])
+    );
+    db.transaction((tx) => {
+        tx.delete(schema.playbackPositions)
+            .where(eq(schema.playbackPositions.playlistId, playlistId))
+            .run();
+        for (const item of uniqueItems.values()) {
+            tx.insert(schema.playbackPositions)
+                .values({
+                    playlistId,
+                    contentXtreamId: item.contentXtreamId,
+                    contentType: item.contentType,
+                    seriesXtreamId: item.seriesXtreamId,
+                    seasonNumber: item.seasonNumber,
+                    episodeNumber: item.episodeNumber,
+                    positionSeconds: item.positionSeconds,
+                    durationSeconds: item.durationSeconds,
+                    updatedAt: sql`CURRENT_TIMESTAMP`,
+                })
+                .run();
+        }
+    });
+    return { success: true };
+}
+
 export async function clearAllPlaybackPositions(
     db: AppDatabase,
     playlistId: string

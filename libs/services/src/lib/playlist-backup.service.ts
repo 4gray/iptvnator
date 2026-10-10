@@ -296,37 +296,43 @@ export class PlaylistBackupService {
     private async buildXtreamEntry(
         playlist: Playlist
     ): Promise<XtreamPlaylistBackupEntry> {
-        if (!this.hasElectronApi()) {
+        const entry: XtreamPlaylistBackupEntry = {
+            portalType: 'xtream',
+            exportedId: playlist._id,
+            title: playlist.title,
+            autoRefresh: Boolean(playlist.autoRefresh),
+            position: playlist.position,
+            connection: {
+                serverUrl: playlist.serverUrl ?? '',
+                username: playlist.username ?? '',
+                ...(playlist.password ? { password: playlist.password } : {}),
+            },
+            userState: {
+                hiddenCategories: [],
+                favorites: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+                ...this.optionalLockedXtreamCategories(playlist._id),
+            },
+        };
+        const pending = this.pendingRestoreService.getOrThrow(playlist._id);
+        if (pending) {
+            // A parked import is authoritative, including empty collections.
+            // Reading the incomplete catalog instead would silently lose it.
+            const sourcePins =
+                pending.sourcePins ??
+                (await this.readSourcePinsForExport(playlist._id));
             return {
-                portalType: 'xtream',
-                exportedId: playlist._id,
-                title: playlist.title,
-                autoRefresh: Boolean(playlist.autoRefresh),
-                position: playlist.position,
-                connection: {
-                    serverUrl: playlist.serverUrl ?? '',
-                    username: playlist.username ?? '',
-                    ...(playlist.password
-                        ? { password: playlist.password }
-                        : {}),
-                },
+                ...entry,
                 userState: {
-                    hiddenCategories: [],
-                    favorites: [],
-                    recentlyViewed: [],
-                    playbackPositions: [],
+                    ...pending,
                     ...this.optionalLockedXtreamCategories(playlist._id),
-                    // NOT `[]`. Pins are Electron-only, so out here we cannot
-                    // read them — which is not the same as knowing there are
-                    // none. Restore treats the collection as authoritative and
-                    // clears the playlist's pins before applying it, so an
-                    // empty array exported from the web would wipe them the
-                    // moment the archive was imported on the desktop. Omitted,
-                    // the archive says "no opinion", exactly as one written
-                    // before pins existed does.
+                    ...(sourcePins ? { sourcePins } : {}),
                 },
             };
         }
+        // An unavailable pin store is no opinion, never an authoritative [].
+        if (!this.hasElectronApi()) return entry;
 
         const [
             liveCategories,
@@ -342,7 +348,9 @@ export class PlaylistBackupService {
             this.databaseService.getAllXtreamCategories(playlist._id, 'series'),
             this.databaseService.getFavorites(playlist._id),
             this.databaseService.getRecentItems(playlist._id),
-            this.playbackPositionService.getAllPlaybackPositions(playlist._id),
+            this.playbackPositionService.getAllPlaybackPositionsOrThrow(
+                playlist._id
+            ),
             // Throws rather than reading a failure as "no pins": restore
             // treats this collection as authoritative and clears the
             // playlist's pins before applying it, so an empty list born of a
@@ -352,16 +360,7 @@ export class PlaylistBackupService {
         ]);
 
         return {
-            portalType: 'xtream',
-            exportedId: playlist._id,
-            title: playlist.title,
-            autoRefresh: Boolean(playlist.autoRefresh),
-            position: playlist.position,
-            connection: {
-                serverUrl: playlist.serverUrl ?? '',
-                username: playlist.username ?? '',
-                ...(playlist.password ? { password: playlist.password } : {}),
-            },
+            ...entry,
             userState: {
                 hiddenCategories: [
                     ...this.mapHiddenCategories(liveCategories, 'live'),
@@ -1009,16 +1008,10 @@ export class PlaylistBackupService {
             state.recentlyViewed
         );
 
-        await this.playbackPositionService.clearAllPlaybackPositions(
-            playlistId
+        await this.playbackPositionService.replaceAllPlaybackPositions(
+            playlistId,
+            state.playbackPositions
         );
-
-        for (const playbackPosition of state.playbackPositions) {
-            await this.playbackPositionService.savePlaybackPosition(
-                playlistId,
-                playbackPosition
-            );
-        }
 
         // Present-but-empty is an answer, like the positions cleared above: a
         // backup that holds no pin for this playlist means the user had none,

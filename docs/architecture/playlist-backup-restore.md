@@ -5,13 +5,13 @@ settings screen.
 
 ## Entry Points
 
-- UI: `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup-section.component.ts`
+- UI: `apps/web/src/app/settings/settings-backup-section.component.ts`
   (embedded in `settings.component.html`), with the file read/handoff in
-  `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup.facade.ts`
-- Backup service: `/Users/4gray/Code/iptvnator/libs/services/src/lib/playlist-backup.service.ts`
-- Manifest types: `/Users/4gray/Code/iptvnator/libs/shared/interfaces/src/lib/playlist-backup.interface.ts`
+  `apps/web/src/app/settings/settings-backup.facade.ts`
+- Backup service: `libs/services/src/lib/playlist-backup.service.ts`
+- Manifest types: `libs/shared/interfaces/src/lib/playlist-backup.interface.ts`
 - Xtream pending restore storage:
-  `/Users/4gray/Code/iptvnator/libs/services/src/lib/xtream-pending-restore.service.ts`
+  `libs/services/src/lib/xtream-pending-restore.service.ts`
 
 ## Manifest Contract
 
@@ -63,6 +63,19 @@ Xtream backups export only connection metadata plus portable user state.
     - favorites by `{ contentType, xtreamId, addedAt?, position? }`
     - recently viewed by `{ contentType, xtreamId, viewedAt }`
     - playback positions as `PlaybackPositionData[]`
+    - optional VOD source pins by `{ matchKey, contentId, updatedAt? }`
+
+An imported Xtream archive can wait for its catalog to download. Export reads
+that pending snapshot before consulting the catalog: its hidden categories,
+favorites, history, and positions are authoritative, including empty lists.
+Pending pins are authoritative when present; an absent `sourcePins` field keeps
+the existing store's pins when that store is available, or stays absent when it
+is unavailable. Re-export neither applies nor consumes the pending snapshot,
+so it also works before the portal has been opened and in browser runtimes.
+Parental category locks still come from the current lock store.
+
+A failed pending-storage or playback-position read fails export. An unreadable
+collection must never be serialized as a successful empty collection.
 
 Explicitly excluded:
 
@@ -164,11 +177,10 @@ worker IPC boundary in the snake_case wire shape declared by
 `XCategoryFromDb`/`XtreamCategoryFromDb`; the category operations project
 their Drizzle rows explicitly to keep that contract true.
 
-Clearing the playlist's existing pins goes through a dedicated
-delete-by-playlist operation, not the keyed clear: that one caps its key list
-to bound an IN clause, so a playlist with more pinned movies than the cap kept
-the surplus while still reporting success. A failure now fails the entry
-rather than leaving the union of old and archived pins.
+Replacing the playlist's pins deletes by playlist and writes the replacements
+in one transaction. It does not use the capped keyed-clear operation, which
+could leave surplus pins behind. Any replacement failure fails the entry and
+retains the pending snapshot for retry.
 
 `sourcePins` (VOD multi-source) is the one **optional** collection, and the
 normalizer preserves that: an absent field stays absent rather than becoming
@@ -190,12 +202,20 @@ Electron restore behavior:
 1. Category import reads pending hidden-category state while saving categories.
 2. After content import, favorites/recent state is restored by typed
    `{ contentType, xtreamId }` matching.
-3. Playback positions are cleared and re-applied from backup state.
+3. Playback positions are replaced for the destination playlist in one SQLite
+   transaction through `DB_REPLACE_ALL_PLAYBACK_POSITIONS`. Empty means clear;
+   a failed insert rolls back the deletion and all earlier inserts.
 4. VOD source pins are re-applied against the IMPORTED playlist id.
 
 For existing Xtream playlists with a fully populated offline cache, backup
 import applies the restore immediately. Otherwise the typed restore payload is
-left pending until the next Xtream initialization/import.
+left pending until the next Xtream initialization/import. Both paths use strict
+playback-position replacement: unavailable storage, rejected IPC, or an
+unsuccessful response fail the restore and leave the pending snapshot intact.
+Ordinary playback keeps its best-effort persistence API. The whole restore is
+not one database transaction; already applied categories/favorites/history can
+remain after a later failure, but the snapshot remains available to retry the
+complete restore. It is consumed only after every restore step succeeds.
 
 ## Current UX
 

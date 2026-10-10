@@ -25,6 +25,10 @@ type PlaybackPositionElectronBridge = Partial<{
     dbGetAllPlaybackPositions: (
         playlistId: string
     ) => Promise<PlaybackPositionData[]>;
+    dbReplaceAllPlaybackPositions: (
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ) => Promise<{ success: boolean }>;
     dbClearAllPlaybackPositions: (
         playlistId: string
     ) => Promise<{ success: boolean }>;
@@ -86,9 +90,7 @@ export class PlaybackPositionRuntimeBridgeService {
 
         const bridge = this.bridge;
         if (typeof bridge?.dbSavePlaybackPosition !== 'function') {
-            throw new Error(
-                'Playback position save method is unavailable'
-            );
+            throw new Error('Playback position save method is unavailable');
         }
 
         const result = await bridge.dbSavePlaybackPosition(playlistId, data);
@@ -158,6 +160,45 @@ export class PlaybackPositionRuntimeBridgeService {
         );
     }
 
+    async getAllPlaybackPositionsOrThrow(
+        playlistId: string
+    ): Promise<PlaybackPositionData[]> {
+        if (!this.supportsStorage) {
+            throw new Error('Playback position storage is unavailable');
+        }
+        const bridge = this.bridge;
+        if (typeof bridge?.dbGetAllPlaybackPositions !== 'function') {
+            throw new Error('Playback position read method is unavailable');
+        }
+        const result = await bridge.dbGetAllPlaybackPositions(playlistId);
+        if (!Array.isArray(result)) {
+            throw new Error('Playback position read did not succeed');
+        }
+        return result;
+    }
+
+    async replaceAllPlaybackPositions(
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ): Promise<void> {
+        if (!this.supportsStorage) {
+            throw new Error('Playback position storage is unavailable');
+        }
+        const bridge = this.bridge;
+        if (typeof bridge?.dbReplaceAllPlaybackPositions !== 'function') {
+            throw new Error(
+                'Playback position replacement method is unavailable'
+            );
+        }
+        const result = await bridge.dbReplaceAllPlaybackPositions(
+            playlistId,
+            items
+        );
+        if (result?.success !== true) {
+            throw new Error('Playback position replacement did not succeed');
+        }
+    }
+
     async clearAllPlaybackPositions(playlistId: string): Promise<void> {
         if (!this.supportsStorage) {
             return;
@@ -193,9 +234,7 @@ export class PlaybackPositionRuntimeBridgeService {
 
         const bridge = this.bridge;
         if (typeof bridge?.dbClearPlaybackPosition !== 'function') {
-            throw new Error(
-                'Playback position clear method is unavailable'
-            );
+            throw new Error('Playback position clear method is unavailable');
         }
 
         const result = await bridge.dbClearPlaybackPosition(
