@@ -340,6 +340,17 @@ test.describe('Electron Downloads', () => {
             await expect(missingRow.getByRole('status')).toContainText(
                 'File missing'
             );
+            // A name missing from the icon font renders as text that
+            // overflows the icon box instead of one glyph.
+            const missingIcon = missingRow
+                .getByRole('status')
+                .locator('mat-icon');
+            await expect(missingIcon).toHaveText('error_outline');
+            expect(
+                await missingIcon.evaluate(
+                    (icon) => icon.scrollWidth <= icon.clientWidth
+                )
+            ).toBe(true);
             await expect(card).toHaveCount(0);
             await expect(
                 missingRow.getByRole('button', { name: 'Play: E2E Movie' })
