@@ -164,7 +164,7 @@ function measuredIteration(
                 heartbeatDelaysMs: [],
                 longTasksMs: [],
             },
-        } as CancellationIterationResult['renderer'],
+        } as unknown as CancellationIterationResult['renderer'],
         runId: 'measured-1',
     };
 }
