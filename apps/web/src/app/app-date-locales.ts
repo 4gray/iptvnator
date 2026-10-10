@@ -37,6 +37,7 @@ export const APP_DATE_LOCALE_LOADERS: Readonly<
     pt: () => import('@angular/common/locales/pt'),
     ru: () => import('@angular/common/locales/ru'),
     tr: () => import('@angular/common/locales/tr'),
+    uk: () => import('@angular/common/locales/uk'),
     zh: () => import('@angular/common/locales/zh'),
     'zh-Hant': () => import('@angular/common/locales/zh-Hant'),
 };
