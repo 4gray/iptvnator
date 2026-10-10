@@ -220,6 +220,24 @@ test('reads logical border sides as well as physical ones', () => {
     );
 });
 
+test('tells a width given through var() or calc() from the colour', () => {
+    const source = [
+        '.a:focus-visible { outline: var(--ring-width) solid var(--app-focus-ring); }',
+        '.b:focus-visible { outline: calc(1px + 1px) solid var(--app-focus-ring); }',
+        '.c:focus-within { border: var(--ring-width) solid var(--app-focus-ring); }',
+        '.d:focus-visible { box-shadow: 0 0 0 var(--ring-width) var(--app-focus-ring); }',
+        // The colour is still checked when the width is a variable.
+        '.e:focus-visible { outline: var(--ring-width) solid red; }',
+        '.f:focus-visible { outline: var(--ring-width) solid var(--mat-sys-primary); }',
+        '.g:focus-visible { outline: max(2px, 0.1em) solid #2f7bff; }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('h.scss', source).map(({ line }) => line),
+        [5, 6, 7]
+    );
+});
+
 test('lets a listed exception through only in its own file', () => {
     const [exception] = RING_EXCEPTIONS;
     const source = `.x:focus-visible { outline: 2px solid ${exception.value}; }`;

@@ -88,14 +88,33 @@ export function colourAtoms(expression) {
     });
 }
 
-/** Tokens of a value that name colours: not lengths, widths or styles. */
+/** A length computed by a math function: `calc(1px + 1px)`, `max(…)`. */
+const LENGTH_FUNCTION = /^(?:calc|min|max|clamp)\(/i;
+
+/** Tokens of a value that may name colours: not lengths, widths or styles. */
 function colourTokens(value) {
     return splitTopLevel(value, /\s/).filter(
         (token) =>
             !LENGTH.test(token) &&
+            !LENGTH_FUNCTION.test(token) &&
             !WIDTH_KEYWORD.test(token) &&
             !LINE_STYLE.test(token)
     );
+}
+
+/**
+ * The colour of a shorthand with one colour slot (an outline, a border, a
+ * shadow), where a `var()` may hold a width or a style instead. A literal
+ * colour is the colour; without one, an accepted token is (the others are
+ * widths); otherwise every candidate is reported, since none is proven.
+ */
+function shorthandColour(tokens) {
+    const literal = tokens.filter((token) => !/^var\(/i.test(token));
+    if (literal.length) return literal;
+    const accepted = tokens.filter(
+        (token) => isAppRing(token) || isNeutral(token)
+    );
+    return accepted.length ? accepted : tokens;
 }
 
 /**
@@ -113,7 +132,9 @@ export function indicatorColours(declaration) {
     const value = match[2];
     if (/^outline(?:-color)?$/.test(property)) {
         if (removesOutline(declaration)) return [];
-        const colours = colourTokens(value);
+        const tokens = colourTokens(value);
+        const colours =
+            property === 'outline' ? shorthandColour(tokens) : tokens;
         return (colours.length ? colours : ['currentcolor']).flatMap(
             colourAtoms
         );
@@ -127,7 +148,12 @@ export function indicatorColours(declaration) {
             const [x = '0', y = '0', blur = '0', spread = '0'] = lengths;
             const drawn = [x, y, spread].some((n) => parseFloat(n) !== 0);
             if (parseFloat(blur) !== 0 || !drawn) return [];
-            const colours = tokens.filter((token) => !LENGTH.test(token));
+            const colours = shorthandColour(
+                tokens.filter(
+                    (token) =>
+                        !LENGTH.test(token) && !LENGTH_FUNCTION.test(token)
+                )
+            );
             return (colours.length ? colours : ['currentcolor']).flatMap(
                 colourAtoms
             );
@@ -140,7 +166,12 @@ export function indicatorColours(declaration) {
             property
         )
     ) {
-        return colourTokens(value).flatMap(colourAtoms);
+        // `border-color` lists a colour per side; the other borders have one.
+        const tokens = colourTokens(value);
+        const colours = /-color$/.test(property)
+            ? tokens
+            : shorthandColour(tokens);
+        return colours.flatMap(colourAtoms);
     }
     return [];
 }
