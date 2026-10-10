@@ -55,6 +55,10 @@ let positionPollingInterval: NodeJS.Timeout | null = null;
 // The first poll waits for MPV to open its IPC socket. The handle is kept so
 // a player that exits during that wait does not start an orphaned interval.
 let positionPollingDelay: NodeJS.Timeout | null = null;
+// Bumped on every stop. A poll that was already awaiting an IPC reply when
+// polling stopped (for example when a reused player loads the next stream)
+// must not report what it reads under the previous content.
+let positionPollingGeneration = 0;
 
 function getMpvPath(options: PlayerPathOptions = {}): string {
     return (
@@ -126,6 +130,7 @@ async function getMpvProperty(
 }
 
 function stopPositionPolling(): void {
+    positionPollingGeneration += 1;
     if (positionPollingDelay) {
         clearTimeout(positionPollingDelay);
         positionPollingDelay = null;
@@ -146,13 +151,17 @@ function startPositionPolling(
     sessionId: string
 ): void {
     stopPositionPolling();
+    const generation = positionPollingGeneration;
+    const isCurrent = () => generation === positionPollingGeneration;
 
     positionPollingDelay = setTimeout(() => {
         positionPollingDelay = null;
         positionPollingInterval = setInterval(async () => {
             try {
                 const position = await getMpvProperty(socketPath, 'time-pos');
+                if (!isCurrent()) return;
                 const duration = await getMpvProperty(socketPath, 'duration');
+                if (!isCurrent()) return;
 
                 if (position !== null) {
                     sendPlaybackPositionUpdate(sessionId, contentInfo, {

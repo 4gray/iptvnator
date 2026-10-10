@@ -1018,6 +1018,28 @@ is also idempotent: it returns the closed snapshot without invoking the saved
 closer, and a later process error cannot revive it as a visible failure. Reused
 MPV commands use the socket captured for their exact child, so a delayed close
 cannot send `quit` to a replacement process through a newer global socket.
+Every reused MPV command carries a `request_id` and waits, within the same 2 s
+IPC bound, for mpv's matching newline-delimited reply; event lines and replies
+to other requests on that connection are skipped. An error reply or a missing
+reply fails the handoff exactly like a socket error: the reused child is torn
+down and a fresh launch follows. `loadfile` marks the content as possibly
+changed and moves ownership of the child to the attempted session from the
+moment it is written, whatever mpv replies, and stops the previous session's
+position poll there, including a read already awaiting mpv, so an exit or a
+stale Stop for the previous session during
+the reply wait settles the right session and no poll can save the new stream's
+position under the old content; a child that exited while its reply was in
+flight is returned as the session its exit handler settled, never reported as
+opened and never replaced by a fresh launch under that terminal session.
+Because each reuse attempt waits for replies, a quick channel switch can start
+the next attempt while the previous one is still waiting. The newest attempt
+supersedes older ones: an older attempt dispatches no further commands, never
+tears down or falls back over the child the newer one is loading into, and
+settles its own session as closed. No `seek` follows
+`loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
+travels as the per-file `start` option. The `loadfile` reply only acknowledges
+the command; a stream that later fails to open is reported through the reused
+child's output and exit, not through the reply.
 If Stop is observed before a pending MPV content command or VLC enqueue command
 is dispatched, that command is skipped. A source handoff also fails closed
 while a live session has no closer (`canClose: false`); renderer Dismiss is not
@@ -1132,7 +1154,9 @@ External MPV/VLC integration is split across focused main-process modules:
   forwarding, and user-facing start errors.
 - `apps/electron-backend/src/app/events/mpv-session.service.ts` owns fresh MPV
   launches and progress polling; `mpv-reusable-process.ts` owns the tracked
-  child, captured socket, remapping, retryable close, and reuse handoff.
+  child, captured socket, remapping, retryable close, and reuse handoff;
+  `mpv-ipc-command.ts` owns the bounded request/reply IPC command the reuse
+  handoff and its quit use.
 - `apps/electron-backend/src/app/events/vlc-session.service.ts` owns fresh VLC
   launches and progress polling; `vlc-reusable-process.ts` owns the tracked
   child, RC-port remapping, retryable close, and reuse handoff, while

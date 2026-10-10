@@ -1,20 +1,22 @@
 import { ChildProcess } from 'child_process';
-import { createConnection } from 'net';
 import {
     ExternalPlayerSession,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { joinMpvHeaderFields } from '../util/mpv-string-list.util';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 import {
     externalPlayerSessions,
     traceExternalPlayer,
 } from './external-player-runtime';
+import { sendMpvCommand } from './mpv-ipc-command';
 
 /**
  * The per-file start of a reuse load: the requested offset, else zero. A
- * `seek` right after `loadfile` runs before the file is loaded and fails,
- * so the offset travels with the load itself.
+ * `seek` right after `loadfile` runs before the file is loaded and mpv
+ * rejects it, so the offset travels with the load itself and no seek is
+ * sent on the reuse path.
  */
 function reuseStartSeconds(startTime: number | undefined): number {
     return typeof startTime === 'number' &&
@@ -24,7 +26,9 @@ function reuseStartSeconds(startTime: number | undefined): number {
         : 0;
 }
 
-const MPV_IPC_COMMAND_TIMEOUT_MS = 2_000;
+function hasExited(child: ChildProcess): boolean {
+    return child.exitCode !== null || child.signalCode !== null;
+}
 
 export interface MpvReuseAttemptState {
     contentMutated: boolean;
@@ -50,63 +54,17 @@ interface MpvReuseOptions {
     stopPositionPolling: () => void;
 }
 
-function sendMpvCommand(
-    socketPath: string,
-    command: string,
-    args: Array<string | number>,
-    shouldDispatch?: () => boolean
-): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-        const client = createConnection(socketPath);
-        const request = JSON.stringify({ command: [command, ...args] }) + '\n';
-        let settled = false;
-        let timeoutHandle: NodeJS.Timeout | null = null;
-        const complete = (error?: Error, dispatched = true) => {
-            if (settled) return;
-            settled = true;
-            if (timeoutHandle) clearTimeout(timeoutHandle);
-            if (!dispatched && !client.destroyed) client.destroy();
-            if (error) {
-                reject(error);
-            } else {
-                resolve(dispatched);
-            }
-        };
-
-        client.on('connect', () => {
-            if (shouldDispatch && !shouldDispatch()) {
-                complete(undefined, false);
-                return;
-            }
-            traceExternalPlayer('mpv ipc command', {
-                command,
-                argsCount: args.length,
-            });
-            try {
-                client.write(request);
-                client.end();
-                complete();
-            } catch (error) {
-                complete(
-                    error instanceof Error ? error : new Error(String(error))
-                );
-            }
-        });
-        client.on('error', (error) => complete(error));
-        timeoutHandle = setTimeout(() => {
-            complete(new Error('MPV IPC command timed out'));
-            client.destroy();
-        }, MPV_IPC_COMMAND_TIMEOUT_MS);
-        timeoutHandle.unref();
-    });
-}
-
 /** Owns the one MPV child/socket retained when instance reuse is enabled. */
 export class MpvReusableProcess {
     private process: ChildProcess | null = null;
     private socketPath: string | null = null;
     private processSessionId: string | null = null;
     private readonly processSessionIds = new WeakMap<ChildProcess, string>();
+    // Each reuse attempt waits for mpv's replies, so a quick channel switch
+    // can start the next attempt while the previous one is still waiting.
+    // The newest attempt wins: an older one stops dispatching and never
+    // tears down or replaces the child the newer one is loading into.
+    private reuseAttempt = 0;
 
     currentSessionId(): string | null {
         return this.processSessionId;
@@ -163,6 +121,12 @@ export class MpvReusableProcess {
 
         traceExternalPlayer('reuse existing mpv instance');
         const { session, state } = options;
+        const attempt = ++this.reuseAttempt;
+        const superseded = () => attempt !== this.reuseAttempt;
+        const settleSuperseded = () => {
+            traceExternalPlayer('mpv reuse superseded by a newer launch');
+            return externalPlayerSessions.markClosed(session.id) ?? session;
+        };
         const reusedProcessSessionId =
             this.processSessionIds.get(reusedProcess) ??
             options.previousProcessSessionId;
@@ -219,28 +183,34 @@ export class MpvReusableProcess {
             return retryableClose;
         });
 
-        try {
-            await this.applyReuseCommands(
-                options,
-                reusedSocketPath,
-                () => !closeRequested
-            );
-            if (closeRequested) return await finishRequestedClose();
-
+        // Once `loadfile` reaches the socket the player content may have
+        // changed, whatever mpv replies, so the attempted session owns the
+        // child from the write onwards: an exit or a stale Stop for the
+        // previous session during the reply wait then lands on the right
+        // session instead of terminating the new playback, and the previous
+        // session's position poll can no longer read the new stream's
+        // position under the old content.
+        const onContentDispatched = () => {
             state.contentMutated = true;
             this.processSessionId = session.id;
             this.processSessionIds.set(reusedProcess, session.id);
             options.stopPositionPolling();
+        };
 
-            if (options.startTime) {
-                await sendMpvCommand(
-                    reusedSocketPath,
-                    'seek',
-                    [String(options.startTime), 'absolute'],
-                    () => !closeRequested
-                );
-            }
+        try {
+            await this.applyReuseCommands(
+                options,
+                reusedSocketPath,
+                () => !closeRequested && !superseded(),
+                onContentDispatched
+            );
             if (closeRequested) return await finishRequestedClose();
+            if (superseded()) return settleSuperseded();
+            if (hasExited(reusedProcess)) {
+                // The child exited while its reply was in flight; its exit
+                // handler has already settled the session that owned it.
+                return externalPlayerSessions.getSession(session.id) ?? session;
+            }
 
             if (options.contentInfo) {
                 options.startPositionPolling(
@@ -256,7 +226,17 @@ export class MpvReusableProcess {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
-            console.error('Failed to send command to existing MPV:', error);
+            if (superseded()) return settleSuperseded();
+            if (current?.status === 'error' && hasExited(reusedProcess)) {
+                // The child died while its reply was in flight and its exit
+                // handler already reported the failure; a fresh launch under
+                // this terminal session could never be shown as opened.
+                return current;
+            }
+            console.error(
+                'Failed to send command to existing MPV:',
+                redactSensitiveData(error)
+            );
 
             if (state.contentMutated) {
                 if (reusedProcessSessionId) {
@@ -289,14 +269,15 @@ export class MpvReusableProcess {
     private async applyReuseCommands(
         options: MpvReuseOptions,
         socketPath: string,
-        shouldDispatch: () => boolean
+        shouldDispatch: () => boolean,
+        onContentDispatched: () => void
     ): Promise<void> {
         if (options.effectiveUserAgent) {
             const dispatched = await sendMpvCommand(
                 socketPath,
                 'set_property',
                 ['user-agent', options.effectiveUserAgent],
-                shouldDispatch
+                { shouldDispatch }
             );
             if (!dispatched) return;
         }
@@ -305,7 +286,7 @@ export class MpvReusableProcess {
                 socketPath,
                 'set_property',
                 ['referrer', options.effectiveReferer],
-                shouldDispatch
+                { shouldDispatch }
             );
             if (!dispatched) return;
         }
@@ -317,7 +298,7 @@ export class MpvReusableProcess {
                     'http-header-fields',
                     joinMpvHeaderFields(options.headerFields),
                 ],
-                shouldDispatch
+                { shouldDispatch }
             );
             if (!dispatched) return;
         }
@@ -335,13 +316,13 @@ export class MpvReusableProcess {
             -1,
             fileOptions.join(','),
         ];
-        const dispatched = await sendMpvCommand(
+        const reply = await sendMpvCommand(
             socketPath,
             'loadfile',
             loadFileArgs,
-            shouldDispatch
+            { shouldDispatch, onDispatched: onContentDispatched }
         );
-        if (!dispatched) return;
+        if (!reply) return;
         traceExternalPlayer('loaded new url in existing mpv instance');
     }
 }
