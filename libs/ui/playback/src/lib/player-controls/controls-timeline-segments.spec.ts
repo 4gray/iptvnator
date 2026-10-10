@@ -85,13 +85,25 @@ describe('normalizeTimelineSegments', () => {
         ]);
         // The separator fills the gap, ending where the next segment starts.
         expect(segments.map((s) => s.separatorLeft)).toEqual([
-            'calc(25% - 2px)',
-            'calc(75% - 2px)',
+            'max(0px, calc(25% - 2px))',
+            'max(0px, calc(75% - 2px))',
             null,
         ]);
         expect(normalizeTimelineSegments(null, 600)[0].separatorLeft).toBe(
             null
         );
+    });
+
+    it('keeps the separator of a boundary in the first pixels on the track', () => {
+        // A 1-second lead-in of an hour: on a 400px bar its boundary sits
+        // at 0.11px, so `calc(… - 2px)` alone would start before the bar.
+        const [leadIn] = normalizeTimelineSegments(
+            [{ startSeconds: 1, endSeconds: 3600, title: 'Programme' }],
+            3600
+        );
+
+        expect(leadIn.title).toBeNull();
+        expect(leadIn.separatorLeft).toMatch(/^max\(0px, calc\(/);
     });
 
     it('clamps to the duration, cuts overlaps and drops empty segments', () => {

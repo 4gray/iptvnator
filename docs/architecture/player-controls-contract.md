@@ -390,7 +390,9 @@ over a titled segment. mpv's chapter list is not a producer yet.
 
 Boundaries hold 3:1 over any frame. Segments only round the bar's two
 ends, and every gap (2px, `TIMELINE_SEGMENT_GAP_PX`) is filled by a
-separator (`separatorLeft`) in `--pc-timeline-separator` white: 12.5:1 on
+separator (`separatorLeft`, never left of the track's start, where a
+boundary in the bar's first pixels would put it) in
+`--pc-timeline-separator` white: 12.5:1 on
 the opaque `--pc-timeline-track`, 3.2:1 on the `--pc-progress` fill, which
 keeps 4.0:1 on the track. The former translucent track with see-through
 gaps measured 1.3–1.6:1 at its boundaries, and its fill fell to 1.1:1 over

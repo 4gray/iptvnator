@@ -340,13 +340,14 @@ describe('PlayerControlsComponent dock', () => {
             ]);
             expect(segments.at(-1)?.style.width).toBe('25%');
             // A separator fills the gap before every following segment.
-            expect(
-                Array.from(
-                    fixture.nativeElement.querySelectorAll(
-                        '.player-controls__timeline-separator'
-                    ) as NodeListOf<HTMLElement>
-                ).map((separator) => separator.style.left)
-            ).toEqual(['calc(25% - 2px)', 'calc(75% - 2px)']);
+            const separators = Array.from(
+                fixture.nativeElement.querySelectorAll(
+                    '.player-controls__timeline-separator'
+                ) as NodeListOf<HTMLElement>
+            ).map((separator) => separator.style.left);
+            expect(separators).toHaveLength(2);
+            expect(separators[0]).toContain('calc(25% - 2px)');
+            expect(separators[1]).toContain('calc(75% - 2px)');
             expect(
                 segments.map(
                     (s) =>

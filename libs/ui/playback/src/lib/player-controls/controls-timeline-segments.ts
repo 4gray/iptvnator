@@ -14,7 +14,8 @@ export interface TimelineSegmentView {
     /**
      * CSS `left` of the separator drawn in the gap after this segment, so a
      * boundary keeps its contrast whatever the frame behind it; null for
-     * the last segment, which has no gap.
+     * the last segment, which has no gap. Never left of the track: a
+     * boundary in its first pixels would otherwise paint before the bar.
      */
     separatorLeft: string | null;
 }
@@ -103,7 +104,7 @@ export function normalizeTimelineSegments(
                 : `max(0px, calc(${share * 100}% - ${gap}))`,
             separatorLeft: last
                 ? null
-                : `calc(${(segment.endSeconds / durationSeconds) * 100}% - ${gap})`,
+                : `max(0px, calc(${(segment.endSeconds / durationSeconds) * 100}% - ${gap}))`,
         };
     });
 }
