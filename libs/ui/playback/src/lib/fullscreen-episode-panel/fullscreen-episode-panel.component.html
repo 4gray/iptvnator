@@ -36,6 +36,7 @@
             [selectedSeason]="selectedSeasonKey() ?? undefined"
             [episodeCounts]="episodeCounts()"
             [watchedCounts]="watchedCounts()"
+            [seasonLoadStates]="seasonLoadStates()"
             [playingSeasonKey]="playingSeasonKey()"
             (seasonSelected)="onSeasonSelected($event)"
             (backToPlayingRequested)="backToPlaying()"

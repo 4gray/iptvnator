@@ -103,6 +103,20 @@ export class FullscreenEpisodePanelComponent {
     private readonly shownSeasonKey = computed(
         () => this.selectedSeason()?.key ?? null
     );
+    /**
+     * Seasons still loading or not asked for yet: the picker's menu shows no
+     * count for them, since their empty list is not a count.
+     */
+    readonly seasonLoadStates = computed(() => {
+        const states: Record<string, 'loading' | 'unloaded'> = {};
+        for (const season of this.seasons()) {
+            if (season.loadState !== 'loaded') {
+                states[season.key] = season.loadState;
+            }
+        }
+        return states;
+    });
+
     readonly episodeCounts = computed(() =>
         countBySeason(this.seasons(), (season) => season.episodes.length)
     );

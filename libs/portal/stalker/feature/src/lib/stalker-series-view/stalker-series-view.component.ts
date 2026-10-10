@@ -280,16 +280,27 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly selectedSeasonKey = signal<string | null>(null);
 
     /**
+     * The season the detail container shows. `selectedSeasonKey` is also
+     * written by the fullscreen episode picker, whose choice loads another
+     * season without changing the detail list; the container's loading and
+     * metadata flags must follow the container's own selection.
+     */
+    private readonly detailSeasonKey = computed(
+        () => this.seasonContainerRef()?.selectedSeason() ?? null
+    );
+
+    /**
      * True while the episode list itself is on its way: the season list
-     * (VOD or regular series) or the selected lazy VOD season. The season
-     * container shows skeleton rows, the hero a placeholder for Play.
+     * (VOD or regular series) or the detail container's lazy VOD season.
+     * The season container shows skeleton rows, the hero a placeholder for
+     * Play.
      */
     readonly episodeListLoading = computed(
         () =>
             (this.isVodSeries()
                 ? this.isVodSeriesSeasonsLoading()
                 : this.isSerialSeasonsLoading()) ||
-            this.isCurrentSeasonLoading(this.selectedSeasonKey() ?? undefined)
+            this.isCurrentSeasonLoading(this.detailSeasonKey() ?? undefined)
     );
 
     /**
@@ -308,7 +319,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
         const tmdbId = this.displayItem()?.info?.tmdb_id;
         const seasonKey =
-            this.selectedSeasonKey() ??
+            this.detailSeasonKey() ??
             Object.keys(this.mappedSeasons()).sort(
                 (a, b) => Number(a) - Number(b)
             )[0];

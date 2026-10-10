@@ -269,6 +269,41 @@ describe('FullscreenEpisodePanelComponent', () => {
         );
     });
 
+    it('leaves the count out of the menu for a season still loading or not asked for', () => {
+        // Lazy Stalker VOD: an unanswered season's empty list is not a count.
+        const many: FullscreenEpisodePanelSeason[] = Array.from(
+            { length: 7 },
+            (_, index) => ({
+                key: String(index + 1),
+                loadState: 'loaded',
+                episodes: [item(10 * (index + 1), String(index + 1), 1)],
+            })
+        );
+        many[5] = { key: '6', loadState: 'unloaded', episodes: [] };
+        many[6] = { key: '7', loadState: 'loading', episodes: [] };
+        fixture.componentRef.setInput('seasons', many);
+        fixture.detectChanges();
+
+        (
+            fixture.nativeElement.querySelector(
+                '[data-testid="season-dropdown"]'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+        const items = Array.from(
+            document.querySelectorAll('.season-tabs-menu .mat-mdc-menu-item')
+        );
+        const countOf = (item: Element) =>
+            item.querySelector('[data-testid="season-menu-count"]');
+        expect(items).toHaveLength(7);
+        // Raw key here: this harness loads no translations.
+        expect(countOf(items[0])?.textContent).toContain(
+            'PORTALS.EPISODE_COUNT_ONE'
+        );
+        expect(countOf(items[5])).toBeNull();
+        expect(countOf(items[6])).toBeNull();
+    });
+
     it('withholds the season strip for a one-season series', () => {
         const [first] = seasons(12);
         fixture.componentRef.setInput('seasons', [
