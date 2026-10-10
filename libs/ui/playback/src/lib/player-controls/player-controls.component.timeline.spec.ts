@@ -1,6 +1,7 @@
 import { WritableSignal, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { buildCatchupTimelineSegments } from './catchup-timeline-segments';
 import {
     DEFAULT_PLAYER_CAPABILITIES,
     createEmptyControlsState,
@@ -209,5 +210,121 @@ describe('PlayerControlsComponent timeline scrubbing', () => {
 
         expect(fake.commands.seekTo).not.toHaveBeenCalled();
         expect(currentTimeText()).toBe('0:30');
+    });
+});
+
+describe('PlayerControlsComponent timeline value text', () => {
+    let fixture: ComponentFixture<PlayerControlsComponent>;
+    let fake: ReturnType<typeof createFakeController>;
+    let translate: TranslateService;
+
+    const slider = () =>
+        fixture.nativeElement.querySelector(
+            '.player-controls__slider'
+        ) as HTMLInputElement;
+
+    const valueText = () => slider().getAttribute('aria-valuetext');
+
+    /** A keyboard step: the range input moves, then commits. */
+    const step = (value: number) => {
+        const element = slider();
+        element.value = String(value);
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+    };
+
+    beforeEach(async () => {
+        localStorage.removeItem('volume');
+        await TestBed.configureTestingModule({
+            imports: [PlayerControlsComponent, TranslateModule.forRoot()],
+        }).compileComponents();
+        translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            EMBEDDED_MPV: {
+                PLAYER: { TIMELINE_SEGMENT_POSITION: '{{title}} · {{time}}' },
+            },
+        });
+        translate.use('en');
+
+        fake = createFakeController();
+        fixture = TestBed.createComponent(PlayerControlsComponent);
+        fixture.componentRef.setInput('controller', fake.controller);
+        fake.capabilities.set({ ...DEFAULT_PLAYER_CAPABILITIES, seek: true });
+        fake.state.set({
+            ...createEmptyControlsState(),
+            canSeek: true,
+            durationSeconds: 3600,
+            positionSeconds: 300,
+        });
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+    });
+
+    it('reads the plain time without segments', () => {
+        fixture.detectChanges();
+
+        expect(valueText()).toBe('5:00');
+    });
+
+    it('names the catch-up programme at the position and at the keyboard target', () => {
+        const programme = (title: string, start: number, stop: number) => ({
+            title,
+            start: '',
+            stop: '',
+            startTimestamp: start,
+            stopTimestamp: stop,
+        });
+        const active = programme('Morning Report', 50_000, 51_800);
+        fixture.componentRef.setInput(
+            'timelineSegments',
+            buildCatchupTimelineSegments(
+                [active, programme('Weather', 51_800, 53_600)],
+                active,
+                53_600
+            )
+        );
+        fixture.detectChanges();
+
+        expect(valueText()).toBe('Morning Report · 5:00');
+
+        step(1801);
+        expect(valueText()).toBe('Weather · 30:01');
+    });
+
+    it('names file chapters and reads plain time in an untitled one', () => {
+        // Chapters as Embedded MPV reports them: each runs to the next.
+        fixture.componentRef.setInput('timelineSegments', [
+            { startSeconds: 0, endSeconds: 240, title: 'Opening' },
+            { startSeconds: 240, endSeconds: 3300, title: null },
+            { startSeconds: 3300, endSeconds: 3600, title: 'Credits' },
+        ]);
+        fixture.detectChanges();
+
+        expect(valueText()).toBe('5:00');
+
+        step(120);
+        expect(valueText()).toBe('Opening · 2:00');
+
+        step(3600);
+        expect(valueText()).toBe('Credits · 1:00:00');
+    });
+
+    it('follows the locale template', () => {
+        translate.setTranslation('de', {
+            EMBEDDED_MPV: {
+                PLAYER: { TIMELINE_SEGMENT_POSITION: '{{time}} – {{title}}' },
+            },
+        });
+        fixture.componentRef.setInput('timelineSegments', [
+            { startSeconds: 0, endSeconds: 600, title: 'Kapitel 1' },
+        ]);
+        fixture.detectChanges();
+
+        translate.use('de');
+        fixture.detectChanges();
+
+        expect(valueText()).toBe('5:00 – Kapitel 1');
     });
 });

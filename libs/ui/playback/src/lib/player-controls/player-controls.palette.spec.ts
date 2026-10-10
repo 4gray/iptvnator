@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { TIMELINE_SEGMENT_GAP_PX } from './controls-timeline-segments';
 
 // The overlay sits on video in both app themes, so its colours come from the
 // fixed `--pc-*` palette. A theme token read here stays invisible only while
@@ -32,6 +33,7 @@ const TIMELINE_STYLES =
     STYLE_SOURCES.get('player-timeline.component.scss') ?? '';
 const SETTINGS_STYLES =
     STYLE_SOURCES.get('player-settings-panel.component.scss') ?? '';
+const PALETTE_STYLES = STYLE_SOURCES.get('_player-palette.scss') ?? '';
 
 type Rgb = [number, number, number];
 
@@ -209,6 +211,59 @@ describe('player controls overlay palette', () => {
         );
         expect(selected).not.toMatch(/outline/);
         expect(focused).toMatch(/outline:\s*2px solid var\(--pc-text[,)]/);
+    });
+
+    it('separates timeline segments at 3:1 over any frame', () => {
+        const track = paletteColor('--pc-timeline-track');
+        const separator = paletteColor('--pc-timeline-separator');
+        const accent = PALETTE_STYLES.match(
+            /\$accent-blue:\s*#([0-9a-f]{6});/i
+        )?.[1];
+        const fill = [0, 2, 4].map((offset) =>
+            Number.parseInt(accent?.slice(offset, offset + 2) ?? '', 16)
+        ) as Rgb;
+
+        // Opaque, so no frame behind the bar can change these ratios.
+        expect(track.alpha).toBe(1);
+        expect(separator.alpha).toBe(1);
+        expect(
+            ruleBody(TIMELINE_STYLES, '.player-controls__timeline-segment')
+        ).toMatch(/background:\s*var\(--pc-timeline-track\);/);
+        expect(
+            ruleBody(TIMELINE_STYLES, '.player-controls__timeline-fill')
+        ).toMatch(/background:\s*var\(--pc-progress\);/);
+        const separatorRule = ruleBody(
+            TIMELINE_STYLES,
+            '.player-controls__timeline-separator'
+        );
+        expect(separatorRule).toMatch(
+            /background:\s*var\(--pc-timeline-separator\);/
+        );
+        // The separator fills exactly the gap the segment widths leave.
+        expect(separatorRule).toMatch(
+            new RegExp(`width:\\s*${TIMELINE_SEGMENT_GAP_PX}px;`)
+        );
+
+        // A boundary in the unplayed and in the played stretch.
+        expect(contrastRatio(separator.rgb, track.rgb)).toBeGreaterThanOrEqual(
+            3
+        );
+        expect(contrastRatio(separator.rgb, fill)).toBeGreaterThanOrEqual(3);
+        // And the played fill still reads against the track.
+        expect(contrastRatio(fill, track.rgb)).toBeGreaterThanOrEqual(3);
+    });
+
+    it('sets the timeline label on the dense glass', () => {
+        const white: Rgb = [255, 255, 255];
+        expect(
+            ruleBody(TIMELINE_STYLES, '.player-controls__timeline-label')
+        ).toMatch(/background:\s*var\(--pc-glass-bg-dense\);/);
+        expect(
+            contrastRatio(
+                paletteColor('--pc-text').rgb,
+                over(paletteColor('--pc-glass-bg-dense'), white)
+            )
+        ).toBeGreaterThanOrEqual(4.5);
     });
 
     it('keeps the palette reds readable on video', () => {
