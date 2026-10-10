@@ -237,7 +237,7 @@ function decorateReleaseNotesHtml(html: string): string {
             }
 
             .release-notes-dialog__error--failed {
-                color: var(--app-error-color, #ef4444);
+                color: var(--mat-sys-error);
             }
 
             .release-notes-dialog__error p {

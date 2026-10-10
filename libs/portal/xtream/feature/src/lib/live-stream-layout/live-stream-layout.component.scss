@@ -72,11 +72,15 @@ mat-paginator {
         --app-body-color,
         var(--mat-sys-on-surface-variant)
     );
-    --mat-paginator-disabled-icon-color: rgba(255, 255, 255, 0.18);
+    --mat-paginator-disabled-icon-color: color-mix(
+        in srgb,
+        var(--app-on-surface) 18%,
+        transparent
+    );
 }
 
 app-grid-list.live-all-items-grid {
-    --cover-grid-min-width: var(--live-channel-grid-min-width, 148px);
+    --cover-grid-min-width: 148px;
 
     display: block;
     flex: 1;
@@ -98,17 +102,9 @@ app-grid-list.live-all-items-grid {
     margin: 12px 12px 0;
     padding: 12px 14px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background:
-        linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.04),
-            rgba(255, 255, 255, 0)
-        ),
-        rgba(127, 127, 127, 0.05);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        0 10px 20px -20px rgba(0, 0, 0, 0.35);
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 8%, transparent);
+    background: var(--app-widget-bg);
+    box-shadow: var(--app-widget-shadow);
 }
 
 .archive-unavailable-banner__title {

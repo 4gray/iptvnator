@@ -47,7 +47,7 @@
 }
 
 app-grid-list.all-items-grid {
-    --cover-grid-min-width: var(--live-channel-grid-min-width, 148px);
+    --cover-grid-min-width: 148px;
 
     display: block;
     flex: 1;

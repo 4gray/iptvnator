@@ -1,6 +1,6 @@
 @use 'source-tag' as tag;
 
-$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+$font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
 :host {
     display: block;

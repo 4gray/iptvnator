@@ -7,7 +7,7 @@
     background: $surface-1;
     color: $text-primary;
     border: 1px solid $line-strong;
-    border-radius: var(--r-lg, 14px);
+    border-radius: 14px;
     overflow: hidden;
     box-shadow: var(--app-widget-shadow);
 
@@ -251,7 +251,7 @@
     .mdc-dialog__surface {
         background: transparent !important;
         box-shadow: none !important;
-        border-radius: var(--r-lg, 14px) !important;
+        border-radius: 14px !important;
         overflow: visible;
     }
 }

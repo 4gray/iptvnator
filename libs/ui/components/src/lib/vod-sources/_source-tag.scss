@@ -2,7 +2,7 @@
 // rather than a global class: the row and the copy-row are separate components
 // under emulated encapsulation, and each needs the rules inside its own scope.
 @mixin source-tag-base {
-    $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+    $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
     .source-tag {
         display: inline-flex;
