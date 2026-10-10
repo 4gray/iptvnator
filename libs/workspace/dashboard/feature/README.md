@@ -14,9 +14,16 @@ rails also require the underlying data slice to have at least one item.
   newest unfinished title, a favourite (or recent) channel with a programme on
   air, and favourite / recently added titles. Contract:
   `docs/architecture/workspace-dashboard.md#cinematic-hero`.
-- `continueWatching` shows recent movies and series from
-  `DashboardDataService.globalRecentVodItems()` using cover cards with playback
-  progress when a saved resume position is available.
+- `continueWatching` shows recent movies and series the user has not finished,
+  from `DashboardDataService.continueWatchingItems()`, using cover cards with
+  playback progress when a saved resume position is available. A movie leaves
+  the rail once its position reaches `PORTAL_WATCHED_PROGRESS_PERCENT` (90%,
+  so the end credits count as watched). A series whose newest episode is
+  watched stays with the episode it continues with (the first one not
+  watched after the one watched last, from the portal's episode list) and
+  leaves once none follows it. Extras (season 0) never change that. Finished
+  titles stay in Global Recent. Contract:
+  `docs/architecture/workspace-dashboard.md#data-flow`.
 - `liveFavorites` shows favorited live TV channels from
   `DashboardDataService.globalFavoriteLiveItems()` using the channel layout
   with EPG title, time range, and progress when XMLTV data is available.

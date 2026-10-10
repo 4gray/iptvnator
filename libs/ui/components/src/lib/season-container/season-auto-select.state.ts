@@ -31,6 +31,8 @@ export interface SeasonAutoSelectSources {
     ) => PlaybackPositionData | undefined;
     /** Stalker lazy-VOD: some seasons' episode lists are not loaded yet. */
     readonly hasUnloadedSeasons: Signal<boolean>;
+    /** Stalker lazy-VOD: the seasons whose lists are not loaded yet. */
+    readonly unloadedSeasonKeys: Signal<readonly string[]>;
     readonly episodeCounts: Signal<Record<string, number>>;
     readonly watchedCounts: Signal<Record<string, number>>;
     readonly emitSeasonSelected: (seasonKey: string) => void;
@@ -95,7 +97,10 @@ export function createSeasonAutoSelectState(
             playingSeasonKey: sources.playingSeasonKey(),
             seasons: sources.seasons(),
             positionOf: sources.positionOf,
-            hasUnloadedSeasons: sources.hasUnloadedSeasons(),
+            hasUnloadedSeasons:
+                sources.hasUnloadedSeasons() ||
+                sources.unloadedSeasonKeys().length > 0,
+            unloadedSeasonKeys: sources.unloadedSeasonKeys(),
             episodeCounts: sources.episodeCounts(),
             watchedCounts: sources.watchedCounts(),
         });

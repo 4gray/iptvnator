@@ -31,7 +31,7 @@
             <lib-dashboard-rail
                 [label]="'WORKSPACE.DASHBOARD.CONTINUE_WATCHING' | translate"
                 [items]="continueWatchingCards()"
-                [totalCount]="data.globalRecentVodItems().length"
+                [totalCount]="data.continueWatchingItems().length"
                 [seeAllLink]="['/workspace/global-recent']"
                 [seeAllState]="continueWatchingSeeAllState()"
                 [testId]="'dashboard-continue-watching-rail'"

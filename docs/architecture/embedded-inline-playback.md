@@ -269,9 +269,15 @@ seasons-grid + "Back to seasons" level. A season is auto-selected
 (inline-playing episode's season → most recently updated in-progress
 episode's season → earliest season with unwatched episodes → latest
 non-empty season; Stalker lazy-VOD series with unhydrated seasons pin
-the fallback to the first season because their watched state is unknown,
+the fallback to the first season still to load or holding episodes
+(`unloadedSeasonKeys`: a season the portal answered empty is passed over)
+because a pending season's watched state is unknown,
 and the empty→loaded positions flip caused by the session's own watched
-toggles never re-resolves the selection) and the
+toggles never re-resolves the selection). Extras (season 0, by the
+episodes' season or, unloaded, the key: `isExtrasSeason`) steer none of
+the last three while the series' other seasons hold, or may still hold,
+episodes, as with its next episode, so the page does not open on Specials;
+only a playing extra opens its season. The
 auto-selection emits `seasonSelected`,
 so host lazy-load/enrichment hooks (Stalker VOD-series episode fetch,
 TMDB season fetch, Xtream `enrichSelectedSerialSeason`) fire on open
@@ -351,7 +357,8 @@ Both hosts delegate to `createVodWatchedToggle()` in
 Catalog cards derive their corner badge from one shared `PortalWatchState`
 (`unwatched` / `in-progress` / `watched`, `portal-watch-state.ts`): both
 facades map a movie's position through `watchStateFromProgressPercent` /
-`resolvePortalWatchState` (90% threshold, shared with the Resume rule),
+`resolvePortalWatchState` (`PORTAL_WATCHED_PROGRESS_PERCENT`, 90%, shared
+with the Resume rule and the dashboard's Continue Watching rail),
 and a series through `resolvePortalSeriesWatchState`, which reports at
 most `in-progress` — the list payload never carries the episode total, so
 "every episode watched" is not decidable there.
@@ -526,23 +533,36 @@ Owner keys and queueing are provider contracts:
 ## Series Quick Start CTA
 
 Xtream and Stalker series detail views share the quick-start decision helper in
-`libs/portal/shared/util/src/lib/series-quick-start.ts`.
-The helper flattens the loaded season/episode map, sorts seasons and episodes in
-natural order, and returns the hero CTA state.
+`libs/portal/shared/util/src/lib/series-quick-start.ts`, built on
+`getSeriesNextUp` (`series-next-up.ts`), which the dashboard's Continue
+Watching rail also follows. The helper flattens the loaded season/episode map,
+sorts seasons and episodes in natural order, and returns the hero CTA state.
 
 Current contract:
 
 - the CTA shows the action label plus a compact episode target such as
   `S01E02 · Episode title`
-- if an episode is in progress, resume the latest updated in-progress episode
-  with its saved offset
+- if the newest activity is an episode left unfinished, resume it with its
+  saved offset (recency reads SQLite `updated_at`, UTC without a zone, as UTC;
+  both hosts date the rows they write themselves with
+  `stampPlaybackPositionNow`, so the episode just played ranks newest)
 - if the newest episode entry is a successful external-player launch marker
   with no meaningful progress yet, target it with `Play episode N` instead of
   falling back to the first episode
-- if no episode is in progress, play the first unwatched episode in season order
+- otherwise play the first unwatched episode after the episode watched last,
+  as Plex's On Deck and Jellyfin's Next Up do: an earlier episode skipped or
+  left unfinished is passed over, and a next episode started before resumes
+- extras (season 0) stand apart when the series has other seasons: they never
+  come next, are never resumed from here (not even one left unfinished) and
+  never keep the series from completing; after only extras were played the
+  CTA plays the first episode of the run. A series filed under season 0 alone
+  has them as its run
 - if watched episodes end at a season boundary, play the first episode of the
   next loaded season
-- if every loaded episode is watched, render a disabled completed state
+- when no unwatched episode follows the one watched last, offer the first one
+  skipped before it (never an extra); with none left, render a disabled
+  completed state
+- with nothing played yet, play the first episode of the run in season order
 
 The click path must continue through each detail host's normal episode playback
 method so recent-item updates, inline/external player selection, resume offsets,
