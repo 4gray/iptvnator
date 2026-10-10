@@ -33,7 +33,9 @@ export class PwaCollectionStorage {
         });
         if (migrated.some((id, index) => id !== playlistFavorites[index])) {
             allFavorites[playlistId] = [...new Set(migrated)];
-            this.saveFavoritesToStorage(allFavorites);
+            this.tryStorageMigration(() =>
+                this.saveFavoritesToStorage(allFavorites)
+            );
         }
         this.persistCollectionSnapshots(playlistId, contentById);
         return [
@@ -87,7 +89,9 @@ export class PwaCollectionStorage {
             )
         ) {
             allRecent[playlistId] = migrated;
-            this.saveRecentItemsToStorage(allRecent);
+            this.tryStorageMigration(() =>
+                this.saveRecentItemsToStorage(allRecent)
+            );
         }
         this.persistCollectionSnapshots(playlistId, contentById);
         const results: (XtreamContentItem & { viewed_at: string })[] = [];
@@ -167,6 +171,28 @@ export class PwaCollectionStorage {
         );
     }
 
+    /** Optional migration/cache writes must not block readable legacy collections. */
+    private tryStorageMigration(write: () => void): void {
+        try {
+            write();
+        } catch (error) {
+            if (
+                !(error instanceof DOMException) ||
+                error.name !== 'QuotaExceededError'
+            ) {
+                throw error;
+            }
+        }
+    }
+
+    private trySaveCollectionItemsToStorage(
+        items: Record<string, Record<string, XtreamContentItem>>
+    ): void {
+        this.tryStorageMigration(() =>
+            this.saveCollectionItemsToStorage(items)
+        );
+    }
+
     clearCollectionItemsForPlaylist(playlistId: string): void {
         const allItems = this.getCollectionItemsFromStorage();
         delete allItems[playlistId];
@@ -188,7 +214,7 @@ export class PwaCollectionStorage {
                 backdrop_url: item.backdrop_url ?? snapshots[key]?.backdrop_url,
             };
         }
-        this.saveCollectionItemsToStorage({
+        this.trySaveCollectionItemsToStorage({
             ...allItems,
             [playlistId]: snapshots,
         });
@@ -213,7 +239,7 @@ export class PwaCollectionStorage {
                 ? { backdrop_url: normalizedBackdropUrl }
                 : {}),
         };
-        this.saveCollectionItemsToStorage({
+        this.trySaveCollectionItemsToStorage({
             ...allItems,
             [playlistId]: playlistItems,
         });
@@ -231,7 +257,7 @@ export class PwaCollectionStorage {
             return;
         }
 
-        this.saveCollectionItemsToStorage({
+        this.trySaveCollectionItemsToStorage({
             ...allItems,
             [playlistId]: {
                 ...playlistItems,

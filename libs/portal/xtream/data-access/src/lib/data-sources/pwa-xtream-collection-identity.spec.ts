@@ -31,6 +31,59 @@ describe('PWA Xtream collection identity', () => {
             types.map((type) => source.getContent('p1', credentials, type))
         );
     const read = (key: string) => JSON.parse(localStorage.getItem(key) ?? '{}');
+    const seedLegacyCollection = (otherIds: number[] = []) => {
+        const ids = [42, ...otherIds];
+        localStorage.setItem('xtream-favorites', JSON.stringify({ p1: ids }));
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({
+                p1: ids.map((id) => ({
+                    id,
+                    viewedAt: '2026-10-01T00:00:00.000Z',
+                })),
+            })
+        );
+        const snapshots: Record<string, unknown> = {};
+        for (const id of ids.filter((id) => id !== 77)) {
+            snapshots[id] = {
+                id,
+                xtream_id: id,
+                type: id === 42 ? 'movie' : 'series',
+                title: 'Saved item '.repeat(100),
+            };
+        }
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify({ p1: snapshots })
+        );
+    };
+    const limitStorageGrowth = (extraCharacters: number) => {
+        const storedSize = () =>
+            Object.keys(localStorage).reduce(
+                (size, key) =>
+                    size +
+                    key.length +
+                    (localStorage.getItem(key)?.length ?? 0),
+                0
+            );
+        const quota = storedSize() + extraCharacters;
+        const setItem = Storage.prototype.setItem;
+        jest.spyOn(Storage.prototype, 'setItem').mockImplementation(
+            function (key, value) {
+                const oldValue = this.getItem(key);
+                const growth =
+                    value.length -
+                    (oldValue?.length ?? 0) +
+                    (oldValue === null ? key.length : 0);
+                if (storedSize() + growth > quota)
+                    throw new DOMException(
+                        'Storage full',
+                        'QuotaExceededError'
+                    );
+                setItem.call(this, key, value);
+            }
+        );
+    };
 
     beforeEach(() => {
         localStorage.clear();
@@ -49,7 +102,122 @@ describe('PWA Xtream collection identity', () => {
         );
         reload();
     });
-    afterEach(() => localStorage.clear());
+    afterEach(() => {
+        jest.restoreAllMocks();
+        localStorage.clear();
+    });
+
+    it.each([0, 512])(
+        'keeps legacy collection reads and status usable with only %i characters of storage headroom',
+        async (headroom) => {
+            seedLegacyCollection();
+            limitStorageGrowth(headroom);
+            for (let attempt = 0; attempt < 2; attempt++) {
+                expect(await source.getFavorites('p1')).toEqual([
+                    expect.objectContaining({ xtream_id: 42, type: 'movie' }),
+                ]);
+                expect(await source.getRecentItems('p1')).toEqual([
+                    expect.objectContaining({ xtream_id: 42, type: 'movie' }),
+                ]);
+                expect(
+                    await source.isFavorite({ id: 42, type: 'movie' }, 'p1')
+                ).toBe(true);
+                expect(
+                    await source.isFavorite({ id: 42, type: 'live' }, 'p1')
+                ).toBe(false);
+                reload();
+            }
+            expect(read('xtream-collection-items').p1[42].type).toBe('movie');
+            expect(api.getStreams).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each([
+        ['removeFavorite', 0],
+        ['removeFavorite', 512],
+        ['removeRecentItem', 0],
+        ['removeRecentItem', 512],
+    ] as const)(
+        '%s persists deletion with only %i characters of storage headroom',
+        async (operation, headroom) => {
+            seedLegacyCollection([
+                77,
+                ...Array.from({ length: 12 }, (_, index) => 100 + index),
+            ]);
+            limitStorageGrowth(headroom);
+            await source[operation]({ id: 42, type: 'movie' }, 'p1');
+            expect(api.getStreams).not.toHaveBeenCalled();
+            const key =
+                operation === 'removeFavorite'
+                    ? 'xtream-favorites'
+                    : 'xtream-recent-items';
+            const storedIds =
+                operation === 'removeFavorite'
+                    ? read(key).p1
+                    : read(key).p1.map((entry: { id: unknown }) => entry.id);
+            expect(storedIds).not.toContain(42);
+            expect(storedIds).not.toContain('movie:42');
+            expect(storedIds).toContain(77);
+            expect(read('xtream-collection-items').p1[42].type).toBe('movie');
+            reload();
+            const favorites = await source.getFavorites('p1');
+            const recent = await source.getRecentItems('p1');
+            expect(favorites.some((item) => item.xtream_id === 42)).toBe(
+                operation !== 'removeFavorite'
+            );
+            expect(recent.some((item) => item.xtream_id === 42)).toBe(
+                operation !== 'removeRecentItem'
+            );
+        }
+    );
+
+    it.each(['addFavorite', 'addRecentItem'] as const)(
+        '%s reports an authoritative write that cannot fit',
+        async (operation) => {
+            seedLegacyCollection();
+            limitStorageGrowth(0);
+            await expect(
+                source[operation]({ id: 99, type: 'series' }, 'p1')
+            ).rejects.toMatchObject({ name: 'QuotaExceededError' });
+            expect(read('xtream-favorites').p1).toEqual([42]);
+            expect(
+                read('xtream-recent-items').p1.map(
+                    (entry: { id: unknown }) => entry.id
+                )
+            ).toEqual([42]);
+        }
+    );
+
+    it.each(['addFavorite', 'addRecentItem'] as const)(
+        '%s succeeds when the reference fits but its optional snapshot does not',
+        async (operation) => {
+            seedLegacyCollection();
+            api.getStreams.mockResolvedValue([
+                { series_id: 99, name: 'New series '.repeat(100) },
+            ]);
+            await source.getContent('p1', credentials, 'series');
+            limitStorageGrowth(512);
+            await source[operation]({ id: 99, type: 'series' }, 'p1');
+            const storedIds =
+                operation === 'addFavorite'
+                    ? read('xtream-favorites').p1
+                    : read('xtream-recent-items').p1.map(
+                          (entry: { id: unknown }) => entry.id
+                      );
+            expect(storedIds).toContain('series:99');
+            expect(
+                read('xtream-collection-items').p1['series:99']
+            ).toBeUndefined();
+            reload();
+            const items =
+                operation === 'addFavorite'
+                    ? await source.getFavorites('p1')
+                    : await source.getRecentItems('p1');
+            expect(items).toContainEqual(
+                expect.objectContaining({ xtream_id: 99, type: 'series' })
+            );
+        }
+    );
 
     it('preserves restored colliding types through hydration and clear/restore', async () => {
         await source.restoreUserData('p1', {

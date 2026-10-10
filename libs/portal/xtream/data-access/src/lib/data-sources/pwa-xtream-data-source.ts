@@ -711,7 +711,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         if (!allFavorites[playlistId]) {
             allFavorites[playlistId] = [];
         }
-        if (!allFavorites[playlistId].includes(normalizedContentId)) {
+        const matchingKeys = this.getMatchingCollectionKeys(
+            playlistId,
+            allFavorites[playlistId],
+            normalizedContentId
+        );
+        if (!allFavorites[playlistId].some((id) => matchingKeys.has(id))) {
             allFavorites[playlistId].push(normalizedContentId);
         }
         this.collectionStorage.saveFavoritesToStorage(allFavorites);
@@ -734,11 +739,15 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
-        this.collectionStorage.getLocalFavorites(playlistId);
         const allFavorites = this.collectionStorage.getFavoritesFromStorage();
         if (allFavorites[playlistId]) {
+            const matchingKeys = this.getMatchingCollectionKeys(
+                playlistId,
+                allFavorites[playlistId],
+                normalizedContentId
+            );
             allFavorites[playlistId] = allFavorites[playlistId].filter(
-                (id) => id !== normalizedContentId
+                (id) => !matchingKeys.has(id)
             );
         }
         this.collectionStorage.saveFavoritesToStorage(allFavorites);
@@ -758,7 +767,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         this.collectionStorage.getLocalFavorites(playlistId);
         const allFavorites = this.collectionStorage.getFavoritesFromStorage();
-        return (allFavorites[playlistId] || []).includes(normalizedContentId);
+        const ids = allFavorites[playlistId] || [];
+        const matchingKeys = this.getMatchingCollectionKeys(
+            playlistId,
+            ids,
+            normalizedContentId
+        );
+        return ids.some((id) => matchingKeys.has(id));
     }
 
     // =========================================================================
@@ -982,8 +997,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
 
         // Remove existing entry if present
+        const matchingKeys = this.getMatchingCollectionKeys(
+            playlistId,
+            allRecent[playlistId].map((item) => item.id),
+            normalizedContentId
+        );
         allRecent[playlistId] = allRecent[playlistId].filter(
-            (r) => r.id !== normalizedContentId
+            (r) => !matchingKeys.has(r.id)
         );
 
         // Add new entry at the beginning
@@ -1018,11 +1038,15 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
-        this.collectionStorage.getLocalRecentItems(playlistId);
         const allRecent = this.collectionStorage.getRecentItemsFromStorage();
         if (allRecent[playlistId]) {
+            const matchingKeys = this.getMatchingCollectionKeys(
+                playlistId,
+                allRecent[playlistId].map((item) => item.id),
+                normalizedContentId
+            );
             allRecent[playlistId] = allRecent[playlistId].filter(
-                (r) => r.id !== normalizedContentId
+                (r) => !matchingKeys.has(r.id)
             );
         }
         this.collectionStorage.saveRecentItemsToStorage(allRecent);
@@ -1030,6 +1054,22 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     async clearRecentItems(playlistId: string): Promise<void> {
         this.collectionStorage.clearRecentItemsForPlaylist(playlistId);
+    }
+
+    /** Match original keys even when optional migration could not fit in storage. */
+    private getMatchingCollectionKeys(
+        playlistId: string,
+        ids: readonly CollectionKey[],
+        target: CollectionKey
+    ): Set<CollectionKey> {
+        const matchingKeys = new Set([target]);
+        for (const [key, item] of this.getCollectionItemsById(
+            playlistId,
+            ids
+        )) {
+            if (itemCollectionKey(item) === target) matchingKeys.add(key);
+        }
+        return matchingKeys;
     }
 
     private getCollectionItemsById(

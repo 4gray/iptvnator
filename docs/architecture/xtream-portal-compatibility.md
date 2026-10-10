@@ -73,6 +73,14 @@ retained. Migration merges into current storage after hydration, preserving
 concurrent additions/removals, and duplicate recent references keep the newest
 timestamp.
 
+Migration writes and snapshot-cache writes are best effort when browser storage
+is full. Reads still resolve the retained legacy evidence in memory. Typed
+status and mutations match original numeric references through that evidence;
+removal filters the original stored keys without first expanding the remaining
+keys. Favorite/recent writes requested by the user still propagate storage
+failures. A new reference that fits can be saved without its optional snapshot
+and hydrated on a later collection load.
+
 ## Connection Input
 
 Xtream server URLs are normalized through
