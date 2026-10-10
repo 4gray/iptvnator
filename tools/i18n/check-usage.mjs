@@ -63,15 +63,20 @@ function isTranslateCall(callee) {
     );
 }
 
-/** Replaces comments with blanks, keeping offsets and line numbers. */
+/**
+ * Replaces comments with blanks, keeping offsets and line numbers. In
+ * TypeScript the HTML comments of inline templates go too.
+ */
 export function stripComments(source, kind) {
     const blank = (text) => text.replace(/[^\n]/g, ' ');
     if (kind === 'html') {
         return source.replace(HTML_COMMENTS, blank);
     }
-    return source.replace(CODE_TOKENS, (match, literal) =>
-        literal ? match : blank(match)
-    );
+    return source
+        .replace(CODE_TOKENS, (match, literal) =>
+            literal ? match : blank(match)
+        )
+        .replace(HTML_COMMENTS, blank);
 }
 
 /**

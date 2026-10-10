@@ -143,6 +143,10 @@ test('skips keys that only appear in comments', () => {
         `// this.translate.instant('PORTALS.OLD')\n/* 'PORTALS.OLDER' | translate */\nconst url = 'https://example.com/a'; // 'PORTALS.TRAILING'\n`
     );
     writeSource('view.html', `<!-- {{ 'PORTALS.HTML' | translate }} -->\n`);
+    writeSource(
+        'inline.component.ts',
+        "@Component({\n    template: `\n        <!-- {{ 'PORTALS.INLINE' | translate }} -->\n        <p>{{ 'CLOSE' | translate }}</p>\n    `,\n})\nexport class InlineComponent {}\n"
+    );
 
     assert.equal(check().code, 0);
 });

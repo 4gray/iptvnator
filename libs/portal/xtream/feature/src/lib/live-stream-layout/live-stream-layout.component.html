@@ -209,8 +209,10 @@
                         </h2>
                         <div class="category-subtitle">
                             {{
-                                'WORKSPACE.SHELL.CHANNELS_COUNT'
-                                    | translate: { count: liveRootItemCount() }
+                                (liveRootItemCount() === 1
+                                    ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
+                                    : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER'
+                                ) | translate: { count: liveRootItemCount() }
                             }}
                         </div>
                     </div>

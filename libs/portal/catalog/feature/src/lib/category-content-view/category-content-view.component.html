@@ -17,7 +17,8 @@
                         }}
                     </h2>
                     <div class="category-subtitle">
-                        {{ categoryItemSubtitle() }}
+                        @let subtitle = categoryItemSubtitle();
+                        {{ subtitle.key | translate: subtitle.params }}
                     </div>
                 </div>
                 @if (hasRefineControls()) {

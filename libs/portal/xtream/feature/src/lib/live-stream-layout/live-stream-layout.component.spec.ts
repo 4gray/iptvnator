@@ -493,7 +493,7 @@ describe('LiveStreamLayoutComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.category-subtitle')
                 .textContent
-        ).toContain('WORKSPACE.SHELL.CHANNELS_COUNT');
+        ).toContain('WORKSPACE.CONTEXT.ITEM_COUNT_OTHER');
         expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
         expect(
             fixture.debugElement.query(
