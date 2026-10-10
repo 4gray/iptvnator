@@ -12,11 +12,13 @@ import {
     TemplateRef,
     viewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
@@ -116,6 +118,10 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     private readonly settingsStore = inject(SettingsStore);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
     private readonly router = inject(Router);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
 
@@ -130,13 +136,15 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             ? null
             : (this.fullscreenChannelPanelTemplate() ?? null)
     );
-    readonly panelTitle = computed(() =>
-        this.translate.instant(
+    /** Worded per language: the tick re-runs this after a switch. */
+    readonly panelTitle = computed(() => {
+        this.languageTick();
+        return this.translate.instant(
             this.mode() === 'favorites'
                 ? 'HOME.PLAYLISTS.GLOBAL_FAVORITES'
                 : 'PORTALS.SIDEBAR.RECENT'
-        )
-    );
+        );
+    });
 
     readonly activeDetail = signal<ResolvedLiveCollectionDetail | null>(null);
     readonly activeUid = signal<string | null>(null);

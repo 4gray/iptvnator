@@ -1,6 +1,10 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import {
+    type StalkerCategoryLabel,
+    StalkerStore,
+} from '@iptvnator/portal/stalker/data-access';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
@@ -84,7 +88,7 @@ describe('StalkerCatalogFacadeService', () => {
             hasContentAppendError: signal(false),
             isPaginatedContentLoading: signal(false),
             currentPlaylist: signal(playlist),
-            getSelectedCategoryName: jest.fn(() => null),
+            getSelectedCategoryLabel: signal({ name: '', labelKey: null }),
             setSelectedCategory: jest.fn(),
             clearSelectedItem: jest.fn(),
             setSearchPhrase: jest.fn(),
@@ -100,6 +104,7 @@ describe('StalkerCatalogFacadeService', () => {
         };
 
         TestBed.configureTestingModule({
+            imports: [TranslateModule.forRoot()],
             providers: [
                 StalkerCatalogFacadeService,
                 {
@@ -120,6 +125,29 @@ describe('StalkerCatalogFacadeService', () => {
                 },
             ],
         });
+    });
+
+    it('re-labels the every-item genre after a runtime language switch', () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            PORTALS: { ALL_CATEGORIES: 'All categories' },
+        });
+        translate.setTranslation('ru', {
+            PORTALS: { ALL_CATEGORIES: 'Все категории' },
+        });
+        translate.use('en');
+        (
+            stalkerStoreMock['getSelectedCategoryLabel'] as ReturnType<
+                typeof signal<StalkerCategoryLabel>
+            >
+        ).set({ name: '', labelKey: 'PORTALS.ALL_CATEGORIES' });
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+
+        expect(service.selectedCategoryTitle()).toBe('All categories');
+
+        translate.use('ru');
+
+        expect(service.selectedCategoryTitle()).toBe('Все категории');
     });
 
     it('delegates category search query updates to the Stalker store', () => {

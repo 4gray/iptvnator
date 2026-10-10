@@ -42,6 +42,12 @@ export interface VodDetailsHeroStateDeps {
     readonly similarInPortals: Signal<readonly CrossPortalSimilarItem[]>;
     readonly configuredPlayer: Signal<VideoPlayer | null | undefined>;
     readonly translate: Pick<TranslateService, 'instant'>;
+    /**
+     * Ticks on a UI language switch (and when translations first land).
+     * Every label below is worded through a wrapper that reads it, so the
+     * computeds re-word instead of keeping the language they first ran in.
+     */
+    readonly language: Signal<unknown>;
 }
 
 /**
@@ -50,8 +56,10 @@ export interface VodDetailsHeroStateDeps {
  * Similar rail and the rows of the "…" menu.
  */
 export function createVodDetailsHeroState(deps: VodDetailsHeroStateDeps) {
-    const translate = (key: string, params?: Record<string, unknown>) =>
-        deps.translate.instant(key, params);
+    const translate = (key: string, params?: Record<string, unknown>) => {
+        deps.language();
+        return deps.translate.instant(key, params);
+    };
     const kindLabel = computed(() => {
         const kind = translate('WORKSPACE.DASHBOARD.TYPE_MOVIE');
         const source = deps.sourceLabel()?.trim();

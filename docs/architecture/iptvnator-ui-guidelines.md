@@ -922,6 +922,24 @@ vocabulary, so a field reads the same wherever it appears:
   outcomes that close the dialog. `add-source-forms.e2e.ts` in `web-e2e`
   covers the shared labels, the toggle and the URL errors.
 
+## Translated Text
+
+The UI language can change while views stay mounted: Settings → Language
+switches it at runtime, and on a cold start the translation file can arrive
+after the first render. Text on screen must follow the current language:
+
+- Keep translation keys, not translated strings, in stores, services and
+  data models. When the app adds an entry to provider data, give it a
+  `labelKey` that the view renders with `| translate` and leave its provider
+  name empty. The Stalker every-item genre is an example.
+- Prefer `| translate` in the template. A `computed` that calls
+  `TranslateService.instant` must also read a language signal,
+  `toSignal(translate.onLangChange.pipe(startWith(null)), { initialValue:
+  null })`. Without it the computed keeps the language it first ran in.
+  State factories such as `createSeriesHeroState` and
+  `createVodDetailsHeroState` take that signal as `language`.
+- `instant` is fine at event time, for snackbar, dialog and confirm text.
+
 ## Source Type Icons
 
 `SOURCE_TYPE_ICONS` in `@iptvnator/shared/interfaces` is the only source of

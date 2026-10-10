@@ -128,7 +128,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     const isPaginatedContentLoading = signal(false);
 
     const stalkerStore = {
-        getSelectedCategoryName: signal('News'),
+        getSelectedCategoryLabel: signal({ name: 'News', labelKey: null }),
         itvChannels,
         radioChannels,
         searchPhrase,

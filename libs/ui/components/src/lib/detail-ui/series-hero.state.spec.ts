@@ -1,5 +1,11 @@
+import { signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { TestBed } from '@angular/core/testing';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
 import {
     buildSeriesMenuSections,
+    createSeriesHeroState,
     SERIES_MENU_ACTION,
 } from './series-hero.state';
 
@@ -65,5 +71,60 @@ describe('buildSeriesMenuSections', () => {
         expect(row({}, external)?.disabled).toBeFalsy();
         // A second launch could not cancel the first: both players would open.
         expect(row({ startPending: true }, external)?.disabled).toBe(true);
+    });
+});
+
+describe('createSeriesHeroState', () => {
+    it('re-words its labels after a runtime language switch', () => {
+        TestBed.configureTestingModule({
+            imports: [TranslateModule.forRoot()],
+        });
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            WORKSPACE: { DASHBOARD: { TYPE_SERIES: 'Series' } },
+            XTREAM: { PLAY: 'Play' },
+        });
+        translate.setTranslation('ru', {
+            WORKSPACE: { DASHBOARD: { TYPE_SERIES: 'Сериал' } },
+            XTREAM: { PLAY: 'Смотреть' },
+        });
+        translate.use('en');
+        const language = TestBed.runInInjectionContext(() =>
+            toSignal(translate.onLangChange.pipe(startWith(null)), {
+                initialValue: null,
+            })
+        );
+        const hero = createSeriesHeroState({
+            title: signal('Show'),
+            sourceLabel: signal('Portal'),
+            status: signal(null),
+            year: signal(null),
+            tmdbGenres: signal(undefined),
+            genre: signal(undefined),
+            tmdbCountries: signal(undefined),
+            tmdbCast: signal(undefined),
+            cast: signal(undefined),
+            tmdbDirectors: signal(undefined),
+            director: signal(undefined),
+            quickStart: signal({
+                labelKey: 'XTREAM.PLAY',
+                episodeLabel: 'S01E01',
+                icon: 'play_arrow',
+                disabled: false,
+                kind: null,
+                position: null,
+                episodeCode: 'S01E01',
+            }),
+            translate,
+            language,
+        });
+
+        expect(hero.kindLabel()).toBe('Series · Portal');
+        expect(hero.primaryAction()?.label).toBe('Play');
+
+        translate.use('ru');
+
+        expect(hero.kindLabel()).toBe('Сериал · Portal');
+        expect(hero.primaryAction()?.label).toBe('Смотреть');
     });
 });

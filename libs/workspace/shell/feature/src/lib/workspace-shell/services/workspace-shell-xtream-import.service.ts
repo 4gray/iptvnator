@@ -106,6 +106,7 @@ export class WorkspaceShellXtreamImportService {
     });
 
     readonly xtreamImportTitleLabel = computed(() => {
+        this.languageTick();
         if (this.activeRefreshPreparation()) {
             return this.translateText('WORKSPACE.SHELL.XTREAM_REFRESH_TITLE');
         }
@@ -122,6 +123,7 @@ export class WorkspaceShellXtreamImportService {
     });
 
     readonly xtreamImportProgressLabel = computed(() => {
+        this.languageTick();
         const formatNumber = (value: number): string =>
             formatLocalizedNumber(
                 value,

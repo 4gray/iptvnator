@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     LiveLayoutSidebarStateService,
@@ -62,7 +62,7 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
     const fetchChannelEpg = jest.fn();
     const hasItvEpgMappingOverride = jest.fn(() => false);
     const store = {
-        getSelectedCategoryName: signal('All'),
+        getSelectedCategoryLabel: signal({ name: 'All', labelKey: null }),
         currentPlaylist: playlist,
         selectedContentType,
         selectedCategoryId: signal<string | null>('all'),
@@ -177,7 +177,10 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
                 { provide: MatSnackBar, useValue: { open: jest.fn() } },
                 {
                     provide: TranslateService,
-                    useValue: { instant: (key: string) => key },
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: EMPTY,
+                    },
                 },
             ],
         })

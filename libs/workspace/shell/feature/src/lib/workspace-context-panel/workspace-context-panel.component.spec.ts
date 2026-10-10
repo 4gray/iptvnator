@@ -31,6 +31,7 @@ const translations: Record<string, string> = {
     'WORKSPACE.SORT_SERVER': 'Server sorting',
     'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING':
         'Fetching playlist data from source...',
+    'PORTALS.ALL_CATEGORIES': 'All Categories',
 };
 
 interface RouteSnapshotStub {
@@ -103,7 +104,11 @@ describe('WorkspaceContextPanelComponent', () => {
             { category_id: '1', category_name: 'News' },
         ]),
         getCategoryResource: signal<
-            Array<{ category_id: string; category_name: string }>
+            Array<{
+                category_id: string;
+                category_name: string;
+                labelKey?: string;
+            }>
         >([]),
         selectedCategoryId: signal<string | null>(null),
         isCategoryResourceLoading: signal(false),
@@ -442,8 +447,13 @@ describe('WorkspaceContextPanelComponent', () => {
             playlistId: 'stalker-1',
         });
         fixture.componentRef.setInput('section', 'series');
+        // The store names its every-item entry by a key, not a name.
         stalkerStore.getCategoryResource.set([
-            { category_id: '*', category_name: 'All Categories' },
+            {
+                category_id: '*',
+                category_name: '',
+                labelKey: 'PORTALS.ALL_CATEGORIES',
+            },
             { category_id: 'z', category_name: 'Zulu' },
             { category_id: 'a', category_name: 'Alpha' },
             { category_id: 'm', category_name: 'Movies' },
@@ -456,6 +466,13 @@ describe('WorkspaceContextPanelComponent', () => {
             'Alpha',
             'Movies',
         ]);
+
+        // The filter matches the label on screen, translated key included.
+        fixture.componentInstance.categorySearchTerm.set('all c');
+        fixture.detectChanges();
+        expect(getCategoryLabels(fixture)).toEqual(['All Categories']);
+        fixture.componentInstance.categorySearchTerm.set('');
+        fixture.detectChanges();
 
         fixture.componentInstance.setCategorySortMode('name-asc');
         fixture.detectChanges();

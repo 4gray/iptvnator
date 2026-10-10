@@ -118,7 +118,10 @@ describe('WorkspaceShellSearchSyncService', () => {
                     provide: StalkerStore,
                     useValue: {
                         setSearchPhrase: jest.fn(),
-                        getSelectedCategoryName: signal(''),
+                        getSelectedCategoryLabel: signal({
+                            name: '',
+                            labelKey: null,
+                        }),
                         itvFullListActive: signal(false),
                     },
                 },

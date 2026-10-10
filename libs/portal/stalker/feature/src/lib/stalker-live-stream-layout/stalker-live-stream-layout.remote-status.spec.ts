@@ -77,7 +77,7 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
     const selectedItvId = signal<string | undefined>(undefined);
 
     const stalkerStore = {
-        getSelectedCategoryName: signal('News'),
+        getSelectedCategoryLabel: signal({ name: 'News', labelKey: null }),
         itvChannels,
         radioChannels,
         searchPhrase: signal(''),

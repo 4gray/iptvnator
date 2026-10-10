@@ -60,7 +60,12 @@ describe('WorkspaceShellSearchService on settings routes', () => {
                 },
                 {
                     provide: StalkerStore,
-                    useValue: { getSelectedCategoryName: () => '' },
+                    useValue: {
+                        getSelectedCategoryLabel: () => ({
+                            name: '',
+                            labelKey: null,
+                        }),
+                    },
                 },
                 {
                     provide: TranslateService,

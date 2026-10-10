@@ -7,7 +7,6 @@ import {
     withProps,
     withState,
 } from '@ngrx/signals';
-import { TranslateService } from '@ngx-translate/core';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     DataService,
@@ -22,6 +21,7 @@ import {
     StalkerItvChannel,
     StalkerVodSource,
 } from '../../models';
+import type { StalkerCategoryLabel } from '../../stalker-category-label';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { StalkerItvCacheService } from '../../stalker-itv-cache.service';
 import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
@@ -171,24 +171,27 @@ function buildCategoryPatch(
     }
 }
 
+/**
+ * The every-item genre. It carries a translation key, not a translated
+ * name: the list outlives a runtime language switch, so the views translate
+ * the key whenever they render it.
+ */
 function buildAllCategory(
-    contentType: StalkerContentType,
-    translateService: TranslateService
+    contentType: StalkerContentType
 ): StalkerCategoryItem {
     return {
-        category_name: translateService.instant(
+        category_name: '',
+        category_id: '*',
+        labelKey:
             contentType === 'radio'
                 ? 'PORTALS.ALL_RADIO'
-                : 'PORTALS.ALL_CATEGORIES'
-        ),
-        category_id: '*',
+                : 'PORTALS.ALL_CATEGORIES',
     };
 }
 
 function prependAllCategory(
     contentType: StalkerContentType,
-    categories: StalkerCategoryItem[],
-    translateService: TranslateService
+    categories: StalkerCategoryItem[]
 ): StalkerCategoryItem[] {
     const allIndex = categories.findIndex(
         (category) => category.category_name.trim().toLowerCase() === 'all'
@@ -204,16 +207,14 @@ function prependAllCategory(
         categories.length > 0 &&
         !categories.some((category) => String(category.category_id) === '*')
     ) {
-        categories.unshift(buildAllCategory(contentType, translateService));
+        categories.unshift(buildAllCategory(contentType));
     }
 
     return categories;
 }
 
-function fallbackRadioCategories(
-    translateService: TranslateService
-): StalkerCategoryItem[] {
-    return [buildAllCategory('radio', translateService)];
+function fallbackRadioCategories(): StalkerCategoryItem[] {
+    return [buildAllCategory('radio')];
 }
 
 /** Stable identity of a Stalker portal inside the content resource. */
@@ -282,7 +283,6 @@ export function withStalkerContent() {
                 dataService = inject(DataService),
                 stalkerSession = inject(StalkerSessionService),
                 portalRepair = inject(StalkerPortalRepairService),
-                translateService = inject(TranslateService),
                 itvCache = inject(StalkerItvCacheService),
                 parentalLock = inject(ParentalLockService)
             ) => {
@@ -369,9 +369,7 @@ export function withStalkerContent() {
                                     );
                                     if (params.contentType === 'radio') {
                                         const fallback =
-                                            fallbackRadioCategories(
-                                                translateService
-                                            );
+                                            fallbackRadioCategories();
                                         patchState(store, {
                                             radioCategories: fallback,
                                             categoryError: null,
@@ -401,11 +399,8 @@ export function withStalkerContent() {
                                     params.contentType,
                                     params.contentType === 'radio' &&
                                         normalizedCategories.length === 0
-                                        ? fallbackRadioCategories(
-                                              translateService
-                                          )
-                                        : normalizedCategories,
-                                    translateService
+                                        ? fallbackRadioCategories()
+                                        : normalizedCategories
                                 );
 
                                 patchState(store, {
@@ -424,10 +419,7 @@ export function withStalkerContent() {
                                     error,
                                 });
                                 if (params.contentType === 'radio') {
-                                    const fallback =
-                                        fallbackRadioCategories(
-                                            translateService
-                                        );
+                                    const fallback = fallbackRadioCategories();
                                     patchState(store, {
                                         radioCategories: fallback,
                                         categoryError: null,
@@ -1013,6 +1005,21 @@ export function withStalkerContent() {
                 counts.set(Number.NaN, channels.length);
                 return counts;
             });
+            /** The selected genre as listed, or undefined (none or unknown). */
+            const selectedListedCategory = computed(() => {
+                const selectedCategoryId = storeContext.selectedCategoryId();
+                if (!selectedCategoryId) {
+                    return undefined;
+                }
+                return getCategoriesByType(
+                    store,
+                    storeContext.selectedContentType(),
+                    stalkerPlaylistKey(storeContext.currentPlaylist())
+                ).find(
+                    (item) =>
+                        String(item.category_id) === String(selectedCategoryId)
+                );
+            });
 
             return {
                 /** True when the complete ITV channel list is cached, so local search covers all channels. */
@@ -1123,24 +1130,16 @@ export function withStalkerContent() {
                         }
                     );
                 }),
-                getSelectedCategoryName: computed(() => {
-                    const selectedCategoryId =
-                        storeContext.selectedCategoryId();
-                    if (!selectedCategoryId) {
-                        return '';
-                    }
-
-                    const category = getCategoriesByType(
-                        store,
-                        storeContext.selectedContentType(),
-                        stalkerPlaylistKey(storeContext.currentPlaylist())
-                    ).find(
-                        (item) =>
-                            String(item.category_id) ===
-                            String(selectedCategoryId)
-                    );
-
-                    return category?.category_name ?? '';
+                /**
+                 * What the selected genre is called; render it with
+                 * `stalkerCategoryLabelText`. Empty while none is selected.
+                 */
+                getSelectedCategoryLabel: computed<StalkerCategoryLabel>(() => {
+                    const category = selectedListedCategory();
+                    return {
+                        name: category?.category_name ?? '',
+                        labelKey: category?.labelKey ?? null,
+                    };
                 }),
                 getPaginatedContent: computed(() => store.paginatedContent()),
                 isPaginatedContentLoading: computed(() =>

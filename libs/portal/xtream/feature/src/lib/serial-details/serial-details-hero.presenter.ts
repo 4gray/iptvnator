@@ -1,5 +1,7 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
 import {
     formatSeriesEpisodeCode,
     type SeriesQuickStartAction,
@@ -31,6 +33,10 @@ interface SerialDetailsHeroBindings {
 @Injectable()
 export class SerialDetailsHeroPresenter {
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
     private readonly xtreamStore = inject(XtreamStore);
     private readonly trailerDialog = inject(TrailerDialogService);
     private readonly settingsStore = inject(SettingsStore);
@@ -82,6 +88,7 @@ export class SerialDetailsHeroPresenter {
         director: computed(() => this.info()?.director),
         quickStart: this.quickStart,
         translate: this.translate,
+        language: this.languageTick,
     });
 
     readonly similarRailItems = computed<SimilarRailItem[]>(() => [

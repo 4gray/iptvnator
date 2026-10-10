@@ -1,5 +1,7 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
 import {
     formatDurationLabel,
     formatRemainingLabel,
@@ -69,6 +71,14 @@ interface VodDetailsHeroBindings {
 @Injectable()
 export class VodDetailsHeroPresenter {
     private readonly translate = inject(TranslateService);
+    /**
+     * Read by every computed that words a label, so a UI language switch
+     * (or translations landing after the first render) re-words the hero.
+     */
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
     private readonly trailerDialog = inject(TrailerDialogService);
@@ -81,6 +91,7 @@ export class VodDetailsHeroPresenter {
     private readonly info = computed(() => this.bindings()?.info() ?? null);
 
     readonly kindLabel = computed(() => {
+        this.languageTick();
         const kind = this.translate.instant('WORKSPACE.DASHBOARD.TYPE_MOVIE');
         const source = this.xtreamStore.currentPlaylist()?.name?.trim();
         return source ? `${kind} · ${source}` : kind;
@@ -91,9 +102,10 @@ export class VodDetailsHeroPresenter {
         return info?.duration_secs || parseDurationSeconds(info?.duration);
     });
 
-    readonly durationLabel = computed(() =>
-        this.label(formatDurationLabel(this.durationSeconds()))
-    );
+    readonly durationLabel = computed(() => {
+        this.languageTick();
+        return this.label(formatDurationLabel(this.durationSeconds()));
+    });
 
     /** One chip per TMDB genre facet, else the provider's list split up. */
     readonly genreChips = computed<VodHeroGenreChip[]>(() => {
@@ -133,6 +145,7 @@ export class VodDetailsHeroPresenter {
     });
 
     readonly primaryAction = computed<VodHeroPrimaryAction>(() => {
+        this.languageTick();
         const bindings = this.bindings();
         const state = bindings?.externalState() ?? 'idle';
         const icon = bindings?.isOfflinePrimary()

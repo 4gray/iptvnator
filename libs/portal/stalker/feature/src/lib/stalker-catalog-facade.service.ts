@@ -7,12 +7,16 @@ import {
     inject,
     signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
 import {
     buildStalkerSelectedVodItem,
     isStalkerSeriesFlag,
     StalkerLinkFlagSource,
     StalkerStore,
     StalkerVodSource,
+    stalkerCategoryLabelText,
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
@@ -36,6 +40,11 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     StalkerVodSource
 > {
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
@@ -84,16 +93,18 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
      */
     private readonly savedScrollPositions = new Map<string, number>();
     readonly selectedCategoryTitle = computed(() => {
-        const category = this.selectedCategory();
-        const fromCategory = category
-            ? String(category.category_name ?? '')
-            : '';
-
-        if (fromCategory) {
-            return fromCategory;
+        // The store's every-item entry is named by a key, translated in the
+        // current language; the tick re-runs this after a switch.
+        this.languageTick();
+        const label = stalkerCategoryLabelText(
+            this.stalkerStore.getSelectedCategoryLabel(),
+            (key) => this.translate.instant(key)
+        );
+        if (label) {
+            return label;
         }
-
-        return this.stalkerStore.getSelectedCategoryName() ?? '';
+        const category = this.selectedCategory();
+        return category ? String(category.category_name ?? '') : '';
     });
     readonly categoryItemCount = computed(() => this.stalkerStore.totalCount());
     readonly contentSortMode = computed<PortalCatalogSortMode | null>(

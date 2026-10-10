@@ -12,11 +12,15 @@
                 (click)="categoryClicked.emit(item)"
             >
                 <span class="nav-item-label">
-                    {{
-                        item.category_name ||
-                            $any(item).name ||
-                            'No category name'
-                    }}
+                    @if (item.labelKey) {
+                        {{ item.labelKey | translate }}
+                    } @else {
+                        {{
+                            item.category_name ||
+                                $any(item).name ||
+                                'No category name'
+                        }}
+                    }
                 </span>
                 @if (showCounts()) {
                     <div class="item-count app-count-badge">

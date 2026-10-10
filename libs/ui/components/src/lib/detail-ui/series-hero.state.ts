@@ -60,6 +60,12 @@ export interface SeriesHeroStateDeps {
     readonly director: Signal<string | undefined>;
     readonly quickStart: Signal<SeriesHeroQuickStart | null>;
     readonly translate: Pick<TranslateService, 'instant'>;
+    /**
+     * Ticks on a UI language switch (and when translations first land).
+     * Every label below is worded through a wrapper that reads it, so the
+     * computeds re-word instead of keeping the language they first ran in.
+     */
+    readonly language: Signal<unknown>;
 }
 
 /**
@@ -68,8 +74,10 @@ export interface SeriesHeroStateDeps {
  * primary button's two lines ("Continue" / "S02E03 · 18m left").
  */
 export function createSeriesHeroState(deps: SeriesHeroStateDeps) {
-    const translate = (key: string, params?: Record<string, unknown>) =>
-        deps.translate.instant(key, params);
+    const translate = (key: string, params?: Record<string, unknown>) => {
+        deps.language();
+        return deps.translate.instant(key, params);
+    };
     const titleParts = computed(() => splitSeasonSuffix(deps.title()));
     const castMembers = computed<TmdbEnrichedCastMember[]>(() =>
         deps.tmdbCast()?.length

@@ -26,11 +26,15 @@
                 (contextmenu)="onCategoryContextMenu(item, $event)"
             >
                 <span class="nav-item-label">
-                    {{
-                        item.category_name ||
-                            $any(item).name ||
-                            'No category name'
-                    }}
+                    @if (item.labelKey) {
+                        {{ item.labelKey | translate }}
+                    } @else {
+                        {{
+                            item.category_name ||
+                                $any(item).name ||
+                                'No category name'
+                        }}
+                    }
                 </span>
                 @if (showCounts()) {
                     @if (countDisplayMode() === 'loading') {

@@ -1,8 +1,9 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatDialog } from '@angular/material/dialog';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom, take } from 'rxjs';
+import { firstValueFrom, startWith, take } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
     ParentalLockService,
@@ -32,6 +33,11 @@ export class SettingsPlaylistResetFacade {
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+    /** The language can be switched on this page while a removal runs. */
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
 
     readonly isRemovingAllPlaylists = signal(false);
     readonly removeAllProgress = signal<DbOperationEvent | null>(null);
@@ -48,13 +54,14 @@ export class SettingsPlaylistResetFacade {
         () => !this.isRemovingAllPlaylists() && this.deleteSummary().total > 0
     );
 
-    readonly removeAllProgressLabel = computed(() =>
-        buildRemoveAllProgressLabel({
+    readonly removeAllProgressLabel = computed(() => {
+        this.languageTick();
+        return buildRemoveAllProgressLabel({
             isRemovingAllPlaylists: this.isRemovingAllPlaylists(),
             progress: this.removeAllProgress(),
             translate: (key, params) => this.translate.instant(key, params),
-        })
-    );
+        });
+    });
 
     /**
      * Asks for confirmation in a dedicated dialog before wiping every

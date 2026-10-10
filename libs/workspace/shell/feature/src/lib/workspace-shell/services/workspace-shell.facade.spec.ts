@@ -71,7 +71,10 @@ class MockXtreamStore {
 
 class MockStalkerStore {
     readonly searchPhrase = signal('');
-    readonly getSelectedCategoryName = signal('All Items');
+    readonly getSelectedCategoryLabel = signal({
+        name: 'All Items',
+        labelKey: null,
+    });
     readonly itvFullListActive = signal(false);
 
     setSearchPhrase = jest.fn((term: string) => this.searchPhrase.set(term));

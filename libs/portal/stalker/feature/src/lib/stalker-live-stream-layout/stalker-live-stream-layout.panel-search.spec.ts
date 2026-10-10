@@ -2,14 +2,17 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    type StalkerCategoryLabel,
+    StalkerStore,
+} from '@iptvnator/portal/stalker/data-access';
 import {
     PlaylistsService,
     RuntimeCapabilitiesService,
@@ -21,8 +24,9 @@ import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.c
 const FILL_CHECK_DELAY_MS = 100;
 
 /**
- * Focused spec for the fullscreen panel's search on a paged portal — kept
- * separate from the main layout spec, which sits at the max-lines budget.
+ * Focused spec for the fullscreen panel's title and its search on a paged
+ * portal — kept separate from the main layout spec, which sits at the
+ * max-lines budget.
  */
 describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
     let fixture: ComponentFixture<StalkerLiveStreamLayoutComponent>;
@@ -50,7 +54,10 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
     const itvFullListActive = signal(false);
     const itvSelectedCategoryFromCache = signal(false);
     const store = {
-        getSelectedCategoryName: signal('All'),
+        getSelectedCategoryLabel: signal<StalkerCategoryLabel>({
+            name: 'All',
+            labelKey: null,
+        }),
         currentPlaylist: signal({ _id: 'playlist-one', title: 'Portal One' }),
         selectedContentType: signal<'itv' | 'radio'>('itv'),
         selectedCategoryId: signal<string | null>('all'),
@@ -97,6 +104,7 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         itvFullListActive.set(false);
         itvSelectedCategoryFromCache.set(false);
         store.selectedCategoryId.set('all');
+        store.getSelectedCategoryLabel.set({ name: 'All', labelKey: null });
         store.selectedContentType.set('itv');
         store.radioChannels.set([]);
         store.itvFullChannelList.set([]);
@@ -479,5 +487,37 @@ describe('StalkerLiveStreamLayoutComponent fullscreen panel search', () => {
         expect(component.channelsForList(blank)).toEqual(category);
         expect(component.visibleChannels()).toEqual([category[249]]);
         expect(store.setPage).not.toHaveBeenCalled();
+    });
+
+    it('re-labels the every-item genre in the header and panel after a language switch', () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            PORTALS: { ALL_CATEGORIES: 'All categories' },
+        });
+        translate.setTranslation('ru', {
+            PORTALS: { ALL_CATEGORIES: 'Все категории' },
+        });
+        translate.use('en');
+        store.selectedCategoryId.set('*');
+        store.getSelectedCategoryLabel.set({
+            name: '',
+            labelKey: 'PORTALS.ALL_CATEGORIES',
+        });
+        fixture.detectChanges();
+        const headerTitle = () =>
+            (
+                fixture.nativeElement.querySelector(
+                    '.sidebar-header .category-title'
+                ) as HTMLElement | null
+            )?.textContent?.trim();
+
+        expect(headerTitle()).toBe('All categories');
+        expect(component.panelTitle()).toBe('All categories');
+
+        translate.use('ru');
+        fixture.detectChanges();
+
+        expect(headerTitle()).toBe('Все категории');
+        expect(component.panelTitle()).toBe('Все категории');
     });
 });
