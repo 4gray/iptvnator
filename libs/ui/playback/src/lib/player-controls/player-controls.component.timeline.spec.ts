@@ -2,6 +2,7 @@ import { WritableSignal, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { buildCatchupTimelineSegments } from './catchup-timeline-segments';
+import { buildChapterTimelineSegments } from './chapter-timeline-segments';
 import {
     DEFAULT_PLAYER_CAPABILITIES,
     createEmptyControlsState,
@@ -294,12 +295,18 @@ describe('PlayerControlsComponent timeline value text', () => {
     });
 
     it('names file chapters and reads plain time in an untitled one', () => {
-        // Chapters as Embedded MPV reports them: each runs to the next.
-        fixture.componentRef.setInput('timelineSegments', [
-            { startSeconds: 0, endSeconds: 240, title: 'Opening' },
-            { startSeconds: 240, endSeconds: 3300, title: null },
-            { startSeconds: 3300, endSeconds: 3600, title: 'Credits' },
-        ]);
+        // Embedded MPV's chapters: each runs to the next one's start.
+        fixture.componentRef.setInput(
+            'timelineSegments',
+            buildChapterTimelineSegments(
+                [
+                    { startSeconds: 0, title: 'Opening' },
+                    { startSeconds: 240, title: null },
+                    { startSeconds: 3300, title: 'Credits' },
+                ],
+                3600
+            )
+        );
         fixture.detectChanges();
 
         expect(valueText()).toBe('5:00');

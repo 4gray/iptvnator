@@ -386,7 +386,7 @@ always covers `[0, duration]`. Without segments — live playback, VOD and
 series — the row is one untitled segment, which is the plain bar.
 `ControlsTimeline` owns the normalized list and the per-segment fill for the
 current scrub or playback value; the label becomes `Chapter 2 · 12:40`
-over a titled segment. mpv's chapter list is not a producer yet.
+over a titled segment.
 
 Boundaries hold 3:1 over any frame. Segments only round the bar's two
 ends, and every gap (2px, `TIMELINE_SEGMENT_GAP_PX`) is filled by a
@@ -414,6 +414,22 @@ player re-places it when only the size changes (a paused player whose
 slider the keyboard holds, in a narrowed window). `xtream-catchup-timeline-label.e2e.ts`
 tabs to the bar with a 120-character programme title at 1280 and 800px, in
 both themes and in de and ru.
+
+**Chapter producer.** Embedded MPV reports the file's own chapters: the
+addons and the frame-copy helper observe mpv `chapter-list` and publish it
+as `EmbeddedMpvSession.chapters` (`{ timeSeconds, title? }`, validated in
+main by `normalizeEmbeddedMpvChapters`). `buildChapterTimelineSegments`
+(`chapter-timeline-segments.ts`) runs each chapter from its start to the
+next one's, the last to the duration, orders them and drops repeated or
+out-of-range starts; an untitled chapter becomes an untitled segment, and
+no chapters or no finite duration yields `null`.
+`EmbeddedMpvPlayerComponent.controlsTimelineSegments`
+(`embeddedMpvTimelineSegments`) passes the host's segments when it
+supplies any and the chapter segments otherwise, so catch-up programmes
+always win; `sameTimelineSegments` keeps a re-polled, unchanged list from
+counting as a change. The Linux native-view `mpv --wid` backend reads no
+chapters, and the web engines report none (streamed HLS/DASH carries no
+chapter track), so their VOD and series stay one plain bar.
 
 **Catch-up producer.** Archive playback of a live channel passes the EPG
 programmes overlapping its archive window.
@@ -460,8 +476,9 @@ episode: `upNextThresholdSeconds` is 4% of the duration clamped to
 `timelineSegments` carry a closing-credits chapter in the last third
 (`creditsStartSeconds`: "Credits", "Outro", "Ending", an anime `ED`, and a
 few localized names), the card appears when it starts instead, at most
-5 min before the end. No engine reports file chapters today, so in practice
-the adaptive lead applies. The countdown shows whole minutes, and seconds
+5 min before the end. Embedded MPV under the frame-copy engine supplies
+file chapters (see the chapter producer above); every other engine, and a
+file without a credits chapter, uses the adaptive lead. The countdown shows whole minutes, and seconds
 in the last minute. A
 still that fails to load falls back to the label tile. A
 click emits `nextEpisodeRequested` directly — not through the

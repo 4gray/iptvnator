@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import type {
     EmbeddedMpvEngine,
     EmbeddedMpvSession,
@@ -218,6 +218,87 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
 
         expect(previous).toHaveBeenCalledTimes(1);
         expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    describe('file chapters', () => {
+        const EPISODE: EmbeddedMpvSession = {
+            ...READY_SESSION,
+            durationSeconds: 3000,
+            positionSeconds: 2750,
+            chapters: [
+                { timeSeconds: 0, title: 'Episode' },
+                { timeSeconds: 2700, title: 'Credits' },
+            ],
+        };
+        const UP_NEXT = { label: 'S01E02', title: 'Next', thumbnailUrl: null };
+
+        function upNextCard(
+            fixture: ComponentFixture<EmbeddedMpvPlayerComponent>
+        ): Element | null {
+            return fixture.nativeElement.querySelector(
+                '[data-test-id="player-controls-up-next"]'
+            );
+        }
+
+        function play(session: EmbeddedMpvSession) {
+            const rendered = render();
+            rendered.fixture.componentRef.setInput('upNext', UP_NEXT);
+            rendered.controller.session.set(session);
+            rendered.fixture.detectChanges();
+            return rendered;
+        }
+
+        it('draws mpv chapters on the shared timeline', () => {
+            const { fixture } = play(EPISODE);
+
+            expect(sharedControls(fixture)?.timelineSegments()).toEqual([
+                { startSeconds: 0, endSeconds: 2700, title: 'Episode' },
+                { startSeconds: 2700, endSeconds: 3000, title: 'Credits' },
+            ]);
+        });
+
+        it('names the chapter at the position in the seek bar value text', () => {
+            const translate = TestBed.inject(TranslateService);
+            translate.setTranslation('en', {
+                EMBEDDED_MPV: {
+                    PLAYER: {
+                        TIMELINE_SEGMENT_POSITION: '{{title}} · {{time}}',
+                    },
+                },
+            });
+            translate.use('en');
+            const { fixture } = play(EPISODE);
+
+            const slider = fixture.nativeElement.querySelector(
+                '.player-controls__slider--timeline'
+            ) as HTMLInputElement | null;
+            // 2750 s is inside the credits chapter (from 2700 s).
+            expect(slider?.getAttribute('aria-valuetext')).toBe(
+                'Credits · 45:50'
+            );
+        });
+
+        it('keeps host catch-up segments ahead of file chapters', () => {
+            const { fixture } = play(EPISODE);
+            const catchup = [
+                { startSeconds: 0, endSeconds: 3000, title: 'Programme' },
+            ];
+            fixture.componentRef.setInput('timelineSegments', catchup);
+            fixture.detectChanges();
+
+            expect(sharedControls(fixture)?.timelineSegments()).toEqual(
+                catchup
+            );
+        });
+
+        it('shows Up next when the closing-credits chapter starts', () => {
+            // 250 s left: past the credits start, but before the adaptive
+            // lead (4% of 50 min = 2 min) would bring the card up.
+            expect(upNextCard(play(EPISODE).fixture)).not.toBeNull();
+            expect(
+                upNextCard(play({ ...EPISODE, chapters: [] }).fixture)
+            ).toBeNull();
+        });
     });
 
     it('syncs bounds on fullscreen changes without revealing legacy state', () => {
