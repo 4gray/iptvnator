@@ -38,9 +38,12 @@ test('reads the font the web app loads', () => {
     assert.ok(!ligatures.has('arrow_outward'));
 });
 
-test('drops codepoints the font has no ligature for', () => {
-    assert.ok(!ligatures.has('rounded_corner'));
-    assert.ok(!ligatures.has('stairs'));
+test('accepts every name in the codepoints file', () => {
+    // Rendered with the package CSS in Chromium, all 2,193 names draw as one
+    // glyph, these two included.
+    assert.equal(ligatures.size, 2193);
+    assert.ok(ligatures.has('rounded_corner'));
+    assert.ok(ligatures.has('stairs'));
 });
 
 test('reports unknown static <mat-icon> text on the line of the name', () => {
@@ -152,6 +155,28 @@ test('reads quoted inline templates, but not other template properties', () => {
         { line: 1, name: 'file_off', source: '<mat-icon> text' },
         { line: 3, name: 'x', source: '<mat-icon> binding' },
         { line: 3, name: 'unlockk', source: '<mat-icon> binding' },
+    ]);
+});
+
+test('reports inline template lines through escapes and line continuations', () => {
+    const source = [
+        "@Component({ selector: 'a', template: '<b>a</b>\\n<mat-icon>bad_one</mat-icon>' })",
+        'export class A {}',
+        '@Component({',
+        "    selector: 'b',",
+        '    template: `<b>a</b>\\n<b>\\u{1F600}</b>',
+        '        <mat-icon>bad_two</mat-icon>`,',
+        '})',
+        "@Component({ selector: 'c', template: '<b>c</b>\\",
+        "<mat-icon>bad_three</mat-icon>' })",
+        "@Component({ selector: 'd', template: `<b>d</b>\r\n<mat-icon>bad_four</mat-icon>` })",
+    ].join('\n');
+
+    assert.deepEqual(unknown('f.component.ts', source), [
+        { line: 1, name: 'bad_one', source: '<mat-icon> text' },
+        { line: 6, name: 'bad_two', source: '<mat-icon> text' },
+        { line: 9, name: 'bad_three', source: '<mat-icon> text' },
+        { line: 11, name: 'bad_four', source: '<mat-icon> text' },
     ]);
 });
 

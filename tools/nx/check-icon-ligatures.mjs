@@ -19,12 +19,6 @@ import {
 export const FONT_PACKAGE = 'material-design-icons-iconfont';
 const CODEPOINTS = `${FONT_PACKAGE}/dist/fonts/MaterialIcons-Regular.json`;
 
-/**
- * Listed in the 6.7.0 codepoints file, but the font has no ligature for them:
- * measured in Chromium, both render as text rather than one 24px glyph.
- */
-const LISTED_WITHOUT_LIGATURE = new Set(['rounded_corner', 'stairs']);
-
 /** Renderer sources: the font only exists in the Angular app. */
 const SCANNED_PATHSPECS = [
     'apps/web/*.html',
@@ -43,11 +37,7 @@ export async function loadLigatures() {
     const codepoints = JSON.parse(
         await readFile(require.resolve(CODEPOINTS), 'utf8')
     );
-    return new Set(
-        Object.keys(codepoints).filter(
-            (name) => !LISTED_WITHOUT_LIGATURE.has(name)
-        )
-    );
+    return new Set(Object.keys(codepoints));
 }
 
 /** Icon names in one source file that the font cannot draw. */

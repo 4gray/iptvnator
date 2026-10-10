@@ -14,6 +14,7 @@ import {
     tmplAstVisitAll,
 } from '@angular/compiler';
 import ts from 'typescript';
+import { literalLineResolver } from './literal-source-lines.mjs';
 
 /**
  * Collects the icon names a source can hand to `<mat-icon>`, where they are
@@ -88,15 +89,10 @@ function templateResults(ast, out = []) {
 }
 
 class TemplateIconVisitor extends TmplAstRecursiveVisitor {
-    constructor(template, lineOffset) {
+    constructor(lineAt) {
         super();
-        this.template = template;
-        this.lineOffset = lineOffset;
+        this.lineAt = lineAt;
         this.found = [];
-    }
-
-    lineAt(offset) {
-        return this.template.slice(0, offset).split('\n').length - 1;
     }
 
     /** A static value, reported on the line its text starts. */
@@ -118,7 +114,7 @@ class TemplateIconVisitor extends TmplAstRecursiveVisitor {
     }
 
     add(name, line, source) {
-        this.found.push({ name, line: this.lineOffset + line + 1, source });
+        this.found.push({ name, line: line + 1, source });
     }
 
     visitElement(element) {
@@ -165,10 +161,14 @@ class TemplateIconVisitor extends TmplAstRecursiveVisitor {
 }
 
 /**
- * Icon names in an Angular template. `lineOffset` is the zero-based line on
- * which an inline template starts inside its TypeScript file.
+ * Icon names in an Angular template. `lineAt` maps a template offset to its
+ * zero-based source line; an inline template passes its literal's mapping.
  */
-export function iconNamesInTemplate(template, file, lineOffset = 0) {
+export function iconNamesInTemplate(
+    template,
+    file,
+    lineAt = (offset) => template.slice(0, offset).split('\n').length - 1
+) {
     // Keep whitespace so text spans and values match the source lines.
     const parsed = parseTemplate(template, file, {
         preserveWhitespaces: true,
@@ -178,7 +178,7 @@ export function iconNamesInTemplate(template, file, lineOffset = 0) {
             `${file}: cannot parse template: ${parsed.errors[0].msg}`
         );
     }
-    const visitor = new TemplateIconVisitor(template, lineOffset);
+    const visitor = new TemplateIconVisitor(lineAt);
     tmplAstVisitAll(visitor, parsed.nodes);
     return visitor.found;
 }
@@ -350,7 +350,7 @@ export function iconNamesInTypeScript(source, file) {
                 ...iconNamesInTemplate(
                     node.initializer.text,
                     file,
-                    lineOf(node.initializer)
+                    literalLineResolver(node.initializer, sourceFile)
                 )
             );
         }
