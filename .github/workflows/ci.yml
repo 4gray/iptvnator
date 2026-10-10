@@ -409,6 +409,10 @@ jobs:
             - name: Validate Angular Material token overrides
               run: pnpm run styles:material-tokens:validate
 
+            # The icon font renders an unknown ligature name as plain text.
+            - name: Validate Material icon names
+              run: pnpm run styles:icon-ligatures:validate
+
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is
             # unset, so this checks both the local and the CI inference.
