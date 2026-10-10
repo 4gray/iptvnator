@@ -694,6 +694,13 @@ export class LiveStreamLayoutComponent
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
         });
+        if (startPlayback && streamUrl) {
+            this.xtreamStore.addRecentItem({
+                xtreamId: item.xtream_id,
+                contentType: 'live',
+                playlist: this.xtreamStore.currentPlaylist,
+            });
+        }
         if (this.usesEmbeddedPlayer() || !startPlayback) {
             return;
         }

@@ -55,7 +55,10 @@ export const withFavorites = function () {
                         return false;
                     }
 
-                    const currentStatus = store.isFavorite();
+                    const currentStatus = await dataSource.isFavorite(
+                        { id: contentId, type: contentType },
+                        playlistId
+                    );
 
                     if (currentStatus) {
                         // Remove from favorites

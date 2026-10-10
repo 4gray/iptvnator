@@ -60,6 +60,31 @@ describe('withFavorites', () => {
         });
     });
 
+    it.each([false, true])(
+        'toggles the typed target using its persisted status %s rather than the previous detail state',
+        async (persistedStatus) => {
+            patchState(store, { isFavorite: !persistedStatus });
+            dataSource.getContentByXtreamId.mockResolvedValue({
+                id: 42,
+                xtream_id: 42,
+                type: 'live',
+            });
+            dataSource.isFavorite.mockResolvedValue(persistedStatus);
+            expect(await store.toggleFavorite(42, 'playlist-1', 'live')).toBe(
+                !persistedStatus
+            );
+            expect(dataSource.isFavorite).toHaveBeenCalledWith(
+                { id: 42, type: 'live' },
+                'playlist-1'
+            );
+            expect(
+                persistedStatus
+                    ? dataSource.removeFavorite
+                    : dataSource.addFavorite
+            ).toHaveBeenCalled();
+        }
+    );
+
     it('looks favorites up with the requested content type before adding one', async () => {
         dataSource.getContentByXtreamId.mockResolvedValue({
             id: 3941697,
@@ -142,6 +167,7 @@ describe('withFavorites', () => {
             xtream_id: 290,
         });
         patchState(store, { isFavorite: true });
+        dataSource.isFavorite.mockResolvedValue(true);
 
         const result = await store.toggleFavorite(290, 'playlist-1', 'live');
 

@@ -42,7 +42,10 @@ See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
 Collection operations carry `{ id, type }`: `id` remains the SQLite row ID
 on Electron and the provider ID on PWA. Electron unwraps the row ID at its
 existing database boundary. Typed lookups, favorite toggles, recent updates,
-removals, backdrops and backup/restore retain the content type.
+removals, backdrops and backup/restore retain the content type. A favorite toggle
+reads persisted status for its exact typed target instead of borrowing the last
+detail's favorite state. Live playback records its typed recent entry when a
+channel start is requested; selection without a start does not update history.
 
 PWA keeps the existing localStorage keys. `xtream-favorites` contains ordered
 `type:id` keys (for example `movie:42`); `xtream-recent-items` uses the same
@@ -53,7 +56,8 @@ only the required content types; snapshots support collection reads offline.
 
 Legacy numeric and numeric-string references migrate lazily. A valid legacy
 snapshot supplies its saved content type; otherwise all three catalogs must
-be loaded successfully and exactly one type must match. A partial catalog,
+be loaded successfully and exactly one type must match (repeated rows within
+that same type are one identity). A partial catalog,
 failed hydration, missing item or colliding ID never chooses a type. Such
 references remain stored but hidden until identity can be resolved or the
 user explicitly adds a typed item. Legacy numeric snapshot entries remain as

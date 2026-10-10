@@ -114,9 +114,12 @@ export function findCollectionItems(
     const uniqueIds = new Map<number, XtreamContentItem | null>();
     for (const item of cached) {
         if (!wantedIds.has(item.xtream_id)) continue;
+        const previous = uniqueIds.get(item.xtream_id);
         uniqueIds.set(
             item.xtream_id,
-            uniqueIds.has(item.xtream_id) ? null : item
+            previous === null || (previous && previous.type !== item.type)
+                ? null
+                : item
         );
     }
     const results = new Map<CollectionKey, XtreamContentItem>();

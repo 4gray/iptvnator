@@ -250,4 +250,21 @@ describe('PWA Xtream collection identity', () => {
             { id: 'movie:42', viewedAt: '2026-10-02T00:00:00.000Z' },
         ]);
     });
+    it('resolves a unique legacy type even when that catalog repeats its provider row', async () => {
+        localStorage.setItem('xtream-favorites', JSON.stringify({ p1: [42] }));
+        api.getStreams.mockImplementation((_credentials, type) =>
+            Promise.resolve(
+                type === 'movie'
+                    ? [
+                          { stream_id: 42, name: 'Movie' },
+                          { stream_id: 42, name: 'Movie' },
+                      ]
+                    : []
+            )
+        );
+        expect(
+            (await source.getFavorites('p1')).map((item) => item.type)
+        ).toEqual(['movie']);
+        expect(read('xtream-favorites').p1).toEqual(['movie:42']);
+    });
 });
