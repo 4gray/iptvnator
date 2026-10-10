@@ -147,7 +147,7 @@ export class WorkspaceDashboardRailsComponent {
     readonly continueWatchingBaseCards = computed<DashboardRailCard[]>(() => {
         this.languageTick();
         return this.data
-            .globalRecentVodItems()
+            .continueWatchingItems()
             .filter(isContinueWatchingRecentItem)
             .slice(0, RAIL_ITEM_LIMIT)
             .map((item) => this.toRecentCard(item));
@@ -180,6 +180,7 @@ export class WorkspaceDashboardRailsComponent {
     readonly showRecentContentSkeleton = computed(() =>
         shouldShowRecentContentSkeleton(this.dashboardRails(), {
             continueWatchingCount: this.continueWatchingCards().length,
+            continueWatchingLoading: !this.data.continueWatchingSettled(),
             globalRecentLoading: this.data.globalRecentLoading(),
             recentLiveCount: this.recentLiveCards().length,
         })

@@ -6,8 +6,8 @@ import {
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
@@ -15,8 +15,8 @@ import { markSectionForCheckOnFormEvents } from './settings-section-form-render'
     selector: 'app-settings-dashboard-section',
     imports: [
         CommonModule,
-        MatCheckboxModule,
         MatIconModule,
+        MatSlideToggleModule,
         ReactiveFormsModule,
         TranslateModule,
     ],

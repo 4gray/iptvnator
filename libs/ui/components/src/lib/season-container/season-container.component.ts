@@ -150,6 +150,11 @@ export class SeasonContainerComponent implements OnInit {
     readonly seasonLoadStates = input<Readonly<
         Record<string, SeasonCountLoadState>
     > | null>(null);
+    /**
+     * The seasons whose lists are not loaded yet (Stalker lazy-VOD), so the
+     * auto-selection can tell them from seasons the portal answered empty.
+     */
+    readonly unloadedSeasonKeys = input<readonly string[]>([]);
 
     readonly episodeClicked = output<XtreamSerieEpisode>();
     /** "Play from beginning" in an episode's menu: start at 0, not the saved position. */
@@ -343,6 +348,7 @@ export class SeasonContainerComponent implements OnInit {
             playbackPositions: this.playbackPositions,
             positionOf: (episode) => this.getEpisodePosition(episode),
             hasUnloadedSeasons: this.hasUnloadedSeasons,
+            unloadedSeasonKeys: this.unloadedSeasonKeys,
             episodeCounts: this.episodeCounts,
             watchedCounts: this.watchedCounts,
             emitSeasonSelected: (seasonKey) =>

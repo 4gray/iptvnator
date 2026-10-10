@@ -191,6 +191,18 @@ describe('resolveAutoSelectedSeason', () => {
         );
     });
 
+    it('pins the first season still to load past one answered empty', () => {
+        expect(
+            resolveAutoSelectedSeason(
+                context(
+                    { '1': [], '2': [], '3': ['301'] },
+                    {},
+                    { hasUnloadedSeasons: true, unloadedSeasonKeys: ['2'] }
+                )
+            )
+        ).toBe('2');
+    });
+
     it('pins the first key while seasons are still unloaded', () => {
         const ctx = context(
             { '1': ['101'], '2': ['201'], '3': [] },
@@ -209,5 +221,101 @@ describe('resolveAutoSelectedSeason', () => {
                 )
             )
         ).toBe('2');
+    });
+    describe('extras (season 0)', () => {
+        it('do not open first while the series has other seasons', () => {
+            expect(
+                resolveAutoSelectedSeason(
+                    context({ '0': ['1'], '1': ['101', '102'] })
+                )
+            ).toBe('1');
+        });
+
+        it('do not pull the page to an extra left unfinished', () => {
+            const ctx = context(
+                { '0': ['1'], '1': ['101', '102'] },
+                {
+                    '1': inProgress(1, '2026-07-09T00:00:00.000Z'),
+                    '101': watched(101),
+                }
+            );
+            expect(resolveAutoSelectedSeason(ctx)).toBe('1');
+        });
+
+        it('are not the unwatched season once the run is watched', () => {
+            const ctx = context(
+                { '0': ['1'], '1': ['101'], '2': ['201'] },
+                { '101': watched(101), '201': watched(201) }
+            );
+            expect(resolveAutoSelectedSeason(ctx)).toBe('2');
+        });
+
+        it('are not the first season to load while seasons are unloaded', () => {
+            expect(
+                resolveAutoSelectedSeason(
+                    context(
+                        { '0': [], '1': [], '2': [] },
+                        {},
+                        { hasUnloadedSeasons: true }
+                    )
+                )
+            ).toBe('1');
+        });
+
+        it('are the run of a series filed under season 0 alone', () => {
+            expect(
+                resolveAutoSelectedSeason(context({ '0': ['1', '2'] }))
+            ).toBe('0');
+        });
+
+        it('open when every regular season came back empty', () => {
+            expect(
+                resolveAutoSelectedSeason(
+                    context({ '0': ['1'], '1': [], '2': [] })
+                )
+            ).toBe('0');
+        });
+
+        it('open when every regular season came back empty and only they are still to load', () => {
+            // The aggregate flag is true because of the extras alone: the
+            // run has nothing to show, so the page loads the extras.
+            expect(
+                resolveAutoSelectedSeason(
+                    context(
+                        { '0': [], '1': [], '2': [] },
+                        {},
+                        {
+                            hasUnloadedSeasons: true,
+                            unloadedSeasonKeys: ['0'],
+                        }
+                    )
+                )
+            ).toBe('0');
+            // While a regular season is still to load, it comes first.
+            expect(
+                resolveAutoSelectedSeason(
+                    context(
+                        { '0': [], '1': [], '2': [] },
+                        {},
+                        {
+                            hasUnloadedSeasons: true,
+                            unloadedSeasonKeys: ['0', '2'],
+                        }
+                    )
+                )
+            ).toBe('2');
+        });
+
+        it('still open while one is playing', () => {
+            expect(
+                resolveAutoSelectedSeason(
+                    context(
+                        { '0': ['1'], '1': ['101'] },
+                        {},
+                        { playingSeasonKey: '0' }
+                    )
+                )
+            ).toBe('0');
+        });
     });
 });

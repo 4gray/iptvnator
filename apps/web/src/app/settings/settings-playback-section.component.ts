@@ -8,11 +8,12 @@ import {
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import {
     StreamFormat,
@@ -27,11 +28,12 @@ import { markSectionForCheckOnFormEvents } from './settings-section-form-render'
     imports: [
         CommonModule,
         MatButtonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         MatSelectModule,
+        MatSlideToggleModule,
+        MatTooltipModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
@@ -113,5 +115,9 @@ export class SettingsPlaybackSectionComponent {
     isExternalPlayerSelected(): boolean {
         const player = this.form().value.player;
         return player === VideoPlayer.MPV || player === VideoPlayer.VLC;
+    }
+
+    isEmbeddedMpvSelected(): boolean {
+        return this.form().value.player === VideoPlayer.EmbeddedMpv;
     }
 }

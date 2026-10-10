@@ -177,5 +177,6 @@ export function buildSettingsSectionNavItems({
         label: section.navLabelKey,
         icon: section.icon,
         visible: meetsSettingsRequirements(section.requires, capabilities),
+        ...(section.group ? { group: section.group } : {}),
     }));
 }

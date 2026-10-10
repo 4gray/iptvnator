@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { setSwitch } from './e2e-helpers';
 import { expect } from './fixtures';
 
 /** Complete lazy VOD season workflow, using fictional provider/TMDB replies. */
@@ -115,7 +116,10 @@ export async function verifyStalkerSeasonMarkers(
         });
     });
     await page.goto('/workspace/settings/tmdb');
-    await page.locator('[data-test-id="tmdb-enabled"] input').check();
+    await setSwitch(
+        page.locator('[data-test-id="tmdb-enabled"] [role="switch"]'),
+        true
+    );
     await page.locator('[data-test-id="tmdb-api-key"]').fill('e2e-key');
     const save = page.getByRole('button', { name: 'Save changes' });
     await save.click();

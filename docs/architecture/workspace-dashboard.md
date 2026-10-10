@@ -75,8 +75,9 @@ Render rules:
    full-bleed. All rails and the hero are skipped.
 3. The hero (`lib-dashboard-hero`) renders when it has at least one slide;
    see [Cinematic Hero](#cinematic-hero). It shows its own skeleton while
-   it has no slide and any of its sources (history, favorites, Xtream
-   recently added) is still on its first load, or a live candidate still
+   it has no slide and any of its sources (history and its playback
+   positions, favorites, Xtream recently added) is still on its first load,
+   or a live candidate still
    waits for its first programme answer (portal or XMLTV, for at most
    `DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS`, 2 s, from the hero's creation).
    Dropping it earlier removed the hero and inserted it again when a later
@@ -108,17 +109,31 @@ Render rules:
 `clamp(320px, 42vh, 520px)` so the first rail starts above the fold, and uses
 `--app-content-bg` as its scrim so it dissolves into the page in both themes.
 
+Height: that clamp is a floor, not a fixed height. Every slide's content is
+laid out in the same grid cell at the bottom of the banner, so it is as tall
+as its tallest slide whichever one is shown, and an unusually full slide or a
+long translation grows it instead of being cut. Only the active slide is
+shown; the others are `inert` and `visibility: hidden`. When only the shown
+slide was in flow, each automatic rotation between slides of different
+heights resized the banner and moved every rail below it, every 8 s on an idle
+dashboard. Late data (TMDB extras, the live slide's first EPG answer, the next
+programme) can still grow the tallest slide, once, when it arrives.
+
 Slides (`pickDashboardHeroSources`, at most four, stable order, each title
 once):
 
-1. the newest unfinished movie/series (`isPortalPlaybackWatched` rows skip);
+1. the newest unfinished movie/series (`continueWatchingItems()`, the rail's
+   list: a finished movie skips, a series features the episode it continues
+   with);
 2. a live channel with a programme on air — the first of
    `selectDashboardHeroLiveCandidates` (up to three favourites, then two
    recently watched channels) whose EPG answer has a title;
 3. one favourite movie/series and one Xtream recently-added title;
 4. remaining places round-robin over the next items of those lists;
 5. only when nothing qualifies, the newest history row of any kind (a
-   detail action: it can be a finished title).
+   detail action: it can be a finished title). It waits for
+   `continueWatchingSettled()`: before the positions load, that row may be
+   the title the resume slide is about to feature.
 
 While live candidates exist but none has answered yet, one place stays
 reserved for the live slide, so its late arrival never evicts a slide the
@@ -161,9 +176,11 @@ Semantics: the page has one stable, visually hidden `h1` ("Dashboard",
 `dashboard-page-heading`); each slide title is an `h2`, like the rail titles.
 Slide changes are announced by one polite live region
 (`dashboard-hero-announcement`, position and title) that lives outside the
-re-created slide and is silent while the slides rotate on their own. A
+slides and is silent while the slides rotate on their own. A
 slide's progress bar is named after its title (a live slide: the programme)
-and a title's reads "N% watched". The dots are 24px targets (WCAG 2.5.8).
+and a title's reads "N% watched". The dots are 26 × 24px targets (WCAG 2.5.8)
+of one fixed width; the active pill is the same 18px bar with its
+`clip-path` opened, so a slide change moves no dot.
 
 Rotation is the active dot's CSS fill animation (8 s); its `animationend`
 advances. The fill animates `transform` only (a bar sliding in under the
@@ -176,10 +193,14 @@ region: ←/→ switch slides and Enter follows the primary action. The active s
 by id, so a late live slide never moves the user off the current one. Test
 hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
 `dashboard-hero-dot`, `dashboard-hero-pause`,
-`dashboard-hero-primary-action`, `dashboard-hero-secondary-action`.
+`dashboard-hero-primary-action`, `dashboard-hero-secondary-action`. The
+slide hooks mark the shown slide only; the inert slides carry none.
 `dashboard-hero-rotation.e2e.ts` drives the real fill animation (with a
 shortened `--hero-rotation-ms`) to prove its `animationend` still advances
-and that pause holds the slide.
+and that pause holds the slide. `dashboard-hero-legibility.e2e.ts` sums the
+layout shifts of an unattended rotation, at the wide width and again at the
+narrow one once every slide carries a rating and an overview: under 0.001 in
+all, and none inside the hero.
 
 ## Rail Contract
 
@@ -218,8 +239,83 @@ and that pause holds the slide.
 2. It derives the dashboard surface via `computed()`:
     1. The hero slides — built by `DashboardHeroSlidesPresenter`, see
        [Cinematic Hero](#cinematic-hero).
-    2. `continueWatchingCards` — maps `globalRecentVodItems()` to movie/series
-       cover cards. Portal playback positions are bulk-loaded per playlist so
+    2. `continueWatchingCards` — maps `continueWatchingItems()` to movie/series
+       cover cards. The list and its loading gate are built by
+       `createDashboardContinueWatching` (`dashboard-continue-watching.ts`)
+       from the history and the playback positions `DashboardDataService`
+       holds, which exposes them as `continueWatchingItems()` and
+       `continueWatchingSettled()`. A movie stays until its position reaches
+       `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`). The
+       threshold is 90%, the Plex/Jellyfin/Emby/Kodi default, so stopping
+       during the end credits finishes a title, as does "Mark watched". A
+       series stays while it has something to continue: once its newest
+       episode is watched, or is an extra (season 0),
+       `DashboardSeriesEpisodesService` fetches its episode list
+       (`get_series_info`, two lookups at a time) and
+       `resolveDashboardSeriesContinuation` applies
+       `getSeriesNextUp`, the rule the series page's quick start follows
+       too. Like Plex's On Deck and Jellyfin's Next Up it goes on from the
+       episode watched last, not from the first gap in the list: the first
+       episode after it that is not watched, so a series started at season
+       2 or with an episode skipped (or left unfinished) goes on after the
+       episode actually watched. A started next episode resumes where it was
+       left. Extras (season 0) stand apart when the series has other
+       seasons: they never come next, never keep the series on the rail and
+       never take its card, not even one left unfinished; a series filed
+       under season 0 alone has them as its run. The card then shows and
+       resumes that episode; a next episode not started yet is a
+       synthesized row at 0:00 without duration, so it carries the S·E
+       badge but no progress, remaining time or "Mark watched". The series
+       leaves once no unwatched episode follows the one watched last, even
+       if an earlier one was skipped or extras are left. Until its list is
+       in (loading, failed, empty, or not holding the episode played last:
+       a list cached before that episode is fetched again in the next
+       round), for
+       series that cannot be looked up (Stalker), and for series never
+       looked up, a series keeps its newest episode rather than vanish on a
+       guess. `planDashboardSeriesLookups` picks the series to look up:
+       newest first until `CONTINUE_WATCHING_VISIBLE_ITEMS` (20, the rail's
+       `RAIL_ITEM_LIMIT`) titles are known to stay listed, counting movies
+       and series that need no lookup; a finished series frees its slot, so
+       an older one is looked up next, up to
+       `CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT` (40) lookups. Lists are kept
+       per session and per source (server and username: an edited playlist
+       is looked up again, and a late answer for the old source is
+       dropped). Lookups are background requests (`suppressErrorLog`: a
+       failure is logged, never a toast). Each `reloadPlaybackPositions()`
+       that lands (dashboard entry, a changed history, "Mark watched") is a
+       lookup round: a failed lookup is tried again once
+       `DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS` (5 min) has passed (at
+       once when the playlist's password is corrected), and a list older
+       than `DASHBOARD_SERIES_EPISODES_MAX_AGE_MS` (1 h) is fetched again so
+       newly added episodes show up, the old list standing until the new
+       one arrives (a failed refresh keeps it, and waits for the same delay).
+       A source that failed two lookups in a row is not asked for its other
+       series until the delay has passed either: a portal that is down or
+       expired costs two requests per delay, not one per series per dashboard
+       visit. Within one round, more
+       series to look past never repeat a request, and the request list
+       compares by value, so playlist store churn elsewhere in the app does
+       not trigger lookups. Finished titles
+       stay in `globalRecentVodItems()` and on the Global Recent page ("See
+       all");
+       the rail's count badge counts only the listed ones. The list stays
+       empty until `continueWatchingSettled()`: the history has loaded (on
+       the PWA that includes its Xtream data-source read, not only the
+       playlist inventory), `reloadPlaybackPositions()` has covered every
+       playlist in it once, and the episode lists the first open asked for
+       have answered or `CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS` (2 s) has
+       passed, so on first open the rail inserts once instead of listing
+       finished titles and dropping them a moment later. A playlist whose
+       positions failed to load counts as covered. The gate stays open
+       afterwards: like the history, a dashboard opened again first renders
+       the positions it already holds and refreshes them on entry, so a title
+       finished since the last visit leaves the rail, or a series moves on to
+       its next episode, when that refresh (and, for a series not looked up
+       yet this session, its episode list) lands.
+       `reloadPlaybackPositions()` applies only its latest call's result, so
+       an older read finishing last cannot bring finished titles back.
+       Portal playback positions are bulk-loaded per playlist so
        hero and cards can show progress, remaining time, and series season/
        episode badges. Whether an item is looked up as a movie (one `vod`
        row) or a series (episode rows under the parent id) is its WATCH
@@ -231,7 +327,11 @@ and that pause holds the slide.
        rows. The mappers give both it and a lazy Ministra `is_series` row
        (already typed `series`) `watch_kind: 'series'`. Series lookup uses
        keyed maps for both direct episode ids and parent series ids; card
-       renders must not scan the full playback-position map. The badge uses saved `seasonNumber` /
+       renders must not scan the full playback-position map. A series'
+       newest row is the latest `updatedAt`; rows saved in the same second
+       (SQLite keeps whole seconds, and "Mark season watched" stamps a
+       season at once) go to the later episode, as `getSeriesNextUp` breaks
+       the tie. The badge uses saved `seasonNumber` /
        `episodeNumber` metadata and does not infer it from provider payloads;
        legacy rows without that metadata remain badge-less until replay.
        Dashboard-originated Xtream and Stalker series clicks also carry that

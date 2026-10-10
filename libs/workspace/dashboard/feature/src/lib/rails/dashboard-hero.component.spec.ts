@@ -254,6 +254,62 @@ describe('DashboardHeroComponent', () => {
         ).toBe('/workspace/a');
     });
 
+    it('lays out every slide but shows and exposes only the active one', () => {
+        // The hero is as tall as its tallest slide only while every slide
+        // stays in flow; re-creating one slide per change resized it.
+        render();
+        const contents = () =>
+            Array.from(host().querySelectorAll<HTMLElement>('.hero__content'));
+        const inert = () => contents().map((el) => el.hasAttribute('inert'));
+        const [first, second] = contents();
+        expect(inert()).toEqual([false, true, true]);
+        const hooks = (testId: string) =>
+            Array.from(host().querySelectorAll(`[data-test-id=${testId}]`));
+        for (const testId of [
+            'dashboard-hero-slide',
+            'dashboard-hero-badges',
+            'dashboard-hero-primary-action',
+        ]) {
+            expect(hooks(testId)).toHaveLength(1);
+            expect(first.contains(hooks(testId)[0])).toBe(true);
+        }
+
+        finishActiveDot();
+
+        expect(contents()).toHaveLength(3);
+        expect(contents()[0]).toBe(first);
+        expect(contents()[1]).toBe(second);
+        expect(inert()).toEqual([true, false, true]);
+        expect(second.getAttribute('data-test-id')).toBe(
+            'dashboard-hero-slide'
+        );
+        expect(first.hasAttribute('data-test-id')).toBe(false);
+    });
+
+    it('follows Enter to the primary action of the slide on screen', () => {
+        render();
+        const section = host().querySelector(
+            '[data-test-id=dashboard-hero]'
+        ) as HTMLElement;
+        const followed: (string | null)[] = [];
+        host()
+            .querySelectorAll<HTMLElement>('.hero__button--primary')
+            .forEach((button) =>
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    followed.push(button.getAttribute('href'));
+                })
+            );
+
+        dots()[1].click();
+        fixture.detectChanges();
+        section.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+
+        expect(followed).toEqual(['/workspace/b']);
+    });
+
     it('titles each slide with an h2 and leaves the h1 to the page', () => {
         render();
 
@@ -262,8 +318,9 @@ describe('DashboardHeroComponent', () => {
     });
 
     it('announces slide changes through one live region that outlives the slides', () => {
-        // A live region inserted together with its text is not announced,
-        // so it must not belong to the slide that the @for re-creates.
+        // A live region inserted together with its text is not announced (a
+        // slide can arrive late) and the slides not on screen are inert, so
+        // it must not belong to a slide.
         render();
         const announcement = () =>
             host().querySelector<HTMLElement>(

@@ -1,0 +1,50 @@
+// Backup & data page: the playlist reset row with its summary pills.
+app-settings-backup-section {
+    display: contents;
+}
+
+// ─── Reset (Backup & data) ────────────────────────────────────────────────
+.danger-zone__summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0 0;
+}
+
+.danger-zone__summary-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 26px;
+    padding: 2px 8px 2px 8px;
+    border-radius: 999px;
+    background: var(--settings-chip-bg);
+    color: var(--app-heading-color);
+    font-size: 11.5px;
+
+    .danger-zone__summary-icon {
+        width: 14px;
+        height: 14px;
+        font-size: 14px;
+        color: var(--app-body-color);
+    }
+
+    .danger-zone__summary-count {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+.danger-zone__progress {
+    margin: 8px 0 0;
+    color: var(--settings-muted);
+    font-size: 12.5px;
+}
+
+.danger-zone__button {
+    flex-shrink: 0;
+}
+
+.danger-zone__button--busy {
+    background: color-mix(in srgb, var(--mat-sys-error) 12%, transparent);
+}

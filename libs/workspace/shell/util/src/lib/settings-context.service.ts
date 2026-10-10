@@ -4,6 +4,8 @@ export interface SettingsNavItem {
     id: string;
     label: string;
     icon: string;
+    /** Navigation group id; items without one are pinned to the footer. */
+    group?: string;
 }
 
 /**
@@ -24,6 +26,12 @@ export class SettingsContextService {
     readonly matchCounts = signal<Readonly<Record<string, number>> | null>(
         null
     );
+    /** Sections holding staged (unsaved) edits; the panel marks them. */
+    readonly dirtySections = signal<ReadonlySet<string>>(new Set());
+    /** Installed app version, shown beside the About entry. */
+    readonly version = signal<string | null>(null);
+    /** An update can be installed; the About entry carries a badge. */
+    readonly updateAvailable = signal(false);
 
     setSections(items: SettingsNavItem[]): void {
         this.sections.set(items);
@@ -33,8 +41,23 @@ export class SettingsContextService {
         this.matchCounts.set(counts);
     }
 
+    setDirtySections(sections: ReadonlySet<string>): void {
+        this.dirtySections.set(sections);
+    }
+
+    setVersion(version: string | null): void {
+        this.version.set(version);
+    }
+
+    setUpdateAvailable(available: boolean): void {
+        this.updateAvailable.set(available);
+    }
+
     reset(): void {
         this.sections.set([]);
         this.matchCounts.set(null);
+        this.dirtySections.set(new Set());
+        this.version.set(null);
+        this.updateAvailable.set(false);
     }
 }

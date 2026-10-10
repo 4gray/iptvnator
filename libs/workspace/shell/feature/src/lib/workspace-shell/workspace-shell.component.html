@@ -114,17 +114,22 @@
             />
         }
 
-        <!-- tabindex="-1": programmatic focus target for the drawer-close
-             fallback when the toggle is gone (navigated to a route without
-             a context panel); not in the Tab order. -->
-        <main
-            #workspaceContent
-            class="workspace-content"
-            tabindex="-1"
-            [attr.inert]="contextDrawer.isOpen() ? '' : null"
-        >
-            <router-outlet />
-        </main>
+        <!-- The frame carries the content surface's rounded corner and
+             shadow without clipping; the scroller inside clips to a
+             rectangle (see the stylesheet for why). -->
+        <div class="workspace-content-frame">
+            <!-- tabindex="-1": programmatic focus target for the drawer-close
+                 fallback when the toggle is gone (navigated to a route without
+                 a context panel); not in the Tab order. -->
+            <main
+                #workspaceContent
+                class="workspace-content"
+                tabindex="-1"
+                [attr.inert]="contextDrawer.isOpen() ? '' : null"
+            >
+                <router-outlet />
+            </main>
+        </div>
     </div>
 
     @if (facade.showExternalPlaybackBar()) {

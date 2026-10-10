@@ -16,6 +16,7 @@ import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data
 export class StubSeasonContainerComponent {
     readonly seasons = input<unknown>(null);
     readonly hasUnloadedSeasons = input(false);
+    readonly unloadedSeasonKeys = input<readonly string[]>([]);
     readonly seriesId = input<number | string | null>(null);
     readonly playlistId = input('');
     readonly seriesTitle = input<string | undefined>(undefined);

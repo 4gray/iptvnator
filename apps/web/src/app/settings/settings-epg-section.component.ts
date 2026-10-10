@@ -5,13 +5,18 @@ import {
     ViewEncapsulation,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { FormArray, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import {
+    AbstractControl,
+    FormArray,
+    FormGroup,
+    ReactiveFormsModule,
+} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { EpgViewMode } from '@iptvnator/shared/interfaces';
 import { EpgSourceStatusComponent } from '@iptvnator/ui/epg';
@@ -24,11 +29,11 @@ import { markSectionForCheckOnFormEvents } from './settings-section-form-render'
     imports: [
         EpgSourceStatusComponent,
         MatButtonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         MatProgressSpinnerModule,
+        MatSlideToggleModule,
         MatTooltipModule,
         ReactiveFormsModule,
         TranslateModule,
@@ -36,7 +41,7 @@ import { markSectionForCheckOnFormEvents } from './settings-section-form-render'
     templateUrl: './settings-epg-section.component.html',
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    styles: [':host { display: contents; }'],
+    styleUrls: ['./settings-epg-section.component.scss'],
 })
 export class SettingsEpgSectionComponent {
     readonly form = input.required<FormGroup>();
@@ -59,4 +64,35 @@ export class SettingsEpgSectionComponent {
     readonly refreshAllEpg = output<void>();
     readonly clearEpgData = output<void>();
     readonly selectEpgViewMode = output<EpgViewMode>();
+
+    /** Minutes one stepper click shifts the displayed times by */
+    readonly offsetStep = 30;
+
+    get offsetControl(): AbstractControl | null {
+        return this.form().get('epgOffsetMinutes');
+    }
+
+    /**
+     * Moves the offset by one step within the accepted range. Typed values
+     * keep going through the control's own validation; only the buttons
+     * clamp, so an out-of-range typed value snaps back into range.
+     */
+    stepOffset(delta: number): void {
+        const control = this.offsetControl;
+        if (!control) return;
+        const current = Number(control.value);
+        const next = Math.max(
+            EPG_OFFSET_MIN,
+            Math.min(
+                EPG_OFFSET_MAX,
+                (Number.isFinite(current) ? current : 0) + delta
+            )
+        );
+        control.setValue(next);
+        control.markAsDirty();
+        this.form().markAsDirty();
+    }
 }
+
+const EPG_OFFSET_MIN = -720;
+const EPG_OFFSET_MAX = 720;

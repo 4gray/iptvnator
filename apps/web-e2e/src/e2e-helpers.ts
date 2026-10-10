@@ -21,6 +21,21 @@ import sharp from 'sharp';
  * about Safari's preference; Chromium and Firefox treat Alt+Tab as a plain
  * Tab, but they get the unmodified key so their run stays a literal user Tab.
  */
+/**
+ * Material slide toggles render `aria-checked` after Angular's next change
+ * detection, later than Playwright's `check()` looks, which then reports
+ * that the click changed nothing. Click when needed and wait for the state.
+ */
+export async function setSwitch(
+    toggle: Locator,
+    checked: boolean
+): Promise<void> {
+    if ((await toggle.isChecked()) !== checked) {
+        await toggle.click();
+    }
+    await expect(toggle).toBeChecked({ checked });
+}
+
 export async function pressTab(
     page: Page,
     browserName: string,

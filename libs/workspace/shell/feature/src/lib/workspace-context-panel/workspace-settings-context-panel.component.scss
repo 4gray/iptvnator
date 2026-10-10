@@ -1,5 +1,7 @@
-@use '../../nav-list.scss';
-
+// Settings navigation. Not the shared nav-list: the active item here is a
+// soft fill with tinted text and no border, the same treatment as a
+// selected channel row, so the list does not shift by the 2px an outlined
+// item adds.
 :host {
     display: flex;
     flex-direction: column;
@@ -7,39 +9,148 @@
     overflow: hidden;
 }
 
-// Quiet sentence-case rail header — matches the typography of the
-// section nav items below ("Dashboard", "Sources", etc., all sentence
-// case) instead of standing out as an uppercase eyebrow that didn't
-// appear anywhere else in the workspace rail. The muted colour and
-// small size still distinguish it from the clickable items so it reads
-// as a section caption rather than competing for focus.
+// The page title: one step above the 14px items below it, so the panel
+// reads title → groups → items instead of a caption under the items.
 .panel-title {
     margin: 0;
-    padding: 20px 18px 10px;
-    font-size: 13px;
+    padding: 18px 18px 14px;
+    font-size: 20px;
     font-weight: 600;
-    letter-spacing: 0.005em;
-    color: var(--mat-sys-on-surface-variant);
+    letter-spacing: -0.2px;
+    line-height: 1.2;
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
 }
 
-.settings-panel-body {
+.settings-nav {
     flex: 1;
     min-height: 0;
-    padding-top: 16px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    gap: 2px;
+    padding: 0 8px;
+    overflow-y: auto;
+    scrollbar-width: thin;
 }
 
-// `height: 100%` here does not resolve against a stretched flex item, so the
-// list kept its full content height and overflowed the panel whenever the
-// panel was shorter than its sections (a phone, or a short desktop window).
-.settings-sections-list {
+.settings-nav__group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.settings-nav__group-label {
+    padding: 14px 10px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+
+    .settings-nav__group:first-child & {
+        padding-top: 0;
+    }
+}
+
+.settings-nav__spacer {
     flex: 1;
-    min-height: 0;
-    // The list now reaches the panel's bottom edge (Back moved to the
-    // header), so it clears the home indicator itself.
-    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    min-height: 8px;
+}
+
+.settings-nav__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--app-separator);
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
+
+    mat-icon {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    }
+
+    &:hover:not(.active) {
+        background: var(--app-hover-overlay);
+        color: var(--mat-sys-on-surface);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
+    }
+
+    &.active {
+        background: var(--app-selection-surface);
+        color: var(--app-selection-color);
+
+        mat-icon {
+            color: var(--app-selection-color);
+        }
+    }
+}
+
+.nav-item-label {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nav-item-meta {
+    flex-shrink: 0;
+    min-width: 2ch;
+    font-size: 0.8rem;
+    text-align: right;
+    opacity: 0.7;
+}
+
+// A page with staged edits, while the save bar is up.
+.nav-item-dot {
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--app-selection-color);
+}
+
+.nav-item-version {
+    flex-shrink: 0;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+}
+
+.nav-item-badge {
+    flex-shrink: 0;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--app-expiry-warn-surface);
+    color: var(--app-expiry-warn-text);
+    font-size: 10.5px;
+    font-weight: 600;
 }
 
 // Sections without settings-search matches stay reachable but recede.
@@ -47,19 +158,15 @@
     opacity: 0.55;
 }
 
-.settings-section-item:hover:not(.active):not(.selected) {
-    background: var(--app-selection-surface);
-}
-
-// On a landscape phone the panel is only ~108-148px tall, and its caption
+// On a landscape phone the panel is only ~108-148px tall, and its title
 // would take a third of that from the section list. The rail already labels
-// the page, so the caption is what gives way.
+// the page, so the title is what gives way.
 @media (max-width: 640px) and (max-height: 599px) {
     .panel-title {
         display: none;
     }
 
-    .settings-panel-body {
+    .settings-nav {
         padding-top: 8px;
     }
 }

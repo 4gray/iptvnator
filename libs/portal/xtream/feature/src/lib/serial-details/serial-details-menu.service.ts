@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import {
     createLogger,
     formatSeriesEpisodeCode,
+    getSeriesNextUp,
     type SeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -15,6 +16,7 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     VideoPlayer,
     type ExternalPlayerName,
+    type PlaybackPositionData,
     type PlayerContentInfo,
     type ResolvedPortalPlayback,
     type XtreamCategory,
@@ -34,7 +36,9 @@ interface SerialDetailsMenuBindings {
     readonly seasonContainer: Signal<SeasonContainerComponent | undefined>;
     /** The route's category id; the name comes from the store's list. */
     readonly categoryId: Signal<string>;
-    readonly episodePositions: Signal<ReadonlyMap<number, unknown>>;
+    readonly episodePositions: Signal<
+        ReadonlyMap<number, PlaybackPositionData>
+    >;
     /** An episode plays or launches: its next tick would undo a reset. */
     readonly playbackActive: Signal<boolean>;
     /** A forced launch has not published its session yet: bulk watched actions would include it. */
@@ -122,16 +126,26 @@ export class SerialDetailsMenuService {
         };
     });
 
-    /** Whether the series row sits in this playlist's recently viewed list. */
+    /** Whether the series is on the dashboard's Continue Watching rail. */
     private readonly inContinueWatching = computed(() => {
         const seriesId = this.seriesId();
         if (!seriesId || !this.dataSource) {
             return false;
         }
+        // The rail keeps a series while an unwatched episode follows the
+        // one watched last; this page's quick start may still offer an
+        // episode skipped before it.
+        const caughtUp =
+            getSeriesNextUp({
+                seasons: this.bindings()?.selectedItem()?.episodes ?? {},
+                playbackPositions:
+                    this.bindings()?.episodePositions() ?? new Map(),
+            })?.kind === 'caught-up';
         // Xtream ids collide across live, movies and series: the row has to
         // be the series' own.
         return (
             this.hasProgress() &&
+            !caughtUp &&
             this.xtreamStore
                 .recentItems()
                 .some(

@@ -429,7 +429,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(watchedPosition);
+        ).toEqual({ ...watchedPosition, updatedAt: expect.any(String) });
 
         const seasons = fixture.componentInstance.vodSeriesSeasons();
         fixture.componentInstance.vodSeriesSeasons.set(
@@ -477,7 +477,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(newerPosition);
+        ).toEqual({ ...newerPosition, updatedAt: expect.any(String) });
 
         const latestPosition = createPosition({ positionSeconds: 80 });
         await fixture.componentInstance.handlePlaybackToggleRequested({
@@ -889,7 +889,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(savedPosition);
+        ).toEqual({ ...savedPosition, updatedAt: expect.any(String) });
     });
 
     it('does not let a load started before a save overwrite the saved position', async () => {
@@ -1085,7 +1085,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(runtimePosition);
+        ).toEqual({ ...runtimePosition, updatedAt: expect.any(String) });
     });
 
     it('clears confirmed legacy before scoped watched state without resurrection after refetch', async () => {

@@ -8,6 +8,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    SERIES_QUICK_START_ACTION_KIND,
     type SeriesResumeTarget,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -17,6 +18,7 @@ import {
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import type {
     PlaybackPositionData,
+    ResolvedPortalPlayback,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
@@ -138,7 +140,9 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
                     useValue: {
                         getSeriesPlaybackPositions,
                         savePlaybackPosition: jest.fn(),
+                        savePlaybackPositionOrThrow: jest.fn(),
                         clearPlaybackPosition: jest.fn(),
+                        clearPlaybackPositionOrThrow: jest.fn(),
                     },
                 },
                 {
@@ -451,5 +455,57 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
             trackingIdOf('1', 2),
             90
         );
+    });
+
+    it('resumes the episode just played inline ahead of one watched earlier', async () => {
+        // The stored row carries SQLite's write time; the page's own tick
+        // carries none, yet it is the newest activity: the quick start must
+        // resume it, not go on from the episode watched before.
+        getSeriesPlaybackPositions.mockImplementation(async () => [
+            {
+                playlistId: 'stalker-1',
+                contentXtreamId: trackingIdOf('1', 2),
+                contentType: 'episode',
+                seriesXtreamId: 30001,
+                seasonNumber: 1,
+                episodeNumber: 2,
+                positionSeconds: 1750,
+                durationSeconds: 1800,
+                updatedAt: '2026-10-03 08:00:00',
+            } satisfies PlaybackPositionData,
+        ]);
+        await stabilize();
+        await settle();
+        expect(fixture.componentInstance.quickStartAction()?.action?.kind).toBe(
+            SERIES_QUICK_START_ACTION_KIND.PlayNext
+        );
+
+        fixture.componentInstance.inlinePlayback.set({
+            streamUrl: 'https://resolved.example/episode.mpg',
+            title: 'Regular Series',
+            thumbnail: 'poster.jpg',
+            contentInfo: {
+                playlistId: 'stalker-1',
+                contentXtreamId: trackingIdOf('1', 1),
+                contentType: 'episode',
+                seriesXtreamId: 30001,
+                seasonNumber: 1,
+                episodeNumber: 1,
+            },
+        } as ResolvedPortalPlayback);
+        fixture.componentInstance.handleInlineTimeUpdate({
+            currentTime: 600,
+            duration: 1800,
+        });
+        await settle();
+
+        expect(
+            fixture.componentInstance
+                .episodePlaybackPositions()
+                .get(trackingIdOf('1', 1))?.updatedAt
+        ).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+        const quickStart = fixture.componentInstance.quickStartAction()?.action;
+        expect(quickStart?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.Resume);
+        expect(Number(quickStart?.episode.episode_num)).toBe(1);
     });
 });
