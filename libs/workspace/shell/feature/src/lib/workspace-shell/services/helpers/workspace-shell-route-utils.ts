@@ -65,18 +65,6 @@ export function syncSearchQueryParam(
     return true;
 }
 
-export function bumpRefreshQueryParam(router: Router, currentUrl: string): void {
-    const routePath = getRoutePath(currentUrl);
-    const queryParams = {
-        ...router.parseUrl(currentUrl).queryParams,
-        refresh: Date.now().toString(),
-    };
-
-    const queryString = toQueryString(queryParams);
-    const nextUrl = queryString ? `${routePath}?${queryString}` : routePath;
-    void router.navigateByUrl(nextUrl, { replaceUrl: true });
-}
-
 export function getProviderFromPlaylist(playlist: {
     serverUrl?: string;
     macAddress?: string;

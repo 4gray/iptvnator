@@ -1698,8 +1698,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Voltooide downloads wissen voor alle afspeellijsten",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Voltooide downloads wissen (deze afspeellijst)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Voltooide downloads wissen voor deze afspeellijst",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Recent bekeken wissen",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Recent bekeken voor deze sectie wissen",
             "CLEAR_RECENTLY_VIEWED_TYPE": "Recent bekeken {{type}} wissen",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "Recent bekeken {{type}} wissen?",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "Alle {{type}}-items uit deze afspeellijst worden verwijderd uit je recent bekeken-geschiedenis. Deze actie kan niet ongedaan worden gemaakt.",

@@ -1698,8 +1698,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Borrar descargas completadas de todas las listas",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Borrar descargas completadas (esta lista)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Borrar descargas completadas de esta lista",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Borrar vistos recientemente",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Borrar vistos recientemente de esta sección",
             "CLEAR_RECENTLY_VIEWED_TYPE": "Borrar vistos recientemente {{type}}",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "¿Borrar vistos recientemente {{type}}?",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "Todos los elementos {{type}} de esta lista se eliminarán de tu historial de vistos recientemente. Esta acción no se puede deshacer.",

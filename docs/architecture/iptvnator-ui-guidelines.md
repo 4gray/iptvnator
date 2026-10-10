@@ -842,6 +842,13 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   is "Cancel …", pass `cancelLabel` "Close" so the two buttons do not read
   alike. `theme-tokens.e2e.ts` checks the label and the error fill in both
   themes.
+- **One control per action.** A page offers one control for a destructive
+  action. Clearing a favorites or recently viewed tab goes through
+  `createClearCollectionAction` (`unified-collection-clear-action.ts` in
+  `portal/shared/ui`), from the collection page's button and from the command
+  palette alike; the shell
+  header does not repeat it. `recent.e2e.ts` checks the single control and
+  the single confirmation on M3U, Xtream and Stalker recently viewed pages.
 
 ## Forms
 

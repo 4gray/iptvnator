@@ -1698,8 +1698,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "清除所有播放清單中已完成的下載",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "清除已完成的下載（此播放清單）",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "清除此播放清單中已完成的下載",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "清除最近觀看",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "清除此區段的最近觀看記錄",
             "CLEAR_RECENTLY_VIEWED_TYPE": "清除最近觀看的{{type}}",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "清除最近觀看的{{type}}？",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "此播放清單中所有的{{type}}項目都將從您的最近觀看記錄中移除。此操作無法復原。",

@@ -28,8 +28,6 @@ import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
-export type { WorkspaceHeaderBulkAction } from './helpers/workspace-shell-constants';
-
 @Injectable()
 export class WorkspaceShellFacade {
     private readonly router = inject(Router);
@@ -134,7 +132,6 @@ export class WorkspaceShellFacade {
     readonly canOpenAccountInfo = this.header.canOpenAccountInfo;
     readonly canRefreshPlaylist = this.header.canRefreshPlaylist;
     readonly isRefreshingPlaylist = this.header.isRefreshingPlaylist;
-    readonly headerBulkAction = this.header.headerBulkAction;
     readonly headerSidebarToggle = this.header.headerSidebarToggle;
     readonly playlistSubtitle = this.header.playlistSubtitle;
     readonly activeDownloadsCount = computed(() =>
@@ -208,10 +205,6 @@ export class WorkspaceShellFacade {
             this.makeCommandBuilderContext(),
             this.searchQuery()
         );
-    }
-
-    runHeaderBulkAction(): Promise<void> {
-        return this.header.runHeaderBulkAction();
     }
 
     toggleLiveSidebar(): void {

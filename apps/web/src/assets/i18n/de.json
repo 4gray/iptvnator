@@ -1698,8 +1698,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "Abgeschlossene Downloads für alle Playlists löschen",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "Abgeschlossene Downloads löschen (diese Playlist)",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Abgeschlossene Downloads für diese Playlist löschen",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "Zuletzt angesehen löschen",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Kürzlich angesehene Elemente für diesen Abschnitt löschen",
             "CLEAR_RECENTLY_VIEWED_TYPE": "Zuletzt angesehen ({{type}}) löschen",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "Zuletzt angesehen ({{type}}) löschen?",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "Alle {{type}}-Einträge aus dieser Playlist werden aus dem Verlauf entfernt. Diese Aktion kann nicht rückgängig gemacht werden.",

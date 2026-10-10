@@ -14,7 +14,6 @@ import {
     untracked,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -111,7 +110,6 @@ const EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS = 2000;
         CommonModule,
         FavoritesViewComponent,
         GroupsViewComponent,
-        MatButtonModule,
         MatIconModule,
         RecentViewComponent,
         TranslatePipe,
@@ -708,26 +706,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 playlistId,
                 channelUrl
             )
-        );
-
-        this.store.dispatch(
-            PlaylistActions.updatePlaylistMeta({
-                playlist: {
-                    _id: playlistId,
-                    recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
-                } as PlaylistMeta,
-            }) as any
-        );
-    }
-
-    async clearRecentChannels(): Promise<void> {
-        const playlistId = this.resolvedPlaylistId();
-        if (!playlistId) {
-            return;
-        }
-
-        const updatedPlaylist = await firstValueFrom(
-            this.playlistsService.clearM3uRecentlyViewed(playlistId)
         );
 
         this.store.dispatch(

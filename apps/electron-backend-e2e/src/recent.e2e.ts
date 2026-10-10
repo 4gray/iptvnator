@@ -45,6 +45,12 @@ import {
     routePlayableStreams,
     startAndConfirmPlayback,
 } from './playable-stream-fixture';
+import {
+    cancelClearRecentItems,
+    clearRecentItems,
+    openSourceRecent,
+    sourceRecentPath,
+} from './recent-clear.e2e-support';
 
 test.describe('Electron Recently Viewed', () => {
     test('keeps unified live detail open when re-clicking the active M3U recent item', async ({
@@ -98,7 +104,7 @@ test.describe('Electron Recently Viewed', () => {
         }
     });
 
-    test('@persistence @m3u @electron tracks M3U recent channels in newest-first order, supports all-playlists scope, and persists favorites after restart', async ({
+    test('@persistence @m3u @electron tracks M3U recent channels in newest-first order, supports all-playlists scope, persists favorites after restart, and clears only after one confirmation', async ({
         dataDir,
     }) => {
         const playlistTitle = 'm3u-recent-source.m3u';
@@ -165,6 +171,7 @@ test.describe('Electron Recently Viewed', () => {
                 .first()
                 .click();
             await waitForM3uCatalog(app.mainWindow);
+            const recentPath = sourceRecentPath(app.mainWindow);
             await openPlaylistRecent(app.mainWindow);
             await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
             await expect
@@ -175,6 +182,19 @@ test.describe('Electron Recently Viewed', () => {
             await expect(
                 channelItemByTitle(app.mainWindow, 'Recent Channel Two').first()
             ).toBeVisible({ timeout: 20000 });
+
+            await openSourceRecent(app.mainWindow, recentPath);
+            await expect
+                .poll(() => visibleLiveTitles(app.mainWindow))
+                .toEqual(['Recent Channel Two', 'Recent Channel One']);
+            await cancelClearRecentItems(app.mainWindow, 'Live TV');
+            await expect
+                .poll(() => visibleLiveTitles(app.mainWindow))
+                .toEqual(['Recent Channel Two', 'Recent Channel One']);
+            await clearRecentItems(app.mainWindow, 'Live TV');
+            await expect
+                .poll(() => visibleLiveTitles(app.mainWindow))
+                .toEqual([]);
         } finally {
             await closeElectronApp(app);
         }
@@ -340,6 +360,7 @@ test.describe('Electron Recently Viewed', () => {
             await openSources(app.mainWindow);
             await sourceRowByTitle(app.mainWindow, portalTitle).first().click();
             await waitForXtreamWorkspaceReady(app.mainWindow);
+            const recentPath = sourceRecentPath(app.mainWindow);
             await openPlaylistRecent(app.mainWindow);
             await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
@@ -351,7 +372,12 @@ test.describe('Electron Recently Viewed', () => {
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
             await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
 
+            await openSourceRecent(app.mainWindow, recentPath);
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
+            await cancelClearRecentItems(app.mainWindow, 'Live TV');
+            await expect(
+                channelItemByTitle(app.mainWindow, liveTitle)
+            ).toHaveCount(1);
             await clearRecentItems(app.mainWindow, 'Live TV');
             await expect(
                 channelItemByTitle(app.mainWindow, liveTitle)
@@ -496,7 +522,7 @@ test.describe('Electron Recently Viewed', () => {
         }
     });
 
-    test('@persistence @stalker @electron tracks Stalker live, movie, and series history across playlist and all-playlists scope, and preserves it after restart', async ({
+    test('@persistence @stalker @electron tracks Stalker live, movie, and series history across playlist and all-playlists scope, preserves it after restart, and clears only after one confirmation', async ({
         dataDir,
         request,
     }) => {
@@ -593,6 +619,7 @@ test.describe('Electron Recently Viewed', () => {
             await openSources(app.mainWindow);
             await sourceRowByTitle(app.mainWindow, portalTitle).first().click();
             await waitForStalkerCatalog(app.mainWindow);
+            const recentPath = sourceRecentPath(app.mainWindow);
             await openPlaylistRecent(app.mainWindow);
             await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
@@ -607,6 +634,18 @@ test.describe('Electron Recently Viewed', () => {
             await expect(
                 contentCardByTitle(app.mainWindow, seriesTitle)
             ).toHaveCount(1);
+
+            await openSourceRecent(app.mainWindow, recentPath);
+            await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
+            await cancelClearRecentItems(app.mainWindow, 'Live TV');
+            await expect(
+                channelItemByTitle(app.mainWindow, liveTitle)
+            ).toHaveCount(1);
+            await clearRecentItems(app.mainWindow, 'Live TV');
+            await expect(
+                channelItemByTitle(app.mainWindow, liveTitle)
+            ).toHaveCount(0);
+            await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
         } finally {
             await closeElectronApp(app);
         }
@@ -708,16 +747,6 @@ const xtreamCredentials = {
     username: defaultXtreamUsername,
     password: defaultXtreamPassword,
 };
-
-async function clearRecentItems(page: Page, typeLabel: string): Promise<void> {
-    await page
-        .getByRole('button', { name: `Clear recently viewed ${typeLabel}` })
-        .click();
-    await page
-        .locator('mat-dialog-container')
-        .getByRole('button', { name: 'Clear', exact: true })
-        .click();
-}
 
 async function expectUnifiedLiveDetailOpen(
     page: Page,

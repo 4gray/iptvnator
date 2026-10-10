@@ -1698,8 +1698,6 @@
             "CLEAR_COMPLETED_DOWNLOADS_ALL_ARIA": "すべてのプレイリストの完了済みダウンロードをクリア",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST": "完了済みダウンロードをクリア（このプレイリスト）",
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "このプレイリストの完了済みダウンロードをクリア",
-            "CLEAR_RECENTLY_VIEWED_SECTION": "最近表示した項目をクリア",
-            "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "このセクションの最近視聴した項目をクリア",
             "CLEAR_RECENTLY_VIEWED_TYPE": "最近表示した{{type}}をクリア",
             "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "最近表示した{{type}}をクリアしますか？",
             "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "このプレイリストのすべての{{type}}項目が、最近表示した履歴から削除されます。この操作は取り消せません。",
