@@ -139,6 +139,22 @@ export class RowComponent {
     ]);
 });
 
+test('reads quoted inline templates, but not other template properties', () => {
+    const source = [
+        "@Component({ selector: 'a', template: '<mat-icon>file_off</mat-icon>' })",
+        'export class A {}',
+        "@Component({ selector: 'b', template: \"<mat-icon>{{ on ? 'x' : 'unlockk' }}</mat-icon>\" })",
+        'export class B {}',
+        "const notAComponent = { template: '<mat-icon>not_checked</mat-icon>' };",
+    ].join('\n');
+
+    assert.deepEqual(unknown('e.component.ts', source), [
+        { line: 1, name: 'file_off', source: '<mat-icon> text' },
+        { line: 3, name: 'x', source: '<mat-icon> binding' },
+        { line: 3, name: 'unlockk', source: '<mat-icon> binding' },
+    ]);
+});
+
 test('names icon sources by convention, not SVG icon inputs', () => {
     for (const name of [
         'icon',
