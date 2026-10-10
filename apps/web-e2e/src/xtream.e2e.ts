@@ -15,6 +15,7 @@ import {
     DEFAULT_USERNAME,
     interceptXtreamRequests,
     MOCK_SERVER,
+    selectWebPlayer,
 } from './xtream-series-playback.fixture';
 import {
     addCollisionFavorite,
@@ -25,6 +26,7 @@ import {
     interceptCollidingXtreamItems,
     playCollisionItem,
     removeCollisionFavorite,
+    routeCollisionMedia,
     selectCollectionType,
 } from './xtream-collection-helpers';
 
@@ -428,7 +430,7 @@ test('@xtream @collections PWA favorites keep colliding movie, series and live I
     page,
     request,
 }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(90_000);
     const categories = await interceptCollidingXtreamItems(
         page,
         request,
@@ -465,16 +467,24 @@ test('@xtream @collections PWA favorites keep colliding movie, series and live I
     }
 });
 
-test('@xtream @collections PWA recent items retain colliding content IDs and open collection details', async ({
+test('@xtream @collections PWA recent items require confirmed playback and retain colliding content IDs', async ({
     page,
     request,
+    browserName,
 }) => {
-    test.setTimeout(60_000);
+    test.skip(
+        browserName !== 'chromium',
+        'Synthetic live media uses Chromium codecs'
+    );
+    test.setTimeout(90_000);
     const categories = await interceptCollidingXtreamItems(
         page,
         request,
         MOCK_SERVER
     );
+    const allowPlayback = await routeCollisionMedia(page, MOCK_SERVER);
+    await selectWebPlayer(page, 'HTML5 video player');
+    await page.goto('/');
     await addXtreamPortal(page, {
         name: 'Collision Recent Portal',
         username: 'minimal',
@@ -483,11 +493,27 @@ test('@xtream @collections PWA recent items retain colliding content IDs and ope
     const playlistPath = new URL(page.url()).pathname.replace(/\/vod.*$/, '');
 
     for (const item of collisionItems) {
-        await playCollisionItem(page, item, categories[item.type]);
+        const failedMedia = page.waitForResponse(
+            (response) =>
+                response.url().startsWith(`${MOCK_SERVER}/${item.type}/`) &&
+                response.status() === 503
+        );
+        await playCollisionItem(page, item, categories[item.type], false);
+        await failedMedia;
+        await page.goto(`${playlistPath}/recent`);
+        await expectCollisionCollection(page, []);
     }
 
-    await page.goto(`${playlistPath}/recent`);
-    await expectCollisionCollection(page, collisionItems);
+    allowPlayback();
+    for (let index = 0; index < collisionItems.length; index++) {
+        const item = collisionItems[index];
+        await playCollisionItem(page, item, categories[item.type]);
+        await page.goto(`${playlistPath}/recent`);
+        await expectCollisionCollection(
+            page,
+            collisionItems.slice(0, index + 1)
+        );
+    }
     await page.reload();
     await expectCollisionCollection(page, collisionItems);
     await expectCollectionDetailRoundTrip(page, collisionItems[0]);

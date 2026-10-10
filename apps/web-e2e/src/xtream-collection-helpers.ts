@@ -1,4 +1,6 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 type ContentType = 'movie' | 'series' | 'live';
 type CatalogItem = {
@@ -9,6 +11,7 @@ type CatalogItem = {
 type Detail = {
     info: Record<string, unknown>;
     movie_data: Record<string, unknown>;
+    episodes?: Record<string, Array<Record<string, unknown>>>;
 };
 
 export const collisionItems = [
@@ -19,7 +22,7 @@ export const collisionItems = [
 
 export type CollisionItem = (typeof collisionItems)[number];
 
-/** Keep the real mock response shapes, changing only content identity/title. */
+/** Keep mock shapes, with colliding IDs and native-playable VOD extensions. */
 export async function interceptCollidingXtreamItems(
     page: Page,
     request: APIRequestContext,
@@ -54,9 +57,19 @@ export async function interceptCollidingXtreamItems(
             series_id: String(series.series_id),
         }),
     ]);
+    for (const episodes of Object.values(seriesDetails.episodes ?? {})) {
+        for (const episode of episodes) {
+            episode['container_extension'] = 'mp4';
+        }
+    }
     const payloads: Record<string, unknown> = {
         get_vod_streams: [
-            { ...movie, stream_id: 103, name: 'Collision Movie' },
+            {
+                ...movie,
+                stream_id: 103,
+                name: 'Collision Movie',
+                container_extension: 'mp4',
+            },
         ],
         get_series: [{ ...series, series_id: 103, name: 'Collision Series' }],
         get_live_streams: [{ ...live, stream_id: 103, name: 'Collision Live' }],
@@ -67,6 +80,7 @@ export async function interceptCollidingXtreamItems(
                 ...movieDetails.movie_data,
                 stream_id: 103,
                 name: 'Collision Movie',
+                container_extension: 'mp4',
             },
         },
         get_series_info: {
@@ -94,6 +108,89 @@ export async function interceptCollidingXtreamItems(
         movie: String(movie.category_id),
         series: String(series.category_id),
         live: String(live.category_id),
+    };
+}
+
+/** Fail initial attempts, then serve only repository-owned synthetic media. */
+export async function routeCollisionMedia(
+    page: Page,
+    mockServer: string
+): Promise<() => void> {
+    let playable = false;
+    const webm = readFileSync(
+        join(__dirname, 'fixtures/playback/episode.webm')
+    );
+    const transportStream = readFileSync(
+        join(__dirname, '../../xtream-mock-server/src/fixtures/live.mpegts')
+    );
+    await page.route(
+        (url) =>
+            url.origin === mockServer &&
+            /^\/(live|movie|series)\//.test(url.pathname),
+        async (route) => {
+            if (!playable) {
+                await route.fulfill({
+                    status: 503,
+                    body: 'Fixture unavailable',
+                });
+                return;
+            }
+            const path = new URL(route.request().url()).pathname;
+            if (path.endsWith('.m3u8')) {
+                await route.fulfill({
+                    contentType: 'application/vnd.apple.mpegurl',
+                    body: [
+                        '#EXTM3U',
+                        '#EXT-X-VERSION:3',
+                        '#EXT-X-TARGETDURATION:6',
+                        '#EXT-X-MEDIA-SEQUENCE:0',
+                        '#EXTINF:6,',
+                        `${mockServer}/live/collection-fixture.ts`,
+                        '#EXT-X-ENDLIST',
+                        '',
+                    ].join('\n'),
+                });
+                return;
+            }
+            if (path.endsWith('.ts')) {
+                await route.fulfill({
+                    contentType: 'video/mp2t',
+                    body: transportStream,
+                });
+                return;
+            }
+            // Native media reads use ranges, even when the clip is small.
+            const range = /^bytes=(\d*)-(\d*)$/.exec(
+                route.request().headers()['range'] ?? ''
+            );
+            const last = webm.length - 1;
+            const start = range?.[1]
+                ? Number(range[1])
+                : range?.[2]
+                  ? Math.max(0, webm.length - Number(range[2]))
+                  : 0;
+            const end =
+                range?.[1] && range[2]
+                    ? Math.min(Number(range[2]), last)
+                    : last;
+            await route.fulfill({
+                status: range ? 206 : 200,
+                headers: {
+                    'accept-ranges': 'bytes',
+                    'content-length': String(end - start + 1),
+                    'content-type': 'video/webm',
+                    ...(range
+                        ? {
+                              'content-range': `bytes ${start}-${end}/${webm.length}`,
+                          }
+                        : {}),
+                },
+                body: webm.subarray(start, end + 1),
+            });
+        }
+    );
+    return () => {
+        playable = true;
     };
 }
 
@@ -156,15 +253,50 @@ export async function addCollisionFavorite(
 export async function playCollisionItem(
     page: Page,
     item: CollisionItem,
-    categoryId: string
+    categoryId: string,
+    confirmPlayback = true
 ): Promise<void> {
     await openCollisionCatalogItem(page, item, categoryId);
     if (item.type === 'live') {
         await collisionCollectionItem(page, item).click();
     } else {
-        await page.locator('button.play-btn').first().click();
+        await page
+            .getByTestId(
+                item.type === 'movie'
+                    ? 'vod-primary-action'
+                    : 'series-quick-start'
+            )
+            .click();
     }
     await expect(page.locator('app-web-player-view')).toBeVisible();
+    if (confirmPlayback) {
+        const video = page.locator('app-web-player-view video').first();
+        await expect
+            .poll(
+                () =>
+                    video.evaluate(
+                        (media: HTMLVideoElement) =>
+                            !media.paused && media.readyState >= 2
+                    ),
+                { timeout: 15_000 }
+            )
+            .toBe(true);
+        const start = await video.evaluate(
+            (media: HTMLVideoElement) => media.currentTime
+        );
+        // Observe real decoder progress beyond the two-second history gate.
+        await expect
+            .poll(
+                () =>
+                    video.evaluate(
+                        (media: HTMLVideoElement, initial) =>
+                            media.paused ? 0 : media.currentTime - initial,
+                        start
+                    ),
+                { timeout: 15_000 }
+            )
+            .toBeGreaterThanOrEqual(2.5);
+    }
 }
 
 export async function removeCollisionFavorite(
@@ -187,17 +319,20 @@ export async function selectCollectionType(
     page: Page,
     item: CollisionItem
 ): Promise<void> {
-    await page
-        .locator('.content-toggle mat-button-toggle')
-        .filter({ hasText: item.label })
-        .click();
+    await page.getByRole('radio', { name: item.label, exact: true }).click();
 }
 
 export async function expectCollisionCollection(
     page: Page,
     items: readonly CollisionItem[]
 ): Promise<void> {
-    const toggles = page.locator('.content-toggle mat-button-toggle');
+    // Full navigation/reload passes the startup splash before mounting the list.
+    await expect(page.locator('app-unified-collection-page')).toBeAttached({
+        timeout: 15_000,
+    });
+    const toggles = page.getByRole('radio', {
+        name: /^(Movies|Series|Live TV)$/,
+    });
     await expect(toggles).toHaveCount(items.length > 1 ? items.length : 0);
     for (const item of items) {
         if (items.length > 1) {
@@ -227,10 +362,7 @@ export async function expectCollectionDetailRoundTrip(
         page.getByRole('heading', { name: item.title, exact: true })
     ).toBeVisible();
     await expect(page).toHaveURL(collectionUrl);
-    await page
-        .locator('app-content-hero')
-        .getByRole('button', { name: 'Back', exact: true })
-        .click();
+    await page.locator('[data-test-id="workspace-header-back"]').click();
     await expect(page).toHaveURL(collectionUrl);
     await expect(collisionCollectionItem(page, item)).toBeVisible();
 }
