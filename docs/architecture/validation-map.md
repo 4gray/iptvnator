@@ -288,7 +288,8 @@ The usage check (`tools/i18n/check-usage.mjs`) fails on a key that renderer
 code uses but `en.json` lacks, because ngx-translate shows such a key raw. It
 reads production `.ts` and `.html` files under `apps/web/src`,
 `apps/remote-control-web/src` and `libs`, without comments, and treats as a
-use: a quoted key before `| translate`; the first argument of `instant`, `get`
+use: a quoted key before `| translate`, or a ternary or fallback branch of a
+parenthesised operand before it; the first argument of `instant`, `get`
 or `stream` on a translate service, or of a function named like `translate*`,
 `marker` or `t`; and a dotted upper-case literal in an `en.json` namespace,
 which may also name a group of keys that code completes. The static prefix of

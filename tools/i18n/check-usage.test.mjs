@@ -86,6 +86,43 @@ test('reads the first argument of translate calls, even across lines', () => {
     assert.deepEqual(keys(`marker('CLOSE')`), ['leaf:CLOSE']);
 });
 
+test('reads the branches of a parenthesised pipe operand', () => {
+    assert.deepEqual(
+        keys(
+            "{{ (expanded() ? 'SHOW_LESS' : 'SHOW_MORE') | translate }}",
+            'html'
+        ),
+        ['leaf:SHOW_LESS', 'leaf:SHOW_MORE']
+    );
+    assert.deepEqual(
+        keys("{{ (label() || 'CLOSE') | translate: { n: 1 } }}", 'html'),
+        ['leaf:CLOSE']
+    );
+});
+
+test('does not read a literal compared in the condition as a key', () => {
+    assert.deepEqual(
+        keys(
+            "{{ (status() === 'ERROR' ? 'CLOSE' : other) | translate }}",
+            'html'
+        ),
+        ['leaf:CLOSE']
+    );
+});
+
+test('fails on a missing key in a parenthesised pipe operand', () => {
+    writeSource(
+        'hero.component.html',
+        "<button>{{ (open() ? 'CLOSE' : 'SHOW_MORE') | translate }}</button>\n"
+    );
+
+    const { code, output } = check();
+
+    assert.equal(code, 1);
+    assert.match(output, /SHOW_MORE {2}src\/hero\.component\.html:1$/m);
+    assert.doesNotMatch(output, /CLOSE {2}/);
+});
+
 test('ignores get() and similar calls on receivers that do not translate', () => {
     assert.deepEqual(keys(`params.get('ID'); map.get('NAME');`), []);
 });

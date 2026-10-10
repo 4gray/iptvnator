@@ -7,7 +7,8 @@
  * Production `.ts` and `.html` files under the source roots are scanned,
  * with comments removed. A key counts as used when it appears as:
  *
- * - a quoted literal before `| translate`, in templates and inline templates;
+ * - a quoted literal before `| translate`, in templates and inline templates,
+ *   or a ternary/fallback branch of a parenthesised operand before it;
  * - the first argument of a translate call: `instant`, `get` or `stream` on a
  *   receiver whose name contains "translat", a function whose name contains
  *   "translat" (`translateWithFallback`, `translateText`), `marker` or `t`;
@@ -40,6 +41,9 @@ const SKIPPED_FILE =
     /\.(spec|test|e2e|stories)\.ts$|\.d\.ts$|\.spec-[\w-]+\.ts$|harness\.ts$|[\\/]test-stubs[\\/]/;
 const KEY = '[A-Z][A-Z0-9_]*(?:\\.[A-Z0-9_]+)*';
 const PIPE_USAGE = /(['"])([A-Za-z0-9_.-]+)\1\s*\|\s*translate\b/g;
+const PIPE_AFTER_GROUP = /\)\s*\|\s*translate\b/g;
+/** A key that a grouped pipe operand can yield: a ternary or fallback branch. */
+const GROUP_OPERAND = new RegExp(`(^|[?:|])\\s*(['"])(${KEY})\\2`, 'g');
 const CALL_USAGE = new RegExp(
     `([A-Za-z_$][\\w$]*(?:\\s*\\??\\.\\s*[A-Za-z_$][\\w$]*)*)\\s*\\(\\s*(['"\`])(${KEY})\\2`,
     'g'
@@ -79,6 +83,48 @@ export function stripComments(source, kind) {
         .replace(HTML_COMMENTS, blank);
 }
 
+/** Index of the `(` that opens the group closing at `closeIndex`, or -1. */
+function findGroupStart(code, closeIndex) {
+    let depth = 0;
+    for (let i = closeIndex; i >= 0; i -= 1) {
+        if (code[i] === ')') {
+            depth += 1;
+        } else if (code[i] === '(') {
+            depth -= 1;
+            if (depth === 0) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+/**
+ * Keys a parenthesised pipe operand can yield, as in
+ * `(expanded() ? 'SHOW_LESS' : 'SHOW_MORE') | translate`. Only literals that
+ * open the group or follow `?`, `:` or `||` count, so a literal compared in
+ * the condition is not read as a key.
+ */
+function findGroupedPipeKeys(code) {
+    const references = [];
+    for (const match of code.matchAll(PIPE_AFTER_GROUP)) {
+        const open = findGroupStart(code, match.index);
+        if (open < 0) {
+            continue;
+        }
+        const inner = code.slice(open + 1, match.index);
+        for (const operand of inner.matchAll(GROUP_OPERAND)) {
+            references.push({
+                key: operand[3],
+                index:
+                    open + 1 + operand.index + operand[0].indexOf(operand[2]),
+                kind: 'leaf',
+            });
+        }
+    }
+    return references;
+}
+
 /**
  * Returns `{ key, index, kind }` for every reference in one file. `kind` is
  * `leaf` when the reference must be a translatable string and `group` when a
@@ -90,6 +136,7 @@ export function findKeyReferences(source, kind, namespaces) {
     for (const match of code.matchAll(PIPE_USAGE)) {
         references.push({ key: match[2], index: match.index, kind: 'leaf' });
     }
+    references.push(...findGroupedPipeKeys(code));
     for (const match of code.matchAll(CALL_USAGE)) {
         if (isTranslateCall(match[1])) {
             references.push({

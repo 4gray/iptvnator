@@ -68,7 +68,8 @@ pnpm run i18n:baseline:update
 `pnpm run i18n:check` also runs `check-usage.mjs`, which fails on a key the
 renderer uses but `en.json` lacks (ngx-translate would show the raw key). It
 scans production `.ts` and `.html` files under `apps/web/src`,
-`apps/remote-control-web/src` and `libs` for piped keys, translate calls and
+`apps/remote-control-web/src` and `libs` for piped keys (including the
+branches of a parenthesised operand), translate calls and
 dotted literals in an `en.json` namespace; run it alone with
 `pnpm run i18n:usage`. Keys built entirely at runtime are not checked.
 
