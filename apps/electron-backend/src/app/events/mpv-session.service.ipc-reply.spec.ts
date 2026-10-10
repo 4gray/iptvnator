@@ -46,6 +46,7 @@ import {
     MPV_REUSE_INSTANCE,
     store,
 } from '../services/store.service';
+import * as externalPlayerRuntime from './external-player-runtime';
 import { externalPlayerSessions } from './external-player-runtime';
 import { MPV_IPC_COMMAND_TIMEOUT_MS } from './mpv-ipc-command';
 import {
@@ -424,6 +425,93 @@ describe('reused MPV IPC replies', () => {
         );
         await jest.advanceTimersByTimeAsync(0);
         await expect(opening).resolves.toMatchObject({ status: 'opened' });
+    });
+
+    it('drops a position read that was in flight when loadfile was written', async () => {
+        // The previous test's player exits on a real tick, and any MPV exit
+        // stops polling; let it land before this test starts its poll.
+        await nextTick();
+        await nextTick();
+        jest.useFakeTimers();
+        const sendPosition = jest.spyOn(
+            externalPlayerRuntime,
+            'sendPlaybackPositionUpdate'
+        );
+        const proc = createMockChildProcess();
+        spawnMock.mockReturnValueOnce(proc);
+        (store.get as unknown as jest.Mock).mockImplementation(
+            (key: string, fallback?: unknown) =>
+                ({
+                    [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+                    [MPV_REUSE_INSTANCE]: true,
+                })[key] ?? fallback
+        );
+        const sockets = mockUnansweredSockets();
+        const commandOf = (socket: MpvSocketMock) =>
+            socket.write.mock.calls.length
+                ? (
+                      JSON.parse(String(socket.write.mock.calls[0][0])) as {
+                          command: string[];
+                      }
+                  ).command
+                : [];
+        const first = openMpvPlayer({
+            title: 'First stream',
+            url: 'https://example.com/one.m3u8',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 7,
+                contentType: 'vod',
+            },
+        });
+        await jest.advanceTimersByTimeAsync(100);
+        const previous = await first;
+
+        // The first poll fires 2 s + 5 s after launch and waits for time-pos.
+        await jest.advanceTimersByTimeAsync(6_950);
+        const timePosSocket = sockets.find(
+            (socket) => commandOf(socket)[1] === 'time-pos'
+        );
+        expect(timePosSocket).toBeDefined();
+
+        const opening = openMpvPlayer({
+            title: 'Second stream',
+            url: 'https://example.com/two.m3u8',
+        });
+        await jest.advanceTimersByTimeAsync(0);
+        const loadfileSocket = sockets.find(
+            (socket) => commandOf(socket)[0] === 'loadfile'
+        ) as MpvSocketMock;
+        const requestId = await writtenRequestId(loadfileSocket);
+
+        // The pending read now returns the new stream's position.
+        timePosSocket?.emit(
+            'data',
+            Buffer.from(JSON.stringify({ data: 12.5, error: 'success' }) + '\n')
+        );
+        await jest.advanceTimersByTimeAsync(10);
+        loadfileSocket.emit(
+            'data',
+            Buffer.from(
+                JSON.stringify({ request_id: requestId, error: 'success' }) +
+                    '\n'
+            )
+        );
+        await jest.advanceTimersByTimeAsync(0);
+        await expect(opening).resolves.toMatchObject({ status: 'opened' });
+
+        // An unguarded poll would now ask for the duration and, once that
+        // read times out, report the new position under the old content.
+        await jest.advanceTimersByTimeAsync(MPV_IPC_COMMAND_TIMEOUT_MS + 100);
+        expect(
+            sockets.some((socket) => commandOf(socket)[1] === 'duration')
+        ).toBe(false);
+        expect(sendPosition).not.toHaveBeenCalledWith(
+            previous.id,
+            expect.anything(),
+            expect.anything()
+        );
+        sendPosition.mockRestore();
     });
 
     it('keeps the errored session when the child crashes during the reply wait', async () => {

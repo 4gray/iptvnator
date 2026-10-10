@@ -103,8 +103,13 @@ export function sendMpvCommand(
         const consumeLine = (line: string) => {
             const reply = parseReplyLine(line);
             if (!reply || reply.request_id !== requestId) return;
-            const error =
-                typeof reply.error === 'string' ? reply.error : 'success';
+            // mpv always answers with a string `error`; anything else is not
+            // a confirmation and must not skip the fallback.
+            if (typeof reply.error !== 'string') {
+                fail('malformed reply');
+                return;
+            }
+            const error = reply.error;
             traceExternalPlayer('mpv ipc reply', { command, error });
             if (error === 'success') {
                 settle({

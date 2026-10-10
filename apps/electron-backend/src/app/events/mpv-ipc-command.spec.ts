@@ -168,6 +168,30 @@ describe('sendMpvCommand', () => {
         expect(socket.destroy).toHaveBeenCalledTimes(1);
     });
 
+    it.each([
+        ['a missing error', {}],
+        ['a non-string error', { error: 0 }],
+    ])(
+        'rejects a matching reply with %s instead of confirming it',
+        async (_label, fields) => {
+            const socket = nextSocket();
+            const pending = sendMpvCommand(socketPath, 'loadfile', [streamUrl]);
+            socket.emit('connect');
+
+            reply(socket, {
+                request_id: writtenRequest(socket).request_id,
+                data: { playlist_entry_id: 1 },
+                ...fields,
+            });
+            await expect(pending).rejects.toMatchObject({
+                name: 'MpvIpcCommandError',
+                dispatched: true,
+                mpvError: null,
+                message: 'mpv loadfile: malformed reply',
+            });
+        }
+    );
+
     it('rejects an undispatched command on a socket error without echoing arguments', async () => {
         const socket = nextSocket();
         const pending = sendMpvCommand(socketPath, 'loadfile', [streamUrl]);

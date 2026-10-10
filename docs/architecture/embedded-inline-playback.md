@@ -1025,7 +1025,8 @@ reply fails the handoff exactly like a socket error: the reused child is torn
 down and a fresh launch follows. `loadfile` marks the content as possibly
 changed and moves ownership of the child to the attempted session from the
 moment it is written, whatever mpv replies, and stops the previous session's
-position poll there, so an exit or a stale Stop for the previous session during
+position poll there, including a read already awaiting mpv, so an exit or a
+stale Stop for the previous session during
 the reply wait settles the right session and no poll can save the new stream's
 position under the old content; a child that exited while its reply was in
 flight is returned as the session its exit handler settled, never reported as
