@@ -19,6 +19,7 @@ import {
     installFrameCanvasAndSessionCapture,
     isMeaningfulNativePlaybackSnapshot,
     type LocalMediaServer,
+    alsoClosing,
 } from './embedded-mpv-frame-copy-packaged-fixtures';
 import { expectRenderedFrame } from './embedded-mpv-frame-copy-packaged-diagnostics';
 import {
@@ -360,6 +361,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 resourcePath: '/stream-stats-switch.webm',
                 contentType: 'video/webm',
             });
+            media = alsoClosing(mediaServer, alternateMedia);
             const chapteredMedia = await createLocalMediaServer({
                 body: readFileSync(
                     join(
@@ -370,28 +372,13 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 resourcePath: '/chapters.webm',
                 contentType: 'video/webm',
             });
-            media = {
-                url: mediaServer.url,
-                close: async () => {
-                    await Promise.all([
-                        mediaServer.close(),
-                        alternateMedia.close(),
-                        chapteredMedia.close(),
-                    ]);
-                },
-            };
+            media = alsoClosing(media, chapteredMedia);
             const audioMedia = await createLocalMediaServer({
                 body: createWavFixture(),
                 resourcePath: '/stream-stats-audio.wav',
                 contentType: 'audio/wav',
             });
-            const videoMedia = media;
-            media = {
-                url: videoMedia.url,
-                close: async () => {
-                    await Promise.all([videoMedia.close(), audioMedia.close()]);
-                },
-            };
+            media = alsoClosing(media, audioMedia);
             // mpv uses its built-in demuxer name "mkv" for WebM.
             for (const [streamUrl, videoCodec, container] of [
                 [alternateMedia.url, 'vp8', 'mkv'],
