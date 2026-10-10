@@ -254,20 +254,30 @@ test.describe('App theme over the OS colour scheme', () => {
                 await page.keyboard.press('Escape');
                 await expect(card).toBeHidden();
 
-                // The rejection shows for under two seconds: compare the OS
-                // schemes straight after the drop.
-                await page.emulateMedia({ colorScheme: theme });
-                await dragFileOverWorkspace(page, 'notes.txt', true);
-                await expect(card).toHaveClass(/is-rejected/);
-                const rejected = await paintedColors(overlay);
-                await page.emulateMedia({
-                    colorScheme: theme === 'dark' ? 'light' : 'dark',
-                });
-                expect(
-                    await paintedColors(overlay),
-                    `rejected drop: app ${theme} theme`
-                ).toEqual(rejected);
-                record('rejected drop', theme, rejected);
+                // The rejection dismisses itself after 1.8s. Both reads must
+                // see it, so a slow runner that loses it between them drops
+                // again; a colour that follows the OS fails every attempt.
+                await expect(async () => {
+                    await page.emulateMedia({ colorScheme: theme });
+                    await dragFileOverWorkspace(page, 'notes.txt', true);
+                    await expect(card).toHaveClass(/is-rejected/, {
+                        timeout: 1_000,
+                    });
+                    const rejected = await paintedColors(overlay);
+                    await page.emulateMedia({
+                        colorScheme: theme === 'dark' ? 'light' : 'dark',
+                    });
+                    const underOtherOs = await paintedColors(overlay);
+                    expect(
+                        await card.getAttribute('class'),
+                        'rejection still shown after both reads'
+                    ).toMatch(/is-rejected/);
+                    expect(
+                        underOtherOs,
+                        `rejected drop: app ${theme} theme`
+                    ).toEqual(rejected);
+                    record('rejected drop', theme, rejected);
+                }).toPass({ timeout: 20_000 });
                 await page.keyboard.press('Escape');
                 await expect(card).toBeHidden();
             }
