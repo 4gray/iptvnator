@@ -82,13 +82,18 @@ export function readPortalRequestFailure(
         return { kind };
     }
 
-    if (kind === 'http' && typeof status === 'number') {
-        return typeof statusText === 'string'
-            ? { kind, status, statusText }
-            : { kind, status };
+    if (kind !== 'http' || typeof status !== 'number') {
+        return null;
     }
 
-    return null;
+    // `statusText` must be a string or absent: the guard below vouches for the
+    // whole shape, and a caller that reads the original value must not meet a
+    // number where the type promises a string.
+    if (statusText === undefined) {
+        return { kind, status };
+    }
+
+    return typeof statusText === 'string' ? { kind, status, statusText } : null;
 }
 
 /**

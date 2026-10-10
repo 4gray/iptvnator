@@ -50,6 +50,20 @@ describe('portal request failure envelope', () => {
             },
         ],
         ['an unknown kind', { portalRequestFailure: { kind: 'timeout' } }],
+        [
+            'a non-string status text',
+            {
+                portalRequestFailure: {
+                    kind: 'http',
+                    status: 401,
+                    statusText: 123,
+                },
+            },
+        ],
+        [
+            'a non-numeric status',
+            { portalRequestFailure: { kind: 'http', status: '401' } },
+        ],
         ['a string', 'Authorization failed.'],
         ['null', null],
         ['undefined', undefined],
@@ -76,6 +90,17 @@ describe('portal request failure envelope', () => {
         expect(
             isPortalRequestFailureEnvelope({
                 portalRequestFailure: { kind: 'http' },
+            })
+        ).toBe(false);
+        // The guard vouches for every field a caller may read off the
+        // original value, so a malformed status text fails it too.
+        expect(
+            isPortalRequestFailureEnvelope({
+                portalRequestFailure: {
+                    kind: 'http',
+                    status: 401,
+                    statusText: 123,
+                },
             })
         ).toBe(false);
     });

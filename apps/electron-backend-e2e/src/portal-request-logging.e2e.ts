@@ -57,7 +57,22 @@ test('@stalker @xtream @electron resolves cancelled and refused portal requests 
     dataDir,
 }) => {
     const portal = await startRefusingPortal();
-    const app = await launchElectronApp(dataDir);
+    try {
+        await runAgainstRefusingPortal(dataDir, portal.origin);
+    } finally {
+        await portal.close();
+    }
+});
+
+async function runAgainstRefusingPortal(
+    dataDir: string,
+    origin: string
+): Promise<void> {
+    // A developer shell with the IPC trace on would make the handlers log
+    // the cancellations on purpose; this test asserts the default silence.
+    const app = await launchElectronApp(dataDir, {
+        omitEnvKeys: ['IPTVNATOR_TRACE_IPC', 'IPTVNATOR_TRACE_STARTUP'],
+    });
     let diagnostics = '';
     const capture = (chunk: Buffer) => {
         diagnostics += chunk.toString().replace(ANSI_SEQUENCE, '');
@@ -99,7 +114,7 @@ test('@stalker @xtream @electron resolves cancelled and refused portal requests 
                 };
             },
             {
-                origin: portal.origin,
+                origin,
                 macAddress: MAC_ADDRESS,
                 username: USERNAME,
                 password: PASSWORD,
@@ -147,6 +162,5 @@ test('@stalker @xtream @electron resolves cancelled and refused portal requests 
         electronProcess.stdout?.off('data', capture);
         electronProcess.stderr?.off('data', capture);
         await closeElectronApp(app);
-        await portal.close();
     }
-});
+}
