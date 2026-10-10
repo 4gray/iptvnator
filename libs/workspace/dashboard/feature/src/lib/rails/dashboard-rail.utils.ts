@@ -8,6 +8,7 @@ import {
 import type {
     DashboardRailAction,
     DashboardRailCard,
+    DashboardRailLayout,
 } from './dashboard-rail.component';
 import type { DashboardRailsSettings } from '@iptvnator/shared/interfaces';
 
@@ -181,6 +182,22 @@ export function shouldShowRecentContentSkeleton(
             input.globalRecentLoading &&
             input.recentLiveCount === 0)
     );
+}
+
+/**
+ * The recent-content skeleton holds the place of the recent rail it waits
+ * for: Continue Watching (posters) while that rail is still loading with no
+ * cards, recently watched live (channel cards) otherwise.
+ */
+export function recentContentSkeletonLayout(
+    rails: DashboardRecentRailSettings,
+    input: DashboardRecentContentSkeletonInput
+): DashboardRailLayout {
+    return rails.continueWatching &&
+        input.continueWatchingLoading &&
+        input.continueWatchingCount === 0
+        ? 'cover'
+        : 'channel';
 }
 
 export interface DashboardLiveFavoritesSkeletonInput {

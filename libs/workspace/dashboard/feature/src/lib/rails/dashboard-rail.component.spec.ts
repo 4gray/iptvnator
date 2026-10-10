@@ -85,7 +85,10 @@ describe('DashboardRailComponent', () => {
             };
         });
 
-        const renderCards = async (items: DashboardRailCard[]) => {
+        const renderCards = async (
+            items: DashboardRailCard[],
+            reserveMetaLine = false
+        ) => {
             await TestBed.configureTestingModule({
                 imports: [DashboardRailComponent, TranslateModule.forRoot()],
                 providers: [
@@ -100,6 +103,7 @@ describe('DashboardRailComponent', () => {
             const fixture = TestBed.createComponent(DashboardRailComponent);
             fixture.componentRef.setInput('label', 'Sources');
             fixture.componentRef.setInput('items', items);
+            fixture.componentRef.setInput('reserveMetaLine', reserveMetaLine);
             fixture.detectChanges();
             return fixture.nativeElement as HTMLElement;
         };
@@ -161,6 +165,21 @@ describe('DashboardRailComponent', () => {
             ).toBe('WORKSPACE.DASHBOARD.REMAINING_MINUTES');
             expect(cards[0].querySelector('.rail__card-subtitle')).toBeNull();
             expect(cards[1].querySelector('.rail__card-meta-row')).toBeNull();
+        });
+
+        // A rail that replaces its loading skeleton keeps the skeleton's
+        // meta line, so a rail of label-less cards is not shorter.
+        it('keeps an empty meta row when the rail reserves the meta line', async () => {
+            const element = await renderCards(
+                [card({ id: 'bare', title: 'Bare', contentType: 'movie' })],
+                true
+            );
+
+            const row = element.querySelector(
+                '.rail__card .rail__card-meta-row'
+            );
+            expect(row).not.toBeNull();
+            expect(row?.textContent?.trim()).toBe('');
         });
     });
 

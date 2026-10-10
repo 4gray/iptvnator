@@ -1,30 +1,19 @@
 @use '@angular/material' as mat;
+// Everything that sets the rail's height comes from the geometry partial,
+// which the loading skeleton (`lib-dashboard-rail-skeleton`) shares.
+@use 'dashboard-rail-geometry' as geometry;
+
 :host {
     display: block;
-    --rail-card-width: var(--cover-rail-width, 172px);
-    --rail-gap: var(--cover-gap, 14px);
-    --rail-radius: 12px;
-    // How far the scrolling track bleeds past the viewport on every side:
-    // room for a card's focus ring (2px outline + 3px offset) plus its 2px
-    // hover lift, so neither is clipped. The track clips partially visible
-    // cards at this outer edge, so the edge fades extend by the same amount.
-    --rail-bleed: 8px;
+    @include geometry.host-tokens;
 }
 
 .rail {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    @include geometry.stack;
 }
 
 .rail__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 0 2px;
-    // Tighter height cap — keeps rail chapter markers compact
-    min-height: 24px;
+    @include geometry.header-box;
 }
 
 .rail__title {
@@ -136,16 +125,12 @@
 }
 
 .rail__track {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--rail-gap);
+    @include geometry.track-box;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
     scroll-padding-inline-start: var(--rail-bleed);
     scrollbar-width: none;
-    padding: var(--rail-bleed);
-    margin: calc(-1 * var(--rail-bleed));
 
     &::-webkit-scrollbar {
         display: none;
@@ -153,20 +138,10 @@
 }
 
 .rail__card {
-    // Pin the card size so long titles never expand the flex item.
-    // `min-width: 0` is needed because flex items default to `min-width: auto`
-    // (their intrinsic content size), which would otherwise override the
-    // flex-basis when the title wraps.
-    flex: 0 0 var(--rail-card-width);
-    width: var(--rail-card-width);
-    max-width: var(--rail-card-width);
-    min-width: 0;
+    @include geometry.card-box;
     scroll-snap-align: start;
     position: relative;
-    display: flex;
-    flex-direction: column;
     color: inherit;
-    border-radius: var(--rail-radius);
     transition:
         transform 0.2s ease,
         filter 0.2s ease;
@@ -187,10 +162,7 @@
 }
 
 .rail__card-link {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-width: 0;
+    @include geometry.card-stack;
     color: inherit;
     text-decoration: none;
     border-radius: inherit;
@@ -202,11 +174,8 @@
 }
 
 .rail__art {
-    position: relative;
-    overflow: hidden;
-    border-radius: var(--rail-radius);
+    @include geometry.art-frame;
     background: var(--app-widget-bg, #1e2330);
-    border: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
     transition: box-shadow 0.2s ease;
 
@@ -338,17 +307,12 @@
 }
 
 .rail__meta {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: 0 2px;
-    min-width: 0;
+    @include geometry.meta-stack;
 }
 
 .rail__card-title {
-    font-size: 0.85rem;
+    @include geometry.card-title-type;
     font-weight: 600;
-    line-height: 1.3;
     color: var(--app-heading-color, #1a1d23);
     white-space: nowrap;
     overflow: hidden;
@@ -358,10 +322,7 @@
 }
 
 .rail__card-meta-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
+    @include geometry.card-meta-row-box;
 }
 
 .rail__card-episode {
@@ -414,11 +375,10 @@
 // "12 min left" beside the episode chip: same tone as the subtitle, but it
 // keeps its digits whole instead of truncating when the row runs short.
 .rail__card-remaining {
+    @include geometry.card-meta-type;
     flex: 0 1 auto;
     min-width: 0;
-    font-size: 0.72rem;
     font-weight: 500;
-    line-height: 1.4;
     color: var(--app-muted-color, #8891a4);
     white-space: nowrap;
     overflow: hidden;
@@ -427,11 +387,10 @@
 }
 
 .rail__card-subtitle {
+    @include geometry.card-meta-type;
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 0.72rem;
     font-weight: 500;
-    line-height: 1.4;
     color: var(--app-muted-color, #8891a4);
     white-space: nowrap;
     overflow: hidden;
@@ -524,12 +483,6 @@
     }
 }
 
-@media (max-width: 720px) {
-    :host {
-        --rail-card-width: min(var(--cover-rail-width, 172px), 140px);
-    }
-}
-
 // ── Channel layout (compact horizontal info row) ────────────────────────────
 // Used by the "Live now on your favorites" rail. Two stacked rows:
 //   1. logo + channel name + current programme title
@@ -538,16 +491,13 @@
 // small (100–256px square) so a poster card wastes most of its height on
 // padding. Mirrors the live strip in the v0.22 mockup.
 .rail__track[data-layout='channel'] {
-    --rail-card-width: var(--channel-rail-width, 280px);
-    --rail-gap: 10px;
+    @include geometry.channel-track-tokens;
     scroll-snap-type: x mandatory;
 }
 
 .rail__card--channel {
+    @include geometry.channel-card-box;
     background: var(--app-widget-bg, #1e2330);
-    border: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
-    border-radius: var(--rail-radius);
-    padding: 10px 12px;
     transition:
         transform 0.2s ease,
         border-color 0.2s ease,
@@ -567,9 +517,7 @@
 }
 
 .rail__channel-link {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    @include geometry.channel-stack;
     color: inherit;
     text-decoration: none;
     border-radius: inherit;
@@ -581,17 +529,11 @@
 }
 
 .rail__channel-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
+    @include geometry.channel-row;
 }
 
 .rail__channel-logo {
-    flex: 0 0 auto;
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
+    @include geometry.channel-logo-box;
     background: var(--app-content-bg, #161a22);
     display: flex;
     align-items: center;
@@ -617,17 +559,12 @@
 }
 
 .rail__channel-meta {
-    min-width: 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    @include geometry.channel-meta-stack;
 }
 
 .rail__channel-name {
-    font-size: 0.85rem;
+    @include geometry.channel-name-type;
     font-weight: 600;
-    line-height: 1.2;
     color: var(--app-heading-color, #1a1d23);
     white-space: nowrap;
     overflow: hidden;
@@ -636,9 +573,8 @@
 }
 
 .rail__channel-now {
-    font-size: 0.72rem;
+    @include geometry.channel-now-type;
     font-weight: 500;
-    line-height: 1.35;
     color: var(--app-muted-color, #8891a4);
     white-space: nowrap;
     overflow: hidden;
@@ -679,10 +615,7 @@
 }
 
 .rail__channel-progress-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.65rem;
+    @include geometry.channel-progress-row-box;
     color: var(--app-muted-color, #8891a4);
 }
 
