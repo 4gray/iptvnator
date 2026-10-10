@@ -1246,6 +1246,10 @@ export interface ElectronBridgeApi {
     dbGetAllPlaybackPositions: (
         playlistId: string
     ) => Promise<PlaybackPositionData[]>;
+    dbReplaceAllPlaybackPositions: (
+        playlistId: string,
+        items: ElectronBridgePlaybackPositionInput[]
+    ) => Promise<ElectronBridgeResult>;
     dbClearAllPlaybackPositions: (
         playlistId: string
     ) => Promise<ElectronBridgeResult>;

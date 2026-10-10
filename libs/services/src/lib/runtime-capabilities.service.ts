@@ -5,9 +5,10 @@ export type RuntimeEnvironment = 'electron' | 'pwa';
 
 type RuntimeElectronBridge = Partial<ElectronBridgeApi>;
 
-// The full method set the position-storage layer may invoke — including the
-// season-batch variants, so a bridge lacking them degrades to the in-memory
-// path wholesale instead of throwing mid-action.
+// Ordinary playback methods include season batches, so partial bridges use
+// the in-memory path instead of throwing mid-action. Atomic backup restore is
+// checked separately by a restore-only preflight; it never changes data-source
+// selection or disables ordinary SQLite reads and playback writes.
 const playbackPositionStorageMethods = [
     'dbSavePlaybackPosition',
     'dbGetPlaybackPosition',

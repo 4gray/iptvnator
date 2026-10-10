@@ -688,6 +688,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         restoreState: XtreamPendingRestoreState,
         options?: XtreamOperationOptions
     ): Promise<void> {
+        this.playbackService.assertSupportsAtomicReplacement();
         const categoriesByType = await Promise.all([
             this.dbService.getAllXtreamCategories(playlistId, 'live'),
             this.dbService.getAllXtreamCategories(playlistId, 'movies'),
@@ -737,14 +738,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             options
         );
 
-        await this.playbackService.clearAllPlaybackPositions(playlistId);
-
-        for (const playbackPosition of restoreState.playbackPositions) {
-            await this.playbackService.savePlaybackPosition(
-                playlistId,
-                playbackPosition
-            );
-        }
+        await this.playbackService.replaceAllPlaybackPositions(
+            playlistId,
+            restoreState.playbackPositions
+        );
 
         // The fresh-import path lands here rather than in the backup service:
         // a new playlist has no content yet when the archive is read, so its

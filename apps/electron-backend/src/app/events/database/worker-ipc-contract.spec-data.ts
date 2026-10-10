@@ -373,6 +373,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { playlistId, contentXtreamId: 42, contentType: 'vod' },
     },
     {
+        operation: 'DB_REPLACE_ALL_PLAYBACK_POSITIONS',
+        args: [playlistId, playbackBatchItems],
+        payload: { playlistId, items: playbackBatchItems },
+    },
+    {
         operation: 'DB_SAVE_PLAYBACK_POSITIONS_BATCH',
         args: [playlistId, playbackBatchItems],
         payload: { playlistId, items: playbackBatchItems },

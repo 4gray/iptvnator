@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Locator, Page } from '@playwright/test';
+import type { PlaylistBackupManifestV1 } from '@iptvnator/shared/interfaces';
 import {
     addXtreamPortal,
     closeElectronApp,
@@ -21,20 +22,20 @@ import { readVisibleSidebarCategories } from './sidebar-categories.e2e-support';
 
 /**
  * Full backup round-trip through the real UI, DB worker and IPC stack:
- * hide a category, export the backup, delete the source, import the file
- * back and verify the restored portal hides the same category again after
- * its content is re-imported from the mock server (regression for #1017 —
- * exported hidden categories lost their xtream IDs and the restore either
- * hid everything or nothing).
+ * Preserve hidden categories, collections, positions and source pins through
+ * an immediate re-export while catalog restoration is still pending, then
+ * verify the restored database after reopening the portal. The category UI
+ * assertions also guard #1017's missing provider category IDs.
  */
 test.describe('Electron playlist backup round-trip', () => {
-    test('exports a backup and re-imports it with hidden categories restored', async ({
+    test('preserves pending backup state on re-export and restores it after restart', async ({
         dataDir,
         request,
     }) => {
         await resetMockServers(request, ['xtream']);
         const portalName = 'Backup Roundtrip Xtream';
         const exportPath = join(dataDir, 'roundtrip-backup.json');
+        const pendingExportPath = join(dataDir, 'pending-backup.json');
         const app = await launchElectronApp(dataDir);
 
         try {
@@ -61,6 +62,36 @@ test.describe('Electron playlist backup round-trip', () => {
                 sidebarCategoryById(app.mainWindow, targetCategory.id)
             ).toHaveCount(0);
 
+            const playlistId =
+                app.mainWindow.url().match(/xtreams\/([^/]+)/)?.[1] ?? '';
+            expect(playlistId).not.toEqual('');
+            // Seed realistic resume/collection state through the same IPC used
+            // by playback. No player runs here to overwrite the saved position.
+            const movieXtreamId = await app.mainWindow.evaluate(async (id) => {
+                const [movie] = await window.electron.dbGetContent(id, 'movie');
+                if (!movie) throw new Error('Mock catalog has no movie.');
+                const results = await Promise.all([
+                    window.electron.dbAddFavorite(movie.id, id),
+                    window.electron.dbAddRecentItem(movie.id, id),
+                    window.electron.dbSavePlaybackPosition(id, {
+                        contentXtreamId: movie.xtream_id,
+                        contentType: 'vod',
+                        positionSeconds: 123,
+                        durationSeconds: 7200,
+                    }),
+                    window.electron.dbSetVodSourcePin({
+                        matchKey: 'title:backup-roundtrip',
+                        playlistId: id,
+                        contentId: movie.xtream_id,
+                        portalType: 'xtream',
+                    }),
+                ]);
+                if (results.some((result) => !result.success)) {
+                    throw new Error('Seeding backup state through IPC failed.');
+                }
+                return movie.xtream_id;
+            }, playlistId);
+
             // Export through the real settings flow with the native save
             // dialog stubbed to a fixed path inside the test data dir.
             await app.electronApp.evaluate(({ dialog: nativeDialog }, path) => {
@@ -83,17 +114,9 @@ test.describe('Electron playlist backup round-trip', () => {
             // The exported manifest must reference hidden categories by
             // numeric xtream ID — the #1017 regression exported anonymous
             // { categoryType } entries.
-            const manifest = JSON.parse(readFileSync(exportPath, 'utf-8')) as {
-                playlists: Array<{
-                    portalType: string;
-                    userState?: {
-                        hiddenCategories?: Array<{
-                            categoryType?: string;
-                            xtreamId?: unknown;
-                        }>;
-                    };
-                }>;
-            };
+            const manifest = JSON.parse(
+                readFileSync(exportPath, 'utf-8')
+            ) as PlaylistBackupManifestV1;
             const xtreamEntry = manifest.playlists.find(
                 (entry) => entry.portalType === 'xtream'
             );
@@ -106,6 +129,18 @@ test.describe('Electron playlist backup round-trip', () => {
                         typeof hiddenCategory.xtreamId === 'number'
                 )
             ).toBe(true);
+
+            expect(xtreamEntry?.userState.favorites).toHaveLength(1);
+            expect(xtreamEntry?.userState.recentlyViewed).toHaveLength(1);
+            expect(xtreamEntry?.userState.sourcePins).toHaveLength(1);
+            expect(xtreamEntry?.userState.playbackPositions).toEqual([
+                expect.objectContaining({
+                    contentXtreamId: movieXtreamId,
+                    contentType: 'vod',
+                    positionSeconds: 123,
+                    durationSeconds: 7200,
+                }),
+            ]);
 
             await openSources(app.mainWindow);
             await deleteSource(app.mainWindow, portalName);
@@ -127,6 +162,46 @@ test.describe('Electron playlist backup round-trip', () => {
             await expect(
                 app.mainWindow.getByText(/Backup import finished: 1 imported/)
             ).toBeVisible({ timeout: 15000 });
+
+            // No catalog has been opened since import. Verify this is a
+            // genuinely pending restore, then export it again through the UI.
+            const pendingBeforeExport = await app.mainWindow.evaluate(
+                async (id) => ({
+                    pending: localStorage.getItem(`xtream-restore-${id}`),
+                    hasMovies: await window.electron.dbHasContent(id, 'movie'),
+                    positions:
+                        await window.electron.dbGetAllPlaybackPositions(id),
+                }),
+                playlistId
+            );
+            expect(pendingBeforeExport.pending).not.toBeNull();
+            expect(pendingBeforeExport.hasMovies).toBe(false);
+            expect(pendingBeforeExport.positions).toEqual([]);
+            await app.electronApp.evaluate(({ dialog: nativeDialog }, path) => {
+                nativeDialog.showSaveDialog = async () => ({
+                    canceled: false,
+                    filePath: path,
+                });
+            }, pendingExportPath);
+            await backupSection
+                .getByRole('button', { name: 'Export', exact: true })
+                .click();
+            await expect(
+                app.mainWindow.getByText('Playlist backup exported.')
+            ).toBeVisible({ timeout: 15000 });
+            const pendingManifest = JSON.parse(
+                readFileSync(pendingExportPath, 'utf-8')
+            ) as PlaylistBackupManifestV1;
+            const pendingEntry = pendingManifest.playlists.find(
+                (entry) => entry.portalType === 'xtream'
+            );
+            expect(pendingEntry?.userState).toEqual(xtreamEntry?.userState);
+            expect(
+                await app.mainWindow.evaluate(
+                    (id) => localStorage.getItem(`xtream-restore-${id}`),
+                    playlistId
+                )
+            ).toEqual(pendingBeforeExport.pending);
 
             // Restart before opening the restored portal: the root-provided
             // XtreamStore still holds the deleted portal's in-memory state
@@ -178,6 +253,40 @@ test.describe('Electron playlist backup round-trip', () => {
                     .filter((row) => row.hidden)
                     .map((row) => row.name)
             ).toEqual([targetCategory.name]);
+
+            const restoredState = await app.mainWindow.evaluate(
+                async (id) => ({
+                    positions:
+                        await window.electron.dbGetAllPlaybackPositions(id),
+                    favorites: await window.electron.dbGetFavorites(id),
+                    recent: await window.electron.dbGetRecentItems(id),
+                    pins: await window.electron.dbListVodSourcePins(id),
+                    pending: localStorage.getItem(`xtream-restore-${id}`),
+                }),
+                restoredPlaylistId
+            );
+            expect(restoredState.positions).toEqual([
+                expect.objectContaining({
+                    contentXtreamId: movieXtreamId,
+                    contentType: 'vod',
+                    positionSeconds: 123,
+                    durationSeconds: 7200,
+                }),
+            ]);
+            expect(
+                restoredState.favorites.map((item) => item.xtream_id)
+            ).toEqual([movieXtreamId]);
+            expect(restoredState.recent.map((item) => item.xtream_id)).toEqual([
+                movieXtreamId,
+            ]);
+            expect(restoredState.pins).toEqual([
+                expect.objectContaining({
+                    matchKey: 'title:backup-roundtrip',
+                    playlistId: restoredPlaylistId,
+                    contentId: movieXtreamId,
+                }),
+            ]);
+            expect(restoredState.pending).toBeNull();
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog

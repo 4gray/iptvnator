@@ -28,6 +28,7 @@ export function createPlaylistBackupService(
     let pendingSnapshot: XtreamPendingRestoreSnapshot | null = null;
     let lastConsumedRevision: number | null = null;
     const pendingRestoreService = {
+        getOrThrow: jest.fn(() => pendingSnapshot?.state ?? null),
         set: jest.fn(
             (
                 playlistId: string,
@@ -109,6 +110,9 @@ export function createPlaylistBackupService(
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },
         playbackPositionService: {
+            assertSupportsAtomicReplacement: jest.fn(),
+            getAllPlaybackPositionsOrThrow: jest.fn().mockResolvedValue([]),
+            replaceAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
             clearAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
@@ -283,6 +287,17 @@ export function createStatefulBackupCollaborators(
             },
         },
         playbackPositionService: {
+            assertSupportsAtomicReplacement: jest.fn(),
+            getAllPlaybackPositionsOrThrow: async () =>
+                state.playbackPositions.map((item) => ({ ...item })),
+            replaceAllPlaybackPositions: async (
+                _playlistId: string,
+                positions: PlaybackPositionData[]
+            ) => {
+                state.playbackPositions = positions.map((item) => ({
+                    ...item,
+                }));
+            },
             getAllPlaybackPositions: async () =>
                 state.playbackPositions.map((item) => ({ ...item })),
             clearAllPlaybackPositions: async () => {
@@ -296,6 +311,16 @@ export function createStatefulBackupCollaborators(
             },
         },
         vodSourcePinService: {
+            isAvailable: true,
+            replaceForPlaylist: async (
+                playlistId: string,
+                pins: VodSourcePin[]
+            ) => {
+                state.sourcePins = state.sourcePins
+                    .filter((pin) => pin.playlistId !== playlistId)
+                    .concat(pins.map((pin) => ({ ...pin })));
+                return true;
+            },
             listForPlaylistOrThrow: async (playlistId: string) =>
                 state.sourcePins
                     .filter((pin) => pin.playlistId === playlistId)

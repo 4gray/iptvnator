@@ -336,7 +336,73 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             ).rejects.toThrow(playlistId);
         });
 
-        it('restores user data, then resets and replays playback positions', async () => {
+        it('rejects unsupported deferred restore before reading or changing any user state', async () => {
+            harness.playbackService.assertSupportsAtomicReplacement.mockImplementation(
+                () => {
+                    throw new Error(
+                        'Playback position replacement method is unavailable'
+                    );
+                }
+            );
+            await expect(
+                harness.dataSource.restoreUserData(playlistId, {
+                    hiddenCategories: [],
+                    favorites: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                    sourcePins: [],
+                })
+            ).rejects.toThrow('unavailable');
+            expect(
+                harness.dbService.getAllXtreamCategories
+            ).not.toHaveBeenCalled();
+            expect(
+                harness.dbService.updateCategoryVisibility
+            ).not.toHaveBeenCalled();
+            expect(
+                harness.dbService.restoreXtreamUserData
+            ).not.toHaveBeenCalled();
+            expect(
+                harness.playbackService.replaceAllPlaybackPositions
+            ).not.toHaveBeenCalled();
+            expect(
+                harness.vodSourcePinService.replaceForPlaylist
+            ).not.toHaveBeenCalled();
+        });
+
+        it('rejects deferred restore when position replacement fails, retaining the caller retry', async () => {
+            const restoreState = {
+                hiddenCategories: [],
+                favorites: [],
+                recentlyViewed: [],
+                playbackPositions: [
+                    {
+                        contentXtreamId: 202,
+                        contentType: 'vod',
+                        positionSeconds: 60,
+                    },
+                ],
+                sourcePins: [],
+            } as never;
+            harness.playbackService.replaceAllPlaybackPositions.mockRejectedValue(
+                new Error('SQLITE_BUSY')
+            );
+
+            await expect(
+                harness.dataSource.restoreUserData(playlistId, restoreState)
+            ).rejects.toThrow('SQLITE_BUSY');
+            expect(
+                harness.playbackService.clearAllPlaybackPositions
+            ).not.toHaveBeenCalled();
+            expect(
+                harness.playbackService.savePlaybackPosition
+            ).not.toHaveBeenCalled();
+            expect(
+                harness.vodSourcePinService.replaceForPlaylist
+            ).not.toHaveBeenCalled();
+        });
+
+        it('restores user data, then replaces playback positions atomically', async () => {
             const positionA = { contentXtreamId: 1 } as never;
             const positionB = { contentXtreamId: 2 } as never;
             const restoreState = {
@@ -387,14 +453,14 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 [[11], true],
             ]);
             expect(
-                harness.playbackService.clearAllPlaybackPositions
-            ).toHaveBeenCalledWith(playlistId);
+                harness.playbackService.replaceAllPlaybackPositions
+            ).toHaveBeenCalledWith(playlistId, [positionA, positionB]);
             expect(
-                harness.playbackService.savePlaybackPosition.mock.calls
-            ).toEqual([
-                [playlistId, positionA],
-                [playlistId, positionB],
-            ]);
+                harness.playbackService.clearAllPlaybackPositions
+            ).not.toHaveBeenCalled();
+            expect(
+                harness.playbackService.savePlaybackPosition
+            ).not.toHaveBeenCalled();
         });
     });
 });

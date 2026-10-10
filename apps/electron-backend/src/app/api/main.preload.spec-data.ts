@@ -415,6 +415,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [playlistId, 42, 'vod'],
     },
     {
+        method: 'dbReplaceAllPlaybackPositions',
+        args: [playlistId, [playbackData]],
+        channel: 'DB_REPLACE_ALL_PLAYBACK_POSITIONS',
+        forwardedArgs: [playlistId, [playbackData]],
+    },
+    {
         method: 'dbSavePlaybackPositionsBatch',
         args: [playlistId, [playbackData]],
         channel: 'DB_SAVE_PLAYBACK_POSITIONS_BATCH',

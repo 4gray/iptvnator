@@ -76,6 +76,8 @@ export function createPlaybackServiceMock() {
         getAllPlaybackPositionsOrThrow: jest.fn().mockResolvedValue([]),
         clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
         clearAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
+        replaceAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
+        assertSupportsAtomicReplacement: jest.fn(),
         savePlaybackPositionsBatch: jest.fn().mockResolvedValue(undefined),
         clearPlaybackPositionsBatch: jest.fn().mockResolvedValue(undefined),
     };
