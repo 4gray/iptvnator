@@ -127,11 +127,6 @@ export const RING_EXCEPTIONS = [
         value: '#ffb24c',
         reason: "the diagnostic's amber accent on its near-black scrim (a spec loads this stylesheet as raw CSS)",
     },
-    {
-        file: 'apps/web/src/app/settings/settings.component.scss',
-        value: 'color-mix(in srgb, var(--app-selection-color) 60%, transparent)',
-        reason: 'marks a row that settings search revealed (tabindex="-1", not a Tab stop)',
-    },
 ];
 
 function exceptionFor(file, declaration) {

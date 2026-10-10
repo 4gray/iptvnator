@@ -378,6 +378,32 @@ function expectOneVisibleRing(stops: Stop[], context: string): void {
     }
 }
 
+/** The focused element's outline, and whether focus counts as visible. */
+function ringOfFocused(
+    page: Page
+): Promise<{ focusVisible: boolean; outline: string }> {
+    return page.evaluate(() => {
+        const el = document.activeElement ?? document.body;
+        const style = getComputedStyle(el);
+        return {
+            focusVisible: el.matches(':focus-visible'),
+            outline: `${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`,
+        };
+    });
+}
+
+/** `--app-focus-ring` at the focused element, as `rgb(…)`. */
+function focusRingRgb(page: Page): Promise<string> {
+    return page.evaluate(() => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--app-focus-ring)';
+        (document.activeElement ?? document.body).appendChild(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+    });
+}
+
 /** A mouse click focuses `target` without a ring. */
 async function expectNoRingAfterClick(
     page: Page,
@@ -561,6 +587,25 @@ test.describe('Keyboard focus ring', () => {
                 firstSection,
                 24
             );
+
+            // A search result chosen with Enter focuses its row by script;
+            // the keypress keeps `:focus-visible`, so the row shows the ring.
+            await applyTheme(page, 'light');
+            const search = page.locator(
+                'app-workspace-shell-header input[type="search"]'
+            );
+            await search.fill('subtitles');
+            await page
+                .getByTestId('settings-search-result-show-captions')
+                .focus();
+            await page.keyboard.press('Enter');
+            const revealed = page.locator('[data-setting-id="show-captions"]');
+            await expect(revealed).toBeFocused();
+            expect(await ringOfFocused(page)).toEqual({
+                focusVisible: true,
+                outline: `solid 2px ${await focusRingRgb(page)}`,
+            });
+
             const toggle = page
                 .getByTestId('settings-container')
                 .locator('mat-slide-toggle [role="switch"]')
