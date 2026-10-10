@@ -72,7 +72,9 @@
                                         class="recording-queue__rec-dot"
                                         aria-hidden="true"
                                     ></span>
-                                    REC&nbsp;{{ elapsedLabel(row.item) }}
+                                    {{
+                                        'DOWNLOADS.RECORDING_CHIP' | translate
+                                    }}&nbsp;{{ elapsedLabel(row.item) }}
                                 </span>
                             }
                             <button

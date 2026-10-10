@@ -12,9 +12,12 @@ import {
     viewChild,
 } from '@angular/core';
 import { Location } from '@angular/common';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
+import { withEpisodeTitleFallback } from './stalker-series-episode-titles';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import {
     findStalkerResumeLazySeason,
@@ -183,6 +186,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     );
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translateService.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
     readonly backClicked = output<void>();
     private readonly logger = createLogger('StalkerSeriesView');
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
@@ -719,7 +726,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
             // Overlay lazily fetched TMDB episode data (real names,
             // overviews, stills) — a no-op while nothing is fetched
-            return this.tmdbSeasons.overlay(base, displayItem?.info?.tmdb_id);
+            const overlaid = this.tmdbSeasons.overlay(
+                base,
+                displayItem?.info?.tmdb_id
+            );
+            this.languageTick();
+            return withEpisodeTitleFallback(overlaid, (episode) =>
+                this.episodeLabel(episode)
+            );
         }
     );
 
@@ -961,7 +975,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             ? `/media/file_${mappedEpisode.originalId ?? ''}.mpg`
             : mappedEpisode.originalCmd;
         const title = isLazyVod
-            ? `${item.info.name} - ${mappedEpisode.title || `Episode ${episodeState.episodeNumber}`}`
+            ? `${item.info.name} - ${mappedEpisode.title || this.episodeLabel(episodeState.episodeNumber)}`
             : item.info.name;
         const trackingId = Number(mappedEpisode.id);
         const startTime = fromStart
@@ -1070,6 +1084,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     toSeriesId(id: string | number): number {
         return toStalkerSeriesId(id);
+    }
+
+    private episodeLabel(episode: number): string {
+        return this.translateService.instant('PORTALS.DETAIL.EPISODE_NUMBER', {
+            episode,
+        });
     }
 
     closeInlinePlayer(): void {

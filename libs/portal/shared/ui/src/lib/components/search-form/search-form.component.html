@@ -6,7 +6,7 @@
             type="search"
             spellcheck="false"
             autocomplete="off"
-            [placeholder]="placeholder"
+            [placeholder]="placeholder || ('PORTALS.SEARCH' | translate)"
             [ngModel]="searchTerm()"
             (ngModelChange)="onSearchTermChange()"
         />

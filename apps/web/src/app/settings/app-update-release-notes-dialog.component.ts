@@ -36,8 +36,12 @@ const IPC_REJECTION_PREFIX =
     /^Error invoking remote method '[^']*': (?:Error: )?/;
 
 interface ReleaseNotesLoadError {
-    /** `not-found`: GitHub has no release for that version; `failed`: anything else. */
-    kind: 'not-found' | 'failed';
+    /**
+     * `not-found`: GitHub has no release for that version; `unavailable`: this
+     * build has no release-notes bridge; `failed`: anything else.
+     */
+    kind: 'not-found' | 'unavailable' | 'failed';
+    /** Raw detail shown under the generic failure; empty for the other kinds. */
     message: string;
     version?: string;
 }
@@ -127,6 +131,13 @@ function decorateReleaseNotesHtml(html: string): string {
                             {{
                                 'SETTINGS.APP_UPDATE_RELEASE_NOTES_NOT_FOUND'
                                     | translate: { version: loadError.version }
+                            }}
+                        </p>
+                    } @else if (loadError.kind === 'unavailable') {
+                        <p>
+                            {{
+                                'SETTINGS.APP_UPDATE_RELEASE_NOTES_UNAVAILABLE'
+                                    | translate
                             }}
                         </p>
                     } @else {
@@ -322,10 +333,7 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
         direction?: ElectronBridgeAppUpdateReleaseNotesDirection
     ): Promise<void> {
         if (!window.electron?.getAppUpdateReleaseNotes) {
-            this.error.set({
-                kind: 'failed',
-                message: 'Release notes are not available in this build.',
-            });
+            this.error.set({ kind: 'unavailable', message: '' });
             return;
         }
 

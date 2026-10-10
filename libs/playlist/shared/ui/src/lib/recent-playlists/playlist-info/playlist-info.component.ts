@@ -820,7 +820,9 @@ export class PlaylistInfoComponent {
                     `${this.playlist.title || 'exported'}.m3u8`,
                     [
                         {
-                            name: 'Playlist',
+                            name: this.translate.instant(
+                                'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE'
+                            ),
                             extensions: ['m3u8', 'm3u'],
                         },
                     ]

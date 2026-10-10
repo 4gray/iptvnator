@@ -192,7 +192,9 @@
                     [matMenuTriggerFor]="itemMenu"
                     [matMenuTriggerData]="{ playlist: playlist }"
                     (click)="$event.stopPropagation()"
-                    aria-label="Playlist actions"
+                    [attr.aria-label]="
+                        'HOME.PLAYLISTS.PLAYLIST_ACTIONS' | translate
+                    "
                 >
                     <mat-icon>more_vert</mat-icon>
                 </button>

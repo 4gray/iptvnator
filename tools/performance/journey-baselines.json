@@ -20,12 +20,12 @@
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
             },
             "renderer.domMutationsToFirstCard": {
-                "value": 558,
+                "value": 569,
                 "unit": "mutations",
                 "slack": 0,
-                "updatedAt": "2026-10-04",
-                "evidencePr": 1828,
-                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37192092882",
+                "updatedAt": "2026-10-10",
+                "evidencePr": 1871,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38045444230",
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
             },
             "main.modulesRegisteredBeforeWindow": {

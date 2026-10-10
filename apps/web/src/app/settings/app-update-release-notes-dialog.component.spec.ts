@@ -170,6 +170,25 @@ describe('AppUpdateReleaseNotesDialogComponent', () => {
         ).not.toBeNull();
     });
 
+    it('explains in the active language that the build has no release notes', async () => {
+        window.electron = {} as unknown as typeof window.electron;
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const error = fixture.nativeElement.querySelector(
+            '[data-test-id="release-notes-error"]'
+        ) as HTMLElement;
+        expect(error.textContent).toContain(
+            'SETTINGS.APP_UPDATE_RELEASE_NOTES_UNAVAILABLE'
+        );
+        expect(error.textContent).not.toContain('not available in this build');
+        expect(error.classList).not.toContain(
+            'release-notes-dialog__error--failed'
+        );
+    });
+
     it('offers the release list, not the earlier release, when paging fails', async () => {
         fixture.detectChanges();
         await fixture.whenStable();

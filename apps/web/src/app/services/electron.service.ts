@@ -509,16 +509,14 @@ export class ElectronService extends DataService {
                     errorMessage
                 )
             ) {
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND',
-                    'Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.'
+                return this.translateService.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND'
                 );
             }
 
             if (/(EACCES|EPERM|permission denied)/i.test(errorMessage)) {
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR',
-                    'Playlist refresh failed. The app can no longer access the local file.'
+                return this.translateService.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR'
                 );
             }
 
@@ -542,11 +540,6 @@ export class ElectronService extends DataService {
         );
     }
 
-    private translateWithFallback(key: string, fallback: string): string {
-        const translated = this.translateService.instant(key);
-        return translated === key ? fallback : translated;
-    }
-
     private handlePlaylistSecurityError(
         error: unknown,
         retry: () => void
@@ -560,14 +553,8 @@ export class ElectronService extends DataService {
         }
 
         const ref = this.snackBar.open(
-            this.translateWithFallback(
-                'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
-                'Certificate for this playlist host is invalid.'
-            ),
-            this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-                'Trust host'
-            ),
+            this.translateService.instant('HOME.URL_UPLOAD.ERROR_INVALID_TLS'),
+            this.translateService.instant('HOME.URL_UPLOAD.TRUST_TLS_HOST'),
             { duration: 10000 }
         );
 
@@ -583,9 +570,8 @@ export class ElectronService extends DataService {
     ): void {
         if (!host) {
             this.snackBar.open(
-                this.translateWithFallback(
-                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN',
-                    'Could not determine the playlist host. Please retry manually.'
+                this.translateService.instant(
+                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN'
                 ),
                 this.translateService.instant('CLOSE'),
                 { duration: 5000 }
@@ -594,17 +580,14 @@ export class ElectronService extends DataService {
         }
 
         this.dialogService.openConfirmDialog({
-            title: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE',
-                'Trust invalid certificate?'
+            title: this.translateService.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE'
             ),
-            message: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING',
-                'Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.'
+            message: this.translateService.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING'
             ),
-            confirmLabel: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-                'Trust host'
+            confirmLabel: this.translateService.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST'
             ),
             width: '420px',
             onConfirm: () => {

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { SearchLayoutComponent } from './search-layout.component';
@@ -10,7 +10,8 @@ describe('SearchLayoutComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [SearchLayoutComponent],
+            // The search form inside renders the real pipe.
+            imports: [SearchLayoutComponent, TranslateModule.forRoot()],
         })
             .overrideComponent(SearchLayoutComponent, {
                 remove: { imports: [TranslatePipe] },

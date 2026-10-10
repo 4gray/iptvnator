@@ -318,6 +318,11 @@ Implemented UI behavior:
 - Numeric keypad (`0-9`, `DEL`, `CLR`, `OK`)
 - Volume controls (`VOL-`, `MUTE/UNMUTE`, `VOL+`)
 - Status card (portal, channel name/number, current program)
+- Labels and errors come from the shared `REMOTE_CONTROL.*` translation keys.
+  The phone never sees the desktop language setting, so the app shell picks
+  the first browser language with a translation
+  (`resolveRemoteControlLanguage`, English otherwise) and sets `<html lang>`
+  to it.
 - Polls `/status` every 2s
 - Uses action wrapper to refresh status after command execution
 

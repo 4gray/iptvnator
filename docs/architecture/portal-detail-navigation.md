@@ -304,7 +304,7 @@ Implication:
 
 Current code paths:
 
-- `libs/portal/xtream/feature/src/lib/xtream-collection-detail.component.ts` (favorites + recent, with shared UI from `libs/portal/shared/ui/src/lib/components/favorites-layout/`)
+- `libs/portal/xtream/feature/src/lib/xtream-collection-detail.component.ts` (favorites + recent)
 - `libs/portal/xtream/feature/src/lib/search-results/search-results.component.ts`
 - `libs/portal/catalog/feature/src/lib/category-content-view/category-content-view.component.ts`
 
