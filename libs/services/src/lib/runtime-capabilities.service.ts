@@ -7,7 +7,8 @@ type RuntimeElectronBridge = Partial<ElectronBridgeApi>;
 
 // Ordinary playback methods include season batches, so partial bridges use
 // the in-memory path instead of throwing mid-action. Atomic backup restore is
-// required separately by Xtream and checked by its strict position bridge.
+// checked separately by a restore-only preflight; it never changes data-source
+// selection or disables ordinary SQLite reads and playback writes.
 const playbackPositionStorageMethods = [
     'dbSavePlaybackPosition',
     'dbGetPlaybackPosition',
@@ -220,7 +221,6 @@ export class RuntimeCapabilitiesService {
             'dbClearPlaylistRecentItems',
             'dbGetContentByXtreamId',
             ...playbackPositionStorageMethods,
-            'dbReplaceAllPlaybackPositions',
             'dbDeleteXtreamContent',
             'dbRestoreXtreamUserData',
         ].every((methodName) => this.hasElectronMethod(methodName));

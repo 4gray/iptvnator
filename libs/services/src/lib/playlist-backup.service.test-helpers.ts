@@ -110,6 +110,7 @@ export function createPlaylistBackupService(
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },
         playbackPositionService: {
+            assertSupportsAtomicReplacement: jest.fn(),
             getAllPlaybackPositionsOrThrow: jest.fn().mockResolvedValue([]),
             replaceAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
@@ -286,6 +287,7 @@ export function createStatefulBackupCollaborators(
             },
         },
         playbackPositionService: {
+            assertSupportsAtomicReplacement: jest.fn(),
             getAllPlaybackPositionsOrThrow: async () =>
                 state.playbackPositions.map((item) => ({ ...item })),
             replaceAllPlaybackPositions: async (

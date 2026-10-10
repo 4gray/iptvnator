@@ -668,7 +668,13 @@ specified playlist's positions in one synchronous transaction. Every insert
 and the delete use `.run()` so an insertion failure rolls the whole replacement
 back. An empty replacement deliberately clears that playlist. Renderer backup
 callers propagate read/write errors and retain pending restore state for retry;
-normal playback persistence keeps its best-effort behavior.
+normal playback persistence keeps its best-effort behavior. The renderer checks
+atomic replacement support at the start of the immediate or deferred restore
+pass, before updating existing categories, collections, positions, or pins.
+Missing support fails restore with the pending snapshot retained; it does not
+switch ordinary Xtream storage or backup export away from SQLite. Deferred
+catalog import can still seed newly imported categories from pending visibility
+state before that restore pass runs.
 
 ## SQLite Concurrency Rules
 

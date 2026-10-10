@@ -97,6 +97,10 @@ export class PlaybackPositionService {
         );
     }
 
+    assertSupportsAtomicReplacement(): void {
+        this.playbackPositionBridge.assertSupportsAtomicReplacement();
+    }
+
     /** Replace a backup snapshot atomically; failures must remain retryable. */
     replaceAllPlaybackPositions(
         playlistId: string,

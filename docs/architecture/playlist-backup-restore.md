@@ -212,10 +212,16 @@ import applies the restore immediately. Otherwise the typed restore payload is
 left pending until the next Xtream initialization/import. Both paths use strict
 playback-position replacement: unavailable storage, rejected IPC, or an
 unsuccessful response fail the restore and leave the pending snapshot intact.
-The Xtream SQLite capability gate requires the atomic replacement method;
-older or partial preloads use the supported fallback. Ordinary playback keeps
-its existing capability checks and best-effort persistence API. The whole restore is
-not one database transaction; already applied categories/favorites/history can
+Atomic restore support is checked separately from the ordinary Xtream SQLite
+capability gate. An older preload missing the replacement method keeps using
+SQLite for playback and backup export. Import parks the snapshot first, then
+rejects unsupported atomic restore before checking catalog completeness or
+writing category visibility, collections, positions, or pins. Deferred restore
+performs the same preflight before applying user state. The retained snapshot
+can be retried once atomic replacement becomes available. Ordinary playback
+keeps its existing capability checks and best-effort persistence API.
+The whole restore is not one database transaction; already applied
+categories/favorites/history can
 remain after a later failure, but the snapshot remains available to retry the
 complete restore. It is consumed only after every restore step succeeds.
 

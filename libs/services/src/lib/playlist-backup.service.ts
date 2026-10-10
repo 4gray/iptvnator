@@ -937,6 +937,8 @@ export class PlaylistBackupService {
             return;
         }
 
+        this.playbackPositionService.assertSupportsAtomicReplacement();
+
         if (!(await this.hasCompletedOfflineCache(playlistId))) {
             return;
         }
@@ -1001,6 +1003,7 @@ export class PlaylistBackupService {
         playlistId: string,
         state: XtreamPendingRestoreState
     ): Promise<void> {
+        this.playbackPositionService.assertSupportsAtomicReplacement();
         await this.restoreXtreamCategoryVisibility(playlistId, state);
         await this.databaseService.restoreXtreamUserData(
             playlistId,

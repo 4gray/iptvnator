@@ -20,6 +20,7 @@ describe('PlaybackPositionService', () => {
             | 'getAllPlaybackPositions'
             | 'getAllPlaybackPositionsOrThrow'
             | 'replaceAllPlaybackPositions'
+            | 'assertSupportsAtomicReplacement'
             | 'clearAllPlaybackPositions'
             | 'clearPlaybackPosition'
             | 'savePlaybackPositionsBatch'
@@ -36,6 +37,7 @@ describe('PlaybackPositionService', () => {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
             getAllPlaybackPositionsOrThrow: jest.fn().mockResolvedValue([]),
             replaceAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
+            assertSupportsAtomicReplacement: jest.fn(),
             clearAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
             savePlaybackPositionsBatch: jest.fn().mockResolvedValue(undefined),
@@ -60,6 +62,20 @@ describe('PlaybackPositionService', () => {
     afterEach(() => {
         injector.destroy();
         jest.restoreAllMocks();
+    });
+
+    it('preflights atomic restore support without altering any positions', () => {
+        bridge.assertSupportsAtomicReplacement.mockImplementation(() => {
+            throw new Error(
+                'Playback position replacement method is unavailable'
+            );
+        });
+        expect(() => service.assertSupportsAtomicReplacement()).toThrow(
+            'unavailable'
+        );
+        expect(bridge.replaceAllPlaybackPositions).not.toHaveBeenCalled();
+        expect(bridge.clearAllPlaybackPositions).not.toHaveBeenCalled();
+        expect(bridge.savePlaybackPosition).not.toHaveBeenCalled();
     });
 
     it('propagates strict backup read and replacement failures', async () => {

@@ -61,6 +61,28 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
     });
 
     describe('strict backup storage', () => {
+        it('checks atomic replacement support without reading or writing storage', () => {
+            expect(() => service.assertSupportsAtomicReplacement()).toThrow(
+                'unavailable'
+            );
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            window.electron = {} as typeof window.electron;
+            expect(() => service.assertSupportsAtomicReplacement()).toThrow(
+                'unavailable'
+            );
+            const replace = jest.fn();
+            const read = jest.fn();
+            window.electron = {
+                dbReplaceAllPlaybackPositions: replace,
+                dbGetAllPlaybackPositions: read,
+            } as unknown as typeof window.electron;
+            expect(() =>
+                service.assertSupportsAtomicReplacement()
+            ).not.toThrow();
+            expect(replace).not.toHaveBeenCalled();
+            expect(read).not.toHaveBeenCalled();
+        });
+
         it('rejects reads and replacements when storage is unavailable', async () => {
             await expect(
                 service.getAllPlaybackPositionsOrThrow('playlist-1')

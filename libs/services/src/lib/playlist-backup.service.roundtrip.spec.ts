@@ -305,6 +305,74 @@ describe('PlaylistBackupService export → import round-trip', () => {
         ).rejects.toThrow('SQLITE_BUSY');
     });
 
+    it.each(['completed', 'idle'])(
+        'keeps SQLite exports and parks unsupported atomic restores before writes (%s catalog)',
+        async (catalogStatus) => {
+            const state = seedState();
+            const collaborators = createStatefulBackupCollaborators(state);
+            const preflight =
+                collaborators.playbackPositionService
+                    .assertSupportsAtomicReplacement;
+            preflight.mockImplementation(() => {
+                throw new Error(
+                    'Atomic playback position replacement unavailable'
+                );
+            });
+            const service = createPlaylistBackupService(collaborators);
+            const original = await service.exportBackup();
+            const userState = xtreamEntry(original.manifest).userState;
+            expect(userState.favorites).toHaveLength(1);
+            expect(userState.playbackPositions).toEqual(
+                state.playbackPositions
+            );
+            expect(userState.hiddenCategories).toHaveLength(2);
+            expect(userState.sourcePins).toHaveLength(1);
+            expect(preflight).not.toHaveBeenCalled();
+            collaborators.databaseService.getXtreamImportStatus = async () =>
+                catalogStatus;
+            const visibility = jest.spyOn(
+                collaborators.databaseService,
+                'updateCategoryVisibility'
+            );
+            const collections = jest.spyOn(
+                collaborators.databaseService,
+                'restoreXtreamUserData'
+            );
+            const positions = jest.spyOn(
+                collaborators.playbackPositionService,
+                'replaceAllPlaybackPositions'
+            );
+            const pins = jest.spyOn(
+                collaborators.vodSourcePinService,
+                'replaceForPlaylist'
+            );
+
+            const failed = await service.importBackup(original.json);
+            expect(failed.failed).toBe(1);
+            expect(visibility).not.toHaveBeenCalled();
+            expect(collections).not.toHaveBeenCalled();
+            expect(positions).not.toHaveBeenCalled();
+            expect(pins).not.toHaveBeenCalled();
+            expect(
+                collaborators.pendingRestoreService.getOrThrow('xtream-1')
+            ).toEqual(userState);
+            const parkedExport = await service.exportBackup();
+            expect(xtreamEntry(parkedExport.manifest).userState).toEqual(
+                userState
+            );
+
+            preflight.mockImplementation(() => undefined);
+            collaborators.databaseService.getXtreamImportStatus = async () =>
+                'completed';
+            const retried = await service.importBackup(original.json);
+            expect(retried.failed).toBe(0);
+            expect(positions).toHaveBeenCalledTimes(1);
+            expect(
+                collaborators.pendingRestoreService.getOrThrow('xtream-1')
+            ).toBeNull();
+        }
+    );
+
     it('retains failed position restores for retry and consumes only after success', async () => {
         const state = seedState();
         const collaborators = createStatefulBackupCollaborators(state);

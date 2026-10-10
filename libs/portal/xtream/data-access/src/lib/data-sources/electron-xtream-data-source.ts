@@ -688,6 +688,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         restoreState: XtreamPendingRestoreState,
         options?: XtreamOperationOptions
     ): Promise<void> {
+        this.playbackService.assertSupportsAtomicReplacement();
         const categoriesByType = await Promise.all([
             this.dbService.getAllXtreamCategories(playlistId, 'live'),
             this.dbService.getAllXtreamCategories(playlistId, 'movies'),

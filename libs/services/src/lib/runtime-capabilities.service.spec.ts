@@ -595,13 +595,13 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSectionNavigation).toBe(true);
     });
 
-    it('requires atomic restore for Xtream without disabling ordinary position storage', () => {
+    it('keeps Xtream SQLite and ordinary position storage when atomic restore is unavailable', () => {
         const bridge = createXtreamSqliteBridge();
         testWindow.electron = bridge;
         const service = new RuntimeCapabilitiesService();
         expect(service.supportsXtreamSqliteDataSource).toBe(true);
         delete bridge['dbReplaceAllPlaybackPositions'];
-        expect(service.supportsXtreamSqliteDataSource).toBe(false);
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
         expect(service.supportsPlaybackPositionStorage).toBe(true);
         bridge['dbReplaceAllPlaybackPositions'] = jest.fn();
         expect(service.supportsXtreamSqliteDataSource).toBe(true);

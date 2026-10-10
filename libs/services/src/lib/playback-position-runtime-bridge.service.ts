@@ -177,6 +177,18 @@ export class PlaybackPositionRuntimeBridgeService {
         return result;
     }
 
+    /** Preflight restores before any other user-state mutation or IPC work. */
+    assertSupportsAtomicReplacement(): void {
+        if (!this.supportsStorage) {
+            throw new Error('Playback position storage is unavailable');
+        }
+        if (typeof this.bridge?.dbReplaceAllPlaybackPositions !== 'function') {
+            throw new Error(
+                'Playback position replacement method is unavailable'
+            );
+        }
+    }
+
     async replaceAllPlaybackPositions(
         playlistId: string,
         items: PlaybackPositionData[]
