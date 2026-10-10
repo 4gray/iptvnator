@@ -51,6 +51,7 @@ import {
     resolveSourceExpiryBadge,
 } from '@iptvnator/workspace/dashboard/data-access';
 import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
+import { connectDashboardTmdbRails } from './dashboard-tmdb-rails';
 import { DashboardRailComponent } from './dashboard-rail.component';
 import type {
     DashboardRailCard,
@@ -75,10 +76,8 @@ import {
     buildDashboardContinueWatchingActions,
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
-    type DashboardTmdbRailLoadInput,
     liveRailTitleKeyForSource,
     RAIL_ITEM_LIMIT,
-    shouldLoadTmdbRail,
     shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
     SKELETON_CARDS_PER_RAIL,
@@ -201,14 +200,6 @@ export class WorkspaceDashboardRailsComponent {
     private readonly playbackPositionReloadKey = computed(() =>
         buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
     );
-
-    /** What the TMDB rails wait for before their title match; see shouldLoadTmdbRail. */
-    private tmdbRailLoadInput(): DashboardTmdbRailLoadInput {
-        return {
-            globalFavoritesLoaded: this.data.globalFavoritesLoaded(),
-            continueWatchingSettled: this.data.continueWatchingSettled(),
-        };
-    }
 
     readonly liveFavoriteCardsEnriched = computed<DashboardRailCard[]>(() =>
         this.liveEpg.enrich(this.liveFavoriteCards())
@@ -355,43 +346,15 @@ export class WorkspaceDashboardRailsComponent {
             untracked(() => void this.sourceExpiry.refresh(playlists));
         });
 
-        // Trending rail: needs the TMDB opt-in and the Electron DB worker.
-        // Deferred until the dashboard's own reads are in (favorites, and the
-        // playback positions Continue Watching settles on) so the batched
-        // title match never holds the worker while those are queued.
-        effect(() => {
-            if (
-                !shouldLoadTmdbRail(
-                    this.dashboardRails().tmdbTrending,
-                    this.tmdbRailLoadInput()
-                )
-            ) {
-                return;
-            }
-            untracked(() => void this.trendingService.load());
-        });
-
-        // Recommendations rail: same gating as trending, plus tracked
-        // reads of the seed source, the favorites (both feed the
-        // exclusion set) and the playlist set (feeds the catalog key) so
-        // a newly watched/favorited title or an imported/deleted playlist
-        // re-runs the load — the service keys loads by seed + exclusion +
-        // catalog set and skips no-ops.
-        effect(() => {
-            if (
-                !shouldLoadTmdbRail(
-                    this.dashboardRails().tmdbRecommendations,
-                    this.tmdbRailLoadInput()
-                )
-            ) {
-                return;
-            }
-            this.data.globalRecentVodItems();
-            this.data.globalFavoriteItems();
-            this.data.playlists();
-            // Language feeds the service's load key (localized payloads)
-            this.languageTick();
-            untracked(() => void this.recommendationsService.load());
+        // Trending and recommendations: after the favorites and Continue
+        // Watching, so their title match never holds the DB worker while
+        // the playback positions wait (see connectDashboardTmdbRails).
+        connectDashboardTmdbRails({
+            dashboardRails: this.dashboardRails,
+            languageTick: this.languageTick,
+            data: this.data,
+            trendingService: this.trendingService,
+            recommendationsService: this.recommendationsService,
         });
     }
 

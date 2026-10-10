@@ -6,7 +6,6 @@ import {
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
-    shouldLoadTmdbRail,
     shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
 } from './dashboard-rail.utils';
@@ -842,35 +841,5 @@ describe('playback-position helpers', () => {
                 params: { seconds: 0 },
             });
         });
-    });
-});
-
-describe('TMDB rail load gate', () => {
-    const ready = {
-        globalFavoritesLoaded: true,
-        continueWatchingSettled: true,
-    };
-
-    it('loads once the favorites and Continue Watching have settled', () => {
-        expect(shouldLoadTmdbRail(true, ready)).toBe(true);
-    });
-
-    it('never loads a disabled rail', () => {
-        expect(shouldLoadTmdbRail(false, ready)).toBe(false);
-    });
-
-    it('waits for the favorites', () => {
-        expect(
-            shouldLoadTmdbRail(true, { ...ready, globalFavoritesLoaded: false })
-        ).toBe(false);
-    });
-
-    it('waits for Continue Watching to settle so the title match cannot queue the playback positions behind it', () => {
-        expect(
-            shouldLoadTmdbRail(true, {
-                ...ready,
-                continueWatchingSettled: false,
-            })
-        ).toBe(false);
     });
 });

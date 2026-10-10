@@ -22,7 +22,10 @@ export const SKELETON_CARDS_PER_RAIL = [1, 2, 3, 4, 5, 6] as const;
 export const SKELETON_RAILS = [1, 2, 3] as const;
 
 export type DashboardSourceActionId =
-    'refresh' | 'playlist-info' | 'account-info' | 'remove';
+    | 'refresh'
+    | 'playlist-info'
+    | 'account-info'
+    | 'remove';
 
 export function buildDashboardSourceActions(
     playlist: PlaylistMeta,
@@ -66,7 +69,9 @@ export function buildDashboardSourceActions(
 }
 
 export type DashboardContinueWatchingActionId =
-    'resume' | 'mark-watched' | 'remove-from-history';
+    | 'resume'
+    | 'mark-watched'
+    | 'remove-from-history';
 
 /**
  * ⋮ menu for Continue Watching cards (issue #1441). The default card click is
@@ -175,31 +180,6 @@ export function shouldShowRecentContentSkeleton(
         (rails.recentlyWatchedLive &&
             input.globalRecentLoading &&
             input.recentLiveCount === 0)
-    );
-}
-
-export interface DashboardTmdbRailLoadInput {
-    /** The dashboard's favorites have loaded once. */
-    readonly globalFavoritesLoaded: boolean;
-    /** Continue Watching has its playback positions and series lookups in. */
-    readonly continueWatchingSettled: boolean;
-}
-
-/**
- * Whether a TMDB rail (trending, recommendations) may start loading. Its
- * batched title match (`DB_MATCH_TITLES`) holds the single-threaded DB
- * worker for seconds per common word on a large catalog, so it waits until
- * the dashboard's own reads are through: the favorites, and the per-playlist
- * playback positions that Continue Watching and the hero gate on. A match
- * issued before those positions queues them behind it and keeps both
- * skeletons up for as long as the match runs.
- */
-export function shouldLoadTmdbRail(
-    enabled: boolean,
-    input: DashboardTmdbRailLoadInput
-): boolean {
-    return (
-        enabled && input.globalFavoritesLoaded && input.continueWatchingSettled
     );
 }
 
