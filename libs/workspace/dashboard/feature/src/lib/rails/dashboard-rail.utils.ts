@@ -8,6 +8,7 @@ import {
 import type {
     DashboardRailAction,
     DashboardRailCard,
+    DashboardRailLayout,
 } from './dashboard-rail.component';
 import type { DashboardRailsSettings } from '@iptvnator/shared/interfaces';
 
@@ -181,6 +182,16 @@ export function shouldShowRecentContentSkeleton(
             input.globalRecentLoading &&
             input.recentLiveCount === 0)
     );
+}
+
+/**
+ * The recent-content skeleton holds the place of Continue Watching (posters)
+ * or, with that rail turned off, of recently watched live (channel cards).
+ */
+export function recentContentSkeletonLayout(
+    rails: DashboardRecentRailSettings
+): DashboardRailLayout {
+    return rails.continueWatching ? 'cover' : 'channel';
 }
 
 export interface DashboardLiveFavoritesSkeletonInput {

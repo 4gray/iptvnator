@@ -51,6 +51,7 @@ import {
 } from '@iptvnator/workspace/dashboard/data-access';
 import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
 import { DashboardRailComponent } from './dashboard-rail.component';
+import { DashboardRailSkeletonComponent } from './dashboard-rail-skeleton.component';
 import type {
     DashboardRailCard,
     DashboardRailActionSelection,
@@ -76,9 +77,9 @@ import {
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
     RAIL_ITEM_LIMIT,
+    recentContentSkeletonLayout,
     shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
-    SKELETON_CARDS_PER_RAIL,
     SKELETON_RAILS,
 } from './dashboard-rail.utils';
 import type {
@@ -91,6 +92,7 @@ import type {
     imports: [
         DashboardHeroComponent,
         DashboardRailComponent,
+        DashboardRailSkeletonComponent,
         EmptyStateComponent,
         TranslatePipe,
     ],
@@ -133,9 +135,9 @@ export class WorkspaceDashboardRailsComponent {
     readonly xtreamPlaylistCount = this.data.xtreamPlaylistCount;
     readonly isElectron = this.runtime.isElectron;
 
-    readonly skeletonSlots = SKELETON_CARDS_PER_RAIL;
     readonly skeletonRails = SKELETON_RAILS;
     readonly liveRailTitleKeyForSource = liveRailTitleKeyForSource;
+    readonly recentContentSkeletonLayout = recentContentSkeletonLayout;
     readonly dashboardRails = computed(() =>
         normalizeDashboardRailsSettings(this.settingsStore.dashboardRails?.())
     );

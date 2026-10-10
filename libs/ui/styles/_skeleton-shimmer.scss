@@ -1,0 +1,59 @@
+// The one shimmer recipe for loading placeholders: the dashboard hero and
+// rails, and the detail-page hero, actions and episode rows.
+//
+// A block is a flat fill a step above whatever surface it sits on, with a
+// moving highlight a step higher. Both are mixed from the theme's on-surface
+// ink rather than from surface tokens: the light theme's widget and header
+// surfaces are nearly the same white (1.04:1), so a sweep between them was
+// invisible on the light page. On the page background the ink mix gives the
+// base about 1.2:1 in both themes and the highlight 1.18:1 (light) and
+// 1.26:1 (dark) over the base. Under `prefers-reduced-motion` the highlight
+// stays put.
+//
+// Include `keyframes` once in a component stylesheet that uses `block`:
+// Angular scopes keyframes to the component that declares them.
+
+$duration: 1.4s;
+$base-ink: 8%;
+$highlight-ink: 16%;
+
+@mixin keyframes {
+    @keyframes skeleton-shimmer {
+        from {
+            background-position: 100% 0;
+        }
+
+        to {
+            background-position: -100% 0;
+        }
+    }
+}
+
+@mixin block($radius: 4px) {
+    --skeleton-base: color-mix(
+        in srgb,
+        var(--app-on-surface) #{$base-ink},
+        transparent
+    );
+    --skeleton-highlight: color-mix(
+        in srgb,
+        var(--app-on-surface) #{$highlight-ink},
+        transparent
+    );
+
+    display: block;
+    border-radius: $radius;
+    background: linear-gradient(
+        90deg,
+        var(--skeleton-base) 25%,
+        var(--skeleton-highlight) 50%,
+        var(--skeleton-base) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer $duration ease-in-out infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+        background: var(--skeleton-base);
+    }
+}

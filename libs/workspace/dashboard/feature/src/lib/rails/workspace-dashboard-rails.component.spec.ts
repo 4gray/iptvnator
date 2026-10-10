@@ -6,6 +6,7 @@ import {
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
+    recentContentSkeletonLayout,
     shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
 } from './dashboard-rail.utils';
@@ -692,6 +693,18 @@ describe('recent content skeleton helper', () => {
                 globalRecentLoading: false,
             })
         ).toBe(false);
+    });
+
+    it('draws posters for Continue Watching and channel cards for recently watched live alone', () => {
+        expect(
+            recentContentSkeletonLayout(DEFAULT_DASHBOARD_RAILS_SETTINGS)
+        ).toBe('cover');
+        expect(
+            recentContentSkeletonLayout({
+                ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                continueWatching: false,
+            })
+        ).toBe('channel');
     });
 });
 

@@ -58,18 +58,10 @@
                 "
             />
         } @else if (railSkeletons.liveFavorites()) {
-            <section
-                class="rails-page__skeleton-rail"
-                aria-hidden="true"
-                aria-busy="true"
-            >
-                <div class="rails-page__skeleton-header"></div>
-                <div class="rails-page__skeleton-track">
-                    @for (slot of skeletonSlots; track slot) {
-                        <div class="rails-page__skeleton-card"></div>
-                    }
-                </div>
-            </section>
+            <lib-dashboard-rail-skeleton
+                layout="channel"
+                testId="dashboard-live-favorites-rail-skeleton"
+            />
         }
 
         @if (
@@ -110,18 +102,10 @@
         }
 
         @if (railSkeletons.recentContent()) {
-            <section
-                class="rails-page__skeleton-rail"
-                aria-hidden="true"
-                aria-busy="true"
-            >
-                <div class="rails-page__skeleton-header"></div>
-                <div class="rails-page__skeleton-track">
-                    @for (slot of skeletonSlots; track slot) {
-                        <div class="rails-page__skeleton-card"></div>
-                    }
-                </div>
-            </section>
+            <lib-dashboard-rail-skeleton
+                [layout]="recentContentSkeletonLayout(dashboardRails())"
+                testId="dashboard-recent-content-rail-skeleton"
+            />
         }
 
         <!-- Sources rail -->
@@ -136,18 +120,10 @@
                 (actionSelected)="onSourceActionSelected($event)"
             />
         } @else if (railSkeletons.sources()) {
-            <section
-                class="rails-page__skeleton-rail"
-                aria-hidden="true"
-                aria-busy="true"
-            >
-                <div class="rails-page__skeleton-header"></div>
-                <div class="rails-page__skeleton-track">
-                    @for (slot of skeletonSlots; track slot) {
-                        <div class="rails-page__skeleton-card"></div>
-                    }
-                </div>
-            </section>
+            <lib-dashboard-rail-skeleton
+                aspectRatio="16 / 9"
+                testId="dashboard-recent-sources-rail-skeleton"
+            />
         }
 
         <!-- Xtream recently-added rail (only relevant if there are Xtream playlists) -->
@@ -164,18 +140,9 @@
                 [testId]="'dashboard-xtream-recently-added-rail'"
             />
         } @else if (railSkeletons.xtreamRecentlyAdded()) {
-            <section
-                class="rails-page__skeleton-rail"
-                aria-hidden="true"
-                aria-busy="true"
-            >
-                <div class="rails-page__skeleton-header"></div>
-                <div class="rails-page__skeleton-track">
-                    @for (slot of skeletonSlots; track slot) {
-                        <div class="rails-page__skeleton-card"></div>
-                    }
-                </div>
-            </section>
+            <lib-dashboard-rail-skeleton
+                testId="dashboard-xtream-recently-added-rail-skeleton"
+            />
         }
 
         <!-- TMDB recommendations rail ("Because you watched"; opt-in; Electron only) -->
@@ -190,18 +157,9 @@
                 [testId]="'dashboard-tmdb-recommendations-rail'"
             />
         } @else if (railSkeletons.tmdbRecommendations()) {
-            <section
-                class="rails-page__skeleton-rail"
-                aria-hidden="true"
-                aria-busy="true"
-            >
-                <div class="rails-page__skeleton-header"></div>
-                <div class="rails-page__skeleton-track">
-                    @for (slot of skeletonSlots; track slot) {
-                        <div class="rails-page__skeleton-card"></div>
-                    }
-                </div>
-            </section>
+            <lib-dashboard-rail-skeleton
+                testId="dashboard-tmdb-recommendations-rail-skeleton"
+            />
         }
 
         <!-- TMDB trending rail (opt-in; Electron only — needs title matching) -->
@@ -213,18 +171,9 @@
                 [testId]="'dashboard-tmdb-trending-rail'"
             />
         } @else if (railSkeletons.tmdbTrending()) {
-            <section
-                class="rails-page__skeleton-rail"
-                aria-hidden="true"
-                aria-busy="true"
-            >
-                <div class="rails-page__skeleton-header"></div>
-                <div class="rails-page__skeleton-track">
-                    @for (slot of skeletonSlots; track slot) {
-                        <div class="rails-page__skeleton-card"></div>
-                    }
-                </div>
-            </section>
+            <lib-dashboard-rail-skeleton
+                testId="dashboard-tmdb-trending-rail-skeleton"
+            />
         }
     }
 </section>

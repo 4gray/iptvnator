@@ -745,6 +745,30 @@ mirrors the row/card geometry it precedes (see Channel List Item and Cover
 Grids). The unified Favorites/Recent page gates this on `isLoading`, set only
 while its item list is empty.
 
+A skeleton takes its boxes from the code that draws the content, not from
+copied values: the same Sass mixins for every box that sets a height (header
+padding and minimum height, row and card size, track bleed, gaps), and for
+text a line box of the real font size and line height with a shorter shimmer
+bar inside it. Copied values drift: the M3U channel list moved down by 19 px
+when its playlist loaded, and the dashboard rail skeletons were 2:3 posters
+in front of 84 px channel cards.
+
+- The channel list views and `app-channel-list-loading-state` share
+  `libs/ui/components/src/lib/styles/_channel-list-layout.scss`. The loading
+  state takes the view and hides its headers where the loaded view does
+  (`showHeader`, compact lists).
+- The dashboard rails and `lib-dashboard-rail-skeleton` share
+  `libs/workspace/dashboard/feature/src/lib/rails/_dashboard-rail-geometry.scss`.
+  A skeleton takes the `layout` and `aspectRatio` of the rail it precedes:
+  channel cards for live favorites, 16:9 cards for sources, posters with a
+  title and a meta line otherwise.
+- `apps/electron-backend-e2e/src/skeleton-geometry.e2e.ts` holds the IPC
+  channel that answers each loading state, compares the skeleton's header,
+  first-row and rail boxes with the content's to 0.5 px at 1280×700, and keeps
+  the dashboard's layout-shift score from skeleton to content at or under
+  0.01. A whole subtree swapped for new nodes does not count as a layout
+  shift, so the positions are compared directly.
+
 ### Pages of independently loading blocks: delayed skeletons
 
 The dashboard renders each rail as soon as its own data arrives, and several
@@ -770,9 +794,13 @@ page down. For the same reason it stays until every source that can fill it
 has loaded, not only the first one. Use the same rules for any page that
 stacks independently loading blocks.
 
+Skeleton blocks use one shimmer, `libs/ui/styles/_skeleton-shimmer.scss`: a
+fill mixed from `--app-on-surface` (8%, with a 16% highlight), so it reads on
+both themes. The dashboard rails used to sweep between `--app-widget-bg` and
+`--app-widget-header-bg`, 1.04:1 apart on the light theme.
+
 The movie and series detail hero has an immediate skeleton too, built from
-the shared shimmer (`libs/ui/components/src/lib/styles/_skeleton-shimmer.scss`)
-at the loaded hero's geometry: stage height, bottom-aligned eyebrow, title,
+the shared shimmer at the loaded hero's geometry: stage height, bottom-aligned eyebrow, title,
 one row of chips, two description lines, the action row and two credit lines.
 The Xtream series page adds an episodes section skeleton under it, and the
 Stalker series hero holds the Play button's place
