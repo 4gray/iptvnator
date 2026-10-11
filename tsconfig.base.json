@@ -127,6 +127,9 @@
             "@iptvnator/services/playlist-backup": [
                 "libs/services/src/lib/playlist-backup.service.ts"
             ],
+            "@iptvnator/services/server-storage": [
+                "libs/services/src/lib/server-storage/index.ts"
+            ],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
             ],
