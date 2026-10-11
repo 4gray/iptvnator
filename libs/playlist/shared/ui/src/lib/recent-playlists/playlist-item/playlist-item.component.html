@@ -82,7 +82,20 @@
             }
         </div>
     </div>
-    <div class="playlist-content">
+    <!-- The keyboard activation element is its own element so the drag
+         handle and the actions stay siblings: an interactive control nested
+         inside a role="button" is an invalid accessibility structure. A
+         pointer click anywhere on the row still opens it via the row. -->
+    <div
+        class="playlist-content"
+        role="button"
+        tabindex="0"
+        [attr.aria-label]="item.title || item.filename"
+        [attr.aria-current]="isSelected() || null"
+        [attr.aria-disabled]="isBusy() || null"
+        (keydown.enter)="onActivationKey($event)"
+        (keydown.space)="onActivationKey($event)"
+    >
         <div class="playlist-title">
             {{ item.title || item.filename }}
         </div>

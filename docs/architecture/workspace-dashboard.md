@@ -70,7 +70,10 @@ Render rules:
 1. Dashboard rails render independently as their data sources resolve. The
    page no longer uses `dashboardReady()` as a page-wide skeleton gate.
    Initial hero/recent/favorites loading states render scoped skeletons so one
-   slow rail does not hide already available content.
+   slow rail does not hide already available content. A rail skeleton is a
+   `lib-dashboard-rail-skeleton` with the layout of the rail it precedes,
+   sized from the rail's own geometry partial, so the rail replaces it at the
+   same height (UI guidelines, Loading States).
 2. `hasPlaylists() === false` → render `<app-empty-state [type]="'welcome-dashboard'">`
    full-bleed. All rails and the hero are skipped.
 3. The hero (`lib-dashboard-hero`) renders when it has at least one slide;
