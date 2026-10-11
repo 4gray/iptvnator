@@ -1,7 +1,6 @@
 import {
     Component,
     effect,
-    HostBinding,
     inject,
     OnInit,
     signal,
@@ -66,9 +65,6 @@ const debugAppComponent = createDevLogger('AppComponent');
 })
 export class AppComponent implements OnInit {
     readonly routeReady = signal(false);
-    @HostBinding('class.macos-platform') get isMacOS() {
-        return this.runtime.isMacOS;
-    }
     get usesCustomWindowControls() {
         return this.runtime.usesCustomWindowControls;
     }

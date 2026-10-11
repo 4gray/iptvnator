@@ -22,10 +22,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import {
-    isWorkspaceLayoutRoute,
-    queryParamSignal,
-} from '@iptvnator/portal/shared/util';
+import { queryParamSignal } from '@iptvnator/portal/shared/util';
 import {
     ChannelActions,
     FavoritesActions,
@@ -219,7 +216,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     readonly sidebarToggleRequested = output<void>();
     /** Groups view only: the group whose channels are currently listed. */
     readonly selectedGroupChange = output<string | null>();
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,
         'q',
@@ -230,7 +226,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         if (hostTerm !== null) {
             return foldSearchText(hostTerm.trim());
         }
-        return this.isWorkspaceLayout ? this.routeSearchTerm() : '';
+        return this.routeSearchTerm();
     });
 
     readonly currentUrl = toSignal(
