@@ -13,6 +13,7 @@ import type {
 import { SERVER_PAYLOAD_FIELDS } from '@iptvnator/shared/interfaces';
 import {
     metadataDocument,
+    payloadMetadata,
     serverPlaylistMeta,
 } from './server-playlist-meta.table';
 
@@ -145,18 +146,27 @@ export class ServerPlaylistRepository {
             throw new InvalidPlaylistDocumentError();
         }
 
-        const metadata = metadataDocument(next);
+        const update = {
+            ...playlistConflictUpdate(row, next),
+            ...clearedColumns(row),
+        };
         this.db.transaction((tx) => {
             tx.insert(playlists)
                 .values(row)
-                .onConflictDoUpdate({
-                    target: playlists.id,
-                    set: {
-                        ...playlistConflictUpdate(row, next),
-                        ...clearedColumns(row),
-                    },
-                })
+                .onConflictDoUpdate({ target: playlists.id, set: update })
                 .run();
+            // The conflict update may carry stored fields (the panel clock)
+            // into the payload; the copy must then match what was saved.
+            const metadata =
+                update.payload === row.payload
+                    ? metadataDocument(next)
+                    : (tx
+                          .select({
+                              document: payloadMetadata(playlists.payload),
+                          })
+                          .from(playlists)
+                          .where(eq(playlists.id, row.id))
+                          .get()?.document ?? null);
             tx.insert(serverPlaylistMeta)
                 .values({ playlistId: row.id, document: metadata })
                 .onConflictDoUpdate({

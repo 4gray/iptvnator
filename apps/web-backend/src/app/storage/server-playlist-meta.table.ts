@@ -1,4 +1,5 @@
 import { SERVER_PAYLOAD_FIELDS } from '@iptvnator/shared/interfaces';
+import { sql, type SQL, type SQLWrapper } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
@@ -29,6 +30,15 @@ SELECT id, CASE
 END
 FROM playlists
 WHERE id NOT IN (SELECT playlist_id FROM server_playlist_meta)`;
+
+/** A stored payload without its M3U fields, or NULL when it is not JSON. */
+export function payloadMetadata(payload: SQLWrapper): SQL<string | null> {
+    return sql<string | null>`CASE
+        WHEN json_valid(${payload})
+        THEN json_remove(${payload}, ${sql.raw(PAYLOAD_PATHS)})
+        ELSE NULL
+    END`;
+}
 
 export const serverPlaylistMeta = sqliteTable('server_playlist_meta', {
     playlistId: text('playlist_id').primaryKey().notNull(),

@@ -108,6 +108,39 @@ describe('ServerPlaylistRepository', () => {
             });
         }));
 
+    it('keeps a carried-over panel clock in metadata reads', () =>
+        withTempStorage(({ playlists }) => {
+            const panel = {
+                _id: 'x1',
+                title: 'Panel',
+                serverUrl: 'http://panel.test',
+                username: 'user',
+                password: 'secret',
+                importDate: '2026-10-01T00:00:00.000Z',
+            };
+            playlists.upsert(
+                { ...panel, serverTimezone: 'Europe/Berlin' },
+                { keepPayload: false }
+            );
+
+            // An older snapshot without the clock, same panel account.
+            playlists.upsert(
+                { ...panel, title: 'Renamed' },
+                { keepPayload: false }
+            );
+            const kept = { title: 'Renamed', serverTimezone: 'Europe/Berlin' };
+            expect(playlists.get('x1')).toMatchObject(kept);
+            expect(playlists.listMetas()[0]).toMatchObject(kept);
+
+            // A different account drops the clock in both reads.
+            playlists.upsert(
+                { ...panel, password: 'changed' },
+                { keepPayload: false }
+            );
+            expect(playlists.get('x1')?.['serverTimezone']).toBeUndefined();
+            expect(playlists.listMetas()[0]['serverTimezone']).toBeUndefined();
+        }));
+
     it('drops the metadata copy with its playlist', () =>
         withTempStorage(({ playlists }) => {
             playlists.upsert(m3uDocument('p1'), { keepPayload: false });
