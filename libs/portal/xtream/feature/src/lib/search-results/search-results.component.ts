@@ -7,6 +7,7 @@ import {
     inject,
     linkedSignal,
     signal,
+    untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -249,23 +250,31 @@ export class SearchResultsComponent implements AfterViewInit {
             }
         }
 
-        effect((onCleanup) => {
-            const term = this.searchTerm();
-            if (term.length >= this.minSearchLength) {
-                const timeout = setTimeout(() => this.executeSearch(), 300);
-                onCleanup(() => clearTimeout(timeout));
-            } else if (term.length < this.minSearchLength) {
-                this.clearResultsOnly();
-            }
-        });
-
+        // Created first so a route `q` reaches the store before the search
+        // effect's first run: a term left in the store by an earlier visit
+        // must not be queried on the way to the route's term.
         effect(() => {
             const queryTerm = this.routeSearchTerm();
-            if (queryTerm === this.searchTerm()) {
+            if (queryTerm === untracked(this.searchTerm)) {
                 return;
             }
 
             this.xtreamStore.setSearchTerm(queryTerm);
+        });
+
+        // No debounce of its own: typed terms arrive already debounced by the
+        // workspace shell (SEARCH_INPUT_DEBOUNCE_MS), and a term from the URL
+        // or a filter change is a single deliberate change. A newer term
+        // supersedes an older query still in flight (request versions).
+        effect(() => {
+            const term = this.searchTerm();
+            untracked(() => {
+                if (term.length >= this.minSearchLength) {
+                    this.executeSearch();
+                } else {
+                    this.clearResultsOnly();
+                }
+            });
         });
     }
 

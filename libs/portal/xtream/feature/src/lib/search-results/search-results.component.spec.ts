@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { DatabaseService } from '@iptvnator/services';
 import { SearchResultsComponent } from './search-results.component';
 import {
@@ -377,7 +377,7 @@ describe('SearchResultsComponent global search', () => {
 
     it('refuses to append pages while an edited query is still debouncing', async () => {
         // Regression: the auto-fill can request more results right after the
-        // reset identity changes, i.e. inside the 300ms search debounce. An
+        // reset identity changes, before the search effect has run. An
         // append with the edited term would fetch a page of the NEW query at
         // the OLD offset and interleave it into the old query's results.
         const firstPage = Array.from({ length: 101 }, (_, index) =>
@@ -402,7 +402,7 @@ describe('SearchResultsComponent global search', () => {
         databaseService.globalSearchContent.mockClear();
 
         // The user edits the query; the fresh offset-zero search has not run
-        // yet (debounce pending), so appending must be refused entirely.
+        // yet (effects not flushed), so appending must be refused entirely.
         store.searchTerm.set('matrix reloaded');
         await component.loadMoreGlobalResults();
 
@@ -504,5 +504,122 @@ describe('SearchResultsComponent in-portal result window', () => {
             // toggleExcludeHidden persists; do not leak into other tests.
             localStorage.removeItem('xtream-search-exclude-hidden');
         }
+    });
+});
+
+describe('SearchResultsComponent search trigger', () => {
+    let queryParams: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+    let globalSearchContent: jest.Mock;
+
+    function setUp(initialQuery: string): void {
+        queryParams = new BehaviorSubject(
+            convertToParamMap({ q: initialQuery })
+        );
+        globalSearchContent = jest.fn().mockResolvedValue([]);
+        TestBed.configureTestingModule({
+            providers: [
+                { provide: XtreamStore, useClass: MockXtreamStore },
+                { provide: Router, useValue: { navigate: jest.fn() } },
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        snapshot: {
+                            data: { isGlobalSearch: true },
+                            queryParamMap: queryParams.value,
+                        },
+                        queryParamMap: queryParams.asObservable(),
+                    },
+                },
+                {
+                    provide: DatabaseService,
+                    useValue: { globalSearchContent },
+                },
+            ],
+        });
+    }
+
+    function searchedTerms(): string[] {
+        return globalSearchContent.mock.calls.map(([term]) => term as string);
+    }
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('queries an applied term at once, without a second debounce', () => {
+        // The shell already debounces typing; a second timer here only added
+        // 300 ms to every search.
+        jest.useFakeTimers();
+        setUp('');
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        TestBed.runInInjectionContext(() => new SearchResultsComponent());
+        TestBed.flushEffects();
+
+        store.setSearchTerm('system');
+        TestBed.flushEffects();
+
+        expect(searchedTerms()).toEqual(['system']);
+        expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('queries only the route term when the store still holds an older one', () => {
+        setUp('system');
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        store.searchTerm.set('matrix');
+
+        TestBed.runInInjectionContext(() => new SearchResultsComponent());
+        TestBed.flushEffects();
+
+        expect(searchedTerms()).toEqual(['system']);
+    });
+
+    it('keeps a term applied ahead of the URL instead of re-querying the stale q', () => {
+        // The shell sets the store term first and writes `q` afterwards; the
+        // route sync must not snap the store back to the previous `q`.
+        setUp('syst');
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        TestBed.runInInjectionContext(() => new SearchResultsComponent());
+        TestBed.flushEffects();
+        globalSearchContent.mockClear();
+
+        store.setSearchTerm('system');
+        TestBed.flushEffects();
+        queryParams.next(convertToParamMap({ q: 'system' }));
+        TestBed.flushEffects();
+
+        expect(searchedTerms()).toEqual(['system']);
+        expect(store.searchTerm()).toBe('system');
+    });
+
+    it('ignores an older query that resolves after a newer term', async () => {
+        setUp('');
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const older = createDeferred<GlobalSearchResult[]>();
+        const newer = createDeferred<GlobalSearchResult[]>();
+        globalSearchContent
+            .mockReturnValueOnce(older.promise)
+            .mockReturnValueOnce(newer.promise);
+        TestBed.runInInjectionContext(() => new SearchResultsComponent());
+        TestBed.flushEffects();
+
+        store.setSearchTerm('syst');
+        TestBed.flushEffects();
+        store.setSearchTerm('system');
+        TestBed.flushEffects();
+
+        newer.resolve([
+            createSearchItem({ title: 'System' }) as GlobalSearchResult,
+        ]);
+        await newer.promise;
+        older.resolve([
+            createSearchItem({ title: 'Syst' }) as GlobalSearchResult,
+        ]);
+        await older.promise;
+        await Promise.resolve();
+
+        expect(searchedTerms()).toEqual(['syst', 'system']);
+        expect(store.searchResults().map((item) => item.title)).toEqual([
+            'System',
+        ]);
     });
 });
