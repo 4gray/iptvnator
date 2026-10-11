@@ -33,5 +33,5 @@
     <string name="reset_confirm">Erase</string>
     <string name="reset_done">Data erased</string>
     <string name="setting_diagnostics">Diagnostics</string>
-    <string name="diagnostics">WebView (Chrome engine): %1$s %2$s\nDevice: %3$s — Android %4$s\nEmbedded server port: %5$s</string>
+    <string name="diagnostics">WebView (Chrome engine): %1$s %2$s\nDevice: %3$s — Android %4$s\nEmbedded server port: %5$s\nScreen: %6$s</string>
 </resources>

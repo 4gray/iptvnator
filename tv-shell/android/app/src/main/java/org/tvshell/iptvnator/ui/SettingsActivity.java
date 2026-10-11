@@ -156,6 +156,6 @@ public class SettingsActivity extends Activity {
         }
         TvShellServer server = ShellApp.currentServer();
         return getString(R.string.diagnostics, chrome, webViewPackage, Build.MODEL, Build.VERSION.RELEASE,
-            server == null ? "-" : String.valueOf(server.port())) + "\n" + ua;
+            server == null ? "-" : String.valueOf(server.port()), MainActivity.screenInfo(this) + ", layout " + prefs.layoutWidth()) + "\n" + ua;
     }
 }

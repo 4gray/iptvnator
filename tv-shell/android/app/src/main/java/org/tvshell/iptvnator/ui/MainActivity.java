@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
@@ -216,6 +217,7 @@ public class MainActivity extends Activity {
         }
         loadedLayoutWidth = prefs.layoutWidth();
         server.setLayoutWidth(loadedLayoutWidth);
+        server.setScreenWidth(screenCssWidth(this));
         webView.setVisibility(View.VISIBLE);
         webView.loadUrl(server.baseUrl());
         webView.requestFocus(View.FOCUS_DOWN);
@@ -227,6 +229,18 @@ public class MainActivity extends Activity {
         errorText.setText(message + "\n\n" + diagnostics());
         errorPanel.setVisibility(View.VISIBLE);
         errorPanel.findViewById(R.id.error_retry).requestFocus();
+    }
+
+    /** Screen width in CSS px at scale 1 (Android dp): 960 on a 1080p Fire TV. */
+    static int screenCssWidth(android.content.Context context) {
+        DisplayMetrics dm = context.getResources().getDisplayMetrics();
+        return dm.density > 0 ? Math.round(dm.widthPixels / dm.density) : 0;
+    }
+
+    /** "1920×1080 px, density 2.0 → 960 px CSS" for the diagnostics. */
+    static String screenInfo(android.content.Context context) {
+        DisplayMetrics dm = context.getResources().getDisplayMetrics();
+        return dm.widthPixels + "\u00d7" + dm.heightPixels + " px, density " + dm.density + " \u2192 " + screenCssWidth(context) + " px CSS";
     }
 
     String diagnostics() {
@@ -243,7 +257,7 @@ public class MainActivity extends Activity {
             if (info != null) webViewPackage = info.packageName + " " + info.versionName;
         }
         return getString(R.string.diagnostics, chrome, webViewPackage, Build.MODEL, Build.VERSION.RELEASE,
-            server == null ? "-" : String.valueOf(server.port()));
+            server == null ? "-" : String.valueOf(server.port()), screenInfo(this) + ", layout " + loadedLayoutWidth);
     }
 
     // ------------------------------------------------------------- keys

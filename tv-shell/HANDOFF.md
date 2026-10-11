@@ -52,6 +52,13 @@
   (3) le viewport injecté portait `initial-scale=1`, ce qui empêchait le WebView
   (960 px CSS sur un Fire TV 1080p) de réduire la mise en page 1280 : le quart
   droit était hors écran ; le viewport ne fixe plus que `width`.
+- Test sur le Stick (build 4/6) : le WebView est récent (le bundle se charge,
+  seule erreur console `NG05604` = service worker en 404, attendu) mais
+  l'affichage ne s'adaptait pas à l'écran. Le « mode aperçu » du WebView n'est
+  donc pas fiable : `MainActivity` mesure la largeur d'écran en px CSS
+  (`DisplayMetrics`, 960 sur un Fire TV 1080p) et `ShellSite.viewport()` épingle
+  la mise à l'échelle (`width=1280, initial-scale=0.75, minimum-scale=0.75,
+  maximum-scale=0.75`). Le diagnostic affiche désormais la ligne « Écran ».
 
 À relever sur le Stick (en plus de l'écran) :
 

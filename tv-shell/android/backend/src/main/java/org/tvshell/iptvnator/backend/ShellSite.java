@@ -3,6 +3,7 @@ package org.tvshell.iptvnator.backend;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -75,6 +76,8 @@ public class ShellSite {
     private final AssetSource assets;
     private final String backendUrl;
     private volatile int layoutWidth;
+    /** Screen width in CSS px at scale 1 (Android dp); 0 when unknown, then the WebView picks the scale. */
+    private volatile int screenWidth;
 
     public ShellSite(AssetSource assets, String backendUrl, int layoutWidth) {
         this.assets = assets;
@@ -84,6 +87,10 @@ public class ShellSite {
 
     public void setLayoutWidth(int layoutWidth) {
         this.layoutWidth = layoutWidth;
+    }
+
+    public void setScreenWidth(int screenWidth) {
+        this.screenWidth = screenWidth;
     }
 
     public static String mimeFor(String path) {
@@ -123,7 +130,7 @@ public class ShellSite {
             // SPA fallback: every unknown route is the app itself.
             byte[] index = assets.read("www/index.html");
             if (index == null) return text(503, "IPTVnator web app is missing from the APK (www/index.html)");
-            return new Resource(200, MIME.get("html"), injectTvLayer(new String(index, UTF8), layoutWidth).getBytes(UTF8), "no-store");
+            return new Resource(200, MIME.get("html"), injectTvLayer(new String(index, UTF8), layoutWidth, screenWidth).getBytes(UTF8), "no-store");
         }
         String cache = HASHED_FILE.matcher(path).matches() ? "public, max-age=31536000, immutable" : "no-store";
         return new Resource(200, mimeFor(relative), data, cache);
@@ -133,11 +140,27 @@ public class ShellSite {
         return new Resource(status, "text/plain; charset=utf-8", message.getBytes(UTF8), "no-store");
     }
 
-    /** Same transformation as devserver/server.mjs injectTvLayer(). */
+    /** Same transformation as devserver/server.mjs injectTvLayer() (which never knows the screen width). */
     public static String injectTvLayer(String html, int layoutWidth) {
+        return injectTvLayer(html, layoutWidth, 0);
+    }
+
+    /**
+     * Viewport for a layout of {@code layoutWidth} CSS px on a screen of {@code screenWidth} CSS px:
+     * the scale is pinned explicitly (960 px screen, 1280 px layout: 0.75) because the WebView's
+     * own "overview mode" fit is not reliable on every device. Unknown screen: width only.
+     */
+    public static String viewport(int layoutWidth, int screenWidth) {
+        if (screenWidth <= 0 || layoutWidth <= 0) return "width=" + layoutWidth;
+        String scale = String.format(Locale.ROOT, "%.4f", screenWidth / (double) layoutWidth);
+        if (scale.indexOf('.') >= 0) scale = scale.replaceAll("0+$", "").replaceAll("\\.$", "");
+        return "width=" + layoutWidth + ", initial-scale=" + scale + ", minimum-scale=" + scale + ", maximum-scale=" + scale;
+    }
+
+    public static String injectTvLayer(String html, int layoutWidth, int screenWidth) {
         html = html.replaceFirst("<base href=\"[^\"]*\"\\s*/?>", "<base href=\"/\">");
         html = html.replaceFirst("<meta name=\"viewport\"[^>]*>",
-            "<meta name=\"viewport\" content=\"width=" + layoutWidth + "\">");
+            "<meta name=\"viewport\" content=\"" + viewport(layoutWidth, screenWidth) + "\">");
         String marker = "<script src=\"assets/app-config.js\"";
         int at = html.indexOf(marker);
         if (at >= 0) {

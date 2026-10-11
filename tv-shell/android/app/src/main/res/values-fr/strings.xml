@@ -33,5 +33,5 @@
     <string name="reset_confirm">Effacer</string>
     <string name="reset_done">Données effacées</string>
     <string name="setting_diagnostics">Diagnostic</string>
-    <string name="diagnostics">WebView (moteur Chrome) : %1$s %2$s\nAppareil : %3$s — Android %4$s\nPort du serveur embarqué : %5$s</string>
+    <string name="diagnostics">WebView (moteur Chrome) : %1$s %2$s\nAppareil : %3$s — Android %4$s\nPort du serveur embarqué : %5$s\nÉcran : %6$s</string>
 </resources>
