@@ -5,6 +5,7 @@ import { registerAppDateLocale } from './app/app-date-locales';
 import { AppComponent } from './app/app.component';
 import { appConfig, getInitialLanguage } from './app/app.config';
 import { probeServerInstance } from './app/server-storage/server-instance-probe';
+import { resolveServerStorageStart } from './app/server-storage/server-storage-start';
 import { getRuntimeBackendUrl } from './app/services/runtime-config';
 
 // A reloaded packaged renderer arrives on index.html with the route it was
@@ -19,16 +20,23 @@ if (restoredHref !== null) {
     window.history.replaceState(window.history.state, '', restoredHref);
 }
 
-/** Adds server storage when the self-hosted backend offers it. */
+/**
+ * Adds server storage when the self-hosted backend offers it, or when this
+ * browser has used it before and it does not answer right now.
+ */
 async function resolveAppConfig(): Promise<ApplicationConfig> {
-    const instance = await probeServerInstance();
-    if (!instance) {
+    const baseUrl = getRuntimeBackendUrl();
+    const start = resolveServerStorageStart(
+        await probeServerInstance(),
+        baseUrl
+    );
+    if (!start) {
         return appConfig;
     }
     const { provideServerStorage } =
         await import('./app/server-storage/server-storage.providers');
     return mergeApplicationConfig(appConfig, {
-        providers: provideServerStorage(instance, getRuntimeBackendUrl()),
+        providers: provideServerStorage(start, baseUrl),
     });
 }
 

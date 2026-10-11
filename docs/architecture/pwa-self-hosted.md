@@ -170,7 +170,13 @@ expose desktop-only actions in the PWA/shared UI.
 deployment wrote a runtime `BACKEND_URL` into `window.__IPTVNATOR_CONFIG__`
 (the Docker entrypoint does; hosted builds and Electron never probe). On
 `storage: 'server'` it imports `apps/web/src/app/server-storage/` lazily and
-merges `provideServerStorage()` into the app config. Everything else of the
+merges `provideServerStorage()` into the app config, and remembers the
+instance under `iptvnator-server:instance`. When the probe gets no answer
+(network error, timeout, or a 5xx such as nginx's 502 while the backend
+restarts), a browser that remembers this backend still starts in server
+mode, offline, and reloads once the server answers; it never falls back to
+an empty browser library. An answer without server storage, or a 404 from
+an older backend, forgets it (`server-storage-start.ts`). Everything else of the
 client lives behind the `@iptvnator/services/server-storage` sub-entry, so
 other builds never load it; `ServerStorageStatusService` and the token
 helpers stay in the main `@iptvnator/services` barrel because the rail,

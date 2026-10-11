@@ -1,0 +1,74 @@
+import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
+import {
+    REMEMBERED_SERVER_KEY,
+    resolveServerStorageStart,
+} from './server-storage-start';
+
+const instance: ServerInstanceInfo = {
+    service: 'iptvnator',
+    apiVersion: 1,
+    instanceId: 'i-1',
+    storage: 'server',
+    auth: 'none',
+};
+
+describe('resolveServerStorageStart', () => {
+    afterEach(() => localStorage.clear());
+
+    it('starts online and remembers a server that answered', () => {
+        expect(
+            resolveServerStorageStart({ kind: 'server', instance }, '/api')
+        ).toEqual({ instance, startedOffline: false });
+        expect(
+            JSON.parse(localStorage.getItem(REMEMBERED_SERVER_KEY) ?? '')
+        ).toEqual({ baseUrl: '/api', instance });
+    });
+
+    it('starts offline when a remembered server does not answer', () => {
+        resolveServerStorageStart({ kind: 'server', instance }, '/api');
+
+        expect(
+            resolveServerStorageStart({ kind: 'unreachable' }, '/api')
+        ).toEqual({ instance, startedOffline: true });
+    });
+
+    it('uses browser mode for an unknown or different server', () => {
+        expect(
+            resolveServerStorageStart({ kind: 'unreachable' }, '/api')
+        ).toBeNull();
+
+        resolveServerStorageStart({ kind: 'server', instance }, '/api');
+        expect(
+            resolveServerStorageStart(
+                { kind: 'unreachable' },
+                'http://other:3000'
+            )
+        ).toBeNull();
+    });
+
+    it('forgets the server once it answers without server storage', () => {
+        resolveServerStorageStart({ kind: 'server', instance }, '/api');
+
+        expect(resolveServerStorageStart({ kind: 'none' }, '/api')).toBeNull();
+        expect(localStorage.getItem(REMEMBERED_SERVER_KEY)).toBeNull();
+        expect(
+            resolveServerStorageStart({ kind: 'unreachable' }, '/api')
+        ).toBeNull();
+    });
+
+    it('ignores a skipped probe and unreadable memory', () => {
+        resolveServerStorageStart({ kind: 'server', instance }, '/api');
+        expect(
+            resolveServerStorageStart({ kind: 'skipped' }, '/api')
+        ).toBeNull();
+        expect(localStorage.getItem(REMEMBERED_SERVER_KEY)).not.toBeNull();
+
+        localStorage.setItem(REMEMBERED_SERVER_KEY, '{broken');
+        expect(
+            resolveServerStorageStart({ kind: 'unreachable' }, '/api')
+        ).toBeNull();
+        expect(
+            resolveServerStorageStart({ kind: 'unreachable' }, '/api', null)
+        ).toBeNull();
+    });
+});

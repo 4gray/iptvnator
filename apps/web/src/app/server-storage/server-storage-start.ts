@@ -1,0 +1,93 @@
+import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
+import type { ServerInstanceProbe } from './server-instance-probe';
+
+/** Last instance this browser saw, per backend URL. */
+export const REMEMBERED_SERVER_KEY = 'iptvnator-server:instance';
+
+export interface ServerStorageStart {
+    readonly instance: ServerInstanceInfo;
+    /** No answer at start; the instance comes from this browser's memory. */
+    readonly startedOffline: boolean;
+}
+
+interface RememberedServer {
+    readonly baseUrl: string;
+    readonly instance: ServerInstanceInfo;
+}
+
+/**
+ * Decides whether the app starts in server mode. A browser that has used
+ * this server before stays in server mode while it does not answer (shown
+ * as offline), so it never falls back to an empty browser library and
+ * collects playlists the server will not see. An answer without server
+ * storage forgets the server.
+ */
+export function resolveServerStorageStart(
+    probe: ServerInstanceProbe,
+    baseUrl: string,
+    storage: Pick<
+        Storage,
+        'getItem' | 'setItem' | 'removeItem'
+    > | null = safeLocalStorage()
+): ServerStorageStart | null {
+    switch (probe.kind) {
+        case 'server':
+            write(storage, { baseUrl, instance: probe.instance });
+            return { instance: probe.instance, startedOffline: false };
+        case 'none':
+            remove(storage);
+            return null;
+        case 'unreachable': {
+            const remembered = read(storage);
+            return remembered?.baseUrl === baseUrl
+                ? { instance: remembered.instance, startedOffline: true }
+                : null;
+        }
+        default:
+            return null;
+    }
+}
+
+function read(
+    storage: Pick<Storage, 'getItem'> | null
+): RememberedServer | null {
+    try {
+        const raw = storage?.getItem(REMEMBERED_SERVER_KEY);
+        const parsed = raw ? (JSON.parse(raw) as RememberedServer) : null;
+        return parsed &&
+            typeof parsed.baseUrl === 'string' &&
+            parsed.instance?.storage === 'server' &&
+            typeof parsed.instance.instanceId === 'string'
+            ? parsed
+            : null;
+    } catch {
+        return null;
+    }
+}
+
+function write(
+    storage: Pick<Storage, 'setItem'> | null,
+    value: RememberedServer
+): void {
+    try {
+        storage?.setItem(REMEMBERED_SERVER_KEY, JSON.stringify(value));
+    } catch {
+        // Without storage an offline start falls back to browser mode.
+    }
+}
+
+function remove(storage: Pick<Storage, 'removeItem'> | null): void {
+    try {
+        storage?.removeItem(REMEMBERED_SERVER_KEY);
+    } catch {
+        // Nothing stored.
+    }
+}
+
+function safeLocalStorage(): Storage | null {
+    try {
+        return globalThis.localStorage ?? null;
+    } catch {
+        return null;
+    }
+}

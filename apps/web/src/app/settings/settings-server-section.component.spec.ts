@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { ServerStorageStatusService } from '@iptvnator/services';
 import {
+    SERVER_STORAGE_CONFIG,
     ServerMigrationService,
     ServerStorageSession,
 } from '@iptvnator/services/server-storage';
@@ -38,6 +39,10 @@ describe('SettingsServerSectionComponent', () => {
                 { provide: ServerStorageSession, useValue: session },
                 { provide: ServerMigrationService, useValue: migration },
                 {
+                    provide: SERVER_STORAGE_CONFIG,
+                    useValue: { baseUrl: 'http://nas.local:4333/api' },
+                },
+                {
                     provide: ServerStorageStatusService,
                     useValue: {
                         state: signal('online'),
@@ -64,6 +69,9 @@ describe('SettingsServerSectionComponent', () => {
         const text = fixture.nativeElement.textContent;
 
         expect(text).toContain('/data/databases/iptvnator.db');
+        expect(byTestId('server-address')?.textContent?.trim()).toBe(
+            'http://nas.local:4333'
+        );
         expect(byTestId('server-state')?.dataset['state']).toBe('online');
         expect(fixture.componentInstance.sizeLabel()).toBe('38.0 MB');
         expect(byTestId('server-sign-out')).toBeNull();

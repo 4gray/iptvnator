@@ -170,7 +170,7 @@ https://claude.ai/artifact/3WheJAgeNL5ag6kmtPrJcD
 
 | Situation | Behavior |
 | --- | --- |
-| Probe fails or times out (2.5 s) | Browser mode, no server UI. |
+| Probe gets no answer (network error, 2.5 s timeout, 5xx) | Server mode, offline, if this browser used this backend before (`iptvnator-server:instance`); the page reloads once the server answers. Otherwise browser mode. An answer without server storage, or a 404, forgets the server. |
 | Request fails after boot | Status `offline`, banner, write failures show a snackbar; retry on `visibilitychange` and every 30 s. |
 | `401` | Status `unauthorized`, stored token cleared, redirect to sign-in. |
 | `413` | Snackbar names the limit. |

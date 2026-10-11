@@ -27,6 +27,7 @@ export class ServerStorageSession {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly router = inject(Router);
+    private reloading = false;
 
     readonly api = new ServerApiClient({
         baseUrl: this.config.baseUrl,
@@ -75,6 +76,12 @@ export class ServerStorageSession {
             await this.userData.hydrate();
         } catch {
             // The API client already reported offline or unauthorized.
+            return;
+        }
+        if (this.config.startedOffline && !this.reloading) {
+            // Nothing was read at start: boot again against the server.
+            this.reloading = true;
+            this.reloadPage();
         }
     }
 
@@ -105,6 +112,11 @@ export class ServerStorageSession {
                 void this.refresh();
             }
         }, RETRY_INTERVAL_MS);
+    }
+
+    /** Separate so tests can observe it. */
+    protected reloadPage(): void {
+        window.location.reload();
     }
 
     private announceWriteFailure(error?: ServerApiError): void {

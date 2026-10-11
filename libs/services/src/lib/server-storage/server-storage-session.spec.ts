@@ -32,7 +32,7 @@ describe('ServerStorageSession', () => {
         TestBed.resetTestingModule();
     });
 
-    function setup(auth: 'none' | 'token') {
+    function setup(auth: 'none' | 'token', startedOffline = false) {
         TestBed.configureTestingModule({
             providers: [
                 provideRouter([{ path: 'server-sign-in', children: [] }]),
@@ -49,6 +49,7 @@ describe('ServerStorageSession', () => {
                     provide: SERVER_STORAGE_CONFIG,
                     useValue: {
                         baseUrl: '/api',
+                        startedOffline,
                         instance: {
                             service: 'iptvnator',
                             apiVersion: 1,
@@ -96,5 +97,48 @@ describe('ServerStorageSession', () => {
         await session.start();
 
         expect(status.state()).toBe('online');
+    });
+
+    describe('after an offline start', () => {
+        it('stays offline until the server answers, then reloads once', async () => {
+            const { session, status } = setup('none', true);
+            const reload = jest
+                .spyOn(
+                    session as unknown as { reloadPage(): void },
+                    'reloadPage'
+                )
+                .mockImplementation(() => undefined);
+            fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+
+            await session.start();
+            expect(status.state()).toBe('offline');
+            expect(reload).not.toHaveBeenCalled();
+
+            fetchMock.mockResolvedValue({
+                status: 200,
+                ok: true,
+                headers: new Headers(),
+                json: async () => ({ entries: {} }),
+            });
+            await session.refresh();
+            await session.refresh();
+
+            expect(reload).toHaveBeenCalledTimes(1);
+        });
+
+        it('never reloads after a normal start', async () => {
+            const { session } = setup('none');
+            const reload = jest
+                .spyOn(
+                    session as unknown as { reloadPage(): void },
+                    'reloadPage'
+                )
+                .mockImplementation(() => undefined);
+
+            await session.start();
+            await session.refresh();
+
+            expect(reload).not.toHaveBeenCalled();
+        });
     });
 });

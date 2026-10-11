@@ -13,6 +13,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ServerStorageStatusService } from '@iptvnator/services';
 import {
+    SERVER_STORAGE_CONFIG,
     ServerMigrationService,
     ServerStorageSession,
     type ServerMigrationResult,
@@ -47,7 +48,8 @@ export class SettingsServerSectionComponent {
     readonly usesToken = computed(
         () => this.status.instance()?.auth === 'token'
     );
-    readonly address = globalThis.location?.origin ?? '';
+    /** The backend's origin; the page's own in Docker (`/api`). */
+    readonly address = backendOrigin(inject(SERVER_STORAGE_CONFIG).baseUrl);
     readonly details = signal<ServerStorageStatusResponse | null>(null);
     readonly browserPlaylistCount = signal(0);
     readonly importing = signal(false);
@@ -96,6 +98,14 @@ export class SettingsServerSectionComponent {
 
     signOut(): void {
         this.session.signOut();
+    }
+}
+
+function backendOrigin(baseUrl: string): string {
+    try {
+        return new URL(baseUrl, globalThis.location?.href).origin;
+    } catch {
+        return baseUrl;
     }
 }
 
