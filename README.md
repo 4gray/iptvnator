@@ -135,6 +135,10 @@ The application is available at <http://localhost:4333>. See
 compose file and [`docker/README.md`](./docker/README.md) for environment
 variables, reverse proxy notes, PWA limitations, and build details.
 
+The image keeps playlists, favorites and watch progress on the server, so
+every browser that opens it shares one library. The first browser that opens
+an updated instance offers to move the playlists it already has.
+
 The self-hosted image runs the browser PWA rather than the Electron desktop app:
 EPG/XMLTV panels, Embedded MPV, managed MPV/VLC launching, the download manager,
 and Electron remote-control features are not available there. If browser

@@ -89,7 +89,10 @@ The shell is intentionally split into four persistent regions:
        recently viewed. The routed global-search rail link is Electron-only
        because its data source is the SQLite worker bridge.
     2. Provider-aware context links derived from the active or current playlist.
-    3. Settings remains a persistent footer shortcut in the rail.
+    3. Settings remains a persistent footer shortcut in the rail. In
+       [server storage mode](pwa-self-hosted.md#server-storage-mode) a server
+       status shortcut sits above it: its dot shows online, offline or
+       sign-in needed, and it opens Settings → Server.
     4. No brand mark: it only repeated the first workspace link (Dashboard,
        or Sources when the dashboard is off).
 2. Top header:
@@ -103,7 +106,9 @@ The shell is intentionally split into four persistent regions:
     6. Downloads shortcut in Electron.
 3. Main body:
     1. Optional left context panel.
-    2. Main router outlet content.
+    2. Main router outlet content. In server storage mode an offline banner
+       with Retry takes the first row of `.workspace-content-frame`, above
+       the scroller, so full-height pages keep their height.
 4. Optional footer:
     1. External playback session bar when a docked session is visible.
 

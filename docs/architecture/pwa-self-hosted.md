@@ -73,8 +73,8 @@ The current self-hosted PWA uses these `apps/web-backend` routes:
 - `GET /xtream?targetId=<id>&username=<u>&password=<p>&action=<action>`
 - `GET /stalker?targetId=<id>&macAddress=<mac>&action=<action>`
 
-Server storage adds versioned routes under `/v1`; the PWA does not call them
-yet:
+Server storage adds versioned routes under `/v1`, which the PWA uses in
+[server storage mode](#server-storage-mode):
 
 - `GET /v1/instance` (always public): `{ service, apiVersion, instanceId,
   storage: 'server' | 'none', auth: 'none' | 'token' }`
@@ -102,8 +102,8 @@ its database. Storage errors are logged by error name and code only, because
 Drizzle messages can carry bound values such as portal credentials. With
 `IPTVNATOR_ACCESS_TOKEN`, every route except `/`, `/health`, `/config.js`
 and `/v1/instance` requires `Authorization: Bearer <token>`, the proxy
-routes included. The PWA cannot send that token yet, so the variable must
-stay unset until the browser side lands. Browser app state written through
+routes included; the PWA sends it once its sign-in page has stored it.
+Browser app state written through
 `/v1/app-state` is stored under a `client:` key prefix, apart from
 server-owned keys such as the instance id.
 
@@ -119,7 +119,11 @@ reached only `pnpm`/`nx`, and the orphaned server kept port 3333 after the run.
 launches the backend through Nx or its `env` drifts from the `serve` target.
 `WEB_BACKEND_PORT` (default 3333) relocates the E2E backend and the
 `self-hosted.e2e.ts` URLs, like `MOCK_PORT` does for the mocks. Use it when
-another worktree holds 3333. The `web:serve` entry can stay on Nx:
+another worktree holds 3333. `server-storage.e2e.ts` talks to a second
+backend from the same config, launched with `IPTVNATOR_STORAGE=server` on
+`STORAGE_BACKEND_PORT` (default 3334) and a data directory named after the
+Playwright process, so every run starts with an empty store; the spec
+accepts at most that one extra launch. The `web:serve` entry can stay on Nx:
 `@angular/build:dev-server` runs inside the Nx process, so the group kill
 stops it. Playwright launches that command itself even outside CI: the
 web-e2e targets carry no Nx `serve` dependency, because Nx refuses a
@@ -160,6 +164,55 @@ MPV and VLC preload launch methods (`openInMpv` and `openInVlc`), and
 (`setMpvPlayerPath` and `setVlcPlayerPath`); a partial Electron bridge must not
 expose desktop-only actions in the PWA/shared UI.
 
+## Server Storage Mode
+
+`main.ts` probes `GET /v1/instance` before bootstrapping, and only when the
+deployment wrote a runtime `BACKEND_URL` into `window.__IPTVNATOR_CONFIG__`
+(the Docker entrypoint does; hosted builds and Electron never probe). On
+`storage: 'server'` it imports `apps/web/src/app/server-storage/` lazily and
+merges `provideServerStorage()` into the app config. Everything else of the
+client lives behind the `@iptvnator/services/server-storage` sub-entry, so
+other builds never load it; `ServerStorageStatusService` and the token
+helpers stay in the main `@iptvnator/services` barrel because the rail,
+settings and guards read them in every build.
+
+- **Playlists.** `ServerStorageSession.start()` (an app initializer) plugs
+  `ServerPlaylistDocumentStore` into `PlaylistStorageBackend` (kinds
+  `electron`, `server`, `indexeddb`), so `PlaylistsService` is unchanged. The
+  store caches full documents by ETag and uploads a document whose payload it
+  served unchanged with `keepPayload=1`, so a favorite or a rename does not
+  resend a large M3U.
+- **Xtream user data.** `USER_DATA_STORAGE` becomes `ServerUserDataStorage`:
+  the four synced namespaces are cached under the `iptvnator-server:` key
+  prefix (the legacy unprefixed keys are never written in server mode) and
+  each change sends only the playlist entries that differ, debounced, with a
+  `keepalive` flush when the page hides. Start-up waits up to 3 s for the
+  first read.
+- **Connection state.** `ServerStorageStatusService` is `online`, `offline`
+  (a request did not reach the server; retried every 30 s and when the tab
+  returns) or
+  `unauthorized` (a 401 clears the stored token). The rail shows a status
+  shortcut, an offline banner sits above the workspace content, and failed
+  writes raise a snackbar (`SERVER_STORAGE.WRITE_FAILED`, or `TOO_LARGE` for
+  a 413).
+- **Access token.** With `IPTVNATOR_ACCESS_TOKEN` the instance reports
+  `auth: 'token'`; without a stored token, or after a 401, the guards route to
+  `/server-sign-in`, which checks the token against `/v1/instance/status`
+  before it stores it under `iptvnator-server:access-token` and reloads.
+  `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
+  backend, and `PwaService` adds it to its two raw `fetch` calls.
+- **Moving browser data.** `ServerMigrationService` offers, once per server
+  instance (marker `iptvnator-server:migration:<instanceId>`), to move the
+  playlists this browser kept in IndexedDB. An empty server receives them
+  with their ids plus the legacy Xtream maps for those ids; a server that
+  already has playlists goes through the backup export and import, whose
+  fingerprints merge duplicates. Browser data is never deleted. Settings →
+  Server repeats the offer while the browser has playlists that were not
+  moved.
+
+What stays per device: settings, parental lock PINs and locked groups,
+the global favorites order and other UI preferences in browser storage.
+
 ## Runtime Limitations
 
 The self-hosted build is the browser PWA, not the Electron desktop app. Keep
@@ -172,7 +225,9 @@ these limitations explicit in UI, troubleshooting, and release notes:
   metadata uses `PlaylistsService` with IndexedDB, which
   `PlaylistStorageBackend` selects when no SQLite bridge exists; Xtream
   favorites, recently viewed items, playback positions, and cached collection
-  snapshots use `PwaXtreamDataSource` browser storage.
+  snapshots use `PwaXtreamDataSource` browser storage. In
+  [server storage mode](#server-storage-mode) both live on the server
+  instead.
 - Browser playlist deletion must go through `PlaylistsService`, not
   `DatabaseService`. `PlaylistsService.deletePlaylist()` runs registered
   cleanup hooks such as the PWA Xtream cleanup so localStorage sidecar data does
@@ -271,8 +326,8 @@ and sidecar state in localStorage:
 
 `PwaXtreamDataSource` and `PwaCollectionStorage` reach these keys through the
 `USER_DATA_STORAGE` token from `@iptvnator/services` (default:
-`localStorage`), never through `localStorage` directly, so a deployment can
-substitute a server-synced storage.
+`localStorage`), never through `localStorage` directly, so server storage
+mode can substitute `ServerUserDataStorage`.
 
 Entries should include a content snapshot when the item is added. Global
 collection routes and the dashboard can then restore titles, posters, content
