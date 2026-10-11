@@ -37,8 +37,8 @@ The SQLite database is stored at `<data root>/databases/iptvnator.db`. The data
 root is resolved in this order:
 
 1. `IPTVNATOR_E2E_DATA_DIR` (E2E runs only)
-2. `IPTVNATOR_DATA_DIR` (deployments with a mounted volume, such as the
-   self-hosted web backend in Docker, which sets `/data`)
+2. `IPTVNATOR_DATA_DIR` (an operator-selected data root for deployments
+   with a mounted volume, for example `/data`)
 3. `~/.iptvnator`
 
 ## Upgrade Compatibility And Migrations

@@ -5,8 +5,8 @@ import { join } from 'path';
 export const IPTVNATOR_E2E_DATA_DIR_ENV = 'IPTVNATOR_E2E_DATA_DIR';
 
 /**
- * Data root for deployments that keep the database on a mounted volume, such
- * as the self-hosted web backend in Docker (`/data`). The E2E override wins.
+ * Operator-selected data root for deployments that keep the database on a
+ * mounted volume, for example `/data`. The E2E override wins.
  */
 export const IPTVNATOR_DATA_DIR_ENV = 'IPTVNATOR_DATA_DIR';
 
