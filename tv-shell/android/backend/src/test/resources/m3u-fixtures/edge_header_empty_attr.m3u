@@ -1,0 +1,3 @@
+#EXTM3U x-tvg-url="" url-tvg="http://epg/x.xml"
+#EXTINF:-1,A
+http://x/1.ts

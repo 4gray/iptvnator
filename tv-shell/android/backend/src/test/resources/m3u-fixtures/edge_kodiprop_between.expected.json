@@ -1,0 +1,40 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Mixed",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "http://ref",
+     "user-agent": ""
+    },
+    "url": "http://x/1.mpd",
+    "raw": "#EXTINF:-1,Mixed\r\n#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha\r\n#EXTVLCOPT:http-referrer=http://ref\r\nhttp://x/1.mpd",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

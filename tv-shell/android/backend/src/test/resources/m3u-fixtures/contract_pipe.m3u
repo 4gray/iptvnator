@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1,Piped
+http://example.com/stream.ts|User-Agent=CustomUA&Referer=http://ref.example

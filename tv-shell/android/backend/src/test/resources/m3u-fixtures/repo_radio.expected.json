@@ -1,0 +1,98 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Radio One",
+    "tvg": {
+     "id": "r1",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://example.com/radio1",
+    "raw": "#EXTINF:-1 radio=\"true\" tvg-id=\"r1\",Radio One\r\nhttp://example.com/radio1",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": "true"
+   },
+   {
+    "name": "Radio Two",
+    "tvg": {
+     "id": "r2",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://example.com/radio2",
+    "raw": "#EXTINF:-1 RADIO=\"yes\" tvg-id=\"r2\",Radio Two\r\nhttp://example.com/radio2",
+    "line": 4,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": "yes"
+   },
+   {
+    "name": "TV One",
+    "tvg": {
+     "id": "tv1",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://example.com/tv1",
+    "raw": "#EXTINF:-1 tvg-id=\"tv1\",TV One\r\nhttp://example.com/tv1",
+    "line": 6,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

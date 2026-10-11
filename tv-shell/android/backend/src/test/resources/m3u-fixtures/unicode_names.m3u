@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="fr1" group-title="Télé française",Chaîne n°1 – « Été »
+http://x/été.ts
+#EXTINF:-1 group-title="日本",テレビ 東京
+http://x/jp.ts

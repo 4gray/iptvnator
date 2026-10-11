@@ -1,0 +1,16 @@
+# Android build output
+android/.gradle/
+android/build/
+android/app/build/
+android/backend/build/
+android/local.properties
+android/.idea/
+*.iml
+# The PWA is produced by the build (scripts/bundle-pwa.sh); only a placeholder is versioned.
+android/app/src/main/assets/www/*
+!android/app/src/main/assets/www/.gitkeep
+# Local test artefacts
+tests/shots*/
+tests/node_modules/
+/dist/
+/www/

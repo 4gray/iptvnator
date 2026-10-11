@@ -1,0 +1,42 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {
+    "url-tvg": "http://epg/x.xml"
+   },
+   "raw": "#EXTM3U x-tvg-url=\"\" url-tvg=\"http://epg/x.xml\""
+  },
+  "items": [
+   {
+    "name": "A",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://x/1.ts",
+    "raw": "#EXTINF:-1,A\r\nhttp://x/1.ts",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}
