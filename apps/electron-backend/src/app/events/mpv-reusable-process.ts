@@ -126,8 +126,25 @@ export class MpvReusableProcess {
         const { session, state } = options;
         const generation = this.stopGeneration;
         const cancelled = () => generation !== this.stopGeneration;
-        const settleCancelled = () => {
+        // The stored-player stop is already tearing the child down; settle
+        // only once its exit is confirmed, else stay a closable error so Stop
+        // can retry while the teardown gate blocks further launches.
+        const settleCancelled = async () => {
             traceExternalPlayer('mpv reuse cancelled by a stored-player stop');
+            try {
+                await externalPlayerProcessTeardownGate.terminate(
+                    reusedProcess
+                );
+            } catch (error) {
+                state.teardownUnconfirmed = true;
+                return (
+                    externalPlayerSessions.markError(
+                        session.id,
+                        error instanceof Error ? error.message : String(error),
+                        { canClose: true }
+                    ) ?? session
+                );
+            }
             return externalPlayerSessions.markClosed(session.id) ?? session;
         };
         const reusedProcessSessionId =
@@ -208,7 +225,7 @@ export class MpvReusableProcess {
                 onContentDispatched
             );
             if (closeRequested) return await finishRequestedClose();
-            if (cancelled()) return settleCancelled();
+            if (cancelled()) return await settleCancelled();
             if (hasExited(reusedProcess)) {
                 // The child exited while its reply was in flight; its exit
                 // handler has already settled the session that owned it.
@@ -229,7 +246,7 @@ export class MpvReusableProcess {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
-            if (cancelled()) return settleCancelled();
+            if (cancelled()) return await settleCancelled();
             if (current?.status === 'error' && hasExited(reusedProcess)) {
                 // The child died while its reply was in flight and its exit
                 // handler already reported the failure; a fresh launch under
@@ -267,7 +284,7 @@ export class MpvReusableProcess {
             if (closeRequested) return await finishRequestedClose();
             // Reuse may have been disabled, or the app may be quitting,
             // while the teardown above waited for the child to exit.
-            if (cancelled()) return settleCancelled();
+            if (cancelled()) return await settleCancelled();
             return null;
         }
     }

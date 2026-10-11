@@ -257,7 +257,14 @@ async function launchMpvPlayer(
     if (queue.queued && queue.cancelled()) {
         return settleCancelledQueuedLaunch(session, queue.pendingStop());
     }
-    if (queue.queued) assertQueuedLaunchAllowed(session, displacedSessionId);
+    if (queue.queued) {
+        // The last started launch owns the child the gate waits for; the
+        // session displaced at enqueue time is the fallback.
+        assertQueuedLaunchAllowed(session, [
+            queue.lastStartedSessionId(),
+            displacedSessionId,
+        ]);
+    }
     queue.markInFlight();
     const previousProcessSessionId = reusableMpvProcess.currentSessionId();
     const reuseState: MpvReuseAttemptState = {

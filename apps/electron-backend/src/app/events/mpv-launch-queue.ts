@@ -18,6 +18,8 @@ export interface QueuedMpvLaunch {
     pendingStop: () => Promise<void> | null;
     /** Called once the launch really starts acting on a player. */
     markInFlight: () => void;
+    /** The last launch that started before this one runs. */
+    lastStartedSessionId: () => string | null;
 }
 
 /**
@@ -37,6 +39,10 @@ export class MpvLaunchQueue {
     private latest = 0;
     private cancelledThrough = 0;
     private inFlightSessionId: string | null = null;
+    // The last launch that actually started. With reuse off its detached
+    // child is not stored, so it is the only handle on that player once the
+    // launch settled with an unconfirmed teardown.
+    private lastStartedSessionId: string | null = null;
 
     constructor(private readonly storedOwnerSessionId: () => string | null) {}
 
@@ -75,7 +81,9 @@ export class MpvLaunchQueue {
             pendingStop: () => stop,
             markInFlight: () => {
                 this.inFlightSessionId = session.id;
+                this.lastStartedSessionId = session.id;
             },
+            lastStartedSessionId: () => this.lastStartedSessionId,
         };
         const run = () => launch(queue);
         // The queue is released before the caller sees the result, so a
@@ -97,6 +105,7 @@ export class MpvLaunchQueue {
         for (const id of [
             this.inFlightSessionId,
             this.storedOwnerSessionId(),
+            this.lastStartedSessionId,
         ]) {
             // Only a session with its own closer can confirm its teardown;
             // closing one without would just mark it closed.
@@ -146,17 +155,20 @@ export async function settleCancelledQueuedLaunch(
  */
 export function assertQueuedLaunchAllowed(
     session: ExternalPlayerSession,
-    displacedSessionId: string | null
+    restoreCandidates: Array<string | null>
 ): void {
     try {
         externalPlayerProcessTeardownGate.assertLaunchAllowed();
     } catch (error) {
-        const restored = displacedSessionId
-            ? externalPlayerSessions.restoreActiveSession(
-                  displacedSessionId,
-                  session.id
-              )
-            : null;
+        let restored: ExternalPlayerSession | null = null;
+        for (const id of restoreCandidates) {
+            if (!id || id === session.id) continue;
+            restored = externalPlayerSessions.restoreActiveSession(
+                id,
+                session.id
+            );
+            if (restored) break;
+        }
         externalPlayerSessions.markError(
             session.id,
             error instanceof Error ? error.message : String(error),

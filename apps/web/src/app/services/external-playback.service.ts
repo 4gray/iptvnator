@@ -105,17 +105,24 @@ export class ExternalPlaybackService {
         const current = this.activeSession();
         const restoresCurrentReplacement =
             current?.id === session.restoredFromSessionId;
+        // A launching update means a new launch only when it did not start
+        // before the current one: an older launch still settling (MPV runs
+        // launches one at a time) must not take the dock back from it.
+        const isLatestLaunch =
+            session.status === 'launching' &&
+            (!current ||
+                Date.parse(session.startedAt) >= Date.parse(current.startedAt));
 
         if (
             !current ||
             current.id === session.id ||
-            session.status === 'launching' ||
+            isLatestLaunch ||
             restoresCurrentReplacement
         ) {
             this.activeSession.set(session);
         }
 
-        if (session.status === 'launching' || restoresCurrentReplacement) {
+        if (isLatestLaunch || restoresCurrentReplacement) {
             this.dismissedSessionId.set(null);
         }
     }

@@ -1036,7 +1036,10 @@ failed one for its teardown and fallback spawn, so a launch that arrives
 meanwhile, such as a quick channel switch, starts only once the previous one
 has settled and acts on the player that one left behind; two launches never
 act on the same child. Each launch begins its session at once, so the newest
-launch is the active session, and only the newest queued launch runs: an older
+launch is the active session; the renderer lets a `launching` update take the
+dock only when that launch did not start before the current one, so an older
+launch still settling cannot pull the dock back. Only the newest queued launch
+runs: an older
 one that comes up while a newer one waits behind it settles closed without
 reaching mpv or taking the dock. Stop on a launch still waiting in the queue
 cancels it and every launch queued before it; on the newest queued launch it
@@ -1049,11 +1052,13 @@ settles only once its own Stop has: if the exit cannot be confirmed it stays a
 closable error, so Stop can be retried. App shutdown cancels the whole queue.
 A queued launch that finds the teardown gate closed, because the launch before
 it could not confirm its child's exit, restores the session that still owns
-that child; if that is not possible, it stays a closable error so Stop can
-still tear the child down. Stopping the stored player, when reuse is disabled or
+that child, preferring the last launch that started (with reuse off its
+detached child is not stored anywhere else); if that is not possible, it stays
+a closable error so Stop can still tear the child down. Stopping the stored player, when reuse is disabled or
 the app quits, cancels an in-flight reuse attempt: it dispatches no further
 commands, never falls back to a fresh reusable player, also after waiting for
-a failed child's exit, and settles its own session as closed. No `seek` follows
+a failed child's exit, and settles its own session as closed once the child's
+exit is confirmed, or as a closable error when it is not. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused
