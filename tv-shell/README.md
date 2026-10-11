@@ -31,7 +31,7 @@ Limites héritées de la PWA : pas d'EPG/XMLTV, pas de téléchargements, pas de
 2. Onglet **Actions** → *Build TV shell APK* → **Run workflow** (laissez `create_release` coché).
 3. Le workflow construit la PWA (`pnpm nx build web --configuration=pwa`, comme l'image Docker), lance les tests du backend, compile l'APK et crée une **Release** `tv-shell-v0.1.0-N` avec le fichier `iptvnator-tv-shell-0.1.0-xxxxxxx.apk`. L'APK est aussi disponible comme artefact du run.
 
-L'APK est signé avec la clé de debug (parfait pour le sideload). Pour une signature stable entre builds, ajoutez les secrets `TVSHELL_KEYSTORE_B64` (keystore en base64), `TVSHELL_KEYSTORE_PASSWORD`, `TVSHELL_KEY_ALIAS`, `TVSHELL_KEY_PASSWORD`.
+L'APK est signé avec la clé de debug versionnée (`android/app/debug.keystore`, mot de passe `android`) : stable d'un build à l'autre, donc les nouvelles versions s'installent par-dessus les anciennes. Les builds 1 à 4 utilisaient une clé générée à chaque run : désinstallez-les avant d'installer un build ≥ 5. Pour une signature stable entre builds, ajoutez les secrets `TVSHELL_KEYSTORE_B64` (keystore en base64), `TVSHELL_KEYSTORE_PASSWORD`, `TVSHELL_KEY_ALIAS`, `TVSHELL_KEY_PASSWORD`.
 
 ### En local (Android Studio ou ligne de commande)
 

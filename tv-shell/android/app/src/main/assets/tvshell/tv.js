@@ -924,7 +924,17 @@
             if ((active && active !== document.body) || focusFirst() || attempts > 60) clearInterval(timer);
         }, 250);
         log('ready (' + (isAndroid ? 'android' : 'browser emulation: F9=Back F10=Menu F8=Play/Pause F7=External') + ')');
-        native('onReady', location.href);
+        // Report ready only once Angular has rendered (main.ts removes
+        // #initial-splash after the first paint). A bundle this engine cannot
+        // parse never gets there, so the shell's watchdog shows the diagnostics
+        // instead of this call hiding the splash. No cap: the shell is the cap.
+        var readyTimer = setInterval(function () {
+            var root = document.querySelector('app-root');
+            var rendered = !document.getElementById('initial-splash') && (!root || root.childElementCount > 0);
+            if (!rendered) return;
+            clearInterval(readyTimer);
+            native('onReady', location.href);
+        }, 250);
     }
 
     window.__tvShell = api;

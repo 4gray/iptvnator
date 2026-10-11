@@ -141,5 +141,5 @@ jobs:
           gh release create "$TAG" "dist/${APK_NAME}" \
             --target "$GITHUB_SHA" \
             --title "TV shell ${APK_VERSION} (build ${GITHUB_RUN_NUMBER})" \
-            --notes "APK de la coquille Fire TV / Android TV pour IPTVnator. Installez-le avec l'application Downloader (URL ci-dessous) ou avec \`adb install\`."
+            --notes "APK de la coquille Fire TV / Android TV pour IPTVnator. Installez-le avec l'application Downloader (URL ci-dessous) ou avec \`adb install -r\`. Les builds 1 à 4 étaient signés avec une clé différente à chaque fois : désinstallez-les d'abord (\`adb uninstall org.tvshell.iptvnator\` ou Paramètres > Applications). À partir du build 5, la clé est stable et les mises à jour s'installent par-dessus."
           echo "Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"

@@ -153,6 +153,11 @@ public class MainActivity extends Activity {
                 if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
                     lastConsoleError = message.message() + " (" + message.sourceId() + ":" + message.lineNumber() + ")";
                     Log.w(ShellApp.TAG, "[console] " + lastConsoleError);
+                    // A bundle this engine cannot parse: show the diagnostics now rather than after the timeout.
+                    if (!pageReady && message.message().startsWith("Uncaught SyntaxError")) {
+                        handler.removeCallbacks(readyWatchdog);
+                        readyWatchdog.run();
+                    }
                 }
                 return false;
             }

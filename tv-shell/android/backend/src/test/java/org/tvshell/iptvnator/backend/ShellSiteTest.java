@@ -35,7 +35,7 @@ public class ShellSiteTest {
         String html = new String(index.body, UTF8);
         assertEquals("status", 200, Integer.valueOf(index.status));
         assertTrue("base href", html.contains("<base href=\"/\">"));
-        assertTrue("viewport", html.contains("<meta name=\"viewport\" content=\"width=1280, initial-scale=1\">"));
+        assertTrue("viewport", html.contains("<meta name=\"viewport\" content=\"width=1280\">"));
         int tv = html.indexOf("tvshell/tv.js");
         int cfg = html.indexOf("assets/app-config.js");
         int main = html.indexOf("main-X.js");

@@ -137,7 +137,7 @@ public class ShellSite {
     public static String injectTvLayer(String html, int layoutWidth) {
         html = html.replaceFirst("<base href=\"[^\"]*\"\\s*/?>", "<base href=\"/\">");
         html = html.replaceFirst("<meta name=\"viewport\"[^>]*>",
-            "<meta name=\"viewport\" content=\"width=" + layoutWidth + ", initial-scale=1\">");
+            "<meta name=\"viewport\" content=\"width=" + layoutWidth + "\">");
         String marker = "<script src=\"assets/app-config.js\"";
         int at = html.indexOf(marker);
         if (at >= 0) {
