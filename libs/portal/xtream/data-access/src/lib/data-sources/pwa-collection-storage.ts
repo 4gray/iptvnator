@@ -6,6 +6,7 @@ import {
     normalizeFavoriteStorage,
     normalizeRecentStorage,
 } from './pwa-collection-identity';
+import type { UserDataStorage } from '@iptvnator/services';
 import { XtreamContentItem } from './xtream-data-source.interface';
 
 const STORAGE_KEYS = {
@@ -20,7 +21,8 @@ export class PwaCollectionStorage {
         private readonly resolveItems: (
             playlistId: string,
             ids: readonly CollectionKey[]
-        ) => Map<CollectionKey, XtreamContentItem>
+        ) => Map<CollectionKey, XtreamContentItem>,
+        private readonly storage: UserDataStorage
     ) {}
 
     getLocalFavorites(playlistId: string): XtreamContentItem[] {
@@ -50,7 +52,7 @@ export class PwaCollectionStorage {
 
     getFavoritesFromStorage(): Record<string, CollectionKey[]> {
         try {
-            const data = localStorage.getItem(STORAGE_KEYS.FAVORITES);
+            const data = this.storage.getItem(STORAGE_KEYS.FAVORITES);
             return normalizeFavoriteStorage(data ? JSON.parse(data) : {});
         } catch {
             return {};
@@ -58,7 +60,7 @@ export class PwaCollectionStorage {
     }
 
     saveFavoritesToStorage(favorites: Record<string, CollectionKey[]>): void {
-        localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
+        this.storage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
     }
 
     clearFavoritesForPlaylist(playlistId: string): void {
@@ -124,7 +126,7 @@ export class PwaCollectionStorage {
 
     getRecentItemsFromStorage(): Record<string, StoredRecentItem[]> {
         try {
-            const data = localStorage.getItem(STORAGE_KEYS.RECENT_ITEMS);
+            const data = this.storage.getItem(STORAGE_KEYS.RECENT_ITEMS);
             return normalizeRecentStorage(data ? JSON.parse(data) : {});
         } catch {
             return {};
@@ -134,7 +136,7 @@ export class PwaCollectionStorage {
     saveRecentItemsToStorage(
         recentItems: Record<string, StoredRecentItem[]>
     ): void {
-        localStorage.setItem(
+        this.storage.setItem(
             STORAGE_KEYS.RECENT_ITEMS,
             JSON.stringify(recentItems)
         );
@@ -151,7 +153,7 @@ export class PwaCollectionStorage {
         Record<string, XtreamContentItem>
     > {
         try {
-            const data = localStorage.getItem(STORAGE_KEYS.COLLECTION_ITEMS);
+            const data = this.storage.getItem(STORAGE_KEYS.COLLECTION_ITEMS);
             const parsed = data ? JSON.parse(data) : {};
             if (!parsed || typeof parsed !== 'object') {
                 return {};
@@ -165,7 +167,7 @@ export class PwaCollectionStorage {
     private saveCollectionItemsToStorage(
         items: Record<string, Record<string, XtreamContentItem>>
     ): void {
-        localStorage.setItem(
+        this.storage.setItem(
             STORAGE_KEYS.COLLECTION_ITEMS,
             JSON.stringify(items)
         );
