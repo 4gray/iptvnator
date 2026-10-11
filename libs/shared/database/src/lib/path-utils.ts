@@ -4,6 +4,12 @@ import { join } from 'path';
 
 export const IPTVNATOR_E2E_DATA_DIR_ENV = 'IPTVNATOR_E2E_DATA_DIR';
 
+/**
+ * Operator-selected data root for deployments that keep the database on a
+ * mounted volume, for example `/data`. The E2E override wins.
+ */
+export const IPTVNATOR_DATA_DIR_ENV = 'IPTVNATOR_DATA_DIR';
+
 function ensureDirectory(dirPath: string): string {
     if (!existsSync(dirPath)) {
         mkdirSync(dirPath, { recursive: true });
@@ -17,6 +23,12 @@ export function getIptvnatorDataRoot(): string {
 
     if (e2eDataDir) {
         return ensureDirectory(e2eDataDir);
+    }
+
+    const dataDir = process.env[IPTVNATOR_DATA_DIR_ENV]?.trim();
+
+    if (dataDir) {
+        return ensureDirectory(dataDir);
     }
 
     return ensureDirectory(join(homedir(), '.iptvnator'));

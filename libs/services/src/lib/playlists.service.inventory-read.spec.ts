@@ -48,7 +48,10 @@ describe('PlaylistsService inventory reads', () => {
         ) as PlaylistsService;
         Object.assign(service, {
             dbService: { getAll: jest.fn(() => of([])) },
-            runtime: { supportsSqlite: true },
+            storageBackend: {
+                kind: () => 'electron',
+                documentStore: () => window.electron,
+            },
             electronMigrationPromise: null,
             playlistWriteQueues: new Map(),
         });

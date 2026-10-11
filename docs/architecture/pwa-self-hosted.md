@@ -135,9 +135,10 @@ these limitations explicit in UI, troubleshooting, and release notes:
   programme-guide entry points, or EPG-fetching flows in browser/PWA mode, and
   do not use EPG as the readiness signal for Docker.
 - The PWA does not use the Electron SQLite database or DB worker. Playlist
-  metadata uses `PlaylistsService` with IndexedDB; Xtream favorites, recently
-  viewed items, playback positions, and cached collection snapshots use
-  `PwaXtreamDataSource` browser storage.
+  metadata uses `PlaylistsService` with IndexedDB, which
+  `PlaylistStorageBackend` selects when no SQLite bridge exists; Xtream
+  favorites, recently viewed items, playback positions, and cached collection
+  snapshots use `PwaXtreamDataSource` browser storage.
 - Browser playlist deletion must go through `PlaylistsService`, not
   `DatabaseService`. `PlaylistsService.deletePlaylist()` runs registered
   cleanup hooks such as the PWA Xtream cleanup so localStorage sidecar data does
@@ -233,6 +234,11 @@ and sidecar state in localStorage:
 - `xtream-recent-items`
 - `xtream-playlists`
 - `xtream-playback-positions`
+
+`PwaXtreamDataSource` and `PwaCollectionStorage` reach these keys through the
+`USER_DATA_STORAGE` token from `@iptvnator/services` (default:
+`localStorage`), never through `localStorage` directly, so a deployment can
+substitute a server-synced storage.
 
 Entries should include a content snapshot when the item is added. Global
 collection routes and the dashboard can then restore titles, posters, content
