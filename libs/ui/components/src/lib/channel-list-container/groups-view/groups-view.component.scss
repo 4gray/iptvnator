@@ -2,6 +2,7 @@
 @use '../../../../../styles/portal-sidebar';
 @use '../../../../../styles/panel-header' as panel;
 @use '../../../../../styles/nav-list';
+@use '../../styles/channel-list-layout' as layout;
 
 :host {
     display: flex;
@@ -56,25 +57,15 @@
 }
 
 .groups-nav-header {
-    padding: 4px 6px 12px;
-    flex-shrink: 0;
-    display: flex;
-    gap: 10px;
-    flex-direction: column;
+    @include layout.groups-nav-header-box;
 }
 
 .groups-nav-header__content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    @include layout.groups-nav-header-row;
 }
 
 .groups-nav-title {
-    margin: 0;
-    font-size: 0.94rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    @include layout.groups-nav-title-type;
     color: var(--mat-sys-on-surface);
 }
 
@@ -168,11 +159,6 @@
     }
 }
 
-.groups-content-header {
-    @include panel.standard-panel-header();
-    border-top-left-radius: inherit;
-}
-
 .groups-content-header button {
     @include mat.form-field-density(-5);
 }
@@ -181,9 +167,7 @@
     @include panel.standard-panel-meta();
 
     &--stacked {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
+        @include layout.groups-content-meta-stacked;
     }
 }
 
@@ -261,7 +245,10 @@
     border-top-left-radius: 16px;
 }
 
+// Outranks `.sidebar .sidebar-header` (portal-sidebar), so the header's box
+// comes from the mixin the loading skeleton shares.
 .groups-content-panel > .groups-content-header {
+    @include layout.groups-content-header-box;
     border-top-left-radius: inherit;
 }
 

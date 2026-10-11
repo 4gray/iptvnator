@@ -155,6 +155,13 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
      * the rail label. Falls back to `items().length` when not supplied.
      */
     readonly totalCount = input<number | null>(null);
+    /**
+     * Keeps the meta line under every cover card even when it is empty. A
+     * rail that replaces a loading skeleton sets it: the skeleton always
+     * draws that line, and a rail of cards without labels (movies with no
+     * known duration) would otherwise come in shorter.
+     */
+    readonly reserveMetaLine = input(false);
 
     private readonly viewport =
         viewChild.required<ElementRef<HTMLDivElement>>('viewport');
