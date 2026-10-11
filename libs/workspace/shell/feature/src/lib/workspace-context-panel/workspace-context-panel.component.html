@@ -3,12 +3,15 @@
         <div class="context-header__top">
             <h2>{{ title() | translate }}</h2>
             <div class="context-header__actions">
-                @if (canSearchCategories()) {
+                <!-- Rendered disabled while the categories load, so the
+                     row has its final width before they arrive. -->
+                @if (showCategoryListActions()) {
                     <button
                         #firstHeaderAction
                         type="button"
                         mat-icon-button
                         class="context-header__action"
+                        [disabled]="!canSearchCategories()"
                         [class.context-header__action--active]="isSearchOpen()"
                         (click)="toggleCategorySearch()"
                         [matTooltip]="'WORKSPACE.CONTEXT.SEARCH' | translate"
@@ -19,11 +22,12 @@
                         <mat-icon>search</mat-icon>
                     </button>
                 }
-                @if (canSearchCategories()) {
+                @if (showCategoryListActions()) {
                     <button
                         type="button"
                         mat-icon-button
                         class="context-header__action"
+                        [disabled]="!canSearchCategories()"
                         [class.context-header__action--active]="
                             categorySortMode() !== 'server'
                         "

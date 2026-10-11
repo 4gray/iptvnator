@@ -1279,9 +1279,41 @@ measured iterations of the 11 `master` runs from 2026-10-03 08:25 to
 
 `open-source/renderer.layoutShiftScore` read 0.222 in that window and 0.233
 in every iteration of every `master` run from 84aef83a6 (#1814, page Back
-buttons moved into the header) on, so its value is 0.233 with `evidenceRun`
-37372780064 (b78224376). The 0.011 that #1814 added is not explained yet;
-lowering it back is a separate change.
+buttons moved into the header) on, so its value was 0.233 with `evidenceRun`
+37372780064 (b78224376).
+
+Where the 0.233 came from (`evidence.layoutShift.shifts`, a 1280×720 window;
+the score of a shift is the area of every node that moved times the largest
+distance any of them moved, as a fraction of the viewport):
+
+| Shift, ms after the click | Nodes that moved                                           | Score  |
+| ------------------------- | ---------------------------------------------------------- | ------ |
+| ~40 (page swap)           | `main.workspace-content` x 60 → 383, width −323            | 0.222  |
+|                           | switcher, `label.search-field`, `div.header-actions` x +44 | 0.011  |
+| ~50-70 (categories)       | `div.context-header__actions` x −60, width +60             | 0.0001 |
+
+The first two are one frame: the frame that replaces the dashboard with the
+portal page also inserts the 323 px context panel the dashboard has no room
+for, and the history Back that #1814 shows once an in-app previous entry
+exists. The header items move only 44 px, but a shift is scored with the
+largest distance in it, the content pane's 323 px, which is why Back added
+0.011 rather than about 0.0015. The third is the category search and sort
+buttons appearing when the categories arrive. The skeletons of the category
+list and the grid are replaced by content without any shift. Nothing was
+hidden behind the startup overlay: the "Syncing playlist" overlay of the
+cached catalog load flashes for about two frames after the shift and covers
+no further one.
+
+The content frame and the header controls now slide into place instead of
+jumping ([Layout slides](./workspace-shell.md#layout-slides)): the new layout
+applies in the same frame and only a transform animates, which Chromium does
+not record as a layout shift. The category search and sort buttons render
+disabled while the categories load. Locally (macOS, 2026-10-11) J2 then read
+0 in every iteration with no shift recorded, J1 0 / 0, J3 0.001 and J4 0;
+`renderer.domMutationsToFirstPage` rose by 22 (the slide's class and style
+changes) and the wall-clock entries did not move. Under
+`prefers-reduced-motion` there is no slide, so a user with that preference
+still sees the jump that the journey no longer measures.
 
 Being deterministic is not the same as being validated. Principle 3 of the
 plan promotes a counter to a guardrail once a PR has shown that lowering it
