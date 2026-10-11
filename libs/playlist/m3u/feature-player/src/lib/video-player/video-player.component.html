@@ -36,7 +36,6 @@
         <app-sidebar
             [channels]="(channels$ | async)!"
             [channelsLoading]="channelsLoading()"
-            [showPlaylistHeader]="!isWorkspaceLayout"
             [activeView]="activeView()"
             [sidebarWidth]="sidebarWidth()"
             (sidebarWidthRequested)="onGroupedSidebarWidthRequested($event)"

@@ -114,9 +114,6 @@ describe('Xtream live auto-open playback queue', () => {
                             queryParamMap: convertToParamMap({}),
                         },
                         queryParamMap: query,
-                        pathFromRoot: [
-                            { snapshot: { data: { layout: 'workspace' } } },
-                        ],
                     },
                 },
                 { provide: Router, useValue: { events, navigate: jest.fn() } },

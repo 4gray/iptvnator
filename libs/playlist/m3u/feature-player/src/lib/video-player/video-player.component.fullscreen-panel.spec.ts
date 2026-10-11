@@ -144,7 +144,6 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                         params: of({ id: 'playlist-1', view: 'all' }),
                         queryParams: of({}),
                         snapshot: {
-                            data: { layout: 'workspace' },
                             queryParams: {},
                         },
                     },

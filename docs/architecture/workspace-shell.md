@@ -65,19 +65,19 @@ Compatibility redirect:
 
 Provider route integration:
 
-1. `apps/web/src/app/app.routes.ts` marks the `/workspace` root route with
-   `data.layout = 'workspace'`.
-2. `isWorkspaceLayoutRoute(...)` treats that layout marker as inherited route
-   state for all descendants.
-3. Xtream and Stalker parent routes attach route-scoped session providers that
+1. Every routed view renders inside the workspace shell (the only top-level
+   paths outside `/workspace` are redirects), so views keep no standalone
+   layout branches: the shell header owns search, Back and the playlist
+   switcher.
+2. Xtream and Stalker parent routes attach route-scoped session providers that
    bootstrap the active playlist, sync provider section state, and clean up
    provider-local state when the route is destroyed.
-4. Xtream route bootstrap is DB-first for already imported Electron playlists:
+3. Xtream route bootstrap is DB-first for already imported Electron playlists:
    if the requested section has persisted categories and content, the route
    hydrates from SQLite even when the portal status probe reports unavailable,
    expired, or inactive. Fresh/no-cache Xtream routes still use the status probe
    to block remote imports before the loading overlay starts.
-5. Workspace routes no longer rely on nested provider shell components for
+4. Workspace routes no longer rely on nested provider shell components for
    hidden local chrome.
 
 ## Shell Structure

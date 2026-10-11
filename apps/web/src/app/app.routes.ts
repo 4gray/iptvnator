@@ -77,9 +77,6 @@ export const routes: Routes = [
     },
     {
         path: 'workspace',
-        data: {
-            layout: 'workspace',
-        },
         resolve: {
             settingsReady: settingsReadyResolver,
         },
