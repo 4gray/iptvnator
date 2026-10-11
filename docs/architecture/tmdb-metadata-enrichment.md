@@ -363,6 +363,20 @@ Filmography has two scopes:
   This also works from Stalker actor pages — the one place the Stalker
   catalog limitation is lifted.
 
+### Sending a batched match
+
+`CatalogTitleMatchService.matchTitles` deduplicates the titles, keeps the
+first `TITLE_MATCH_TITLE_LIMIT` (200, the worker's own cap) and sends them
+in `DB_MATCH_TITLES` requests of `TITLE_MATCH_REQUEST_SIZE` (5), one after
+another, concatenating the answers in order. The DB worker answers one
+request at a time, so a whole rail's batch in one request held every other
+read behind it: on a 3.9M-title library one recommendations batch took
+95 s cold and kept the dashboard's playback positions (and with them the
+Continue Watching rail) waiting; now other reads wait for five titles at
+most. The answer stays all-or-nothing: a failed
+request, or a parental lock that starts withholding everything midway,
+returns no matches, as one failed request did before.
+
 ### Resolving a batched match
 
 Every `DB_MATCH_TITLES` consumer — the Trending rail, the "Because you

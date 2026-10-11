@@ -93,8 +93,22 @@ export function pickTitleMatch(
 }
 
 /**
+ * Titles per `DB_MATCH_TITLES` request. The DB worker answers one request
+ * at a time and runs a ranked FTS query per title, a second or more for a
+ * common word on a large catalog; a whole rail's batch in one request held
+ * every other read (the dashboard's playback positions among them) behind
+ * it for up to a minute and a half. Small requests, sent one after
+ * another, let those reads in between.
+ */
+export const TITLE_MATCH_REQUEST_SIZE = 5;
+
+/** Distinct titles matched per call: the worker's MAX_TITLES_PER_REQUEST. */
+export const TITLE_MATCH_TITLE_LIMIT = 200;
+
+/**
  * Cross-playlist title matching via the Electron DB worker
- * (`DB_MATCH_TITLES`, trigram FTS over all imported Xtream playlists).
+ * (`DB_MATCH_TITLES`, trigram FTS over all imported Xtream playlists), in
+ * requests of TITLE_MATCH_REQUEST_SIZE titles.
  * Unavailable in the PWA — `isAvailable` gates the actor page's
  * "All portals" scope.
  */
@@ -121,12 +135,39 @@ export class CatalogTitleMatchService {
             return [];
         }
 
-        try {
-            return await window.electron.dbMatchTitles(titles);
-        } catch (error) {
-            console.warn('Cross-playlist title matching failed:', error);
-            return [];
+        // The worker dedupes and caps each request; doing both here first
+        // keeps the overall cap and the result order of one big request.
+        const unique = [
+            ...new Set(
+                titles.filter(
+                    (title) => typeof title === 'string' && title.trim() !== ''
+                )
+            ),
+        ].slice(0, TITLE_MATCH_TITLE_LIMIT);
+        const matches: CatalogTitleMatch[] = [];
+        for (
+            let start = 0;
+            start < unique.length;
+            start += TITLE_MATCH_REQUEST_SIZE
+        ) {
+            // The lock can close while earlier requests run.
+            if (this.parentalLock.withholdsEverything()) {
+                return [];
+            }
+            try {
+                matches.push(
+                    ...(await window.electron.dbMatchTitles(
+                        unique.slice(start, start + TITLE_MATCH_REQUEST_SIZE)
+                    ))
+                );
+            } catch (error) {
+                // All or nothing, as with one request: callers treat an
+                // empty answer as a failed lookup they may run again.
+                console.warn('Cross-playlist title matching failed:', error);
+                return [];
+            }
         }
+        return matches;
     }
 
     /**
