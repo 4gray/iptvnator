@@ -47,7 +47,6 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
-    isWorkspaceLayoutRoute,
     LiveEpgPanelState,
     persistLiveEpgPanelState,
     persistPortalChannelSortMode,
@@ -216,14 +215,8 @@ export class LiveStreamLayoutComponent
     );
     readonly isElectron = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
-    private readonly routeSearchTerm = queryParamSignal(
-        this.route,
-        'q',
-        (value) => (value ?? '').trim()
-    );
-    readonly workspaceSearchTerm = computed(() =>
-        this.isWorkspaceLayout ? this.routeSearchTerm() : ''
+    readonly workspaceSearchTerm = queryParamSignal(this.route, 'q', (value) =>
+        (value ?? '').trim()
     );
     readonly showLiveChannelSidebar = computed(
         () => !!this.selectedCategoryId() || !!this.workspaceSearchTerm()

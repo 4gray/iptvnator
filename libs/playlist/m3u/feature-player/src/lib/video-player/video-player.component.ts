@@ -87,7 +87,6 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
-    isWorkspaceLayoutRoute,
     LiveEpgPanelState,
     LiveLayoutSidebarStateService,
     persistLiveEpgPanelState,
@@ -719,7 +718,6 @@ export class VideoPlayerComponent
 
     readonly isDesktop = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
@@ -1750,7 +1748,7 @@ export class VideoPlayerComponent
     }
 
     private registerHeaderShortcut(): void {
-        if (!this.isWorkspaceLayout || !this.supportsEpg) {
+        if (!this.supportsEpg) {
             return;
         }
 

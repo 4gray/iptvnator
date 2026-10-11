@@ -149,7 +149,6 @@ picker), so each marks itself on the form's `events` through
 ### libs/portal (8)
 
 - [x] `libs/portal/shared/ui/src/lib/components/playlist-error-view/playlist-error-view.component.ts`
-- [x] `libs/portal/shared/ui/src/lib/components/search-form/search-form.component.ts`
 - [x] `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
 - [x] `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
 - [x] `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`

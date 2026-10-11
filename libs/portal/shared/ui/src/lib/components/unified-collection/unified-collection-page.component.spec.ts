@@ -203,7 +203,6 @@ describe('UnifiedCollectionPageComponent', () => {
 
         const workspaceRoute = {
             snapshot: {
-                data: { layout: 'workspace' },
                 paramMap: convertToParamMap({}),
                 params: {},
             },
@@ -672,7 +671,6 @@ describe('UnifiedCollectionPageComponent', () => {
     it('registers a workspace command when the current view has actionable items', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
-        expect(fixture.componentInstance.isWorkspaceLayout).toBe(true);
 
         fixture.componentInstance.allItems.set([
             {

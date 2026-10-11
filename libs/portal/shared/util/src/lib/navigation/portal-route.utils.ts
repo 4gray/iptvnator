@@ -25,17 +25,6 @@ const PORTAL_SECTIONS = new Set<PortalRailSection>([
     'vod',
 ]);
 
-export function isWorkspaceLayoutRoute(route: ActivatedRoute): boolean {
-    const routeChain =
-        Array.isArray(route.pathFromRoot) && route.pathFromRoot.length > 0
-            ? route.pathFromRoot
-            : [route];
-
-    return routeChain.some(
-        (currentRoute) => currentRoute.snapshot.data['layout'] === 'workspace'
-    );
-}
-
 export function queryParamSignal<T = string>(
     route: ActivatedRoute,
     key: string,

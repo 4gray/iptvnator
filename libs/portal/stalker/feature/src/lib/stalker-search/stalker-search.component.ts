@@ -37,7 +37,6 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
-    isWorkspaceLayoutRoute,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -117,8 +116,6 @@ export class StalkerSearchComponent {
         series: false,
         vod: true,
     });
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
-
     readonly filterConfig: StalkerFilter[] = [
         {
             key: 'vod',
@@ -277,10 +274,6 @@ export class StalkerSearchComponent {
     /** Get results count for layout */
     get resultsCount(): number {
         return this.searchResults().length;
-    }
-
-    updateSearchTerm(term: string) {
-        this.searchTerm.set(term);
     }
 
     updateFilter(key: StalkerSearchContentType, value: boolean) {

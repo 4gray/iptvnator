@@ -581,9 +581,6 @@ test.describe('Electron Workspace Search', () => {
             );
             await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
             await expect(
-                app.mainWindow.locator('app-search-layout app-search-form')
-            ).toHaveCount(0);
-            await expect(
                 xtreamSearchResultCards(app.mainWindow).first()
             ).toBeVisible({ timeout: 20000 });
         } finally {
@@ -901,9 +898,6 @@ test.describe('Electron Workspace Search', () => {
                 /\/workspace\/stalker\/[^/]+\/search$/
             );
             await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
-            await expect(
-                app.mainWindow.locator('app-search-layout app-search-form')
-            ).toHaveCount(0);
 
             await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
 

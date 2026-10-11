@@ -206,13 +206,6 @@ describe('LiveStreamLayoutComponent', () => {
                             queryParamMap: convertToParamMap({}),
                         },
                         queryParamMap: routeQueryParamMap.asObservable(),
-                        pathFromRoot: [
-                            {
-                                snapshot: {
-                                    data: { layout: 'workspace' },
-                                },
-                            },
-                        ],
                     },
                 },
                 {
