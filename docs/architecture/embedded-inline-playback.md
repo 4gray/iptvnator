@@ -1185,7 +1185,9 @@ External MPV/VLC integration is split across focused main-process modules:
   session tracking, trace logging, renderer notifications, playback-position
   forwarding, and user-facing start errors.
 - `apps/electron-backend/src/app/events/mpv-session.service.ts` owns fresh MPV
-  launches and progress polling; `mpv-reusable-process.ts` owns the tracked
+  launches; `mpv-position-polling.ts` owns progress polling over the IPC socket
+  and `mpv-output-errors.ts` the child's stdout/stderr error reporting;
+  `mpv-reusable-process.ts` owns the tracked
   child, captured socket, remapping, retryable close, and reuse handoff;
   `mpv-ipc-command.ts` owns the bounded request/reply IPC command the reuse
   handoff and its quit use; `mpv-launch-queue.ts` runs MPV launches one at a
