@@ -604,6 +604,95 @@ describe('reused MPV IPC replies', () => {
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 
+    it('lets Stop on the newest queued launch cancel every launch queued before it', async () => {
+        const { proc } = await launchReusableSession();
+        const sockets = mockUnansweredSockets();
+
+        const first = openMpvPlayer({
+            title: 'Channel A',
+            url: 'https://example.com/a.m3u8',
+        });
+        await writtenRequestId(sockets[0]);
+        const second = openMpvPlayer({
+            title: 'Channel B',
+            url: 'https://example.com/b.m3u8',
+        });
+        const third = openMpvPlayer({
+            title: 'Channel C',
+            url: 'https://example.com/c.m3u8',
+        });
+        const newestId = externalPlayerSessions.getActiveSessionId() as string;
+
+        await expect(
+            externalPlayerSessions.closeSession(newestId)
+        ).resolves.toMatchObject({ status: 'closed' });
+        sockets[0].emit('close');
+
+        await expect(first).resolves.toMatchObject({ status: 'closed' });
+        await expect(second).resolves.toMatchObject({ status: 'closed' });
+        await expect(third).resolves.toMatchObject({ status: 'closed' });
+        expect(proc.kill).toHaveBeenCalledTimes(1);
+        expect(sockets).toHaveLength(1);
+        expect(spawnMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('hands the dock back to the live player when a queued launch is blocked by its teardown', async () => {
+        const { proc } = await launchReusableSession();
+        // The first launch's loadfile fails and its teardown never sees the
+        // child exit, so the queued launch finds the teardown gate closed.
+        (proc.kill as jest.Mock).mockImplementation(() => true);
+        mockMpvSockets({
+            reply: (command) =>
+                command[0] === 'loadfile' ? 'error running command' : 'success',
+        });
+        const errorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        jest.useFakeTimers();
+
+        try {
+            const first = openMpvPlayer({
+                title: 'Channel A',
+                url: 'https://example.com/a.m3u8',
+            });
+            const firstId =
+                externalPlayerSessions.getActiveSessionId() as string;
+            const firstRejection = expect(first).rejects.toThrow(
+                'External player process did not exit'
+            );
+            const second = openMpvPlayer({
+                title: 'Channel B',
+                url: 'https://example.com/b.m3u8',
+            });
+            const secondId =
+                externalPlayerSessions.getActiveSessionId() as string;
+            const secondRejection = expect(second).rejects.toThrow(
+                'previous external player is still shutting down'
+            );
+
+            await jest.advanceTimersByTimeAsync(6_000);
+            await firstRejection;
+            await secondRejection;
+
+            // The session owning the still-running child is active again
+            // and can be stopped; the blocked launch is a terminal error.
+            expect(externalPlayerSessions.getActiveSessionId()).toBe(firstId);
+            expect(externalPlayerSessions.getSession(firstId)).toMatchObject({
+                status: 'error',
+                canClose: true,
+            });
+            expect(externalPlayerSessions.getSession(secondId)).toMatchObject({
+                status: 'error',
+                canClose: false,
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        } finally {
+            errorSpy.mockRestore();
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+        }
+    });
+
     it('starts a queued launch on the fresh player a failed launch spawned', async () => {
         const { proc } = await launchReusableSession();
         const freshProc = createMockChildProcess();

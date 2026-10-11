@@ -1037,8 +1037,15 @@ meanwhile, such as a quick channel switch, starts only once the previous one
 has settled and acts on the player that one left behind; two launches never
 act on the same child. Each launch begins its session at once, so the newest
 launch is the active session; Stop on a launch still waiting in the queue
-cancels it and stops the player the in-flight launch is working on, confirming
-its exit, so nothing starts playing after Stop. Stopping the stored player, when reuse is disabled or
+cancels it and every launch queued before it, and stops the stored player the
+in-flight launch is working on, confirming its exit, so nothing starts playing
+after Stop. App shutdown cancels the queue the same way. With reuse off a
+queued launch has no player of its own yet, so its Stop leaves the in-flight
+launch's detached player running, as a second detached player would beside it.
+A queued launch that finds the teardown gate closed, because the launch before
+it could not confirm its child's exit, restores the session that still owns
+that child; if that is not possible, it stays a closable error so Stop can
+still tear the child down. Stopping the stored player, when reuse is disabled or
 the app quits, cancels an in-flight reuse attempt: it dispatches no further
 commands, never falls back to a fresh reusable player, also after waiting for
 a failed child's exit, and settles its own session as closed. No `seek` follows
