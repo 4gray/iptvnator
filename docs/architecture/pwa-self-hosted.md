@@ -73,6 +73,40 @@ The current self-hosted PWA uses these `apps/web-backend` routes:
 - `GET /xtream?targetId=<id>&username=<u>&password=<p>&action=<action>`
 - `GET /stalker?targetId=<id>&macAddress=<mac>&action=<action>`
 
+Server storage adds versioned routes under `/v1`; the PWA does not call them
+yet:
+
+- `GET /v1/instance` (always public): `{ service, apiVersion, instanceId,
+  storage: 'server' | 'none', auth: 'none' | 'token' }`
+- `GET /v1/instance/status`: playlist count, database size and path
+- `GET /v1/playlists[?view=meta]`, `GET|PUT|DELETE /v1/playlists/:id`,
+  `DELETE /v1/playlists`: whole playlist documents; `GET` sends an `ETag`
+  and answers `304` to a matching `If-None-Match`, and
+  `PUT ...?keepPayload=1` keeps the stored `playlist`, `items` and
+  `header` fields (`409 payload_missing` without a stored row)
+- `GET /v1/user-state`, `PUT|DELETE /v1/user-state/:namespace/:playlistId`:
+  Xtream favorites, recently viewed, collection snapshots and playback
+  positions, one JSON value per namespace and playlist
+- `GET|PUT /v1/app-state/:key`
+
+Server storage lives in `apps/web-backend/src/app/storage/`. With
+`IPTVNATOR_STORAGE=server`, `main.ts` opens the shared database through
+`initDatabase()` (path from `IPTVNATOR_DATA_DIR`), so the server has the same
+schema and migrations as the desktop app and writes playlists with the
+shared row codec. It adds two server-only tables: `server_user_state` for
+Xtream user data, and `server_playlist_meta`, a copy of each document
+without its M3U payload fields that metadata reads use instead of walking
+the payload blobs (filled once on open for rows written without it). ETags
+come from an in-memory revision counter; the server is the only writer of
+its database. Storage errors are logged by error name and code only, because
+Drizzle messages can carry bound values such as portal credentials. With
+`IPTVNATOR_ACCESS_TOKEN`, every route except `/`, `/health`, `/config.js`
+and `/v1/instance` requires `Authorization: Bearer <token>`, the proxy
+routes included. The PWA cannot send that token yet, so the variable must
+stay unset until the browser side lands. Browser app state written through
+`/v1/app-state` is stored under a `client:` key prefix, apart from
+server-owned keys such as the instance id.
+
 `pnpm nx run web-backend:serve` starts the backend by hand on port 3333 with
 `TSX_TSCONFIG_PATH=tsconfig.base.json`, which `tsx` needs for the
 `@iptvnator/*` path aliases. `apps/web-e2e/playwright.config.ts` does not use
@@ -274,6 +308,15 @@ Default runtime values:
 - `PORT=3000`
 - `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=0`
 - `NODE_EXTRA_CA_CERTS` unset
+- `IPTVNATOR_STORAGE=server`, `IPTVNATOR_DATA_DIR=/data` (a `VOLUME`)
+- `IPTVNATOR_ACCESS_TOKEN` unset, `IPTVNATOR_MAX_DOCUMENT_MB=64`
+- `IPTVNATOR_BACKEND_START_TIMEOUT=300`: seconds the entrypoint waits for
+  `/health`; the backend migrates its database before it listens
+
+better-sqlite3 is a native addon, so the Dockerfile builds it in a separate
+`native` stage that is not pinned to `$BUILDPLATFORM`; multi-arch builds
+produce it for each target platform. nginx raises `client_max_body_size` to
+64 MB for `/api/` and gzips JSON responses.
 
 When hosting behind another domain, set `CLIENT_URL` to the browser origin and
 keep `BACKEND_URL=/api` unless the reverse proxy exposes the backend elsewhere.
@@ -288,6 +331,7 @@ Use the narrow validation ladder for self-hosted changes:
 
 ```bash
 pnpm nx test web-backend
+pnpm nx test web-backend --testPathPatterns=storage
 pnpm nx test web --runTestsByPath apps/web/src/app/services/runtime-config.spec.ts
 pnpm nx build web --configuration=pwa --skip-nx-cache
 pnpm nx build web-backend
