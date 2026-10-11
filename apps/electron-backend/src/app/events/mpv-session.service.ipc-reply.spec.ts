@@ -774,6 +774,49 @@ describe('reused MPV IPC replies', () => {
         }
     );
 
+    it.each([
+        ['reuse is disabled', () => setMpvReuseInstance(false)],
+        ['the app shuts down', () => shutdownMpvSession()],
+    ])(
+        'does not fall back to a fresh player when %s during the failed-reuse teardown',
+        async (_label, stopStored) => {
+            const { proc } = await launchReusableSession();
+            // mpv rejects the content command, and the teardown that
+            // follows waits for an exit that is reported only later.
+            (proc.kill as jest.Mock).mockImplementation(() => true);
+            mockMpvSockets({
+                reply: (command) =>
+                    command[0] === 'loadfile'
+                        ? 'error running command'
+                        : 'success',
+            });
+            const errorSpy = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+
+            try {
+                const opening = openMpvPlayer({
+                    title: 'Channel B',
+                    url: 'https://example.com/b.m3u8',
+                });
+                while (!(proc.kill as jest.Mock).mock.calls.length) {
+                    await nextTick();
+                }
+
+                stopStored();
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+
+                await expect(opening).resolves.toMatchObject({
+                    status: 'closed',
+                });
+                expect(spawnMock).toHaveBeenCalledTimes(1);
+            } finally {
+                errorSpy.mockRestore();
+            }
+        }
+    );
+
     it('keeps the errored session when the child crashes during the reply wait', async () => {
         const { proc, session: previous } = await launchReusableSession();
         const sockets = mockUnansweredSockets();

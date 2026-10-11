@@ -1040,7 +1040,8 @@ the child is still mapped to it, and settles its own session as closed. A
 settled attempt's Stop follows ownership again, so a reused session restored
 after a newer attempt failed keeps a working closer. Stopping the stored
 player, when reuse is disabled or the app quits, supersedes any in-flight
-attempt the same way, so it cannot fall back to a fresh reusable player. No `seek` follows
+attempt the same way, so it cannot fall back to a fresh reusable player,
+including an attempt that is already waiting for its failed child to exit. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused

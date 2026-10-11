@@ -275,6 +275,9 @@ export class MpvReusableProcess {
             this.clear(reusedProcess);
             options.stopPositionPolling();
             if (closeRequested) return await finishRequestedClose();
+            // Reuse may have been disabled, or the app may be quitting,
+            // while the teardown above waited for the child to exit.
+            if (superseded()) return settleSuperseded();
             return null;
         } finally {
             attemptInFlight = false;
