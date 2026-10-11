@@ -6,7 +6,10 @@ import {
     playlistConflictUpdate,
 } from '@iptvnator/shared/database/app-playlist';
 import { appState, playlists } from '@iptvnator/shared/database/schema';
-import type { Playlist as PlaylistRow } from '@iptvnator/shared/database/schema';
+import type {
+    NewPlaylist,
+    Playlist as PlaylistRow,
+} from '@iptvnator/shared/database/schema';
 import { SERVER_PAYLOAD_FIELDS } from '@iptvnator/shared/interfaces';
 
 export type PlaylistDocument = Record<string, unknown>;
@@ -33,6 +36,46 @@ function metadataColumns() {
 }
 
 const metaColumns = metadataColumns();
+
+/**
+ * Columns a whole-document upsert must rewrite even when the document no
+ * longer has a value: the codec maps empty values to `undefined`, which an
+ * `ON CONFLICT DO UPDATE` skips, so a cleared field would keep its old
+ * column value and `parseAppPlaylist` would bring it back.
+ */
+const REPLACEABLE_COLUMNS = [
+    'serverUrl',
+    'username',
+    'password',
+    'lastUpdated',
+    'userAgent',
+    'origin',
+    'referrer',
+    'filePath',
+    'epgUrls',
+    'detectedEpgUrls',
+    'manualEpgUrls',
+    'disabledEpgUrls',
+    'macAddress',
+    'url',
+    'portalUrl',
+    'count',
+    'importDate',
+    'updateDate',
+    'position',
+    'favorites',
+    'recentlyViewed',
+] as const satisfies readonly (keyof NewPlaylist)[];
+
+function clearedColumns(row: NewPlaylist): Partial<NewPlaylist> {
+    const cleared: Partial<Record<keyof NewPlaylist, null>> = {};
+    for (const column of REPLACEABLE_COLUMNS) {
+        if (row[column] === undefined) {
+            cleared[column] = null;
+        }
+    }
+    return cleared as Partial<NewPlaylist>;
+}
 
 /**
  * The stored document without its M3U payload fields, so metadata reads
@@ -104,7 +147,10 @@ export class ServerPlaylistRepository {
             .values(row)
             .onConflictDoUpdate({
                 target: playlists.id,
-                set: playlistConflictUpdate(row, next),
+                set: {
+                    ...playlistConflictUpdate(row, next),
+                    ...clearedColumns(row),
+                },
             })
             .run();
     }

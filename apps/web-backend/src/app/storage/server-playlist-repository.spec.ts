@@ -84,6 +84,34 @@ describe('ServerPlaylistRepository', () => {
             });
         }));
 
+    it('clears optional columns that a replacement leaves empty', () =>
+        withTempStorage(({ playlists }) => {
+            playlists.upsert(
+                {
+                    ...m3uDocument('p1'),
+                    userAgent: 'UA/1',
+                    referrer: 'https://ref.test',
+                    origin: 'https://origin.test',
+                },
+                { keepPayload: false }
+            );
+
+            playlists.upsert(
+                {
+                    ...m3uDocument('p1'),
+                    userAgent: '',
+                    referrer: '',
+                },
+                { keepPayload: false }
+            );
+
+            const stored = playlists.get('p1');
+            expect(stored?.['userAgent']).toBeUndefined();
+            expect(stored?.['referrer']).toBeUndefined();
+            expect(stored?.['origin']).toBeUndefined();
+            expect(playlists.listMetas()[0]['userAgent']).toBeUndefined();
+        }));
+
     it('tells whether a playlist exists', () =>
         withTempStorage(({ playlists }) => {
             playlists.upsert(m3uDocument('p1'), { keepPayload: false });
