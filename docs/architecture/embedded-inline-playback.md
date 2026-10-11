@@ -804,6 +804,17 @@ also drives a concise browser-support hint for codecs that Chromium/Electron
 commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2
 video.
 
+The panel's host is a size container over the player, so its spacing, its
+narrow-width rules and a compact layout for players up to 560px tall all
+follow the player box rather than the window. The M3U inline player above its
+EPG panel is about 400px tall in a 720px window; there the whole surface fits,
+including each card's hint and status lines and the utilities. A shorter
+player scrolls the surface from its top. Card labels wrap instead of being
+ellipsized, because translated actions are wider than a card column.
+`apps/electron-backend-e2e/src/playback-diagnostic-layout.e2e.ts` writes every
+locale's card labels and status line into the cards and fails on any
+truncated label or clipped content.
+
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
 
 The HTML5 player and ArtPlayer choose their source engine from one URL rule,
