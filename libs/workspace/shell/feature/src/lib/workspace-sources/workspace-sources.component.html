@@ -35,14 +35,12 @@
                     <button
                         mat-menu-item
                         type="button"
-                        [class.active-option]="isSortActive(option)"
+                        [appMenuItemRadio]="isSortActive(option)"
                         (click)="setSortOption(option)"
                     >
+                        <mat-icon appMenuItemRadioCheck>check</mat-icon>
                         <mat-icon>{{ option.icon }}</mat-icon>
                         <span>{{ option.translationKey | translate }}</span>
-                        @if (isSortActive(option)) {
-                            <mat-icon class="sort-menu__check">check</mat-icon>
-                        }
                     </button>
                 }
             </mat-menu>

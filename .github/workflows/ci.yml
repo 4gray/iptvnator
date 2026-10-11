@@ -416,6 +416,11 @@ jobs:
             - name: Validate Material icon names
               run: pnpm run styles:icon-ligatures:validate
 
+            # A tooltip is not an accessible name: an icon-only <button> needs
+            # aria-label, an aria-label binding or aria-labelledby.
+            - name: Validate icon-only button names
+              run: pnpm run a11y:icon-buttons:validate
+
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is
             # unset, so this checks both the local and the CI inference.

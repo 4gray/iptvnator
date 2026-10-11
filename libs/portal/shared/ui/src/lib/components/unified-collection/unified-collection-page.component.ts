@@ -20,7 +20,11 @@ import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ChannelListSkeletonComponent } from '@iptvnator/ui/components';
+import {
+    ChannelListSkeletonComponent,
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
 import {
     clearNavigationStateKeys,
     CollectionContentType,
@@ -81,6 +85,8 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
         MatMenuModule,
         MatProgressBar,
         MatTooltip,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         TranslatePipe,
         UnifiedGridTabComponent,
         UnifiedLiveTabComponent,

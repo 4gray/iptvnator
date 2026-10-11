@@ -26,6 +26,10 @@ import {
     PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
+import {
     clearNavigationStateKeys,
     consumeStalkerReturnMarker,
     getOpenStalkerItemState,
@@ -39,6 +43,10 @@ import {
     PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
     PortalCatalogSortMode,
 } from '@iptvnator/portal/shared/util';
+import {
+    CATALOG_SORT_OPTIONS,
+    catalogSortLabels,
+} from './catalog-sort-options';
 
 interface CategoryContentItem {
     id?: number | string;
@@ -63,6 +71,8 @@ interface CategoryContentItem {
         MatIcon,
         MatMenuModule,
         MatTooltip,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         NgComponentOutlet,
         PlaylistErrorViewComponent,
         TranslatePipe,
@@ -133,24 +143,14 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly activeRefinementCount = computed(() =>
         this.minRating() !== null ? 1 : 0
     );
-    readonly activeSortLabelKey = computed(() => {
-        switch (this.contentSortMode()) {
-            case 'date-desc':
-                return 'WORKSPACE.SORT_DATE_DESC';
-            case 'date-asc':
-                return 'WORKSPACE.SORT_DATE_ASC';
-            case 'name-asc':
-                return 'WORKSPACE.SORT_NAME_ASC';
-            case 'name-desc':
-                return 'WORKSPACE.SORT_NAME_DESC';
-            case 'rating-desc':
-                return 'WORKSPACE.SORT_TOP_RATED';
-            case 'rating-asc':
-                return 'WORKSPACE.SORT_LOWEST_RATED';
-            default:
-                return 'WORKSPACE.SORT_CUSTOM';
-        }
-    });
+    readonly sortOptions = computed(() =>
+        CATALOG_SORT_OPTIONS.filter(
+            (option) => !option.byRating || this.supportsRatingSort()
+        )
+    );
+    readonly activeSortLabels = computed(() =>
+        catalogSortLabels(this.contentSortMode())
+    );
     readonly searchTerm = toSignal(
         this.activatedRoute.queryParamMap.pipe(map((p) => p.get('q') ?? '')),
         { initialValue: '' }

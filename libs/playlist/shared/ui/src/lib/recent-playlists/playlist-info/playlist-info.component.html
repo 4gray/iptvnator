@@ -167,6 +167,9 @@
                         [matTooltip]="
                             'HOME.PLAYLISTS.INFO_DIALOG.COPY_URL' | translate
                         "
+                        [attr.aria-label]="
+                            'HOME.PLAYLISTS.INFO_DIALOG.COPY_URL' | translate
+                        "
                     >
                         <mat-icon>content_copy</mat-icon>
                     </button>
@@ -273,6 +276,9 @@
                                 [matTooltip]="
                                     'SETTINGS.REFRESH_EPG' | translate
                                 "
+                                [attr.aria-label]="
+                                    'SETTINGS.REFRESH_EPG' | translate
+                                "
                                 (click)="refreshPlaylistEpgSource(epgUrl)"
                             >
                                 <mat-icon>refresh</mat-icon>
@@ -284,6 +290,9 @@
                                 [matTooltip]="
                                     'SETTINGS.ADD_EPG_SOURCE' | translate
                                 "
+                                [attr.aria-label]="
+                                    'SETTINGS.ADD_EPG_SOURCE' | translate
+                                "
                                 (click)="addPlaylistEpgSourceToSettings(epgUrl)"
                             >
                                 <mat-icon>playlist_add</mat-icon>
@@ -292,6 +301,9 @@
                                 mat-icon-button
                                 type="button"
                                 [matTooltip]="
+                                    'SETTINGS.REMOVE_EPG_SOURCE' | translate
+                                "
+                                [attr.aria-label]="
                                     'SETTINGS.REMOVE_EPG_SOURCE' | translate
                                 "
                                 (click)="removePlaylistEpgSource(epgUrl)"
@@ -350,6 +362,9 @@
                                     mat-icon-button
                                     type="button"
                                     [matTooltip]="
+                                        'SETTINGS.REMOVE_EPG_SOURCE' | translate
+                                    "
+                                    [attr.aria-label]="
                                         'SETTINGS.REMOVE_EPG_SOURCE' | translate
                                     "
                                     (click)="
