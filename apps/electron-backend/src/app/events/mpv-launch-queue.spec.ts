@@ -628,14 +628,91 @@ describe('MPV launch queue', () => {
                 canClose: true,
             });
 
-            // A retry reaches the same child and settles once it exits.
+            // A retry reaches the same child and settles once it exits; the
+            // retried quit gets no reply within its bound.
             const retry = externalPlayerSessions.closeSession(queuedId);
             await jest.advanceTimersByTimeAsync(0);
             Object.defineProperty(proc, 'exitCode', { value: 0 });
             proc.emit('exit', 0);
+            await jest.advanceTimersByTimeAsync(
+                MPV_IPC_COMMAND_TIMEOUT_MS + 100
+            );
             await expect(retry).resolves.toMatchObject({
                 id: queuedId,
                 status: 'closed',
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        } finally {
+            errorSpy.mockRestore();
+            if (proc.exitCode === null) {
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+            }
+        }
+    });
+
+    it('keeps a queued Stop working after the previous owner closed during a failed handback', async () => {
+        const { proc, session: previous } = await launchReusableSession();
+        (proc.kill as jest.Mock).mockImplementation(() => true);
+        const sockets = mockUnansweredSockets();
+        const errorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        jest.useFakeTimers();
+
+        try {
+            const first = openMpvPlayer({
+                title: 'Channel A',
+                url: 'https://example.com/a.m3u8',
+            });
+            const firstRejection = expect(first).rejects.toThrow(
+                'External player process did not exit'
+            );
+            const loadfileId = await (async () => {
+                while (!sockets[0]?.write.mock.calls.length) {
+                    await jest.advanceTimersByTimeAsync(0);
+                }
+                return (
+                    JSON.parse(String(sockets[0].write.mock.calls[0][0])) as {
+                        request_id: number;
+                    }
+                ).request_id;
+            })();
+            // A late Stop for the previous session closes it; the child now
+            // belongs to the first launch.
+            await expect(
+                externalPlayerSessions.closeSession(previous.id)
+            ).resolves.toMatchObject({ status: 'closed' });
+            const queued = openMpvPlayer({
+                title: 'Channel B',
+                url: 'https://example.com/b.m3u8',
+            });
+            const queuedId =
+                externalPlayerSessions.getActiveSessionId() as string;
+
+            // mpv rejects the load: the child is handed back to the closed
+            // previous session while the first launch tears it down.
+            sockets[0].emit(
+                'data',
+                Buffer.from(
+                    JSON.stringify({
+                        request_id: loadfileId,
+                        error: 'error running command',
+                    }) + '\n'
+                )
+            );
+            await jest.advanceTimersByTimeAsync(10);
+
+            const closeRejection = expect(
+                externalPlayerSessions.closeSession(queuedId)
+            ).rejects.toThrow('External player process did not exit');
+            await jest.advanceTimersByTimeAsync(10_000);
+            await closeRejection;
+            await firstRejection;
+            await expect(queued).resolves.toMatchObject({
+                id: queuedId,
+                status: 'error',
+                canClose: true,
             });
             expect(spawnMock).toHaveBeenCalledTimes(1);
         } finally {

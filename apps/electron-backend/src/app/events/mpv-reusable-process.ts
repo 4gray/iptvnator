@@ -166,7 +166,13 @@ export class MpvReusableProcess {
         let retryableClose: Promise<void> | null = null;
         let launchClose: Promise<void> | null = null;
 
+        // While this attempt tears down its own failed child, the child is
+        // handed back to its previous owner (so an exit settles that session)
+        // but Stop on this attempt must still reach it: that owner may be
+        // closed already, and this session can be the only working closer.
+        let tearingDownFailedChild = false;
         const ownsReusedProcess = () =>
+            tearingDownFailedChild ||
             this.processSessionIds.get(reusedProcess) === session.id ||
             externalPlayerSessions.getActiveSessionId() === session.id;
         const closeReusedProcess = async () => {
@@ -270,6 +276,7 @@ export class MpvReusableProcess {
                 redactSensitiveData(error)
             );
 
+            tearingDownFailedChild = true;
             if (state.contentMutated) {
                 if (reusedProcessSessionId) {
                     this.processSessionIds.set(
