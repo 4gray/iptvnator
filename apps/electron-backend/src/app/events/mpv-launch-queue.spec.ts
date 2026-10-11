@@ -771,6 +771,29 @@ describe('MPV launch queue', () => {
                 status: 'error',
                 canClose: true,
             });
+
+            // The first launch has settled; a retried Stop must still reach
+            // the live child and settle only once it exits.
+            const killsBeforeRetry = (proc.kill as jest.Mock).mock.calls.length;
+            const retry = externalPlayerSessions.closeSession(queuedId);
+            let retried = false;
+            void retry.then(
+                () => (retried = true),
+                () => (retried = true)
+            );
+            await jest.advanceTimersByTimeAsync(
+                MPV_IPC_COMMAND_TIMEOUT_MS + 100
+            );
+            expect(retried).toBe(false);
+            expect((proc.kill as jest.Mock).mock.calls.length).toBeGreaterThan(
+                killsBeforeRetry
+            );
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+            await expect(retry).resolves.toMatchObject({
+                id: queuedId,
+                status: 'closed',
+            });
             expect(spawnMock).toHaveBeenCalledTimes(1);
         } finally {
             errorSpy.mockRestore();

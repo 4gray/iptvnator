@@ -172,8 +172,12 @@ export class MpvReusableProcess {
         // loadfile or during a failed attempt's teardown, possibly closed
         // already). Once the attempt settles, ownership decides as before.
         let attemptInFlight = true;
+        // A Stop of this session that could not confirm the exit keeps the
+        // right to retry that exact child after the attempt settles.
+        let ownsFailedTeardown = false;
         const ownsReusedProcess = () =>
             attemptInFlight ||
+            ownsFailedTeardown ||
             this.processSessionIds.get(reusedProcess) === session.id ||
             externalPlayerSessions.getActiveSessionId() === session.id;
         const closeReusedProcess = async () => {
@@ -211,6 +215,7 @@ export class MpvReusableProcess {
                 launchClose ??= closeAttempt;
                 void closeAttempt.catch((error) => {
                     if (retryableClose === closeAttempt) retryableClose = null;
+                    ownsFailedTeardown = true;
                     state.teardownUnconfirmed = true;
                     externalPlayerSessions.markError(
                         session.id,

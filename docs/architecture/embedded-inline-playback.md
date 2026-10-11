@@ -1053,7 +1053,8 @@ time, nothing else acts on a reused child while an attempt is in flight, so
 that attempt's own Stop always reaches its child until the attempt settles,
 whatever the per-child mapping names (the previous owner before `loadfile` or
 during a failed attempt's teardown, possibly closed already); after it settles,
-ownership decides as before. These rules apply
+ownership decides as before, except that a Stop of that attempt which could
+not confirm the exit keeps the right to retry that exact child. These rules apply
 and nothing starts playing after Stop. Those targets are fixed at the first
 Stop, so a retried Stop never reaches a player started later, and a late Stop
 for an older queued launch cancels only that launch. The cancelled launch
