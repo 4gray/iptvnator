@@ -13,7 +13,7 @@ import {
     switchMap,
     throwError,
 } from 'rxjs';
-import { DataService } from '@iptvnator/services';
+import { DataService, serverAuthorizationHeaders } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
     ERROR,
@@ -199,7 +199,10 @@ export class PwaService extends DataService {
                 `${this.corsProxyUrl}/connectivity-guard/reset`,
                 {
                     body: JSON.stringify({ url: payload.url }),
-                    headers: { 'content-type': 'application/json' },
+                    headers: {
+                        'content-type': 'application/json',
+                        ...serverAuthorizationHeaders(),
+                    },
                     method: 'POST',
                     signal: controller.signal,
                 }
@@ -637,7 +640,9 @@ export class PwaService extends DataService {
             logPortalDebugRequest(context);
 
             // Make the fetch request
-            const response = await fetch(requestUrl);
+            const response = await fetch(requestUrl, {
+                headers: serverAuthorizationHeaders(),
+            });
 
             if (!response.ok) {
                 throw new Error(
