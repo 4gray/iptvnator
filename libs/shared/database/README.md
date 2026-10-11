@@ -33,7 +33,13 @@ import { content, categories, playlists, type Content } from '@iptvnator/shared/
 
 ## Database Location
 
-The SQLite database is stored at: `~/.iptvnator/databases/iptvnator.db`
+The SQLite database is stored at `<data root>/databases/iptvnator.db`. The data
+root is resolved in this order:
+
+1. `IPTVNATOR_E2E_DATA_DIR` (E2E runs only)
+2. `IPTVNATOR_DATA_DIR` (deployments with a mounted volume, such as the
+   self-hosted web backend in Docker, which sets `/data`)
+3. `~/.iptvnator`
 
 ## Upgrade Compatibility And Migrations
 
