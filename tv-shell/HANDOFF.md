@@ -41,6 +41,17 @@
   Le splash ne peut donc plus rester affiché indéfiniment.
 - Workflow : `gh release create --target "$GITHUB_SHA"` pour que le tag pointe
   sur le commit construit (le premier tag pointait sur `master`).
+- Revue adversariale (14 agents) après le premier build, trois défauts corrigés :
+  (1) la clé de debug était régénérée à chaque run CI → le 2ᵉ APK refusait de
+  s'installer par-dessus le 1ᵉʳ (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) ; une clé
+  de debug versionnée (`android/app/debug.keystore`) signe désormais les builds.
+  (2) `tv.js` appelait `TvShell.onReady()` dès le DOM prêt, avant Angular, ce
+  qui désarmait le garde-fou ; il n'est envoyé qu'une fois `#initial-splash`
+  retiré par `main.ts` (poll sans limite, le garde-fou Java est la limite), et
+  une `Uncaught SyntaxError` avant `onReady` affiche l'écran d'erreur aussitôt.
+  (3) le viewport injecté portait `initial-scale=1`, ce qui empêchait le WebView
+  (960 px CSS sur un Fire TV 1080p) de réduire la mise en page 1280 : le quart
+  droit était hors écran ; le viewport ne fixe plus que `width`.
 
 À relever sur le Stick (en plus de l'écran) :
 

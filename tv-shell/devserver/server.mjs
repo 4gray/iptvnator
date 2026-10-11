@@ -326,7 +326,7 @@ export function injectTvLayer(html, layoutWidth = 1280) {
     html = html.replace(/<base href="[^"]*"\s*\/?>/, '<base href="/">');
     html = html.replace(
         /<meta name="viewport"[^>]*>/,
-        `<meta name="viewport" content="width=${layoutWidth}, initial-scale=1">`
+        `<meta name="viewport" content="width=${layoutWidth}">`
     );
     html = html.replace('<script src="assets/app-config.js"', '<script src="tvshell/tv.js" defer></script>\n        <script src="assets/app-config.js"');
     return html;

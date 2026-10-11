@@ -19,6 +19,16 @@ android {
     // only the debug-signed APK is built — perfectly fine for sideloading.
     def keystorePath = System.getenv('TVSHELL_KEYSTORE_PATH')
     signingConfigs {
+        // Debug builds use the versioned debug key (conventional, not secret)
+        // instead of the auto-generated one: CI runners are ephemeral, and a
+        // different signer on every build would make Android refuse to install
+        // a new APK over the previous one.
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
         if (keystorePath != null && file(keystorePath).exists()) {
             release {
                 storeFile file(keystorePath)
