@@ -225,6 +225,14 @@ looping over `count()` with per-row `nth(index)` reads. Those reads auto-wait,
 so a row removed mid-loop hangs the predicate until the poll times out instead
 of letting it retry.
 
+Chromium drops a scroll key pressed in the frame or two after the previous
+smooth scroll lands but before Blink handles its finish, so the final
+`scrollTop` is not a safe point for the next scroll input. Electron specs press
+scroll keys through `pressScrollKey` in
+`apps/electron-backend-e2e/src/keyboard-scroll.ts`, which waits for
+`scrollend`; web specs call `waitForScrollIdle` from
+`apps/web-e2e/src/e2e-helpers.ts` before the next key.
+
 Playwright coverage is measured semantically by tags and critical journeys, not
 by a source-line percentage. E2E reports should use tags such as `@critical`,
 `@electron`, `@web`, `@xtream`, `@stalker`, `@m3u`, `@search`, `@epg`,
