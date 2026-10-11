@@ -1039,12 +1039,14 @@ act on the same child. Each launch begins its session at once, so the newest
 launch is the active session, and only the newest queued launch runs: an older
 one that comes up while a newer one waits behind it settles closed without
 reaching mpv or taking the dock. Stop on a launch still waiting in the queue
-cancels it and every launch queued before it, and stops the stored player the
-in-flight launch is working on, confirming its exit, so nothing starts playing
-after Stop. That launch settles only once its own Stop has: if the exit cannot
-be confirmed it stays a closable error, so Stop can be retried. App shutdown cancels the queue the same way. With reuse off a
-queued launch has no player of its own yet, so its Stop leaves the in-flight
-launch's detached player running, as a second detached player would beside it.
+cancels it and every launch queued before it; on the newest queued launch it
+also closes, through their own closers, the in-flight launch and the session
+owning the stored player, so their exact-child, retry and settle rules apply
+and nothing starts playing after Stop. Those targets are fixed at the first
+Stop, so a retried Stop never reaches a player started later, and a late Stop
+for an older queued launch cancels only that launch. The cancelled launch
+settles only once its own Stop has: if the exit cannot be confirmed it stays a
+closable error, so Stop can be retried. App shutdown cancels the whole queue.
 A queued launch that finds the teardown gate closed, because the launch before
 it could not confirm its child's exit, restores the session that still owns
 that child; if that is not possible, it stays a closable error so Stop can
@@ -1172,7 +1174,8 @@ External MPV/VLC integration is split across focused main-process modules:
   launches and progress polling; `mpv-reusable-process.ts` owns the tracked
   child, captured socket, remapping, retryable close, and reuse handoff;
   `mpv-ipc-command.ts` owns the bounded request/reply IPC command the reuse
-  handoff and its quit use.
+  handoff and its quit use; `mpv-launch-queue.ts` runs MPV launches one at a
+  time and owns queued-launch cancellation and Stop.
 - `apps/electron-backend/src/app/events/vlc-session.service.ts` owns fresh VLC
   launches and progress polling; `vlc-reusable-process.ts` owns the tracked
   child, RC-port remapping, retryable close, and reuse handoff, while

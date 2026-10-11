@@ -35,6 +35,12 @@ import {
 } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 import {
+    assertQueuedLaunchAllowed,
+    MpvLaunchQueue,
+    QueuedMpvLaunch,
+    settleCancelledQueuedLaunch,
+} from './mpv-launch-queue';
+import {
     MpvReusableProcess,
     MpvReuseAttemptState,
 } from './mpv-reusable-process';
@@ -196,31 +202,18 @@ export function setMpvReuseInstance(reuseInstance: boolean): void {
  * app and keeps playing after quit.
  */
 export function shutdownMpvSession(): void {
-    cancelQueuedMpvLaunches();
+    mpvLaunchQueue.cancelAll();
     reusableMpvProcess.stopStored(
         'kill reused mpv process on app shutdown',
         stopPositionPolling
     );
 }
 
-// MPV launches run one at a time. A reused launch waits for mpv's replies
-// (bounded per command) and a failed one for its teardown and fallback
-// spawn, so overlapping launches would act on the same child. Queued, each
-// launch starts from the player the previous one left behind. Its session
-// begins at once, so the newest launch is the active one Stop targets; an
-// idle queue starts the launch synchronously.
-let pendingMpvLaunch: Promise<unknown> | null = null;
-// Bumped by Stop on a queued launch and by app shutdown: every launch queued
-// before that point settles closed instead of starting afterwards.
-let queuedLaunchGeneration = 0;
-// Numbers every launch. Only the newest queued launch runs: an older one
-// that comes up while a newer one waits behind it settles closed, so it
-// never takes the dock from the newest session.
-let latestMpvLaunch = 0;
-
-function cancelQueuedMpvLaunches(): void {
-    queuedLaunchGeneration += 1;
-}
+// MPV launches run one at a time; see MpvLaunchQueue. Each launch begins its
+// session at once, so the newest launch is the active one Stop targets.
+const mpvLaunchQueue = new MpvLaunchQueue(() =>
+    reusableMpvProcess.currentSessionId()
+);
 
 export function openMpvPlayer(
     request: OpenExternalPlayerRequest
@@ -238,109 +231,9 @@ export function openMpvPlayer(
         streamUrl: request.url,
         contentInfo: request.contentInfo,
     });
-    const previous = pendingMpvLaunch;
-    const generation = queuedLaunchGeneration;
-    const launchNumber = ++latestMpvLaunch;
-    let queuedStop: Promise<void> | null = null;
-    if (previous) {
-        // Until it starts, Stop cancels every launch queued so far and stops
-        // the player the in-flight launch is working on, so nothing plays
-        // afterwards.
-        externalPlayerSessions.attachCloser(session.id, () => {
-            cancelQueuedMpvLaunches();
-            queuedStop =
-                reusableMpvProcess.stopForQueuedLaunch(stopPositionPolling);
-            return queuedStop;
-        });
-    }
-    const run = () =>
-        launchMpvPlayer(request, session, {
-            displacedSessionId,
-            queued: previous !== null,
-            cancelled: () =>
-                generation !== queuedLaunchGeneration ||
-                launchNumber !== latestMpvLaunch,
-            pendingStop: () => queuedStop,
-        });
-    // The queue is released before the caller sees the result, so a launch
-    // made right after this one settles starts synchronously again.
-    let settled: Promise<unknown> | null = null;
-    const launch = (previous ? previous.then(run) : run()).finally(() => {
-        if (pendingMpvLaunch === settled) pendingMpvLaunch = null;
-    });
-    settled = launch.catch(() => undefined);
-    pendingMpvLaunch = settled;
-    return launch;
-}
-
-interface MpvLaunchQueueState {
-    displacedSessionId: string | null;
-    /** Whether this launch waited behind another one. */
-    queued: boolean;
-    /**
-     * Whether a Stop or shutdown cancelled the queue since it was enqueued,
-     * or a newer launch is queued behind it.
-     */
-    cancelled: () => boolean;
-    /** This launch's own queued Stop, if one was requested. */
-    pendingStop: () => Promise<void> | null;
-}
-
-/**
- * Settles a queued launch that will not start. When its own Stop is still
- * tearing down the in-flight player, the outcome waits for it: a Stop that
- * cannot confirm the child's exit leaves a closable error, so Stop can be
- * retried while the teardown gate blocks further launches.
- */
-async function settleCancelledQueuedLaunch(
-    session: ExternalPlayerSession,
-    pendingStop: Promise<void> | null
-): Promise<ExternalPlayerSession> {
-    if (pendingStop) {
-        try {
-            await pendingStop;
-        } catch (error) {
-            return (
-                externalPlayerSessions.markError(
-                    session.id,
-                    error instanceof Error ? error.message : String(error),
-                    { canClose: true }
-                ) ?? session
-            );
-        }
-    }
-    return externalPlayerSessions.markClosed(session.id) ?? session;
-}
-
-/**
- * A queued launch starts after an earlier one may have left a child whose
- * exit is unconfirmed. Then the dock goes back to the session that still
- * owns that child; failing that, this session keeps its queued closer so
- * Stop can still tear the child down.
- */
-function assertQueuedLaunchAllowed(
-    session: ExternalPlayerSession,
-    displacedSessionId: string | null
-): void {
-    try {
-        externalPlayerProcessTeardownGate.assertLaunchAllowed();
-    } catch (error) {
-        const restored = displacedSessionId
-            ? externalPlayerSessions.restoreActiveSession(
-                  displacedSessionId,
-                  session.id
-              )
-            : null;
-        externalPlayerSessions.markError(
-            session.id,
-            error instanceof Error ? error.message : String(error),
-            {
-                code: readExternalPlayerErrorCode(error) ?? undefined,
-                canClose: !restored,
-            }
-        );
-        throw error;
-    }
+    return mpvLaunchQueue.enqueue(session, (queue) =>
+        launchMpvPlayer(request, session, displacedSessionId, queue)
+    );
 }
 
 async function launchMpvPlayer(
@@ -355,9 +248,9 @@ async function launchMpvPlayer(
         headers,
     }: OpenExternalPlayerRequest,
     session: ExternalPlayerSession,
-    queue: MpvLaunchQueueState
+    displacedSessionId: string | null,
+    queue: QueuedMpvLaunch
 ): Promise<ExternalPlayerSession> {
-    const { displacedSessionId } = queue;
     const current = externalPlayerSessions.getSession(session.id);
     // Stopped while it waited in the queue, directly or by a later Stop.
     if (current?.status === 'closed') return current;
@@ -365,6 +258,7 @@ async function launchMpvPlayer(
         return settleCancelledQueuedLaunch(session, queue.pendingStop());
     }
     if (queue.queued) assertQueuedLaunchAllowed(session, displacedSessionId);
+    queue.markInFlight();
     const previousProcessSessionId = reusableMpvProcess.currentSessionId();
     const reuseState: MpvReuseAttemptState = {
         teardownUnconfirmed: false,

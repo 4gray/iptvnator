@@ -127,6 +127,40 @@ function mockUnansweredSockets(): MpvSocketMock[] {
     return sockets;
 }
 
+/**
+ * Like mockUnansweredSockets, but a `quit` succeeds and the child then exits,
+ * as a real mpv does.
+ */
+function mockSocketsQuittingInto(proc: ChildProcess): MpvSocketMock[] {
+    const sockets: MpvSocketMock[] = [];
+    createConnectionMock.mockImplementation(() => {
+        const socket = createMpvSocketMock({
+            reply: (command) => {
+                if (command[0] !== 'quit') return null;
+                setImmediate(() => {
+                    Object.defineProperty(proc, 'exitCode', { value: 0 });
+                    proc.emit('exit', 0);
+                });
+                return 'success';
+            },
+        });
+        sockets.push(socket);
+        return socket;
+    });
+    return sockets;
+}
+
+function commandsOf(sockets: MpvSocketMock[]): string[] {
+    return sockets.map(
+        (socket) =>
+            (
+                JSON.parse(String(socket.write.mock.calls[0][0])) as {
+                    command: string[];
+                }
+            ).command[0]
+    );
+}
+
 async function writtenRequestId(socket: MpvSocketMock): Promise<number> {
     while (!socket?.write.mock.calls.length) {
         await nextTick();
@@ -568,7 +602,7 @@ describe('reused MPV IPC replies', () => {
 
     it('lets Stop on a queued launch cancel it and stop the in-flight player', async () => {
         const { proc } = await launchReusableSession();
-        const sockets = mockUnansweredSockets();
+        const sockets = mockSocketsQuittingInto(proc);
 
         const first = openMpvPlayer({
             title: 'Channel A',
@@ -587,11 +621,12 @@ describe('reused MPV IPC replies', () => {
             canClose: true,
         });
 
+        // Stop goes through the in-flight launch's own closer: quit, exit.
         await expect(
             externalPlayerSessions.closeSession(queuedId)
         ).resolves.toMatchObject({ id: queuedId, status: 'closed' });
-        expect(proc.kill).toHaveBeenCalledTimes(1);
-        // The killed player's socket closes before any reply.
+        expect(proc.exitCode).toBe(0);
+        // The quit player's socket closes before any reply.
         sockets[0].emit('close');
 
         await expect(first).resolves.toMatchObject({ status: 'closed' });
@@ -600,13 +635,13 @@ describe('reused MPV IPC replies', () => {
             status: 'closed',
         });
         // Nothing started playing again after Stop.
-        expect(sockets).toHaveLength(1);
+        expect(commandsOf(sockets)).toEqual(['loadfile', 'quit']);
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 
     it('lets Stop on the newest queued launch cancel every launch queued before it', async () => {
         const { proc } = await launchReusableSession();
-        const sockets = mockUnansweredSockets();
+        const sockets = mockSocketsQuittingInto(proc);
 
         const first = openMpvPlayer({
             title: 'Channel A',
@@ -631,8 +666,8 @@ describe('reused MPV IPC replies', () => {
         await expect(first).resolves.toMatchObject({ status: 'closed' });
         await expect(second).resolves.toMatchObject({ status: 'closed' });
         await expect(third).resolves.toMatchObject({ status: 'closed' });
-        expect(proc.kill).toHaveBeenCalledTimes(1);
-        expect(sockets).toHaveLength(1);
+        expect(proc.exitCode).toBe(0);
+        expect(commandsOf(sockets)).toEqual(['loadfile', 'quit']);
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 
@@ -752,15 +787,18 @@ describe('reused MPV IPC replies', () => {
                 externalPlayerSessions.getActiveSessionId() as string;
             await jest.advanceTimersByTimeAsync(0);
 
-            // The in-flight reply times out at 2 s, which releases the queue
-            // while the Stop teardown is still waiting for the exit.
+            // Stop goes through the in-flight launch's closer: its quit gets
+            // no reply, and the bounded teardown cannot confirm the exit.
             const closing = externalPlayerSessions.closeSession(queuedId);
             const closeRejection = expect(closing).rejects.toThrow(
                 'External player process did not exit'
             );
-            await jest.advanceTimersByTimeAsync(6_000);
+            const firstRejection = expect(first).rejects.toThrow(
+                'External player process did not exit'
+            );
+            await jest.advanceTimersByTimeAsync(10_000);
             await closeRejection;
-            await expect(first).resolves.toMatchObject({ status: 'closed' });
+            await firstRejection;
             await expect(queued).resolves.toMatchObject({
                 id: queuedId,
                 status: 'error',
@@ -770,7 +808,9 @@ describe('reused MPV IPC replies', () => {
             // A retried Stop reaches the still-running child again.
             const killsBeforeRetry = (proc.kill as jest.Mock).mock.calls.length;
             const retry = externalPlayerSessions.closeSession(queuedId);
-            await jest.advanceTimersByTimeAsync(0);
+            await jest.advanceTimersByTimeAsync(
+                MPV_IPC_COMMAND_TIMEOUT_MS + 100
+            );
             expect((proc.kill as jest.Mock).mock.calls.length).toBeGreaterThan(
                 killsBeforeRetry
             );
@@ -781,6 +821,168 @@ describe('reused MPV IPC replies', () => {
                 status: 'closed',
             });
             expect(spawnMock).toHaveBeenCalledTimes(1);
+        } finally {
+            if (proc.exitCode === null) {
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+            }
+        }
+    });
+
+    it('lets a late Stop for an older queued launch cancel only that launch', async () => {
+        const { proc } = await launchReusableSession();
+        const sockets = mockUnansweredSockets();
+        const answer = (socket: MpvSocketMock, id: number) =>
+            socket.emit(
+                'data',
+                Buffer.from(
+                    JSON.stringify({ request_id: id, error: 'success' }) + '\n'
+                )
+            );
+
+        const first = openMpvPlayer({
+            title: 'Channel A',
+            url: 'https://example.com/a.m3u8',
+        });
+        const firstId = await writtenRequestId(sockets[0]);
+        const older = openMpvPlayer({
+            title: 'Channel B',
+            url: 'https://example.com/b.m3u8',
+        });
+        const olderId = externalPlayerSessions.getActiveSessionId() as string;
+        const newest = openMpvPlayer({
+            title: 'Channel C',
+            url: 'https://example.com/c.m3u8',
+        });
+
+        await expect(
+            externalPlayerSessions.closeSession(olderId)
+        ).resolves.toMatchObject({ id: olderId, status: 'closed' });
+        expect(proc.kill).not.toHaveBeenCalled();
+
+        answer(sockets[0], firstId);
+        await expect(first).resolves.toMatchObject({ status: 'opened' });
+        await expect(older).resolves.toMatchObject({ status: 'closed' });
+        answer(sockets[1], await writtenRequestId(sockets[1]));
+        await expect(newest).resolves.toMatchObject({ status: 'opened' });
+        expect(commandsOf(sockets)).toEqual(['loadfile', 'loadfile']);
+        expect(proc.kill).not.toHaveBeenCalled();
+    });
+
+    it('settles a fresh launch and its queued Stop when the exit cannot be confirmed', async () => {
+        const proc = createMockChildProcess();
+        (proc.kill as jest.Mock).mockImplementation(() => {
+            Object.defineProperty(proc, 'killed', {
+                value: true,
+                configurable: true,
+            });
+            return true;
+        });
+        spawnMock.mockReturnValueOnce(proc);
+        (store.get as unknown as jest.Mock).mockImplementation(
+            (key: string, fallback?: unknown) =>
+                ({
+                    [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+                    [MPV_REUSE_INSTANCE]: true,
+                })[key] ?? fallback
+        );
+        jest.useFakeTimers();
+
+        try {
+            // The first launch spawns fresh; the second queues during its
+            // start-up confirmation window.
+            const first = openMpvPlayer({
+                title: 'Channel A',
+                url: 'https://example.com/a.m3u8',
+            });
+            const queued = openMpvPlayer({
+                title: 'Channel B',
+                url: 'https://example.com/b.m3u8',
+            });
+            const queuedId =
+                externalPlayerSessions.getActiveSessionId() as string;
+            // The Stop arrives over IPC, after the first launch spawned.
+            await jest.advanceTimersByTimeAsync(0);
+            let firstSettled = false;
+            void first.then(
+                () => (firstSettled = true),
+                () => (firstSettled = true)
+            );
+            const firstRejection = expect(first).rejects.toThrow(
+                'External player process did not exit'
+            );
+            const closeRejection = expect(
+                externalPlayerSessions.closeSession(queuedId)
+            ).rejects.toThrow('External player process did not exit');
+
+            await jest.advanceTimersByTimeAsync(6_000);
+            expect(firstSettled).toBe(true);
+            await firstRejection;
+            await closeRejection;
+            await expect(queued).resolves.toMatchObject({
+                id: queuedId,
+                status: 'error',
+                canClose: true,
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        } finally {
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+        }
+    });
+
+    it('never lets a retried queued Stop reach a player started later', async () => {
+        const { proc } = await launchReusableSession();
+        (proc.kill as jest.Mock).mockImplementation(() => true);
+        const sockets = mockUnansweredSockets();
+        jest.useFakeTimers();
+        const later = createMockChildProcess();
+
+        try {
+            const first = openMpvPlayer({
+                title: 'Channel A',
+                url: 'https://example.com/a.m3u8',
+            });
+            const queued = openMpvPlayer({
+                title: 'Channel B',
+                url: 'https://example.com/b.m3u8',
+            });
+            const queuedId =
+                externalPlayerSessions.getActiveSessionId() as string;
+            // The Stop arrives after the first launch wrote its loadfile.
+            while (!sockets[0]?.write.mock.calls.length) {
+                await jest.advanceTimersByTimeAsync(0);
+            }
+            const firstRejection = expect(first).rejects.toThrow(
+                'External player process did not exit'
+            );
+            const closeRejection = expect(
+                externalPlayerSessions.closeSession(queuedId)
+            ).rejects.toThrow('External player process did not exit');
+            await jest.advanceTimersByTimeAsync(10_000);
+            await firstRejection;
+            await closeRejection;
+            await expect(queued).resolves.toMatchObject({ status: 'error' });
+
+            // The stuck child exits on its own and a new stream starts.
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+            spawnMock.mockReturnValueOnce(later);
+            const next = openMpvPlayer({
+                title: 'Channel C',
+                url: 'https://example.com/c.m3u8',
+            });
+            await jest.advanceTimersByTimeAsync(100);
+            await expect(next).resolves.toMatchObject({ status: 'opened' });
+
+            // A retried Stop for the old queued launch stays on its own
+            // targets and leaves the new player alone.
+            const retry = externalPlayerSessions.closeSession(queuedId);
+            await jest.advanceTimersByTimeAsync(
+                MPV_IPC_COMMAND_TIMEOUT_MS + 100
+            );
+            await expect(retry).resolves.toMatchObject({ status: 'closed' });
+            expect(later.kill).not.toHaveBeenCalled();
         } finally {
             if (proc.exitCode === null) {
                 Object.defineProperty(proc, 'exitCode', { value: 0 });
