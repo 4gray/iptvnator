@@ -1058,11 +1058,13 @@ the series import was still running. The template then held 4,000 live
 channels and 4,000 movies but no series, and `system` matches only series.
 A run stops at its first failed iteration, which is why the failure always
 showed at the first launch after seeding. The wait now also requires the
-import status the app persists (`xtream-import-status:<id>:<type>`) to read
-`completed` for live, movie and series
-(`apps/electron-backend-e2e/src/xtream-import-wait.ts`);
-`xtream-import-wait.e2e.ts` holds the account check past the overlay window
-and fails without it. No J4 baseline exists yet; J4 counters join the
+catalog to be complete the way the app judges it on its next start
+(`apps/electron-backend-e2e/src/xtream-import-wait.ts`): every type's
+persisted status (`xtream-import-status:<id>:<type>`) reads `completed` and
+the type has rows, unless the portal has no categories of that type. Rows
+are required because a refresh deletes the catalog without resetting the
+status. `xtream-import-wait.e2e.ts` holds the account check past the overlay
+window and fails without it. No J4 baseline exists yet; J4 counters join the
 ratchet once three runner runs agree.
 
 ## `renderer.initialBytes`
