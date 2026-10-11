@@ -44,7 +44,11 @@ import {
 import { externalPlayerSessions } from './external-player-runtime';
 import { MPV_IPC_COMMAND_TIMEOUT_MS } from './mpv-ipc-command';
 import { MpvSocketMock } from './mpv-ipc-socket.test-helpers';
-import { openMpvPlayer, shutdownMpvSession } from './mpv-session.service';
+import {
+    openMpvPlayer,
+    setMpvReuseInstance,
+    shutdownMpvSession,
+} from './mpv-session.service';
 import {
     spawnMock,
     createMockChildProcess,
@@ -703,6 +707,59 @@ describe('MPV launch queue', () => {
             );
             await jest.advanceTimersByTimeAsync(10);
 
+            const closeRejection = expect(
+                externalPlayerSessions.closeSession(queuedId)
+            ).rejects.toThrow('External player process did not exit');
+            await jest.advanceTimersByTimeAsync(10_000);
+            await closeRejection;
+            await firstRejection;
+            await expect(queued).resolves.toMatchObject({
+                id: queuedId,
+                status: 'error',
+                canClose: true,
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        } finally {
+            errorSpy.mockRestore();
+            if (proc.exitCode === null) {
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+            }
+        }
+    });
+
+    it('keeps a queued Stop working when reuse is disabled before the in-flight load', async () => {
+        const { proc } = await launchReusableSession();
+        (proc.kill as jest.Mock).mockImplementation(() => true);
+        const sockets = mockUnansweredSockets();
+        const errorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        jest.useFakeTimers();
+
+        try {
+            // The first launch still waits on its user-agent reply, so the
+            // child still belongs to the session before it.
+            const first = openMpvPlayer({
+                title: 'Channel A',
+                url: 'https://example.com/a.m3u8',
+                userAgent: 'IPTVnator test agent',
+            });
+            const firstRejection = expect(first).rejects.toThrow(
+                'External player process did not exit'
+            );
+            while (!sockets[0]?.write.mock.calls.length) {
+                await jest.advanceTimersByTimeAsync(0);
+            }
+            const queued = openMpvPlayer({
+                title: 'Channel B',
+                url: 'https://example.com/b.m3u8',
+            });
+            const queuedId =
+                externalPlayerSessions.getActiveSessionId() as string;
+
+            // Disabling reuse clears the stored child before it has exited.
+            setMpvReuseInstance(false);
             const closeRejection = expect(
                 externalPlayerSessions.closeSession(queuedId)
             ).rejects.toThrow('External player process did not exit');

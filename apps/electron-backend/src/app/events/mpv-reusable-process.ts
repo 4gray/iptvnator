@@ -166,13 +166,14 @@ export class MpvReusableProcess {
         let retryableClose: Promise<void> | null = null;
         let launchClose: Promise<void> | null = null;
 
-        // While this attempt tears down its own failed child, the child is
-        // handed back to its previous owner (so an exit settles that session)
-        // but Stop on this attempt must still reach it: that owner may be
-        // closed already, and this session can be the only working closer.
-        let tearingDownFailedChild = false;
+        // Launches run one at a time, so nothing else acts on this child while
+        // this attempt is in flight: its Stop always reaches the child then,
+        // whoever the per-child mapping names (the previous owner before
+        // loadfile or during a failed attempt's teardown, possibly closed
+        // already). Once the attempt settles, ownership decides as before.
+        let attemptInFlight = true;
         const ownsReusedProcess = () =>
-            tearingDownFailedChild ||
+            attemptInFlight ||
             this.processSessionIds.get(reusedProcess) === session.id ||
             externalPlayerSessions.getActiveSessionId() === session.id;
         const closeReusedProcess = async () => {
@@ -276,7 +277,6 @@ export class MpvReusableProcess {
                 redactSensitiveData(error)
             );
 
-            tearingDownFailedChild = true;
             if (state.contentMutated) {
                 if (reusedProcessSessionId) {
                     this.processSessionIds.set(
@@ -305,6 +305,8 @@ export class MpvReusableProcess {
             // while the teardown above waited for the child to exit.
             if (cancelled()) return await settleCancelled();
             return null;
+        } finally {
+            attemptInFlight = false;
         }
     }
 
