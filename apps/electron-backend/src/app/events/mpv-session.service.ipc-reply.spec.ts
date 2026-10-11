@@ -693,6 +693,102 @@ describe('reused MPV IPC replies', () => {
         }
     });
 
+    it('runs only the newest queued launch once the in-flight one settles', async () => {
+        await launchReusableSession();
+        const sockets = mockUnansweredSockets();
+        const answer = (socket: MpvSocketMock, id: number) =>
+            socket.emit(
+                'data',
+                Buffer.from(
+                    JSON.stringify({ request_id: id, error: 'success' }) + '\n'
+                )
+            );
+
+        const first = openMpvPlayer({
+            title: 'Channel A',
+            url: 'https://example.com/a.m3u8',
+        });
+        const firstId = await writtenRequestId(sockets[0]);
+        const skipped = openMpvPlayer({
+            title: 'Channel B',
+            url: 'https://example.com/b.m3u8',
+        });
+        const newest = openMpvPlayer({
+            title: 'Channel C',
+            url: 'https://example.com/c.m3u8',
+        });
+        const newestId = externalPlayerSessions.getActiveSessionId();
+
+        answer(sockets[0], firstId);
+        await expect(first).resolves.toMatchObject({ status: 'opened' });
+        // The skipped launch never reached mpv nor took the dock.
+        await expect(skipped).resolves.toMatchObject({ status: 'closed' });
+        expect(externalPlayerSessions.getActiveSessionId()).toBe(newestId);
+        answer(sockets[1], await writtenRequestId(sockets[1]));
+        await expect(newest).resolves.toMatchObject({
+            id: newestId,
+            status: 'opened',
+        });
+        expect(sockets).toHaveLength(2);
+        expect(spawnMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a queued launch stoppable when its Stop cannot confirm the exit', async () => {
+        const { proc } = await launchReusableSession();
+        (proc.kill as jest.Mock).mockImplementation(() => true);
+        mockUnansweredSockets();
+        jest.useFakeTimers();
+
+        try {
+            const first = openMpvPlayer({
+                title: 'Channel A',
+                url: 'https://example.com/a.m3u8',
+            });
+            const queued = openMpvPlayer({
+                title: 'Channel B',
+                url: 'https://example.com/b.m3u8',
+            });
+            const queuedId =
+                externalPlayerSessions.getActiveSessionId() as string;
+            await jest.advanceTimersByTimeAsync(0);
+
+            // The in-flight reply times out at 2 s, which releases the queue
+            // while the Stop teardown is still waiting for the exit.
+            const closing = externalPlayerSessions.closeSession(queuedId);
+            const closeRejection = expect(closing).rejects.toThrow(
+                'External player process did not exit'
+            );
+            await jest.advanceTimersByTimeAsync(6_000);
+            await closeRejection;
+            await expect(first).resolves.toMatchObject({ status: 'closed' });
+            await expect(queued).resolves.toMatchObject({
+                id: queuedId,
+                status: 'error',
+                canClose: true,
+            });
+
+            // A retried Stop reaches the still-running child again.
+            const killsBeforeRetry = (proc.kill as jest.Mock).mock.calls.length;
+            const retry = externalPlayerSessions.closeSession(queuedId);
+            await jest.advanceTimersByTimeAsync(0);
+            expect((proc.kill as jest.Mock).mock.calls.length).toBeGreaterThan(
+                killsBeforeRetry
+            );
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+            await expect(retry).resolves.toMatchObject({
+                id: queuedId,
+                status: 'closed',
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        } finally {
+            if (proc.exitCode === null) {
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+            }
+        }
+    });
+
     it('starts a queued launch on the fresh player a failed launch spawned', async () => {
         const { proc } = await launchReusableSession();
         const freshProc = createMockChildProcess();

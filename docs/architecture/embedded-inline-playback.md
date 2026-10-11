@@ -1036,10 +1036,13 @@ failed one for its teardown and fallback spawn, so a launch that arrives
 meanwhile, such as a quick channel switch, starts only once the previous one
 has settled and acts on the player that one left behind; two launches never
 act on the same child. Each launch begins its session at once, so the newest
-launch is the active session; Stop on a launch still waiting in the queue
+launch is the active session, and only the newest queued launch runs: an older
+one that comes up while a newer one waits behind it settles closed without
+reaching mpv or taking the dock. Stop on a launch still waiting in the queue
 cancels it and every launch queued before it, and stops the stored player the
 in-flight launch is working on, confirming its exit, so nothing starts playing
-after Stop. App shutdown cancels the queue the same way. With reuse off a
+after Stop. That launch settles only once its own Stop has: if the exit cannot
+be confirmed it stays a closable error, so Stop can be retried. App shutdown cancels the queue the same way. With reuse off a
 queued launch has no player of its own yet, so its Stop leaves the in-flight
 launch's detached player running, as a second detached player would beside it.
 A queued launch that finds the teardown gate closed, because the launch before
