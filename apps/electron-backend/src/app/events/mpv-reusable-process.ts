@@ -98,6 +98,10 @@ export class MpvReusableProcess {
         stopPositionPolling: () => void,
         guardFutureLaunches = false
     ): void {
+        // A launch still waiting for mpv's reply must not fall back to a
+        // fresh, again-reusable player once reuse is disabled or the app
+        // quits: supersede it so it settles its own session instead.
+        this.reuseAttempt += 1;
         const process = this.process;
         if (!process || process.killed) return;
         traceExternalPlayer(reason);

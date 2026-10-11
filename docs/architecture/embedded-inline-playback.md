@@ -1038,7 +1038,9 @@ tears down or falls back over the child the newer one is loading into, ignores
 a Stop for its own session that arrives while it is still in flight even if
 the child is still mapped to it, and settles its own session as closed. A
 settled attempt's Stop follows ownership again, so a reused session restored
-after a newer attempt failed keeps a working closer. No `seek` follows
+after a newer attempt failed keeps a working closer. Stopping the stored
+player, when reuse is disabled or the app quits, supersedes any in-flight
+attempt the same way, so it cannot fall back to a fresh reusable player. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused

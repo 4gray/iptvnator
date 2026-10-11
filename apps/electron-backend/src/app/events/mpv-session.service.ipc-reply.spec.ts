@@ -54,7 +54,11 @@ import {
     MpvSocketMock,
     MpvSocketMockOptions,
 } from './mpv-ipc-socket.test-helpers';
-import { openMpvPlayer, shutdownMpvSession } from './mpv-session.service';
+import {
+    openMpvPlayer,
+    setMpvReuseInstance,
+    shutdownMpvSession,
+} from './mpv-session.service';
 
 const spawnMock = spawn as unknown as jest.Mock;
 const createConnectionMock = createConnection as unknown as jest.Mock;
@@ -737,6 +741,38 @@ describe('reused MPV IPC replies', () => {
             }
         }
     });
+
+    it.each([
+        ['reuse is disabled', () => setMpvReuseInstance(false)],
+        ['the app shuts down', () => shutdownMpvSession()],
+    ])(
+        'does not fall back to a fresh player when %s during the reply wait',
+        async (_label, stopStored) => {
+            const { proc } = await launchReusableSession();
+            // The kill is sent but its exit is reported only later, after
+            // the socket close already rejected the pending loadfile.
+            (proc.kill as jest.Mock).mockImplementation(() => true);
+            const sockets = mockUnansweredSockets();
+
+            const opening = openMpvPlayer({
+                title: 'Channel B',
+                url: 'https://example.com/b.m3u8',
+            });
+            await writtenRequestId(sockets[0]);
+
+            stopStored();
+            sockets[0].emit('close');
+            await nextTick();
+            await nextTick();
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+
+            await expect(opening).resolves.toMatchObject({
+                status: 'closed',
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it('keeps the errored session when the child crashes during the reply wait', async () => {
         const { proc, session: previous } = await launchReusableSession();
