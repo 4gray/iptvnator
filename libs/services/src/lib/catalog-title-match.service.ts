@@ -150,10 +150,6 @@ export class CatalogTitleMatchService {
             start < unique.length;
             start += TITLE_MATCH_REQUEST_SIZE
         ) {
-            // The lock can close while earlier requests run.
-            if (this.parentalLock.withholdsEverything()) {
-                return [];
-            }
             try {
                 matches.push(
                     ...(await window.electron.dbMatchTitles(
@@ -164,6 +160,10 @@ export class CatalogTitleMatchService {
                 // All or nothing, as with one request: callers treat an
                 // empty answer as a failed lookup they may run again.
                 console.warn('Cross-playlist title matching failed:', error);
+                return [];
+            }
+            // The lock can close while a request runs, the last one too.
+            if (this.parentalLock.withholdsEverything()) {
                 return [];
             }
         }

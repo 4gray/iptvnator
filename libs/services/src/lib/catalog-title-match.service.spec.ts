@@ -350,18 +350,29 @@ describe('CatalogTitleMatchService requests', () => {
         warn.mockRestore();
     });
 
-    it('stops when the parental lock starts withholding everything midway', async () => {
-        const withholds = signal(false);
-        const dbMatchTitles = jest.fn(async (batch: string[]) => {
-            withholds.set(true);
-            return batch.map(match);
-        });
-        const service = setUp(dbMatchTitles, withholds);
+    it.each([
+        ['the first', 1],
+        ['the last', 3],
+    ])(
+        'answers nothing when the parental lock starts withholding everything during %s request',
+        async (_label, closingRequest) => {
+            const withholds = signal(false);
+            let requests = 0;
+            const dbMatchTitles = jest.fn(async (batch: string[]) => {
+                requests++;
+                if (requests === closingRequest) {
+                    withholds.set(true);
+                }
+                return batch.map(match);
+            });
+            const service = setUp(dbMatchTitles, withholds);
 
-        await expect(
-            service.matchTitles(titles(TITLE_MATCH_REQUEST_SIZE * 3))
-        ).resolves.toEqual([]);
+            await expect(
+                service.matchTitles(titles(TITLE_MATCH_REQUEST_SIZE * 3))
+            ).resolves.toEqual([]);
 
-        expect(dbMatchTitles).toHaveBeenCalledTimes(1);
-    });
+            // No request after the lock closed.
+            expect(dbMatchTitles).toHaveBeenCalledTimes(closingRequest);
+        }
+    );
 });
