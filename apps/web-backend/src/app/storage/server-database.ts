@@ -8,6 +8,10 @@ import {
     initDatabase,
     type DatabaseInstance,
 } from '@iptvnator/shared/database';
+import {
+    SERVER_PLAYLIST_META_BACKFILL_SQL,
+    SERVER_PLAYLIST_META_TABLE_SQL,
+} from './server-playlist-meta.table';
 import { SERVER_USER_STATE_TABLE_SQL } from './server-user-state.table';
 
 const INSTANCE_ID_KEY = 'server:instance-id';
@@ -24,12 +28,14 @@ export interface ServerDatabase {
 
 /**
  * Opens the shared IPTVnator database (full schema and migrations, the
- * same as the desktop app) and adds the server-only table. The path comes
+ * same as the desktop app) and adds the server-only tables. The path comes
  * from `IPTVNATOR_DATA_DIR`.
  */
 export async function openServerDatabase(): Promise<ServerDatabase> {
     const db = await initDatabase();
     db.run(sql.raw(SERVER_USER_STATE_TABLE_SQL));
+    db.run(sql.raw(SERVER_PLAYLIST_META_TABLE_SQL));
+    db.run(sql.raw(SERVER_PLAYLIST_META_BACKFILL_SQL));
     const path = getDatabasePath();
 
     return {

@@ -1,4 +1,4 @@
-import { eq, getTableColumns, sql } from 'drizzle-orm';
+import { eq, getTableColumns } from 'drizzle-orm';
 import type { DatabaseInstance } from '@iptvnator/shared/database';
 import {
     buildPlaylistRow,
@@ -11,6 +11,10 @@ import type {
     Playlist as PlaylistRow,
 } from '@iptvnator/shared/database/schema';
 import { SERVER_PAYLOAD_FIELDS } from '@iptvnator/shared/interfaces';
+import {
+    metadataDocument,
+    serverPlaylistMeta,
+} from './server-playlist-meta.table';
 
 export type PlaylistDocument = Record<string, unknown>;
 
@@ -77,17 +81,6 @@ function clearedColumns(row: NewPlaylist): Partial<NewPlaylist> {
     return cleared as Partial<NewPlaylist>;
 }
 
-/**
- * The stored document without its M3U payload fields, so metadata reads
- * keep fields that live only in the JSON (filename, hidden groups, Stalker
- * identity) and a metadata round-trip with keepPayload loses nothing.
- */
-const metadataPayload = sql<string | null>`CASE
-    WHEN json_valid(${playlists.payload})
-    THEN json_remove(${playlists.payload}, '$.playlist', '$.items', '$.header')
-    ELSE NULL
-END`;
-
 /** Playlist documents in the shared `playlists` table, same rows as desktop. */
 export class ServerPlaylistRepository {
     constructor(private readonly db: DatabaseInstance) {}
@@ -97,10 +90,20 @@ export class ServerPlaylistRepository {
             .length;
     }
 
+    /**
+     * Columns plus the payload-free copy of each document, so metadata
+     * reads keep fields that live only in the JSON (filename, hidden
+     * groups, Stalker identity) and a metadata round-trip with keepPayload
+     * loses nothing, without reading a payload blob.
+     */
     listMetas(): PlaylistDocument[] {
         return this.db
-            .select({ ...metaColumns, payload: metadataPayload })
+            .select({ ...metaColumns, payload: serverPlaylistMeta.document })
             .from(playlists)
+            .leftJoin(
+                serverPlaylistMeta,
+                eq(serverPlaylistMeta.playlistId, playlists.id)
+            )
             .all()
             .map((row) => parseAppPlaylist(row as PlaylistRow));
     }
@@ -142,25 +145,42 @@ export class ServerPlaylistRepository {
             throw new InvalidPlaylistDocumentError();
         }
 
-        this.db
-            .insert(playlists)
-            .values(row)
-            .onConflictDoUpdate({
-                target: playlists.id,
-                set: {
-                    ...playlistConflictUpdate(row, next),
-                    ...clearedColumns(row),
-                },
-            })
-            .run();
+        const metadata = metadataDocument(next);
+        this.db.transaction((tx) => {
+            tx.insert(playlists)
+                .values(row)
+                .onConflictDoUpdate({
+                    target: playlists.id,
+                    set: {
+                        ...playlistConflictUpdate(row, next),
+                        ...clearedColumns(row),
+                    },
+                })
+                .run();
+            tx.insert(serverPlaylistMeta)
+                .values({ playlistId: row.id, document: metadata })
+                .onConflictDoUpdate({
+                    target: serverPlaylistMeta.playlistId,
+                    set: { document: metadata },
+                })
+                .run();
+        });
     }
 
     delete(playlistId: string): void {
-        this.db.delete(playlists).where(eq(playlists.id, playlistId)).run();
+        this.db.transaction((tx) => {
+            tx.delete(playlists).where(eq(playlists.id, playlistId)).run();
+            tx.delete(serverPlaylistMeta)
+                .where(eq(serverPlaylistMeta.playlistId, playlistId))
+                .run();
+        });
     }
 
     deleteAll(): void {
-        this.db.delete(playlists).run();
+        this.db.transaction((tx) => {
+            tx.delete(playlists).run();
+            tx.delete(serverPlaylistMeta).run();
+        });
     }
 
     getAppState(key: string): string | null {

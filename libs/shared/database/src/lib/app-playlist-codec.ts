@@ -53,7 +53,12 @@ export function parseJsonValue<T>(
     try {
         return JSON.parse(value) as T;
     } catch (error) {
-        console.warn('Failed to parse JSON value from DB:', error);
+        // The parser's message quotes the stored text, which can hold
+        // portal credentials; the error name is enough to diagnose.
+        console.warn(
+            'Failed to parse JSON value from DB:',
+            error instanceof Error ? error.name : typeof error
+        );
         return fallback;
     }
 }

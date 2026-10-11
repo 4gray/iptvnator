@@ -1,9 +1,11 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { sql } from 'drizzle-orm';
 import { IPTVNATOR_DATA_DIR_ENV } from '@iptvnator/shared/database';
 import { openServerDatabase } from './server-database';
 import { ServerPlaylistRepository } from './server-playlist-repository';
+import { m3uDocument } from './server-storage.spec-helpers';
 
 describe('openServerDatabase', () => {
     let dataDir: string;
@@ -59,5 +61,33 @@ describe('openServerDatabase', () => {
         ).toThrow('fail after the first write');
         expect(playlists.getAppState('a')).toBeNull();
         database.close();
+    });
+
+    it('adds metadata for playlists written without it', async () => {
+        const first = await openServerDatabase();
+        new ServerPlaylistRepository(first.db).upsert(
+            { ...m3uDocument('p1'), filename: 'family.m3u' },
+            { keepPayload: false }
+        );
+        new ServerPlaylistRepository(first.db).upsert(m3uDocument('p2'), {
+            keepPayload: false,
+        });
+        // As in a database the desktop app wrote: rows, no server copy.
+        first.db.run(sql`DELETE FROM server_playlist_meta`);
+        first.db.run(
+            sql`UPDATE playlists SET payload = 'not json' WHERE id = 'p2'`
+        );
+        first.close();
+
+        const second = await openServerDatabase();
+        const metas = new ServerPlaylistRepository(second.db).listMetas();
+        expect(metas).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ _id: 'p1', filename: 'family.m3u' }),
+                expect.objectContaining({ _id: 'p2', title: 'Family' }),
+            ])
+        );
+        expect(metas[0]['playlist']).toBeUndefined();
+        second.close();
     });
 });

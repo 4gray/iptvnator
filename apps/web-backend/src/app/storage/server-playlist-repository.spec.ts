@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { PlaylistPayloadMissingError } from './server-playlist-repository';
 import { m3uDocument, withTempStorage } from './server-storage.spec-helpers';
 
@@ -82,6 +83,40 @@ describe('ServerPlaylistRepository', () => {
                 stalkerSerialNumber: 'SN-1',
                 playlist: m3uDocument('p1').playlist,
             });
+        }));
+
+    it('serves complete metadata without reading the payload', () =>
+        withTempStorage(({ database, playlists }) => {
+            playlists.upsert(
+                {
+                    ...m3uDocument('p1'),
+                    filename: 'family.m3u',
+                    hiddenGroupTitles: ['Adult'],
+                },
+                { keepPayload: false }
+            );
+            // A metadata read must not depend on the payload blob at all.
+            database.db.run(
+                sql`UPDATE playlists SET payload = 'not json' WHERE id = 'p1'`
+            );
+
+            expect(playlists.listMetas()[0]).toMatchObject({
+                _id: 'p1',
+                title: 'Family',
+                filename: 'family.m3u',
+                hiddenGroupTitles: ['Adult'],
+            });
+        }));
+
+    it('drops the metadata copy with its playlist', () =>
+        withTempStorage(({ playlists }) => {
+            playlists.upsert(m3uDocument('p1'), { keepPayload: false });
+            playlists.upsert(m3uDocument('p2'), { keepPayload: false });
+
+            playlists.delete('p1');
+            expect(playlists.listMetas().map((p) => p['_id'])).toEqual(['p2']);
+            playlists.deleteAll();
+            expect(playlists.listMetas()).toEqual([]);
         }));
 
     it('clears optional columns that a replacement leaves empty', () =>

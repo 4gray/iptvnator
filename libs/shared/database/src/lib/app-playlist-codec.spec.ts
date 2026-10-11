@@ -108,4 +108,29 @@ describe('app playlist codec', () => {
     it('refuses a document without an id', () => {
         expect(buildPlaylistRow({ title: 'No id' })).toBeNull();
     });
+
+    it('never logs the content of a malformed stored value', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+            /* silenced */
+        });
+        try {
+            const row = rowOf(m3uDocument);
+            parseAppPlaylist(
+                storedRow(row, '{"title":"x","password":hunter2-secret}')
+            );
+
+            const logged = warn.mock.calls
+                .flat()
+                .map((arg) =>
+                    arg instanceof Error
+                        ? `${arg.name}: ${arg.message} ${arg.stack}`
+                        : String(arg)
+                )
+                .join(' ');
+            expect(warn).toHaveBeenCalled();
+            expect(logged).not.toContain('hunter2');
+        } finally {
+            warn.mockRestore();
+        }
+    });
 });

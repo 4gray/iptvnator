@@ -93,7 +93,10 @@ Server storage lives in `apps/web-backend/src/app/storage/`. With
 `IPTVNATOR_STORAGE=server`, `main.ts` opens the shared database through
 `initDatabase()` (path from `IPTVNATOR_DATA_DIR`), so the server has the same
 schema and migrations as the desktop app and writes playlists with the
-shared row codec. `server_user_state` is its only server-only table. ETags
+shared row codec. It adds two server-only tables: `server_user_state` for
+Xtream user data, and `server_playlist_meta`, a copy of each document
+without its M3U payload fields that metadata reads use instead of walking
+the payload blobs (filled once on open for rows written without it). ETags
 come from an in-memory revision counter; the server is the only writer of
 its database. Storage errors are logged by error name and code only, because
 Drizzle messages can carry bound values such as portal credentials. With
