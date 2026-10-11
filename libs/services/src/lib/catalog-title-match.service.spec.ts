@@ -3,6 +3,9 @@ import { TestBed } from '@angular/core/testing';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 import {
     CatalogTitleMatchService,
+    TITLE_MATCH_LOCK_ATTEMPTS,
+    TITLE_MATCH_REQUEST_SIZE,
+    TITLE_MATCH_TITLE_LIMIT,
     groupTitleMatchesByKey,
     pickTitleMatch,
 } from './catalog-title-match.service';
@@ -207,7 +210,10 @@ describe('CatalogTitleMatchService parental lock', () => {
                 providers: [
                     {
                         provide: ParentalLockService,
-                        useValue: { withholdsEverything: signal(withholds) },
+                        useValue: {
+                            withholdsEverything: signal(withholds),
+                            version: signal(0),
+                        },
                     },
                 ],
             });
@@ -251,5 +257,166 @@ describe('CatalogTitleMatchService parental lock', () => {
         // The film's category is locked: its category type is 'movies'.
         locked.set(new Set(['pl-1:movies:7']));
         expect(visible()).toEqual([show]);
+    });
+});
+
+describe('CatalogTitleMatchService requests', () => {
+    const match = (queryTitle: string) => ({
+        queryTitle,
+        playlistId: 'pl-1',
+        playlistName: 'Portal',
+        categoryId: 7,
+        xtreamId: 1,
+        type: 'movie' as const,
+        trailingYear: null,
+    });
+    const titles = (count: number) =>
+        Array.from({ length: count }, (_, index) => `Title ${index}`);
+
+    function setUp(
+        dbMatchTitles: jest.Mock,
+        withholdsEverything = signal(false),
+        version = signal(0)
+    ) {
+        (window as { electron?: unknown }).electron = { dbMatchTitles };
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: ParentalLockService,
+                    useValue: { withholdsEverything, version },
+                },
+            ],
+        });
+        return TestBed.inject(CatalogTitleMatchService);
+    }
+
+    afterEach(() => {
+        delete (window as { electron?: unknown }).electron;
+    });
+
+    it('asks in small requests, one after another, and keeps the result order', async () => {
+        let inFlight = 0;
+        let maxInFlight = 0;
+        const dbMatchTitles = jest.fn(async (batch: string[]) => {
+            inFlight++;
+            maxInFlight = Math.max(maxInFlight, inFlight);
+            await Promise.resolve();
+            inFlight--;
+            return batch.map(match);
+        });
+        const service = setUp(dbMatchTitles);
+
+        const count = TITLE_MATCH_REQUEST_SIZE * 2 + 3;
+        const result = await service.matchTitles(titles(count));
+
+        expect(dbMatchTitles.mock.calls.map(([batch]) => batch.length)).toEqual(
+            [TITLE_MATCH_REQUEST_SIZE, TITLE_MATCH_REQUEST_SIZE, 3]
+        );
+        expect(maxInFlight).toBe(1);
+        expect(result.map(({ queryTitle }) => queryTitle)).toEqual(
+            titles(count)
+        );
+    });
+
+    it('drops duplicates and blanks and keeps the overall title cap', async () => {
+        const dbMatchTitles = jest.fn(async (batch: string[]) =>
+            batch.map(match)
+        );
+        const service = setUp(dbMatchTitles);
+
+        await service.matchTitles([
+            'Dune',
+            ' ',
+            'Dune',
+            ...titles(TITLE_MATCH_TITLE_LIMIT + 5),
+        ]);
+
+        const sent = dbMatchTitles.mock.calls.flatMap(([batch]) => batch);
+        expect(sent).toHaveLength(TITLE_MATCH_TITLE_LIMIT);
+        expect(sent[0]).toBe('Dune');
+        expect(new Set(sent).size).toBe(sent.length);
+    });
+
+    it('answers nothing when one request fails, and stops asking', async () => {
+        const warn = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        const dbMatchTitles = jest
+            .fn()
+            .mockImplementationOnce(async (batch: string[]) => batch.map(match))
+            .mockRejectedValueOnce(new Error('worker gone'));
+        const service = setUp(dbMatchTitles);
+
+        await expect(
+            service.matchTitles(titles(TITLE_MATCH_REQUEST_SIZE * 3))
+        ).resolves.toEqual([]);
+
+        expect(dbMatchTitles).toHaveBeenCalledTimes(2);
+        warn.mockRestore();
+    });
+
+    it.each([
+        ['the first', 1],
+        ['the last', 3],
+    ])(
+        'answers nothing when the parental lock starts withholding everything during %s request',
+        async (_label, closingRequest) => {
+            const withholds = signal(false);
+            let requests = 0;
+            const dbMatchTitles = jest.fn(async (batch: string[]) => {
+                requests++;
+                if (requests === closingRequest) {
+                    withholds.set(true);
+                }
+                return batch.map(match);
+            });
+            const service = setUp(dbMatchTitles, withholds);
+
+            await expect(
+                service.matchTitles(titles(TITLE_MATCH_REQUEST_SIZE * 3))
+            ).resolves.toEqual([]);
+
+            // No request after the lock closed.
+            expect(dbMatchTitles).toHaveBeenCalledTimes(closingRequest);
+        }
+    );
+
+    it('starts over when the lock state changes between requests', async () => {
+        const version = signal(0);
+        let requests = 0;
+        const dbMatchTitles = jest.fn(async (batch: string[]) => {
+            requests++;
+            if (requests === 2) {
+                // Relocked while the second request ran: the first
+                // answer was filtered under the old state.
+                version.set(1);
+            }
+            return batch.map(match);
+        });
+        const service = setUp(dbMatchTitles, signal(false), version);
+        const count = TITLE_MATCH_REQUEST_SIZE * 3;
+
+        const result = await service.matchTitles(titles(count));
+
+        // Two requests under the old state, then all three again.
+        expect(dbMatchTitles).toHaveBeenCalledTimes(5);
+        expect(result.map(({ queryTitle }) => queryTitle)).toEqual(
+            titles(count)
+        );
+    });
+
+    it('answers nothing when the lock state keeps changing', async () => {
+        const version = signal(0);
+        const dbMatchTitles = jest.fn(async (batch: string[]) => {
+            version.update((value) => value + 1);
+            return batch.map(match);
+        });
+        const service = setUp(dbMatchTitles, signal(false), version);
+
+        await expect(
+            service.matchTitles(titles(TITLE_MATCH_REQUEST_SIZE * 3))
+        ).resolves.toEqual([]);
+
+        expect(dbMatchTitles).toHaveBeenCalledTimes(TITLE_MATCH_LOCK_ATTEMPTS);
     });
 });
