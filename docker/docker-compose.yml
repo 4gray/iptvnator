@@ -13,9 +13,19 @@ services:
       CLIENT_URL: http://localhost:4333
       PORT: "3000"
       IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: "0"
+      # Playlists and watch data live on the server for every device.
+      # Set to "none" to keep data only in each browser.
+      IPTVNATOR_STORAGE: server
+      # Uncomment to require a shared token before anyone can use this server.
+      # IPTVNATOR_ACCESS_TOKEN: change-me
+    volumes:
+      - iptvnator-data:/data
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/health >/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+volumes:
+  iptvnator-data: {}
