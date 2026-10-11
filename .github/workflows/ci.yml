@@ -418,6 +418,11 @@ jobs:
             - name: Validate Material icon names
               run: pnpm run styles:icon-ligatures:validate
 
+            # A var() read nothing declares always falls back, and a
+            # prefers-color-scheme query follows the OS, not the app theme.
+            - name: Validate theme references
+              run: pnpm run styles:theme-references:validate
+
             # A tooltip is not an accessible name: an icon-only <button> needs
             # aria-label, an aria-label binding or aria-labelledby.
             - name: Validate icon-only button names

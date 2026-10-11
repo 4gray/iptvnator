@@ -1,6 +1,6 @@
 @use '../../../../styles/focus-ring';
 
-$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+$font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
 // The popover is height-capped by its overlay to the space beside the anchor,
 // so everything from the host down must let the list — and only the list —

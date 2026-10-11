@@ -88,6 +88,20 @@ tokens, so the retired `--mdc-*` names compile but do nothing;
 a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
 token directly and says why.
 
+The app theme is the `.dark-theme` class that `SettingsService` puts on
+`<body>`; a "System" choice resolves the OS preference there and nowhere
+else. Component styles never use a `prefers-color-scheme` query, which
+follows the OS: with the app set to dark on a light OS it paints light colours
+into the dark theme. Read `--app-*` tokens, which switch with the class, or
+use `:host-context(.dark-theme)` for a rule that only one theme needs. The
+class is on `<body>`, not the root, so `:root:not(.dark-theme)` always
+matches. On a surface, a hairline or thin fill written as white `rgba()`
+vanishes on light backgrounds: mix `--app-on-surface` at the same alpha, and
+use `--app-widget-bg` for a card. Every `var(--name)` read needs a
+declaration somewhere, or it silently falls back;
+`pnpm run styles:theme-references:validate` (CI) rejects both undeclared
+reads and colour-scheme queries.
+
 Existing hard-coded layout and selection colors are migration debt, not
 patterns to copy.
 

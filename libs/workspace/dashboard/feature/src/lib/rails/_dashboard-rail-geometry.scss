@@ -71,7 +71,7 @@ $channel-progress-line-height: 1.3;
 
 /// Live channel cards: wider and much shorter than a poster.
 @mixin channel-track-tokens {
-    --rail-card-width: var(--channel-rail-width, 280px);
+    --rail-card-width: 280px;
     --rail-gap: 10px;
 }
 

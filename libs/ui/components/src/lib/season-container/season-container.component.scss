@@ -9,22 +9,13 @@
     width: min(100%, 520px);
     margin: 0 auto;
     padding: 32px 28px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    // The theme's panel surface (white in light, raised slate in dark) and
+    // on-surface hairlines, so the panel shows in both themes; white tints
+    // vanished on the light content background.
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 8%, transparent);
     border-radius: 16px;
-    background:
-        linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.06),
-            rgba(255, 255, 255, 0.03)
-        ),
-        radial-gradient(
-            circle at top,
-            rgba(255, 255, 255, 0.06),
-            transparent 60%
-        );
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        0 18px 40px rgba(0, 0, 0, 0.22);
+    background: var(--app-widget-bg);
+    box-shadow: var(--app-widget-shadow);
     text-align: center;
 
     &__icon {
@@ -33,9 +24,10 @@
         width: 64px;
         height: 64px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: rgba(255, 255, 255, 0.52);
+        background: color-mix(in srgb, var(--app-on-surface) 5%, transparent);
+        border: 1px solid
+            color-mix(in srgb, var(--app-on-surface) 8%, transparent);
+        color: color-mix(in srgb, var(--app-on-surface) 52%, transparent);
 
         mat-icon {
             font-size: 30px;
@@ -61,18 +53,11 @@
     }
 
     &--season {
-        border-color: rgba(255, 255, 255, 0.1);
-        background:
-            linear-gradient(
-                180deg,
-                rgba(255, 255, 255, 0.07),
-                rgba(255, 255, 255, 0.04)
-            ),
-            radial-gradient(
-                circle at top,
-                rgba(255, 255, 255, 0.08),
-                transparent 65%
-            );
+        border-color: color-mix(
+            in srgb,
+            var(--app-on-surface) 10%,
+            transparent
+        );
     }
 }
 

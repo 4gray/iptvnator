@@ -95,7 +95,7 @@
     max-width: 220px;
     padding: 0 10px;
     background: var(--mat-sys-surface-container);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 6%, transparent);
     font-size: 0.78rem;
     font-weight: 600;
 }
@@ -125,7 +125,7 @@
     justify-self: end;
     padding: 0 12px;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 8%, transparent);
     app-region: no-drag;
 }
 
@@ -157,7 +157,7 @@
 .refine-menu-divider {
     height: 1px;
     margin: 6px 12px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--app-on-surface) 8%, transparent);
 }
 
 @container category-content (max-width: 920px) {
