@@ -75,8 +75,9 @@ import { TranslateModule } from '@ngx-translate/core';
                 color: var(--app-on-surface);
             }
 
+            // The app ring, as the shared focus-ring mixin draws it.
             &:focus-visible {
-                outline: 2px solid var(--app-selection-color);
+                outline: 2px solid var(--app-focus-ring);
                 outline-offset: 2px;
             }
         }
