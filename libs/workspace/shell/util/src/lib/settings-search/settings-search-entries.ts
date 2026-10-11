@@ -2,6 +2,7 @@ import { PLAYBACK_SETTINGS_SEARCH_ENTRIES } from './settings-search-entries-play
 import { SettingsSearchEntry } from './settings-search.types';
 
 const DASHBOARD_KEYWORDS = ['dashboard', 'home', 'rail', 'row'];
+const SERVER_KEYWORDS = ['server', 'self-hosted', 'nas', 'sync', 'docker'];
 
 function dashboardRail(
     id: string,
@@ -243,6 +244,39 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         descriptionKey: 'SETTINGS.PARENTAL_LOCK.HOW_TO_LOCK_DESCRIPTION',
         keywords: ['parental', 'lock categories', 'groups', 'right-click'],
         fallbackId: 'parental-lock-enable',
+    },
+    {
+        id: 'server-connection',
+        section: 'server',
+        labelKey: 'SETTINGS.SERVER_CONNECTION',
+        descriptionKey: 'SETTINGS.SERVER_CONNECTION_DESCRIPTION',
+        keywords: SERVER_KEYWORDS,
+        requires: ['server-storage'],
+    },
+    {
+        id: 'server-storage',
+        section: 'server',
+        labelKey: 'SETTINGS.SERVER_STORAGE',
+        descriptionKey: 'SETTINGS.SERVER_STORAGE_DESCRIPTION',
+        keywords: [...SERVER_KEYWORDS, 'database', 'backup', 'size'],
+        requires: ['server-storage'],
+    },
+    {
+        id: 'server-import-browser',
+        section: 'server',
+        labelKey: 'SETTINGS.SERVER_IMPORT_BROWSER',
+        descriptionKey: 'SETTINGS.SERVER_IMPORT_BROWSER_DESCRIPTION',
+        keywords: [...SERVER_KEYWORDS, 'import', 'migrate', 'browser'],
+        requires: ['server-storage'],
+        fallbackId: 'server-storage',
+    },
+    {
+        id: 'server-access',
+        section: 'server',
+        labelKey: 'SETTINGS.SERVER_ACCESS',
+        descriptionKey: 'SETTINGS.SERVER_ACCESS_DESCRIPTION',
+        keywords: [...SERVER_KEYWORDS, 'token', 'sign out', 'password'],
+        requires: ['server-storage'],
     },
     {
         id: 'import-export-data',

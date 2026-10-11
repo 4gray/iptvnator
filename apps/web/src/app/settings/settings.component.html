@@ -119,6 +119,15 @@
                             (unlock)="parentalLock.unlock()"
                         />
                     }
+                    @case ('server') {
+                        <!-- Deferred: keeps the server-storage code out of
+                             the settings chunk in every other build. -->
+                        @defer {
+                            <app-settings-server-section
+                                (exportData)="exportData()"
+                            />
+                        }
+                    }
                     @case ('backup') {
                         <!-- Backup & data: the former Reset page is this
                              page's last card, since it is one action. -->
