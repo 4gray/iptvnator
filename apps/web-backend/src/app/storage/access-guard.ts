@@ -18,8 +18,8 @@ export function createAccessGuard(token: string): RequestHandler {
             return;
         }
 
-        const match = /^Bearer\s+(.+)$/i.exec(req.get('authorization') ?? '');
-        if (match && timingSafeEqual(digest(match[1].trim()), expected)) {
+        const token = readBearerToken(req.get('authorization'));
+        if (token && timingSafeEqual(digest(token), expected)) {
             next();
             return;
         }
@@ -30,6 +30,20 @@ export function createAccessGuard(token: string): RequestHandler {
             code: 'unauthorized',
         });
     };
+}
+
+/**
+ * `Bearer <token>`, scheme case-insensitive. Plain string scanning instead
+ * of a regular expression keeps the cost linear in the header length.
+ */
+function readBearerToken(header: string | undefined): string | null {
+    const value = header?.trim() ?? '';
+    const separator = value.indexOf(' ');
+    if (separator < 0 || value.slice(0, separator).toLowerCase() !== 'bearer') {
+        return null;
+    }
+    const token = value.slice(separator + 1).trim();
+    return token ? token : null;
 }
 
 function digest(value: string): Buffer {

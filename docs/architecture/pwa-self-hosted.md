@@ -307,6 +307,8 @@ Default runtime values:
 - `NODE_EXTRA_CA_CERTS` unset
 - `IPTVNATOR_STORAGE=server`, `IPTVNATOR_DATA_DIR=/data` (a `VOLUME`)
 - `IPTVNATOR_ACCESS_TOKEN` unset, `IPTVNATOR_MAX_DOCUMENT_MB=64`
+- `IPTVNATOR_BACKEND_START_TIMEOUT=300`: seconds the entrypoint waits for
+  `/health`; the backend migrates its database before it listens
 
 better-sqlite3 is a native addon, so the Dockerfile builds it in a separate
 `native` stage that is not pinned to `$BUILDPLATFORM`; multi-arch builds

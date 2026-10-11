@@ -44,4 +44,27 @@ describe('createAccessGuard', () => {
             expect(ok.status).toBe(200);
             expect(preflight.status).not.toBe(401);
         }));
+
+    it('reads the scheme case-insensitively and trims the token', () =>
+        withServer(createApp(), async (baseUrl) => {
+            const ok = await fetch(`${baseUrl}/v1/playlists`, {
+                headers: { authorization: 'bearer    s3cret  ' },
+            });
+
+            expect(ok.status).toBe(200);
+        }));
+
+    it('rejects a long whitespace header quickly', () =>
+        withServer(createApp(), async (baseUrl) => {
+            const started = Date.now();
+            const response = await fetch(`${baseUrl}/v1/playlists`, {
+                headers: {
+                    // Under Node's 16 KB header limit, so the guard sees it.
+                    authorization: `bearer ${' '.repeat(10_000)}x`,
+                },
+            });
+
+            expect(response.status).toBe(401);
+            expect(Date.now() - started).toBeLessThan(1_000);
+        }));
 });

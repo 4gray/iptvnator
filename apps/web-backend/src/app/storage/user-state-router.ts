@@ -49,7 +49,7 @@ export function createUserStateRouter(storage: ServerStorage): Router {
     });
 
     router.get('/app-state/:key', (req, res) => {
-        res.json({
+        res.set('Cache-Control', 'no-store').json({
             value: storage.playlists.getAppState(
                 CLIENT_APP_STATE_PREFIX + req.params.key
             ),

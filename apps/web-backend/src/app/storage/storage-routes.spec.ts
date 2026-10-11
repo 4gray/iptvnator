@@ -188,9 +188,9 @@ describe('server storage routes', () => {
                     `${baseUrl}/v1/app-state/flag`,
                     json({ value: '1' }, { method: 'PUT' })
                 );
-                await expect(
-                    (await fetch(`${baseUrl}/v1/app-state/flag`)).json()
-                ).resolves.toEqual({ value: '1' });
+                const read = await fetch(`${baseUrl}/v1/app-state/flag`);
+                expect(read.headers.get('cache-control')).toBe('no-store');
+                await expect(read.json()).resolves.toEqual({ value: '1' });
             })
         ));
 
