@@ -276,3 +276,29 @@ test('serialises locales and keys in a stable order', () => {
         '{\n    "ar": {\n        "Z": "z"\n    },\n    "fr": {\n        "A": "a",\n        "B": "b"\n    }\n}\n'
     );
 });
+
+test('rejects translated placeholders that would leave a count blank', () => {
+    writeLocale('en', { LABEL: 'Items: {{count}}' });
+    writeLocale('pt-PT', { LABEL: 'Itens: {{contagem}}' });
+    const { code, output } = check();
+    assert.equal(code, 1);
+    assert.match(output, /pt-PT.json LABEL: interpolation placeholders differ/);
+});
+
+test('accepts reordered placeholders and preserves their multiplicity', () => {
+    writeLocale('en', { LABEL: '{{current}} of {{total}} · {{current}}' });
+    writeLocale('de', { LABEL: 'Gesamt {{total}}: {{current}} · {{current}}' });
+    assert.equal(check().code, 0);
+    writeLocale('de', { LABEL: 'Gesamt {{total}}: {{current}}' });
+    assert.equal(check().code, 1);
+});
+
+test('rejects removed HTML, empty strings and non-string translations', () => {
+    writeLocale('en', { HTML: '<b>Help</b>', EMPTY: 'Close', INVALID: 'Save' });
+    writeLocale('fr', { HTML: 'Aide', EMPTY: '', INVALID: null });
+    const { code, output } = check('--update-baseline');
+    assert.equal(code, 1);
+    assert.match(output, /inline HTML differs/);
+    assert.match(output, /expected a non-empty string/);
+    assert.match(output, /baseline not written/);
+});

@@ -51,6 +51,34 @@ export function collectLeaves(value, prefix = '', leaves = new Map()) {
     return leaves;
 }
 
+/** Reject translations that would lose values or alter the source markup. */
+export function findInvalidTranslations(enLeaves, localeLeaves) {
+    const invalid = [];
+    for (const [key, translated] of localeLeaves) {
+        if (!enLeaves.has(key)) continue;
+        if (typeof translated !== 'string' || !translated.trim()) {
+            invalid.push([key, 'expected a non-empty string']);
+            continue;
+        }
+        const source = enLeaves.get(key);
+        if (typeof source !== 'string') continue;
+        const placeholders = (text) =>
+            [...text.matchAll(/\{\{[^{}]*\}\}/g)]
+                .map(([value]) => value)
+                .sort()
+                .join('\0');
+        const markup = (text) =>
+            [...text.matchAll(/<[^>]+>/g)].map(([value]) => value).join('\0');
+        if (placeholders(source) !== placeholders(translated)) {
+            invalid.push([key, 'interpolation placeholders differ']);
+        }
+        if (markup(source) !== markup(translated)) {
+            invalid.push([key, 'inline HTML differs']);
+        }
+    }
+    return invalid;
+}
+
 /** Keys whose non-empty locale string equals the English string. */
 export function findIdenticalToEnglish(enLeaves, localeLeaves) {
     const identical = new Map();
@@ -191,12 +219,18 @@ function checkLocale({ i18nDir, locale, enLeaves, baseline, mode }) {
             : mode === 'update'
               ? []
               : unbaselined;
-    return { missing, extra, identical, baselined, rejected, stale };
+    const invalid = findInvalidTranslations(enLeaves, localeLeaves);
+    return { missing, extra, identical, baselined, rejected, stale, invalid };
 }
 
 function reportLocale(log, file, result, mode) {
-    const { missing, extra, identical, baselined, rejected, stale } = result;
-    const failed = missing.length + extra.length + rejected.length > 0;
+    const { missing, extra, identical, baselined, rejected, stale, invalid } =
+        result;
+    const failed =
+        missing.length + extra.length + rejected.length + invalid.length > 0;
+    for (const [key, reason] of invalid) {
+        log(`FAIL ${file} ${key}: ${reason}`);
+    }
     const baselineNote =
         mode === 'baseline' ? ` baselined=${baselined.length}` : '';
     log(
