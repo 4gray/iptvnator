@@ -66,54 +66,15 @@ import {
     type DashboardContentKind,
 } from './dashboard-navigation.util';
 import { createDashboardContinueWatching } from './dashboard-continue-watching';
+import {
+    emptyDashboardPlaybackPositionMaps,
+    loadDashboardPlaybackPositions,
+    newestPlaybackPosition,
+    playbackPositionMapKey,
+    seriesPlaybackPositionMapKey,
+} from './dashboard-playback-positions';
 
 export type { DashboardContentKind };
-
-// Compound key for looking up a playback position by recent item — a single
-// playlist can contain the same xtream-id for a VOD and an episode (rare,
-// but the schema allows it), so contentType is part of the key.
-function playbackPositionMapKey(
-    playlistId: string,
-    contentXtreamId: number,
-    contentType: 'vod' | 'episode'
-): string {
-    return `${playlistId}::${contentXtreamId}::${contentType}`;
-}
-
-function seriesPlaybackPositionMapKey(
-    playlistId: string,
-    seriesXtreamId: number
-): string {
-    return `${playlistId}::${seriesXtreamId}`;
-}
-
-function newestPlaybackPosition(
-    current: PlaybackPositionData | null | undefined,
-    candidate: PlaybackPositionData | null | undefined
-): PlaybackPositionData | null {
-    if (!current) {
-        return candidate ?? null;
-    }
-    if (!candidate) {
-        return current;
-    }
-    const candidateAt = candidate.updatedAt ?? '';
-    const currentAt = current.updatedAt ?? '';
-    if (candidateAt !== currentAt) {
-        return candidateAt > currentAt ? candidate : current;
-    }
-    // Saved in the same second (a season marked watched, a quick skip):
-    // the later episode, as `getSeriesNextUp` breaks the tie.
-    return episodeOrder(candidate) > episodeOrder(current)
-        ? candidate
-        : current;
-}
-
-function episodeOrder(position: PlaybackPositionData): number {
-    return (
-        (position.seasonNumber ?? 0) * 100_000 + (position.episodeNumber ?? 0)
-    );
-}
 
 /** @deprecated Use {@link PortalRecentItem} from `@iptvnator/shared/interfaces` instead. */
 export type GlobalRecentItem = PortalRecentItem;
@@ -292,18 +253,13 @@ export class DashboardDataService {
     // change) so the hero + Continue Watching cards can show "X min left"
     // and a progress bar. Live channels never have positions; M3U content
     // doesn't either. Map starts empty and degrades cleanly on missing data.
-    private readonly playbackPositionsMap = signal<
-        Map<string, PlaybackPositionData>
-    >(new Map());
-    private readonly playbackPositionsBySeriesMap = signal<
-        Map<string, PlaybackPositionData>
-    >(new Map());
-    /** Every episode row per series: what comes next depends on all of them. */
-    private readonly seriesEpisodePositionsMap = signal<
-        Map<string, PlaybackPositionData[]>
-    >(new Map());
+    private readonly playbackPositionMaps = signal(
+        emptyDashboardPlaybackPositionMaps()
+    );
 
-    readonly playbackPositions$ = this.playbackPositionsMap.asReadonly();
+    readonly playbackPositions$ = computed(
+        () => this.playbackPositionMaps().byContent
+    );
 
     /** Playlists whose rows the position maps hold; null before any load. */
     private readonly playbackPositionPlaylistIds =
@@ -323,7 +279,7 @@ export class DashboardDataService {
         playlists: this.playlists,
         storedPosition: (item) => this.storedPlaybackPositionForItem(item),
         episodeRows: (playlistId, seriesXtreamId) =>
-            this.seriesEpisodePositionsMap().get(
+            this.playbackPositionMaps().episodesBySeries.get(
                 seriesPlaybackPositionMapKey(playlistId, seriesXtreamId)
             ),
         positionsLoadedFor: this.playbackPositionPlaylistIds,
@@ -371,7 +327,7 @@ export class DashboardDataService {
                 xtreamId,
                 'vod'
             );
-            return this.playbackPositionsMap().get(key) ?? null;
+            return this.playbackPositionMaps().byContent.get(key) ?? null;
         }
 
         // Series recent_items rows carry either the series id (the series
@@ -379,21 +335,21 @@ export class DashboardDataService {
         // the episode id. Match both shapes through keyed maps so card renders
         // do not scan every saved playback position.
         const episodePosition =
-            this.playbackPositionsMap().get(
+            this.playbackPositionMaps().byContent.get(
                 playbackPositionMapKey(item.playlist_id, xtreamId, 'episode')
             ) ?? null;
         const seriesPosition =
-            this.playbackPositionsBySeriesMap().get(
+            this.playbackPositionMaps().newestBySeries.get(
                 seriesPlaybackPositionMapKey(item.playlist_id, xtreamId)
             ) ?? null;
         return newestPlaybackPosition(episodePosition, seriesPosition);
     }
 
     /**
-     * Refresh the in-memory positions map for every playlist that owns at
-     * least one VOD/series recent item. Per-playlist bulk fetch is one IPC
-     * round-trip each (vs N+1 per content item), so this stays cheap even
-     * on heavy libraries.
+     * Refresh the in-memory positions for every playlist that owns at least
+     * one VOD/series recent item (`loadDashboardPlaybackPositions`: one bulk
+     * IPC per playlist, all at once). Continue Watching and the hero wait
+     * for this set before they render.
      */
     async reloadPlaybackPositions(): Promise<void> {
         // Latest reload wins: an older one finishing last would put back the
@@ -405,72 +361,19 @@ export class DashboardDataService {
                 playlistIds.add(item.playlist_id);
             }
         }
-        if (playlistIds.size === 0) {
-            this.playbackPositionsMap.set(new Map());
-            this.playbackPositionsBySeriesMap.set(new Map());
-            this.seriesEpisodePositionsMap.set(new Map());
-            this.playbackPositionPlaylistIds.set(playlistIds);
-            this.playbackPositionsReloads.update((count) => count + 1);
-            return;
-        }
-
-        const next = new Map<string, PlaybackPositionData>();
-        const nextBySeries = new Map<string, PlaybackPositionData>();
-        const nextEpisodesBySeries = new Map<string, PlaybackPositionData[]>();
-        for (const playlistId of playlistIds) {
-            try {
-                const positions =
-                    await this.playbackPositions.getAllPlaybackPositions(
-                        playlistId
-                    );
-                for (const position of positions) {
-                    next.set(
-                        playbackPositionMapKey(
-                            playlistId,
-                            position.contentXtreamId,
-                            position.contentType
-                        ),
-                        position
-                    );
-                    if (
-                        position.contentType === 'episode' &&
-                        Number.isFinite(position.seriesXtreamId)
-                    ) {
-                        const seriesKey = seriesPlaybackPositionMapKey(
-                            playlistId,
-                            position.seriesXtreamId as number
-                        );
-                        nextBySeries.set(
-                            seriesKey,
-                            newestPlaybackPosition(
-                                nextBySeries.get(seriesKey),
-                                position
-                            ) as PlaybackPositionData
-                        );
-                        const seriesRows = nextEpisodesBySeries.get(seriesKey);
-                        if (seriesRows) {
-                            seriesRows.push(position);
-                        } else {
-                            nextEpisodesBySeries.set(seriesKey, [position]);
-                        }
-                    }
-                }
-            } catch (err) {
-                console.warn(
-                    '[DashboardData] Failed to load playback positions for playlist',
-                    playlistId,
-                    err
-                );
-            }
-        }
+        const maps =
+            playlistIds.size === 0
+                ? emptyDashboardPlaybackPositionMaps()
+                : await loadDashboardPlaybackPositions(
+                      this.playbackPositions,
+                      playlistIds
+                  );
 
         if (generation !== this.playbackPositionsLoadGeneration) {
             return;
         }
         this.ngZone.run(() => {
-            this.playbackPositionsMap.set(next);
-            this.playbackPositionsBySeriesMap.set(nextBySeries);
-            this.seriesEpisodePositionsMap.set(nextEpisodesBySeries);
+            this.playbackPositionMaps.set(maps);
             // A playlist whose load failed counts as loaded: its titles
             // show without progress rather than holding the rail back.
             this.playbackPositionPlaylistIds.set(playlistIds);

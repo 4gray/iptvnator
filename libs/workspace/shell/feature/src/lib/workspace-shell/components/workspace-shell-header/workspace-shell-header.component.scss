@@ -1,3 +1,5 @@
+@use '../../../../../../../../ui/styles/focus-ring';
+
 :host {
     display: block;
     min-width: 0;
@@ -58,9 +60,9 @@
     app-region: no-drag;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-focus-ring);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-focus-ring) 12%, transparent);
     }
 
     mat-icon {
@@ -182,8 +184,7 @@
         }
 
         &:focus-visible {
-            outline: 2px solid var(--mat-sys-primary);
-            outline-offset: 1px;
+            @include focus-ring.focus-ring-declarations($offset: 1px);
         }
     }
 }

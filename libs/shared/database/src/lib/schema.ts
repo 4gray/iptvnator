@@ -52,8 +52,9 @@ export const playlists = sqliteTable('playlists', {
     position: integer('position'),
     favorites: text('favorites'),
     recentlyViewed: text('recently_viewed'),
-    payload: text('payload'),
     lastUsage: text('last_usage'),
+    // Last on purpose: see PLAYLISTS_COLUMNS in connection.ts.
+    payload: text('payload'),
 });
 
 // App key-value state table (e.g. one-time migration flags)

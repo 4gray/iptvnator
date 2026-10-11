@@ -9,6 +9,7 @@
 // reverse, with the same geometry.
 
 @use '../../../../../../ui/styles/detail-view-actions' as detail-actions;
+@use '../../../../../../ui/styles/focus-ring';
 @use '../../../../../../ui/styles/skeleton-shimmer' as shimmer;
 
 // The host renders nothing when there is no slide and no skeleton; with
@@ -76,8 +77,7 @@
     color: var(--hero-heading);
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 }
 
@@ -453,8 +453,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 
     &:active {
@@ -542,8 +541,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 1px;
+        @include focus-ring.focus-ring-declarations($offset: 1px);
     }
 }
 
@@ -595,8 +593,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
         border-radius: 6px;
     }
 

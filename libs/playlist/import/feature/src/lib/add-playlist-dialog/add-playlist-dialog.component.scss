@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/focus-ring';
+
 .apd {
     --apd-border: var(--app-widget-header-border);
     --apd-heading: var(--app-heading-color);
@@ -123,8 +125,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--apd-accent);
-        outline-offset: 1px;
+        @include focus-ring.focus-ring-declarations($offset: 1px);
     }
 }
 
