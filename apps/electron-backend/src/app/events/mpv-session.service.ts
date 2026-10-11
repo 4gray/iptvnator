@@ -212,7 +212,7 @@ export function shutdownMpvSession(): void {
 // MPV launches run one at a time; see MpvLaunchQueue. Each launch begins its
 // session at once, so the newest launch is the active one Stop targets.
 const mpvLaunchQueue = new MpvLaunchQueue(() =>
-    reusableMpvProcess.currentSessionId()
+    reusableMpvProcess.storedOwnerSessionId()
 );
 
 export function openMpvPlayer(

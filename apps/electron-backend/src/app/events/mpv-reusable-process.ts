@@ -69,6 +69,18 @@ export class MpvReusableProcess {
         return this.processSessionId;
     }
 
+    /**
+     * The session that owns the stored child right now. A failed reuse
+     * attempt hands the child back to its previous owner while it tears it
+     * down, so this reads the per-child mapping, not the last recorded id.
+     */
+    storedOwnerSessionId(): string | null {
+        if (!this.process) return null;
+        return (
+            this.processSessionIds.get(this.process) ?? this.processSessionId
+        );
+    }
+
     sessionIdFor(process: ChildProcess, fallback: string): string {
         return this.processSessionIds.get(process) ?? fallback;
     }

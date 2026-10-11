@@ -1046,7 +1046,9 @@ one that comes up while a newer one waits behind it settles closed without
 reaching mpv or taking the dock. Stop on a launch still waiting in the queue
 cancels it and every launch queued before it; on the newest queued launch it
 also closes, through their own closers, the in-flight launch and the session
-owning the stored player, so their exact-child, retry and settle rules apply
+owning the stored player at that moment (read from the per-child mapping, which
+a failed attempt hands back to the previous owner during its teardown), so
+their exact-child, retry and settle rules apply
 and nothing starts playing after Stop. Those targets are fixed at the first
 Stop, so a retried Stop never reaches a player started later, and a late Stop
 for an older queued launch cancels only that launch. The cancelled launch
