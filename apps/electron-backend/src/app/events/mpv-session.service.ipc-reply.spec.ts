@@ -666,6 +666,78 @@ describe('reused MPV IPC replies', () => {
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps Stop working for a reused session restored after a later attempt fails', async () => {
+        const { proc } = await launchReusableSession();
+        // Exit is never confirmed, so a failing later attempt cannot finish
+        // its teardown and the previous owner is restored.
+        (proc.kill as jest.Mock).mockImplementation(() => true);
+        mockMpvSockets();
+        const restored = await openMpvPlayer({
+            title: 'Channel A',
+            url: 'https://example.com/a.m3u8',
+        });
+        expect(restored.status).toBe('opened');
+        createConnectionMock.mockImplementation(() => {
+            const socket = createMpvSocketMock({ connect: false });
+            setImmediate(() =>
+                socket.emit('error', new Error('reuse command failed'))
+            );
+            return socket;
+        });
+        const errorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        jest.useFakeTimers();
+
+        try {
+            const failing = openMpvPlayer({
+                title: 'Channel B',
+                url: 'https://example.com/b.m3u8',
+            });
+            const rejection = expect(failing).rejects.toThrow(
+                'External player process did not exit'
+            );
+            await jest.advanceTimersByTimeAsync(6_000);
+            await rejection;
+            expect(externalPlayerSessions.getActiveSessionId()).toBe(
+                restored.id
+            );
+
+            const written: string[] = [];
+            mockMpvSockets({ written });
+            let closed = false;
+            const closing = externalPlayerSessions
+                .closeSession(restored.id)
+                .then((session) => {
+                    closed = true;
+                    return session;
+                });
+            await jest.advanceTimersByTimeAsync(10);
+
+            // Stop reaches the child and waits for its exit.
+            expect(
+                written.map(
+                    (chunk) =>
+                        (JSON.parse(chunk.trim()) as { command: string[] })
+                            .command[0]
+                )
+            ).toContain('quit');
+            expect(closed).toBe(false);
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+            await expect(closing).resolves.toMatchObject({
+                id: restored.id,
+                status: 'closed',
+            });
+        } finally {
+            errorSpy.mockRestore();
+            if (proc.exitCode === null) {
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+            }
+        }
+    });
+
     it('keeps the errored session when the child crashes during the reply wait', async () => {
         const { proc, session: previous } = await launchReusableSession();
         const sockets = mockUnansweredSockets();

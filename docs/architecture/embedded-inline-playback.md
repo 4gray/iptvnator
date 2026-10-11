@@ -1035,8 +1035,10 @@ Because each reuse attempt waits for replies, a quick channel switch can start
 the next attempt while the previous one is still waiting. The newest attempt
 supersedes older ones: an older attempt dispatches no further commands, never
 tears down or falls back over the child the newer one is loading into, ignores
-a late Stop for its own session even while the child is still mapped to it, and
-settles its own session as closed. No `seek` follows
+a Stop for its own session that arrives while it is still in flight even if
+the child is still mapped to it, and settles its own session as closed. A
+settled attempt's Stop follows ownership again, so a reused session restored
+after a newer attempt failed keeps a working closer. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused

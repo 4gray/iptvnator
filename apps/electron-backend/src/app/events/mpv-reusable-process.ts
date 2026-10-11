@@ -123,6 +123,10 @@ export class MpvReusableProcess {
         const { session, state } = options;
         const attempt = ++this.reuseAttempt;
         const superseded = () => attempt !== this.reuseAttempt;
+        // Supersession only matters while this attempt is still running.
+        // Once it settles, its Stop follows ownership again, so a session
+        // restored after a newer attempt failed can still tear down its child.
+        let attemptInFlight = true;
         const settleSuperseded = () => {
             traceExternalPlayer('mpv reuse superseded by a newer launch');
             return externalPlayerSessions.markClosed(session.id) ?? session;
@@ -168,7 +172,9 @@ export class MpvReusableProcess {
             // A superseded attempt may still hold the child until the newer
             // attempt writes its own loadfile; its Stop must not quit the
             // player the newer launch is about to load into.
-            if (superseded() || !ownsReusedProcess()) return;
+            if ((attemptInFlight && superseded()) || !ownsReusedProcess()) {
+                return;
+            }
             if (!retryableClose) {
                 const closeAttempt = closeReusedProcess();
                 retryableClose = closeAttempt;
@@ -266,6 +272,8 @@ export class MpvReusableProcess {
             options.stopPositionPolling();
             if (closeRequested) return await finishRequestedClose();
             return null;
+        } finally {
+            attemptInFlight = false;
         }
     }
 
