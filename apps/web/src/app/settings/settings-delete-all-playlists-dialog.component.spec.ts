@@ -2,6 +2,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { ServerStorageStatusService } from '@iptvnator/services';
 import { SettingsDeleteAllPlaylistsDialogComponent } from './settings-delete-all-playlists-dialog.component';
 
 describe('SettingsDeleteAllPlaylistsDialogComponent', () => {
@@ -92,5 +93,27 @@ describe('SettingsDeleteAllPlaylistsDialogComponent', () => {
         ).map((button) => button.textContent?.trim());
 
         expect(buttons).toEqual(['Cancel', 'Delete everything']);
+    });
+
+    it('warns about every device only with server storage', () => {
+        const warning = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="delete-all-server-warning"]'
+            );
+        expect(warning()).toBeNull();
+
+        TestBed.inject(ServerStorageStatusService).activate(
+            {
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: 'i',
+                storage: 'server',
+                auth: 'none',
+            },
+            () => undefined
+        );
+        fixture.detectChanges();
+
+        expect(warning()).not.toBeNull();
     });
 });
