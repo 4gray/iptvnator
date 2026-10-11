@@ -28,7 +28,7 @@ export function playlistConflictUpdate(
     row: schema.NewPlaylist,
     playlist: Record<string, unknown>
 ): PlaylistConflictUpdate {
-    if (readString(playlist.serverTimezone)) {
+    if (readString(playlist['serverTimezone'])) {
         return row;
     }
     const excludedPayload = sql.raw(`excluded.${stored.payload.name}`);
@@ -65,7 +65,7 @@ export function readPayloadServerTimezone(
     try {
         const parsed: unknown = JSON.parse(payload);
         return parsed && typeof parsed === 'object'
-            ? readString((parsed as Record<string, unknown>).serverTimezone)
+            ? readString((parsed as Record<string, unknown>)['serverTimezone'])
             : undefined;
     } catch {
         return undefined;

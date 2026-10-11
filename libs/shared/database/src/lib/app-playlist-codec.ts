@@ -69,7 +69,7 @@ function getStringArrayValue(value: unknown): string[] {
 }
 
 function inferPlaylistType(playlist: Record<string, unknown>): AppPlaylistType {
-    const explicitType = getStringValue(playlist.type);
+    const explicitType = getStringValue(playlist['type']);
     if (
         explicitType &&
         PLAYLIST_TYPE_VALUES.has(explicitType as AppPlaylistType)
@@ -77,19 +77,19 @@ function inferPlaylistType(playlist: Record<string, unknown>): AppPlaylistType {
         return explicitType as AppPlaylistType;
     }
 
-    if (getStringValue(playlist.serverUrl)) {
+    if (getStringValue(playlist['serverUrl'])) {
         return PLAYLIST_TYPES.XTREAM;
     }
 
-    if (getStringValue(playlist.macAddress)) {
+    if (getStringValue(playlist['macAddress'])) {
         return PLAYLIST_TYPES.STALKER;
     }
 
-    if (getStringValue(playlist.filePath)) {
+    if (getStringValue(playlist['filePath'])) {
         return PLAYLIST_TYPES.M3U_FILE;
     }
 
-    if (getStringValue(playlist.url)) {
+    if (getStringValue(playlist['url'])) {
         return PLAYLIST_TYPES.M3U_URL;
     }
 
@@ -99,69 +99,74 @@ function inferPlaylistType(playlist: Record<string, unknown>): AppPlaylistType {
 export function buildPlaylistRow(
     playlist: Record<string, unknown>
 ): schema.NewPlaylist | null {
-    const id = getStringValue(playlist._id) ?? getStringValue(playlist.id);
+    const id =
+        getStringValue(playlist['_id']) ?? getStringValue(playlist['id']);
     if (!id) {
         return null;
     }
 
     const type = inferPlaylistType(playlist);
-    const portalUrl = getStringValue(playlist.portalUrl);
-    const url = getStringValue(playlist.url);
+    const portalUrl = getStringValue(playlist['portalUrl']);
+    const url = getStringValue(playlist['url']);
     const nowIso = new Date().toISOString();
-    const updateDate = getNumericValue(playlist.updateDate);
+    const updateDate = getNumericValue(playlist['updateDate']);
 
     return {
         id,
         name:
-            getStringValue(playlist.title) ??
-            getStringValue(playlist.name) ??
+            getStringValue(playlist['title']) ??
+            getStringValue(playlist['name']) ??
             id,
-        serverUrl: getStringValue(playlist.serverUrl),
-        username: getStringValue(playlist.username),
-        password: getStringValue(playlist.password),
+        serverUrl: getStringValue(playlist['serverUrl']),
+        username: getStringValue(playlist['username']),
+        password: getStringValue(playlist['password']),
         lastUpdated:
             typeof updateDate === 'number'
                 ? new Date(updateDate).toISOString()
-                : getStringValue(playlist.lastUpdated),
+                : getStringValue(playlist['lastUpdated']),
         type,
-        userAgent: getStringValue(playlist.userAgent),
-        origin: getStringValue(playlist.origin),
-        referrer: getStringValue(playlist.referrer),
-        filePath: getStringValue(playlist.filePath),
+        userAgent: getStringValue(playlist['userAgent']),
+        origin: getStringValue(playlist['origin']),
+        referrer: getStringValue(playlist['referrer']),
+        filePath: getStringValue(playlist['filePath']),
         epgUrls:
-            playlist.epgUrls !== undefined
-                ? JSON.stringify(getStringArrayValue(playlist.epgUrls))
+            playlist['epgUrls'] !== undefined
+                ? JSON.stringify(getStringArrayValue(playlist['epgUrls']))
                 : undefined,
         detectedEpgUrls:
-            playlist.detectedEpgUrls !== undefined
-                ? JSON.stringify(getStringArrayValue(playlist.detectedEpgUrls))
+            playlist['detectedEpgUrls'] !== undefined
+                ? JSON.stringify(
+                      getStringArrayValue(playlist['detectedEpgUrls'])
+                  )
                 : undefined,
         manualEpgUrls:
-            playlist.manualEpgUrls !== undefined
-                ? JSON.stringify(getStringArrayValue(playlist.manualEpgUrls))
+            playlist['manualEpgUrls'] !== undefined
+                ? JSON.stringify(getStringArrayValue(playlist['manualEpgUrls']))
                 : undefined,
         disabledEpgUrls:
-            playlist.disabledEpgUrls !== undefined
-                ? JSON.stringify(getStringArrayValue(playlist.disabledEpgUrls))
+            playlist['disabledEpgUrls'] !== undefined
+                ? JSON.stringify(
+                      getStringArrayValue(playlist['disabledEpgUrls'])
+                  )
                 : undefined,
-        autoRefresh: Boolean(playlist.autoRefresh),
-        macAddress: getStringValue(playlist.macAddress),
+        autoRefresh: Boolean(playlist['autoRefresh']),
+        macAddress: getStringValue(playlist['macAddress']),
         url: type === PLAYLIST_TYPES.STALKER ? (portalUrl ?? url) : url,
         portalUrl,
-        count: getNumericValue(playlist.count),
-        importDate: getStringValue(playlist.importDate),
+        count: getNumericValue(playlist['count']),
+        importDate: getStringValue(playlist['importDate']),
         updateDate,
-        position: getNumericValue(playlist.position),
+        position: getNumericValue(playlist['position']),
         favorites:
-            playlist.favorites !== undefined
-                ? JSON.stringify(playlist.favorites)
+            playlist['favorites'] !== undefined
+                ? JSON.stringify(playlist['favorites'])
                 : undefined,
         recentlyViewed:
-            playlist.recentlyViewed !== undefined
-                ? JSON.stringify(playlist.recentlyViewed)
+            playlist['recentlyViewed'] !== undefined
+                ? JSON.stringify(playlist['recentlyViewed'])
                 : undefined,
         payload: JSON.stringify(playlist),
-        lastUsage: getStringValue(playlist.lastUsage) ?? nowIso,
+        lastUsage: getStringValue(playlist['lastUsage']) ?? nowIso,
     };
 }
 
@@ -169,7 +174,7 @@ export function getPlaylistItemCount(
     playlist: Record<string, unknown>
 ): number | undefined {
     try {
-        const value = playlist.playlist;
+        const value = playlist['playlist'];
         if (typeof value !== 'object' || value === null) {
             return undefined;
         }
@@ -191,22 +196,24 @@ export function parseAppPlaylist(
     const favorites = parseJsonValue<unknown[]>(row.favorites, []);
     const recentlyViewed = parseJsonValue<unknown[]>(row.recentlyViewed, []);
     const epgUrls = getStringArrayValue(
-        row.epgUrls ? parseJsonValue<unknown[]>(row.epgUrls, []) : base.epgUrls
+        row.epgUrls
+            ? parseJsonValue<unknown[]>(row.epgUrls, [])
+            : base['epgUrls']
     );
     const detectedEpgUrls = getStringArrayValue(
         row.detectedEpgUrls
             ? parseJsonValue<unknown[]>(row.detectedEpgUrls, [])
-            : (base.detectedEpgUrls ?? epgUrls)
+            : (base['detectedEpgUrls'] ?? epgUrls)
     );
     const manualEpgUrls = getStringArrayValue(
         row.manualEpgUrls
             ? parseJsonValue<unknown[]>(row.manualEpgUrls, [])
-            : base.manualEpgUrls
+            : base['manualEpgUrls']
     );
     const disabledEpgUrls = getStringArrayValue(
         row.disabledEpgUrls
             ? parseJsonValue<unknown[]>(row.disabledEpgUrls, [])
-            : base.disabledEpgUrls
+            : base['disabledEpgUrls']
     );
     const importDate =
         row.importDate ?? row.dateCreated ?? new Date().toISOString();
@@ -220,35 +227,37 @@ export function parseAppPlaylist(
         ...base,
         _id: row.id,
         title:
-            getStringValue(base.title) ?? getStringValue(base.name) ?? row.name,
-        count: row.count ?? getNumericValue(base.count) ?? 0,
-        importDate: getStringValue(base.importDate) ?? importDate,
+            getStringValue(base['title']) ??
+            getStringValue(base['name']) ??
+            row.name,
+        count: row.count ?? getNumericValue(base['count']) ?? 0,
+        importDate: getStringValue(base['importDate']) ?? importDate,
         lastUsage:
             row.lastUsage ??
-            getStringValue(base.lastUsage) ??
-            getStringValue(base.importDate) ??
+            getStringValue(base['lastUsage']) ??
+            getStringValue(base['importDate']) ??
             importDate,
         favorites,
         recentlyViewed,
-        autoRefresh: row.autoRefresh ?? Boolean(base.autoRefresh),
+        autoRefresh: row.autoRefresh ?? Boolean(base['autoRefresh']),
         url:
             row.type === PLAYLIST_TYPES.M3U_URL
-                ? (row.url ?? getStringValue(base.url))
-                : getStringValue(base.url),
-        filePath: row.filePath ?? getStringValue(base.filePath),
+                ? (row.url ?? getStringValue(base['url']))
+                : getStringValue(base['url']),
+        filePath: row.filePath ?? getStringValue(base['filePath']),
         epgUrls,
         detectedEpgUrls,
         manualEpgUrls,
         disabledEpgUrls,
-        userAgent: row.userAgent ?? getStringValue(base.userAgent),
-        referrer: row.referrer ?? getStringValue(base.referrer),
-        origin: row.origin ?? getStringValue(base.origin),
+        userAgent: row.userAgent ?? getStringValue(base['userAgent']),
+        referrer: row.referrer ?? getStringValue(base['referrer']),
+        origin: row.origin ?? getStringValue(base['origin']),
         updateDate,
-        position: row.position ?? getNumericValue(base.position),
-        serverUrl: row.serverUrl ?? getStringValue(base.serverUrl),
-        username: row.username ?? getStringValue(base.username),
-        password: row.password ?? getStringValue(base.password),
-        macAddress: row.macAddress ?? getStringValue(base.macAddress),
-        portalUrl: portalUrl ?? getStringValue(base.portalUrl),
+        position: row.position ?? getNumericValue(base['position']),
+        serverUrl: row.serverUrl ?? getStringValue(base['serverUrl']),
+        username: row.username ?? getStringValue(base['username']),
+        password: row.password ?? getStringValue(base['password']),
+        macAddress: row.macAddress ?? getStringValue(base['macAddress']),
+        portalUrl: portalUrl ?? getStringValue(base['portalUrl']),
     };
 }
