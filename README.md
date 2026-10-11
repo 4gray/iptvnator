@@ -157,6 +157,16 @@ stays on the TV, and native stream compatibility depends on the device/provider.
 See [TV setup and IPK build instructions](docs/development/tv-development.md)
 and the [TV architecture and limitations](docs/architecture/tv-application.md).
 
+## Fire TV / Android TV shell (experimental)
+
+[`tv-shell/`](./tv-shell/README.md) wraps the browser PWA in a small Android app
+for Fire TV sticks and Android TV boxes. The web backend is embedded in the APK,
+so nothing has to be hosted; a remote-control layer drives the existing
+interface with the D-pad, and streams the TV's WebView cannot play are handed to
+an installed player such as VLC. The `Build TV shell APK` workflow builds and
+publishes the APK; see [`tv-shell/README.md`](./tv-shell/README.md) for
+installation and the remote-control key map.
+
 ## Download
 
 Download the latest version of the application for macOS, Windows, and Linux from the [release page](https://github.com/4gray/iptvnator/releases).
