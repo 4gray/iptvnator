@@ -2,6 +2,7 @@
     <app-channel-list-loading-state
         [view]="activeView()"
         [showEpg]="shouldShowEpg()"
+        [showHeader]="!compact()"
     />
 } @else if (showChannelViews()) {
     @if (

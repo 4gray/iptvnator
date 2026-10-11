@@ -1,0 +1,190 @@
+// Geometry shared by the dashboard rail (`lib-dashboard-rail`) and its
+// loading skeleton (`lib-dashboard-rail-skeleton`): everything that decides
+// a rail's height. The skeleton draws its placeholders inside the same boxes
+// and text line boxes, so a rail that replaces its skeleton keeps the height
+// and the rails below it stay where they are.
+
+$stack-gap: 12px;
+$header-min-height: 24px;
+$card-stack-gap: 8px;
+$meta-gap: 3px;
+
+$card-title-font-size: 0.85rem;
+$card-title-line-height: 1.3;
+$card-meta-font-size: 0.72rem;
+$card-meta-line-height: 1.4;
+
+$channel-logo-size: 40px;
+$channel-name-font-size: 0.85rem;
+$channel-name-line-height: 1.2;
+$channel-now-font-size: 0.72rem;
+$channel-now-line-height: 1.35;
+$channel-progress-font-size: 0.65rem;
+$channel-progress-line-height: 1.3;
+
+/// Height of one line of text set in `$font-size` / `$line-height`.
+@function line-box($font-size, $line-height) {
+    @return $font-size * $line-height;
+}
+
+/// Card size tokens, read from the cover-size setting (`_cover-size.scss`).
+@mixin host-tokens {
+    --rail-card-width: var(--cover-rail-width, 172px);
+    --rail-gap: var(--cover-gap, 14px);
+    --rail-radius: 12px;
+    // How far the scrolling track bleeds past the viewport on every side:
+    // room for a card's focus ring (2px outline + 3px offset) plus its 2px
+    // hover lift, so neither is clipped. The track clips partially visible
+    // cards at this outer edge, so the edge fades extend by the same amount.
+    --rail-bleed: 8px;
+
+    @media (max-width: 720px) {
+        --rail-card-width: min(var(--cover-rail-width, 172px), 140px);
+    }
+}
+
+/// The rail itself: header above the track.
+@mixin stack {
+    display: flex;
+    flex-direction: column;
+    gap: $stack-gap;
+}
+
+@mixin header-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 2px;
+    min-height: $header-min-height;
+}
+
+/// The track bleeds by `--rail-bleed` on every side and takes it back with a
+/// negative margin, so it adds no height of its own.
+@mixin track-box {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--rail-gap);
+    padding: var(--rail-bleed);
+    margin: calc(-1 * var(--rail-bleed));
+}
+
+/// Live channel cards: wider and much shorter than a poster.
+@mixin channel-track-tokens {
+    --rail-card-width: var(--channel-rail-width, 280px);
+    --rail-gap: 10px;
+}
+
+// ── Cover cards: artwork, then the title and meta lines ────────────────────
+@mixin card-box {
+    // `min-width: 0` keeps a long title from widening the flex item past
+    // its basis (flex items default to `min-width: auto`).
+    flex: 0 0 var(--rail-card-width);
+    width: var(--rail-card-width);
+    max-width: var(--rail-card-width);
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--rail-radius);
+}
+
+@mixin card-stack {
+    display: flex;
+    flex-direction: column;
+    gap: $card-stack-gap;
+    min-width: 0;
+}
+
+/// The artwork frame; its aspect ratio comes from the rail's
+/// `aspectRatio` input.
+@mixin art-frame {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--rail-radius);
+    border: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+}
+
+@mixin meta-stack {
+    display: flex;
+    flex-direction: column;
+    gap: $meta-gap;
+    padding: 0 2px;
+    min-width: 0;
+}
+
+@mixin card-title-type {
+    font-size: $card-title-font-size;
+    line-height: $card-title-line-height;
+}
+
+@mixin card-meta-type {
+    font-size: $card-meta-font-size;
+    line-height: $card-meta-line-height;
+}
+
+/// The meta row is one meta line tall even when it holds only a chip.
+@mixin card-meta-row-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: line-box($card-meta-font-size, $card-meta-line-height);
+}
+
+// ── Channel cards: logo row, then the live progress row ────────────────────
+@mixin channel-card-box {
+    padding: 10px 12px;
+    border: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+    border-radius: var(--rail-radius);
+}
+
+@mixin channel-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+@mixin channel-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+@mixin channel-logo-box {
+    flex: 0 0 auto;
+    width: $channel-logo-size;
+    height: $channel-logo-size;
+    border-radius: 8px;
+}
+
+@mixin channel-meta-stack {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+@mixin channel-name-type {
+    font-size: $channel-name-font-size;
+    line-height: $channel-name-line-height;
+}
+
+@mixin channel-now-type {
+    font-size: $channel-now-font-size;
+    line-height: $channel-now-line-height;
+}
+
+/// One progress-text line tall, with or without the time range.
+@mixin channel-progress-row-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: $channel-progress-font-size;
+    line-height: $channel-progress-line-height;
+    min-height: line-box(
+        $channel-progress-font-size,
+        $channel-progress-line-height
+    );
+}
