@@ -187,6 +187,9 @@
                     [matTooltip]="
                         'WORKSPACE.SHELL.XTREAM_IMPORT_CANCEL' | translate
                     "
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.XTREAM_IMPORT_CANCEL' | translate
+                    "
                 >
                     <mat-icon>close</mat-icon>
                 </button>
@@ -200,6 +203,7 @@
                     "
                     [disabled]="isBusy()"
                     [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
+                    [attr.aria-label]="'HOME.PLAYLISTS.REFRESH' | translate"
                 >
                     @if (isRefreshing()) {
                         <mat-spinner
@@ -221,6 +225,9 @@
                     "
                     [disabled]="isBusy()"
                     [matTooltip]="'HOME.PLAYLISTS.REFRESH_XTREAM' | translate"
+                    [attr.aria-label]="
+                        'HOME.PLAYLISTS.REFRESH_XTREAM' | translate
+                    "
                 >
                     @if (isRefreshing()) {
                         <mat-spinner
@@ -242,6 +249,7 @@
                 "
                 [disabled]="isBusy()"
                 [matTooltip]="'HOME.PLAYLISTS.SHOW_DETAILS' | translate"
+                [attr.aria-label]="'HOME.PLAYLISTS.SHOW_DETAILS' | translate"
             >
                 <mat-icon>edit</mat-icon>
             </button>
@@ -252,6 +260,7 @@
                 (click)="$event.stopPropagation(); removeClicked.emit(item._id)"
                 [disabled]="isBusy()"
                 [matTooltip]="'HOME.PLAYLISTS.REMOVE' | translate"
+                [attr.aria-label]="'HOME.PLAYLISTS.REMOVE' | translate"
             >
                 @if (isDeleting()) {
                     <mat-spinner
