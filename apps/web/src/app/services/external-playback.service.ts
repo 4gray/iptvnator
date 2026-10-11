@@ -4,6 +4,17 @@ import {
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
 
+/** Launch order when both carry it, else the start time. */
+function startedBefore(
+    session: ExternalPlayerSession,
+    other: ExternalPlayerSession
+): boolean {
+    if (session.launchOrder !== undefined && other.launchOrder !== undefined) {
+        return session.launchOrder < other.launchOrder;
+    }
+    return Date.parse(session.startedAt) < Date.parse(other.startedAt);
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -111,7 +122,8 @@ export class ExternalPlaybackService {
         const isLatestLaunch =
             session.status === 'launching' &&
             (!current ||
-                Date.parse(session.startedAt) >= Date.parse(current.startedAt));
+                current.id === session.id ||
+                !startedBefore(session, current));
 
         if (
             !current ||

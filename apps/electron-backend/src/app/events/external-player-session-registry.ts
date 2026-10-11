@@ -44,6 +44,7 @@ function isRestorableSession(session: ExternalPlayerSession): boolean {
 export class ExternalPlayerSessionRegistry {
     private readonly sessions = new Map<string, ExternalPlayerSessionRuntime>();
     private activeSessionId: string | null = null;
+    private launchCount = 0;
 
     constructor(
         private readonly onUpdate: (session: ExternalPlayerSession) => void
@@ -63,6 +64,7 @@ export class ExternalPlayerSessionRegistry {
             contentInfo: options.contentInfo,
             startedAt,
             updatedAt: startedAt,
+            launchOrder: ++this.launchCount,
             canClose: false,
         };
 

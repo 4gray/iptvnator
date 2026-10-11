@@ -85,6 +85,26 @@ describe('ExternalPlaybackService', () => {
         expect(service.activeSession()?.id).toBe('session-newer');
     });
 
+    it('orders launches made in the same millisecond by launch order', () => {
+        const older = createSession({ id: 'session-older', launchOrder: 1 });
+        const newer = createSession({
+            id: 'session-newer',
+            title: 'Newer Example',
+            launchOrder: 2,
+        });
+        listener?.(older);
+        listener?.(newer);
+
+        // Same startedAt: only the launch order tells the two apart.
+        listener?.({
+            ...older,
+            canClose: true,
+            updatedAt: '2026-03-07T10:00:02.000Z',
+        });
+
+        expect(service.activeSession()?.id).toBe('session-newer');
+    });
+
     it('matches only active non-error sessions to content info', () => {
         const playing = createSession({
             status: 'playing',

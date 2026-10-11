@@ -1037,8 +1037,10 @@ meanwhile, such as a quick channel switch, starts only once the previous one
 has settled and acts on the player that one left behind; two launches never
 act on the same child. Each launch begins its session at once, so the newest
 launch is the active session; the renderer lets a `launching` update take the
-dock only when that launch did not start before the current one, so an older
-launch still settling cannot pull the dock back. Only the newest queued launch
+dock only when that launch did not start before the current one, by the
+session's `launchOrder` (which separates launches in the same millisecond) or
+else its `startedAt`, so an older launch still settling cannot pull the dock
+back. Only the newest queued launch
 runs: an older
 one that comes up while a newer one waits behind it settles closed without
 reaching mpv or taking the dock. Stop on a launch still waiting in the queue
