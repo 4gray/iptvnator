@@ -817,7 +817,7 @@
         "EXTERNAL_FAILED": "外部播放器错误",
         "ACTION_OPEN_MPV_HINT": "已配置的播放器",
         "ACTION_OPEN_VLC_HINT": "已配置的播放器",
-        "ACTION_COPY_URL": "复制 URL",
+        "ACTION_COPY_URL": "复制流 URL",
         "ACTION_RETRY": "重试",
         "DETAILS_SUMMARY": "技术详情",
         "CODEC_HINT": "检测到 {{codecs}}。Chromium/Electron 浏览器播放器通常对此类编码支持有限。",
