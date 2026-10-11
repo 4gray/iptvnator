@@ -5,6 +5,7 @@
     <string name="load_error_title">The player could not be loaded</string>
     <string name="load_error">Error: %1$s (code %2$s)</string>
     <string name="server_error">The embedded server could not start (no free port).</string>
+    <string name="load_timeout">The web app did not start within 30 seconds. The WebView of this device may be too old for IPTVnator (Chrome engine 94 or newer is required). Long-press Menu for the diagnostics.</string>
     <string name="retry">Retry</string>
     <string name="settings_title">Shell settings</string>
     <string name="done">Done</string>

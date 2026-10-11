@@ -21,6 +21,40 @@
 - `tv.js` est chargé **avant** le bundle via une balise `<script src="tvshell/tv.js">` same-origin (le CSP de l'app interdit les scripts inline). Aucun fichier d'IPTVnator n'est modifié.
 - Largeur de layout 1280 px CSS (`<meta viewport width=1280>`) pour garder la mise en page desktop sur l'écran TV ; réglable 960/1600.
 
+## Mise à jour — premier APK construit (11 octobre 2026, session cloud)
+
+- Le workflow `build-tv-shell-apk.yml` a tourné sans erreur dès le premier essai
+  (push puis `workflow_dispatch` avec `create_release`, ~3 min 30 par run). Le
+  `workflow_dispatch` fonctionne sur une branche non-default.
+- Première Release : `tv-shell-v0.1.0-2` (commit `0e223c1`), APK
+  `iptvnator-tv-shell-0.1.0-0e223c1.apk` (15,2 Mo ; 258 fichiers de PWA,
+  `tvshell/tv.js`, 6 dex, signé debug). Contenu vérifié par `unzip`.
+- Seuils mesurés sur le bundle livré (Angular 21) : le JS contient des blocs
+  `static {}` dans 42 fichiers → **Chrome ≥ 94 obligatoire** (sinon erreur de
+  syntaxe, page blanche) ; `Object.hasOwn` → 93 ; `Promise.withResolvers` et
+  `structuredClone` sont polyfillés / hors chemin navigateur. La CSS utilise
+  `color-mix()` 176 fois → couleurs correctes à partir de Chrome 111 (sinon
+  l'app fonctionne avec des couleurs dégradées).
+- Garde-fou ajouté dans `MainActivity` : si la page n'appelle pas
+  `TvShell.onReady()` en 30 s, l'écran d'erreur s'affiche avec la dernière
+  erreur console (`onConsoleMessage`) et le diagnostic (version du WebView).
+  Le splash ne peut donc plus rester affiché indéfiniment.
+- Workflow : `gh release create --target "$GITHUB_SHA"` pour que le tag pointe
+  sur le commit construit (le premier tag pointait sur `master`).
+
+À relever sur le Stick (en plus de l'écran) :
+
+```bash
+adb shell dumpsys package com.amazon.webview.chromium | grep versionName
+adb logcat -s TvShell chromium   # erreurs JS et bridge
+```
+
+Décision selon la version Chrome affichée : **< 94** → cas « WebView trop
+ancien » (mettre à jour Amazon WebView, sinon GeckoView ; une ancienne version
+d'IPTVnator ne suffit pas forcément : toute version sous Angular ≥ 15 émet aussi
+de l'ES2022) ; **94–110** → l'app doit se charger, couleurs dégradées
+possibles ; **≥ 111** → seul le comportement de `tv.js` reste à ajuster.
+
 ## Prompt pour Claude Code (cloud)
 
 Copiez-collez ceci dans une session Claude Code ouverte sur votre fork d'IPTVnator (le dossier `tv-shell/` et le workflow étant commités) :

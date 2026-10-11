@@ -8,6 +8,8 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -15,6 +17,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
+import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -39,6 +42,8 @@ import org.tvshell.iptvnator.server.TvShellServer;
 public class MainActivity extends Activity {
 
     private static final long LONG_PRESS_MS = 650;
+    /** How long the web app may take to call TvShell.onReady() before the error panel explains the situation. */
+    private static final long READY_TIMEOUT_MS = 30_000;
 
     private WebView webView;
     private FrameLayout root;
@@ -54,6 +59,18 @@ public class MainActivity extends Activity {
     private String lastOfferedUrl;
     private boolean pageReady;
     private int loadedLayoutWidth;
+    private String lastConsoleError;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    /** Fires when the page never reported itself ready: a too-old WebView fails to parse the bundle silently. */
+    private final Runnable readyWatchdog = new Runnable() {
+        @Override
+        public void run() {
+            if (pageReady || errorPanel.getVisibility() == View.VISIBLE) return;
+            String message = getString(R.string.load_timeout);
+            if (lastConsoleError != null) message += "\n" + lastConsoleError;
+            showError(message);
+        }
+    };
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -132,6 +149,15 @@ public class MainActivity extends Activity {
         });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
+            public boolean onConsoleMessage(ConsoleMessage message) {
+                if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
+                    lastConsoleError = message.message() + " (" + message.sourceId() + ":" + message.lineNumber() + ")";
+                    Log.w(ShellApp.TAG, "[console] " + lastConsoleError);
+                }
+                return false;
+            }
+
+            @Override
             public void onShowCustomView(View view, CustomViewCallback callback) {
                 if (customView != null) {
                     callback.onCustomViewHidden();
@@ -176,6 +202,8 @@ public class MainActivity extends Activity {
         errorPanel.setVisibility(View.GONE);
         splash.setVisibility(View.VISIBLE);
         pageReady = false;
+        lastConsoleError = null;
+        handler.removeCallbacks(readyWatchdog);
         server = ((ShellApp) getApplication()).ensureServer();
         if (server == null) {
             showError(getString(R.string.server_error));
@@ -186,6 +214,7 @@ public class MainActivity extends Activity {
         webView.setVisibility(View.VISIBLE);
         webView.loadUrl(server.baseUrl());
         webView.requestFocus(View.FOCUS_DOWN);
+        handler.postDelayed(readyWatchdog, READY_TIMEOUT_MS);
     }
 
     private void showError(String message) {
@@ -287,7 +316,9 @@ public class MainActivity extends Activity {
     // --------------------------------------------------------- callbacks
     void onWebAppReady() {
         pageReady = true;
+        handler.removeCallbacks(readyWatchdog);
         splash.setVisibility(View.GONE);
+        errorPanel.setVisibility(View.GONE);
         webView.requestFocus(View.FOCUS_DOWN);
     }
 
@@ -367,6 +398,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        handler.removeCallbacks(readyWatchdog);
         if (webView != null) {
             webView.loadUrl("about:blank");
             webView.destroy();

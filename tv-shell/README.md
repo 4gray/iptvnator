@@ -96,6 +96,6 @@ cd tv-shell/android && ./gradlew :backend:check
 
 ## Dépannage
 
-- **Écran « Le lecteur n'a pas pu être chargé »** : lisez le diagnostic (version Chrome du WebView). Angular 21 demande un WebView récent (≈ Chrome 111+). Mettez à jour « Amazon WebView » / Android System WebView via l'Appstore ; sinon, piste GeckoView (voir `HANDOFF.md`).
+- **Écran « Le lecteur n'a pas pu être chargé »** : lisez le diagnostic (version Chrome du WebView). Angular 21 demande un WebView récent : moteur Chrome ≥ 94 pour charger le JS (blocs `static {}`), ≥ 111 pour des couleurs correctes (`color-mix()`). Mettez à jour « Amazon WebView » / Android System WebView via l'Appstore ; sinon, piste GeckoView (voir `HANDOFF.md`).
 - **Flux muet / noir** : codec non supporté par le WebView → Menu sur l'image ou « Copier l'URL du flux » → VLC. Pour Xtream, choisissez le format de sortie `m3u8` dans les réglages de la playlist.
 - **Inspecter la page** : réglages de la coquille → *débogage à distance*, puis `chrome://inspect` sur un PC avec `adb connect`.

@@ -139,6 +139,7 @@ jobs:
           set -euo pipefail
           TAG="tv-shell-v${APK_VERSION}-${GITHUB_RUN_NUMBER}"
           gh release create "$TAG" "dist/${APK_NAME}" \
+            --target "$GITHUB_SHA" \
             --title "TV shell ${APK_VERSION} (build ${GITHUB_RUN_NUMBER})" \
             --notes "APK de la coquille Fire TV / Android TV pour IPTVnator. Installez-le avec l'application Downloader (URL ci-dessous) ou avec \`adb install\`."
           echo "Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"

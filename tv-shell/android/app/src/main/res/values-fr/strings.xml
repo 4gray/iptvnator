@@ -5,6 +5,7 @@
     <string name="load_error_title">Le lecteur n\'a pas pu être chargé</string>
     <string name="load_error">Erreur : %1$s (code %2$s)</string>
     <string name="server_error">Le serveur embarqué n\'a pas pu démarrer (aucun port libre).</string>
+    <string name="load_timeout">L\'application web n\'a pas démarré en 30 secondes. Le WebView de cet appareil est peut-être trop ancien pour IPTVnator (moteur Chrome 94 ou plus récent requis). Appui long sur Menu pour le diagnostic.</string>
     <string name="retry">Réessayer</string>
     <string name="settings_title">Réglages de la coquille</string>
     <string name="done">Terminé</string>
