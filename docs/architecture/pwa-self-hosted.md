@@ -99,7 +99,10 @@ its database. Storage errors are logged by error name and code only, because
 Drizzle messages can carry bound values such as portal credentials. With
 `IPTVNATOR_ACCESS_TOKEN`, every route except `/`, `/health`, `/config.js`
 and `/v1/instance` requires `Authorization: Bearer <token>`, the proxy
-routes included.
+routes included. The PWA cannot send that token yet, so the variable must
+stay unset until the browser side lands. Browser app state written through
+`/v1/app-state` is stored under a `client:` key prefix, apart from
+server-owned keys such as the instance id.
 
 `pnpm nx run web-backend:serve` starts the backend by hand on port 3333 with
 `TSX_TSCONFIG_PATH=tsconfig.base.json`, which `tsx` needs for the

@@ -100,7 +100,7 @@ safe local defaults shown below.
 | `NODE_EXTRA_CA_CERTS`                    | unset                   | Optional Node.js CA bundle path for providers using private certificate authorities. Mount the CA file into the container and set this path. |
 | `IPTVNATOR_STORAGE`                      | `server` in the image   | `server` opens the server storage database under `IPTVNATOR_DATA_DIR` and its `/api/v1` routes; `none` keeps the backend stateless.          |
 | `IPTVNATOR_DATA_DIR`                     | `/data` in the image    | Data root; the database is `<root>/databases/iptvnator.db`. Mount a volume here.                                                             |
-| `IPTVNATOR_ACCESS_TOKEN`                 | unset                   | When set, every route except `/`, `/health`, `/config.js` and `/v1/instance` requires `Authorization: Bearer <token>`, proxy routes included. |
+| `IPTVNATOR_ACCESS_TOKEN`                 | unset                   | When set, every route except `/`, `/health`, `/config.js` and `/v1/instance` requires `Authorization: Bearer <token>`, proxy routes included. The browser app cannot send a token yet: leave it unset until it can. |
 | `IPTVNATOR_MAX_DOCUMENT_MB`              | `64`                    | Largest playlist document the backend accepts. Keep the nginx `client_max_body_size` in step.                                                |
 
 The web backend proxy accepts only `http` and `https` provider URLs. The PWA
@@ -142,8 +142,9 @@ database and each browser keeps its own data.
 
 Provider credentials will be stored unencrypted in that database, as the
 desktop app does. Do not expose an instance with server storage to the
-internet without `IPTVNATOR_ACCESS_TOKEN` or authentication in your reverse
-proxy. Back up the volume like any database: stop the container, or copy
+internet without authentication in your reverse proxy. The backend already
+supports `IPTVNATOR_ACCESS_TOKEN`, but the browser app cannot send the
+token yet, so setting it now makes the app unusable. Back up the volume like any database: stop the container, or copy
 `databases/iptvnator.db` together with its `-wal` file.
 
 ## IPv6, VPNs, And Connection Fallback
