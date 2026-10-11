@@ -2,6 +2,7 @@ import {
     applyDefaultAutoSelectFamilyAttemptTimeout,
     AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_FLAG,
 } from '@iptvnator/shared/host-health';
+import { closeGracefully } from './app/graceful-shutdown';
 import { createWebBackendApp } from './app/web-backend-app';
 import { readServerStorageConfig } from './app/storage/storage-config';
 import {
@@ -47,7 +48,7 @@ async function start(): Promise<void> {
     });
 
     const shutdown = () => {
-        server.close(() => {
+        void closeGracefully(server).then(() => {
             storage?.database.close();
             process.exit(0);
         });

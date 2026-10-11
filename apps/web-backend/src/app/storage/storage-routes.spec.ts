@@ -240,6 +240,24 @@ describe('server storage routes', () => {
             })
         ));
 
+    it('rejects playlist ids with surrounding whitespace', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const put = await fetch(
+                    `${baseUrl}/v1/playlists/%20p1%20`,
+                    json(m3uDocument('p1'), { method: 'PUT' })
+                );
+                const get = await fetch(`${baseUrl}/v1/playlists/%20p1%20`);
+
+                expect(put.status).toBe(400);
+                await expect(put.json()).resolves.toMatchObject({
+                    code: 'invalid_id',
+                });
+                expect(get.status).toBe(400);
+                expect(storage.playlists.count()).toBe(0);
+            })
+        ));
+
     it('answers 413 above the document limit', () =>
         withTempStorage((storage) =>
             withServer(

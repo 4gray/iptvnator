@@ -24,7 +24,7 @@ export function createPlaylistsRouter(
     });
 
     router.get('/playlists/:id', (req, res) => {
-        const id = req.params.id;
+        const id = requirePlaylistId(req.params.id);
         // A cheap existence check first: a tag must never confirm a
         // representation that does not exist.
         if (!playlists.exists(id)) {
@@ -52,7 +52,7 @@ export function createPlaylistsRouter(
     });
 
     router.put('/playlists/:id', json, (req, res) => {
-        const id = req.params.id;
+        const id = requirePlaylistId(req.params.id);
         playlists.upsert(
             { ...requireDocument(req.body), _id: id },
             { keepPayload: req.query['keepPayload'] === '1' }
@@ -61,7 +61,7 @@ export function createPlaylistsRouter(
     });
 
     router.delete('/playlists/:id', (req, res) => {
-        deletePlaylistWithState(storage, req.params.id);
+        deletePlaylistWithState(storage, requirePlaylistId(req.params.id));
         res.json({ success: true });
     });
 
@@ -78,6 +78,21 @@ function withEtag(res: Response, etag: string): Response {
         .set('ETag', etag)
         .set('Access-Control-Expose-Headers', 'ETag')
         .set('Cache-Control', 'no-cache');
+}
+
+/**
+ * The row codec trims ids, so an id with surrounding whitespace would be
+ * stored under a different key than the one its ETag tracks.
+ */
+function requirePlaylistId(value: string): string {
+    if (!value || value !== value.trim()) {
+        throw new StorageRequestError(
+            400,
+            'invalid_id',
+            'A playlist id cannot be empty or start or end with whitespace.'
+        );
+    }
+    return value;
 }
 
 function requireDocument(value: unknown): Record<string, unknown> {
