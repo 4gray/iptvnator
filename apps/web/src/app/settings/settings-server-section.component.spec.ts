@@ -92,6 +92,7 @@ describe('SettingsServerSectionComponent', () => {
 
         expect(migration.moveBrowserData).toHaveBeenCalled();
         expect(byTestId('server-import-browser')).toBeNull();
+        expect(byTestId('server-import-reload')).not.toBeNull();
         expect(fixture.nativeElement.textContent).toContain(
             'SERVER_STORAGE.MIGRATION_DONE'
         );

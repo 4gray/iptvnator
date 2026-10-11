@@ -91,6 +91,17 @@ describe('server storage routes', () => {
                     headers: { 'if-none-match': `W/${etag}` },
                 });
                 expect(weakened.status).toBe(304);
+
+                // A write names the version it replaced.
+                const next = await fetch(
+                    `${baseUrl}/v1/playlists/p1?keepPayload=1`,
+                    json({ _id: 'p1', title: 'Renamed' }, { method: 'PUT' })
+                );
+                expect(next.headers.get('x-replaced-etag')).toBe(etag);
+                expect(next.headers.get('etag')).not.toBe(etag);
+                expect(
+                    next.headers.get('access-control-expose-headers')
+                ).toContain('X-Replaced-ETag');
             })
         ));
 

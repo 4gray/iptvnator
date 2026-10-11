@@ -1,5 +1,6 @@
 import {
     SERVER_PAYLOAD_FIELDS,
+    SERVER_REPLACED_ETAG_HEADER,
     type ElectronBridgeCountResult,
     type ElectronBridgeResult,
     type Playlist,
@@ -16,14 +17,15 @@ type ServerApi = Pick<ServerApiClient, 'request' | 'getJson' | 'sendJson'>;
 
 /**
  * `PlaylistDocumentStore` over the server storage API. Full documents are
- * cached by ETag; every read hands out a private copy and remembers its
- * payload objects, so an upsert whose payload is one of them omits it
- * (`keepPayload=1`). `PlaylistsService` builds a new object per mutation,
- * so cached documents are never mutated in place.
+ * cached by ETag; every read hands out a private copy and remembers which
+ * ETag its payload objects came from, so an upsert whose payload is one of
+ * them omits it (`keepPayload=1`). `PlaylistsService` builds a new object
+ * per mutation, so cached documents are never mutated in place.
  */
 export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
     private readonly cache = new Map<string, CachedDocument>();
-    private readonly servedPayloads = new WeakSet<object>();
+    /** Served payload object → the ETag of the document it came from. */
+    private readonly servedPayloads = new WeakMap<object, string>();
 
     constructor(private readonly api: ServerApi) {}
 
@@ -52,37 +54,46 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         }
 
         if (response.status === 304 && cached) {
-            return this.serve(cached.document);
+            return this.serve(cached.document, cached.etag);
         }
         const document = (await response.json()) as Playlist;
-        this.remember(playlistId, response, document);
-        return this.serve(document);
+        const etag = this.remember(playlistId, response, document);
+        return this.serve(document, etag);
     }
 
     async dbUpsertAppPlaylist(
         playlist: Playlist
     ): Promise<ElectronBridgeResult> {
         const path = `/playlists/${encodeURIComponent(playlist._id)}`;
-        const keepPayload = this.carriesServedPayload(playlist);
-        let response: Response;
-        try {
-            response = keepPayload
-                ? await this.api.sendJson(
-                      'PUT',
-                      `${path}?keepPayload=1`,
-                      withoutPayload(playlist)
-                  )
-                : await this.api.sendJson('PUT', path, playlist);
-        } catch (error) {
-            if (!(
-                keepPayload &&
-                error instanceof ServerApiError &&
-                error.code === 'payload_missing'
-            )) {
-                throw error;
+        const payloadEtag = this.servedPayloadEtag(playlist);
+        if (payloadEtag !== null) {
+            try {
+                const response = await this.api.sendJson(
+                    'PUT',
+                    `${path}?keepPayload=1`,
+                    withoutPayload(playlist)
+                );
+                // The server kept its stored payload; it is ours only if
+                // nothing replaced it since we read it.
+                const replaced = response.headers.get(
+                    SERVER_REPLACED_ETAG_HEADER
+                );
+                if (replaced && sameEtag(replaced, payloadEtag)) {
+                    this.remember(playlist._id, response, playlist);
+                } else {
+                    this.cache.delete(playlist._id);
+                }
+                return { success: true };
+            } catch (error) {
+                if (!(
+                    error instanceof ServerApiError &&
+                    error.code === 'payload_missing'
+                )) {
+                    throw error;
+                }
             }
-            response = await this.api.sendJson('PUT', path, playlist);
         }
+        const response = await this.api.sendJson('PUT', path, playlist);
         this.remember(playlist._id, response, playlist);
         return { success: true };
     }
@@ -131,41 +142,58 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         return { success: true };
     }
 
-    private remember(id: string, response: Response, document: Playlist): void {
+    private remember(
+        id: string,
+        response: Response,
+        document: Playlist
+    ): string | null {
         const etag = response.headers.get('etag');
         if (etag) {
             this.cache.set(id, { etag, document });
         } else {
             this.cache.delete(id);
         }
+        return etag;
     }
 
-    private serve(document: Playlist): Playlist {
+    private serve(document: Playlist, etag: string | null): Playlist {
         const copy = structuredClone(document);
+        if (!etag) {
+            return copy;
+        }
         const record = copy as unknown as Record<string, unknown>;
         for (const field of SERVER_PAYLOAD_FIELDS) {
             const value = record[field];
             if (value && typeof value === 'object') {
-                this.servedPayloads.add(value);
+                this.servedPayloads.set(value, etag);
             }
         }
         return copy;
     }
 
-    private carriesServedPayload(playlist: Playlist): boolean {
+    /** The ETag every payload field of `playlist` was served under, if any. */
+    private servedPayloadEtag(playlist: Playlist): string | null {
         const record = playlist as unknown as Record<string, unknown>;
-        const present = SERVER_PAYLOAD_FIELDS.filter(
-            (field) => record[field] !== undefined && record[field] !== null
-        );
-        return (
-            present.length > 0 &&
-            present.every(
-                (field) =>
-                    typeof record[field] === 'object' &&
-                    this.servedPayloads.has(record[field] as object)
-            )
-        );
+        const etags = new Set<string | undefined>();
+        for (const field of SERVER_PAYLOAD_FIELDS) {
+            const value = record[field];
+            if (value === undefined || value === null) {
+                continue;
+            }
+            etags.add(
+                typeof value === 'object'
+                    ? this.servedPayloads.get(value)
+                    : undefined
+            );
+        }
+        const [etag] = etags;
+        return etags.size === 1 && etag !== undefined ? etag : null;
     }
+}
+
+/** nginx's gzip turns ETags weak; the revision stays the same. */
+function sameEtag(left: string, right: string): boolean {
+    return left.replace(/^W\//, '') === right.replace(/^W\//, '');
 }
 
 function withoutPayload(playlist: Playlist): Record<string, unknown> {

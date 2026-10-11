@@ -38,7 +38,6 @@ export class ServerStorageSession {
     readonly userData = new ServerUserDataStorage(
         this.api,
         globalThis.localStorage,
-        () => this.backend.usesBrowserStorageOverride(),
         () => this.announceWriteFailure()
     );
 

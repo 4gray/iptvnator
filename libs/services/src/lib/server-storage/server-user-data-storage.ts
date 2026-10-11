@@ -27,7 +27,7 @@ type ServerApi = Pick<
  * Write-through `USER_DATA_STORAGE` for server mode. Synced namespaces are
  * maps keyed by playlist id; a write compares the new map with the last one
  * the server saw and sends only the playlist entries that changed. Other
- * keys, and every key while the browser override runs, use plain storage.
+ * keys use plain storage.
  */
 export class ServerUserDataStorage implements UserDataStorage {
     private readonly synced = new Map<
@@ -36,11 +36,15 @@ export class ServerUserDataStorage implements UserDataStorage {
     >();
     private readonly pending = new Map<string, PendingEntry>();
     private flushTimer: ReturnType<typeof setTimeout> | null = null;
+    /** Batches go out one at a time, so an older write never lands last. */
+    private sending: Promise<void> = Promise.resolve();
+    /** Edit counter per `namespace|playlistId`, for hydrate to keep them. */
+    private readonly edits = new Map<string, number>();
+    private editCount = 0;
 
     constructor(
         private readonly api: ServerApi,
         private readonly local: UserDataStorage,
-        private readonly useLocal: () => boolean,
         private readonly onWriteFailure: (error: unknown) => void
     ) {}
 
@@ -68,24 +72,58 @@ export class ServerUserDataStorage implements UserDataStorage {
         this.queueChanges(key, {});
     }
 
-    /** Replaces the cache with the server's data, after sending pending writes. */
+    /**
+     * Replaces the cache with the server's data, after sending pending
+     * writes. Entries edited while the read was in flight keep their local
+     * value: their write is queued or travelling and will reach the server.
+     */
     async hydrate(): Promise<void> {
+        // Edits from here on may miss the read: queued, or still travelling.
+        const editsBefore = this.editCount;
         await this.flush();
         const { entries } =
             await this.api.getJson<ServerUserStateResponse>('/user-state');
         for (const namespace of SERVER_USER_STATE_NAMESPACES) {
-            const value = entries[namespace] ?? {};
+            const value: Record<string, unknown> = {
+                ...(entries[namespace] ?? {}),
+            };
+            const current = parseMap(
+                this.local.getItem(SERVER_CACHE_PREFIX + namespace) ?? '{}'
+            );
+            for (const [key, edit] of this.edits) {
+                const [editedNamespace, playlistId] = splitEditKey(key);
+                if (edit <= editsBefore || editedNamespace !== namespace) {
+                    continue;
+                }
+                if (playlistId in current) {
+                    value[playlistId] = current[playlistId];
+                } else {
+                    delete value[playlistId];
+                }
+            }
             this.synced.set(namespace, value);
             this.local.setItem(
                 SERVER_CACHE_PREFIX + namespace,
                 JSON.stringify(value)
             );
         }
+        for (const [key, edit] of this.edits) {
+            if (edit <= editsBefore) {
+                this.edits.delete(key);
+            }
+        }
     }
 
-    async flush(): Promise<void> {
-        const batch = this.takePending();
-        await Promise.all(batch.map((entry) => this.send(entry)));
+    /** Sends the queued entries after any batch still travelling. */
+    flush(): Promise<void> {
+        const run = this.sending.then(() =>
+            Promise.all(this.takePending().map((entry) => this.send(entry)))
+        );
+        this.sending = run.then(
+            () => undefined,
+            () => undefined
+        );
+        return this.sending;
     }
 
     flushWithKeepalive(): void {
@@ -100,7 +138,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     private isSynced(key: string): key is ServerUserStateNamespace {
-        return !this.useLocal() && isServerUserStateNamespace(key);
+        return isServerUserStateNamespace(key);
     }
 
     private queueChanges(
@@ -112,24 +150,22 @@ export class ServerUserDataStorage implements UserDataStorage {
             if (
                 JSON.stringify(previous[playlistId]) !== JSON.stringify(value)
             ) {
-                this.pending.set(`${namespace}|${playlistId}`, {
-                    namespace,
-                    playlistId,
-                    value,
-                });
+                this.queue({ namespace, playlistId, value });
             }
         }
         for (const playlistId of Object.keys(previous)) {
             if (!(playlistId in next)) {
-                this.pending.set(`${namespace}|${playlistId}`, {
-                    namespace,
-                    playlistId,
-                    value: undefined,
-                });
+                this.queue({ namespace, playlistId, value: undefined });
             }
         }
         this.synced.set(namespace, next);
         this.scheduleFlush();
+    }
+
+    private queue(entry: PendingEntry): void {
+        const key = `${entry.namespace}|${entry.playlistId}`;
+        this.pending.set(key, entry);
+        this.edits.set(key, ++this.editCount);
     }
 
     private scheduleFlush(): void {
@@ -165,6 +201,11 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.onWriteFailure(error);
         }
     }
+}
+
+function splitEditKey(key: string): [string, string] {
+    const separator = key.indexOf('|');
+    return [key.slice(0, separator), key.slice(separator + 1)];
 }
 
 function entryPath(entry: PendingEntry): string {

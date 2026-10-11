@@ -10,11 +10,18 @@ function memoryStorage() {
     };
 }
 
+/** Lets chained promises run without advancing the fake timers. */
+async function settle(): Promise<void> {
+    for (let i = 0; i < 10; i += 1) {
+        await Promise.resolve();
+    }
+}
+
 describe('ServerUserDataStorage', () => {
     beforeEach(() => jest.useFakeTimers());
     afterEach(() => jest.useRealTimers());
 
-    function setup(useLocal = false) {
+    function setup() {
         const local = memoryStorage();
         const api = {
             getJson: jest.fn().mockResolvedValue({
@@ -33,7 +40,6 @@ describe('ServerUserDataStorage', () => {
         const storage = new ServerUserDataStorage(
             api as never,
             local,
-            () => useLocal,
             onWriteFailure
         );
         return { api, local, storage, onWriteFailure };
@@ -70,13 +76,11 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenCalledTimes(1);
     });
 
-    it('passes other keys and the browser override to plain storage', () => {
-        const { api, local, storage } = setup(true);
+    it('passes other keys to plain storage', () => {
+        const { api, local, storage } = setup();
 
-        storage.setItem('xtream-favorites', '{"legacy":[]}');
         storage.setItem('xtream-playlists', '[]');
 
-        expect(local.values.get('xtream-favorites')).toBe('{"legacy":[]}');
         expect(local.values.get('xtream-playlists')).toBe('[]');
         expect(api.sendJson).not.toHaveBeenCalled();
     });
@@ -106,5 +110,85 @@ describe('ServerUserDataStorage', () => {
         await jest.runOnlyPendingTimersAsync();
 
         expect(onWriteFailure).toHaveBeenCalled();
+    });
+
+    it('keeps an edit made while a refresh is reading', async () => {
+        const { api, storage } = setup();
+        await storage.hydrate();
+        let answer: (value: unknown) => void = () => undefined;
+        api.getJson.mockReturnValueOnce(
+            new Promise((resolve) => (answer = resolve))
+        );
+
+        const refresh = storage.hydrate();
+        await settle();
+        storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['live:1'], p2: ['live:2'] })
+        );
+        // The server's older snapshot arrives after the edit.
+        answer({ entries: { 'xtream-favorites': { p1: ['live:1'] } } });
+        await refresh;
+
+        expect(JSON.parse(storage.getItem('xtream-favorites') ?? '')).toEqual({
+            p1: ['live:1'],
+            p2: ['live:2'],
+        });
+        await jest.runOnlyPendingTimersAsync();
+        expect(api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p2',
+            { value: ['live:2'] }
+        );
+
+        // The next edit does not send a delete for the kept entry.
+        storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['live:1', 'live:3'], p2: ['live:2'] })
+        );
+        await jest.runOnlyPendingTimersAsync();
+        expect(api.request).not.toHaveBeenCalledWith(
+            '/user-state/xtream-favorites/p2',
+            { method: 'DELETE' }
+        );
+    });
+
+    it('sends a newer batch only after the older one finished', async () => {
+        const { api, storage } = setup();
+        await storage.hydrate();
+        const order: string[] = [];
+        let finishFirst: () => void = () => undefined;
+        api.sendJson
+            .mockImplementationOnce(
+                (_method: string, _path: string, body: { value: unknown }) => {
+                    order.push(`start ${JSON.stringify(body.value)}`);
+                    return new Promise<void>((resolve) => {
+                        finishFirst = () => {
+                            order.push('end first');
+                            resolve();
+                        };
+                    });
+                }
+            )
+            .mockImplementation(
+                (_method: string, _path: string, body: { value: unknown }) => {
+                    order.push(`start ${JSON.stringify(body.value)}`);
+                    return Promise.resolve();
+                }
+            );
+
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['a'] }));
+        const first = storage.flush();
+        await settle();
+        // A newer edit while the first batch is still travelling.
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['b'] }));
+        const second = storage.flush();
+        await settle();
+        expect(order).toEqual(['start ["a"]']);
+
+        finishFirst();
+        await first;
+        await second;
+        expect(order).toEqual(['start ["a"]', 'end first', 'start ["b"]']);
     });
 });

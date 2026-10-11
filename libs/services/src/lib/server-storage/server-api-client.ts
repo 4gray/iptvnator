@@ -7,6 +7,9 @@ import type { ServerStorageStatusService } from '../server-storage-status.servic
 
 const REQUEST_TIMEOUT_MS = 20_000;
 
+/** nginx answers these while the backend behind it is down. */
+const GATEWAY_UNAVAILABLE = new Set([502, 503, 504]);
+
 export class ServerApiError extends Error {
     constructor(
         readonly status: number,
@@ -76,6 +79,11 @@ export class ServerApiClient {
                 'unauthorized',
                 'The server needs an access token.'
             );
+        }
+
+        if (GATEWAY_UNAVAILABLE.has(response.status)) {
+            // A proxy in front of a backend that is down or restarting.
+            this.options.status.reportOffline();
         }
 
         if (!response.ok && response.status !== 304) {

@@ -11,6 +11,15 @@ function fakeResponse(status: number, body?: unknown, etag?: string) {
     } as unknown as Response;
 }
 
+function putResponse(etag: string, replaced: string) {
+    return {
+        status: 200,
+        ok: true,
+        headers: new Headers({ etag, 'x-replaced-etag': replaced }),
+        json: async () => ({ success: true }),
+    } as unknown as Response;
+}
+
 describe('ServerPlaylistDocumentStore', () => {
     const doc = {
         _id: 'p1',
@@ -98,5 +107,37 @@ describe('ServerPlaylistDocumentStore', () => {
 
         expect(api.sendJson.mock.calls[1][1]).toBe('/playlists/p1');
         expect(api.sendJson.mock.calls[1][2]).toBe(served);
+    });
+
+    describe('after a keepPayload write', () => {
+        async function readThenEdit(replaced: string) {
+            const { api, store } = setup();
+            // nginx gzip weakens the read's ETag.
+            api.request.mockResolvedValueOnce(
+                fakeResponse(200, doc, 'W/"b.0.1"')
+            );
+            const served = await store.dbGetAppPlaylist('p1');
+            if (!served) throw new Error('expected a document');
+            api.sendJson.mockResolvedValueOnce(
+                putResponse('"b.0.2"', replaced)
+            );
+            await store.dbUpsertAppPlaylist({ ...served, favorites: ['a'] });
+            api.request.mockResolvedValueOnce(
+                fakeResponse(200, doc, '"b.0.3"')
+            );
+            await store.dbGetAppPlaylist('p1');
+            return api.request.mock.calls[1][1];
+        }
+
+        it('keeps its copy when it replaced the version it read', async () => {
+            await expect(readThenEdit('"b.0.1"')).resolves.toEqual({
+                headers: { 'If-None-Match': '"b.0.2"' },
+            });
+        });
+
+        it('drops its copy when another device wrote in between', async () => {
+            // The server kept a newer payload than the one this client has.
+            await expect(readThenEdit('"b.0.4"')).resolves.toEqual({});
+        });
     });
 });

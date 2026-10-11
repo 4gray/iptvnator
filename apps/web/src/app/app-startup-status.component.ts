@@ -14,6 +14,7 @@ import {
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
+import { ServerStorageStatusService } from '@iptvnator/services';
 
 /** The first route also waits for settings and XMLTV source reconciliation. */
 @Component({
@@ -130,8 +131,14 @@ export class AppStartupStatusComponent {
         selectPlaylistsLoadingFlag
     );
     readonly failed = this.store.selectSignal(selectPlaylistsLoadFailed);
+    private readonly serverStatus = inject(ServerStorageStatusService);
+    /** Server storage waiting for a token: only its sign-in page can load. */
+    private readonly signInRequired = computed(
+        () => this.serverStatus.state() === 'unauthorized'
+    );
     readonly complete = computed(
-        () => this.routeReady() && this.sourcesReady()
+        () =>
+            this.routeReady() && (this.sourcesReady() || this.signInRequired())
     );
 
     retry(): void {

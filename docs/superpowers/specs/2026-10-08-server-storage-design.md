@@ -79,9 +79,15 @@ on the server. Adding a playlist stays the ordinary "Add playlist" flow.
      this instance): a dialog offers "Move to server". Playlists are copied
      with their ids, then the four Xtream user-data maps for those ids.
    - Any later device (server already has playlists): Settings → Server
-     offers "Import this browser's playlists", which runs the existing backup
-     export (browser) and import (server) with fingerprint merging, so the
-     same provider added on two devices is not duplicated.
+     offers "Import this browser's playlists". A browser playlist the server
+     already has (same id, or same source: Xtream server and user, Stalker
+     portal and MAC, M3U URL) merges into the server's copy, so the same
+     provider added on two devices is not duplicated; the others upload with
+     their ids. The Xtream maps follow under the server id and never replace
+     what a merged playlist already has. The backup format is not used: its
+     PWA export carries no Xtream user data.
+   - The decision marker is written only when nothing failed, so a partial
+     move stays on offer and can run again.
    - Browser data is never deleted. The server-mode cache uses its own
      localStorage key prefix, so legacy keys stay intact.
 5. Offline: reads and writes fail with a visible state. The rail shows an
@@ -143,8 +149,7 @@ closes it on `SIGTERM`. Storage errors are logged by name and route only.
 
 - `PlaylistStorageBackend` (libs/services) resolves the document store:
   server store in server mode, Electron bridge when `supportsSqlite`, else
-  IndexedDB. It can switch to browser storage temporarily for the migration
-  export.
+  IndexedDB.
 - `@iptvnator/services/server-storage` (sub-entry, kept out of the eager
   barrel): API client, document store, user-data storage, session, migration.
 - `ServerStorageStatusService` (main barrel, tiny): connection state for the

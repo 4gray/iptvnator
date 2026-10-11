@@ -91,8 +91,19 @@
                         }
                     </p>
                 </div>
-                @if (browserPlaylistCount() > 0) {
-                    <div class="setting-item__control">
+                <div class="setting-item__control inline-actions">
+                    @if (movedSomething()) {
+                        <!-- The library on screen predates the move. -->
+                        <button
+                            mat-stroked-button
+                            type="button"
+                            (click)="reload()"
+                            data-test-id="server-import-reload"
+                        >
+                            {{ 'SERVER_STORAGE.MIGRATION_RELOAD' | translate }}
+                        </button>
+                    }
+                    @if (browserPlaylistCount() > 0) {
                         <button
                             mat-flat-button
                             type="button"
@@ -110,8 +121,8 @@
                             }
                             {{ 'SERVER_STORAGE.MIGRATION_MOVE' | translate }}
                         </button>
-                    </div>
-                }
+                    }
+                </div>
             </div>
         }
 

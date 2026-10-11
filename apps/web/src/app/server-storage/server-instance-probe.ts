@@ -1,3 +1,4 @@
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
 import type { IptvnatorRuntimeConfig } from '../services/runtime-config';
 
@@ -29,7 +30,10 @@ export async function probeServerInstance(
 ): Promise<ServerInstanceProbe> {
     const runtimeConfig =
         options.runtimeConfig ?? globalThis.window?.__IPTVNATOR_CONFIG__;
-    const isElectron = options.isElectron ?? !!globalThis.window?.electron;
+    // The capability service has no dependencies, so it works before
+    // bootstrap and keeps one definition of the desktop runtime.
+    const isElectron =
+        options.isElectron ?? new RuntimeCapabilitiesService().isElectron;
     const baseUrl = runtimeConfig?.BACKEND_URL?.trim();
     if (isElectron || !baseUrl) {
         return { kind: 'skipped' };

@@ -83,7 +83,9 @@ Server storage adds versioned routes under `/v1`, which the PWA uses in
   `DELETE /v1/playlists`: whole playlist documents; `GET` sends an `ETag`
   and answers `304` to a matching `If-None-Match`, and
   `PUT ...?keepPayload=1` keeps the stored `playlist`, `items` and
-  `header` fields (`409 payload_missing` without a stored row)
+  `header` fields (`409 payload_missing` without a stored row); every `PUT`
+  answers with the new `ETag` and `X-Replaced-ETag`, the version it
+  replaced
 - `GET /v1/user-state`, `PUT|DELETE /v1/user-state/:namespace/:playlistId`:
   Xtream favorites, recently viewed, collection snapshots and playback
   positions, one JSON value per namespace and playlist
@@ -187,34 +189,39 @@ settings and guards read them in every build.
   `electron`, `server`, `indexeddb`), so `PlaylistsService` is unchanged. The
   store caches full documents by ETag and uploads a document whose payload it
   served unchanged with `keepPayload=1`, so a favorite or a rename does not
-  resend a large M3U.
+  resend a large M3U. It keeps its copy after such a write only when
+  `X-Replaced-ETag` names the version its payload came from; otherwise
+  another device wrote in between and the next read fetches the document.
 - **Xtream user data.** `USER_DATA_STORAGE` becomes `ServerUserDataStorage`:
   the four synced namespaces are cached under the `iptvnator-server:` key
   prefix (the legacy unprefixed keys are never written in server mode) and
   each change sends only the playlist entries that differ, debounced, with a
-  `keepalive` flush when the page hides. Start-up waits up to 3 s for the
-  first read.
+  `keepalive` flush when the page hides. Batches go out one after another,
+  and a re-read keeps entries edited while it was in flight. Start-up waits
+  up to 3 s for the first read.
 - **Connection state.** `ServerStorageStatusService` is `online`, `offline`
-  (a request did not reach the server; retried every 30 s and when the tab
-  returns) or
+  (a request did not reach the server, or a proxy answered 502, 503 or 504
+  for it; retried every 30 s and when the tab returns) or
   `unauthorized` (a 401 clears the stored token). The rail shows a status
   shortcut, an offline banner sits above the workspace content, and failed
   writes raise a snackbar (`SERVER_STORAGE.WRITE_FAILED`, or `TOO_LARGE` for
   a 413).
 - **Access token.** With `IPTVNATOR_ACCESS_TOKEN` the instance reports
   `auth: 'token'`; without a stored token, or after a 401, the guards route to
-  `/server-sign-in`, which checks the token against `/v1/instance/status`
+  `/server-sign-in` (the start-up screen lets it through although the
+  playlists could not load), which checks the token against `/v1/instance/status`
   before it stores it under `iptvnator-server:access-token` and reloads.
   `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
   backend, and `PwaService` adds it to its two raw `fetch` calls.
 - **Moving browser data.** `ServerMigrationService` offers, once per server
   instance (marker `iptvnator-server:migration:<instanceId>`), to move the
-  playlists this browser kept in IndexedDB. An empty server receives them
-  with their ids plus the legacy Xtream maps for those ids; a server that
-  already has playlists goes through the backup export and import, whose
-  fingerprints merge duplicates. Browser data is never deleted. Settings →
-  Server repeats the offer while the browser has playlists that were not
-  moved.
+  playlists this browser kept in IndexedDB (`planServerMigration`). A
+  playlist the server already has, by id or by source (Xtream server and
+  user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
+  others upload with their ids. The legacy Xtream maps follow under the
+  server id without replacing what a merged playlist already has. Browser
+  data is never deleted, and the marker is written only when nothing
+  failed, so Settings → Server keeps offering a partial move.
 
 What stays per device: settings, parental lock PINs and locked groups,
 the global favorites order and other UI preferences in browser storage.

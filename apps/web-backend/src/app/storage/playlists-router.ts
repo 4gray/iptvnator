@@ -1,4 +1,5 @@
 import express, { Router, type Response } from 'express';
+import { SERVER_REPLACED_ETAG_HEADER as REPLACED_ETAG_HEADER } from '@iptvnator/shared/interfaces';
 import { matchesEtag } from './etag-match';
 import {
     deleteAllPlaylistsWithState,
@@ -53,11 +54,16 @@ export function createPlaylistsRouter(
 
     router.put('/playlists/:id', json, (req, res) => {
         const id = requirePlaylistId(req.params.id);
+        const replaced = revisions.etag(id);
         playlists.upsert(
             { ...requireDocument(req.body), _id: id },
             { keepPayload: req.query['keepPayload'] === '1' }
         );
-        withEtag(res, revisions.bump(id)).json({ success: true });
+        // With keepPayload a client caches its copy only if the payload it
+        // holds is the one this write replaced.
+        withEtag(res, revisions.bump(id))
+            .set(REPLACED_ETAG_HEADER, replaced)
+            .json({ success: true });
     });
 
     router.delete('/playlists/:id', (req, res) => {
@@ -76,7 +82,7 @@ export function createPlaylistsRouter(
 function withEtag(res: Response, etag: string): Response {
     return res
         .set('ETag', etag)
-        .set('Access-Control-Expose-Headers', 'ETag')
+        .set('Access-Control-Expose-Headers', `ETag, ${REPLACED_ETAG_HEADER}`)
         .set('Cache-Control', 'no-cache');
 }
 

@@ -6,6 +6,7 @@ import {
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
+import { ServerStorageStatusService } from '@iptvnator/services';
 import { AppStartupStatusComponent } from './app-startup-status.component';
 
 describe('AppStartupStatusComponent', () => {
@@ -46,6 +47,31 @@ describe('AppStartupStatusComponent', () => {
         store.refreshState();
         fixture.detectChanges();
         expect(fixture.componentInstance.complete()).toBe(true);
+    });
+
+    it('shows the server sign-in page although sources could not load', () => {
+        TestBed.inject(MockStore).overrideSelector(
+            selectPlaylistsLoadFailed,
+            true
+        );
+        const status = TestBed.inject(ServerStorageStatusService);
+        status.activate(
+            {
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: 'i',
+                storage: 'server',
+                auth: 'token',
+            },
+            () => undefined
+        );
+        status.reportUnauthorized();
+        const fixture = TestBed.createComponent(AppStartupStatusComponent);
+        fixture.componentRef.setInput('routeReady', true);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.complete()).toBe(true);
+        expect(fixture.nativeElement.querySelector('section')).toBeNull();
     });
 
     it('offers a retry on failure without rendering raw storage errors', () => {

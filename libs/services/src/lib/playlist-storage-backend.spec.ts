@@ -52,19 +52,4 @@ describe('PlaylistStorageBackend', () => {
         expect(backend.kind()).toBe('server');
         expect(backend.documentStore()).toBe(store);
     });
-
-    it('falls back to browser storage while an override task runs', async () => {
-        testWindow.electron = undefined;
-        const backend = create(false);
-        backend.useServerStore({ dbGetAppPlaylists: jest.fn() } as never);
-
-        const seen = await backend.runWithBrowserStorage(async () => [
-            backend.kind(),
-            backend.usesBrowserStorageOverride(),
-        ]);
-
-        expect(seen).toEqual(['indexeddb', true]);
-        expect(backend.kind()).toBe('server');
-        expect(backend.usesBrowserStorageOverride()).toBe(false);
-    });
 });

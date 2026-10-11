@@ -36,6 +36,13 @@ export interface ServerInstanceInfo {
     readonly auth: 'none' | 'token';
 }
 
+/**
+ * Sent with every `PUT /v1/playlists/:id`: the document's ETag before that
+ * write. A client that kept the stored payload (`keepPayload=1`) may cache
+ * its copy under the new ETag only if its payload came from this one.
+ */
+export const SERVER_REPLACED_ETAG_HEADER = 'X-Replaced-ETag';
+
 export interface ServerStorageStatusResponse {
     readonly playlists: number;
     readonly databaseBytes: number;

@@ -62,6 +62,28 @@ describe('ServerApiClient', () => {
         expect(onWriteFailure).toHaveBeenCalledTimes(1);
     });
 
+    it('reports offline when a proxy answers for a down backend', async () => {
+        for (const code of [502, 503, 504]) {
+            const fetchFn = jest
+                .fn()
+                .mockResolvedValue(response(code, 'Bad Gateway'));
+
+            await expect(
+                client(fetchFn).getJson('/user-state')
+            ).rejects.toMatchObject({ status: code });
+        }
+        expect(status.reportOffline).toHaveBeenCalledTimes(3);
+
+        // A backend error is not an outage.
+        status.reportOffline.mockClear();
+        await expect(
+            client(
+                jest.fn().mockResolvedValue(response(500, { code: 'x' }))
+            ).getJson('/user-state')
+        ).rejects.toMatchObject({ status: 500 });
+        expect(status.reportOffline).not.toHaveBeenCalled();
+    });
+
     it('clears the token and reports unauthorized on 401', async () => {
         localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'old');
         const fetchFn = jest

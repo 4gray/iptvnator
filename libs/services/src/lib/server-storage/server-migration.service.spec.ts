@@ -1,45 +1,44 @@
 import { TestBed } from '@angular/core/testing';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { of } from 'rxjs';
-import { PlaylistStorageBackend } from '../playlist-storage-backend';
-import { PlaylistBackupService } from '../playlist-backup.service';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 import { ServerStorageSession } from './server-storage-session';
 import { ServerMigrationService } from './server-migration.service';
 
 describe('ServerMigrationService', () => {
     const browserPlaylists = [
-        { _id: 'm', title: 'Family' },
-        { _id: 'x', title: 'Provider', serverUrl: 'http://panel.test' },
+        { _id: 'm', title: 'Family', url: 'http://lists.test/family.m3u' },
+        {
+            _id: 'x',
+            title: 'Provider',
+            serverUrl: 'http://panel.test',
+            username: 'user',
+        },
     ];
     let session: {
         fetchStatus: jest.Mock;
-        documentStore: { dbUpsertAppPlaylist: jest.Mock };
-        api: { sendJson: jest.Mock };
+        documentStore: {
+            dbGetAppPlaylistMetas: jest.Mock;
+            dbUpsertAppPlaylist: jest.Mock;
+        };
+        api: { getJson: jest.Mock; sendJson: jest.Mock };
         userData: { hydrate: jest.Mock };
     };
-    let backup: { exportBackup: jest.Mock; importBackup: jest.Mock };
 
     beforeEach(() => {
         session = {
             fetchStatus: jest.fn().mockResolvedValue({ playlists: 0 }),
             documentStore: {
+                dbGetAppPlaylistMetas: jest.fn().mockResolvedValue([]),
                 dbUpsertAppPlaylist: jest
                     .fn()
                     .mockResolvedValue({ success: true }),
             },
-            api: { sendJson: jest.fn().mockResolvedValue(undefined) },
+            api: {
+                getJson: jest.fn().mockResolvedValue({ entries: {} }),
+                sendJson: jest.fn().mockResolvedValue(undefined),
+            },
             userData: { hydrate: jest.fn().mockResolvedValue(undefined) },
-        };
-        backup = {
-            exportBackup: jest.fn().mockResolvedValue({ json: '{}' }),
-            importBackup: jest.fn().mockResolvedValue({
-                imported: 1,
-                merged: 1,
-                skipped: 0,
-                failed: 0,
-                errors: [],
-            }),
         };
         TestBed.configureTestingModule({
             providers: [
@@ -48,14 +47,6 @@ describe('ServerMigrationService', () => {
                     useValue: { getAll: () => of(browserPlaylists) },
                 },
                 { provide: ServerStorageSession, useValue: session },
-                { provide: PlaylistBackupService, useValue: backup },
-                {
-                    provide: PlaylistStorageBackend,
-                    useValue: {
-                        runWithBrowserStorage: (task: () => Promise<unknown>) =>
-                            task(),
-                    },
-                },
                 {
                     provide: SERVER_STORAGE_CONFIG,
                     useValue: {
@@ -111,18 +102,76 @@ describe('ServerMigrationService', () => {
             { value: ['live:1'] }
         );
         expect(session.api.sendJson).toHaveBeenCalledTimes(1);
+        expect(session.userData.hydrate).toHaveBeenCalled();
         expect(migration.browserDataMoved()).toBe(true);
     });
 
-    it('merges through the backup format when the server already has playlists', async () => {
-        session.fetchStatus.mockResolvedValue({ playlists: 4 });
+    it('merges into the server copy and moves Xtream data under its id', async () => {
+        session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
+            {
+                _id: 'server-x',
+                title: 'Provider',
+                serverUrl: 'http://panel.test/',
+                username: 'user',
+            },
+            {
+                _id: 'server-m',
+                title: 'Family',
+                url: 'http://lists.test/family.m3u',
+            },
+        ]);
+        session.api.getJson.mockResolvedValue({
+            entries: {
+                'xtream-recent-items': { 'server-x': ['vod:9'] },
+            },
+        });
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ x: ['live:1'] })
+        );
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({ x: ['vod:1'] })
+        );
 
         const result = await TestBed.inject(
             ServerMigrationService
         ).moveBrowserData();
 
-        expect(backup.exportBackup).toHaveBeenCalled();
-        expect(backup.importBackup).toHaveBeenCalledWith('{}');
-        expect(result).toEqual({ imported: 1, merged: 1, failed: 0 });
+        expect(result).toEqual({ imported: 0, merged: 2, failed: 0 });
+        expect(
+            session.documentStore.dbUpsertAppPlaylist
+        ).not.toHaveBeenCalled();
+        // Favorites the server copy lacks follow; its own history stays.
+        expect(session.api.sendJson.mock.calls).toEqual([
+            [
+                'PUT',
+                '/user-state/xtream-favorites/server-x',
+                { value: ['live:1'] },
+            ],
+        ]);
+    });
+
+    it('keeps the move on offer when a playlist could not be uploaded', async () => {
+        session.documentStore.dbUpsertAppPlaylist
+            .mockRejectedValueOnce(new Error('413'))
+            .mockResolvedValue({ success: true });
+        const migration = TestBed.inject(ServerMigrationService);
+
+        const result = await migration.moveBrowserData();
+
+        expect(result).toEqual({ imported: 1, merged: 0, failed: 1 });
+        expect(migration.browserDataMoved()).toBe(false);
+
+        // A second run merges the moved one and retries the other.
+        session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
+            browserPlaylists[1],
+        ]);
+        await expect(migration.moveBrowserData()).resolves.toEqual({
+            imported: 1,
+            merged: 1,
+            failed: 0,
+        });
+        expect(migration.browserDataMoved()).toBe(true);
     });
 });

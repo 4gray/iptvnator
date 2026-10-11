@@ -35,32 +35,14 @@ export type PlaylistStorageKind = 'electron' | 'server' | 'indexeddb';
 export class PlaylistStorageBackend {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private serverStore: PlaylistDocumentStore | null = null;
-    private browserOverrideDepth = 0;
 
     /** Server mode: set once by the server storage session at startup. */
     useServerStore(store: PlaylistDocumentStore): void {
         this.serverStore = store;
     }
 
-    usesBrowserStorageOverride(): boolean {
-        return this.browserOverrideDepth > 0;
-    }
-
-    /**
-     * Runs `task` against browser storage although server mode is active.
-     * Only the migration export uses it, inside a modal flow.
-     */
-    async runWithBrowserStorage<T>(task: () => Promise<T>): Promise<T> {
-        this.browserOverrideDepth += 1;
-        try {
-            return await task();
-        } finally {
-            this.browserOverrideDepth -= 1;
-        }
-    }
-
     kind(): PlaylistStorageKind {
-        if (this.serverStore && this.browserOverrideDepth === 0) {
+        if (this.serverStore) {
             return 'server';
         }
         return this.runtime.supportsSqlite ? 'electron' : 'indexeddb';

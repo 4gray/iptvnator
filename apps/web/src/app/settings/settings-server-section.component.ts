@@ -61,6 +61,10 @@ export class SettingsServerSectionComponent {
     readonly showBrowserImport = computed(
         () => this.browserPlaylistCount() > 0 || this.importResult() !== null
     );
+    readonly movedSomething = computed(() => {
+        const result = this.importResult();
+        return !!result && result.imported + result.merged > 0;
+    });
 
     constructor() {
         void this.load();
@@ -98,6 +102,10 @@ export class SettingsServerSectionComponent {
 
     signOut(): void {
         this.session.signOut();
+    }
+
+    reload(): void {
+        window.location.reload();
     }
 }
 
