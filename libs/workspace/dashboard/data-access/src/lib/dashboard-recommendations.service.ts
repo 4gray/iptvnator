@@ -173,7 +173,8 @@ export class DashboardRecommendationsService {
                     // match never resolves either, so this rail re-runs on
                     // each visit for that user — bounded work, since the
                     // enrichment misses are cached and the catalog match is
-                    // one batched worker call.
+                    // one batched `matchTitles` call (worker requests of
+                    // five titles, other reads in between).
                     this.loadedKey = perSeed.every((seed) => seed.resolved)
                         ? loadKey
                         : null;
@@ -182,7 +183,8 @@ export class DashboardRecommendationsService {
                     // latched: an empty match result is indistinguishable
                     // from a transient worker failure at this layer
                     // (matchTitles maps failures to []), and re-running is
-                    // cheap (cached enrichment + one batched worker call).
+                    // cheap (cached enrichment + one batched `matchTitles`
+                    // call).
                     // Mirrors the trending rail's retry-on-empty semantics.
                     // The PREVIOUS key must reset too: it described the
                     // rail that was just cleared, and returning to those
@@ -449,8 +451,8 @@ export class DashboardRecommendationsService {
         if (candidates.length === 0) {
             return EMPTY_LOAD;
         }
-        // Both aliases go into the ONE batched request; the index lookup
-        // prefers the localized form. Built with a loop rather than
+        // Both aliases go into the ONE batched `matchTitles` call; the index
+        // lookup prefers the localized form. Built with a loop rather than
         // flatMap — the web app compiles this lib against `lib: es2018`,
         // which predates Array.prototype.flatMap.
         const queryTitles: string[] = [];
