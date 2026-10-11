@@ -67,7 +67,9 @@ function isNeutral(colour) {
 /** Text colour: fine for a border, a colour of its own for a ring. */
 const TEXT_COLOUR = /^(?:currentcolor|inherit)$/i;
 
-const LENGTH = /^-?(?:\d+|\d*\.\d+)(?:px|em|rem)?$/i;
+/** A literal length in any CSS unit (or a unitless zero/number). */
+const LENGTH =
+    /^-?(?:\d+|\d*\.\d+)(?:px|em|rem|pt|pc|in|cm|mm|q|ch|ex|ic|lh|rlh|cap|vw|vh|vi|vb|vmin|vmax|[sld]v(?:w|h|i|b|min|max)|cq(?:w|h|i|b|min|max))?$/i;
 const WIDTH_KEYWORD = /^(?:thin|medium|thick)$/i;
 const LINE_STYLE =
     /^(?:auto|none|hidden|solid|dashed|dotted|double|groove|ridge|inset|outset)$/i;

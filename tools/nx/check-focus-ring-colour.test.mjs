@@ -299,6 +299,21 @@ test('ignores a focus condition that a rule negates', () => {
     );
 });
 
+test('reads a width in any CSS length unit', () => {
+    const source = [
+        '.a:focus-visible { outline: 1pt solid var(--app-focus-ring); }',
+        '.b:focus-visible { outline: 0.1ch solid var(--app-focus-ring); }',
+        '.c:focus-within { border: 0.5mm solid var(--app-focus-ring); }',
+        '.d:focus-visible { box-shadow: 0 0 0 0.2vmin var(--app-focus-ring); }',
+        '.e:focus-visible { outline: 2pt solid red; }',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffTokenRings('l.scss', source).map(({ line }) => line),
+        [5]
+    );
+});
+
 test('lets a listed exception through only in its own file', () => {
     const [exception] = RING_EXCEPTIONS;
     const source = `.x:focus-visible { outline: 2px solid ${exception.value}; }`;
