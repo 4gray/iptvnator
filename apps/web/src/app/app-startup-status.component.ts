@@ -5,16 +5,19 @@ import {
     inject,
     input,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { filter, map } from 'rxjs';
 import {
     PlaylistActions,
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { ServerStorageStatusService } from '@iptvnator/services';
+import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
 
 /** The first route also waits for settings and XMLTV source reconciliation. */
 @Component({
@@ -131,14 +134,23 @@ export class AppStartupStatusComponent {
         selectPlaylistsLoadingFlag
     );
     readonly failed = this.store.selectSignal(selectPlaylistsLoadFailed);
-    private readonly serverStatus = inject(ServerStorageStatusService);
-    /** Server storage waiting for a token: only its sign-in page can load. */
-    private readonly signInRequired = computed(
-        () => this.serverStatus.state() === 'unauthorized'
+    private readonly router = inject(Router);
+    private readonly url = toSignal(
+        this.router.events.pipe(
+            filter((event) => event instanceof NavigationEnd),
+            map((event) => event.urlAfterRedirects)
+        ),
+        { initialValue: this.router.url }
+    );
+    /**
+     * Server storage asking for a token: the playlists cannot load, and the
+     * sign-in page must stay up whatever its check reports.
+     */
+    private readonly onSignInPage = computed(() =>
+        this.url().startsWith(SERVER_SIGN_IN_PATH)
     );
     readonly complete = computed(
-        () =>
-            this.routeReady() && (this.sourcesReady() || this.signInRequired())
+        () => this.routeReady() && (this.sourcesReady() || this.onSignInPage())
     );
 
     retry(): void {

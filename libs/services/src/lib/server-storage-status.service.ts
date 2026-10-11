@@ -4,6 +4,9 @@ import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
 export type ServerConnectionState =
     'inactive' | 'online' | 'offline' | 'unauthorized';
 
+/** Where server mode asks for the access token. */
+export const SERVER_SIGN_IN_PATH = '/server-sign-in';
+
 /**
  * Connection state of the self-hosted server storage. `inactive` in Electron
  * and in a PWA without server storage; the server session activates it.

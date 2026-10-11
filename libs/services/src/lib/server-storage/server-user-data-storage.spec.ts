@@ -191,4 +191,72 @@ describe('ServerUserDataStorage', () => {
         await second;
         expect(order).toEqual(['start ["a"]', 'end first', 'start ["b"]']);
     });
+
+    it('keeps a failed write for the next flush and through a re-read', async () => {
+        const { api, storage, onWriteFailure } = setup();
+        await storage.hydrate();
+        api.sendJson.mockRejectedValueOnce(new Error('offline'));
+
+        storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['live:1', 'live:2'] })
+        );
+        await storage.flush();
+        expect(onWriteFailure).toHaveBeenCalled();
+
+        // Back online: the re-read sends it first, so the server has it.
+        api.getJson.mockResolvedValueOnce({
+            entries: { 'xtream-favorites': { p1: ['live:1', 'live:2'] } },
+        });
+        await storage.hydrate();
+        expect(api.sendJson).toHaveBeenLastCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['live:1', 'live:2'] }
+        );
+        expect(JSON.parse(storage.getItem('xtream-favorites') ?? '')).toEqual({
+            p1: ['live:1', 'live:2'],
+        });
+    });
+
+    it('keeps an unsent edit when a re-read succeeds while writes fail', async () => {
+        const { api, storage } = setup();
+        await storage.hydrate();
+        api.sendJson.mockRejectedValue(new Error('500'));
+
+        storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['live:1', 'live:2'] })
+        );
+        await storage.hydrate();
+
+        expect(JSON.parse(storage.getItem('xtream-favorites') ?? '')).toEqual({
+            p1: ['live:1', 'live:2'],
+        });
+    });
+
+    it('holds keepalive writes until a travelling batch finished', async () => {
+        const { api, storage } = setup();
+        await storage.hydrate();
+        let finish: () => void = () => undefined;
+        api.sendJson.mockReturnValueOnce(
+            new Promise<void>((resolve) => (finish = resolve))
+        );
+
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['a'] }));
+        const travelling = storage.flush();
+        await settle();
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['b'] }));
+        storage.flushWithKeepalive();
+        expect(api.sendKeepalive).not.toHaveBeenCalled();
+
+        finish();
+        await travelling;
+        await settle();
+        expect(api.sendKeepalive).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['b'] }
+        );
+    });
 });

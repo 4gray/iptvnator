@@ -7,6 +7,7 @@ import {
     type Playlist,
     type ServerUserStateResponse,
 } from '@iptvnator/shared/interfaces';
+import { combineUserData, unionItems } from './server-migration-merge';
 import { planServerMigration } from './server-migration-plan';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 import { ServerStorageSession } from './server-storage-session';
@@ -25,19 +26,14 @@ export interface ServerMigrationResult {
     readonly failed: number;
 }
 
-/** A browser playlist's id on the server, and whether it arrived just now. */
-interface MigrationTarget {
-    readonly serverId: string;
-    readonly uploaded: boolean;
-}
-
 /**
  * Moves this browser's playlists to the server. New playlists keep their
  * ids; one the server already has (same id, or same provider source) is
- * merged into the server's copy. The legacy Xtream favorites, history,
- * collections and playback positions follow under the server id, without
- * replacing what a merged playlist already has there. Browser data is
- * never deleted, and the move can run again after a failure.
+ * merged into the server's copy, adding the browser's favorites and
+ * history to it. The legacy Xtream favorites, history, collections and
+ * playback positions follow under the server id, combined with what is
+ * there (`combineUserData`). Browser data is never deleted, and the move
+ * can run again after a failure.
  */
 @Injectable({ providedIn: 'root' })
 export class ServerMigrationService {
@@ -85,29 +81,34 @@ export class ServerMigrationService {
             this.readBrowserPlaylists(),
             this.session.documentStore.dbGetAppPlaylistMetas(),
         ]);
-        const targets = new Map<string, MigrationTarget>();
+        const byId = new Map(
+            browser.map((playlist) => [playlist._id, playlist])
+        );
+        /** Browser playlist id → its id on the server. */
+        const targets = new Map<string, string>();
         let imported = 0;
         let merged = 0;
         let failed = 0;
 
         for (const step of planServerMigration(browser, server)) {
-            if (step.kind === 'merge') {
-                merged += 1;
-                targets.set(step.browserId, {
-                    serverId: step.serverId,
-                    uploaded: false,
-                });
-                continue;
-            }
             try {
-                await this.session.documentStore.dbUpsertAppPlaylist(
-                    step.playlist
-                );
-                imported += 1;
-                targets.set(step.playlist._id, {
-                    serverId: step.playlist._id,
-                    uploaded: true,
-                });
+                if (step.kind === 'merge') {
+                    const playlist = byId.get(step.browserId);
+                    if (playlist) {
+                        await this.mergeDocumentUserData(
+                            playlist,
+                            step.serverId
+                        );
+                    }
+                    merged += 1;
+                    targets.set(step.browserId, step.serverId);
+                } else {
+                    await this.session.documentStore.dbUpsertAppPlaylist(
+                        step.playlist
+                    );
+                    imported += 1;
+                    targets.set(step.playlist._id, step.playlist._id);
+                }
             } catch {
                 failed += 1;
             }
@@ -122,9 +123,44 @@ export class ServerMigrationService {
         return { imported, merged, failed };
     }
 
-    /** Copies the legacy maps; returns how many entries failed. */
+    /** Adds a browser document's favorites and history to the server's. */
+    private async mergeDocumentUserData(
+        playlist: Playlist,
+        serverId: string
+    ): Promise<void> {
+        const favorites = playlist.favorites ?? [];
+        const recentlyViewed = playlist.recentlyViewed ?? [];
+        if (favorites.length === 0 && recentlyViewed.length === 0) {
+            return;
+        }
+        const stored =
+            await this.session.documentStore.dbGetAppPlaylist(serverId);
+        if (!stored) {
+            throw new Error('The server playlist disappeared');
+        }
+        const next = {
+            ...stored,
+            favorites: unionItems(stored.favorites ?? [], favorites),
+            recentlyViewed: unionItems(
+                stored.recentlyViewed ?? [],
+                recentlyViewed
+            ),
+        };
+        if (
+            next.favorites.length !== (stored.favorites ?? []).length ||
+            next.recentlyViewed.length !== (stored.recentlyViewed ?? []).length
+        ) {
+            await this.session.documentStore.dbUpsertAppPlaylist(next);
+        }
+    }
+
+    /**
+     * Copies the legacy maps, one write per server entry: browser copies
+     * of one source are combined with each other and with the server's
+     * value. Returns how many writes failed.
+     */
     private async copyXtreamUserData(
-        targets: ReadonlyMap<string, MigrationTarget>
+        targets: ReadonlyMap<string, string>
     ): Promise<number> {
         if (targets.size === 0) {
             return 0;
@@ -135,20 +171,29 @@ export class ServerMigrationService {
             );
         let failed = 0;
         for (const namespace of SERVER_USER_STATE_NAMESPACES) {
-            const legacy = parseMap(readLocal(namespace));
-            const onServer = entries[namespace] ?? {};
-            for (const [browserId, value] of Object.entries(legacy)) {
-                const target = targets.get(browserId);
-                if (
-                    !target ||
-                    (!target.uploaded && target.serverId in onServer)
-                ) {
+            const onServer: Record<string, unknown> = entries[namespace] ?? {};
+            const incoming = new Map<string, unknown[]>();
+            for (const [browserId, value] of Object.entries(
+                parseMap(readLocal(namespace))
+            )) {
+                const serverId = targets.get(browserId);
+                if (serverId) {
+                    incoming.set(serverId, [
+                        ...(incoming.get(serverId) ?? []),
+                        value,
+                    ]);
+                }
+            }
+            for (const [serverId, values] of incoming) {
+                const current = onServer[serverId];
+                const value = combineUserData([current, ...values]);
+                if (JSON.stringify(value) === JSON.stringify(current)) {
                     continue;
                 }
                 try {
                     await this.session.api.sendJson(
                         'PUT',
-                        `/user-state/${namespace}/${encodeURIComponent(target.serverId)}`,
+                        `/user-state/${namespace}/${encodeURIComponent(serverId)}`,
                         { value }
                     );
                 } catch {

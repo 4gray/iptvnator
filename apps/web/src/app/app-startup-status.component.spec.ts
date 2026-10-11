@@ -6,7 +6,7 @@ import {
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { ServerStorageStatusService } from '@iptvnator/services';
+import { provideRouter, Router } from '@angular/router';
 import { AppStartupStatusComponent } from './app-startup-status.component';
 
 describe('AppStartupStatusComponent', () => {
@@ -14,6 +14,7 @@ describe('AppStartupStatusComponent', () => {
         TestBed.configureTestingModule({
             imports: [AppStartupStatusComponent, TranslateModule.forRoot()],
             providers: [
+                provideRouter([{ path: 'server-sign-in', children: [] }]),
                 provideMockStore({
                     selectors: [
                         { selector: selectPlaylistsLoadingFlag, value: false },
@@ -49,25 +50,17 @@ describe('AppStartupStatusComponent', () => {
         expect(fixture.componentInstance.complete()).toBe(true);
     });
 
-    it('shows the server sign-in page although sources could not load', () => {
+    it('shows the server sign-in page although sources could not load', async () => {
         TestBed.inject(MockStore).overrideSelector(
             selectPlaylistsLoadFailed,
             true
         );
-        const status = TestBed.inject(ServerStorageStatusService);
-        status.activate(
-            {
-                service: 'iptvnator',
-                apiVersion: 1,
-                instanceId: 'i',
-                storage: 'server',
-                auth: 'token',
-            },
-            () => undefined
-        );
-        status.reportUnauthorized();
         const fixture = TestBed.createComponent(AppStartupStatusComponent);
         fixture.componentRef.setInput('routeReady', true);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.complete()).toBe(false);
+
+        await TestBed.inject(Router).navigateByUrl('/server-sign-in');
         fixture.detectChanges();
 
         expect(fixture.componentInstance.complete()).toBe(true);

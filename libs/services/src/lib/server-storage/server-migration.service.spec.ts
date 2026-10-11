@@ -18,6 +18,7 @@ describe('ServerMigrationService', () => {
     let session: {
         fetchStatus: jest.Mock;
         documentStore: {
+            dbGetAppPlaylist: jest.Mock;
             dbGetAppPlaylistMetas: jest.Mock;
             dbUpsertAppPlaylist: jest.Mock;
         };
@@ -29,6 +30,7 @@ describe('ServerMigrationService', () => {
         session = {
             fetchStatus: jest.fn().mockResolvedValue({ playlists: 0 }),
             documentStore: {
+                dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
                 dbGetAppPlaylistMetas: jest.fn().mockResolvedValue([]),
                 dbUpsertAppPlaylist: jest
                     .fn()
@@ -106,7 +108,7 @@ describe('ServerMigrationService', () => {
         expect(migration.browserDataMoved()).toBe(true);
     });
 
-    it('merges into the server copy and moves Xtream data under its id', async () => {
+    it('merges into the server copy and combines Xtream data under its id', async () => {
         session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
             {
                 _id: 'server-x',
@@ -131,7 +133,7 @@ describe('ServerMigrationService', () => {
         );
         localStorage.setItem(
             'xtream-recent-items',
-            JSON.stringify({ x: ['vod:1'] })
+            JSON.stringify({ x: ['vod:1', 'vod:9'] })
         );
 
         const result = await TestBed.inject(
@@ -142,14 +144,83 @@ describe('ServerMigrationService', () => {
         expect(
             session.documentStore.dbUpsertAppPlaylist
         ).not.toHaveBeenCalled();
-        // Favorites the server copy lacks follow; its own history stays.
         expect(session.api.sendJson.mock.calls).toEqual([
             [
                 'PUT',
                 '/user-state/xtream-favorites/server-x',
                 { value: ['live:1'] },
             ],
+            [
+                'PUT',
+                '/user-state/xtream-recent-items/server-x',
+                { value: ['vod:9', 'vod:1'] },
+            ],
         ]);
+    });
+
+    it('combines browser duplicates of one source in one write', async () => {
+        TestBed.overrideProvider(NgxIndexedDBService, {
+            useValue: {
+                getAll: () =>
+                    of([
+                        browserPlaylists[1],
+                        { ...browserPlaylists[1], _id: 'x2' },
+                    ]),
+            },
+        });
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ x: ['live:1'], x2: ['live:2'] })
+        );
+
+        const result = await TestBed.inject(
+            ServerMigrationService
+        ).moveBrowserData();
+
+        expect(result).toEqual({ imported: 1, merged: 1, failed: 0 });
+        expect(session.api.sendJson.mock.calls).toEqual([
+            [
+                'PUT',
+                '/user-state/xtream-favorites/x',
+                { value: ['live:1', 'live:2'] },
+            ],
+        ]);
+    });
+
+    it("adds a browser document's favorites to the matching server playlist", async () => {
+        TestBed.overrideProvider(NgxIndexedDBService, {
+            useValue: {
+                getAll: () =>
+                    of([
+                        {
+                            ...browserPlaylists[0],
+                            favorites: ['http://a', 'http://b'],
+                        },
+                    ]),
+            },
+        });
+        session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
+            { _id: 'server-m', title: 'Family', url: browserPlaylists[0].url },
+        ]);
+        const stored = {
+            _id: 'server-m',
+            title: 'Family',
+            url: browserPlaylists[0].url,
+            favorites: ['http://a'],
+            recentlyViewed: [],
+        };
+        session.documentStore.dbGetAppPlaylist.mockResolvedValue(stored);
+
+        const result = await TestBed.inject(
+            ServerMigrationService
+        ).moveBrowserData();
+
+        expect(result).toEqual({ imported: 0, merged: 1, failed: 0 });
+        expect(session.documentStore.dbUpsertAppPlaylist).toHaveBeenCalledWith({
+            ...stored,
+            favorites: ['http://a', 'http://b'],
+            recentlyViewed: [],
+        });
     });
 
     it('keeps the move on offer when a playlist could not be uploaded', async () => {

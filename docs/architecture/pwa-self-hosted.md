@@ -196,8 +196,10 @@ settings and guards read them in every build.
   the four synced namespaces are cached under the `iptvnator-server:` key
   prefix (the legacy unprefixed keys are never written in server mode) and
   each change sends only the playlist entries that differ, debounced, with a
-  `keepalive` flush when the page hides. Batches go out one after another,
-  and a re-read keeps entries edited while it was in flight. Start-up waits
+  `keepalive` flush when the page hides. Batches go out one after another
+  (the page-hide flush waits for a batch still travelling), a failed write
+  stays queued for the next flush, and a re-read keeps entries edited while
+  it was in flight or not yet saved. Start-up waits
   up to 3 s for the first read.
 - **Connection state.** `ServerStorageStatusService` is `online`, `offline`
   (a request did not reach the server, or a proxy answered 502, 503 or 504
@@ -207,7 +209,8 @@ settings and guards read them in every build.
   writes raise a snackbar (`SERVER_STORAGE.WRITE_FAILED`, or `TOO_LARGE` for
   a 413).
 - **Access token.** With `IPTVNATOR_ACCESS_TOKEN` the instance reports
-  `auth: 'token'`; without a stored token, or after a 401, the guards route to
+  `auth: 'token'` (the backend refuses a token without server storage: the
+  PWA has no sign-in flow for a stateless backend); without a stored token, or after a 401, the guards route to
   `/server-sign-in` (the start-up screen lets it through although the
   playlists could not load), which checks the token against `/v1/instance/status`
   before it stores it under `iptvnator-server:access-token` and reloads.
@@ -218,10 +221,12 @@ settings and guards read them in every build.
   playlists this browser kept in IndexedDB (`planServerMigration`). A
   playlist the server already has, by id or by source (Xtream server and
   user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
-  others upload with their ids. The legacy Xtream maps follow under the
-  server id without replacing what a merged playlist already has. Browser
-  data is never deleted, and the marker is written only when nothing
-  failed, so Settings → Server keeps offering a partial move.
+  others upload with their ids. A merged playlist gains the browser
+  document's favorites and history, and the legacy Xtream maps follow under
+  the server id; `combineUserData` unions lists and merges maps, the
+  server's value winning on a conflict. Browser data is never deleted, and
+  the marker is written only when nothing failed, so Settings → Server
+  keeps offering a partial move.
 
 What stays per device: settings, parental lock PINs and locked groups,
 the global favorites order and other UI preferences in browser storage.

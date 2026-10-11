@@ -83,8 +83,9 @@ on the server. Adding a playlist stays the ordinary "Add playlist" flow.
      already has (same id, or same source: Xtream server and user, Stalker
      portal and MAC, M3U URL) merges into the server's copy, so the same
      provider added on two devices is not duplicated; the others upload with
-     their ids. The Xtream maps follow under the server id and never replace
-     what a merged playlist already has. The backup format is not used: its
+     their ids. A merged playlist gains the browser's favorites and history,
+     and the Xtream maps follow under the server id, combined with what the
+     server has (lists unioned, maps merged, the server winning conflicts). The backup format is not used: its
      PWA export carries no Xtream user data.
    - The decision marker is written only when nothing failed, so a partial
      move stays on offer and can run again.

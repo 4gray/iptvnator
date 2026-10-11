@@ -8,7 +8,10 @@ import {
     clearServerAccessToken,
     readServerAccessToken,
 } from '../server-access-token';
-import { ServerStorageStatusService } from '../server-storage-status.service';
+import {
+    SERVER_SIGN_IN_PATH,
+    ServerStorageStatusService,
+} from '../server-storage-status.service';
 import { ServerApiClient, type ServerApiError } from './server-api-client';
 import { ServerPlaylistDocumentStore } from './server-playlist-document-store';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
@@ -16,7 +19,6 @@ import { ServerUserDataStorage } from './server-user-data-storage';
 
 const RETRY_INTERVAL_MS = 30_000;
 const STARTUP_HYDRATE_WAIT_MS = 3_000;
-export const SERVER_SIGN_IN_PATH = '/server-sign-in';
 
 /** Server mode for this page: created only when the probe found server storage. */
 @Injectable({ providedIn: 'root' })

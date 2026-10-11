@@ -38,6 +38,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     private flushTimer: ReturnType<typeof setTimeout> | null = null;
     /** Batches go out one at a time, so an older write never lands last. */
     private sending: Promise<void> = Promise.resolve();
+    private batchesInFlight = 0;
     /** Edit counter per `namespace|playlistId`, for hydrate to keep them. */
     private readonly edits = new Map<string, number>();
     private editCount = 0;
@@ -74,8 +75,8 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     /**
      * Replaces the cache with the server's data, after sending pending
-     * writes. Entries edited while the read was in flight keep their local
-     * value: their write is queued or travelling and will reach the server.
+     * writes. Entries edited while the read was in flight, and entries whose
+     * write failed, keep their local value: the server does not have it yet.
      */
     async hydrate(): Promise<void> {
         // Edits from here on may miss the read: queued, or still travelling.
@@ -90,9 +91,15 @@ export class ServerUserDataStorage implements UserDataStorage {
             const current = parseMap(
                 this.local.getItem(SERVER_CACHE_PREFIX + namespace) ?? '{}'
             );
+            const unsaved = new Set(this.pending.keys());
             for (const [key, edit] of this.edits) {
+                if (edit > editsBefore) {
+                    unsaved.add(key);
+                }
+            }
+            for (const key of unsaved) {
                 const [editedNamespace, playlistId] = splitEditKey(key);
-                if (edit <= editsBefore || editedNamespace !== namespace) {
+                if (editedNamespace !== namespace) {
                     continue;
                 }
                 if (playlistId in current) {
@@ -116,9 +123,18 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     /** Sends the queued entries after any batch still travelling. */
     flush(): Promise<void> {
-        const run = this.sending.then(() =>
-            Promise.all(this.takePending().map((entry) => this.send(entry)))
-        );
+        const run = this.sending.then(async () => {
+            const batch = this.takePending();
+            if (batch.length === 0) {
+                return;
+            }
+            this.batchesInFlight += 1;
+            try {
+                await Promise.all(batch.map((entry) => this.send(entry)));
+            } finally {
+                this.batchesInFlight -= 1;
+            }
+        });
         this.sending = run.then(
             () => undefined,
             () => undefined
@@ -126,14 +142,31 @@ export class ServerUserDataStorage implements UserDataStorage {
         return this.sending;
     }
 
+    /**
+     * Page hide: `keepalive` requests survive the page. They go out at once
+     * unless a batch is still travelling, which they must not overtake.
+     */
     flushWithKeepalive(): void {
-        for (const entry of this.takePending()) {
-            const path = entryPath(entry);
-            if (entry.value === undefined) {
-                this.api.sendKeepalive('DELETE', path);
-            } else {
-                this.api.sendKeepalive('PUT', path, { value: entry.value });
+        const entries = this.takePending();
+        if (entries.length === 0) {
+            return;
+        }
+        const sendAll = () => {
+            for (const entry of entries) {
+                const path = entryPath(entry);
+                if (entry.value === undefined) {
+                    this.api.sendKeepalive('DELETE', path);
+                } else {
+                    this.api.sendKeepalive('PUT', path, {
+                        value: entry.value,
+                    });
+                }
             }
+        };
+        if (this.batchesInFlight === 0) {
+            sendAll();
+        } else {
+            this.sending = this.sending.then(sendAll);
         }
     }
 
@@ -198,6 +231,12 @@ export class ServerUserDataStorage implements UserDataStorage {
                 });
             }
         } catch (error) {
+            // Keep it for the next flush (the offline retry or the next
+            // edit) unless a newer value for the entry is already queued.
+            const key = `${entry.namespace}|${entry.playlistId}`;
+            if (!this.pending.has(key)) {
+                this.pending.set(key, entry);
+            }
             this.onWriteFailure(error);
         }
     }
