@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 import {
     CatalogTitleMatchService,
+    TITLE_MATCH_LOCK_ATTEMPTS,
     TITLE_MATCH_REQUEST_SIZE,
     TITLE_MATCH_TITLE_LIMIT,
     groupTitleMatchesByKey,
@@ -209,7 +210,10 @@ describe('CatalogTitleMatchService parental lock', () => {
                 providers: [
                     {
                         provide: ParentalLockService,
-                        useValue: { withholdsEverything: signal(withholds) },
+                        useValue: {
+                            withholdsEverything: signal(withholds),
+                            version: signal(0),
+                        },
                     },
                 ],
             });
@@ -271,14 +275,15 @@ describe('CatalogTitleMatchService requests', () => {
 
     function setUp(
         dbMatchTitles: jest.Mock,
-        withholdsEverything = signal(false)
+        withholdsEverything = signal(false),
+        version = signal(0)
     ) {
         (window as { electron?: unknown }).electron = { dbMatchTitles };
         TestBed.configureTestingModule({
             providers: [
                 {
                     provide: ParentalLockService,
-                    useValue: { withholdsEverything },
+                    useValue: { withholdsEverything, version },
                 },
             ],
         });
@@ -375,4 +380,43 @@ describe('CatalogTitleMatchService requests', () => {
             expect(dbMatchTitles).toHaveBeenCalledTimes(closingRequest);
         }
     );
+
+    it('starts over when the lock state changes between requests', async () => {
+        const version = signal(0);
+        let requests = 0;
+        const dbMatchTitles = jest.fn(async (batch: string[]) => {
+            requests++;
+            if (requests === 2) {
+                // Relocked while the second request ran: the first
+                // answer was filtered under the old state.
+                version.set(1);
+            }
+            return batch.map(match);
+        });
+        const service = setUp(dbMatchTitles, signal(false), version);
+        const count = TITLE_MATCH_REQUEST_SIZE * 3;
+
+        const result = await service.matchTitles(titles(count));
+
+        // Two requests under the old state, then all three again.
+        expect(dbMatchTitles).toHaveBeenCalledTimes(5);
+        expect(result.map(({ queryTitle }) => queryTitle)).toEqual(
+            titles(count)
+        );
+    });
+
+    it('answers nothing when the lock state keeps changing', async () => {
+        const version = signal(0);
+        const dbMatchTitles = jest.fn(async (batch: string[]) => {
+            version.update((value) => value + 1);
+            return batch.map(match);
+        });
+        const service = setUp(dbMatchTitles, signal(false), version);
+
+        await expect(
+            service.matchTitles(titles(TITLE_MATCH_REQUEST_SIZE * 3))
+        ).resolves.toEqual([]);
+
+        expect(dbMatchTitles).toHaveBeenCalledTimes(TITLE_MATCH_LOCK_ATTEMPTS);
+    });
 });

@@ -106,6 +106,14 @@ export const TITLE_MATCH_REQUEST_SIZE = 5;
 export const TITLE_MATCH_TITLE_LIMIT = 200;
 
 /**
+ * Times a batch starts over when the parental lock changes while it runs;
+ * a lock that keeps changing yields no matches rather than a mixed answer.
+ */
+export const TITLE_MATCH_LOCK_ATTEMPTS = 3;
+
+const LOCK_CHANGED = Symbol('lock changed');
+
+/**
  * Cross-playlist title matching via the Electron DB worker
  * (`DB_MATCH_TITLES`, trigram FTS over all imported Xtream playlists), in
  * requests of TITLE_MATCH_REQUEST_SIZE titles.
@@ -144,16 +152,33 @@ export class CatalogTitleMatchService {
                 )
             ),
         ].slice(0, TITLE_MATCH_TITLE_LIMIT);
+        // One request ran under one lock state; a batch must too. If the
+        // lock changes between requests (a relock, an unlock, a changed
+        // lock list), the earlier answers were filtered under the old state
+        // and the batch starts over.
+        for (let attempt = 0; attempt < TITLE_MATCH_LOCK_ATTEMPTS; attempt++) {
+            const matches = await this.matchUnderOneLockState(unique);
+            if (matches !== LOCK_CHANGED) {
+                return matches;
+            }
+        }
+        return [];
+    }
+
+    private async matchUnderOneLockState(
+        titles: readonly string[]
+    ): Promise<CatalogTitleMatch[] | typeof LOCK_CHANGED> {
+        const lockVersion = this.parentalLock.version();
         const matches: CatalogTitleMatch[] = [];
         for (
             let start = 0;
-            start < unique.length;
+            start < titles.length;
             start += TITLE_MATCH_REQUEST_SIZE
         ) {
             try {
                 matches.push(
                     ...(await window.electron.dbMatchTitles(
-                        unique.slice(start, start + TITLE_MATCH_REQUEST_SIZE)
+                        titles.slice(start, start + TITLE_MATCH_REQUEST_SIZE)
                     ))
                 );
             } catch (error) {
@@ -165,6 +190,9 @@ export class CatalogTitleMatchService {
             // The lock can close while a request runs, the last one too.
             if (this.parentalLock.withholdsEverything()) {
                 return [];
+            }
+            if (this.parentalLock.version() !== lockVersion) {
+                return LOCK_CHANGED;
             }
         }
         return matches;

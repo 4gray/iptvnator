@@ -51,8 +51,8 @@ const MAX_ITEMS = 18;
  * the enrichment facade (items whose detail view was opened come straight
  * from the SQLite cache, where `recommendations` ride along with every
  * details payload), the per-seed lists are interleaved and deduplicated,
- * already watched/favorited titles are dropped, and ONE batched worker
- * request keeps only titles that exist in an imported library.
+ * already watched/favorited titles are dropped, and ONE batched
+ * `matchTitles` call keeps only titles that exist in an imported library.
  *
  * Requires the TMDB opt-in and the Electron DB worker — hidden in the PWA.
  * A load is keyed by the seed set AND the watched/favorited exclusion set,
