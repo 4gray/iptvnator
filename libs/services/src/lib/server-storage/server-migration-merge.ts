@@ -41,10 +41,20 @@ export function unionItems<T>(...lists: readonly (readonly T[])[]): T[] {
     return result;
 }
 
-/** Content ids or URLs identify favorites and history entries. */
+/**
+ * Content ids or URLs identify favorites and history entries; a playback
+ * position is identified by its content type and Xtream id.
+ */
 function itemKey(item: unknown): string {
     if (!isPlainObject(item)) {
         return `value:${JSON.stringify(item)}`;
+    }
+    if (
+        typeof item['contentType'] === 'string' &&
+        (typeof item['contentXtreamId'] === 'number' ||
+            typeof item['contentXtreamId'] === 'string')
+    ) {
+        return `position:${item['contentType']}:${item['contentXtreamId']}`;
     }
     for (const field of ['id', 'stream_id', 'series_id', 'movie_id', 'url']) {
         const value = item[field];
@@ -53,6 +63,25 @@ function itemKey(item: unknown): string {
         }
     }
     return `json:${JSON.stringify(item)}`;
+}
+
+/**
+ * A browser value moved under another playlist id: list items that name
+ * their playlist (playback positions do) name the server's instead.
+ */
+export function retargetUserData(
+    value: unknown,
+    browserId: string,
+    serverId: string
+): unknown {
+    if (browserId === serverId || !Array.isArray(value)) {
+        return value;
+    }
+    return value.map((item) =>
+        isPlainObject(item) && item['playlistId'] === browserId
+            ? { ...item, playlistId: serverId }
+            : item
+    );
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

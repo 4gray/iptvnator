@@ -84,6 +84,21 @@ describe('ServerApiClient', () => {
         expect(status.reportOffline).not.toHaveBeenCalled();
     });
 
+    it('reports whether a keepalive write was taken', async () => {
+        const ok = jest.fn().mockResolvedValue(response(200, {}));
+        await expect(
+            client(ok).sendKeepalive('PUT', '/user-state/a/b', { value: 1 })
+        ).resolves.toBe(true);
+        expect(ok.mock.calls[0][1]).toMatchObject({ keepalive: true });
+
+        const refused = jest
+            .fn()
+            .mockRejectedValue(new TypeError('body too large'));
+        await expect(
+            client(refused).sendKeepalive('DELETE', '/user-state/a/b')
+        ).resolves.toBe(false);
+    });
+
     it('clears the token and reports unauthorized on 401', async () => {
         localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'old');
         const fetchFn = jest

@@ -20,6 +20,7 @@ import {
     getStalkerRequestErrorStatus,
     isStalkerProbeTimeout,
 } from '@iptvnator/portal/stalker/data-access';
+import { ServerStorageStatusService } from '@iptvnator/services';
 import { PwaService } from './pwa.service';
 
 describe('PwaService', () => {
@@ -276,6 +277,47 @@ describe('PwaService', () => {
         // silent flag: discovery probes expect failures — no snackbar.
         expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
 
+        globalThis.fetch = originalFetch;
+    });
+
+    it('asks for a new server token when the access guard refuses a Stalker call', async () => {
+        const status = TestBed.inject(ServerStorageStatusService);
+        status.activate(
+            {
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: 'i',
+                storage: 'server',
+                auth: 'token',
+            },
+            () => undefined
+        );
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            status: 401,
+            statusText: 'Unauthorized',
+            headers: new Headers({
+                'WWW-Authenticate': 'Bearer realm="iptvnator"',
+            }),
+            json: async () => ({ code: 'unauthorized' }),
+        } as unknown as Response) as unknown as typeof fetch;
+
+        const outcome = (
+            service.sendIpcEvent(STALKER_REQUEST, {
+                url: 'http://portal.example/portal.php',
+                macAddress: '00:1A:79:AA:BB:CC',
+                params: { action: 'get_genres' },
+                silent: true,
+            }) as Promise<unknown>
+        ).catch((error: unknown) => error);
+        await Promise.resolve();
+        http.expectOne((candidate) =>
+            candidate.url.endsWith('/provider-targets')
+        ).flush({ targetId: 'target-1' });
+        await outcome;
+
+        expect(status.state()).toBe('unauthorized');
         globalThis.fetch = originalFetch;
     });
 

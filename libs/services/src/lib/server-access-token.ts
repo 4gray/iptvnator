@@ -1,4 +1,14 @@
+import { SERVER_ACCESS_CHALLENGE } from '@iptvnator/shared/interfaces';
+
 export const SERVER_ACCESS_TOKEN_STORAGE_KEY = 'iptvnator-server:access-token';
+
+/** A 401 from the backend's access guard, not one a provider sent. */
+export function isServerAccessChallenge(
+    status: number,
+    challenge: string | null
+): boolean {
+    return status === 401 && challenge === SERVER_ACCESS_CHALLENGE;
+}
 
 export function readServerAccessToken(): string | null {
     try {

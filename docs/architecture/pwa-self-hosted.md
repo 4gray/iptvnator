@@ -104,7 +104,9 @@ its database. Storage errors are logged by error name and code only, because
 Drizzle messages can carry bound values such as portal credentials. With
 `IPTVNATOR_ACCESS_TOKEN`, every route except `/`, `/health`, `/config.js`
 and `/v1/instance` requires `Authorization: Bearer <token>`, the proxy
-routes included; the PWA sends it once its sign-in page has stored it.
+routes included; its 401 carries `WWW-Authenticate: Bearer
+realm="iptvnator"`, which a provider error passed on by the proxy never
+does; the PWA sends it once its sign-in page has stored it.
 Browser app state written through
 `/v1/app-state` is stored under a `client:` key prefix, apart from
 server-owned keys such as the instance id.
@@ -197,9 +199,10 @@ settings and guards read them in every build.
   prefix (the legacy unprefixed keys are never written in server mode) and
   each change sends only the playlist entries that differ, debounced, with a
   `keepalive` flush when the page hides. Batches go out one after another
-  (the page-hide flush waits for a batch still travelling), a failed write
-  stays queued for the next flush, and a re-read keeps entries edited while
-  it was in flight or not yet saved. Start-up waits
+  (the page-hide flush waits for a batch still travelling), a failed write,
+  including a refused `keepalive` one, stays queued for the next flush, and
+  re-reads run one at a time and keep entries edited while they were in
+  flight or not yet saved. Start-up waits
   up to 3 s for the first read.
 - **Connection state.** `ServerStorageStatusService` is `online`, `offline`
   (a request did not reach the server, or a proxy answered 502, 503 or 504
@@ -215,7 +218,9 @@ settings and guards read them in every build.
   playlists could not load), which checks the token against `/v1/instance/status`
   before it stores it under `iptvnator-server:access-token` and reloads.
   `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
-  backend, and `PwaService` adds it to its two raw `fetch` calls.
+  backend, and `PwaService` adds it to its two raw `fetch` calls. Both turn
+  the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
+  so a token changed on the server sends an open page back to sign-in.
 - **Moving browser data.** `ServerMigrationService` offers, once per server
   instance (marker `iptvnator-server:migration:<instanceId>`), to move the
   playlists this browser kept in IndexedDB (`planServerMigration`). A
@@ -223,8 +228,9 @@ settings and guards read them in every build.
   user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
   others upload with their ids. A merged playlist gains the browser
   document's favorites and history, and the legacy Xtream maps follow under
-  the server id; `combineUserData` unions lists and merges maps, the
-  server's value winning on a conflict. Browser data is never deleted, and
+  the server id; `combineUserData` unions lists (playback positions by
+  content type and Xtream id, renamed to the server playlist) and merges
+  maps, the server's value winning on a conflict. Browser data is never deleted, and
   the marker is written only when nothing failed, so Settings → Server
   keeps offering a partial move.
 

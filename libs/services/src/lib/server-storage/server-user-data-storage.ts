@@ -39,6 +39,10 @@ export class ServerUserDataStorage implements UserDataStorage {
     /** Batches go out one at a time, so an older write never lands last. */
     private sending: Promise<void> = Promise.resolve();
     private batchesInFlight = 0;
+    /** Page-hide writes still travelling, by `namespace|playlistId`. */
+    private readonly keepaliveKeys = new Set<string>();
+    /** Re-reads run one at a time, so an older one never lands last. */
+    private hydration: Promise<void> = Promise.resolve();
     /** Edit counter per `namespace|playlistId`, for hydrate to keep them. */
     private readonly edits = new Map<string, number>();
     private editCount = 0;
@@ -78,7 +82,16 @@ export class ServerUserDataStorage implements UserDataStorage {
      * writes. Entries edited while the read was in flight, and entries whose
      * write failed, keep their local value: the server does not have it yet.
      */
-    async hydrate(): Promise<void> {
+    hydrate(): Promise<void> {
+        const run = this.hydration.then(() => this.hydrateNow());
+        this.hydration = run.then(
+            () => undefined,
+            () => undefined
+        );
+        return run;
+    }
+
+    private async hydrateNow(): Promise<void> {
         // Edits from here on may miss the read: queued, or still travelling.
         const editsBefore = this.editCount;
         await this.flush();
@@ -91,7 +104,10 @@ export class ServerUserDataStorage implements UserDataStorage {
             const current = parseMap(
                 this.local.getItem(SERVER_CACHE_PREFIX + namespace) ?? '{}'
             );
-            const unsaved = new Set(this.pending.keys());
+            const unsaved = new Set([
+                ...this.pending.keys(),
+                ...this.keepaliveKeys,
+            ]);
             for (const [key, edit] of this.edits) {
                 if (edit > editsBefore) {
                     unsaved.add(key);
@@ -115,7 +131,11 @@ export class ServerUserDataStorage implements UserDataStorage {
             );
         }
         for (const [key, edit] of this.edits) {
-            if (edit <= editsBefore) {
+            if (
+                edit <= editsBefore &&
+                !this.pending.has(key) &&
+                !this.keepaliveKeys.has(key)
+            ) {
                 this.edits.delete(key);
             }
         }
@@ -153,14 +173,22 @@ export class ServerUserDataStorage implements UserDataStorage {
         }
         const sendAll = () => {
             for (const entry of entries) {
+                const key = entryKey(entry);
+                const edit = this.edits.get(key);
+                this.keepaliveKeys.add(key);
                 const path = entryPath(entry);
-                if (entry.value === undefined) {
-                    this.api.sendKeepalive('DELETE', path);
-                } else {
-                    this.api.sendKeepalive('PUT', path, {
-                        value: entry.value,
-                    });
-                }
+                const sent =
+                    entry.value === undefined
+                        ? this.api.sendKeepalive('DELETE', path)
+                        : this.api.sendKeepalive('PUT', path, {
+                              value: entry.value,
+                          });
+                void sent.then((ok) => {
+                    this.keepaliveKeys.delete(key);
+                    if (!ok) {
+                        this.requeue(entry, edit);
+                    }
+                });
             }
         };
         if (this.batchesInFlight === 0) {
@@ -196,7 +224,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     private queue(entry: PendingEntry): void {
-        const key = `${entry.namespace}|${entry.playlistId}`;
+        const key = entryKey(entry);
         this.pending.set(key, entry);
         this.edits.set(key, ++this.editCount);
     }
@@ -221,7 +249,22 @@ export class ServerUserDataStorage implements UserDataStorage {
         return batch;
     }
 
+    /**
+     * Back into the queue after a failed write, for the offline retry or
+     * the next edit, unless the entry was edited since it was sent.
+     */
+    private requeue(
+        entry: PendingEntry,
+        editWhenSent: number | undefined
+    ): void {
+        const key = entryKey(entry);
+        if (this.edits.get(key) === editWhenSent && !this.pending.has(key)) {
+            this.pending.set(key, entry);
+        }
+    }
+
     private async send(entry: PendingEntry): Promise<void> {
+        const edit = this.edits.get(entryKey(entry));
         try {
             if (entry.value === undefined) {
                 await this.api.request(entryPath(entry), { method: 'DELETE' });
@@ -231,15 +274,14 @@ export class ServerUserDataStorage implements UserDataStorage {
                 });
             }
         } catch (error) {
-            // Keep it for the next flush (the offline retry or the next
-            // edit) unless a newer value for the entry is already queued.
-            const key = `${entry.namespace}|${entry.playlistId}`;
-            if (!this.pending.has(key)) {
-                this.pending.set(key, entry);
-            }
+            this.requeue(entry, edit);
             this.onWriteFailure(error);
         }
     }
+}
+
+function entryKey(entry: PendingEntry): string {
+    return `${entry.namespace}|${entry.playlistId}`;
 }
 
 function splitEditKey(key: string): [string, string] {

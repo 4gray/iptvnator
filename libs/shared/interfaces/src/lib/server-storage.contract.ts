@@ -37,6 +37,12 @@ export interface ServerInstanceInfo {
 }
 
 /**
+ * `WWW-Authenticate` value of the access guard's 401. A provider error the
+ * proxy passes on never carries it, so a client can tell the two apart.
+ */
+export const SERVER_ACCESS_CHALLENGE = 'Bearer realm="iptvnator"';
+
+/**
  * Sent with every `PUT /v1/playlists/:id`: the document's ETag before that
  * write. A client that kept the stored payload (`keepPayload=1`) may cache
  * its copy under the new ETag only if its payload came from this one.

@@ -13,7 +13,12 @@ import {
     switchMap,
     throwError,
 } from 'rxjs';
-import { DataService, serverAuthorizationHeaders } from '@iptvnator/services';
+import {
+    DataService,
+    isServerAccessChallenge,
+    serverAuthorizationHeaders,
+    ServerStorageStatusService,
+} from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
     ERROR,
@@ -83,6 +88,7 @@ export class PwaService extends DataService {
     private readonly store = inject(Store);
     private readonly swUpdate = inject(SwUpdate);
     private readonly translateService = inject(TranslateService);
+    private readonly serverStatus = inject(ServerStorageStatusService);
     private readonly logger = createLogger('PwaService');
     private readonly providerTargetIds = new Map<string, Promise<string>>();
     private readonly silentXtreamActions = new Set<string>([
@@ -207,6 +213,7 @@ export class PwaService extends DataService {
                     signal: controller.signal,
                 }
             );
+            this.noteServerAccess(response);
 
             if (!response.ok) {
                 return { reset: false };
@@ -643,6 +650,7 @@ export class PwaService extends DataService {
             const response = await fetch(requestUrl, {
                 headers: serverAuthorizationHeaders(),
             });
+            this.noteServerAccess(response);
 
             if (!response.ok) {
                 throw new Error(
@@ -793,5 +801,18 @@ export class PwaService extends DataService {
 
     getAppEnvironment(): string {
         return 'pwa';
+    }
+
+    /** A token changed on the server shows up on any backend call. */
+    private noteServerAccess(response: Response): void {
+        if (
+            response.status === 401 &&
+            isServerAccessChallenge(
+                response.status,
+                response.headers.get('WWW-Authenticate')
+            )
+        ) {
+            this.serverStatus.reportAccessDenied();
+        }
     }
 }

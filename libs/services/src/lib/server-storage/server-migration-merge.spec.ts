@@ -1,4 +1,8 @@
-import { combineUserData, unionItems } from './server-migration-merge';
+import {
+    combineUserData,
+    retargetUserData,
+    unionItems,
+} from './server-migration-merge';
 
 describe('combineUserData', () => {
     it('unions lists, server entries first', () => {
@@ -38,5 +42,48 @@ describe('unionItems', () => {
             { url: 'http://a' },
             { url: 'http://b' },
         ]);
+    });
+});
+
+describe('playback positions', () => {
+    it('keep the server position of the same item', () => {
+        expect(
+            combineUserData([
+                [
+                    {
+                        contentType: 'vod',
+                        contentXtreamId: 7,
+                        positionSeconds: 60,
+                    },
+                ],
+                [
+                    {
+                        contentType: 'vod',
+                        contentXtreamId: 7,
+                        positionSeconds: 900,
+                    },
+                    {
+                        contentType: 'episode',
+                        contentXtreamId: 7,
+                        positionSeconds: 5,
+                    },
+                ],
+            ])
+        ).toEqual([
+            { contentType: 'vod', contentXtreamId: 7, positionSeconds: 60 },
+            { contentType: 'episode', contentXtreamId: 7, positionSeconds: 5 },
+        ]);
+    });
+
+    it('name the server playlist after a move', () => {
+        expect(
+            retargetUserData(
+                [{ contentXtreamId: 1, playlistId: 'b' }, 'live:1'],
+                'b',
+                's'
+            )
+        ).toEqual([{ contentXtreamId: 1, playlistId: 's' }, 'live:1']);
+        const same = [{ playlistId: 'b' }];
+        expect(retargetUserData(same, 'b', 'b')).toBe(same);
     });
 });

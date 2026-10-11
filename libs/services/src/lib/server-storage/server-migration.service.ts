@@ -7,7 +7,11 @@ import {
     type Playlist,
     type ServerUserStateResponse,
 } from '@iptvnator/shared/interfaces';
-import { combineUserData, unionItems } from './server-migration-merge';
+import {
+    combineUserData,
+    retargetUserData,
+    unionItems,
+} from './server-migration-merge';
 import { planServerMigration } from './server-migration-plan';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 import { ServerStorageSession } from './server-storage-session';
@@ -180,7 +184,7 @@ export class ServerMigrationService {
                 if (serverId) {
                     incoming.set(serverId, [
                         ...(incoming.get(serverId) ?? []),
-                        value,
+                        retargetUserData(value, browserId, serverId),
                     ]);
                 }
             }

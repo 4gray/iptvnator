@@ -1,5 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
 import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
+import { clearServerAccessToken } from './server-access-token';
 
 export type ServerConnectionState =
     'inactive' | 'online' | 'offline' | 'unauthorized';
@@ -45,6 +46,17 @@ export class ServerStorageStatusService {
 
     reportUnauthorized(): void {
         if (this.isActive()) {
+            this.stateSignal.set('unauthorized');
+        }
+    }
+
+    /**
+     * The access guard refused a request outside the storage API (a
+     * provider proxy call): the stored token is stale, ask for a new one.
+     */
+    reportAccessDenied(): void {
+        if (this.isActive()) {
+            clearServerAccessToken();
             this.stateSignal.set('unauthorized');
         }
     }

@@ -34,7 +34,7 @@ describe('ServerUserDataStorage', () => {
             }),
             sendJson: jest.fn().mockResolvedValue(undefined),
             request: jest.fn().mockResolvedValue(undefined),
-            sendKeepalive: jest.fn(),
+            sendKeepalive: jest.fn().mockResolvedValue(true),
         };
         const onWriteFailure = jest.fn();
         const storage = new ServerUserDataStorage(
@@ -258,5 +258,45 @@ describe('ServerUserDataStorage', () => {
             '/user-state/xtream-favorites/p1',
             { value: ['b'] }
         );
+    });
+
+    it('queues a page-hide write again when the server did not take it', async () => {
+        const { api, storage } = setup();
+        await storage.hydrate();
+        api.sendKeepalive.mockResolvedValueOnce(false);
+
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['big'] }));
+        storage.flushWithKeepalive();
+        await settle();
+
+        // Back on the page: the re-read sends it normally and keeps it.
+        api.getJson.mockResolvedValueOnce({
+            entries: { 'xtream-favorites': { p1: ['big'] } },
+        });
+        await storage.hydrate();
+        expect(api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['big'] }
+        );
+    });
+
+    it('runs re-reads one after another', async () => {
+        const { api, storage } = setup();
+        await storage.hydrate();
+        let answerFirst: (value: unknown) => void = () => undefined;
+        api.getJson.mockReturnValueOnce(
+            new Promise((resolve) => (answerFirst = resolve))
+        );
+
+        const first = storage.hydrate();
+        const second = storage.hydrate();
+        await settle();
+        expect(api.getJson).toHaveBeenCalledTimes(2);
+
+        answerFirst({ entries: {} });
+        await first;
+        await second;
+        expect(api.getJson).toHaveBeenCalledTimes(3);
     });
 });

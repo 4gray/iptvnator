@@ -123,22 +123,31 @@ export class ServerApiClient {
     }
 
     /** Best effort while the page is hidden or closed; errors are ignored. */
-    sendKeepalive(
+    /**
+     * A write that survives the page. Resolves whether the server took it;
+     * browsers reject keepalive bodies above 64 KiB, which resolves false.
+     */
+    async sendKeepalive(
         method: 'PUT' | 'DELETE',
         path: string,
         body?: unknown
-    ): void {
-        void this.fetchFn()(this.url(path), {
-            method,
-            keepalive: true,
-            headers: {
-                ...serverAuthorizationHeaders(),
-                ...(body === undefined
-                    ? {}
-                    : { 'Content-Type': 'application/json' }),
-            },
-            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        }).catch(() => undefined);
+    ): Promise<boolean> {
+        try {
+            const response = await this.fetchFn()(this.url(path), {
+                method,
+                keepalive: true,
+                headers: {
+                    ...serverAuthorizationHeaders(),
+                    ...(body === undefined
+                        ? {}
+                        : { 'Content-Type': 'application/json' }),
+                },
+                ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+            });
+            return response.ok;
+        } catch {
+            return false;
+        }
     }
 
     private fetchFn(): typeof fetch {
