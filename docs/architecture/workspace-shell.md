@@ -165,7 +165,15 @@ navigation (Back, drawer toggle) changes.
    from its slot does not draw over the arrow.
 4. **Reduced motion.** Under `prefers-reduced-motion` there is no animation:
    the jump (and its layout shift) remains.
-5. **Not covered.** A slide does not change what the route renders. Going
+5. **Compositing.** While it runs, each slid target is its own composited
+   layer (`ActiveTransformAnimation`): the frame at its width plus the
+   covered strip (1220×664 CSS pixels at 1280×720), the header controls a
+   few small ones. No synthesized clip mask appears, because no ancestor of
+   the frame clips with a radius ([content surface
+   corner](#content-surface-corner)), and the layers go away when the slide
+   ends: `perf:compositing` reads the same layer and mask counts on every
+   route as before the slides (#1895).
+6. **Not covered.** A slide does not change what the route renders. Going
    back from a portal to the dashboard still shows one frame with the new
    dashboard below the old page before the old page leaves; that jump is a
    routing issue, not a layout slide.

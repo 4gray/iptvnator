@@ -1273,14 +1273,15 @@ measured iterations of the 11 `master` runs from 2026-10-03 08:25 to
 | `launch/renderer.layoutShiftScoreSettled`    | 0     | 0.235 in some iterations of 8 runs up to 2026-10-02 (hero flicker, #1782) |
 | `open-source/main.mockHttpRequestsToSettled` | 1     | identical                                                                 |
 | `open-source/renderer.ipcCallsToFirstPage`   | 17    | identical                                                                 |
-| `open-source/renderer.layoutShiftScore`      | 0.233 | 0.221, then 0.222; 0.233 since #1814, never mixed within a run            |
+| `open-source/renderer.layoutShiftScore`      | 0     | 0.221, then 0.222; 0.233 since #1814; 0 since #1895 (see below)           |
 | `playback/renderer.httpRequestsToPlaying`    | 2     | identical                                                                 |
 | `playback/renderer.layoutShiftScore`         | 0.001 | identical                                                                 |
 
 `open-source/renderer.layoutShiftScore` read 0.222 in that window and 0.233
 in every iteration of every `master` run from 84aef83a6 (#1814, page Back
 buttons moved into the header) on, so its value was 0.233 with `evidenceRun`
-37372780064 (b78224376).
+37372780064 (b78224376). Since #1895 it is 0 (`evidenceRun` 38147072417:
+all 5 measured iterations on the runner read 0 with no shift recorded).
 
 Where the 0.233 came from (`evidence.layoutShift.shifts`, a 1280×720 window;
 the score of a shift is the area of every node that moved times the largest
@@ -1308,8 +1309,9 @@ The content frame and the header controls now slide into place instead of
 jumping ([Layout slides](./workspace-shell.md#layout-slides)): the new layout
 applies in the same frame and only a transform animates, which Chromium does
 not record as a layout shift. The category search and sort buttons render
-disabled while the categories load. Locally (macOS, 2026-10-11) J2 then read
-0 in every iteration with no shift recorded, J1 0 / 0, J3 0.001 and J4 0;
+disabled while the categories load. Locally (macOS, 2026-10-11) and on the runner
+J2 then read 0 in every iteration with no shift recorded, J1 0 / 0, J3 0.001
+and J4 0;
 `renderer.domMutationsToFirstPage` rose by 22 (the slide's class and style
 changes) and the wall-clock entries did not move. Under
 `prefers-reduced-motion` there is no slide, so a user with that preference
