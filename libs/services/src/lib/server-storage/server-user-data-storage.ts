@@ -1,0 +1,183 @@
+import {
+    isServerUserStateNamespace,
+    SERVER_USER_STATE_NAMESPACES,
+    type ServerUserStateNamespace,
+    type ServerUserStateResponse,
+} from '@iptvnator/shared/interfaces';
+import type { UserDataStorage } from '../user-data-storage';
+import type { ServerApiClient } from './server-api-client';
+
+/** Server-mode cache keys; the legacy unprefixed keys are never touched. */
+export const SERVER_CACHE_PREFIX = 'iptvnator-server:';
+const FLUSH_DELAY_MS = 500;
+
+interface PendingEntry {
+    readonly namespace: ServerUserStateNamespace;
+    readonly playlistId: string;
+    /** `undefined` deletes the entry. */
+    readonly value: unknown;
+}
+
+type ServerApi = Pick<
+    ServerApiClient,
+    'getJson' | 'sendJson' | 'request' | 'sendKeepalive'
+>;
+
+/**
+ * Write-through `USER_DATA_STORAGE` for server mode. Synced namespaces are
+ * maps keyed by playlist id; a write compares the new map with the last one
+ * the server saw and sends only the playlist entries that changed. Other
+ * keys, and every key while the browser override runs, use plain storage.
+ */
+export class ServerUserDataStorage implements UserDataStorage {
+    private readonly synced = new Map<
+        ServerUserStateNamespace,
+        Record<string, unknown>
+    >();
+    private readonly pending = new Map<string, PendingEntry>();
+    private flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+    constructor(
+        private readonly api: ServerApi,
+        private readonly local: UserDataStorage,
+        private readonly useLocal: () => boolean,
+        private readonly onWriteFailure: (error: unknown) => void
+    ) {}
+
+    getItem(key: string): string | null {
+        return this.isSynced(key)
+            ? this.local.getItem(SERVER_CACHE_PREFIX + key)
+            : this.local.getItem(key);
+    }
+
+    setItem(key: string, value: string): void {
+        if (!this.isSynced(key)) {
+            this.local.setItem(key, value);
+            return;
+        }
+        this.local.setItem(SERVER_CACHE_PREFIX + key, value);
+        this.queueChanges(key, parseMap(value));
+    }
+
+    removeItem(key: string): void {
+        if (!this.isSynced(key)) {
+            this.local.removeItem(key);
+            return;
+        }
+        this.local.removeItem(SERVER_CACHE_PREFIX + key);
+        this.queueChanges(key, {});
+    }
+
+    /** Replaces the cache with the server's data, after sending pending writes. */
+    async hydrate(): Promise<void> {
+        await this.flush();
+        const { entries } =
+            await this.api.getJson<ServerUserStateResponse>('/user-state');
+        for (const namespace of SERVER_USER_STATE_NAMESPACES) {
+            const value = entries[namespace] ?? {};
+            this.synced.set(namespace, value);
+            this.local.setItem(
+                SERVER_CACHE_PREFIX + namespace,
+                JSON.stringify(value)
+            );
+        }
+    }
+
+    async flush(): Promise<void> {
+        const batch = this.takePending();
+        await Promise.all(batch.map((entry) => this.send(entry)));
+    }
+
+    flushWithKeepalive(): void {
+        for (const entry of this.takePending()) {
+            const path = entryPath(entry);
+            if (entry.value === undefined) {
+                this.api.sendKeepalive('DELETE', path);
+            } else {
+                this.api.sendKeepalive('PUT', path, { value: entry.value });
+            }
+        }
+    }
+
+    private isSynced(key: string): key is ServerUserStateNamespace {
+        return !this.useLocal() && isServerUserStateNamespace(key);
+    }
+
+    private queueChanges(
+        namespace: ServerUserStateNamespace,
+        next: Record<string, unknown>
+    ): void {
+        const previous = this.synced.get(namespace) ?? {};
+        for (const [playlistId, value] of Object.entries(next)) {
+            if (
+                JSON.stringify(previous[playlistId]) !== JSON.stringify(value)
+            ) {
+                this.pending.set(`${namespace}|${playlistId}`, {
+                    namespace,
+                    playlistId,
+                    value,
+                });
+            }
+        }
+        for (const playlistId of Object.keys(previous)) {
+            if (!(playlistId in next)) {
+                this.pending.set(`${namespace}|${playlistId}`, {
+                    namespace,
+                    playlistId,
+                    value: undefined,
+                });
+            }
+        }
+        this.synced.set(namespace, next);
+        this.scheduleFlush();
+    }
+
+    private scheduleFlush(): void {
+        if (this.flushTimer !== null || this.pending.size === 0) {
+            return;
+        }
+        this.flushTimer = setTimeout(() => {
+            this.flushTimer = null;
+            void this.flush();
+        }, FLUSH_DELAY_MS);
+    }
+
+    private takePending(): PendingEntry[] {
+        if (this.flushTimer !== null) {
+            clearTimeout(this.flushTimer);
+            this.flushTimer = null;
+        }
+        const batch = [...this.pending.values()];
+        this.pending.clear();
+        return batch;
+    }
+
+    private async send(entry: PendingEntry): Promise<void> {
+        try {
+            if (entry.value === undefined) {
+                await this.api.request(entryPath(entry), { method: 'DELETE' });
+            } else {
+                await this.api.sendJson('PUT', entryPath(entry), {
+                    value: entry.value,
+                });
+            }
+        } catch (error) {
+            this.onWriteFailure(error);
+        }
+    }
+}
+
+function entryPath(entry: PendingEntry): string {
+    return `/user-state/${entry.namespace}/${encodeURIComponent(entry.playlistId)}`;
+}
+
+function parseMap(value: string): Record<string, unknown> {
+    try {
+        const parsed: unknown = JSON.parse(value);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : {};
+    } catch {
+        return {};
+    }
+}
