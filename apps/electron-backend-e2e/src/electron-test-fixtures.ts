@@ -33,6 +33,10 @@ import {
     type ElectronExitConfirmationOptions,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
+import {
+    waitForXtreamImportCompleted,
+    xtreamPlaylistIdFromUrl,
+} from './xtream-import-wait';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -1769,7 +1773,13 @@ export async function waitForXtreamImportToFinish(page: Page): Promise<void> {
     try {
         await overlay.waitFor({ state: 'visible', timeout: 5000 });
     } catch {
-        // The overlay may already be gone by the time the test reaches this point.
+        // The overlay may already be gone, or not shown yet: it appears only
+        // once the portal has answered, so the import status decides below.
+    }
+
+    const playlistId = xtreamPlaylistIdFromUrl(page.url());
+    if (playlistId) {
+        await waitForXtreamImportCompleted(page, playlistId);
     }
 
     await expect(overlay).toHaveCount(0, { timeout: 30000 });
