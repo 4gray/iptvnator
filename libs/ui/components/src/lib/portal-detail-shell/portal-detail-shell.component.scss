@@ -1,3 +1,5 @@
+@use '../../../../styles/focus-ring';
+
 // ============================================================================
 // Portal detail shell — two-state (browse ↔ watch) layout + page scroll owner
 // ============================================================================
@@ -36,8 +38,7 @@
     scrollbar-width: auto;
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 }
 

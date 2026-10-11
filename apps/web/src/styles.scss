@@ -309,6 +309,5 @@ body.dark-theme {
 }
 
 .channel-scroll-focus:focus-visible {
-    outline: 2px solid var(--app-selection-color);
-    outline-offset: -2px;
+    @include focus-ring.focus-ring-declarations($offset: -2px);
 }

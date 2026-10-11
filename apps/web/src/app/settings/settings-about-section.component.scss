@@ -1,3 +1,5 @@
+@use '../../../../../libs/ui/styles/focus-ring';
+
 // About page: version hero, update status, community links and support.
 app-settings-about-section {
     display: contents;
@@ -142,8 +144,7 @@ app-settings-about-section {
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 }
 
