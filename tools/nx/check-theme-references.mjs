@@ -61,16 +61,35 @@ const COLOR_SCHEME_QUERY = /prefers-color-scheme/g;
  * read that nothing in the app declares. The marketing website is a separate
  * site that themes itself from the OS.
  */
-const NON_RUNTIME = [
-    /\.(spec|test|e2e)\.[cm]?[jt]s$/,
-    /\.(test-helpers|test-stubs|spec-data|e2e-support|stories)\.[cm]?[jt]s$/,
-    /(^|\/)testing\//,
+const NON_RUNTIME_PATHS = [
     /^apps\/[^/]+-(e2e|mock-server)\//,
     /^apps\/website\//,
+    /(^|\/)(testing|test-stubs|__mocks__|__tests__|[^/]*fixtures)\//,
 ];
 
-function isScanned(file) {
-    return !NON_RUNTIME.some((pattern) => pattern.test(file));
+/**
+ * A dot segment after the file's name that marks test code: `.spec.ts`,
+ * `.stub.ts`, `.harness.ts`, `.spec-stubs.ts`, `.test-harness.ts`,
+ * `.xtream-fixtures.ts`. The name itself never counts, so runtime files
+ * such as `xtream-connection-test.service.ts` stay in the scan.
+ */
+const TEST_SEGMENT =
+    /^(spec|test|e2e|stories|stubs?|fixtures?|harness|mocks?|fakes?)$|^(spec|test|e2e)-|-fixtures$/;
+
+/** Test bootstrap files named by their stem alone. */
+const TEST_STEM = /^(test-setup|polyfills-test)$|-test-double$/;
+
+export function isScanned(file) {
+    if (NON_RUNTIME_PATHS.some((pattern) => pattern.test(file))) return false;
+    const [stem, ...segments] = file
+        .split('/')
+        .pop()
+        .replace(/\.[cm]?[jt]s$|\.s?css$|\.html$/, '')
+        .split('.');
+    return (
+        !TEST_STEM.test(stem) &&
+        !segments.some((segment) => TEST_SEGMENT.test(segment))
+    );
 }
 
 /**

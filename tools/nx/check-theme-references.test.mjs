@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import {
     findColorSchemeQueries,
     findUndeclaredReads,
+    isScanned,
     listScannedFiles,
     stripComments,
 } from './check-theme-references.mjs';
@@ -144,6 +145,36 @@ test('reports prefers-color-scheme in app styles, outside the settings resolver'
         ),
         []
     );
+});
+
+test('skips every test-only naming convention but keeps runtime look-alikes', () => {
+    for (const file of [
+        'apps/web/src/app/services/electron.service.stub.ts',
+        'apps/web/src/app/settings/test-stubs/settings-test-harness.stub.ts',
+        'apps/web/src/test-setup.ts',
+        'apps/web/src/polyfills-test.ts',
+        'libs/portal/xtream/feature/src/lib/vod-details/vod-multi-source-host.fixtures.ts',
+        'libs/portal/xtream/feature/src/lib/serial-details/serial-details.harness.ts',
+        'libs/portal/stalker/feature/src/lib/view/view.test-harness.ts',
+        'libs/ui/playback/src/lib/web-player-view/web-player-view.spec-stubs.ts',
+        'libs/ui/playback/src/lib/art-player/art-player.component.spec-fixtures.ts',
+        'libs/ui/playback/src/lib/player-controls/stream-stats.spec-helpers.ts',
+        'libs/ui/playback/src/lib/shaka-engine/shaka-player-test-double.ts',
+        'libs/services/src/lib/playlist-backup.xtream-fixtures.ts',
+        'libs/shared/marketing-fixtures/src/index.ts',
+        'libs/shared/database/src/lib/testing/connection-upgrade.ts',
+    ]) {
+        assert.equal(isScanned(file), false, file);
+    }
+    for (const file of [
+        'libs/services/src/lib/xtream-connection-test.service.ts',
+        'libs/services/src/lib/xtream-connection-test-state.ts',
+        'libs/portal/shared/util/src/lib/collection/collection-helpers.ts',
+        'libs/ui/playback/src/lib/player-controls/web-video-controls.media-helpers.ts',
+        'libs/ui/components/src/lib/panel/panel.component.scss',
+    ]) {
+        assert.equal(isScanned(file), true, file);
+    }
 });
 
 test('selects tracked runtime sources at any depth, not tests, E2E, mocks or the website', async () => {
