@@ -3,6 +3,11 @@ import {
     DOWNLOADS_INDEX_STATEMENTS,
     ensureDownloadsCatchupSchema,
 } from './download-schema';
+import {
+    ensurePlaylistsPayloadLast,
+    playlistsTableSql,
+} from './playlists-table';
+import { xtreamCacheUniqueIndexesExist } from './xtream-cache-unique-indexes';
 /**
  * Database connection and initialization for IPTVnator
  * Uses Drizzle ORM with better-sqlite3
@@ -133,36 +138,7 @@ const RECORDINGS_INDEX_STATEMENTS = [
 ];
 
 const CREATE_TABLE_STATEMENTS = [
-    `CREATE TABLE IF NOT EXISTS playlists (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      serverUrl TEXT,
-      username TEXT,
-      password TEXT,
-      date_created TEXT DEFAULT (datetime('now')),
-      last_updated TEXT,
-      type TEXT NOT NULL CHECK (type IN ('xtream', 'stalker', 'm3u-file', 'm3u-text', 'm3u-url')),
-      userAgent TEXT,
-      origin TEXT,
-      referrer TEXT,
-      filePath TEXT,
-      epg_urls TEXT,
-      detected_epg_urls TEXT,
-      manual_epg_urls TEXT,
-      disabled_epg_urls TEXT,
-      autoRefresh INTEGER DEFAULT 0,
-      macAddress TEXT,
-      url TEXT,
-      portal_url TEXT,
-      count INTEGER,
-      import_date TEXT,
-      update_date INTEGER,
-      position INTEGER,
-      favorites TEXT,
-      recently_viewed TEXT,
-      payload TEXT,
-      last_usage TEXT
-  )`,
+    playlistsTableSql('playlists'),
     `CREATE TABLE IF NOT EXISTS app_state (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
@@ -444,6 +420,7 @@ export const __databaseConnectionTestHooks = {
     columnMigrationStatements: COLUMN_MIGRATION_STATEMENTS,
     indexMigrationStatements: INDEX_MIGRATION_STATEMENTS,
     ensureDownloadsPauseResumeSchema,
+    deduplicateXtreamCache,
     normalizeXtreamContentAddedEpochs,
     ensureContentTitleFts,
     upgradeContentTitleFtsTokenizer,
@@ -495,6 +472,12 @@ type XtreamContentCandidate = {
 };
 
 function deduplicateXtreamCache(sqliteDb: Database.Database): void {
+    // With both unique indexes in place the cache cannot hold duplicates,
+    // and the two GROUP BY scans below would only cost a full pass over the
+    // content table on every launch (7.8 s on a 3.9M-title library).
+    if (xtreamCacheUniqueIndexesExist(sqliteDb)) {
+        return;
+    }
     const executeCleanup = sqliteDb.transaction(() => {
         const duplicateCategoryGroups = sqliteDb
             .prepare(
@@ -1189,6 +1172,7 @@ function runMigrations(sqliteDb: Database.Database): void {
     cleanupLegacyTmdbSearchCache(sqliteDb);
     ensureDownloadsPauseResumeSchema(sqliteDb);
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
+    ensurePlaylistsPayloadLast(sqliteDb);
     ensureDownloadsCatchupSchema(sqliteDb);
     // The tokenizer upgrade recreates and rebuilds the index itself, so the
     // plain rebuild below would only repeat work it just did.
