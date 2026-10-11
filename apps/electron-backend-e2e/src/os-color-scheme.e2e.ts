@@ -51,6 +51,11 @@ async function paintedColors(scope: Locator): Promise<Record<string, string>> {
 /** Lets entrance fades finish, so contrast reads the settled page. */
 async function settleAnimations(page: Page): Promise<void> {
     await page.mouse.move(1, 1);
+    await finishTransitions(page);
+}
+
+/** Waits for the finite animations and transitions now running. */
+async function finishTransitions(page: Page): Promise<void> {
     await page.evaluate(() =>
         Promise.all(
             document
@@ -73,6 +78,8 @@ interface Surface {
      * tinted chips and filled buttons all count.
      */
     texts: Locator[];
+    /** Cards whose hover changes their fill, with the text to re-measure. */
+    hovered?: { card: Locator; texts: Locator[] }[];
 }
 
 /**
@@ -129,6 +136,17 @@ async function expectFollowsAppTheme(
             await measureBackdropTextContrast(page, text),
             `${surface.name}: text ${index} in the ${theme} theme`
         ).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const { card, texts } of surface.hovered ?? []) {
+        await card.hover();
+        await finishTransitions(page);
+        for (const [index, text] of texts.entries()) {
+            expect(
+                await measureBackdropTextContrast(page, text),
+                `${surface.name}: hovered card text ${index} in the ${theme} theme`
+            ).toBeGreaterThanOrEqual(4.5);
+        }
+        await page.mouse.move(1, 1);
     }
     return underMatchingOs;
 }
@@ -200,6 +218,21 @@ test.describe('App theme over the OS colour scheme', () => {
                                 '.welcome-dashboard__cta .mdc-button__label'
                             ),
                         ],
+                        hovered: [
+                            {
+                                card: dashboard
+                                    .locator('.feature-card')
+                                    .first(),
+                                texts: [
+                                    dashboard
+                                        .locator('.feature-card__title')
+                                        .first(),
+                                    dashboard
+                                        .locator('.feature-card__desc')
+                                        .first(),
+                                ],
+                            },
+                        ],
                     })
                 );
 
@@ -222,6 +255,22 @@ test.describe('App theme over the OS colour scheme', () => {
                             sources
                                 .locator('.source-card__cta .mdc-button__label')
                                 .first(),
+                        ],
+                        hovered: [
+                            {
+                                card: sources.locator('.source-card').first(),
+                                texts: [
+                                    sources
+                                        .locator('.source-card__name')
+                                        .first(),
+                                    sources
+                                        .locator('.source-card__needs')
+                                        .first(),
+                                    sources
+                                        .locator('.source-card__chip')
+                                        .first(),
+                                ],
+                            },
                         ],
                     })
                 );

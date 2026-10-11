@@ -250,10 +250,13 @@
                 var(--app-selection-color) 40%,
                 transparent
             );
+            // A light step up from the resting 8%/4%: at 16% the dark
+            // theme's body text fell under 4.5:1 on the hovered card. The
+            // lift, border and shadow carry the rest of the hover.
             background: linear-gradient(
                 135deg,
-                color-mix(in srgb, var(--app-selection-color) 16%, transparent),
-                color-mix(in srgb, var(--app-selection-color) 10%, transparent)
+                color-mix(in srgb, var(--app-selection-color) 10%, transparent),
+                color-mix(in srgb, var(--app-selection-color) 6%, transparent)
             );
 
             .feature-card__icon-wrap {
