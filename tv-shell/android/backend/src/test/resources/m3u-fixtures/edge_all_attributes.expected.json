@@ -1,0 +1,40 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Full",
+    "tvg": {
+     "id": "id",
+     "name": "nm",
+     "logo": "lg",
+     "url": "tu",
+     "rec": "3",
+     "shift": "-1"
+    },
+    "group": {
+     "title": "grp"
+    },
+    "http": {
+     "referrer": "ref",
+     "user-agent": "ua"
+    },
+    "url": "http://x/full.ts",
+    "raw": "#EXTINF:-1 tvg-id=\"id\" tvg-name=\"nm\" tvg-logo=\"lg\" tvg-url=\"tu\" tvg-rec=\"3\" tvg-shift=\"-1\" group-title=\"grp\" referrer=\"ref\" user-agent=\"ua\" catchup=\"shift\" catchup-days=\"7\" catchup-source=\"cs\" timeshift=\"2\" lang=\"eng\" radio=\"true\",Full\r\nhttp://x/full.ts",
+    "line": 2,
+    "catchup": {
+     "type": "shift",
+     "days": "7",
+     "source": "cs"
+    },
+    "timeshift": "2",
+    "lang": "eng",
+    "radio": "true"
+   }
+  ]
+ }
+}

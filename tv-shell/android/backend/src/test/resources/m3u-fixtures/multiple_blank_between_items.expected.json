@@ -1,0 +1,69 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "A",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://x/a",
+    "raw": "#EXTINF:-1,A\r\nhttp://x/a",
+    "line": 4,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "B",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://x/b",
+    "raw": "#EXTINF:-1,B\r\nhttp://x/b",
+    "line": 9,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

@@ -1,0 +1,144 @@
+name: Build TV shell APK
+
+# Builds the IPTVnator PWA from this repository (or from a pinned upstream
+# tag when the shell lives in a standalone repo), bundles it into the Fire TV /
+# Android TV shell and publishes the APK as a workflow artifact and, on
+# demand, as a GitHub release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      iptvnator_ref:
+        description: "IPTVnator ref to build when this repo is NOT the IPTVnator fork (tag, branch or sha)"
+        default: "v0.24.0"
+        required: false
+      create_release:
+        description: "Create a GitHub release with the APK"
+        type: boolean
+        default: true
+  push:
+    branches: ["**"]
+    paths:
+      - "tv-shell/**"
+      - ".github/workflows/build-tv-shell-apk.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SHELL_DIR: tv-shell
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Locate the IPTVnator sources
+        id: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f package.json ] && node -e "process.exit(require('./package.json').name === 'iptvnator' ? 0 : 1)"; then
+            echo "IPTVnator sources: this repository"
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          else
+            REF="${{ github.event.inputs.iptvnator_ref || 'v0.24.0' }}"
+            echo "IPTVnator sources: cloning 4gray/iptvnator at $REF"
+            git clone --depth 1 --branch "$REF" https://github.com/4gray/iptvnator.git upstream-iptvnator
+            echo "dir=upstream-iptvnator" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ steps.src.outputs.dir }}/.nvmrc
+
+      - name: Install pnpm (exact version from package.json)
+        shell: bash
+        working-directory: ${{ steps.src.outputs.dir }}
+        run: |
+          set -euo pipefail
+          PNPM_VERSION="$(node -p 'require("./package.json").packageManager.split("@")[1].split("+")[0]')"
+          npm install --global "pnpm@${PNPM_VERSION}"
+          pnpm --version
+
+      - name: Install dependencies
+        shell: bash
+        working-directory: ${{ steps.src.outputs.dir }}
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build the PWA (same configuration as the Docker image)
+        shell: bash
+        working-directory: ${{ steps.src.outputs.dir }}
+        run: |
+          set -euo pipefail
+          node tools/build/inject-build-commit.mjs || true
+          pnpm nx build web --configuration=pwa --skip-nx-cache
+          test -f dist/apps/web/index.html
+
+      - name: Bundle the PWA into the shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$SHELL_DIR/scripts/bundle-pwa.sh" "${{ steps.src.outputs.dir }}/dist/apps/web"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Backend tests (parser fixtures, routes)
+        shell: bash
+        working-directory: ${{ env.SHELL_DIR }}/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :backend:check
+
+      - name: Build the APK
+        shell: bash
+        working-directory: ${{ env.SHELL_DIR }}/android
+        env:
+          TVSHELL_KEYSTORE_B64: ${{ secrets.TVSHELL_KEYSTORE_B64 }}
+          TVSHELL_KEYSTORE_PASSWORD: ${{ secrets.TVSHELL_KEYSTORE_PASSWORD }}
+          TVSHELL_KEY_ALIAS: ${{ secrets.TVSHELL_KEY_ALIAS }}
+          TVSHELL_KEY_PASSWORD: ${{ secrets.TVSHELL_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${TVSHELL_KEYSTORE_B64:-}" ]; then
+            echo "$TVSHELL_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/tvshell.keystore"
+            export TVSHELL_KEYSTORE_PATH="$RUNNER_TEMP/tvshell.keystore"
+            ./gradlew --no-daemon :app:assembleRelease
+            APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          else
+            ./gradlew --no-daemon :app:assembleDebug
+            APK=$(ls app/build/outputs/apk/debug/*.apk | head -1)
+          fi
+          VERSION=$(grep -oP "versionName '\K[^']+" app/build.gradle)
+          OUT="iptvnator-tv-shell-${VERSION}-${GITHUB_SHA::7}.apk"
+          mkdir -p ../../dist && cp "$APK" "../../dist/$OUT"
+          echo "APK_NAME=$OUT" >> "$GITHUB_ENV"
+          echo "APK_VERSION=$VERSION" >> "$GITHUB_ENV"
+          ls -la ../../dist
+
+      - name: Upload the APK as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APK_NAME }}
+          path: dist/${{ env.APK_NAME }}
+          if-no-files-found: error
+
+      - name: Publish a GitHub release
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="tv-shell-v${APK_VERSION}-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" "dist/${APK_NAME}" \
+            --title "TV shell ${APK_VERSION} (build ${GITHUB_RUN_NUMBER})" \
+            --notes "APK de la coquille Fire TV / Android TV pour IPTVnator. Installez-le avec l'application Downloader (URL ci-dessous) ou avec \`adb install\`."
+          echo "Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"

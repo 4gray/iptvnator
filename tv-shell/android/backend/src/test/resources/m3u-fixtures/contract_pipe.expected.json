@@ -1,0 +1,40 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Piped",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "http://ref.example",
+     "user-agent": "CustomUA"
+    },
+    "url": "http://example.com/stream.ts",
+    "raw": "#EXTINF:-1,Piped\r\nhttp://example.com/stream.ts|User-Agent=CustomUA&Referer=http://ref.example",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

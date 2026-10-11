@@ -1,0 +1,67 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'org.tvshell.iptvnator'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'org.tvshell.iptvnator'
+        minSdk 25          // Fire OS 6 (Android 7.1) and newer
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    // Optional release signing: set the four TVSHELL_* environment variables
+    // (the GitHub workflow fills them from repository secrets). Without them,
+    // only the debug-signed APK is built — perfectly fine for sideloading.
+    def keystorePath = System.getenv('TVSHELL_KEYSTORE_PATH')
+    signingConfigs {
+        if (keystorePath != null && file(keystorePath).exists()) {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv('TVSHELL_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('TVSHELL_KEY_ALIAS')
+                keyPassword System.getenv('TVSHELL_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+            if (keystorePath != null && file(keystorePath).exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    packaging {
+        resources {
+            excludes += ['META-INF/LICENSE*', 'META-INF/NOTICE*']
+        }
+    }
+
+    // The Angular bundle is copied to src/main/assets/www by the build
+    // workflow (or by hand); keep it uncompressed so it is served straight
+    // from the APK without extraction overhead.
+    androidResources {
+        noCompress 'js', 'css', 'json', 'woff', 'woff2', 'html', 'webmanifest', 'svg'
+    }
+}
+
+dependencies {
+    implementation project(':backend')
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+}

@@ -1,0 +1,69 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Channel One",
+    "tvg": {
+     "id": "one",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://example.com/one.m3u8",
+    "raw": "#EXTINF:-1 tvg-id=\"one\",Channel One\r\n# a stray comment between EXTINF and its URL\r\n#EXT-X-SESSION-DATA:DATA-ID=\"com.example.title\",VALUE=\"Some value\"\r\nhttp://example.com/one.m3u8",
+    "line": 3,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "Channel Two",
+    "tvg": {
+     "id": "two",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://example.com/two.m3u8",
+    "raw": "#EXTINF:-1 tvg-id=\"two\",Channel Two\r\n#PLAYLIST:ignored directive\r\nhttp://example.com/two.m3u8",
+    "line": 7,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

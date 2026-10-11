@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:0 tvg-name="TestChannel" group-title="Entertainment",Test Channel
+#EXTGRP:News
+#EXTVLCOPT:http-user-agent="Dalvik/2.1.0 (Linux; U; Android 6.0.1;)"
+http://test.channel.com/iptv/secret/1/index.m3u8

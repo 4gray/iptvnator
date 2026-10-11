@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="id" tvg-name="nm" tvg-logo="lg" tvg-url="tu" tvg-rec="3" tvg-shift="-1" group-title="grp" referrer="ref" user-agent="ua" catchup="shift" catchup-days="7" catchup-source="cs" timeshift="2" lang="eng" radio="true",Full
+http://x/full.ts

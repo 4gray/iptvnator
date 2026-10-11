@@ -1,0 +1,9 @@
+#EXTM3U
+# top-of-file comment
+#EXTINF:-1 tvg-id="one",Channel One
+# a stray comment between EXTINF and its URL
+#EXT-X-SESSION-DATA:DATA-ID="com.example.title",VALUE="Some value"
+http://example.com/one.m3u8
+#EXTINF:-1 tvg-id="two",Channel Two
+#PLAYLIST:ignored directive
+http://example.com/two.m3u8

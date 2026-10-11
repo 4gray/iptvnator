@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="crlf" radio="true",CRLF
+http://x/1.ts|User-Agent=UA

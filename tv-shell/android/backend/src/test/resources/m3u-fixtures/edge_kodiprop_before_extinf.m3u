@@ -1,0 +1,7 @@
+#EXTM3U
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=kid123:key456
+#EXTINF:-1,Encrypted
+http://example.com/enc.mpd
+#EXTINF:-1,Plain
+http://example.com/plain.m3u8

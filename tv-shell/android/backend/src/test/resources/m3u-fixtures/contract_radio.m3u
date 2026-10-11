@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1 radio="true" tvg-id="r1",Radio One
+http://example.com/radio1
+#EXTINF:-1 tvg-id="tv1",TV One
+http://example.com/tv1

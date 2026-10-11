@@ -1,0 +1,69 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Name with, commas",
+    "tvg": {
+     "id": "a",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "http://r",
+     "user-agent": ""
+    },
+    "url": "http://x/1.ts?a=1&user-agent=X",
+    "raw": "#EXTINF:-1 tvg-id=\"a\" broken=\"x,Name with, commas\r\nhttp://x/1.ts?a=1&user-agent=X|Referer=http://r",
+    "line": 3,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://orphan",
+    "raw": "#EXTINF:\r\nhttp://orphan",
+    "line": 6,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

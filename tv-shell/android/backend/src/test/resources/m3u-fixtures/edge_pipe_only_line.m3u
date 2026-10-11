@@ -1,0 +1,4 @@
+#EXTM3U
+#EXTINF:-1,A
+|User-Agent=UA
+http://x/real.ts
