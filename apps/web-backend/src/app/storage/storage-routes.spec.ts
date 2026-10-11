@@ -80,6 +80,12 @@ describe('server storage routes', () => {
                     headers: { 'if-none-match': etag ?? '' },
                 });
                 expect(cached.status).toBe(304);
+
+                // nginx weakens the ETag of a gzipped response.
+                const weakened = await fetch(`${baseUrl}/v1/playlists/p1`, {
+                    headers: { 'if-none-match': `W/${etag}` },
+                });
+                expect(weakened.status).toBe(304);
             })
         ));
 

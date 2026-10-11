@@ -1,4 +1,5 @@
 import express, { Router, type Response } from 'express';
+import { matchesEtag } from './etag-match';
 import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
 
@@ -22,7 +23,7 @@ export function createPlaylistsRouter(
         const id = req.params.id;
         const etag = revisions.etag(id);
         withEtag(res, etag);
-        if (req.get('if-none-match') === etag) {
+        if (matchesEtag(req.get('if-none-match'), etag)) {
             res.status(304).end();
             return;
         }
