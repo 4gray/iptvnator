@@ -37,58 +37,7 @@ import { TranslateModule } from '@ngx-translate/core';
             }}</span>
         </button>
     `,
-    styles: `
-        :host {
-            display: inline-flex;
-            flex: 0 1 auto;
-            min-width: 0;
-            max-width: 220px;
-        }
-
-        /* Same pill geometry as the EPG toolbar's own icon buttons. */
-        .open-in-playlist-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            height: 34px;
-            min-width: 0;
-            max-width: 100%;
-            padding: 0 12px 0 10px;
-            border-radius: 999px;
-            background: var(--app-widget-header-bg);
-            border: 1px solid var(--app-separator);
-            color: color-mix(in srgb, var(--app-on-surface) 82%, transparent);
-            font: inherit;
-            font-size: 12.5px;
-            font-weight: 600;
-            cursor: pointer;
-
-            mat-icon {
-                flex: 0 0 auto;
-                font-size: 16px;
-                width: 16px;
-                height: 16px;
-            }
-
-            &:hover {
-                background: var(--app-card-hover-bg);
-                color: var(--app-on-surface);
-            }
-
-            // The app ring, as the shared focus-ring mixin draws it.
-            &:focus-visible {
-                outline: 2px solid var(--app-focus-ring);
-                outline-offset: 2px;
-            }
-        }
-
-        .open-in-playlist-chip__name {
-            min-width: 0;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-        }
-    `,
+    styleUrl: './open-in-playlist-chip.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OpenInPlaylistChipComponent {
