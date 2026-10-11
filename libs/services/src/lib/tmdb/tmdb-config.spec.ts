@@ -7,6 +7,15 @@ describe('toTmdbLanguage', () => {
         expect(toTmdbLanguage(Language.RUSSIAN)).toBe('ru-RU');
     });
 
+    it.each([
+        ['pt', 'pt-BR'],
+        ['pt-BR', 'pt-BR'],
+        ['PT_br', 'pt-BR'],
+        ['pt-PT', 'pt-PT'],
+    ])('maps Portuguese %s to %s', (input, expected) => {
+        expect(toTmdbLanguage(input)).toBe(expected);
+    });
+
     it('falls back to en-US for unknown values', () => {
         expect(toTmdbLanguage(undefined)).toBe('en-US');
         expect(toTmdbLanguage('xx')).toBe('en-US');

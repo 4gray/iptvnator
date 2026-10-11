@@ -16,7 +16,7 @@ const GERMAN = {
         NO_STREAM: 'Kein Livestream ausgewählt',
         NO_PROGRAM: 'Keine aktuelle Sendung',
         CHANNEL_ABBR: 'K',
-        UP_CHANNEL: 'Kanal hoch',
+        UP_CHANNEL: 'Vorheriger Kanal',
         MUTE: 'STUMM',
         VOLUME_UNAVAILABLE: 'Lautstärke nicht verfügbar',
         WAITING_FOR_STATUS: 'Warte auf Status…',
@@ -85,6 +85,8 @@ describe('RemoteControlComponent', () => {
     });
 
     it('renders its labels in the active language', () => {
+        expect(text('.touchpad__button--up')).toBe('K ↑');
+        expect(text('.touchpad__button--down')).toBe('K ↓');
         expect(text('.now-card__label')).toBe('Läuft gerade');
         expect(text('.now-card__statusline')).toBe('Warte auf Wiedergabe');
         expect(text('.now-card__channel')).toBe('Kein Livestream ausgewählt');
@@ -97,7 +99,7 @@ describe('RemoteControlComponent', () => {
             fixture.nativeElement
                 .querySelector('.touchpad__button--up')
                 .getAttribute('aria-label')
-        ).toBe('Kanal hoch');
+        ).toBe('Vorheriger Kanal');
     });
 
     it('names the source of the current playback', async () => {

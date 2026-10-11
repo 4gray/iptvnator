@@ -30,6 +30,7 @@ import {
     Theme,
     VideoPlayer,
     normalizeAppUpdateChannel,
+    normalizeAppLanguage,
     normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
     normalizeParentalLockRelockMinutes,
@@ -83,6 +84,9 @@ export const SettingsStore = signalStore(
                         patchState(store, {
                             ...DEFAULT_SETTINGS,
                             ...storedSettings,
+                            language: normalizeAppLanguage(
+                                storedSettings.language
+                            ),
                             epgOffsetMinutes: normalizeEpgOffsetMinutes(
                                 storedSettings.epgOffsetMinutes
                             ),
@@ -133,6 +137,9 @@ export const SettingsStore = signalStore(
                 const previousEpgUrls = store.epgUrl();
                 patchState(store, {
                     ...settings,
+                    ...(settings.language !== undefined
+                        ? { language: normalizeAppLanguage(settings.language) }
+                        : {}),
                     ...coerceProvidedDefaultOnSettings(settings),
                     ...(settings.dashboardRails !== undefined
                         ? {

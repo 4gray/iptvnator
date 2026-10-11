@@ -17,6 +17,9 @@ Related:
   cast, director, genres, rating, artwork) via a **field-level merge** — the
   provider stays authoritative for stream-related data and for any field
   TMDB cannot fill.
+- Grid rating badges use the IMDb label only when `rating_imdb` supplies the
+  displayed score. A fallback from the generic `rating` field uses the generic
+  rating label; provider or TMDB scores must not be presented as IMDb scores.
 - The M3U player is a consumer too: an entry recognized as a movie file opens
   in the VOD detail shell fed purely by an `enrichMovie` lookup (there is no
   provider payload to merge into). Gated by the additional
@@ -645,6 +648,13 @@ Never commit a real key or reuse keys found in other repositories.
 At runtime, a non-empty user key takes precedence over an injected default.
 With neither available, enrichment stays inactive even when the toggle is
 on. This applies to release, local development, and fork builds alike.
+
+## Portuguese metadata language
+
+`pt-PT` requests Portuguese metadata for Portugal; `pt-BR` requests it for
+Brazil. Legacy saved `pt` preferences normalize to `pt-BR`, matching the
+existing Brazilian UI. Cache keys already include the TMDB language, so the
+two regional payloads remain separate without deleting cached data.
 
 ## Failure Behavior
 

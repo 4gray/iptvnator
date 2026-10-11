@@ -3,7 +3,11 @@ import localeEn from '@angular/common/locales/en';
 import { inject, Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { normalizeDateLocale } from '@iptvnator/pipes/date-format';
-import { createDevLogger } from '@iptvnator/shared/interfaces';
+import {
+    createDevLogger,
+    normalizeAppLanguage,
+} from '@iptvnator/shared/interfaces';
+import { rememberLanguage } from './app-language-preference';
 
 type LocaleDataModule = { default: unknown };
 export type AppDateLocaleLoader = () => Promise<LocaleDataModule>;
@@ -16,7 +20,7 @@ const debug = createDevLogger('AppDateLocales');
  * separate lazy chunk, keyed by the Angular locale id that
  * `normalizeDateLocale()` produces for an app language (`by` -> `be`,
  * `ary` -> `ar-MA`, `zhtw` -> `zh-Hant`). Importing all of them eagerly put
- * the data for 18 languages into the initial bundle of every user.
+ * the data for 19 languages into the initial bundle of every user.
  */
 export const APP_DATE_LOCALE_LOADERS: Readonly<
     Record<string, AppDateLocaleLoader>
@@ -34,7 +38,8 @@ export const APP_DATE_LOCALE_LOADERS: Readonly<
     ko: () => import('@angular/common/locales/ko'),
     nl: () => import('@angular/common/locales/nl'),
     pl: () => import('@angular/common/locales/pl'),
-    pt: () => import('@angular/common/locales/pt'),
+    'pt-PT': () => import('@angular/common/locales/pt-PT'),
+    'pt-BR': () => import('@angular/common/locales/pt'),
     ru: () => import('@angular/common/locales/ru'),
     tr: () => import('@angular/common/locales/tr'),
     zh: () => import('@angular/common/locales/zh'),
@@ -115,9 +120,11 @@ export class AppDateLocaleService {
      */
     async use(language: string): Promise<void> {
         const request = ++this.latestRequest;
-        await registerAppDateLocale(language);
+        const normalizedLanguage = normalizeAppLanguage(language);
+        await registerAppDateLocale(normalizedLanguage);
         if (request === this.latestRequest) {
-            this.translate.use(language);
+            this.translate.use(normalizedLanguage);
+            rememberLanguage(normalizedLanguage);
         }
     }
 }
