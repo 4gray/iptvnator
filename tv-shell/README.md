@@ -96,7 +96,44 @@ cd tv-shell/android && ./gradlew :backend:check
 
 ## Dépannage
 
-- **Écran « Le lecteur n'a pas pu être chargé »** : lisez le diagnostic (version Chrome du WebView). Angular 21 demande un WebView récent : moteur Chrome ≥ 94 pour charger le JS (blocs `static {}`), ≥ 111 pour des couleurs correctes (`color-mix()`). Mettez à jour « Amazon WebView » / Android System WebView via l'Appstore ; sinon, piste GeckoView (voir `HANDOFF.md`).
-- **Flux muet / noir** : codec non supporté par le WebView → Menu sur l'image ou « Copier l'URL du flux » → VLC. Pour Xtream, choisissez le format de sortie `m3u8` dans les réglages de la playlist.
-- **Affichage qui ne tient pas dans l'écran** : lisez la ligne « Écran » du diagnostic (px, densité, px CSS, largeur de layout) ; la mise à l'échelle est `px CSS / largeur de layout` et doit donner un affichage pleine largeur. Rapportez ces chiffres si ce n'est pas le cas.
+Le **diagnostic** (appui long sur Menu → Réglages de la coquille, ou l'écran d'erreur) donne la version du moteur Chrome du WebView, l'appareil, le port du serveur embarqué et la ligne « Écran » (pixels, densité, largeur en px CSS, largeur de layout). Joignez-le à tout rapport. Depuis un PC :
+
+```bash
+adb connect 192.168.x.x
+adb logcat -s TvShell chromium          # [console] = erreurs de la page ; "web app ready" = app démarrée
+adb shell dumpsys package com.amazon.webview.chromium | grep versionName
+```
+
+### Installation
+
+- **« Application non installée » / `INSTALL_FAILED_UPDATE_INCOMPATIBLE`** : l'APK installé est signé avec une autre clé (c'est le cas des builds 1 à 4, signés avec une clé jetable). Désinstallez d'abord : Paramètres → Applications → Gérer les applications installées, ou `adb uninstall org.tvshell.iptvnator`. Depuis le build 5 la clé est stable et les mises à jour s'installent par-dessus avec `adb install -r`.
+- **Downloader refuse d'installer** : activez *Applications de sources inconnues* (ou *Installer des applications inconnues → Downloader*) dans Options pour les développeurs, puis réessayez avec l'URL directe du `.apk` (bouton droit sur l'asset de la Release → copier le lien).
+- **`adb connect` refusé** : activez *Débogage ADB* dans Options pour les développeurs, puis acceptez l'invite sur la TV au premier `adb` ; l'IP est dans À propos → Réseau.
+
+### Démarrage
+
+- **« Le lecteur n'a pas pu être chargé »** après 30 s : la page n'a pas démarré. Si la version Chrome affichée est inférieure à **94**, le WebView ne peut pas exécuter le bundle Angular 21 (blocs `static {}`) ; mettez à jour « Amazon WebView » / Android System WebView via l'Appstore, sinon piste GeckoView (voir `HANDOFF.md`). Entre 94 et 110, l'app fonctionne avec des couleurs dégradées (`color-mix()` demande 111). La dernière erreur console est affichée sous le message.
+- **« Le serveur embarqué n'a pas pu démarrer »** : les ports 43330 à 43334 sont occupés par une autre application. Fermez-la ou redémarrez le Stick ; le port retenu est mémorisé pour conserver les données de l'app (elles sont liées à l'origine `http://127.0.0.1:port`).
+- **Splash qui reste affiché** (builds ≤ 6) : mettez à jour ; depuis le build 7 l'écran d'erreur prend le relais au bout de 30 s.
+
+### Affichage
+
+- **L'image ne tient pas dans l'écran, ou est trop petite** : la mise à l'échelle est `px CSS ÷ largeur de layout` (sur un Fire TV 1080p : 960 ÷ 1280 = 0,75). Vérifiez la ligne « Écran » du diagnostic et changez *Taille de l'interface* (960 = grande, 1280 = normale, 1600 = dense). Si l'affichage reste coupé, rapportez la ligne « Écran » et le build.
+- **Texte trop petit ou trop gros** : même réglage *Taille de l'interface*.
+
+### Télécommande
+
+- **Une touche ne fait rien** : `adb shell getevent -l` montre le code envoyé par la télécommande ; les touches interceptées sont listées dans `MainActivity.dispatchKeyEvent` (Retour, Menu, lecture/pause, ⏪, ⏩), le reste va à la page (`tv.js`).
+- **Plus de focus visible** : appuyez sur une flèche, la couche télécommande replace le focus près de sa dernière position. Retour ferme d'abord dialogues et menus, puis remonte l'historique, puis quitte (deux appuis).
+- **Pas de clavier sur un champ** : OK sur le champ ouvre le clavier Fire TV ; sinon `adb shell input text "..."`.
+
+### Lecture
+
+- **Flux muet / noir / « ce flux ne peut pas être lu ici »** : codec ou conteneur non géré par le WebView (`.ts` brut, AC3…). Acceptez l'ouverture dans VLC (à installer depuis l'Appstore), ou Menu sur l'image / « Copier l'URL du flux ». Pour Xtream, choisissez le format de sortie `m3u8` dans les réglages de la playlist.
+- **La proposition VLC n'apparaît plus** : réglages de la coquille → *Lecteur externe* → cochez « Proposer un lecteur externe » et choisissez le lecteur.
+
+### Données et mémoire
+
+- **Repartir de zéro** : réglages de la coquille → *Effacer les données IPTVnator* (ou désinstaller l'app). Les données survivent aux mises à jour tant que le port du serveur ne change pas.
+- **L'app se recharge ou se ferme seule (1 Go de RAM)** : le rendu web a été tué par le système. Réduisez le catalogue (catégories masquées dans IPTVnator, playlist plus petite) et fermez les autres applications.
 - **Inspecter la page** : réglages de la coquille → *débogage à distance*, puis `chrome://inspect` sur un PC avec `adb connect`.
