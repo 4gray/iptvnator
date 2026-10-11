@@ -450,8 +450,10 @@
  * spacing and type keep the cards with their hint and status lines and the
  * utilities on screen. Shorter players scroll from the top. */
 @container playback-diagnostic (max-height: 560px) {
+    /* The side padding grows from the narrow players' 16px at the 760px
+     * breakpoint, so a short player keeps its width for fewer lines. */
     .web-player-diagnostic {
-        padding-block: clamp(14px, 5cqb, 28px);
+        padding: clamp(14px, 5cqb, 28px) clamp(16px, 18cqi - 120px, 216px);
     }
 
     .web-player-diagnostic__headline {

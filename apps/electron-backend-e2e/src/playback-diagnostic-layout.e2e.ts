@@ -17,9 +17,10 @@ import {
  * Layout of the playback diagnostic banner in the M3U inline player, which
  * sits above the EPG panel and is about 400px tall in the default window.
  *
- * Every locale's card labels and "player started" status are written into the
- * rendered cards instead of being reached through the cards: activating an
- * external-player card can launch a real MPV or VLC installed on the machine.
+ * Each locale's panel text, card labels and "player started" status are
+ * written into the rendered banner instead of being reached through the
+ * cards: activating an external-player card can launch a real MPV or VLC
+ * installed on the machine.
  */
 
 const I18N_DIR = join(workspaceRoot, 'apps/web/src/assets/i18n');
@@ -38,9 +39,18 @@ const CARD_LABEL_KEYS = [
     'ACTION_TRY_PLAYER',
 ] as const;
 
-type CardText = { label: string; locale: string; status: string };
+type LocaleTexts = {
+    locale: string;
+    /** Every label a card can show, in this locale. */
+    labels: string[];
+    status: string;
+    /** English panel strings paired with this locale's translation. */
+    translations: [english: string, translated: string][];
+};
 
 type CardLayout = {
+    /** Text nodes on the banner that have a translation key. */
+    translatedNodes: number;
     /** Labels whose text is wider than their box (ellipsized or overflowing). */
     truncated: string[];
     /** Texts whose banner content leaves the visible banner box. */
@@ -49,29 +59,55 @@ type CardLayout = {
     scrolled: number;
 };
 
-function cardTexts(): CardText[] {
+/** The diagnostics strings of one locale file, keyed by their dotted path. */
+function readDiagnosticStrings(file: string): Map<string, string> {
+    const strings = new Map<string, string>();
+    const collect = (value: unknown, path: string): void => {
+        if (typeof value === 'string') {
+            strings.set(path, value);
+        } else if (value && typeof value === 'object') {
+            for (const [key, child] of Object.entries(value)) {
+                collect(child, path ? `${path}.${key}` : key);
+            }
+        }
+    };
+    collect(
+        JSON.parse(readFileSync(join(I18N_DIR, file), 'utf8'))
+            .PLAYBACK_DIAGNOSTICS,
+        ''
+    );
+    return strings;
+}
+
+function localeTexts(): LocaleTexts[] {
+    const english = readDiagnosticStrings('en.json');
     return readdirSync(I18N_DIR)
         .filter((file) => file.endsWith('.json'))
-        .flatMap((file) => {
-            const strings = JSON.parse(
-                readFileSync(join(I18N_DIR, file), 'utf8')
-            ).PLAYBACK_DIAGNOSTICS as Record<string, string>;
-            return CARD_LABEL_KEYS.map((key) => ({
-                label: strings[key].replace('{{player}}', 'ArtPlayer'),
+        .map((file) => {
+            const strings = readDiagnosticStrings(file);
+            return {
                 locale: file.replace(/\.json$/, ''),
-                status: strings['EXTERNAL_STARTED'],
-            }));
+                labels: CARD_LABEL_KEYS.map((key) =>
+                    (strings.get(key) ?? '').replace('{{player}}', 'ArtPlayer')
+                ),
+                status: strings.get('EXTERNAL_STARTED') ?? '',
+                translations: [...english].map(([key, value]) => [
+                    value,
+                    strings.get(key) ?? value,
+                ]),
+            };
         });
 }
 
 /**
- * Puts each text into both cards, with a status line under the hint, and
- * reports truncated labels and any content outside the banner's visible box
- * at the top of the scroll range and, when the banner scrolls, at its end.
+ * Translates the banner into each locale, puts every card label of that
+ * locale into both cards with a status line under the hint, and reports
+ * truncated labels and any content outside the banner's visible box at the
+ * top of the scroll range and, when the banner scrolls, at its end.
  */
-async function measureCardTexts(
+async function measureLocales(
     banner: Locator,
-    texts: CardText[]
+    locales: LocaleTexts[]
 ): Promise<CardLayout> {
     return banner.evaluate((element, entries) => {
         const cards = Array.from(
@@ -86,6 +122,17 @@ async function measureCardTexts(
                 ) as HTMLElement
         );
         const originalLabels = labels.map((label) => label.textContent);
+        // The rest of the banner's text, rendered in English by the app.
+        const panelText: { node: Text; english: string; original: string }[] =
+            [];
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const text = node as Text;
+            const english = text.data.trim();
+            if (english && !labels.some((label) => label.contains(text))) {
+                panelText.push({ node: text, english, original: text.data });
+            }
+        }
         // A clone keeps the hint's encapsulation attribute, so the status
         // class gets the panel's real status styles.
         const statuses = cards.map((card) => {
@@ -114,9 +161,24 @@ async function measureCardTexts(
         const layout = {
             clipped: [] as string[],
             scrolled: 0,
+            translatedNodes: Number.POSITIVE_INFINITY,
             truncated: [] as string[],
         };
-        for (const entry of entries) {
+        for (const entry of entries.flatMap((locale) =>
+            locale.labels.map((label) => ({ ...locale, label }))
+        )) {
+            const translations = new Map(entry.translations);
+            let translatedNodes = 0;
+            for (const text of panelText) {
+                const translated = translations.get(text.english);
+                if (translated === undefined) continue;
+                text.node.data = translated;
+                translatedNodes += 1;
+            }
+            layout.translatedNodes = Math.min(
+                layout.translatedNodes,
+                translatedNodes
+            );
             const name = `${entry.locale}: ${entry.label}`;
             labels.forEach((label) => (label.textContent = entry.label));
             statuses.forEach((status) => (status.textContent = entry.status));
@@ -140,12 +202,13 @@ async function measureCardTexts(
         }
 
         element.scrollTop = 0;
+        panelText.forEach((text) => (text.node.data = text.original));
         statuses.forEach((status) => status.remove());
         labels.forEach(
             (label, index) => (label.textContent = originalLabels[index])
         );
         return layout;
-    }, texts);
+    }, locales);
 }
 
 /** The EPG panel animates its height when the viewport height changes. */
@@ -196,8 +259,9 @@ test('@electron @m3u @playback diagnostic cards keep every locale label and stat
         await expect(banner.getByTestId('playback-fallback-mpv')).toBeVisible();
         await expect(banner.getByTestId('playback-fallback-vlc')).toBeVisible();
 
-        const texts = cardTexts();
-        expect(texts.length).toBeGreaterThan(CARD_LABEL_KEYS.length);
+        const locales = localeTexts();
+        const textCount = locales.length * CARD_LABEL_KEYS.length;
+        expect(locales.length).toBeGreaterThan(1);
 
         // 1280x720 is the default window (a 760x404 player beside the channel
         // list); 1440 leaves the player just past the 760px breakpoint, where
@@ -214,7 +278,9 @@ test('@electron @m3u @playback diagnostic cards keep every locale label and stat
                 expect(box?.width ?? 0).toBeGreaterThan(760);
             }
 
-            const layout = await measureCardTexts(banner, texts);
+            const layout = await measureLocales(banner, locales);
+            // Badge, headline, description, both hints and three utilities.
+            expect(layout.translatedNodes).toBeGreaterThanOrEqual(8);
             expect(layout.truncated, `${viewport.width}px`).toEqual([]);
             expect(layout.clipped, `${viewport.width}px`).toEqual([]);
             // Short players get the compact layout, so all of it fits.
@@ -226,10 +292,10 @@ test('@electron @m3u @playback diagnostic cards keep every locale label and stat
         await page.setViewportSize({ width: 1440, height: 460 });
         await waitForStableBox(banner);
         expect((await banner.boundingBox())?.width ?? 0).toBeGreaterThan(760);
-        const shortLayout = await measureCardTexts(banner, texts);
+        const shortLayout = await measureLocales(banner, locales);
         expect(shortLayout.truncated).toEqual([]);
         expect(shortLayout.clipped).toEqual([]);
-        expect(shortLayout.scrolled).toBe(texts.length);
+        expect(shortLayout.scrolled).toBe(textCount);
     } finally {
         await closeElectronApp(app);
         await server.close();
