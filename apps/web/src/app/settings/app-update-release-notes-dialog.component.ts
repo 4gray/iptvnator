@@ -88,6 +88,9 @@ function decorateReleaseNotesHtml(html: string): string {
                     mat-icon-button
                     type="button"
                     [disabled]="loading() || !notes()?.hasPrevious"
+                    [attr.aria-label]="
+                        'SETTINGS.APP_UPDATE_RELEASE_NOTES_OLDER' | translate
+                    "
                     (click)="load('previous')"
                     data-test-id="release-notes-previous"
                 >
@@ -107,6 +110,9 @@ function decorateReleaseNotesHtml(html: string): string {
                     mat-icon-button
                     type="button"
                     [disabled]="loading() || !notes()?.hasNext"
+                    [attr.aria-label]="
+                        'SETTINGS.APP_UPDATE_RELEASE_NOTES_NEWER' | translate
+                    "
                     (click)="load('next')"
                     data-test-id="release-notes-next"
                 >

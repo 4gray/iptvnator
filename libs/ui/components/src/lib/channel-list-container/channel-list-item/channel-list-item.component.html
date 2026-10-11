@@ -101,6 +101,8 @@
                             : 'CHANNELS.ADD_FAVORITE'
                         ) | translate
                     "
+                    [attr.aria-label]="'CHANNELS.FAVORITE' | translate"
+                    [attr.aria-pressed]="isFavorite()"
                     (click)="onFavoriteClick($event)"
                 >
                     <mat-icon>{{
@@ -113,6 +115,7 @@
                     mat-icon-button
                     class="favorite-button"
                     [matTooltip]="auxActionTooltip()"
+                    [attr.aria-label]="auxActionTooltip()"
                     (click)="onAuxActionClick($event)"
                 >
                     <mat-icon>{{ auxActionIcon() }}</mat-icon>
@@ -128,6 +131,9 @@
                     [disabled]="!epgProgram()"
                     [attr.aria-hidden]="!epgProgram()"
                     [matTooltip]="
+                        'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+                    "
+                    [attr.aria-label]="
                         'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
                     "
                     (click)="onProgramInfoClick($event)"

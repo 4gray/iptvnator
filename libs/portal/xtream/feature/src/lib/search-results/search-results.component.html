@@ -41,7 +41,12 @@
             </mat-checkbox>
         }
         @if (showGlobalCloseButton) {
-            <button mat-icon-button (click)="onCloseDialog()">
+            <button
+                mat-icon-button
+                type="button"
+                [attr.aria-label]="'CLOSE' | translate"
+                (click)="onCloseDialog()"
+            >
                 <mat-icon>close</mat-icon>
             </button>
         }

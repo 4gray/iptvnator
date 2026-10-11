@@ -14,6 +14,7 @@ import {
     tmplAstVisitAll,
 } from '@angular/compiler';
 import ts from 'typescript';
+import { isInlineTemplate } from './inline-templates.mjs';
 import { literalLineResolver } from './literal-source-lines.mjs';
 
 /**
@@ -298,25 +299,6 @@ function declarationResults(node) {
         return functionResults(node.body, []);
     }
     return [];
-}
-
-/**
- * `template` of an `@Component({...})` decorator, quoted or backticked. A
- * template with `${...}` substitutions is built at runtime and skipped.
- */
-function isInlineTemplate(node) {
-    const call = node.parent?.parent;
-    return (
-        ts.isPropertyAssignment(node) &&
-        declarationName(node) === 'template' &&
-        (ts.isNoSubstitutionTemplateLiteral(node.initializer) ||
-            ts.isStringLiteral(node.initializer)) &&
-        call !== undefined &&
-        ts.isCallExpression(call) &&
-        ts.isIdentifier(call.expression) &&
-        call.expression.text === 'Component' &&
-        ts.isDecorator(call.parent)
-    );
 }
 
 /**
