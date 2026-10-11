@@ -67,15 +67,19 @@ mat-paginator {
     // Its own container already wraps internally, so letting it shrink turns
     // a clipped next-page arrow into a second line of the paginator itself.
     min-width: 0;
-    --mat-paginator-container-size: 40px;
-    --mat-paginator-enabled-icon-color: var(
-        --app-body-color,
-        var(--mat-sys-on-surface-variant)
-    );
-    --mat-paginator-disabled-icon-color: color-mix(
-        in srgb,
-        var(--app-on-surface) 18%,
-        transparent
+    @include mat.paginator-overrides(
+        (
+            container-size: 40px,
+            enabled-icon-color: var(
+                    --app-body-color,
+                    var(--mat-sys-on-surface-variant)
+                ),
+            disabled-icon-color: color-mix(
+                    in srgb,
+                    var(--app-on-surface) 18%,
+                    transparent
+                ),
+        )
     );
 }
 
