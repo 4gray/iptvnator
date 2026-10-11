@@ -5,6 +5,11 @@ import {
     withServer,
 } from '../web-backend-app.spec-helpers';
 import { m3uDocument, withTempStorage } from './server-storage.spec-helpers';
+import type {
+    ServerInstanceInfo,
+    ServerStorageStatusResponse,
+    ServerUserStateResponse,
+} from '@iptvnator/shared/interfaces';
 import type { ServerStorage } from './server-storage';
 
 function app(
@@ -53,9 +58,9 @@ describe('server storage routes', () => {
                     storage: 'server',
                     instanceId: storage.database.instanceId,
                 });
-                const status = await (
+                const status = (await (
                     await fetch(`${baseUrl}/v1/instance/status`)
-                ).json();
+                ).json()) as ServerStorageStatusResponse;
                 expect(status).toMatchObject({ playlists: 0 });
                 expect(status.databaseBytes).toBeGreaterThan(0);
             })
@@ -134,10 +139,10 @@ describe('server storage routes', () => {
                     json({ value: ['live:1'] }, { method: 'PUT' })
                 );
 
-                const metas = await (
+                const metas = (await (
                     await fetch(`${baseUrl}/v1/playlists?view=meta`)
-                ).json();
-                expect(metas[0].playlist).toBeUndefined();
+                ).json()) as Record<string, unknown>[];
+                expect(metas[0]['playlist']).toBeUndefined();
 
                 await fetch(`${baseUrl}/v1/playlists/p1`, {
                     method: 'DELETE',
@@ -146,9 +151,9 @@ describe('server storage routes', () => {
                 expect((await fetch(`${baseUrl}/v1/playlists/p1`)).status).toBe(
                     404
                 );
-                const state = await (
+                const state = (await (
                     await fetch(`${baseUrl}/v1/user-state`)
-                ).json();
+                ).json()) as ServerUserStateResponse;
                 expect(state.entries['xtream-favorites']).toEqual({});
             })
         ));
@@ -194,9 +199,9 @@ describe('server storage routes', () => {
             withServer(
                 app(storage, { accessToken: 's3cret' }),
                 async (baseUrl) => {
-                    const instance = await (
+                    const instance = (await (
                         await fetch(`${baseUrl}/v1/instance`)
-                    ).json();
+                    ).json()) as ServerInstanceInfo;
                     expect(instance.auth).toBe('token');
 
                     expect(
