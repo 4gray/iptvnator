@@ -38,7 +38,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     private flushTimer: ReturnType<typeof setTimeout> | null = null;
     /** Batches go out one at a time, so an older write never lands last. */
     private sending: Promise<void> = Promise.resolve();
-    private batchesInFlight = 0;
+    private writesInFlight = 0;
     /** Page-hide writes still travelling, by `namespace|playlistId`. */
     private readonly keepaliveKeys = new Set<string>();
     /** Re-reads run one at a time, so an older one never lands last. */
@@ -148,11 +148,11 @@ export class ServerUserDataStorage implements UserDataStorage {
             if (batch.length === 0) {
                 return;
             }
-            this.batchesInFlight += 1;
+            this.writesInFlight += 1;
             try {
                 await Promise.all(batch.map((entry) => this.send(entry)));
             } finally {
-                this.batchesInFlight -= 1;
+                this.writesInFlight -= 1;
             }
         });
         this.sending = run.then(
@@ -164,38 +164,31 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     /**
      * Page hide: `keepalive` requests survive the page. They go out at once
-     * unless a batch is still travelling, which they must not overtake.
+     * unless a write is still travelling, which they must not overtake, and
+     * later writes wait for them in turn.
      */
     flushWithKeepalive(): void {
         const entries = this.takePending();
         if (entries.length === 0) {
             return;
         }
-        const sendAll = () => {
-            for (const entry of entries) {
-                const key = entryKey(entry);
-                const edit = this.edits.get(key);
-                this.keepaliveKeys.add(key);
-                const path = entryPath(entry);
-                const sent =
-                    entry.value === undefined
-                        ? this.api.sendKeepalive('DELETE', path)
-                        : this.api.sendKeepalive('PUT', path, {
-                              value: entry.value,
-                          });
-                void sent.then((ok) => {
-                    this.keepaliveKeys.delete(key);
-                    if (!ok) {
-                        this.requeue(entry, edit);
-                    }
-                });
+        const sendAll = async (): Promise<void> => {
+            this.writesInFlight += 1;
+            try {
+                await Promise.all(
+                    entries.map((entry) => this.sendKeepalive(entry))
+                );
+            } finally {
+                this.writesInFlight -= 1;
             }
         };
-        if (this.batchesInFlight === 0) {
-            sendAll();
-        } else {
-            this.sending = this.sending.then(sendAll);
-        }
+        // Idle: send synchronously, while the hiding page still runs.
+        const run =
+            this.writesInFlight === 0 ? sendAll() : this.sending.then(sendAll);
+        this.sending = run.then(
+            () => undefined,
+            () => undefined
+        );
     }
 
     private isSynced(key: string): key is ServerUserStateNamespace {
@@ -260,6 +253,20 @@ export class ServerUserDataStorage implements UserDataStorage {
         const key = entryKey(entry);
         if (this.edits.get(key) === editWhenSent && !this.pending.has(key)) {
             this.pending.set(key, entry);
+        }
+    }
+
+    private async sendKeepalive(entry: PendingEntry): Promise<void> {
+        const key = entryKey(entry);
+        const edit = this.edits.get(key);
+        const path = entryPath(entry);
+        this.keepaliveKeys.add(key);
+        const ok = await (entry.value === undefined
+            ? this.api.sendKeepalive('DELETE', path)
+            : this.api.sendKeepalive('PUT', path, { value: entry.value }));
+        this.keepaliveKeys.delete(key);
+        if (!ok) {
+            this.requeue(entry, edit);
         }
     }
 

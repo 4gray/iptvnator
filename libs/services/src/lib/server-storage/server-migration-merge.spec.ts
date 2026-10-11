@@ -45,6 +45,23 @@ describe('unionItems', () => {
     });
 });
 
+describe('Stalker items', () => {
+    it('keep the same id in different categories apart', () => {
+        expect(
+            unionItems(
+                [{ id: 7, category_id: 'itv', name: 'Channel' }],
+                [
+                    { id: 7, category_id: 'vod', name: 'Movie' },
+                    { id: 7, category_id: 'itv', name: 'Channel again' },
+                ]
+            )
+        ).toEqual([
+            { id: 7, category_id: 'itv', name: 'Channel' },
+            { id: 7, category_id: 'vod', name: 'Movie' },
+        ]);
+    });
+});
+
 describe('playback positions', () => {
     it('keep the server position of the same item', () => {
         expect(

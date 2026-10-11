@@ -299,4 +299,29 @@ describe('ServerUserDataStorage', () => {
         await second;
         expect(api.getJson).toHaveBeenCalledTimes(3);
     });
+
+    it('lets a newer write wait for a page-hide write still travelling', async () => {
+        const { api, storage } = setup();
+        await storage.hydrate();
+        let acknowledge: (ok: boolean) => void = () => undefined;
+        api.sendKeepalive.mockReturnValueOnce(
+            new Promise<boolean>((resolve) => (acknowledge = resolve))
+        );
+
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['old'] }));
+        storage.flushWithKeepalive();
+        // Back on the page, a newer edit.
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['new'] }));
+        const newer = storage.flush();
+        await settle();
+        expect(api.sendJson).not.toHaveBeenCalled();
+
+        acknowledge(true);
+        await newer;
+        expect(api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['new'] }
+        );
+    });
 });

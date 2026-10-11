@@ -78,6 +78,14 @@ describe('probeServerInstance', () => {
         for (const fetchFn of [
             jest.fn().mockRejectedValue(new TypeError('Failed to fetch')),
             answer('Bad Gateway', 502),
+            // Headers arrived, then the body was cut off.
+            jest.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                json: async () => {
+                    throw new DOMException('aborted', 'AbortError');
+                },
+            }),
         ]) {
             await expect(
                 probeServerInstance({ ...config, fetchFn: fetchFn as never })

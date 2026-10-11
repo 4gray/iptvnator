@@ -64,8 +64,11 @@ export async function probeServerInstance(
         return isServerInstance(body) && body.storage === 'server'
             ? { kind: 'server', instance: body }
             : { kind: 'none' };
-    } catch {
-        return { kind: 'none' };
+    } catch (error) {
+        // Unparseable JSON is an answer; a cut-off body is an outage.
+        return error instanceof SyntaxError
+            ? { kind: 'none' }
+            : { kind: 'unreachable' };
     }
 }
 

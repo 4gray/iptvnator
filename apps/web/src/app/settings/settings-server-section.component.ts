@@ -22,8 +22,8 @@ import type { ServerStorageStatusResponse } from '@iptvnator/shared/interfaces';
 
 /**
  * Settings → Server: shown only when the PWA runs against self-hosted
- * server storage. Loaded with `@defer`, so other builds never fetch the
- * server-storage code for the settings page.
+ * server storage. Rendered without `@defer` so settings search can reveal
+ * its rows on the first visit; the code rides in the lazy settings chunk.
  */
 @Component({
     selector: 'app-settings-server-section',

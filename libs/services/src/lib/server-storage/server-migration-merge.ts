@@ -56,10 +56,16 @@ function itemKey(item: unknown): string {
     ) {
         return `position:${item['contentType']}:${item['contentXtreamId']}`;
     }
+    // Stalker ids repeat across content types; the category tells them apart.
+    const category = item['category_id'];
+    const scope =
+        typeof category === 'string' || typeof category === 'number'
+            ? `|category:${category}`
+            : '';
     for (const field of ['id', 'stream_id', 'series_id', 'movie_id', 'url']) {
         const value = item[field];
         if (typeof value === 'string' || typeof value === 'number') {
-            return `${field}:${value}`;
+            return `${field}:${value}${scope}`;
         }
     }
     return `json:${JSON.stringify(item)}`;
