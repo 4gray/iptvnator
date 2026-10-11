@@ -113,6 +113,23 @@ export class MpvReusableProcess {
         stopPositionPolling();
     }
 
+    /**
+     * Stop for a launch still waiting in the queue: the user stops what is
+     * playing, so the in-flight reuse attempt is cancelled (it settles
+     * closed without falling back) and the stored player is torn down. The
+     * child stays stored until its exit is confirmed, so a rejected Stop can
+     * be retried.
+     */
+    async stopForQueuedLaunch(stopPositionPolling: () => void): Promise<void> {
+        this.stopGeneration += 1;
+        stopPositionPolling();
+        const process = this.process;
+        if (!process || hasExited(process)) return;
+        traceExternalPlayer('stop mpv for a queued launch');
+        await externalPlayerProcessTeardownGate.terminate(process);
+        this.clear(process);
+    }
+
     async tryReuse(
         options: MpvReuseOptions
     ): Promise<ExternalPlayerSession | null> {

@@ -1035,7 +1035,10 @@ MPV launches run one at a time. A reused launch waits for mpv's replies and a
 failed one for its teardown and fallback spawn, so a launch that arrives
 meanwhile, such as a quick channel switch, starts only once the previous one
 has settled and acts on the player that one left behind; two launches never
-act on the same child. Stopping the stored player, when reuse is disabled or
+act on the same child. Each launch begins its session at once, so the newest
+launch is the active session; Stop on a launch still waiting in the queue
+cancels it and stops the player the in-flight launch is working on, confirming
+its exit, so nothing starts playing after Stop. Stopping the stored player, when reuse is disabled or
 the app quits, cancels an in-flight reuse attempt: it dispatches no further
 commands, never falls back to a fresh reusable player, also after waiting for
 a failed child's exit, and settles its own session as closed. No `seek` follows

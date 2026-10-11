@@ -566,6 +566,44 @@ describe('reused MPV IPC replies', () => {
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 
+    it('lets Stop on a queued launch cancel it and stop the in-flight player', async () => {
+        const { proc } = await launchReusableSession();
+        const sockets = mockUnansweredSockets();
+
+        const first = openMpvPlayer({
+            title: 'Channel A',
+            url: 'https://example.com/a.m3u8',
+        });
+        await writtenRequestId(sockets[0]);
+        const second = openMpvPlayer({
+            title: 'Channel B',
+            url: 'https://example.com/b.m3u8',
+        });
+        // The queued launch is already the session the dock shows and stops.
+        const queuedId = externalPlayerSessions.getActiveSessionId() as string;
+        expect(externalPlayerSessions.getSession(queuedId)).toMatchObject({
+            title: 'Channel B',
+            status: 'launching',
+            canClose: true,
+        });
+
+        await expect(
+            externalPlayerSessions.closeSession(queuedId)
+        ).resolves.toMatchObject({ id: queuedId, status: 'closed' });
+        expect(proc.kill).toHaveBeenCalledTimes(1);
+        // The killed player's socket closes before any reply.
+        sockets[0].emit('close');
+
+        await expect(first).resolves.toMatchObject({ status: 'closed' });
+        await expect(second).resolves.toMatchObject({
+            id: queuedId,
+            status: 'closed',
+        });
+        // Nothing started playing again after Stop.
+        expect(sockets).toHaveLength(1);
+        expect(spawnMock).toHaveBeenCalledTimes(1);
+    });
+
     it('starts a queued launch on the fresh player a failed launch spawned', async () => {
         const { proc } = await launchReusableSession();
         const freshProc = createMockChildProcess();
