@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import { createConnection } from 'net';
 import {
+    ExternalPlayerSession,
     PlayerContentInfo,
     readExternalPlayerErrorCode,
 } from '@iptvnator/shared/interfaces';
@@ -201,7 +202,30 @@ export function shutdownMpvSession(): void {
     );
 }
 
-export async function openMpvPlayer({
+// MPV launches run one at a time. A reused launch waits for mpv's replies
+// (bounded per command) and a failed one for its teardown and fallback
+// spawn, so overlapping launches would act on the same child. Queued, each
+// launch starts from the player the previous one left behind. An idle queue
+// starts the launch synchronously.
+let pendingMpvLaunch: Promise<unknown> | null = null;
+
+export function openMpvPlayer(
+    request: OpenExternalPlayerRequest
+): Promise<ExternalPlayerSession> {
+    const previous = pendingMpvLaunch;
+    const run = () => launchMpvPlayer(request);
+    // The queue is released before the caller sees the result, so a launch
+    // made right after this one settles starts synchronously again.
+    let settled: Promise<unknown> | null = null;
+    const launch = (previous ? previous.then(run) : run()).finally(() => {
+        if (pendingMpvLaunch === settled) pendingMpvLaunch = null;
+    });
+    settled = launch.catch(() => undefined);
+    pendingMpvLaunch = settled;
+    return launch;
+}
+
+async function launchMpvPlayer({
     url,
     title,
     thumbnail,
@@ -211,7 +235,7 @@ export async function openMpvPlayer({
     contentInfo,
     startTime,
     headers,
-}: OpenExternalPlayerRequest) {
+}: OpenExternalPlayerRequest): Promise<ExternalPlayerSession> {
     externalPlayerProcessTeardownGate.assertLaunchAllowed();
     const displacedSessionId = externalPlayerSessions.getActiveSessionId();
     const previousProcessSessionId = reusableMpvProcess.currentSessionId();

@@ -60,11 +60,10 @@ export class MpvReusableProcess {
     private socketPath: string | null = null;
     private processSessionId: string | null = null;
     private readonly processSessionIds = new WeakMap<ChildProcess, string>();
-    // Each reuse attempt waits for mpv's replies, so a quick channel switch
-    // can start the next attempt while the previous one is still waiting.
-    // The newest attempt wins: an older one stops dispatching and never
-    // tears down or replaces the child the newer one is loading into.
-    private reuseAttempt = 0;
+    // Bumped whenever the stored player is stopped (reuse disabled or app
+    // quitting). Launches run one at a time, so the only thing that can
+    // overtake an in-flight reuse attempt is that stop, which cancels it.
+    private stopGeneration = 0;
 
     currentSessionId(): string | null {
         return this.processSessionId;
@@ -100,8 +99,8 @@ export class MpvReusableProcess {
     ): void {
         // A launch still waiting for mpv's reply must not fall back to a
         // fresh, again-reusable player once reuse is disabled or the app
-        // quits: supersede it so it settles its own session instead.
-        this.reuseAttempt += 1;
+        // quits: cancel it so it settles its own session instead.
+        this.stopGeneration += 1;
         const process = this.process;
         if (!process || process.killed) return;
         traceExternalPlayer(reason);
@@ -125,14 +124,10 @@ export class MpvReusableProcess {
 
         traceExternalPlayer('reuse existing mpv instance');
         const { session, state } = options;
-        const attempt = ++this.reuseAttempt;
-        const superseded = () => attempt !== this.reuseAttempt;
-        // Supersession only matters while this attempt is still running.
-        // Once it settles, its Stop follows ownership again, so a session
-        // restored after a newer attempt failed can still tear down its child.
-        let attemptInFlight = true;
-        const settleSuperseded = () => {
-            traceExternalPlayer('mpv reuse superseded by a newer launch');
+        const generation = this.stopGeneration;
+        const cancelled = () => generation !== this.stopGeneration;
+        const settleCancelled = () => {
+            traceExternalPlayer('mpv reuse cancelled by a stored-player stop');
             return externalPlayerSessions.markClosed(session.id) ?? session;
         };
         const reusedProcessSessionId =
@@ -173,12 +168,7 @@ export class MpvReusableProcess {
 
         externalPlayerSessions.attachCloser(session.id, () => {
             closeRequested = true;
-            // A superseded attempt may still hold the child until the newer
-            // attempt writes its own loadfile; its Stop must not quit the
-            // player the newer launch is about to load into.
-            if ((attemptInFlight && superseded()) || !ownsReusedProcess()) {
-                return;
-            }
+            if (!ownsReusedProcess()) return;
             if (!retryableClose) {
                 const closeAttempt = closeReusedProcess();
                 retryableClose = closeAttempt;
@@ -214,11 +204,11 @@ export class MpvReusableProcess {
             await this.applyReuseCommands(
                 options,
                 reusedSocketPath,
-                () => !closeRequested && !superseded(),
+                () => !closeRequested && !cancelled(),
                 onContentDispatched
             );
             if (closeRequested) return await finishRequestedClose();
-            if (superseded()) return settleSuperseded();
+            if (cancelled()) return settleCancelled();
             if (hasExited(reusedProcess)) {
                 // The child exited while its reply was in flight; its exit
                 // handler has already settled the session that owned it.
@@ -239,7 +229,7 @@ export class MpvReusableProcess {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
-            if (superseded()) return settleSuperseded();
+            if (cancelled()) return settleCancelled();
             if (current?.status === 'error' && hasExited(reusedProcess)) {
                 // The child died while its reply was in flight and its exit
                 // handler already reported the failure; a fresh launch under
@@ -277,10 +267,8 @@ export class MpvReusableProcess {
             if (closeRequested) return await finishRequestedClose();
             // Reuse may have been disabled, or the app may be quitting,
             // while the teardown above waited for the child to exit.
-            if (superseded()) return settleSuperseded();
+            if (cancelled()) return settleCancelled();
             return null;
-        } finally {
-            attemptInFlight = false;
         }
     }
 

@@ -1031,17 +1031,14 @@ the reply wait settles the right session and no poll can save the new stream's
 position under the old content; a child that exited while its reply was in
 flight is returned as the session its exit handler settled, never reported as
 opened and never replaced by a fresh launch under that terminal session.
-Because each reuse attempt waits for replies, a quick channel switch can start
-the next attempt while the previous one is still waiting. The newest attempt
-supersedes older ones: an older attempt dispatches no further commands, never
-tears down or falls back over the child the newer one is loading into, ignores
-a Stop for its own session that arrives while it is still in flight even if
-the child is still mapped to it, and settles its own session as closed. A
-settled attempt's Stop follows ownership again, so a reused session restored
-after a newer attempt failed keeps a working closer. Stopping the stored
-player, when reuse is disabled or the app quits, supersedes any in-flight
-attempt the same way, so it cannot fall back to a fresh reusable player,
-including an attempt that is already waiting for its failed child to exit. No `seek` follows
+MPV launches run one at a time. A reused launch waits for mpv's replies and a
+failed one for its teardown and fallback spawn, so a launch that arrives
+meanwhile, such as a quick channel switch, starts only once the previous one
+has settled and acts on the player that one left behind; two launches never
+act on the same child. Stopping the stored player, when reuse is disabled or
+the app quits, cancels an in-flight reuse attempt: it dispatches no further
+commands, never falls back to a fresh reusable player, also after waiting for
+a failed child's exit, and settles its own session as closed. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused

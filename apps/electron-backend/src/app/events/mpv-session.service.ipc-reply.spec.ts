@@ -518,98 +518,7 @@ describe('reused MPV IPC replies', () => {
         sendPosition.mockRestore();
     });
 
-    it('never lets an older reuse attempt tear down a newer one', async () => {
-        const { proc } = await launchReusableSession();
-        const sockets = mockUnansweredSockets();
-        const errorSpy = jest
-            .spyOn(console, 'error')
-            .mockImplementation(() => undefined);
-        const answer = (socket: MpvSocketMock, id: number, error: string) =>
-            socket.emit(
-                'data',
-                Buffer.from(JSON.stringify({ request_id: id, error }) + '\n')
-            );
-
-        try {
-            const older = openMpvPlayer({
-                title: 'Channel A',
-                url: 'https://example.com/a.m3u8',
-            });
-            const olderId = await writtenRequestId(sockets[0]);
-            const olderSessionId =
-                externalPlayerSessions.getActiveSessionId() as string;
-            const newer = openMpvPlayer({
-                title: 'Channel B',
-                url: 'https://example.com/b.m3u8',
-            });
-            const newerId = await writtenRequestId(sockets[1]);
-
-            answer(sockets[1], newerId, 'success');
-            await expect(newer).resolves.toMatchObject({ status: 'opened' });
-
-            // The older loadfile now fails; the child belongs to the newer
-            // session and must survive.
-            answer(sockets[0], olderId, 'error running command');
-            await expect(older).resolves.toMatchObject({
-                id: olderSessionId,
-                status: 'closed',
-            });
-            expect(proc.kill).not.toHaveBeenCalled();
-            expect(spawnMock).toHaveBeenCalledTimes(1);
-            expect(externalPlayerSessions.getActiveSessionId()).not.toBeNull();
-        } finally {
-            errorSpy.mockRestore();
-        }
-    });
-
-    it('stops an older reuse attempt from loading after a newer one starts', async () => {
-        await launchReusableSession();
-        const sockets = mockUnansweredSockets();
-        const commandOf = (socket: MpvSocketMock) =>
-            (
-                JSON.parse(String(socket.write.mock.calls[0][0])) as {
-                    command: string[];
-                }
-            ).command[0];
-
-        // The older attempt is still waiting on its user-agent reply.
-        const older = openMpvPlayer({
-            title: 'Channel A',
-            url: 'https://example.com/a.m3u8',
-            userAgent: 'IPTVnator test agent',
-        });
-        const olderId = await writtenRequestId(sockets[0]);
-        const newer = openMpvPlayer({
-            title: 'Channel B',
-            url: 'https://example.com/b.m3u8',
-        });
-        const newerId = await writtenRequestId(sockets[1]);
-        const newerSessionId =
-            externalPlayerSessions.getActiveSessionId() as string;
-
-        sockets[0].emit(
-            'data',
-            Buffer.from(
-                JSON.stringify({ request_id: olderId, error: 'success' }) + '\n'
-            )
-        );
-        await expect(older).resolves.toMatchObject({ status: 'closed' });
-        sockets[1].emit(
-            'data',
-            Buffer.from(
-                JSON.stringify({ request_id: newerId, error: 'success' }) + '\n'
-            )
-        );
-        await expect(newer).resolves.toMatchObject({
-            id: newerSessionId,
-            status: 'opened',
-        });
-
-        expect(sockets.map(commandOf)).toEqual(['set_property', 'loadfile']);
-        expect(spawnMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('ignores a late Stop for a superseded attempt that still holds the child', async () => {
+    it('runs a quick second launch only after the first one settles', async () => {
         const { proc } = await launchReusableSession();
         const sockets = mockUnansweredSockets();
         const commandOf = (socket: MpvSocketMock) =>
@@ -626,40 +535,27 @@ describe('reused MPV IPC replies', () => {
                 )
             );
 
-        // A has written loadfile, so the child is mapped to A.
-        const older = openMpvPlayer({
+        const first = openMpvPlayer({
             title: 'Channel A',
             url: 'https://example.com/a.m3u8',
         });
-        const olderId = await writtenRequestId(sockets[0]);
-        const olderSessionId =
-            externalPlayerSessions.getActiveSessionId() as string;
-        // B supersedes A but still waits on its user-agent reply, before
-        // its own loadfile moves the child.
-        const newer = openMpvPlayer({
+        const firstId = await writtenRequestId(sockets[0]);
+        const second = openMpvPlayer({
             title: 'Channel B',
             url: 'https://example.com/b.m3u8',
             userAgent: 'IPTVnator test agent',
         });
-        const newerUserAgentId = await writtenRequestId(sockets[1]);
+        await nextTick();
+        await nextTick();
+        // The second launch waits in the queue: nothing else reached mpv.
+        expect(sockets).toHaveLength(1);
 
-        await expect(
-            externalPlayerSessions.closeSession(olderSessionId)
-        ).resolves.toMatchObject({ id: olderSessionId, status: 'closed' });
-        expect(proc.kill).not.toHaveBeenCalled();
-        expect(sockets).toHaveLength(2);
-
-        answer(sockets[1], newerUserAgentId);
-        const newerLoadfileId = await writtenRequestId(
-            await (async () => {
-                while (sockets.length < 3) await nextTick();
-                return sockets[2];
-            })()
-        );
-        answer(sockets[2], newerLoadfileId);
-        await expect(newer).resolves.toMatchObject({ status: 'opened' });
-        answer(sockets[0], olderId);
-        await expect(older).resolves.toMatchObject({ status: 'closed' });
+        answer(sockets[0], firstId);
+        await expect(first).resolves.toMatchObject({ status: 'opened' });
+        answer(sockets[1], await writtenRequestId(sockets[1]));
+        while (sockets.length < 3) await nextTick();
+        answer(sockets[2], await writtenRequestId(sockets[2]));
+        await expect(second).resolves.toMatchObject({ status: 'opened' });
 
         expect(sockets.map(commandOf)).toEqual([
             'loadfile',
@@ -668,6 +564,56 @@ describe('reused MPV IPC replies', () => {
         ]);
         expect(proc.kill).not.toHaveBeenCalled();
         expect(spawnMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('starts a queued launch on the fresh player a failed launch spawned', async () => {
+        const { proc } = await launchReusableSession();
+        const freshProc = createMockChildProcess();
+        spawnMock.mockReturnValueOnce(freshProc);
+        // The first launch's loadfile fails; every later command succeeds.
+        // Each loadfile records how many players had been spawned by then.
+        let rejectedLoadfile = false;
+        const spawnsAtLoadfile: number[] = [];
+        mockMpvSockets({
+            reply: (command) => {
+                if (command[0] === 'loadfile') {
+                    spawnsAtLoadfile.push(spawnMock.mock.calls.length);
+                }
+                if (command[0] === 'loadfile' && !rejectedLoadfile) {
+                    rejectedLoadfile = true;
+                    return 'error running command';
+                }
+                return 'success';
+            },
+        });
+        const errorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            const first = openMpvPlayer({
+                title: 'Channel A',
+                url: 'https://example.com/a.m3u8',
+            });
+            const second = openMpvPlayer({
+                title: 'Channel B',
+                url: 'https://example.com/b.m3u8',
+            });
+
+            await expect(first).resolves.toMatchObject({ status: 'opened' });
+            const secondSession = await second;
+            // The second launch loaded into the replacement the first one's
+            // fallback spawned, not into the child that fallback tore down.
+            expect(spawnsAtLoadfile).toEqual([1, 2]);
+            expect(
+                externalPlayerSessions.getSession(secondSession.id)?.status
+            ).toBe('opened');
+            expect(proc.kill).toHaveBeenCalledTimes(1);
+            expect(spawnMock).toHaveBeenCalledTimes(2);
+            expect(freshProc.kill).not.toHaveBeenCalled();
+        } finally {
+            errorSpy.mockRestore();
+        }
     });
 
     it('keeps Stop working for a reused session restored after a later attempt fails', async () => {
