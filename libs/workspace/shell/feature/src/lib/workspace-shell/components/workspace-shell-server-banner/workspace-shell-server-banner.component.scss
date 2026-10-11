@@ -1,0 +1,29 @@
+:host {
+    display: block;
+    min-width: 0;
+}
+
+.server-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: var(--app-expiry-warn-surface);
+    border-bottom: 1px solid var(--app-separator);
+    color: var(--app-heading-color);
+    font-size: 0.88rem;
+
+    mat-icon {
+        flex-shrink: 0;
+        color: var(--app-expiry-warn-text);
+    }
+
+    .server-banner__text {
+        min-width: 0;
+    }
+
+    button {
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+}

@@ -93,6 +93,10 @@ app-workspace-shell-context-sidebar {
 
     position: relative;
     display: grid;
+    // Server banner (empty unless the self-hosted server is offline), then
+    // the scroller.
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     min-width: 0;
     min-height: 0;
     border-radius: var(--workspace-content-radius) 0 0 0;

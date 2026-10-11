@@ -24,6 +24,14 @@ import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 
 @Component({
+    selector: 'app-workspace-shell-server-banner',
+    template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    standalone: true,
+})
+class MockWorkspaceShellServerBannerComponent {}
+
+@Component({
     selector: 'app-workspace-shell-rail',
     template: '',
     changeDetection: ChangeDetectionStrategy.Eager,
@@ -264,6 +272,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        MockWorkspaceShellServerBannerComponent,
                         TrafficLightsClearanceDirective,
                     ],
                     providers: [
@@ -360,6 +369,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        MockWorkspaceShellServerBannerComponent,
                         TrafficLightsClearanceDirective,
                     ],
                     providers: [
@@ -438,6 +448,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        MockWorkspaceShellServerBannerComponent,
                         TrafficLightsClearanceDirective,
                     ],
                     providers: [
@@ -512,6 +523,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        MockWorkspaceShellServerBannerComponent,
                         TrafficLightsClearanceDirective,
                     ],
                     providers: [
@@ -612,6 +624,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        MockWorkspaceShellServerBannerComponent,
                         TrafficLightsClearanceDirective,
                     ],
                     providers: [
