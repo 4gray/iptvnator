@@ -1,5 +1,6 @@
 import {
     combineUserData,
+    remapChannelReferences,
     retargetUserData,
     unionItems,
 } from './server-migration-merge';
@@ -102,5 +103,34 @@ describe('playback positions', () => {
         ).toEqual([{ contentXtreamId: 1, playlistId: 's' }, 'live:1']);
         const same = [{ playlistId: 'b' }];
         expect(retargetUserData(same, 'b', 'b')).toBe(same);
+    });
+});
+
+describe('remapChannelReferences', () => {
+    const browser = [
+        { id: 'b1', url: 'http://s/1' },
+        { id: 'b2', url: 'http://s/2' },
+        { id: 'b3', url: 'http://s/gone' },
+    ];
+    const server = [
+        { id: 's1', url: 'http://s/1' },
+        { id: 's2', url: 'http://s/2' },
+    ];
+
+    it('names the server channel with the same stream URL', () => {
+        expect(
+            remapChannelReferences(['b2', 'b1', 'b3', 's1'], browser, server)
+        ).toEqual(['s2', 's1', 's1']);
+    });
+
+    it('updates M3U history entries and passes portal items through', () => {
+        const portal = { id: 7, category_id: 'itv' };
+        expect(
+            remapChannelReferences(
+                [{ source: 'm3u', id: 'b1', url: 'http://s/1' }, portal],
+                browser,
+                server
+            )
+        ).toEqual([{ source: 'm3u', id: 's1', url: 'http://s/1' }, portal]);
     });
 });

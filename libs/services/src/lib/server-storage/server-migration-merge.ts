@@ -71,6 +71,54 @@ function itemKey(item: unknown): string {
     return `json:${JSON.stringify(item)}`;
 }
 
+interface ChannelRef {
+    readonly id?: unknown;
+    readonly url?: unknown;
+}
+
+/**
+ * M3U favorites and history name channels by id, and every import gives
+ * channels new random ids: a browser favorite is translated to the server
+ * channel with the same stream URL, and dropped when there is none.
+ * Portal favorites (objects) pass through.
+ */
+export function remapChannelReferences<T>(
+    references: readonly T[],
+    browserChannels: readonly ChannelRef[],
+    serverChannels: readonly ChannelRef[]
+): T[] {
+    const urlByBrowserId = new Map<unknown, unknown>(
+        browserChannels.map((channel) => [channel.id, channel.url])
+    );
+    const serverIds = new Set(serverChannels.map((channel) => channel.id));
+    const idByUrl = new Map<unknown, unknown>(
+        serverChannels.map((channel) => [channel.url, channel.id])
+    );
+    const result: T[] = [];
+    for (const reference of references) {
+        if (typeof reference === 'string') {
+            const id = serverIds.has(reference)
+                ? reference
+                : idByUrl.get(urlByBrowserId.get(reference));
+            if (typeof id === 'string') {
+                result.push(id as T);
+            }
+        } else if (
+            isPlainObject(reference) &&
+            reference['source'] === 'm3u' &&
+            idByUrl.has(reference['url'])
+        ) {
+            result.push({
+                ...reference,
+                id: idByUrl.get(reference['url']),
+            } as T);
+        } else {
+            result.push(reference);
+        }
+    }
+    return result;
+}
+
 /**
  * A browser value moved under another playlist id: list items that name
  * their playlist (playback positions do) name the server's instead.

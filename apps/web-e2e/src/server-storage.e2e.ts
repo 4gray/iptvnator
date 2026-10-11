@@ -102,8 +102,13 @@ async function seedBrowserPlaylist(
 }
 
 test.describe('server storage @self-hosted @persistence', () => {
-    // Both tests share one server database.
+    // Both tests share one server database, and so would the other browser
+    // projects: keep it to one browser.
     test.describe.configure({ mode: 'serial' });
+    test.skip(
+        ({ browserName }) => browserName !== 'chromium',
+        'One shared server database'
+    );
 
     test.beforeEach(async ({ request }) => {
         const response = await request.delete(

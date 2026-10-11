@@ -9,6 +9,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     combineUserData,
+    remapChannelReferences,
     retargetUserData,
     unionItems,
 } from './server-migration-merge';
@@ -142,12 +143,25 @@ export class ServerMigrationService {
         if (!stored) {
             throw new Error('The server playlist disappeared');
         }
+        const browserChannels = channelsOf(playlist);
+        const serverChannels = channelsOf(stored);
         const next = {
             ...stored,
-            favorites: unionItems(stored.favorites ?? [], favorites),
+            favorites: unionItems(
+                stored.favorites ?? [],
+                remapChannelReferences(
+                    favorites,
+                    browserChannels,
+                    serverChannels
+                )
+            ),
             recentlyViewed: unionItems(
                 stored.recentlyViewed ?? [],
-                recentlyViewed
+                remapChannelReferences(
+                    recentlyViewed,
+                    browserChannels,
+                    serverChannels
+                )
             ),
         };
         if (
@@ -225,6 +239,13 @@ export class ServerMigrationService {
             // Without storage the offer simply returns next time.
         }
     }
+}
+
+/** The M3U channels of a full playlist document. */
+function channelsOf(playlist: Playlist): { id?: unknown; url?: unknown }[] {
+    const items = (playlist as { playlist?: { items?: unknown } }).playlist
+        ?.items;
+    return Array.isArray(items) ? items : [];
 }
 
 function readLocal(key: string): string | null {

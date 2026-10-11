@@ -324,4 +324,53 @@ describe('ServerUserDataStorage', () => {
             { value: ['new'] }
         );
     });
+
+    it('sends only the edited entry before the first read finished', () => {
+        const { api, local, storage } = setup();
+        // The cache from the last visit; no read from the server yet.
+        local.setItem(
+            'iptvnator-server:xtream-favorites',
+            JSON.stringify({ p1: ['a'], p2: ['b'] })
+        );
+
+        storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['a', 'c'], p2: ['b'] })
+        );
+        void storage.flush();
+
+        return settle().then(() => {
+            expect(api.sendJson.mock.calls).toEqual([
+                [
+                    'PUT',
+                    '/user-state/xtream-favorites/p1',
+                    { value: ['a', 'c'] },
+                ],
+            ]);
+        });
+    });
+
+    it('never retries an older page-hide write over a newer one', async () => {
+        const { api, storage } = setup();
+        await storage.hydrate();
+        const acks: ((ok: boolean) => void)[] = [];
+        api.sendKeepalive.mockImplementation(
+            () => new Promise<boolean>((resolve) => acks.push(resolve))
+        );
+
+        for (const value of ['A', 'B', 'C']) {
+            storage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ p1: [value] })
+            );
+            storage.flushWithKeepalive();
+            await settle();
+            // Each page-hide write waits for the previous one.
+            acks[acks.length - 1](value !== 'B');
+            await settle();
+        }
+
+        await storage.flush();
+        expect(api.sendJson).not.toHaveBeenCalled();
+    });
 });

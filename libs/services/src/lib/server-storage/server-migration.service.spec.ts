@@ -194,7 +194,13 @@ describe('ServerMigrationService', () => {
                     of([
                         {
                             ...browserPlaylists[0],
-                            favorites: ['http://a', 'http://b'],
+                            favorites: ['b1', 'b2'],
+                            playlist: {
+                                items: [
+                                    { id: 'b1', url: 'http://s/1' },
+                                    { id: 'b2', url: 'http://s/2' },
+                                ],
+                            },
                         },
                     ]),
             },
@@ -202,12 +208,19 @@ describe('ServerMigrationService', () => {
         session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
             { _id: 'server-m', title: 'Family', url: browserPlaylists[0].url },
         ]);
+        // The server imported the same list: same URLs, other channel ids.
         const stored = {
             _id: 'server-m',
             title: 'Family',
             url: browserPlaylists[0].url,
-            favorites: ['http://a'],
+            favorites: ['s1'],
             recentlyViewed: [],
+            playlist: {
+                items: [
+                    { id: 's1', url: 'http://s/1' },
+                    { id: 's2', url: 'http://s/2' },
+                ],
+            },
         };
         session.documentStore.dbGetAppPlaylist.mockResolvedValue(stored);
 
@@ -218,7 +231,7 @@ describe('ServerMigrationService', () => {
         expect(result).toEqual({ imported: 0, merged: 1, failed: 0 });
         expect(session.documentStore.dbUpsertAppPlaylist).toHaveBeenCalledWith({
             ...stored,
-            favorites: ['http://a', 'http://b'],
+            favorites: ['s1', 's2'],
             recentlyViewed: [],
         });
     });

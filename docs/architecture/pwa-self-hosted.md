@@ -202,7 +202,10 @@ settings and guards read them in every build.
   (the page-hide flush waits for a batch still travelling), a failed write,
   including a refused `keepalive` one, stays queued for the next flush, and
   re-reads run one at a time and keep entries edited while they were in
-  flight or not yet saved. Start-up waits
+  flight or not yet saved. Before the first read finishes, an edit is
+  compared with the cache, so it sends only its own entry. A re-read
+  updates the cache; views already open show another device's changes on
+  their next load (no live push). Start-up waits
   up to 3 s for the first read.
 - **Connection state.** `ServerStorageStatusService` is `online`, `offline`
   (a request did not reach the server, or a proxy answered 502, 503 or 504
@@ -227,7 +230,9 @@ settings and guards read them in every build.
   playlist the server already has, by id or by source (Xtream server and
   user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
   others upload with their ids. A merged playlist gains the browser
-  document's favorites and history, and the legacy Xtream maps follow under
+  document's favorites and history (M3U channel ids are random per import,
+  so they are translated through the stream URL; unmatched ones are
+  dropped), and the legacy Xtream maps follow under
   the server id; `combineUserData` unions lists (playback positions by
   content type and Xtream id, renamed to the server playlist) and merges
   maps, the server's value winning on a conflict. Browser data is never deleted, and

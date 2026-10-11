@@ -16,6 +16,8 @@ interface PendingEntry {
     readonly playlistId: string;
     /** `undefined` deletes the entry. */
     readonly value: unknown;
+    /** The edit this value came from; a retry never replaces a newer one. */
+    readonly edit: number;
 }
 
 type ServerApi = Pick<
@@ -64,8 +66,9 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.local.setItem(key, value);
             return;
         }
+        const before = this.baseline(key);
         this.local.setItem(SERVER_CACHE_PREFIX + key, value);
-        this.queueChanges(key, parseMap(value));
+        this.queueChanges(key, parseMap(value), before);
     }
 
     removeItem(key: string): void {
@@ -73,8 +76,9 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.local.removeItem(key);
             return;
         }
+        const before = this.baseline(key);
         this.local.removeItem(SERVER_CACHE_PREFIX + key);
-        this.queueChanges(key, {});
+        this.queueChanges(key, {}, before);
     }
 
     /**
@@ -195,31 +199,55 @@ export class ServerUserDataStorage implements UserDataStorage {
         return isServerUserStateNamespace(key);
     }
 
+    /**
+     * What a write is compared against: the server's last value, or before
+     * the first read finishes, the cache, so an edit sends only its entry.
+     */
+    private baseline(
+        namespace: ServerUserStateNamespace
+    ): Record<string, unknown> {
+        return (
+            this.synced.get(namespace) ??
+            parseMap(
+                this.local.getItem(SERVER_CACHE_PREFIX + namespace) ?? '{}'
+            )
+        );
+    }
+
     private queueChanges(
         namespace: ServerUserStateNamespace,
-        next: Record<string, unknown>
+        next: Record<string, unknown>,
+        previous: Record<string, unknown>
     ): void {
-        const previous = this.synced.get(namespace) ?? {};
         for (const [playlistId, value] of Object.entries(next)) {
             if (
                 JSON.stringify(previous[playlistId]) !== JSON.stringify(value)
             ) {
-                this.queue({ namespace, playlistId, value });
+                this.queue(namespace, playlistId, value);
             }
         }
         for (const playlistId of Object.keys(previous)) {
             if (!(playlistId in next)) {
-                this.queue({ namespace, playlistId, value: undefined });
+                this.queue(namespace, playlistId, undefined);
             }
         }
         this.synced.set(namespace, next);
         this.scheduleFlush();
     }
 
-    private queue(entry: PendingEntry): void {
-        const key = entryKey(entry);
-        this.pending.set(key, entry);
-        this.edits.set(key, ++this.editCount);
+    private queue(
+        namespace: ServerUserStateNamespace,
+        playlistId: string,
+        value: unknown
+    ): void {
+        const entry: PendingEntry = {
+            namespace,
+            playlistId,
+            value,
+            edit: ++this.editCount,
+        };
+        this.pending.set(entryKey(entry), entry);
+        this.edits.set(entryKey(entry), entry.edit);
     }
 
     private scheduleFlush(): void {
@@ -246,19 +274,15 @@ export class ServerUserDataStorage implements UserDataStorage {
      * Back into the queue after a failed write, for the offline retry or
      * the next edit, unless the entry was edited since it was sent.
      */
-    private requeue(
-        entry: PendingEntry,
-        editWhenSent: number | undefined
-    ): void {
+    private requeue(entry: PendingEntry): void {
         const key = entryKey(entry);
-        if (this.edits.get(key) === editWhenSent && !this.pending.has(key)) {
+        if (this.edits.get(key) === entry.edit && !this.pending.has(key)) {
             this.pending.set(key, entry);
         }
     }
 
     private async sendKeepalive(entry: PendingEntry): Promise<void> {
         const key = entryKey(entry);
-        const edit = this.edits.get(key);
         const path = entryPath(entry);
         this.keepaliveKeys.add(key);
         const ok = await (entry.value === undefined
@@ -266,12 +290,11 @@ export class ServerUserDataStorage implements UserDataStorage {
             : this.api.sendKeepalive('PUT', path, { value: entry.value }));
         this.keepaliveKeys.delete(key);
         if (!ok) {
-            this.requeue(entry, edit);
+            this.requeue(entry);
         }
     }
 
     private async send(entry: PendingEntry): Promise<void> {
-        const edit = this.edits.get(entryKey(entry));
         try {
             if (entry.value === undefined) {
                 await this.api.request(entryPath(entry), { method: 'DELETE' });
@@ -281,7 +304,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                 });
             }
         } catch (error) {
-            this.requeue(entry, edit);
+            this.requeue(entry);
             this.onWriteFailure(error);
         }
     }
