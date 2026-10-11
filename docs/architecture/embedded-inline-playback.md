@@ -1034,7 +1034,8 @@ opened and never replaced by a fresh launch under that terminal session.
 Because each reuse attempt waits for replies, a quick channel switch can start
 the next attempt while the previous one is still waiting. The newest attempt
 supersedes older ones: an older attempt dispatches no further commands, never
-tears down or falls back over the child the newer one is loading into, and
+tears down or falls back over the child the newer one is loading into, ignores
+a late Stop for its own session even while the child is still mapped to it, and
 settles its own session as closed. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges

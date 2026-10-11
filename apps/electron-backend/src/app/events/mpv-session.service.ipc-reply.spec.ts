@@ -605,6 +605,67 @@ describe('reused MPV IPC replies', () => {
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 
+    it('ignores a late Stop for a superseded attempt that still holds the child', async () => {
+        const { proc } = await launchReusableSession();
+        const sockets = mockUnansweredSockets();
+        const commandOf = (socket: MpvSocketMock) =>
+            (
+                JSON.parse(String(socket.write.mock.calls[0][0])) as {
+                    command: string[];
+                }
+            ).command[0];
+        const answer = (socket: MpvSocketMock, id: number) =>
+            socket.emit(
+                'data',
+                Buffer.from(
+                    JSON.stringify({ request_id: id, error: 'success' }) + '\n'
+                )
+            );
+
+        // A has written loadfile, so the child is mapped to A.
+        const older = openMpvPlayer({
+            title: 'Channel A',
+            url: 'https://example.com/a.m3u8',
+        });
+        const olderId = await writtenRequestId(sockets[0]);
+        const olderSessionId =
+            externalPlayerSessions.getActiveSessionId() as string;
+        // B supersedes A but still waits on its user-agent reply, before
+        // its own loadfile moves the child.
+        const newer = openMpvPlayer({
+            title: 'Channel B',
+            url: 'https://example.com/b.m3u8',
+            userAgent: 'IPTVnator test agent',
+        });
+        const newerUserAgentId = await writtenRequestId(sockets[1]);
+
+        await expect(
+            externalPlayerSessions.closeSession(olderSessionId)
+        ).resolves.toMatchObject({ id: olderSessionId, status: 'closed' });
+        expect(proc.kill).not.toHaveBeenCalled();
+        expect(sockets).toHaveLength(2);
+
+        answer(sockets[1], newerUserAgentId);
+        const newerLoadfileId = await writtenRequestId(
+            await (async () => {
+                while (sockets.length < 3) await nextTick();
+                return sockets[2];
+            })()
+        );
+        answer(sockets[2], newerLoadfileId);
+        await expect(newer).resolves.toMatchObject({ status: 'opened' });
+        answer(sockets[0], olderId);
+        await expect(older).resolves.toMatchObject({ status: 'closed' });
+
+        expect(sockets.map(commandOf)).toEqual([
+            'loadfile',
+            'set_property',
+            'loadfile',
+        ]);
+        expect(proc.kill).not.toHaveBeenCalled();
+        expect(spawnMock).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps the errored session when the child crashes during the reply wait', async () => {
         const { proc, session: previous } = await launchReusableSession();
         const sockets = mockUnansweredSockets();

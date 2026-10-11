@@ -165,7 +165,10 @@ export class MpvReusableProcess {
 
         externalPlayerSessions.attachCloser(session.id, () => {
             closeRequested = true;
-            if (!ownsReusedProcess()) return;
+            // A superseded attempt may still hold the child until the newer
+            // attempt writes its own loadfile; its Stop must not quit the
+            // player the newer launch is about to load into.
+            if (superseded() || !ownsReusedProcess()) return;
             if (!retryableClose) {
                 const closeAttempt = closeReusedProcess();
                 retryableClose = closeAttempt;
