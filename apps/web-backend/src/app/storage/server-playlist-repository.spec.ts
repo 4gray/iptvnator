@@ -50,6 +50,48 @@ describe('ServerPlaylistRepository', () => {
             });
         }));
 
+    it('keeps payload-only metadata in metadata reads and round-trips', () =>
+        withTempStorage(({ playlists }) => {
+            playlists.upsert(
+                {
+                    ...m3uDocument('p1'),
+                    filename: 'family.m3u',
+                    hiddenGroupTitles: ['Adult'],
+                    stalkerSerialNumber: 'SN-1',
+                },
+                { keepPayload: false }
+            );
+
+            const [meta] = playlists.listMetas();
+            expect(meta).toMatchObject({
+                filename: 'family.m3u',
+                hiddenGroupTitles: ['Adult'],
+                stalkerSerialNumber: 'SN-1',
+            });
+            expect(meta['playlist']).toBeUndefined();
+
+            playlists.upsert(
+                { ...meta, title: 'Renamed' },
+                { keepPayload: true }
+            );
+
+            expect(playlists.get('p1')).toMatchObject({
+                title: 'Renamed',
+                filename: 'family.m3u',
+                hiddenGroupTitles: ['Adult'],
+                stalkerSerialNumber: 'SN-1',
+                playlist: m3uDocument('p1').playlist,
+            });
+        }));
+
+    it('tells whether a playlist exists', () =>
+        withTempStorage(({ playlists }) => {
+            playlists.upsert(m3uDocument('p1'), { keepPayload: false });
+
+            expect(playlists.exists('p1')).toBe(true);
+            expect(playlists.exists('nope')).toBe(false);
+        }));
+
     it('refuses keepPayload for an unknown playlist', () =>
         withTempStorage(({ playlists }) => {
             expect(() =>

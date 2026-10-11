@@ -21,3 +21,24 @@ export async function openServerStorage(): Promise<ServerStorage> {
         startedAt: new Date(),
     };
 }
+
+/** Deletes a playlist and its user state together, then moves its ETag. */
+export function deletePlaylistWithState(
+    storage: ServerStorage,
+    playlistId: string
+): void {
+    storage.database.transaction(() => {
+        storage.playlists.delete(playlistId);
+        storage.userState.deleteForPlaylist(playlistId);
+    });
+    storage.revisions.bump(playlistId);
+}
+
+/** Deletes every playlist and all user state together. */
+export function deleteAllPlaylistsWithState(storage: ServerStorage): void {
+    storage.database.transaction(() => {
+        storage.playlists.deleteAll();
+        storage.userState.deleteAll();
+    });
+    storage.revisions.reset();
+}

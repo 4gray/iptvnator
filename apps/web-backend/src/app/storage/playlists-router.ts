@@ -1,6 +1,10 @@
 import express, { Router, type Response } from 'express';
 import { matchesEtag } from './etag-match';
-import type { ServerStorage } from './server-storage';
+import {
+    deleteAllPlaylistsWithState,
+    deletePlaylistWithState,
+    type ServerStorage,
+} from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
 
 export function createPlaylistsRouter(
@@ -9,7 +13,7 @@ export function createPlaylistsRouter(
 ): Router {
     const router = Router();
     const json = express.json({ limit: maxDocumentBytes });
-    const { playlists, userState, revisions } = storage;
+    const { playlists, revisions } = storage;
 
     router.get('/playlists', (req, res) => {
         res.set('Cache-Control', 'no-store').json(
@@ -21,6 +25,15 @@ export function createPlaylistsRouter(
 
     router.get('/playlists/:id', (req, res) => {
         const id = req.params.id;
+        // A cheap existence check first: a tag must never confirm a
+        // representation that does not exist.
+        if (!playlists.exists(id)) {
+            throw new StorageRequestError(
+                404,
+                'not_found',
+                'Playlist not found.'
+            );
+        }
         const etag = revisions.etag(id);
         withEtag(res, etag);
         if (matchesEtag(req.get('if-none-match'), etag)) {
@@ -48,17 +61,12 @@ export function createPlaylistsRouter(
     });
 
     router.delete('/playlists/:id', (req, res) => {
-        const id = req.params.id;
-        playlists.delete(id);
-        userState.deleteForPlaylist(id);
-        revisions.bump(id);
+        deletePlaylistWithState(storage, req.params.id);
         res.json({ success: true });
     });
 
     router.delete('/playlists', (_req, res) => {
-        playlists.deleteAll();
-        userState.deleteAll();
-        revisions.reset();
+        deleteAllPlaylistsWithState(storage);
         res.json({ success: true });
     });
 

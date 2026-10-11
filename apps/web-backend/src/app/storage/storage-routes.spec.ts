@@ -94,6 +94,23 @@ describe('server storage routes', () => {
             })
         ));
 
+    it('answers 404, not 304, for a missing playlist', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const wildcard = await fetch(`${baseUrl}/v1/playlists/nope`, {
+                    headers: { 'if-none-match': '*' },
+                });
+                const guessed = await fetch(`${baseUrl}/v1/playlists/nope`, {
+                    headers: {
+                        'if-none-match': storage.revisions.etag('nope'),
+                    },
+                });
+
+                expect(wildcard.status).toBe(404);
+                expect(guessed.status).toBe(404);
+            })
+        ));
+
     it('keeps the payload on keepPayload and refuses it for unknown ids', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {
@@ -174,6 +191,52 @@ describe('server storage routes', () => {
                 await expect(
                     (await fetch(`${baseUrl}/v1/app-state/flag`)).json()
                 ).resolves.toEqual({ value: '1' });
+            })
+        ));
+
+    it('keeps browser app state away from server-owned keys', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                await fetch(
+                    `${baseUrl}/v1/app-state/server:instance-id`,
+                    json({ value: '' }, { method: 'PUT' })
+                );
+
+                expect(
+                    storage.playlists.getAppState('server:instance-id')
+                ).toBe(storage.database.instanceId);
+                await expect(
+                    (
+                        await fetch(
+                            `${baseUrl}/v1/app-state/server:instance-id`
+                        )
+                    ).json()
+                ).resolves.toEqual({ value: '' });
+            })
+        ));
+
+    it('keeps the playlist when its user-state cleanup fails', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                await fetch(
+                    `${baseUrl}/v1/playlists/p1`,
+                    json(m3uDocument('p1'), { method: 'PUT' })
+                );
+                const etag = storage.revisions.etag('p1');
+                jest.spyOn(
+                    storage.userState,
+                    'deleteForPlaylist'
+                ).mockImplementationOnce(() => {
+                    throw new Error('disk full');
+                });
+
+                const response = await fetch(`${baseUrl}/v1/playlists/p1`, {
+                    method: 'DELETE',
+                });
+
+                expect(response.status).toBe(500);
+                expect(storage.playlists.exists('p1')).toBe(true);
+                expect(storage.revisions.etag('p1')).toBe(etag);
             })
         ));
 

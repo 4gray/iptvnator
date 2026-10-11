@@ -17,6 +17,8 @@ export interface ServerDatabase {
     readonly instanceId: string;
     readonly path: string;
     sizeBytes(): number;
+    /** Runs `work` in one SQLite transaction on the single connection. */
+    transaction<T>(work: () => T): T;
     close(): void;
 }
 
@@ -35,6 +37,10 @@ export async function openServerDatabase(): Promise<ServerDatabase> {
         instanceId: ensureInstanceId(db),
         path,
         sizeBytes: () => fileSize(path) + fileSize(`${path}-wal`),
+        // better-sqlite3 runs every statement synchronously on one
+        // connection, so writes made inside `work` belong to this
+        // transaction even when they go through other repositories.
+        transaction: (work) => db.transaction(() => work()),
         close: () => closeDatabase(),
     };
 }
@@ -50,11 +56,12 @@ function ensureInstanceId(db: DatabaseInstance): string {
     }
 
     const instanceId = randomUUID();
+    const updatedAt = new Date().toISOString();
     db.insert(appState)
-        .values({
-            key: INSTANCE_ID_KEY,
-            value: instanceId,
-            updatedAt: new Date().toISOString(),
+        .values({ key: INSTANCE_ID_KEY, value: instanceId, updatedAt })
+        .onConflictDoUpdate({
+            target: appState.key,
+            set: { value: instanceId, updatedAt },
         })
         .run();
     return instanceId;

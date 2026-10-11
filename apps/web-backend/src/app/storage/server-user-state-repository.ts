@@ -12,8 +12,13 @@ export class ServerUserStateRepository {
     constructor(private readonly db: DatabaseInstance) {}
 
     all(): ServerUserStateResponse['entries'] {
+        // Prototype-free buckets: a playlist id such as `__proto__` must be
+        // stored as an own key, not change the bucket's prototype.
         const entries = Object.fromEntries(
-            SERVER_USER_STATE_NAMESPACES.map((namespace) => [namespace, {}])
+            SERVER_USER_STATE_NAMESPACES.map((namespace) => [
+                namespace,
+                Object.create(null) as Record<string, unknown>,
+            ])
         ) as ServerUserStateResponse['entries'];
 
         for (const row of this.db.select().from(serverUserState).all()) {

@@ -7,6 +7,11 @@ import type { ServerStorage } from './server-storage';
 import { StorageRequestError } from './storage-route-errors';
 
 const USER_STATE_BODY_LIMIT = '8mb';
+/**
+ * Browser app state lives under its own prefix in `app_state`, so a client
+ * key can never overwrite a server-owned one such as the instance id.
+ */
+const CLIENT_APP_STATE_PREFIX = 'client:';
 
 export function createUserStateRouter(storage: ServerStorage): Router {
     const router = Router();
@@ -44,7 +49,11 @@ export function createUserStateRouter(storage: ServerStorage): Router {
     });
 
     router.get('/app-state/:key', (req, res) => {
-        res.json({ value: storage.playlists.getAppState(req.params.key) });
+        res.json({
+            value: storage.playlists.getAppState(
+                CLIENT_APP_STATE_PREFIX + req.params.key
+            ),
+        });
     });
 
     router.put('/app-state/:key', json, (req, res) => {
@@ -56,7 +65,10 @@ export function createUserStateRouter(storage: ServerStorage): Router {
                 'Expected { value: string }.'
             );
         }
-        storage.playlists.setAppState(req.params.key, value);
+        storage.playlists.setAppState(
+            CLIENT_APP_STATE_PREFIX + req.params.key,
+            value
+        );
         res.json({ success: true });
     });
 

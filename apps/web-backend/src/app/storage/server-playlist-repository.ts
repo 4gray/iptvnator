@@ -1,4 +1,4 @@
-import { eq, getTableColumns } from 'drizzle-orm';
+import { eq, getTableColumns, sql } from 'drizzle-orm';
 import type { DatabaseInstance } from '@iptvnator/shared/database';
 import {
     buildPlaylistRow,
@@ -34,6 +34,17 @@ function metadataColumns() {
 
 const metaColumns = metadataColumns();
 
+/**
+ * The stored document without its M3U payload fields, so metadata reads
+ * keep fields that live only in the JSON (filename, hidden groups, Stalker
+ * identity) and a metadata round-trip with keepPayload loses nothing.
+ */
+const metadataPayload = sql<string | null>`CASE
+    WHEN json_valid(${playlists.payload})
+    THEN json_remove(${playlists.payload}, '$.playlist', '$.items', '$.header')
+    ELSE NULL
+END`;
+
 /** Playlist documents in the shared `playlists` table, same rows as desktop. */
 export class ServerPlaylistRepository {
     constructor(private readonly db: DatabaseInstance) {}
@@ -45,12 +56,18 @@ export class ServerPlaylistRepository {
 
     listMetas(): PlaylistDocument[] {
         return this.db
-            .select(metaColumns)
+            .select({ ...metaColumns, payload: metadataPayload })
             .from(playlists)
             .all()
-            .map((row) =>
-                parseAppPlaylist({ ...row, payload: null } as PlaylistRow)
-            );
+            .map((row) => parseAppPlaylist(row as PlaylistRow));
+    }
+
+    exists(playlistId: string): boolean {
+        return !!this.db
+            .select({ id: playlists.id })
+            .from(playlists)
+            .where(eq(playlists.id, playlistId))
+            .get();
     }
 
     listAll(): PlaylistDocument[] {
