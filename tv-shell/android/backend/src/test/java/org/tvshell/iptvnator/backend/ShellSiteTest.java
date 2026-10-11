@@ -46,6 +46,18 @@ public class ShellSiteTest {
         assertEquals("html mime", "text/html; charset=utf-8", route.contentType);
     }
 
+    public void testViewportPinsTheScaleWhenTheScreenWidthIsKnown() throws IOException {
+        assertEquals("unknown screen", "width=1280", ShellSite.viewport(1280, 0));
+        assertEquals("1080p TV, normal", "width=1280, initial-scale=0.75, minimum-scale=0.75, maximum-scale=0.75", ShellSite.viewport(1280, 960));
+        assertEquals("1080p TV, large", "width=960, initial-scale=1, minimum-scale=1, maximum-scale=1", ShellSite.viewport(960, 960));
+        assertEquals("1080p TV, dense", "width=1600, initial-scale=0.6, minimum-scale=0.6, maximum-scale=0.6", ShellSite.viewport(1600, 960));
+        assertEquals("720p TV at tvdpi", "width=1280, initial-scale=0.6664, minimum-scale=0.6664, maximum-scale=0.6664", ShellSite.viewport(1280, 853));
+        ShellSite s = site();
+        s.setScreenWidth(960);
+        String html = new String(s.serve("/").body, UTF8);
+        assertTrue("scaled viewport served", html.contains("<meta name=\"viewport\" content=\"width=1280, initial-scale=0.75, minimum-scale=0.75, maximum-scale=0.75\">"));
+    }
+
     public void testStaticFilesAndSpecialPaths() throws IOException {
         ShellSite s = site();
         ShellSite.Resource chunk = s.serve("/chunk-ABCDEFGH.js");

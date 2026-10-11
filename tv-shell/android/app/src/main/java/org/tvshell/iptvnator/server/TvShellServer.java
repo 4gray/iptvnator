@@ -66,6 +66,11 @@ public class TvShellServer extends NanoHTTPD {
         site.setLayoutWidth(width);
     }
 
+    /** Screen width in CSS px (Android dp), so index.html can pin the page scale. */
+    public void setScreenWidth(int cssWidth) {
+        site.setScreenWidth(cssWidth);
+    }
+
     private byte[] readAsset(String relativePath) throws IOException {
         InputStream in;
         try {
