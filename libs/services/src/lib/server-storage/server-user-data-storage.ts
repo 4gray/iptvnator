@@ -128,11 +128,17 @@ export class ServerUserDataStorage implements UserDataStorage {
                     delete value[playlistId];
                 }
             }
+            try {
+                this.local.setItem(
+                    SERVER_CACHE_PREFIX + namespace,
+                    JSON.stringify(value)
+                );
+            } catch {
+                // Storage full: keep the old cache and the baseline it was
+                // diffed against together, or an edit would read as deletes.
+                continue;
+            }
             this.synced.set(namespace, value);
-            this.local.setItem(
-                SERVER_CACHE_PREFIX + namespace,
-                JSON.stringify(value)
-            );
         }
         for (const [key, edit] of this.edits) {
             if (

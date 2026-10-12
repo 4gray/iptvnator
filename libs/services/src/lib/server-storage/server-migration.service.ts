@@ -119,6 +119,8 @@ export class ServerMigrationService {
             }
         }
 
+        // Queued edits go out first, so none lands after the combined values.
+        await this.session.userData.flush();
         failed += await this.copyXtreamUserData(targets);
         await this.session.userData.hydrate();
         if (failed === 0) {

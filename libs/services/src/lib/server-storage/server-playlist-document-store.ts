@@ -13,7 +13,10 @@ interface CachedDocument {
     readonly document: Playlist;
 }
 
-type ServerApi = Pick<ServerApiClient, 'request' | 'getJson' | 'sendJson'>;
+type ServerApi = Pick<
+    ServerApiClient,
+    'request' | 'getJson' | 'readJson' | 'sendJson'
+>;
 
 /**
  * `PlaylistDocumentStore` over the server storage API. Full documents are
@@ -56,7 +59,7 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         if (response.status === 304 && cached) {
             return this.serve(cached.document, cached.etag);
         }
-        const document = (await response.json()) as Playlist;
+        const document = await this.api.readJson<Playlist>(response);
         const etag = this.remember(playlistId, response, document);
         return this.serve(document, etag);
     }

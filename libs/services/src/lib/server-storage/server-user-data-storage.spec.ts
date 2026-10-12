@@ -373,4 +373,37 @@ describe('ServerUserDataStorage', () => {
         await storage.flush();
         expect(api.sendJson).not.toHaveBeenCalled();
     });
+
+    it('keeps cache and baseline together when the cache is full', async () => {
+        const { api, local, storage } = setup();
+        await storage.hydrate();
+        // The server now has a second playlist the cache cannot take.
+        api.getJson.mockResolvedValueOnce({
+            entries: {
+                'xtream-favorites': { p1: ['live:1'], p2: ['live:2'] },
+            },
+        });
+        const setItem = local.setItem;
+        local.setItem = (key: string, value: string) => {
+            if (key === 'iptvnator-server:xtream-favorites') {
+                throw new DOMException('full', 'QuotaExceededError');
+            }
+            setItem(key, value);
+        };
+        await storage.hydrate();
+        local.setItem = setItem;
+
+        storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['live:1', 'live:3'] })
+        );
+        await storage.flush();
+
+        expect(api.request).not.toHaveBeenCalled();
+        expect(api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['live:1', 'live:3'] }
+        );
+    });
 });

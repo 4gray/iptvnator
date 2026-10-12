@@ -119,8 +119,18 @@ describe('remapChannelReferences', () => {
 
     it('names the server channel with the same stream URL', () => {
         expect(
-            remapChannelReferences(['b2', 'b1', 'b3', 's1'], browser, server)
+            remapChannelReferences(['b2', 'b1', 's1'], browser, server)
         ).toEqual(['s2', 's1', 's1']);
+    });
+
+    it('keeps URL favorites and anything it cannot resolve', () => {
+        expect(
+            remapChannelReferences(
+                ['http://s/1', 'http://elsewhere/9', 'b3'],
+                browser,
+                server
+            )
+        ).toEqual(['http://s/1', 'http://elsewhere/9', 'b3']);
     });
 
     it('updates M3U history entries and passes portal items through', () => {

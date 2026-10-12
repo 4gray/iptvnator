@@ -99,6 +99,33 @@ describe('ServerApiClient', () => {
         ).resolves.toBe(false);
     });
 
+    it('reports offline when a body is cut off after the headers', async () => {
+        const cut = {
+            ...response(200),
+            json: async () => {
+                throw new TypeError('network error');
+            },
+        } as unknown as Response;
+
+        await expect(
+            client(jest.fn().mockResolvedValue(cut)).getJson('/user-state')
+        ).rejects.toMatchObject({ status: 0, code: 'network' });
+        expect(status.reportOffline).toHaveBeenCalled();
+
+        // Malformed JSON is an answer, not an outage.
+        status.reportOffline.mockClear();
+        const malformed = {
+            ...response(200),
+            json: async () => {
+                throw new SyntaxError('Unexpected token');
+            },
+        } as unknown as Response;
+        await expect(
+            client(jest.fn().mockResolvedValue(malformed)).getJson('/x')
+        ).rejects.toBeInstanceOf(SyntaxError);
+        expect(status.reportOffline).not.toHaveBeenCalled();
+    });
+
     it('clears the token and reports unauthorized on 401', async () => {
         localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'old');
         const fetchFn = jest

@@ -32,6 +32,7 @@ describe('ServerPlaylistDocumentStore', () => {
         const api = {
             request: jest.fn(),
             getJson: jest.fn(),
+            readJson: jest.fn((response: Response) => response.json()),
             sendJson: jest.fn(),
         };
         return { api, store: new ServerPlaylistDocumentStore(api as never) };

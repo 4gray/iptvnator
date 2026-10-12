@@ -23,7 +23,7 @@ describe('ServerMigrationService', () => {
             dbUpsertAppPlaylist: jest.Mock;
         };
         api: { getJson: jest.Mock; sendJson: jest.Mock };
-        userData: { hydrate: jest.Mock };
+        userData: { flush: jest.Mock; hydrate: jest.Mock };
     };
 
     beforeEach(() => {
@@ -40,7 +40,10 @@ describe('ServerMigrationService', () => {
                 getJson: jest.fn().mockResolvedValue({ entries: {} }),
                 sendJson: jest.fn().mockResolvedValue(undefined),
             },
-            userData: { hydrate: jest.fn().mockResolvedValue(undefined) },
+            userData: {
+                flush: jest.fn().mockResolvedValue(undefined),
+                hydrate: jest.fn().mockResolvedValue(undefined),
+            },
         };
         TestBed.configureTestingModule({
             providers: [
@@ -104,6 +107,10 @@ describe('ServerMigrationService', () => {
             { value: ['live:1'] }
         );
         expect(session.api.sendJson).toHaveBeenCalledTimes(1);
+        // Queued edits were sent before the combined values were read.
+        expect(session.userData.flush.mock.invocationCallOrder[0]).toBeLessThan(
+            session.api.getJson.mock.invocationCallOrder[0]
+        );
         expect(session.userData.hydrate).toHaveBeenCalled();
         expect(migration.browserDataMoved()).toBe(true);
     });

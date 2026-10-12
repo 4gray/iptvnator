@@ -77,10 +77,11 @@ interface ChannelRef {
 }
 
 /**
- * M3U favorites and history name channels by id, and every import gives
- * channels new random ids: a browser favorite is translated to the server
- * channel with the same stream URL, and dropped when there is none.
- * Portal favorites (objects) pass through.
+ * M3U favorites name channels by stream URL (older ones by channel id),
+ * and every import gives channels new random ids. A browser channel id is
+ * translated to the server channel with the same URL; URLs and anything
+ * the server cannot resolve are kept as they are, never dropped. M3U
+ * history entries get the server's channel id; portal items pass through.
  */
 export function remapChannelReferences<T>(
     references: readonly T[],
@@ -94,29 +95,23 @@ export function remapChannelReferences<T>(
     const idByUrl = new Map<unknown, unknown>(
         serverChannels.map((channel) => [channel.url, channel.id])
     );
-    const result: T[] = [];
-    for (const reference of references) {
+    return references.map((reference) => {
         if (typeof reference === 'string') {
-            const id = serverIds.has(reference)
-                ? reference
-                : idByUrl.get(urlByBrowserId.get(reference));
-            if (typeof id === 'string') {
-                result.push(id as T);
+            if (serverIds.has(reference) || idByUrl.has(reference)) {
+                return reference;
             }
-        } else if (
+            const id = idByUrl.get(urlByBrowserId.get(reference));
+            return (typeof id === 'string' ? id : reference) as T;
+        }
+        if (
             isPlainObject(reference) &&
             reference['source'] === 'm3u' &&
-            idByUrl.has(reference['url'])
+            typeof idByUrl.get(reference['url']) === 'string'
         ) {
-            result.push({
-                ...reference,
-                id: idByUrl.get(reference['url']),
-            } as T);
-        } else {
-            result.push(reference);
+            return { ...reference, id: idByUrl.get(reference['url']) } as T;
         }
-    }
-    return result;
+        return reference;
+    });
 }
 
 /**

@@ -107,7 +107,27 @@ export class ServerApiClient {
     }
 
     async getJson<T>(path: string): Promise<T> {
-        return (await this.request(path)).json() as Promise<T>;
+        return this.readJson<T>(await this.request(path));
+    }
+
+    /**
+     * A body cut off after the headers arrived is an outage too; malformed
+     * JSON is not.
+     */
+    async readJson<T>(response: Response): Promise<T> {
+        try {
+            return (await response.json()) as T;
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                throw error;
+            }
+            this.options.status.reportOffline();
+            throw new ServerApiError(
+                0,
+                'network',
+                'The server is not reachable.'
+            );
+        }
     }
 
     sendJson(
