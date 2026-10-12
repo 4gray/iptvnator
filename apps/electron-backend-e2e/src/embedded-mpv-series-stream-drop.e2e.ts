@@ -31,8 +31,10 @@ import {
  * Needs the native-view Embedded MPV runtime; skips where it is missing.
  */
 const credentials = { password: 'streamdrop', username: 'streamdrop' };
-/** Past the ~21 s cut: proof that the episode resumed rather than restarted. */
+/** Past the ~21 s cut: the resumed episode has played on. */
 const RESUMED_POSITION_SECONDS = 25;
+/** Keyframe rounding and the 500 ms poll before the drop. */
+const RESUME_TOLERANCE_SECONDS = 3;
 
 type SessionSample = {
     episodeId: number | null;
@@ -87,26 +89,37 @@ function readSessions(page: Page): Promise<SessionSample[]> {
     });
 }
 
-/** What followed the first episode's mid-episode EOF, in update order. */
+/**
+ * What followed the first episode's mid-episode EOF, in update order. Every
+ * position played after the drop must stay near the drop: a reload that
+ * restarted the episode would otherwise reach the resumed position as well.
+ * A zero is the engine's placeholder before the reload's first `time-pos`.
+ */
 function outcomeAfterDrop(
     sessions: SessionSample[],
     [first, second]: number[]
-): 'pending' | 'resumed' | 'skipped' {
+): 'pending' | 'resumed' | 'restarted' | 'skipped' {
     const dropped = sessions.findIndex(
         (session) => session.episodeId === first && session.status === 'ended'
     );
     if (dropped < 0) {
         return 'pending';
     }
+    const dropPosition = sessions[dropped].positionSeconds;
     for (const session of sessions.slice(dropped)) {
         if (session.episodeId === second) {
             return 'skipped';
         }
+        if (session.episodeId !== first || session.status !== 'playing') {
+            continue;
+        }
         if (
-            session.episodeId === first &&
-            session.status === 'playing' &&
-            session.positionSeconds >= RESUMED_POSITION_SECONDS
+            session.positionSeconds > 0 &&
+            session.positionSeconds < dropPosition - RESUME_TOLERANCE_SECONDS
         ) {
+            return 'restarted';
+        }
+        if (session.positionSeconds >= RESUMED_POSITION_SECONDS) {
             return 'resumed';
         }
     }
