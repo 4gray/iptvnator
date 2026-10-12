@@ -16,7 +16,9 @@ import {
 import { type DeferredEdit, refreshedNamespace } from './server-user-data-edit';
 import {
     claimCache,
+    markUnconfirmed,
     newestWrites,
+    othersUnconfirmed,
     readDeferredEdits,
     readUnsentWrites,
     saveDeferredEdits,
@@ -58,6 +60,10 @@ export class ServerUserDataStorage implements UserDataStorage {
      */
     private readonly deferred = new Map<string, DeferredEdit>();
     private hydrated = false;
+    /** This tab, in the shared registry of unconfirmed entries. */
+    private readonly tabId = Math.random().toString(36).slice(2);
+    /** Cache values that did not fit into browser storage. */
+    private readonly overflow = new Map<ServerUserStateNamespace, string>();
     /** Re-reads run one at a time, so an older one never lands last. */
     private hydration: Promise<void> = Promise.resolve();
     /** Edit counter per `namespace|playlistId`, for hydrate to keep them. */
@@ -69,16 +75,22 @@ export class ServerUserDataStorage implements UserDataStorage {
         private readonly local: UserDataStorage,
         private readonly onWriteFailure: (error: unknown) => void,
         /** Scopes the cache and saved writes to one server database. */
-        private readonly instanceId = 'default'
+        private readonly instanceId = 'default',
+        /**
+         * Where this tab keeps what the server has not confirmed: its own
+         * (`sessionStorage` in the app), so tabs never clear each other's,
+         * and a reload of the tab finds it again.
+         */
+        private readonly tabStore: UserDataStorage = local
     ) {
         claimCache(local, instanceId);
         // Writes a previous visit could not confirm go out with the first
         // flush, and the first read keeps them.
-        for (const write of readUnsentWrites(local, instanceId)) {
+        for (const write of readUnsentWrites(tabStore, instanceId)) {
             this.queue(write.namespace, write.playlistId, write.value);
         }
         this.unsentSaved = this.pending.size > 0;
-        for (const edit of readDeferredEdits(local, instanceId)) {
+        for (const edit of readDeferredEdits(tabStore, instanceId)) {
             this.deferred.set(`${edit.namespace}|${edit.playlistId}`, edit);
         }
     }
@@ -94,7 +106,7 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     getItem(key: string): string | null {
         return this.isSynced(key)
-            ? this.local.getItem(SERVER_CACHE_PREFIX + key)
+            ? this.readCache(key)
             : this.local.getItem(key);
     }
 
@@ -104,7 +116,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             return;
         }
         const before = this.baseline(key);
-        this.local.setItem(SERVER_CACHE_PREFIX + key, value);
+        this.writeCache(key, value);
         this.queueChanges(key, parseMap(value), before);
     }
 
@@ -114,7 +126,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             return;
         }
         const before = this.baseline(key);
-        this.local.removeItem(SERVER_CACHE_PREFIX + key);
+        this.writeCache(key, null);
         this.queueChanges(key, {}, before);
     }
 
@@ -148,8 +160,12 @@ export class ServerUserDataStorage implements UserDataStorage {
             }
         }
         // Another tab's unconfirmed writes are in the shared cache too.
-        for (const write of readUnsentWrites(this.local, this.instanceId)) {
-            unsaved.add(`${write.namespace}|${write.playlistId}`);
+        for (const key of othersUnconfirmed(
+            this.local,
+            this.instanceId,
+            this.tabId
+        )) {
+            unsaved.add(key);
         }
         const deferred = [...this.deferred.values()];
         const refreshed = new Map<string, Record<string, unknown>>();
@@ -163,23 +179,14 @@ export class ServerUserDataStorage implements UserDataStorage {
             }
             const value = refreshedNamespace(
                 entries[namespace] ?? {},
-                parseMap(
-                    this.local.getItem(SERVER_CACHE_PREFIX + namespace) ?? '{}'
-                ),
+                parseMap(this.readCache(namespace) ?? '{}'),
                 keepCached,
                 deferred.filter((edit) => edit.namespace === namespace)
             );
             refreshed.set(namespace, value);
-            try {
-                this.local.setItem(
-                    SERVER_CACHE_PREFIX + namespace,
-                    JSON.stringify(value)
-                );
-            } catch {
-                // Storage full: keep the old cache and the baseline it was
-                // diffed against together, or an edit would read as deletes.
-                continue;
-            }
+            // A value too big for browser storage stays readable in memory,
+            // so callers and the diff baseline see the same map.
+            this.writeCache(namespace, JSON.stringify(value));
             this.synced.set(namespace, value);
         }
         for (const [key, edit] of this.edits) {
@@ -202,7 +209,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                     refreshed.get(edit.namespace)?.[edit.playlistId]
                 );
             }
-            saveDeferredEdits(this.local, this.instanceId, []);
+            saveDeferredEdits(this.tabStore, this.instanceId, []);
             this.scheduleFlush();
         }
     }
@@ -266,6 +273,30 @@ export class ServerUserDataStorage implements UserDataStorage {
         );
     }
 
+    private readCache(namespace: ServerUserStateNamespace): string | null {
+        return (
+            this.overflow.get(namespace) ??
+            this.local.getItem(SERVER_CACHE_PREFIX + namespace)
+        );
+    }
+
+    /** `null` empties the entry. Browser storage first, memory if full. */
+    private writeCache(
+        namespace: ServerUserStateNamespace,
+        value: string | null
+    ): void {
+        try {
+            if (value === null) {
+                this.local.removeItem(SERVER_CACHE_PREFIX + namespace);
+            } else {
+                this.local.setItem(SERVER_CACHE_PREFIX + namespace, value);
+            }
+            this.overflow.delete(namespace);
+        } catch {
+            this.overflow.set(namespace, value ?? '{}');
+        }
+    }
+
     private isSynced(key: string): key is ServerUserStateNamespace {
         return isServerUserStateNamespace(key);
     }
@@ -279,9 +310,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     ): Record<string, unknown> {
         return (
             this.synced.get(namespace) ??
-            parseMap(
-                this.local.getItem(SERVER_CACHE_PREFIX + namespace) ?? '{}'
-            )
+            parseMap(this.readCache(namespace) ?? '{}')
         );
     }
 
@@ -304,9 +333,10 @@ export class ServerUserDataStorage implements UserDataStorage {
                 before: earlier ? earlier.before : previous[playlistId],
                 after: value,
             });
-            saveDeferredEdits(this.local, this.instanceId, [
+            saveDeferredEdits(this.tabStore, this.instanceId, [
                 ...this.deferred.values(),
             ]);
+            this.publishUnconfirmed();
         };
         for (const [playlistId, value] of Object.entries(next)) {
             if (
@@ -424,7 +454,16 @@ export class ServerUserDataStorage implements UserDataStorage {
         if (writes.length === 0 && !this.unsentSaved) {
             return;
         }
-        saveUnsentWrites(this.local, this.instanceId, writes);
+        saveUnsentWrites(this.tabStore, this.instanceId, writes);
         this.unsentSaved = writes.length > 0;
+        this.publishUnconfirmed();
+    }
+
+    private publishUnconfirmed(): void {
+        markUnconfirmed(this.local, this.instanceId, this.tabId, [
+            ...this.pending.keys(),
+            ...this.inFlight.keys(),
+            ...this.deferred.keys(),
+        ]);
     }
 }

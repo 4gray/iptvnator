@@ -20,6 +20,15 @@ export function createBrowserUserDataStorage(): UserDataStorage {
     };
 }
 
+/** The same lazy adapter over `sessionStorage`: one per tab, kept on reload. */
+export function createBrowserSessionStorage(): UserDataStorage {
+    return {
+        getItem: (key) => globalThis.sessionStorage.getItem(key),
+        setItem: (key, value) => globalThis.sessionStorage.setItem(key, value),
+        removeItem: (key) => globalThis.sessionStorage.removeItem(key),
+    };
+}
+
 /**
  * Browser persistence for PWA user data such as Xtream favorites, recently
  * viewed items and playback positions. Defaults to `localStorage`; the

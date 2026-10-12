@@ -12,7 +12,10 @@ import {
     SERVER_SIGN_IN_PATH,
     ServerStorageStatusService,
 } from '../server-storage-status.service';
-import { createBrowserUserDataStorage } from '../user-data-storage';
+import {
+    createBrowserSessionStorage,
+    createBrowserUserDataStorage,
+} from '../user-data-storage';
 import { ServerApiClient, type ServerApiError } from './server-api-client';
 import { ServerPlaylistDocumentStore } from './server-playlist-document-store';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
@@ -43,7 +46,8 @@ export class ServerStorageSession {
         // Lazy: a browser that denies storage must not stop the app here.
         createBrowserUserDataStorage(),
         () => this.announceWriteFailure(),
-        this.config.instance.instanceId ?? undefined
+        this.config.instance.instanceId ?? undefined,
+        createBrowserSessionStorage()
     );
 
     constructor() {

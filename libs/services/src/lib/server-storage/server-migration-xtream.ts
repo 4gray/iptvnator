@@ -10,7 +10,8 @@ const SNAPSHOTS = 'xtream-collection-items';
  * repeats across live, movie and series. Before two copies are combined,
  * each one's bare ids become typed keys (`live:42`) using that copy's own
  * collection snapshots, the same evidence the PWA reads them with; ids
- * without a snapshot stay as they are.
+ * without a snapshot stay as they are. Snapshots gain the typed key and
+ * keep the bare one.
  */
 export function typeLegacyXtreamRefs(data: XtreamUserData): XtreamUserData {
     const snapshots = isRecord(data[SNAPSHOTS]) ? data[SNAPSHOTS] : {};
@@ -45,12 +46,16 @@ export function typeLegacyXtreamRefs(data: XtreamUserData): XtreamUserData {
         );
     }
     if (isRecord(data[SNAPSHOTS])) {
-        const rekeyed: Record<string, unknown> = {};
+        // The bare key stays as an alias: a reference not yet rewritten (a
+        // failed write, an older client) still finds its snapshot, and a
+        // retry can type it again.
+        const aliased: Record<string, unknown> = { ...snapshots };
         for (const [key, snapshot] of Object.entries(snapshots)) {
-            rekeyed[String(/^\d+$/.test(key) ? typed(Number(key)) : key)] =
-                snapshot;
+            if (/^\d+$/.test(key)) {
+                aliased[String(typed(Number(key)))] = snapshot;
+            }
         }
-        result[SNAPSHOTS] = rekeyed;
+        result[SNAPSHOTS] = aliased;
     }
     return result;
 }

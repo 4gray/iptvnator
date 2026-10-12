@@ -408,7 +408,7 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).not.toHaveBeenCalled();
     });
 
-    it('keeps cache and baseline together when the cache is full', async () => {
+    it('keeps a value that does not fit the cache readable and consistent', async () => {
         const { api, local, storage } = setup();
         await storage.hydrate();
         // The server now has a second playlist the cache cannot take.
@@ -425,20 +425,25 @@ describe('ServerUserDataStorage', () => {
             setItem(key, value);
         };
         await storage.hydrate();
-        local.setItem = setItem;
 
+        // The app reads, edits and writes back, as PwaCollectionStorage does.
+        const current = JSON.parse(storage.getItem('xtream-favorites') ?? '');
+        expect(current).toEqual({ p1: ['live:1'], p2: ['live:2'] });
         storage.setItem(
             'xtream-favorites',
-            JSON.stringify({ p1: ['live:1', 'live:3'] })
+            JSON.stringify({ ...current, p1: ['live:1', 'live:3'] })
         );
         await storage.flush();
+        local.setItem = setItem;
 
         expect(api.request).not.toHaveBeenCalled();
-        expect(api.sendJson).toHaveBeenCalledWith(
-            'PUT',
-            '/user-state/xtream-favorites/p1',
-            { value: ['live:1', 'live:3'] }
-        );
+        expect(api.sendJson.mock.calls).toEqual([
+            [
+                'PUT',
+                '/user-state/xtream-favorites/p1',
+                { value: ['live:1', 'live:3'] },
+            ],
+        ]);
     });
 
     it('keeps unconfirmed writes across a reload and sends them first', async () => {
@@ -623,40 +628,70 @@ describe('ServerUserDataStorage', () => {
     });
 
     it("does not replace another tab's unconfirmed edit on a re-read", async () => {
-        // A server that keeps what it is sent.
-        const state: Record<string, Record<string, unknown>> = {
-            'xtream-favorites': { p1: ['live:1'] },
+        const shared = memoryStorage();
+        const api = {
+            getJson: jest.fn().mockResolvedValue({
+                entries: { 'xtream-favorites': { p1: ['live:1'] } },
+            }),
+            sendJson: jest.fn().mockResolvedValue(undefined),
+            request: jest.fn().mockResolvedValue(undefined),
+            sendKeepalive: jest.fn().mockResolvedValue(true),
         };
-        const tabA = setup();
-        tabA.api.getJson.mockImplementation(async () => ({
-            entries: structuredClone(state),
-        }));
-        tabA.api.sendJson.mockImplementation(
-            async (_method: string, path: string, body: { value: unknown }) => {
-                const [, , namespace, playlistId] = path.split('/');
-                state[namespace] = {
-                    ...state[namespace],
-                    [playlistId]: body.value,
-                };
-            }
-        );
-        await tabA.storage.hydrate();
-        tabA.storage.setItem(
+        const tab = () =>
+            new ServerUserDataStorage(
+                api as never,
+                shared,
+                jest.fn(),
+                'default',
+                memoryStorage()
+            );
+        const tabA = tab();
+        const tabB = tab();
+        await tabA.hydrate();
+        await tabB.hydrate();
+
+        // Tab A's edit is queued, not confirmed; tab B re-reads.
+        tabA.setItem(
             'xtream-favorites',
             JSON.stringify({ p1: ['live:1', 'live:7'] })
-        );
-
-        // Tab A's write is queued, not sent yet; tab B starts and re-reads.
-        const tabB = new ServerUserDataStorage(
-            tabA.api as never,
-            tabA.local,
-            jest.fn()
         );
         await tabB.hydrate();
 
         expect(JSON.parse(tabB.getItem('xtream-favorites') ?? '')).toEqual({
             p1: ['live:1', 'live:7'],
         });
-        expect(state['xtream-favorites']['p1']).toEqual(['live:1', 'live:7']);
+        // Tab B never takes over tab A's saved writes.
+        expect(api.sendJson).not.toHaveBeenCalled();
+    });
+
+    it('keeps server favorites through a cache-full first read and a later edit', async () => {
+        const { api, local, storage } = setup();
+        local.setItem('iptvnator-server:xtream-favorites', '{"p1":["A"]}');
+        storage.setItem('xtream-favorites', '{"p1":["A","B"]}');
+        api.getJson.mockResolvedValueOnce({
+            entries: { 'xtream-favorites': { p1: ['S'] } },
+        });
+        const setItem = local.setItem;
+        local.setItem = (key: string, value: string) => {
+            if (key === 'iptvnator-server:xtream-favorites') {
+                throw new DOMException('full', 'QuotaExceededError');
+            }
+            setItem(key, value);
+        };
+        await storage.hydrate();
+
+        const current = JSON.parse(storage.getItem('xtream-favorites') ?? '');
+        storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: [...current.p1, 'C'] })
+        );
+        await storage.flush();
+        local.setItem = setItem;
+
+        expect(api.sendJson).toHaveBeenLastCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['S', 'B', 'C'] }
+        );
     });
 });

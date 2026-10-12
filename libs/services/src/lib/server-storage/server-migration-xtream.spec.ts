@@ -16,6 +16,7 @@ describe('typeLegacyXtreamRefs', () => {
             'xtream-favorites': ['live:42', 'movie:7', 99],
             'xtream-recent-items': [{ id: 'live:42', viewedAt: 't' }],
             'xtream-collection-items': {
+                '42': { xtream_id: 42, type: 'live', title: 'News' },
                 'live:42': { xtream_id: 42, type: 'live', title: 'News' },
                 'movie:7': { xtream_id: 7, type: 'movie' },
             },
@@ -48,6 +49,8 @@ describe('typeLegacyXtreamRefs', () => {
                 browser['xtream-collection-items'],
             ])
         ).toEqual({
+            // The server's own bare alias wins its key; both typed keys stay.
+            '42': { xtream_id: 42, type: 'movie' },
             'movie:42': { xtream_id: 42, type: 'movie' },
             'live:42': { xtream_id: 42, type: 'live' },
         });

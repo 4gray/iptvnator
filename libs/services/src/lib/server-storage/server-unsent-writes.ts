@@ -16,6 +16,16 @@ export const UNSENT_WRITES_KEY = 'iptvnator-server:unsent-writes';
 export const CACHE_OWNER_KEY = 'iptvnator-server:cache-owner';
 
 const writesKey = (instanceId: string) => `${UNSENT_WRITES_KEY}:${instanceId}`;
+/**
+ * Which entries each open tab has not had confirmed yet, so a re-read in
+ * one tab keeps the cache values another tab is still sending. A record
+ * older than `UNCONFIRMED_TTL_MS` belongs to a tab that is gone.
+ */
+export const UNCONFIRMED_KEY = 'iptvnator-server:unconfirmed';
+export const UNCONFIRMED_TTL_MS = 10 * 60 * 1000;
+const unconfirmedKey = (instanceId: string) =>
+    `${UNCONFIRMED_KEY}:${instanceId}`;
+
 /** Edits made before the first read of a visit, kept as before → after. */
 export const DEFERRED_EDITS_KEY = 'iptvnator-server:deferred-edits';
 const deferredKey = (instanceId: string) =>
@@ -36,6 +46,7 @@ export function claimCache(local: UserDataStorage, instanceId: string): void {
             local.removeItem(`iptvnator-server:${namespace}`);
         }
         if (owner) {
+            local.removeItem(unconfirmedKey(owner));
             local.removeItem(writesKey(owner));
             local.removeItem(deferredKey(owner));
         }
@@ -193,4 +204,70 @@ export function saveDeferredEdits(
     } catch {
         // Storage unavailable or full: the edits stay in memory only.
     }
+}
+
+type UnconfirmedRegistry = Record<string, { at: number; keys: string[] }>;
+
+function readRegistry(
+    local: UserDataStorage,
+    instanceId: string
+): UnconfirmedRegistry {
+    try {
+        const parsed: unknown = JSON.parse(
+            local.getItem(unconfirmedKey(instanceId)) ?? '{}'
+        );
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            ? (parsed as UnconfirmedRegistry)
+            : {};
+    } catch {
+        return {};
+    }
+}
+
+/** Replaces only this tab's record. */
+export function markUnconfirmed(
+    local: UserDataStorage,
+    instanceId: string,
+    tabId: string,
+    keys: readonly string[],
+    now = Date.now()
+): void {
+    const registry = readRegistry(local, instanceId);
+    if (keys.length === 0) {
+        if (!(tabId in registry)) {
+            return;
+        }
+        delete registry[tabId];
+    } else {
+        registry[tabId] = { at: now, keys: [...keys] };
+    }
+    try {
+        local.setItem(unconfirmedKey(instanceId), JSON.stringify(registry));
+    } catch {
+        // Storage full: re-reads in other tabs lose this protection only.
+    }
+}
+
+/** Entry keys other live tabs have not had confirmed yet. */
+export function othersUnconfirmed(
+    local: UserDataStorage,
+    instanceId: string,
+    tabId: string,
+    now = Date.now()
+): Set<string> {
+    const keys = new Set<string>();
+    for (const [owner, record] of Object.entries(
+        readRegistry(local, instanceId)
+    )) {
+        if (
+            owner !== tabId &&
+            Array.isArray(record?.keys) &&
+            now - Number(record.at) < UNCONFIRMED_TTL_MS
+        ) {
+            for (const key of record.keys) {
+                keys.add(String(key));
+            }
+        }
+    }
+    return keys;
 }

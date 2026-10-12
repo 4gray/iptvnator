@@ -201,8 +201,9 @@ settings and guards read them in every build.
   `keepalive` flush when the page hides. Batches go out one after another
   (the page-hide flush waits for a batch still travelling), a failed write,
   including a refused `keepalive` one, stays queued for the next flush, and
-  the page-hide flush saves every unconfirmed write (queued or travelling)
-  under `iptvnator-server:unsent-writes:<instanceId>` for the next visit.
+  every unconfirmed write (queued or travelling) is saved in the tab's own
+  `sessionStorage` (`iptvnator-server:unsent-writes:<instanceId>`) and sent
+  first after a reload; tabs never clear each other's.
   Cache and saved writes belong to one server database
   (`iptvnator-server:cache-owner`); another one behind the same address
   starts clean. Also,
@@ -212,9 +213,13 @@ settings and guards read them in every build.
   its headers counts as offline. Edits made before the first successful read
   are held as before → after and applied to the server's value once it
   arrives (`applyEdit`): a new device or a stale cache adds its favorite
-  instead of replacing the server's list. They are saved too
-  (`iptvnator-server:deferred-edits:<instanceId>`), and queued writes are
-  saved as soon as they are queued, so a re-read in another tab keeps them. A re-read
+  instead of replacing the server's list. They are saved in the tab too
+  (`iptvnator-server:deferred-edits:<instanceId>`). A shared registry in
+  `localStorage` (`iptvnator-server:unconfirmed:<instanceId>`, one record
+  per tab, ignored after ten minutes) lets a re-read in one tab keep the
+  cache values another tab is still sending. A value too big for
+  `localStorage` stays readable from memory, so callers and the diff
+  baseline agree. A re-read
   updates the cache; views already open show another device's changes on
   their next load (no live push). Start-up waits
   up to 3 s for the first read.
@@ -246,7 +251,8 @@ settings and guards read them in every build.
   URL; older ones by a channel id that is random per import and is
   translated through the URL; nothing is dropped), and the legacy Xtream maps follow under
   the server id; each copy's bare legacy Xtream ids are typed from its own
-  snapshots first (`typeLegacyXtreamRefs`), then `combineUserData` unions
+  snapshots first (`typeLegacyXtreamRefs`; snapshots keep their bare key as
+  an alias), then `combineUserData` unions
   lists (playback positions by content type and Xtream id, renamed to the
   server playlist) and merges maps, the server's value winning on a
   conflict. Parental locks stay in the browser but move to the server
