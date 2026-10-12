@@ -60,6 +60,8 @@ export class ServerUserDataStorage implements UserDataStorage {
      */
     private readonly deferred = new Map<string, DeferredEdit>();
     private hydrated = false;
+    /** The previous page load in this tab, while it still looks live. */
+    private awaited: string | null = null;
     /** Closed tabs' page loads this one took over (once each). */
     private readonly adopted = new Set<string>();
     /** Page loads taken over whose copy stays until this one saves. */
@@ -99,11 +101,11 @@ export class ServerUserDataStorage implements UserDataStorage {
             writeFailed: onWriteFailure,
         });
         claimCache(local, instanceId);
-        const previous = swapPage(tabStore, instanceId, this.tabId);
-        // A duplicated tab copies the page load of a tab that still runs.
-        if (previous && !pageIsLive(local, instanceId, previous)) {
-            this.takeOver(previous);
-        }
+        // A duplicated tab copies the page load of a tab that still runs;
+        // so does a reload whose close flag could not be saved: `touch`
+        // takes it over once it no longer looks live.
+        this.awaited = swapPage(tabStore, instanceId, this.tabId);
+        this.touch();
     }
 
     /** The page unloads: a reload of this tab may take its writes over. */
@@ -183,6 +185,11 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     /** Tells other tabs this one is alive and still sending its writes. */
     touch(): void {
+        const page = this.awaited;
+        if (page && !pageIsLive(this.local, this.instanceId, page)) {
+            this.awaited = null;
+            this.takeOver(page);
+        }
         if (this.hasUnsentWrites()) {
             this.publishUnconfirmed();
         }
@@ -208,30 +215,27 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     setItem(key: string, value: string): void {
-        if (isServerUserStateNamespace(key)) {
-            this.write(key, value);
-        } else {
-            this.local.setItem(key, value);
-        }
+        this.write(key, value);
     }
 
     removeItem(key: string): void {
-        if (isServerUserStateNamespace(key)) {
-            this.write(key, null);
-        } else {
-            this.local.removeItem(key);
-        }
+        this.write(key, null);
     }
 
     /**
      * A caller's new map. When the cache changed since the caller read it
      * (another tab, a re-read), only the entries it changed are applied to
-     * the cache as it is now; the rest stays.
+     * the cache as it is now; the rest stays. Other keys use plain storage.
      */
-    private write(
-        namespace: ServerUserStateNamespace,
-        value: string | null
-    ): void {
+    private write(namespace: string, value: string | null): void {
+        if (!isServerUserStateNamespace(namespace)) {
+            if (value === null) {
+                this.local.removeItem(namespace);
+            } else {
+                this.local.setItem(namespace, value);
+            }
+            return;
+        }
         const current = this.cache.read(namespace);
         const before = parseMap(current ?? '{}');
         const read = this.handedOut.has(namespace)

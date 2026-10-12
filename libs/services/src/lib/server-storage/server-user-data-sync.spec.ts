@@ -1017,4 +1017,54 @@ describe('ServerUserDataStorage with other devices', () => {
             )
         ).toHaveLength(1);
     });
+
+    it('takes over a reload whose close flag was lost once it goes quiet', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const local = memoryStorage();
+        const tabStore = memoryStorage();
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+        const before = new ServerUserDataStorage(
+            {
+                ...server.api,
+                sendJson: jest
+                    .fn()
+                    .mockRejectedValue(
+                        new ServerApiError(0, 'network', 'offline')
+                    ),
+            } as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        await before.hydrate();
+        before.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await before.flush();
+        // Storage is full when the page unloads: the close flag is lost.
+        const setItem = local.setItem;
+        local.setItem = () => {
+            throw new DOMException('full', 'QuotaExceededError');
+        };
+        before.close();
+        local.setItem = setItem;
+
+        const reloaded = new ServerUserDataStorage(
+            server.api as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        // It looks like a duplicated tab of a running one: nothing taken.
+        expect(reloaded.hasUnsentWrites()).toBe(false);
+
+        clock.mockReturnValue(1_000 + UNCONFIRMED_TTL_MS + 1);
+        reloaded.touch();
+        expect(reloaded.hasUnsentWrites()).toBe(true);
+        await reloaded.hydrate();
+        await reloaded.flush();
+        clock.mockRestore();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+    });
 });

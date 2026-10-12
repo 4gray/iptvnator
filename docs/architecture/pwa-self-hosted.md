@@ -230,7 +230,9 @@ settings and guards read them in every build.
   is saved, at the latest with this page's next saved copy). A page marks
   its record closed on `pagehide` (not into the back-forward cache), and
   only a closed, stale or missing record is taken over: a duplicated tab,
-  which copies `sessionStorage`, leaves the running tab its writes; the writes of a tab closed before it
+  which copies `sessionStorage`, leaves the running tab its writes. A page
+  load that still looked live (or whose close flag storage refused) is
+  checked again every 30 s and taken over once it does not; the writes of a tab closed before it
   could send them are queued, ahead of its own, by the next re-read in
   another tab once that tab's record has gone stale; the result replays the
   closed tab's edits first and this tab's newer ones last. Tabs never clear each other's.
