@@ -13,7 +13,7 @@ cette page résume l'installation, les touches et le dépannage.
    *Applications de sources inconnues* (ou *Installer des applications inconnues
    → Downloader*) et, pour ADB, *Débogage ADB*.
 2. **Downloader** : installez l'app *Downloader* depuis l'Appstore, entrez l'URL
-   du `.apk` de la pré-release GitHub (bouton droit sur l'asset → copier le
+   du `.apk` de la release GitHub (bouton droit sur l'asset → copier le
    lien), installez.
 3. **ADB** (depuis un PC sur le même réseau) :
    ```bash
@@ -26,7 +26,11 @@ cette page résume l'installation, les touches et le dépannage.
 
 Les APK publiés par le workflow sont signés avec la clé de debug versionnée
 (`android/app/debug.keystore`) : les nouvelles versions s'installent par-dessus
-les anciennes. Le `versionCode` est l'heure du commit en minutes.
+les anciennes. Le `versionCode` est l'heure du commit en minutes. Pour publier
+une release : **Actions → Build TV shell APK → Run workflow**, cochez
+`create_release` et décochez `prerelease` (dans le dépôt IPTVnator lui-même,
+`prerelease` doit rester coché : une release « Latest » sans les fichiers de
+l'app desktop casserait sa mise à jour automatique).
 
 ## Touches
 
