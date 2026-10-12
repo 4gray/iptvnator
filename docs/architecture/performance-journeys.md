@@ -704,6 +704,11 @@ source's default section, which is VOD (`getPlaylistLink` links to
 and the first page is the "All items" grid. The plan's "live category list"
 would need a second click and is not measured; the landed section is
 recorded under `evidence.firstPage.section`.
+The seeded portal is already imported, so the click only reads the saved
+catalog and finishes well inside the shell's show delay for the import
+overlay ([workspace shell](workspace-shell.md)): a J2 click must not mount
+`app-workspace-shell-import-overlay`, and before that delay it flashed for
+about two frames between the skeleton and the first page.
 
 **HTTP requests to the mock.** The J2 profile is seeded with the origin of a
 loopback proxy in the test process
