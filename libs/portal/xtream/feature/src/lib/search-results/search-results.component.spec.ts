@@ -674,6 +674,20 @@ describe('SearchResultsComponent in-portal search and catalog loading', () => {
         expect(searchedTerms(store)).toEqual(['matrix', 'matrix']);
     });
 
+    it('searches once when a new term and the loaded catalog arrive together', () => {
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        store.isLoadingContent.set(true);
+        TestBed.runInInjectionContext(() => new SearchResultsComponent());
+        TestBed.flushEffects();
+        store.searchContent.mockClear();
+
+        store.setSearchTerm('matrix reloaded');
+        store.isLoadingContent.set(false);
+        TestBed.flushEffects();
+
+        expect(searchedTerms(store)).toEqual(['matrix reloaded']);
+    });
+
     it('searches once when the catalog is already loaded', () => {
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
         TestBed.runInInjectionContext(() => new SearchResultsComponent());

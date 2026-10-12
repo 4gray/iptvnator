@@ -270,34 +270,32 @@ export class SearchResultsComponent implements AfterViewInit {
             this.xtreamStore.setSearchTerm(queryTerm);
         });
 
-        // A prefilled in-portal search (a reload or deep link with `q`) can
-        // run while the portal's catalog is still loading, and the in-portal
-        // search reads that catalog: run it again once loading has finished.
+        // One effect for both triggers, so a term and the end of catalog
+        // loading arriving in the same flush run one search, not two.
+        // - A new term runs at once: typed terms arrive already debounced by
+        //   the workspace shell (SEARCH_INPUT_DEBOUNCE_MS), and a term from
+        //   the URL or a filter change is a single deliberate change. A newer
+        //   term supersedes an older query still in flight (request versions).
+        // - A prefilled in-portal search (a reload or deep link with `q`) can
+        //   run while the portal's catalog is still loading, and the in-portal
+        //   search reads that catalog: it runs again once loading has finished.
+        let previousTerm: string | undefined;
         let wasCatalogReady: boolean | undefined;
         effect(() => {
+            const term = this.searchTerm();
             const ready = this.isCatalogReady();
-            const becameReady = wasCatalogReady === false && ready;
+            const termChanged = term !== previousTerm;
+            const becameReady =
+                wasCatalogReady === false && ready && !this.isGlobalSearch;
+            previousTerm = term;
             wasCatalogReady = ready;
-            if (!becameReady || this.isGlobalSearch) {
+            if (!termChanged && !becameReady) {
                 return;
             }
             untracked(() => {
-                if (this.searchTerm().length >= this.minSearchLength) {
-                    this.executeSearch();
-                }
-            });
-        });
-
-        // No debounce of its own: typed terms arrive already debounced by the
-        // workspace shell (SEARCH_INPUT_DEBOUNCE_MS), and a term from the URL
-        // or a filter change is a single deliberate change. A newer term
-        // supersedes an older query still in flight (request versions).
-        effect(() => {
-            const term = this.searchTerm();
-            untracked(() => {
                 if (term.length >= this.minSearchLength) {
                     this.executeSearch();
-                } else {
+                } else if (termChanged) {
                     this.clearResultsOnly();
                 }
             });
