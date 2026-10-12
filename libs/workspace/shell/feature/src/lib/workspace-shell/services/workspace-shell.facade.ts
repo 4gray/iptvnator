@@ -26,6 +26,7 @@ import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.s
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { PlaylistSwitcherOpenService } from '@iptvnator/playlist/shared/ui';
 
 @Injectable()
 export class WorkspaceShellFacade {
@@ -56,6 +57,7 @@ export class WorkspaceShellFacade {
             optional: true,
         }
     );
+    private readonly playlistSwitcher = inject(PlaylistSwitcherOpenService);
     private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
         if (!(event.ctrlKey || event.metaKey)) {
             return;
@@ -65,9 +67,20 @@ export class WorkspaceShellFacade {
             return;
         }
 
-        if (event.key.toLowerCase() === 'k') {
+        const key = event.key.toLowerCase();
+        if (key === 'k') {
             event.preventDefault();
             this.openCommandPalette();
+        } else if (
+            key === 'p' &&
+            !event.shiftKey &&
+            !event.altKey &&
+            this.playlistSwitcher.available
+        ) {
+            // ⌘K stays the command palette; ⌘P is the playlist switcher (and
+            // no longer prints the page in the browser build).
+            event.preventDefault();
+            this.playlistSwitcher.request();
         }
     };
 
@@ -127,7 +140,6 @@ export class WorkspaceShellFacade {
     readonly canOpenPlaylistInfo = this.header.canOpenPlaylistInfo;
     readonly canOpenAccountInfo = this.header.canOpenAccountInfo;
     readonly canRefreshPlaylist = this.header.canRefreshPlaylist;
-    readonly isRefreshingPlaylist = this.header.isRefreshingPlaylist;
     readonly headerSidebarToggle = this.header.headerSidebarToggle;
     readonly playlistSubtitle = this.header.playlistSubtitle;
     readonly activeDownloadsCount = computed(() =>

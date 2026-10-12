@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "حرك الاختيار فلوحة الأوامر",
                 "COMMAND_PALETTE_RUN": "شغل العنصر المختار فلوحة الأوامر",
                 "CLOSE_DIALOGS": "سد النافذة ولا خبي الطبقة",
-                "DOWNLOADS_OPEN_ITEM": "حل عنصر التحميل المحدد فالمكتبة"
+                "DOWNLOADS_OPEN_ITEM": "حل عنصر التحميل المحدد فالمكتبة",
+                "OPEN_PLAYLIST_SWITCHER": "بدّل الليستة"
             }
         },
         "GLOBAL_FAVORITES": {

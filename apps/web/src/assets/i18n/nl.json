@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Selectie in opdrachtpalet verplaatsen",
                 "COMMAND_PALETTE_RUN": "Geselecteerd item in opdrachtpalet uitvoeren",
                 "CLOSE_DIALOGS": "Dialoogvenster sluiten of overlay verbergen",
-                "DOWNLOADS_OPEN_ITEM": "Gefocust downloaditem in de bibliotheek openen"
+                "DOWNLOADS_OPEN_ITEM": "Gefocust downloaditem in de bibliotheek openen",
+                "OPEN_PLAYLIST_SWITCHER": "Afspeellijst wisselen"
             }
         },
         "GLOBAL_FAVORITES": {

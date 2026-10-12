@@ -34,12 +34,9 @@ class MockPlaylistSwitcherComponent {
     readonly showPlaylistInfo = input(false);
     readonly showAccountInfo = input(false);
     readonly showAddPlaylist = input(false);
-    readonly canRefreshActivePlaylist = input(false);
-    readonly isRefreshingActivePlaylist = input(false);
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
     readonly addPlaylistRequested = output<void>();
-    readonly refreshPlaylistRequested = output<void>();
 }
 
 describe('WorkspaceShellHeaderComponent', () => {

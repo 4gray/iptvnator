@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Move command palette selection",
                 "COMMAND_PALETTE_RUN": "Run selected command palette item",
                 "CLOSE_DIALOGS": "Close dialog or dismiss overlay",
-                "DOWNLOADS_OPEN_ITEM": "Open focused download item in the library"
+                "DOWNLOADS_OPEN_ITEM": "Open focused download item in the library",
+                "OPEN_PLAYLIST_SWITCHER": "Switch playlist"
             }
         },
         "GLOBAL_FAVORITES": {

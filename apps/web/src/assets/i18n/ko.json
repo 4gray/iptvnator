@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "명령 팔레트 선택 이동",
                 "COMMAND_PALETTE_RUN": "선택한 명령 팔레트 항목 실행",
                 "CLOSE_DIALOGS": "대화상자 닫기 또는 오버레이 해제",
-                "DOWNLOADS_OPEN_ITEM": "포커스된 다운로드 항목을 라이브러리에서 열기"
+                "DOWNLOADS_OPEN_ITEM": "포커스된 다운로드 항목을 라이브러리에서 열기",
+                "OPEN_PLAYLIST_SWITCHER": "재생목록 전환"
             }
         },
         "GLOBAL_FAVORITES": {

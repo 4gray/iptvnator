@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Sposta selezione della palette comandi",
                 "COMMAND_PALETTE_RUN": "Esegui elemento selezionato della palette comandi",
                 "CLOSE_DIALOGS": "Chiudi dialogo o nascondi overlay",
-                "DOWNLOADS_OPEN_ITEM": "Apri nella libreria l’elemento download selezionato"
+                "DOWNLOADS_OPEN_ITEM": "Apri nella libreria l’elemento download selezionato",
+                "OPEN_PLAYLIST_SWITCHER": "Cambia playlist"
             }
         },
         "GLOBAL_FAVORITES": {

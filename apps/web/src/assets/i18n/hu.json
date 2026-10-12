@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Kijelölés mozgatása a parancspalettán",
                 "COMMAND_PALETTE_RUN": "A parancspalettán kijelölt művelet végrehajtása",
                 "CLOSE_DIALOGS": "Párbeszédpanel bezárása vagy fedőréteg eltüntetése",
-                "DOWNLOADS_OPEN_ITEM": "A fókuszban lévő letöltés megnyitása a médiatárban"
+                "DOWNLOADS_OPEN_ITEM": "A fókuszban lévő letöltés megnyitása a médiatárban",
+                "OPEN_PLAYLIST_SWITCHER": "Lejátszási lista váltása"
             }
         },
         "GLOBAL_FAVORITES": {

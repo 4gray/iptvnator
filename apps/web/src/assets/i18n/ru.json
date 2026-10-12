@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Переместить выбор в палитре команд",
                 "COMMAND_PALETTE_RUN": "Выполнить выбранный пункт палитры команд",
                 "CLOSE_DIALOGS": "Закрыть диалог или скрыть оверлей",
-                "DOWNLOADS_OPEN_ITEM": "Открыть выбранную загрузку в библиотеке"
+                "DOWNLOADS_OPEN_ITEM": "Открыть выбранную загрузку в библиотеке",
+                "OPEN_PLAYLIST_SWITCHER": "Переключить плейлист"
             }
         },
         "GLOBAL_FAVORITES": {

@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "コマンドパレットの選択を移動",
                 "COMMAND_PALETTE_RUN": "選択中のコマンドパレット項目を実行",
                 "CLOSE_DIALOGS": "ダイアログを閉じる、またはオーバーレイを解除",
-                "DOWNLOADS_OPEN_ITEM": "フォーカス中のダウンロード項目をライブラリで開く"
+                "DOWNLOADS_OPEN_ITEM": "フォーカス中のダウンロード項目をライブラリで開く",
+                "OPEN_PLAYLIST_SWITCHER": "プレイリストを切り替え"
             }
         },
         "GLOBAL_FAVORITES": {

@@ -3,9 +3,14 @@ import {
     RuntimeCapabilitiesService,
     injectTranslationTick,
 } from '@iptvnator/services';
-import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
+import {
+    SourceHealthService,
+    SourceStatusService,
+} from '@iptvnator/portal/shared/data-access';
 import { foldSearchText, sourceHealthType } from '@iptvnator/shared/interfaces';
 import { SourceHealthIndicatorComponent } from '../source-health/source-health-indicator.component';
+import { SourceTileComponent } from '../source-row/source-tile.component';
+import { PlaylistSwitcherOpenService } from './playlist-switcher-open.service';
 import { DatePipe, DOCUMENT } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -34,7 +39,11 @@ import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { DialogService } from '@iptvnator/ui/components';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    PlaylistContextFacade,
+    sourceDisplayName,
+    sourceMetaParts,
+} from '@iptvnator/playlist/shared/util';
 import {
     PlaylistDeleteActionService,
     PortalStatus,
@@ -65,6 +74,7 @@ const DEFAULT_PLAYLIST_TYPE_FILTERS: Record<PlaylistFilterType, boolean> = {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         SourceHealthIndicatorComponent,
+        SourceTileComponent,
         DatePipe,
         FormsModule,
         MatDivider,
@@ -91,6 +101,7 @@ export class PlaylistSwitcherComponent {
     private readonly store = inject(Store);
     private focusSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private readonly languageTick = injectTranslationTick();
+    private readonly statusService = inject(SourceStatusService);
 
     readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly healthInjector = inject(Injector);
@@ -104,20 +115,11 @@ export class PlaylistSwitcherComponent {
     readonly showPlaylistInfo = input(false);
     readonly showAccountInfo = input(false);
     readonly showAddPlaylist = input(false);
-    readonly canRefreshActivePlaylist = input(false);
-    readonly isRefreshingActivePlaylist = input(false);
     readonly playlistSelected = output<string>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
     readonly accountInfoForPlaylistRequested = output<PlaylistMeta>();
     readonly addPlaylistRequested = output<void>();
-    readonly refreshPlaylistRequested = output<void>();
-
-    onRefreshClick(event: Event): void {
-        event.stopPropagation();
-        event.preventDefault();
-        this.refreshPlaylistRequested.emit();
-    }
 
     readonly menuTrigger = viewChild.required<MatMenuTrigger>('menuTrigger');
     readonly playlistMenu = viewChild.required<MatMenu>('playlistMenu');
@@ -158,20 +160,41 @@ export class PlaylistSwitcherComponent {
                 new Date(a.importDate ?? 0).getTime()
         );
     });
+    /** The active source's name; never its URL or a credential. */
     readonly displayTitle = computed(() => {
         this.languageTick();
         if (!this.activePlaylistId()) {
             return this.translate.instant('HOME.PLAYLISTS.SELECT_PLAYLIST');
         }
-
+        const active = this.activePlaylist();
         return (
-            this.currentTitle() ||
-            this.activePlaylist()?.title ||
-            this.activePlaylist()?.filename ||
-            this.activePlaylist()?.url ||
-            this.activePlaylist()?.portalUrl ||
+            (active ? sourceDisplayName(active) : this.currentTitle()) ||
             this.translate.instant('HOME.PLAYLISTS.UNTITLED_PLAYLIST')
         );
+    });
+    /** "Stalker", "M3U · 3,220 channels", or the header's source count. */
+    readonly triggerSubtitle = computed(() => {
+        this.languageTick();
+        const active = this.activePlaylist();
+        if (!active) {
+            return this.subtitle();
+        }
+        return sourceMetaParts(
+            active,
+            {
+                translate: (key, params) => this.translate.instant(key, params),
+                locale: this.currentLocale(),
+                now: Date.now(),
+            },
+            true
+        )
+            .filter((part) => part.kind === 'type' || part.kind === 'channels')
+            .map((part) => part.text)
+            .join(' · ');
+    });
+    readonly activeStatus = computed(() => {
+        const active = this.activePlaylist();
+        return active ? this.statusService.statusOf(active) : null;
     });
 
     readonly availablePlaylistTypes = computed(() => {
@@ -210,11 +233,23 @@ export class PlaylistSwitcherComponent {
     });
 
     constructor() {
+        const openService = inject(PlaylistSwitcherOpenService);
+        const unregister = openService.register();
+        const requests = openService.openRequests.subscribe(() => this.open());
+        this.destroyRef.onDestroy(() => {
+            unregister();
+            requests.unsubscribe();
+        });
         this.destroyRef.onDestroy(() => {
             this.clearMenuOverlayWidth();
             this.clearSearchFocusTimeout();
             this.cancelPortalStatusChecks();
         });
+    }
+
+    /** Opens the switcher (⌘P / Ctrl+P). */
+    open(): void {
+        this.menuTrigger().openMenu();
     }
 
     onMenuOpened(): void {

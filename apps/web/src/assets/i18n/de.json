@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Auswahl in der Befehlspalette verschieben",
                 "COMMAND_PALETTE_RUN": "Ausgewählten Eintrag der Befehlspalette ausführen",
                 "CLOSE_DIALOGS": "Dialog schließen oder Overlay ausblenden",
-                "DOWNLOADS_OPEN_ITEM": "Fokussierten Download-Eintrag in der Bibliothek öffnen"
+                "DOWNLOADS_OPEN_ITEM": "Fokussierten Download-Eintrag in der Bibliothek öffnen",
+                "OPEN_PLAYLIST_SWITCHER": "Playlist wechseln"
             }
         },
         "GLOBAL_FAVORITES": {

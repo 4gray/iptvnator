@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "移動命令面板選取項",
                 "COMMAND_PALETTE_RUN": "執行選取的命令面板項目",
                 "CLOSE_DIALOGS": "關閉對話框或取消覆蓋層",
-                "DOWNLOADS_OPEN_ITEM": "在媒體庫中開啟聚焦的下載項目"
+                "DOWNLOADS_OPEN_ITEM": "在媒體庫中開啟聚焦的下載項目",
+                "OPEN_PLAYLIST_SWITCHER": "切換播放清單"
             }
         },
         "GLOBAL_FAVORITES": {

@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Przenieś zaznaczenie w palecie poleceń",
                 "COMMAND_PALETTE_RUN": "Uruchom zaznaczoną pozycję palety poleceń",
                 "CLOSE_DIALOGS": "Zamknij okno dialogowe lub ukryj nakładkę",
-                "DOWNLOADS_OPEN_ITEM": "Otwórz aktywne pobranie w bibliotece"
+                "DOWNLOADS_OPEN_ITEM": "Otwórz aktywne pobranie w bibliotece",
+                "OPEN_PLAYLIST_SWITCHER": "Przełącz playlistę"
             }
         },
         "GLOBAL_FAVORITES": {

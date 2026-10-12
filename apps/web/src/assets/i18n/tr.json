@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Komut paleti seçimini taşı",
                 "COMMAND_PALETTE_RUN": "Seçili komut paleti öğesini çalıştır",
                 "CLOSE_DIALOGS": "İletişim kutusunu kapat veya katmanı gizle",
-                "DOWNLOADS_OPEN_ITEM": "Odaktaki indirme öğesini kitaplıkta aç"
+                "DOWNLOADS_OPEN_ITEM": "Odaktaki indirme öğesini kitaplıkta aç",
+                "OPEN_PLAYLIST_SWITCHER": "Oynatma listesini değiştir"
             }
         },
         "GLOBAL_FAVORITES": {

@@ -63,8 +63,6 @@ export class WorkspaceShellHeaderComponent {
     readonly headerSidebarToggle = input<WorkspaceHeaderSidebarToggle | null>(
         null
     );
-    readonly canRefreshPlaylist = input(false);
-    readonly isRefreshingPlaylist = input(false);
     readonly isElectron = input(false);
     readonly hasNoPlaylists = input(false);
     readonly isDownloadsView = input(false);
@@ -144,7 +142,6 @@ export class WorkspaceShellHeaderComponent {
     readonly headerShortcutRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
-    readonly refreshPlaylistRequested = output<void>();
     readonly downloadsRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
@@ -229,10 +226,6 @@ export class WorkspaceShellHeaderComponent {
 
     onHeaderSidebarToggleRequested(): void {
         this.headerSidebarToggleRequested.emit();
-    }
-
-    onRefreshPlaylistRequested(): void {
-        this.refreshPlaylistRequested.emit();
     }
 
     onDownloadsRequested(): void {

@@ -62,15 +62,12 @@
             [showPlaylistInfo]="canOpenPlaylistInfo()"
             [showAccountInfo]="canOpenAccountInfo()"
             [showAddPlaylist]="true"
-            [canRefreshActivePlaylist]="canRefreshPlaylist()"
-            [isRefreshingActivePlaylist]="isRefreshingPlaylist()"
             (playlistInfoRequested)="onPlaylistInfoRequested()"
             (accountInfoRequested)="onAccountInfoRequested()"
             (accountInfoForPlaylistRequested)="
                 onAccountInfoForPlaylistRequested($event)
             "
             (addPlaylistRequested)="onAddPlaylistRequested()"
-            (refreshPlaylistRequested)="onRefreshPlaylistRequested()"
         />
     }
 

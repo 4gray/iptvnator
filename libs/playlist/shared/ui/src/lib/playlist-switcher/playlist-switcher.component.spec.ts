@@ -21,6 +21,7 @@ import {
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { PlaylistSwitcherComponent } from './playlist-switcher.component';
+import { PlaylistSwitcherOpenService } from './playlist-switcher-open.service';
 
 const SEARCH_QUERY_STORAGE_KEY = 'playlist-switcher:search-query';
 const PLAYLIST_TYPE_FILTER_STORAGE_KEY = 'playlist-switcher:type-filters';
@@ -446,5 +447,44 @@ describe('PlaylistSwitcherComponent', () => {
                 playlistId: xtreamPlaylist._id,
             })
         );
+    });
+
+    it('names the active source by its host, never by a credential-bearing URL', async () => {
+        const urlNamed = createPlaylist({
+            _id: 'url-named',
+            count: 3220,
+            title: 'get.php?username=joe&password=hunter2&type=m3u_plus',
+            url: 'http://biggie.test:8080/get.php?username=joe&password=hunter2&type=m3u_plus',
+        });
+        resolvedPlaylistIdSignal.set(urlNamed._id);
+        activePlaylistSignal.set(urlNamed);
+        await createComponent();
+
+        const trigger = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-test-id="playlist-switcher-trigger"]'
+        ) as HTMLElement;
+        expect(trigger.querySelector('.name')?.textContent?.trim()).toBe(
+            'biggie.test:8080'
+        );
+        expect(trigger.querySelector('.channels-count')?.textContent).toContain(
+            'M3U · HOME.PLAYLISTS.CHANNELS_COUNT'
+        );
+        expect(trigger.textContent).not.toMatch(/hunter2|password=/);
+        expect(trigger.getAttribute('aria-keyshortcuts')).toBe(
+            'Meta+P Control+P'
+        );
+    });
+
+    it('opens on a ⌘P / Ctrl+P request while it is on screen', async () => {
+        await createComponent();
+        const switcherOpen = TestBed.inject(PlaylistSwitcherOpenService);
+        expect(switcherOpen.available).toBe(true);
+
+        switcherOpen.request();
+        fixture.detectChanges();
+        expect(component.isMenuOpen()).toBe(true);
+
+        fixture.destroy();
+        expect(switcherOpen.available).toBe(false);
     });
 });

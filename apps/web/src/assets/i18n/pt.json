@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Mover seleção da paleta de comandos",
                 "COMMAND_PALETTE_RUN": "Executar item selecionado da paleta de comandos",
                 "CLOSE_DIALOGS": "Fechar diálogo ou dispensar sobreposição",
-                "DOWNLOADS_OPEN_ITEM": "Abrir o download em foco na biblioteca"
+                "DOWNLOADS_OPEN_ITEM": "Abrir o download em foco na biblioteca",
+                "OPEN_PLAYLIST_SWITCHER": "Mudar de lista"
             }
         },
         "GLOBAL_FAVORITES": {

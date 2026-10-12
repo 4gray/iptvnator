@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "نقل تحديد لوحة الأوامر",
                 "COMMAND_PALETTE_RUN": "تشغيل عنصر لوحة الأوامر المحدد",
                 "CLOSE_DIALOGS": "إغلاق مربع الحوار أو إخفاء التراكب",
-                "DOWNLOADS_OPEN_ITEM": "فتح عنصر التنزيل المحدد في المكتبة"
+                "DOWNLOADS_OPEN_ITEM": "فتح عنصر التنزيل المحدد في المكتبة",
+                "OPEN_PLAYLIST_SWITCHER": "تبديل قائمة التشغيل"
             }
         },
         "GLOBAL_FAVORITES": {

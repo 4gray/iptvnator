@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Μετακίνηση επιλογής παλέτας εντολών",
                 "COMMAND_PALETTE_RUN": "Εκτέλεση επιλεγμένου στοιχείου παλέτας εντολών",
                 "CLOSE_DIALOGS": "Κλείσιμο διαλόγου ή απόκρυψη overlay",
-                "DOWNLOADS_OPEN_ITEM": "Άνοιγμα εστιασμένου στοιχείου λήψης στη βιβλιοθήκη"
+                "DOWNLOADS_OPEN_ITEM": "Άνοιγμα εστιασμένου στοιχείου λήψης στη βιβλιοθήκη",
+                "OPEN_PLAYLIST_SWITCHER": "Εναλλαγή λίστας"
             }
         },
         "GLOBAL_FAVORITES": {

@@ -1996,7 +1996,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Déplacer la sélection dans la palette de commandes",
                 "COMMAND_PALETTE_RUN": "Exécuter l’élément sélectionné dans la palette de commandes",
                 "CLOSE_DIALOGS": "Fermer une boîte de dialogue ou masquer une superposition",
-                "DOWNLOADS_OPEN_ITEM": "Ouvrir l’élément de téléchargement ciblé dans la bibliothèque"
+                "DOWNLOADS_OPEN_ITEM": "Ouvrir l’élément de téléchargement ciblé dans la bibliothèque",
+                "OPEN_PLAYLIST_SWITCHER": "Changer de playlist"
             }
         },
         "GLOBAL_FAVORITES": {
