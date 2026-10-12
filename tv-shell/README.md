@@ -76,8 +76,10 @@ unless you untick `prerelease`: keep it on in the IPTVnator repository itself,
 where a Latest release without the desktop updater's files would break
 auto-update; a fork publishing for its own users can untick it. It builds the PWA
 (`pnpm nx build web --configuration=pwa`, as the Docker image does), checks the
-parser fixtures against the installed parser, runs the backend tests, assembles
-the release APK and uploads `iptvnator-tv-shell-0.1.0-<sha>.apk`.
+parser fixtures against the installed parser, drives that PWA with the two
+remote-control suites in Chromium (screenshots are uploaded when one fails),
+runs the backend tests, assembles the release APK and uploads
+`iptvnator-tv-shell-0.1.0-<sha>.apk`.
 
 Signing: without secrets the APK is signed with the **versioned debug key**
 (`android/app/debug.keystore`, password `android`), which is conventional, not
@@ -160,7 +162,7 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 # reference backend in Node + mock provider (Xtream user/pass, M3U) serving a built PWA
 WWW=/path/to/dist/apps/web tv-shell/devserver/run-dev.sh        # http://127.0.0.1:43330
 # in a browser: F9 = Back, F10 = Menu, F8 = Play/Pause, F7 = external player
-# remote-control tests (Playwright) against the dev server
+# remote-control tests (Playwright, also run by the workflow) against the dev server
 node tv-shell/tests/tv-remote.mjs ; node tv-shell/tests/tv-longlist.mjs
 # the real Java backend on the JDK, without Android (same classes as the APK)
 cd tv-shell/android && ./gradlew :backend:check

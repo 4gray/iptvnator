@@ -7,7 +7,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require('@playwright/test');
-const SHOTS = join(dirname(fileURLToPath(import.meta.url)), 'shots');
+const args = process.argv.slice(2);
+const opt = (name, def) => {
+    const i = args.indexOf(name);
+    return i === -1 ? def : args[i + 1];
+};
+const SHOTS = opt('--shots', join(dirname(fileURLToPath(import.meta.url)), 'shots'));
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -121,6 +126,15 @@ if (playable) {
     await page.evaluate(() => window.__tvShell.back());
     await page.waitForTimeout(400);
     check(await page.evaluate(() => !document.fullscreenElement), 'Back leaves fullscreen');
+    // Back with the focus parked on the picture (not fullscreen) must leave the
+    // video: it used to re-select the same video, so Back never reached the page.
+    f = await reach(/^video/, ['ArrowRight', 'ArrowUp'], 8);
+    if (/^video/.test(f || '')) {
+        await page.evaluate(() => window.__tvShell.back());
+        await page.waitForTimeout(300);
+        const after = await focused();
+        check(!!after && !/^video/.test(after), 'Back on the focused picture moves the focus off the video: ' + after);
+    }
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;

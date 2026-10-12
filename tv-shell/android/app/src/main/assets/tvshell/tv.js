@@ -391,9 +391,9 @@
         return false;
     }
 
-    function focusFirst(scope) {
+    function focusFirst(scope, exclude) {
         scope = scope || navigationScope();
-        var list = candidates(scope, null);
+        var list = candidates(scope, exclude || null);
         if (!list.length) return false;
         // Prefer whatever is closest to where focus last was, else top-left.
         var origin = lastRect || { left: 0, top: 0, right: 0, bottom: 0 };
@@ -631,12 +631,13 @@
             document.exitFullscreen().catch(function () { /* ignore */ });
             return true;
         }
-        // Focus parked on the video: leave "player mode" first.
+        // Focus parked on the video: leave "player mode" first. The video is
+        // itself a candidate, so it is excluded here; with nothing else to land
+        // on (a bare player page) Back falls through to the page-level Back.
         if (active && (active.tagName === 'VIDEO' || active.tagName === 'AUDIO')) {
             active.blur();
             lastRect = rectOf(active);
-            focusFirst();
-            return true;
+            if (focusFirst(null, active)) return true;
         }
         // The app's own page-level Back lives in the workspace header. Match it by its
         // stable hooks (component class and the test id upstream relies on), not by the
@@ -783,13 +784,27 @@
 
     function installNetworkTracking() {
         var open = XMLHttpRequest.prototype.open;
+        var send = XMLHttpRequest.prototype.send;
         XMLHttpRequest.prototype.open = function (method, url) {
             try {
-                if (String(method).toUpperCase() === 'GET') noteMediaUrl(String(url));
+                this.__tvGetUrl = String(method).toUpperCase() === 'GET' ? String(url) : null;
             } catch (e) {
                 /* ignore */
             }
             return open.apply(this, arguments);
+        };
+        // The URL is noted at send(), once the response type is known: HLS/DASH
+        // engines (hls.js, video.js VHS) request playlists as text and media
+        // segments as arraybuffer, and a segment is not "the stream" an external
+        // player should get. (mpegts.js streams raw TS through fetch, below.)
+        XMLHttpRequest.prototype.send = function () {
+            try {
+                var url = this.__tvGetUrl;
+                if (url && this.responseType !== 'arraybuffer' && this.responseType !== 'blob') noteMediaUrl(url);
+            } catch (e) {
+                /* ignore */
+            }
+            return send.apply(this, arguments);
         };
         if (window.fetch) {
             var fetchFn = window.fetch;

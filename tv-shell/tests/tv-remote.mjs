@@ -190,6 +190,24 @@ if (consoleErrors.length) {
     console.log('console errors (' + consoleErrors.length + '):');
     for (const e of consoleErrors.slice(0, 10)) console.log('  - ' + e.slice(0, 200));
 }
+console.log('8. the stream handed to an external player is the playlist, never a fetched segment');
+{
+    // Same request pattern as hls.js / VHS: playlist as text, segments as arraybuffer.
+    // The requests themselves may fail (CORS): the tracking happens at send().
+    const tracked = await page.evaluate((provider) => {
+        const get = (url, responseType) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', url);
+            if (responseType) xhr.responseType = responseType;
+            try { xhr.send(); } catch (e) { /* ignore */ }
+        };
+        get(provider + '/live/user/pass/7.m3u8');
+        get(provider + '/hls/user/pass/7_000001.ts', 'arraybuffer');
+        get(provider + '/hls/user/pass/7_000002.ts', 'arraybuffer');
+        return window.__tvShell.state().lastMediaUrl;
+    }, PROVIDER);
+    check(tracked === PROVIDER + '/live/user/pass/7.m3u8', 'segments fetched after the playlist do not replace it: ' + tracked);
+}
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();
