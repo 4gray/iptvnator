@@ -325,7 +325,7 @@ describe('ServerUserDataStorage', () => {
         );
     });
 
-    it('sends only the edited entry before the first read finished', () => {
+    it('applies an edit made before the first read to the server value', async () => {
         const { api, local, storage } = setup();
         // The cache from the last visit; no read from the server yet.
         local.setItem(
@@ -337,17 +337,51 @@ describe('ServerUserDataStorage', () => {
             'xtream-favorites',
             JSON.stringify({ p1: ['a', 'c'], p2: ['b'] })
         );
-        void storage.flush();
+        await storage.flush();
+        expect(api.sendJson).not.toHaveBeenCalled();
 
-        return settle().then(() => {
-            expect(api.sendJson.mock.calls).toEqual([
-                [
-                    'PUT',
-                    '/user-state/xtream-favorites/p1',
-                    { value: ['a', 'c'] },
-                ],
-            ]);
+        // Meanwhile another device added 'live:1' and 'z'.
+        api.getJson.mockResolvedValueOnce({
+            entries: {
+                'xtream-favorites': { p1: ['live:1', 'a'], p2: ['b', 'z'] },
+            },
         });
+        await storage.hydrate();
+        await storage.flush();
+
+        expect(api.sendJson.mock.calls).toEqual([
+            [
+                'PUT',
+                '/user-state/xtream-favorites/p1',
+                { value: ['live:1', 'a', 'c'] },
+            ],
+        ]);
+        expect(JSON.parse(storage.getItem('xtream-favorites') ?? '')).toEqual({
+            p1: ['live:1', 'a', 'c'],
+            p2: ['b', 'z'],
+        });
+    });
+
+    it('keeps the server favorites when a new device adds one early', async () => {
+        const { api, storage } = setup();
+        let answer: (value: unknown) => void = () => undefined;
+        api.getJson.mockReturnValueOnce(
+            new Promise((resolve) => (answer = resolve))
+        );
+
+        const firstRead = storage.hydrate();
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['live:9'] }));
+        answer({
+            entries: { 'xtream-favorites': { p1: ['live:1', 'live:2'] } },
+        });
+        await firstRead;
+        await storage.flush();
+
+        expect(api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['live:1', 'live:2', 'live:9'] }
+        );
     });
 
     it('never retries an older page-hide write over a newer one', async () => {
@@ -505,5 +539,34 @@ describe('ServerUserDataStorage', () => {
             false
         );
         expect(local.values.get('iptvnator-server:cache-owner')).toBe('new-db');
+    });
+
+    it('keeps a newer travelling write when an older one is answered', async () => {
+        const { api, local, storage } = setup();
+        await storage.hydrate();
+        let answerOlder: () => void = () => undefined;
+        api.sendJson.mockReturnValueOnce(
+            new Promise<void>((resolve) => (answerOlder = resolve))
+        );
+        api.sendKeepalive.mockReturnValueOnce(new Promise(() => undefined));
+
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['old'] }));
+        const older = storage.flush();
+        await settle();
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['new'] }));
+        storage.flushWithKeepalive();
+        answerOlder();
+        await older;
+        await settle();
+
+        expect(storage.hasUnsentWrites()).toBe(true);
+        expect(
+            JSON.parse(
+                local.values.get('iptvnator-server:unsent-writes:default') ??
+                    '[]'
+            )
+        ).toEqual([
+            { namespace: 'xtream-favorites', playlistId: 'p1', value: ['new'] },
+        ]);
     });
 });

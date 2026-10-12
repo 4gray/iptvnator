@@ -13,8 +13,10 @@ import {
     type PendingEntry,
     splitEditKey,
 } from './server-user-data-entries';
+import { type DeferredEdit, refreshedNamespace } from './server-user-data-edit';
 import {
     claimCache,
+    newestWrites,
     readUnsentWrites,
     saveUnsentWrites,
 } from './server-unsent-writes';
@@ -47,6 +49,13 @@ export class ServerUserDataStorage implements UserDataStorage {
     /** Writes still travelling (normal or page-hide), by entry key. */
     private readonly inFlight = new Map<string, PendingEntry>();
     private unsentSaved = false;
+    /**
+     * Edits made before the first successful read, as before → after: the
+     * cache they were made against may be empty or old, so they are
+     * applied to the server's value once it is known (`applyEdit`).
+     */
+    private readonly deferred = new Map<string, DeferredEdit>();
+    private hydrated = false;
     /** Re-reads run one at a time, so an older one never lands last. */
     private hydration: Promise<void> = Promise.resolve();
     /** Edit counter per `namespace|playlistId`, for hydrate to keep them. */
@@ -71,7 +80,11 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     /** Whether a write is queued, being retried, or still travelling. */
     hasUnsentWrites(): boolean {
-        return this.pending.size > 0 || this.inFlight.size > 0;
+        return (
+            this.pending.size > 0 ||
+            this.inFlight.size > 0 ||
+            this.deferred.size > 0
+        );
     }
 
     getItem(key: string): string | null {
@@ -120,33 +133,32 @@ export class ServerUserDataStorage implements UserDataStorage {
         await this.flush();
         const { entries } =
             await this.api.getJson<ServerUserStateResponse>('/user-state');
-        for (const namespace of SERVER_USER_STATE_NAMESPACES) {
-            const value: Record<string, unknown> = {
-                ...(entries[namespace] ?? {}),
-            };
-            const current = parseMap(
-                this.local.getItem(SERVER_CACHE_PREFIX + namespace) ?? '{}'
-            );
-            const unsaved = new Set([
-                ...this.pending.keys(),
-                ...this.inFlight.keys(),
-            ]);
-            for (const [key, edit] of this.edits) {
-                if (edit > editsBefore) {
-                    unsaved.add(key);
-                }
+        const unsaved = new Set([
+            ...this.pending.keys(),
+            ...this.inFlight.keys(),
+        ]);
+        for (const [key, edit] of this.edits) {
+            if (edit > editsBefore) {
+                unsaved.add(key);
             }
+        }
+        const deferred = [...this.deferred.values()];
+        for (const namespace of SERVER_USER_STATE_NAMESPACES) {
+            const keepCached = new Set<string>();
             for (const key of unsaved) {
                 const [editedNamespace, playlistId] = splitEditKey(key);
-                if (editedNamespace !== namespace) {
-                    continue;
-                }
-                if (playlistId in current) {
-                    value[playlistId] = current[playlistId];
-                } else {
-                    delete value[playlistId];
+                if (editedNamespace === namespace) {
+                    keepCached.add(playlistId);
                 }
             }
+            const value = refreshedNamespace(
+                entries[namespace] ?? {},
+                parseMap(
+                    this.local.getItem(SERVER_CACHE_PREFIX + namespace) ?? '{}'
+                ),
+                keepCached,
+                deferred.filter((edit) => edit.namespace === namespace)
+            );
             try {
                 this.local.setItem(
                     SERVER_CACHE_PREFIX + namespace,
@@ -167,6 +179,19 @@ export class ServerUserDataStorage implements UserDataStorage {
             ) {
                 this.edits.delete(key);
             }
+        }
+        if (!this.hydrated) {
+            // From here edits go straight to the queue.
+            this.hydrated = true;
+            this.deferred.clear();
+            for (const edit of deferred) {
+                this.queue(
+                    edit.namespace,
+                    edit.playlistId,
+                    this.synced.get(edit.namespace)?.[edit.playlistId]
+                );
+            }
+            this.scheduleFlush();
         }
     }
 
@@ -253,16 +278,29 @@ export class ServerUserDataStorage implements UserDataStorage {
         next: Record<string, unknown>,
         previous: Record<string, unknown>
     ): void {
+        const change = (playlistId: string, value: unknown) => {
+            if (this.hydrated) {
+                this.queue(namespace, playlistId, value);
+                return;
+            }
+            const key = `${namespace}|${playlistId}`;
+            this.deferred.set(key, {
+                namespace,
+                playlistId,
+                before: this.deferred.get(key)?.before ?? previous[playlistId],
+                after: value,
+            });
+        };
         for (const [playlistId, value] of Object.entries(next)) {
             if (
                 JSON.stringify(previous[playlistId]) !== JSON.stringify(value)
             ) {
-                this.queue(namespace, playlistId, value);
+                change(playlistId, value);
             }
         }
         for (const playlistId of Object.keys(previous)) {
             if (!(playlistId in next)) {
-                this.queue(namespace, playlistId, undefined);
+                change(playlistId, undefined);
             }
         }
         this.synced.set(namespace, next);
@@ -320,7 +358,7 @@ export class ServerUserDataStorage implements UserDataStorage {
         const ok = await (entry.value === undefined
             ? this.api.sendKeepalive('DELETE', path)
             : this.api.sendKeepalive('PUT', path, { value: entry.value }));
-        this.inFlight.delete(entryKey(entry));
+        this.retireInFlight(entry);
         if (!ok) {
             this.requeue(entry);
         }
@@ -336,19 +374,31 @@ export class ServerUserDataStorage implements UserDataStorage {
                     value: entry.value,
                 });
             }
-            this.inFlight.delete(entryKey(entry));
+            this.retireInFlight(entry);
             this.saveUnsent();
         } catch (error) {
-            this.inFlight.delete(entryKey(entry));
+            this.retireInFlight(entry);
             this.requeue(entry);
             this.saveUnsent();
             this.onWriteFailure(error);
         }
     }
 
+    /** A newer write of the same entry may have replaced it meanwhile. */
+    private retireInFlight(entry: PendingEntry): void {
+        const key = entryKey(entry);
+        if (this.inFlight.get(key)?.edit === entry.edit) {
+            this.inFlight.delete(key);
+        }
+    }
+
     /** Persists what the server has not confirmed; skips idle rewrites. */
     private saveUnsent(): void {
-        const writes = [...this.pending.values(), ...this.inFlight.values()];
+        // A newer edit can be queued while an older one is still travelling.
+        const writes = newestWrites([
+            ...this.inFlight.values(),
+            ...this.pending.values(),
+        ]);
         if (writes.length === 0 && !this.unsentSaved) {
             return;
         }

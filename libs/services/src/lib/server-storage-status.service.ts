@@ -41,7 +41,8 @@ export class ServerStorageStatusService {
     }
 
     reportOffline(): void {
-        if (this.isActive()) {
+        // A late failure after sign-out must not unlock the workspace.
+        if (this.isActive() && this.stateSignal() !== 'unauthorized') {
             this.stateSignal.set('offline');
         }
     }

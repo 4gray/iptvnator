@@ -1,0 +1,116 @@
+import type { ServerUserStateNamespace } from '@iptvnator/shared/interfaces';
+import { itemKey } from './server-migration-merge';
+
+/** An edit made before the first read, applied once the server's value is known. */
+export interface DeferredEdit {
+    readonly namespace: ServerUserStateNamespace;
+    readonly playlistId: string;
+    readonly before: unknown;
+    readonly after: unknown;
+}
+
+/**
+ * One namespace's cache after a read: the server's map, except entries the
+ * server does not have yet (`keepCached`, from the cache) and edits made
+ * before the first read (applied to the server's value).
+ */
+export function refreshedNamespace(
+    server: Readonly<Record<string, unknown>>,
+    cached: Readonly<Record<string, unknown>>,
+    keepCached: ReadonlySet<string>,
+    deferred: readonly DeferredEdit[]
+): Record<string, unknown> {
+    const value: Record<string, unknown> = { ...server };
+    for (const playlistId of keepCached) {
+        if (playlistId in cached) {
+            value[playlistId] = cached[playlistId];
+        } else {
+            delete value[playlistId];
+        }
+    }
+    for (const edit of deferred) {
+        const merged = applyEdit(
+            server[edit.playlistId],
+            edit.before,
+            edit.after
+        );
+        if (merged === undefined) {
+            delete value[edit.playlistId];
+        } else {
+            value[edit.playlistId] = merged;
+        }
+    }
+    return value;
+}
+
+/**
+ * Applies one local edit (`before` → `after`, as the user made it against
+ * an older or empty cache) to the server's current value: list items the
+ * edit added or changed are set, items it removed are dropped, everything
+ * else the server has stays. Maps work the same by key.
+ */
+export function applyEdit(
+    server: unknown,
+    before: unknown,
+    after: unknown
+): unknown {
+    if (after === undefined) {
+        return undefined;
+    }
+    if (
+        Array.isArray(after) &&
+        isListOrMissing(server) &&
+        isListOrMissing(before)
+    ) {
+        const was = new Map(
+            (before ?? []).map((item) => [itemKey(item), item])
+        );
+        const now = new Map(after.map((item) => [itemKey(item), item]));
+        const result = (server ?? []).filter((item) => {
+            const key = itemKey(item);
+            return !(was.has(key) && !now.has(key));
+        });
+        for (const [key, item] of now) {
+            if (JSON.stringify(was.get(key)) === JSON.stringify(item)) {
+                // Untouched by the edit: the server's state of it wins.
+                continue;
+            }
+            const index = result.findIndex((entry) => itemKey(entry) === key);
+            if (index < 0) {
+                result.push(item);
+            } else {
+                result[index] = item;
+            }
+        }
+        return result;
+    }
+    if (isMap(after) && isMapOrMissing(server) && isMapOrMissing(before)) {
+        const result: Record<string, unknown> = { ...(server ?? {}) };
+        for (const key of Object.keys(before ?? {})) {
+            if (!(key in after)) {
+                delete result[key];
+            }
+        }
+        for (const [key, value] of Object.entries(after)) {
+            if (JSON.stringify((before ?? {})[key]) !== JSON.stringify(value)) {
+                result[key] = value;
+            }
+        }
+        return result;
+    }
+    return after;
+}
+
+function isMap(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isMapOrMissing(
+    value: unknown
+): value is Record<string, unknown> | undefined {
+    return value === undefined || isMap(value);
+}
+
+function isListOrMissing(value: unknown): value is unknown[] | undefined {
+    return value === undefined || Array.isArray(value);
+}

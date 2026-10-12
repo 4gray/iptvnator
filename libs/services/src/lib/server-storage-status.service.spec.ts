@@ -43,8 +43,9 @@ describe('ServerStorageStatusService', () => {
         status.reportUnauthorized();
         expect(status.state()).toBe('unauthorized');
 
-        // A late answer to a request sent with the old token.
+        // Late answers to requests sent with the old token.
         status.reportSuccess();
+        status.reportOffline();
         expect(status.state()).toBe('unauthorized');
     });
 });

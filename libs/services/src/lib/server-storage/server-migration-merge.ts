@@ -45,7 +45,7 @@ export function unionItems<T>(...lists: readonly (readonly T[])[]): T[] {
  * Content ids or URLs identify favorites and history entries; a playback
  * position is identified by its content type and Xtream id.
  */
-function itemKey(item: unknown): string {
+export function itemKey(item: unknown): string {
     if (!isPlainObject(item)) {
         return `value:${JSON.stringify(item)}`;
     }

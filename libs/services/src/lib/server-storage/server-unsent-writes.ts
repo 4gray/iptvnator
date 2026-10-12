@@ -104,3 +104,18 @@ export function saveUnsentWrites(
         // Storage unavailable or full: the queue stays in memory only.
     }
 }
+
+/** One write per entry, the newest by edit number. */
+export function newestWrites<T extends UnsentWrite & { readonly edit: number }>(
+    writes: readonly T[]
+): T[] {
+    const newest = new Map<string, T>();
+    for (const write of writes) {
+        const key = `${write.namespace}|${write.playlistId}`;
+        const known = newest.get(key);
+        if (!known || write.edit > known.edit) {
+            newest.set(key, write);
+        }
+    }
+    return [...newest.values()];
+}

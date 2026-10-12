@@ -209,8 +209,10 @@ settings and guards read them in every build.
   re-reads run one at a time and keep entries edited while they were in
   flight or not yet saved. A re-read whose result does not fit the cache
   keeps the old cache and baseline together. A response body cut off after
-  its headers counts as offline. Before the first read finishes, an edit is
-  compared with the cache, so it sends only its own entry. A re-read
+  its headers counts as offline. Edits made before the first successful read
+  are held as before → after and applied to the server's value once it
+  arrives (`applyEdit`): a new device or a stale cache adds its favorite
+  instead of replacing the server's list. A re-read
   updates the cache; views already open show another device's changes on
   their next load (no live push). Start-up waits
   up to 3 s for the first read.
