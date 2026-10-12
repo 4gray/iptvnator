@@ -54,6 +54,9 @@ class MockXtreamStore {
     readonly searchFilters = signal(DEFAULT_SEARCH_FILTERS);
     readonly searchResults = signal<XtreamContentItem[]>([]);
     readonly isSearching = signal(false);
+    readonly isLoadingContent = signal(false);
+    readonly isLoadingCategories = signal(false);
+    readonly isImporting = signal(false);
 
     setSearchTerm = jest.fn((term: string) => {
         this.searchTerm.set(term);
@@ -621,5 +624,61 @@ describe('SearchResultsComponent search trigger', () => {
         expect(store.searchResults().map((item) => item.title)).toEqual([
             'System',
         ]);
+    });
+});
+
+describe('SearchResultsComponent in-portal search and catalog loading', () => {
+    beforeEach(() => {
+        TestBed.configureTestingModule({
+            providers: [
+                { provide: XtreamStore, useClass: MockXtreamStore },
+                { provide: Router, useValue: { navigate: jest.fn() } },
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        snapshot: {
+                            data: {},
+                            queryParamMap: convertToParamMap({ q: 'matrix' }),
+                        },
+                        queryParamMap: of(convertToParamMap({ q: 'matrix' })),
+                    },
+                },
+                {
+                    provide: DatabaseService,
+                    useValue: {
+                        globalSearchContent: jest.fn().mockResolvedValue([]),
+                    },
+                },
+            ],
+        });
+    });
+
+    function searchedTerms(store: MockXtreamStore): string[] {
+        return store.searchContent.mock.calls.map(
+            ([params]) => (params as { term: string }).term
+        );
+    }
+
+    it('runs a prefilled search again once the catalog has loaded', () => {
+        // The in-portal search reads the loaded catalog, so a term applied
+        // while it loads would otherwise stay without results.
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        store.isLoadingContent.set(true);
+        TestBed.runInInjectionContext(() => new SearchResultsComponent());
+        TestBed.flushEffects();
+        expect(searchedTerms(store)).toEqual(['matrix']);
+
+        store.isLoadingContent.set(false);
+        TestBed.flushEffects();
+
+        expect(searchedTerms(store)).toEqual(['matrix', 'matrix']);
+    });
+
+    it('searches once when the catalog is already loaded', () => {
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        TestBed.runInInjectionContext(() => new SearchResultsComponent());
+        TestBed.flushEffects();
+
+        expect(searchedTerms(store)).toEqual(['matrix']);
     });
 });

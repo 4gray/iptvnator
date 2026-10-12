@@ -122,6 +122,14 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly isGlobalSearch =
         this.activatedRoute.snapshot.data?.['isGlobalSearch'] === true;
 
+    /** Nothing of the portal's catalog is loading or importing any more. */
+    private readonly isCatalogReady = computed(
+        () =>
+            !this.xtreamStore.isLoadingContent() &&
+            !this.xtreamStore.isLoadingCategories() &&
+            !this.xtreamStore.isImporting()
+    );
+
     /** Whether to group global search results by playlist */
     readonly groupByPlaylist = signal(
         localStorage.getItem(SearchResultsComponent.GROUP_BY_STORAGE_KEY) !==
@@ -260,6 +268,24 @@ export class SearchResultsComponent implements AfterViewInit {
             }
 
             this.xtreamStore.setSearchTerm(queryTerm);
+        });
+
+        // A prefilled in-portal search (a reload or deep link with `q`) can
+        // run while the portal's catalog is still loading, and the in-portal
+        // search reads that catalog: run it again once loading has finished.
+        let wasCatalogReady: boolean | undefined;
+        effect(() => {
+            const ready = this.isCatalogReady();
+            const becameReady = wasCatalogReady === false && ready;
+            wasCatalogReady = ready;
+            if (!becameReady || this.isGlobalSearch) {
+                return;
+            }
+            untracked(() => {
+                if (this.searchTerm().length >= this.minSearchLength) {
+                    this.executeSearch();
+                }
+            });
         });
 
         // No debounce of its own: typed terms arrive already debounced by the
