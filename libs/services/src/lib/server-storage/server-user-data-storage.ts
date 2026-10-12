@@ -12,7 +12,9 @@ import {
     splitEditKey,
     UNKNOWN_TAG,
 } from './server-user-data-entries';
+import { UserDataCache } from './server-user-data-cache';
 import {
+    applyEdit,
     type DeferredEdit,
     refreshedNamespace,
     replaySteps,
@@ -31,8 +33,7 @@ import {
     swapPage,
 } from './server-unsent-writes';
 
-/** Server-mode cache keys; the legacy unprefixed keys are never touched. */
-export const SERVER_CACHE_PREFIX = 'iptvnator-server:';
+export { SERVER_CACHE_PREFIX } from './server-user-data-cache';
 
 type ServerApi = Pick<
     ServerApiClient,
@@ -59,8 +60,16 @@ export class ServerUserDataStorage implements UserDataStorage {
     private hydrated = false;
     /** This page load: names its saved writes and its registry record. */
     private readonly tabId = Math.random().toString(36).slice(2);
-    /** Cache values that did not fit into browser storage. */
-    private readonly overflow = new Map<ServerUserStateNamespace, string>();
+    private readonly cache: UserDataCache;
+    /**
+     * What `getItem` last handed out (or a write left) per namespace: the
+     * map a caller edits, so its write is compared with that, not with
+     * changes another tab or a re-read made to the cache since.
+     */
+    private readonly handedOut = new Map<
+        ServerUserStateNamespace,
+        string | null
+    >();
     /** Re-reads run one at a time, so an older one never lands last. */
     private hydration: Promise<void> = Promise.resolve();
 
@@ -76,10 +85,11 @@ export class ServerUserDataStorage implements UserDataStorage {
          */
         tabStore: UserDataStorage = local
     ) {
+        this.cache = new UserDataCache(local);
         this.writes = new UserDataWriteQueue(api, {
             changed: () => this.saveUnsent(),
             show: (namespace, playlistId, value) =>
-                this.showEntry(namespace, playlistId, value),
+                this.cache.setEntry(namespace, playlistId, value),
             writeFailed: onWriteFailure,
         });
         claimCache(local, instanceId);
@@ -142,10 +152,10 @@ export class ServerUserDataStorage implements UserDataStorage {
             );
             for (const { namespace, playlistId, steps } of edits) {
                 const value = replaySteps(
-                    this.baseline(namespace)[playlistId],
+                    this.cache.map(namespace)[playlistId],
                     steps
                 );
-                this.showEntry(namespace, playlistId, value);
+                this.cache.setEntry(namespace, playlistId, value);
                 // Queued even when the cache shows it already.
                 this.writes.adopt(
                     namespace,
@@ -174,29 +184,52 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     getItem(key: string): string | null {
-        return this.isSynced(key)
-            ? this.readCache(key)
-            : this.local.getItem(key);
+        if (!this.isSynced(key)) {
+            return this.local.getItem(key);
+        }
+        const value = this.cache.read(key);
+        this.handedOut.set(key, value);
+        return value;
     }
 
     setItem(key: string, value: string): void {
-        if (!this.isSynced(key)) {
+        if (this.isSynced(key)) {
+            this.write(key, value);
+        } else {
             this.local.setItem(key, value);
-            return;
         }
-        const before = this.baseline(key);
-        this.writeCache(key, value);
-        this.queueChanges(key, parseMap(value), before);
     }
 
     removeItem(key: string): void {
-        if (!this.isSynced(key)) {
+        if (this.isSynced(key)) {
+            this.write(key, null);
+        } else {
             this.local.removeItem(key);
-            return;
         }
-        const before = this.baseline(key);
-        this.writeCache(key, null);
-        this.queueChanges(key, {}, before);
+    }
+
+    /**
+     * A caller's new map. When the cache changed since the caller read it
+     * (another tab, a re-read), only the entries it changed are applied to
+     * the cache as it is now; the rest stays.
+     */
+    private write(
+        namespace: ServerUserStateNamespace,
+        value: string | null
+    ): void {
+        const current = this.cache.read(namespace);
+        const before = parseMap(current ?? '{}');
+        const read = this.handedOut.has(namespace)
+            ? (this.handedOut.get(namespace) ?? null)
+            : current;
+        let next = parseMap(value ?? '{}');
+        if (read !== current) {
+            next = mergeEdits(before, parseMap(read ?? '{}'), next);
+            value = JSON.stringify(next);
+        }
+        this.cache.write(namespace, value);
+        this.handedOut.set(namespace, value);
+        this.queueChanges(namespace, next, before);
     }
 
     /**
@@ -258,12 +291,12 @@ export class ServerUserDataStorage implements UserDataStorage {
         this.saveDeferred();
         this.writes.drop(matches, playlistId);
         for (const namespace of SERVER_USER_STATE_NAMESPACES) {
-            const map = this.baseline(namespace);
+            const map = this.cache.map(namespace);
             if (playlistId === undefined) {
-                this.writeCache(namespace, null);
+                this.cache.write(namespace, null);
             } else if (playlistId in map) {
                 delete map[playlistId];
-                this.writeCache(namespace, JSON.stringify(map));
+                this.cache.write(namespace, JSON.stringify(map));
             }
         }
     }
@@ -295,14 +328,14 @@ export class ServerUserDataStorage implements UserDataStorage {
             }
             const value = refreshedNamespace(
                 entries[namespace] ?? {},
-                this.baseline(namespace),
+                this.cache.map(namespace),
                 keepCached,
                 deferred.filter((edit) => edit.namespace === namespace)
             );
             refreshed.set(namespace, value);
             // A value too big for browser storage stays readable in memory,
             // so callers and the diff baseline see the same map.
-            this.writeCache(namespace, JSON.stringify(value));
+            this.cache.write(namespace, JSON.stringify(value));
             if (tags) {
                 // A kept value is not what the server's tag describes: its
                 // next write must conflict and be replayed on the server's.
@@ -332,64 +365,8 @@ export class ServerUserDataStorage implements UserDataStorage {
         this.adoptClosedTabs();
     }
 
-    /** Memory first; browser storage that refuses access reads as empty. */
-    private readCache(namespace: ServerUserStateNamespace): string | null {
-        const kept = this.overflow.get(namespace);
-        if (kept !== undefined) {
-            return kept;
-        }
-        try {
-            return this.local.getItem(SERVER_CACHE_PREFIX + namespace);
-        } catch {
-            return null;
-        }
-    }
-
-    /** `null` empties the entry. Browser storage first, memory if full. */
-    private writeCache(
-        namespace: ServerUserStateNamespace,
-        value: string | null
-    ): void {
-        try {
-            if (value === null) {
-                this.local.removeItem(SERVER_CACHE_PREFIX + namespace);
-            } else {
-                this.local.setItem(SERVER_CACHE_PREFIX + namespace, value);
-            }
-            this.overflow.delete(namespace);
-        } catch {
-            this.overflow.set(namespace, value ?? '{}');
-        }
-    }
-
-    /** A conflict replay settled what the entry holds. */
-    private showEntry(
-        namespace: ServerUserStateNamespace,
-        playlistId: string,
-        value: unknown
-    ): void {
-        const map = this.baseline(namespace);
-        if (value === undefined) {
-            delete map[playlistId];
-        } else {
-            map[playlistId] = value;
-        }
-        this.writeCache(namespace, JSON.stringify(map));
-    }
-
     private isSynced(key: string): key is ServerUserStateNamespace {
         return isServerUserStateNamespace(key);
-    }
-
-    /**
-     * What a write is compared against: the map the caller read, so an edit
-     * sends only its own entries, never another tab's changes in the shared
-     * cache.
-     */
-    private baseline(
-        namespace: ServerUserStateNamespace
-    ): Record<string, unknown> {
-        return parseMap(this.readCache(namespace) ?? '{}');
     }
 
     private queueChanges(
@@ -464,4 +441,24 @@ export class ServerUserDataStorage implements UserDataStorage {
             ...this.deferred.keys(),
         ]);
     }
+}
+
+/** The entries `next` changed against `read`, applied to `current`. */
+function mergeEdits(
+    current: Record<string, unknown>,
+    read: Record<string, unknown>,
+    next: Record<string, unknown>
+): Record<string, unknown> {
+    const merged = { ...current };
+    for (const id of new Set([...Object.keys(read), ...Object.keys(next)])) {
+        if (JSON.stringify(read[id]) !== JSON.stringify(next[id])) {
+            const value = applyEdit(current[id], read[id], next[id]);
+            if (value === undefined) {
+                delete merged[id];
+            } else {
+                merged[id] = value;
+            }
+        }
+    }
+    return merged;
 }

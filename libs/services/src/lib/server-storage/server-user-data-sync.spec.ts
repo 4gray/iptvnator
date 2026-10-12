@@ -678,4 +678,43 @@ describe('ServerUserDataStorage with other devices', () => {
             [...(server.state['xtream-favorites']['p1'] as string[])].sort()
         ).toEqual(['S', 'X', 'Y']);
     });
+
+    it('applies only the edits of a caller that read before another tab saved', async () => {
+        const server = fakeServer({
+            'xtream-favorites': { p1: ['a'], p2: ['b'] },
+        });
+        const shared = memoryStorage();
+        const tab = () =>
+            new ServerUserDataStorage(
+                server.api as never,
+                shared,
+                jest.fn(),
+                'default',
+                memoryStorage()
+            );
+        const tabA = tab();
+        const tabB = tab();
+        await tabA.hydrate();
+        await tabB.hydrate();
+
+        const readByA = favorites(tabA);
+        tabB.setItem(
+            'xtream-favorites',
+            JSON.stringify({ ...favorites(tabB), p2: ['b', 'B2'] })
+        );
+        await tabB.flush();
+        // Tab A writes back the map it read before tab B saved.
+        tabA.setItem(
+            'xtream-favorites',
+            JSON.stringify({ ...readByA, p1: ['a', 'A1'] })
+        );
+        await tabA.flush();
+        await tabA.flush();
+
+        expect(server.state['xtream-favorites']).toEqual({
+            p1: ['a', 'A1'],
+            p2: ['b', 'B2'],
+        });
+        expect(favorites(tabA)).toEqual({ p1: ['a', 'A1'], p2: ['b', 'B2'] });
+    });
 });

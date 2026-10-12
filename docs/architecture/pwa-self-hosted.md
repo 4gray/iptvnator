@@ -203,7 +203,9 @@ settings and guards read them in every build.
   the four synced namespaces are cached under the `iptvnator-server:` key
   prefix (the legacy unprefixed keys are never written in server mode) and
   each change sends only the playlist entries that differ, debounced, with a
-  `keepalive` flush when the page hides. Batches go out one after another
+  `keepalive` flush when the page hides. A change is compared with the map
+  the caller read: when the cache changed since (another tab, a re-read),
+  only the entries the caller changed are applied to it. Batches go out one after another
   (the page-hide flush waits for a batch still travelling), a failed write,
   including a refused `keepalive` one, stays queued for the next flush, and
   every unconfirmed write (queued or travelling) is saved in `localStorage`
