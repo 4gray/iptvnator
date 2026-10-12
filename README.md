@@ -147,9 +147,10 @@ such as MPV, VLC, or IINA.
 for Fire TV sticks and Android TV boxes. The web backend is embedded in the APK,
 so nothing has to be hosted; a remote-control layer drives the existing
 interface with the D-pad, and streams the TV's WebView cannot play are handed to
-an installed player such as VLC. The `Build TV shell APK` workflow builds and
-publishes the APK; see [`tv-shell/README.md`](./tv-shell/README.md) for
-installation and the remote-control key map.
+an installed player such as VLC. The `Build TV shell APK` workflow builds the
+APK and can publish it as a GitHub pre-release; see
+[`tv-shell/README.md`](./tv-shell/README.md) for installation, the security
+model and the remote-control key map.
 
 ## Download
 
