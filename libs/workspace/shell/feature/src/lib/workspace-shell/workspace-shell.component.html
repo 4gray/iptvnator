@@ -71,9 +71,13 @@
         (accountInfoForPlaylistRequested)="facade.openAccountInfoFor($event)"
     />
 
+    <!-- The content frame slides to make room for the context panel
+         instead of jumping (see LayoutSlideDirective). -->
     <div
         class="workspace-body"
         [class.single-pane]="!facade.showContextPanel()"
+        [appLayoutSlide]="facade.showContextPanel()"
+        layoutSlideTargets=".workspace-content-frame"
     >
         @if (facade.showContextPanel()) {
             <!-- Phone-only (CSS-hidden above 640px): tapping the scrim is

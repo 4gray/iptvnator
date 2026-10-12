@@ -384,6 +384,13 @@ export class WorkspaceContextPanelComponent {
             (this.isXtreamCategories() && this.xtreamCategories().length > 0) ||
             (this.isStalkerCategories() && this.stalkerCategories().length > 0)
     );
+    /** Search and sort show while the list loads (disabled) or has items. */
+    readonly showCategoryListActions = computed(
+        () =>
+            this.canSearchCategories() ||
+            this.isXtreamCategoryLoading() ||
+            (this.isStalkerCategories() && this.isStalkerCategoryLoading())
+    );
 
     readonly filteredXtreamCategories = computed(() => {
         this.languageTick();
@@ -472,15 +479,17 @@ export class WorkspaceContextPanelComponent {
      * The control the shell sidebar hands focus to once this rail has
      * unfolded (the button the user activated to bring it back is gone by
      * then): the hide chevron when it is offered, else the first header
-     * action. `null` while neither is rendered — categories still loading,
-     * or a failed Stalker load — and the sidebar falls back to the rail
-     * itself.
+     * action. `null` while neither is usable — categories still loading
+     * (the action is rendered but disabled), or a failed Stalker load — and
+     * the sidebar falls back to the rail itself.
      */
     focusTarget(): HTMLElement | null {
+        const firstAction = this.firstHeaderAction()?.nativeElement;
         return (
             this.hideCategoriesButton()?.nativeElement ??
-            this.firstHeaderAction()?.nativeElement ??
-            null
+            (firstAction && !firstAction.hasAttribute('disabled')
+                ? firstAction
+                : null)
         );
     }
 

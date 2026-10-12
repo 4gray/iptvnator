@@ -1,4 +1,10 @@
-<header class="workspace-header" [class.is-settings-route]="isSettingsRoute()">
+<header
+    class="workspace-header"
+    [class.is-settings-route]="isSettingsRoute()"
+    [appLayoutSlide]="leadingNavigationKey()"
+    [layoutSlideRecordOn]="controlsLayoutKey()"
+    layoutSlideTargets=".context-drawer-toggle, .playlist-switcher, .search-field, .header-actions"
+>
     <!-- The page's Back, or browser history while an in-app previous page
          exists, at the leading edge where desktop apps and Material's top
          app bar keep navigation (beside the macOS traffic lights). The

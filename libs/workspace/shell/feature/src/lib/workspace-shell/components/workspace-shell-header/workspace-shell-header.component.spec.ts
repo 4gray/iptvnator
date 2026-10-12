@@ -20,6 +20,7 @@ import {
     WorkspaceBackTarget,
 } from '@iptvnator/portal/shared/util';
 import { WorkspaceShellHeaderComponent } from './workspace-shell-header.component';
+import { LayoutSlideDirective } from '../../layout-slide.directive';
 
 @Component({
     selector: 'app-playlist-switcher',
@@ -67,6 +68,7 @@ describe('WorkspaceShellHeaderComponent', () => {
             .overrideComponent(WorkspaceShellHeaderComponent, {
                 set: {
                     imports: [
+                        LayoutSlideDirective,
                         MatIcon,
                         MatIconButton,
                         MatTooltip,

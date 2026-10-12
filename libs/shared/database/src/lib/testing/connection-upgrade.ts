@@ -71,6 +71,30 @@ function seed(sqlite: Database.Database) {
     }
 }
 
+const titleIndexRebuilds: string[] = [];
+
+/**
+ * Every full rebuild of the title FTS index goes through `prepare`. A profile
+ * needs one; another on a later launch re-indexes the whole catalog on the
+ * main thread before the app can read anything.
+ */
+function countTitleIndexRebuilds(connection: Database.Database): void {
+    const prepare = connection.prepare;
+    connection.prepare = function countingPrepare(
+        this: Database.Database,
+        sql: string
+    ) {
+        if (
+            /content_title_fts\(content_title_fts\)\s+VALUES\s+\('rebuild'\)/.test(
+                sql
+            )
+        ) {
+            titleIndexRebuilds.push(sql);
+        }
+        return prepare.call(this, sql);
+    } as typeof connection.prepare;
+}
+
 /**
  * The performance capture counts one `exec` call as one SQL statement
  * (apps/electron-backend/src/app/workers/database-worker-sql-statement-count.ts),
@@ -81,6 +105,7 @@ function seed(sqlite: Database.Database) {
 function requireSingleStatementExec(): string[] {
     const batches: string[] = [];
     setDatabaseConnectionObserver((connection) => {
+        countTitleIndexRebuilds(connection);
         const exec = connection.exec;
         connection.exec = function singleStatementExec(sql: string) {
             try {
@@ -229,6 +254,11 @@ async function main() {
         execBatches,
         [],
         'Initialization must pass one SQL statement per exec call'
+    );
+    assert.equal(
+        titleIndexRebuilds.length,
+        1,
+        'The title index must be rebuilt once per profile, not on every launch'
     );
     process.stdout.write('upgrade verified');
 }
