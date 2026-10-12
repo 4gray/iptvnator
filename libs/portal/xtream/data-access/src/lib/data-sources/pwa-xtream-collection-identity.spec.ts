@@ -342,6 +342,39 @@ describe('PWA Xtream collection identity', () => {
         ).toEqual(types);
     });
 
+    it('keeps the artwork saved with each view through clear/restore', async () => {
+        await source.restoreUserData('p1', {
+            hiddenCategories: [],
+            playbackPositions: [],
+            favorites: [],
+            recentlyViewed: [
+                {
+                    contentType: 'movie',
+                    xtreamId: 42,
+                    viewedAt: '2026-10-01T12:00:00.000Z',
+                    backdropUrl: 'https://img.example.com/still.jpg',
+                },
+            ],
+        });
+        expect(read('xtream-recent-items').p1).toEqual([
+            {
+                id: 'movie:42',
+                viewedAt: '2026-10-01T12:00:00.000Z',
+                backdropUrl: 'https://img.example.com/still.jpg',
+            },
+        ]);
+
+        const backup = await source.clearPlaylistContent('p1');
+        expect(backup.recentlyViewed).toEqual([
+            {
+                contentType: 'movie',
+                xtreamId: 42,
+                viewedAt: '2026-10-01T12:00:00.000Z',
+                backdropUrl: 'https://img.example.com/still.jpg',
+            },
+        ]);
+    });
+
     it('preserves ambiguous numeric legacy entries without selecting the last matching type', async () => {
         localStorage.setItem(
             'xtream-favorites',

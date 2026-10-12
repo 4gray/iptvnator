@@ -43,6 +43,7 @@ import {
     typedCollectionRef,
     itemCollectionKey,
     findCollectionItems,
+    normalizeStoredBackdrop,
 } from './pwa-collection-identity';
 import { PwaCollectionStorage } from './pwa-collection-storage';
 
@@ -1357,6 +1358,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 return {
                     ...identity,
                     viewedAt: item.viewedAt,
+                    ...normalizeStoredBackdrop(item),
                 };
             })
             .filter(
@@ -1404,7 +1406,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 type: item.contentType,
             });
             if (id !== null)
-                recentItems[playlistId].push({ id, viewedAt: item.viewedAt });
+                recentItems[playlistId].push({
+                    id,
+                    viewedAt: item.viewedAt,
+                    ...normalizeStoredBackdrop(item),
+                });
         }
         this.collectionStorage.saveRecentItemsToStorage(recentItems);
 
