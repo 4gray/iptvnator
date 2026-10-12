@@ -616,6 +616,17 @@ Xtream-only row shape:
 12. `DB_GET_APP_STATE`
 13. `DB_SET_APP_STATE`
 
+`DB_UPSERT_APP_PLAYLIST(S)` write whole documents: the row built by the shared
+codec (`buildPlaylistRow` in `libs/shared/database`) replaces the stored one.
+`playlistConflictUpdate` sets every optional column the document leaves empty
+(an empty string or a missing key) to NULL instead of skipping it, because
+`parseAppPlaylist` prefers a column over the payload and would otherwise bring
+a cleared User-Agent, Referrer, Origin, credential, EPG list or file path back.
+Only `date_created` is kept from the first insert. Callers must send the full
+document (`PlaylistsService` reads, patches and writes the whole row); a
+column-only change goes through `DB_UPDATE_PLAYLIST`. The self-hosted web
+backend's playlist repository uses the same conflict update.
+
 `DB_GET_APP_PLAYLIST_METAS` is the preferred path for summary surfaces such as
 the workspace sidebar and dashboard source rail. It selects playlist metadata
 columns only and deliberately skips the large `payload` column, which can
