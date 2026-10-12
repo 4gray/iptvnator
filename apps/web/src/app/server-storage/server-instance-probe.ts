@@ -6,9 +6,10 @@ const PROBE_TIMEOUT_MS = 2_500;
 
 /**
  * - `skipped`: no runtime backend URL, or Electron.
- * - `server` / `none`: the backend answered.
- * - `unreachable`: no answer, a timeout or a 5xx (nginx answers 502 while
- *   the backend restarts), so the result says nothing about storage.
+ * - `server` / `none`: the backend answered (a 404 is an older backend).
+ * - `unreachable`: no answer, a timeout, a 5xx (nginx answers 502 while
+ *   the backend restarts) or another refusal such as a proxy's 429, so the
+ *   result says nothing about storage.
  */
 export type ServerInstanceProbe =
     | { readonly kind: 'skipped' | 'none' | 'unreachable' }
@@ -52,12 +53,12 @@ export async function probeServerInstance(
     } catch {
         return { kind: 'unreachable' };
     }
-    if (response.status >= 500) {
-        return { kind: 'unreachable' };
-    }
-    if (!response.ok) {
+    if (response.status === 404) {
         // A backend from before server storage has no /v1 routes.
         return { kind: 'none' };
+    }
+    if (!response.ok) {
+        return { kind: 'unreachable' };
     }
     try {
         const body: unknown = await response.json();

@@ -179,8 +179,8 @@ deployment wrote a runtime `BACKEND_URL` into `window.__IPTVNATOR_CONFIG__`
 `storage: 'server'` it imports `apps/web/src/app/server-storage/` lazily and
 merges `provideServerStorage()` into the app config, and remembers the
 instance under `iptvnator-server:instance`. When the probe gets no answer
-(network error, timeout, or a 5xx such as nginx's 502 while the backend
-restarts), a browser that remembers this backend still starts in server
+(network error, timeout, a 5xx such as nginx's 502 while the backend
+restarts, or a refusal other than 404, such as a proxy's 429), a browser that remembers this backend still starts in server
 mode, offline, and reloads once the server answers; it never falls back to
 an empty browser library. Until that reload it sends no writes
 (`holdWrites`): the address may lead to another database by then, which
@@ -220,11 +220,15 @@ settings and guards read them in every build.
   as offline. Each write is sent on the tag of the entry it was made
   against (`UserDataWriteQueue`); after a `412` the edit (before → after) is
   replayed on the server's current value, so another device's change to the
-  same playlist's entry is kept. An edit queued behind a travelling write
-  keeps its own before → after and carries the travelling one as `prior`
-  (also in the saved writes): if that write was lost, a conflict replays
-  both in order, and if it landed, adding and then removing an item still
-  removes it. An edit made on another tab's unsent change, and an entry a
+  same playlist's entry is kept. A queued write keeps its edits as steps
+  (before → after, also in the saved writes): an edit continuing the last
+  one joins it, one made behind a travelling write or on another tab's
+  change is kept apart, and a conflict replays them in order. So a lost
+  write is not dropped, and adding and then removing an item still removes
+  it when the addition landed. When two tabs edit one entry before either
+  write lands, a removal of the other tab's unsent item holds if that tab's
+  write lands first, as it does when a tab is left (its writes go out on
+  hide); otherwise the item can come back. An edit made on another tab's unsent change, and an entry a
   re-read keeps from the cache, are sent on a version no entry has
   (`UNKNOWN_TAG`), so they conflict and are replayed too. Page-hide writes report their
   new tag or conflict like any other, and one behind a travelling write is
@@ -238,9 +242,9 @@ settings and guards read them in every build.
   registry in `localStorage` (`iptvnator-server:unconfirmed:<instanceId>`,
   one record per page load, renewed every 30 s while it has unsent writes,
   stale after ten minutes) lets a re-read in one tab keep the cache values
-  another tab is still sending. A value too big for
-  `localStorage` stays readable from memory, so callers and the diff
-  baseline agree. A re-read
+  another tab is still sending. A value too big for `localStorage`, or any
+  value when the browser refuses storage access, stays readable from
+  memory, so callers and the diff baseline agree. A re-read
   updates the cache; views already open show another device's changes on
   their next load (no live push). Start-up waits
   up to 3 s for the first read.

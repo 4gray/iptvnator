@@ -74,10 +74,12 @@ describe('probeServerInstance', () => {
         }
     });
 
-    it('reports an unreachable server for failures and 5xx', async () => {
+    it('reports an unreachable server for failures, 5xx and refusals', async () => {
         for (const fetchFn of [
             jest.fn().mockRejectedValue(new TypeError('Failed to fetch')),
             answer('Bad Gateway', 502),
+            answer('Too Many Requests', 429),
+            answer('Forbidden', 403),
             // Headers arrived, then the body was cut off.
             jest.fn().mockResolvedValue({
                 ok: true,

@@ -534,4 +534,63 @@ describe('ServerUserDataStorage with other devices', () => {
             )
         ).toEqual([]);
     });
+
+    it("keeps a removal of another tab's unsent item", async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const shared = memoryStorage();
+        const tab = () =>
+            new ServerUserDataStorage(
+                server.api as never,
+                shared,
+                jest.fn(),
+                'default',
+                memoryStorage()
+            );
+        const tabA = tab();
+        const tabB = tab();
+        await tabA.hydrate();
+        await tabB.hydrate();
+
+        tabA.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        tabB.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: [...favorites(tabB).p1, 'Y'] })
+        );
+        // Tab A removes the Y it sees from tab B before sending anything;
+        // tab B's write lands first (leaving a tab sends its writes).
+        tabA.setItem(
+            'xtream-favorites',
+            JSON.stringify({
+                p1: favorites(tabA).p1.filter((id: string) => id !== 'Y'),
+            })
+        );
+        await tabB.flush();
+        await tabB.flush();
+        await tabA.flush();
+        await tabA.flush();
+
+        expect(tabA.hasUnsentWrites() || tabB.hasUnsentWrites()).toBe(false);
+        expect(
+            [...(server.state['xtream-favorites']['p1'] as string[])].sort()
+        ).toEqual(['S', 'X']);
+    });
+
+    it('reads and writes through memory when browser storage refuses', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const denied = () => {
+            throw new DOMException('denied', 'SecurityError');
+        };
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            { getItem: denied, setItem: denied, removeItem: denied },
+            jest.fn()
+        );
+
+        await phone.hydrate();
+        expect(favorites(phone)).toEqual({ p1: ['S'] });
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await phone.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+    });
 });

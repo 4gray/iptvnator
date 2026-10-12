@@ -1,12 +1,12 @@
 import type { ServerUserStateNamespace } from '@iptvnator/shared/interfaces';
 import { itemKey } from './server-migration-merge';
+import type { EditStep } from './server-user-data-entries';
 
-/** An edit made before the first read, applied once the server's value is known. */
+/** Edits made before the first read, applied once the server's value is known. */
 export interface DeferredEdit {
     readonly namespace: ServerUserStateNamespace;
     readonly playlistId: string;
-    readonly before: unknown;
-    readonly after: unknown;
+    readonly steps: readonly EditStep[];
 }
 
 /**
@@ -29,11 +29,7 @@ export function refreshedNamespace(
         }
     }
     for (const edit of deferred) {
-        const merged = applyEdit(
-            server[edit.playlistId],
-            edit.before,
-            edit.after
-        );
+        const merged = replaySteps(server[edit.playlistId], edit.steps);
         if (merged === undefined) {
             delete value[edit.playlistId];
         } else {
@@ -115,17 +111,14 @@ function isListOrMissing(value: unknown): value is unknown[] | undefined {
     return value === undefined || Array.isArray(value);
 }
 
-/** A saved write's edits, its `prior` first, applied to `server`. */
-export function replayWrite(
+/** Edits replayed on `server` in order. */
+export function replaySteps(
     server: unknown,
-    write: {
-        readonly before?: unknown;
-        readonly value: unknown;
-        readonly prior?: { readonly before: unknown; readonly after: unknown };
-    }
+    steps: readonly { readonly before: unknown; readonly after: unknown }[]
 ): unknown {
-    const base = write.prior
-        ? applyEdit(server, write.prior.before, write.prior.after)
-        : server;
-    return applyEdit(base, write.before, write.value);
+    let value = server;
+    for (const step of steps) {
+        value = applyEdit(value, step.before, step.after);
+    }
+    return value;
 }

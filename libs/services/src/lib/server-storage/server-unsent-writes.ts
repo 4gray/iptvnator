@@ -63,17 +63,18 @@ export function claimCache(local: UserDataStorage, instanceId: string): void {
     }
 }
 
+/** Saved edits: JSON drops an undefined side, which reads back as such. */
+type Steps = readonly { readonly before: unknown; readonly after: unknown }[];
+
 export interface UnsentWrite {
     readonly namespace: ServerUserStateNamespace;
     readonly playlistId: string;
     /** `undefined` deletes the entry. */
     readonly value: unknown;
-    /** The entry the edit was made against, to replay it on a conflict. */
-    readonly before?: unknown;
     /** The server version it is based on (see `PendingEntry.tag`). */
     readonly tag?: string | null;
-    /** A write sent before it, maybe saved (see `PendingEntry.prior`). */
-    readonly prior?: { readonly before: unknown; readonly after: unknown };
+    /** The edits since that version (see `PendingEntry.steps`). */
+    readonly steps: Steps;
 }
 
 interface StoredWrite {
@@ -81,11 +82,23 @@ interface StoredWrite {
     readonly playlistId: string;
     readonly value?: unknown;
     readonly remove?: true;
-    readonly before?: unknown;
     readonly tag?: string | null;
-    /** JSON drops an undefined side: absent reads back as undefined. */
-    readonly prior?: { readonly before?: unknown; readonly after?: unknown };
+    readonly steps?: unknown;
 }
+
+function readSteps(stored: unknown): Steps {
+    return Array.isArray(stored)
+        ? stored
+              .filter((step) => step && typeof step === 'object')
+              .map((step: { before?: unknown; after?: unknown }) => ({
+                  before: step.before,
+                  after: step.after,
+              }))
+        : [];
+}
+
+const saveSteps = (steps: Steps) =>
+    steps.map(({ before, after }) => ({ before, after }));
 
 /**
  * Records `page` as the tab's current page load and returns the one
@@ -160,15 +173,8 @@ export function readUnsentWrites(
                 namespace: write.namespace,
                 playlistId: write.playlistId,
                 value: write.remove ? undefined : write.value,
-                before: write.before,
                 tag: write.tag,
-                prior:
-                    write.prior && typeof write.prior === 'object'
-                        ? {
-                              before: write.prior.before,
-                              after: write.prior.after,
-                          }
-                        : undefined,
+                steps: readSteps(write.steps),
             });
         }
     }
@@ -187,15 +193,12 @@ export function saveUnsentWrites(
             return;
         }
         const stored: StoredWrite[] = writes.map(
-            ({ namespace, playlistId, value, before, tag, prior }) => ({
+            ({ namespace, playlistId, value, tag, steps }) => ({
                 namespace,
                 playlistId,
                 ...(value === undefined ? { remove: true } : { value }),
-                ...(before === undefined ? {} : { before }),
                 ...(tag === undefined ? {} : { tag }),
-                ...(prior === undefined
-                    ? {}
-                    : { prior: { before: prior.before, after: prior.after } }),
+                steps: saveSteps(steps),
             })
         );
         local.setItem(writesKey(instanceId, page), JSON.stringify(stored));
@@ -222,8 +225,7 @@ export function newestWrites<T extends UnsentWrite & { readonly edit: number }>(
 export interface SavedDeferredEdit {
     readonly namespace: ServerUserStateNamespace;
     readonly playlistId: string;
-    readonly before: unknown;
-    readonly after: unknown;
+    readonly steps: Steps;
 }
 
 export function readDeferredEdits(
@@ -250,12 +252,10 @@ export function readDeferredEdits(
             isServerUserStateNamespace(namespace) &&
             typeof playlistId === 'string'
         ) {
-            // JSON has no undefined: absent sides are flagged.
             edits.push({
                 namespace,
                 playlistId,
-                before: edit['noBefore'] ? undefined : edit['before'],
-                after: edit['noAfter'] ? undefined : edit['after'],
+                steps: readSteps(edit['steps']),
             });
         }
     }
@@ -279,12 +279,7 @@ export function saveDeferredEdits(
                 edits.map((edit) => ({
                     namespace: edit.namespace,
                     playlistId: edit.playlistId,
-                    ...(edit.before === undefined
-                        ? { noBefore: true }
-                        : { before: edit.before }),
-                    ...(edit.after === undefined
-                        ? { noAfter: true }
-                        : { after: edit.after }),
+                    steps: saveSteps(edit.steps),
                 }))
             )
         );

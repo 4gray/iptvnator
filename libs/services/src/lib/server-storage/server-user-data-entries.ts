@@ -8,26 +8,47 @@ export interface PendingEntry {
     readonly value: unknown;
     /** The edit this value came from; a retry never replaces a newer one. */
     readonly edit: number;
-    /** The entry as the edit found it, to replay the edit on a conflict. */
-    readonly before: unknown;
     /**
-     * The server version the edit is based on: a tag, `null` for an entry
+     * The server version `value` is based on: a tag, `null` for an entry
      * seen absent, `undefined` when unknown (an unconditional write).
      */
     readonly tag?: string | null;
     /**
-     * The edit of the write this one was queued behind, which may or may
-     * not have reached the server: a conflict replays it first. Kept apart
-     * from this edit, so adding and then removing an item is not one no-op.
+     * The edits since that version, oldest first: a conflict replays them
+     * on the server's value in order. Kept apart where they cannot be one
+     * before → after (another tab's change in between, or a write that may
+     * or may not have landed), so adding and then removing an item is
+     * never a no-op.
      */
-    readonly prior?: PriorEdit;
+    readonly steps: readonly EditStep[];
 }
 
-export interface PriorEdit {
+/** One edit as it was made: the entry before and after it. */
+export interface EditStep {
     readonly before: unknown;
     readonly after: unknown;
-    /** The write it was sent with; `0` after a reload. */
-    readonly edit: number;
+    /** The travelling write that carries it, until that one is answered. */
+    readonly sent?: number;
+}
+
+/**
+ * `steps` plus the edit `before` → `after`: joined with the last step when
+ * it continues it, kept apart otherwise.
+ */
+export function addStep(
+    steps: readonly EditStep[],
+    before: unknown,
+    after: unknown
+): EditStep[] {
+    const last = steps[steps.length - 1];
+    if (
+        last &&
+        last.sent === undefined &&
+        JSON.stringify(last.after) === JSON.stringify(before)
+    ) {
+        return [...steps.slice(0, -1), { before: last.before, after }];
+    }
+    return [...steps, { before, after }];
 }
 
 /**

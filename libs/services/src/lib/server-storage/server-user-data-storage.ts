@@ -7,6 +7,7 @@ import {
 import type { UserDataStorage } from '../user-data-storage';
 import type { ServerApiClient } from './server-api-client';
 import {
+    addStep,
     parseMap,
     splitEditKey,
     UNKNOWN_TAG,
@@ -14,7 +15,7 @@ import {
 import {
     type DeferredEdit,
     refreshedNamespace,
-    replayWrite,
+    replaySteps,
 } from './server-user-data-edit';
 import { UserDataWriteQueue } from './server-user-data-queue';
 import {
@@ -50,9 +51,9 @@ export class ServerUserDataStorage implements UserDataStorage {
     private readonly writes: UserDataWriteQueue;
     private unsentSaved = false;
     /**
-     * Edits made before the first successful read, as before → after: the
-     * cache they were made against may be empty or old, so they are
-     * applied to the server's value once it is known (`applyEdit`).
+     * Edits made before the first successful read: the cache they were
+     * made against may be empty or old, so they are replayed on the
+     * server's value once it is known (`applyEdit`).
      */
     private readonly deferred = new Map<string, DeferredEdit>();
     private hydrated = false;
@@ -102,8 +103,8 @@ export class ServerUserDataStorage implements UserDataStorage {
                 write.namespace,
                 write.playlistId,
                 write.value,
-                write.before,
-                { tag: write.tag, prior: write.prior }
+                undefined,
+                { tag: write.tag, steps: write.steps }
             );
         }
         for (const edit of readDeferredEdits(
@@ -131,15 +132,13 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.tabId
         )) {
             const edits = [
-                ...readDeferredEdits(this.local, this.instanceId, page).map(
-                    (edit) => ({ ...edit, value: edit.after })
-                ),
+                ...readDeferredEdits(this.local, this.instanceId, page),
                 ...readUnsentWrites(this.local, this.instanceId, page),
             ];
             for (const edit of edits) {
                 const before = this.baseline(edit.namespace);
                 const after = { ...before };
-                const value = replayWrite(before[edit.playlistId], edit);
+                const value = replaySteps(before[edit.playlistId], edit.steps);
                 if (value === undefined) {
                     delete after[edit.playlistId];
                 } else {
@@ -323,11 +322,17 @@ export class ServerUserDataStorage implements UserDataStorage {
         this.adoptClosedTabs();
     }
 
+    /** Memory first; browser storage that refuses access reads as empty. */
     private readCache(namespace: ServerUserStateNamespace): string | null {
-        return (
-            this.overflow.get(namespace) ??
-            this.local.getItem(SERVER_CACHE_PREFIX + namespace)
-        );
+        const kept = this.overflow.get(namespace);
+        if (kept !== undefined) {
+            return kept;
+        }
+        try {
+            return this.local.getItem(SERVER_CACHE_PREFIX + namespace);
+        } catch {
+            return null;
+        }
     }
 
     /** `null` empties the entry. Browser storage first, memory if full. */
@@ -398,13 +403,14 @@ export class ServerUserDataStorage implements UserDataStorage {
                 return;
             }
             const key = `${namespace}|${playlistId}`;
-            const earlier = this.deferred.get(key);
             this.deferred.set(key, {
                 namespace,
                 playlistId,
-                // An earlier edit's baseline stays, even when it was empty.
-                before: earlier ? earlier.before : previous[playlistId],
-                after: value,
+                steps: addStep(
+                    this.deferred.get(key)?.steps ?? [],
+                    previous[playlistId],
+                    value
+                ),
             });
             this.saveDeferred();
             this.publishUnconfirmed();
