@@ -150,6 +150,11 @@ If no fingerprint matches:
 - reuse `exportedId` only when it is unused
 - otherwise generate a new UUID
 
+Reserve the destination ID as soon as the playlist write succeeds. A later
+user-state or parental-lock restore can fail after that write; subsequent
+entries with a different source fingerprint must not reuse its ID and overwrite
+the saved playlist. A write that fails before persistence leaves the ID unused.
+
 ## Xtream Restore Contract
 
 Xtream restore is type-aware end to end. The app no longer stores plain
