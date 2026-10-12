@@ -254,10 +254,11 @@ self-hosted server storage is covered too.
   imported playlist id are replaced (positions get that id); other playlists'
   entries are untouched. `collectionItems` merge into the playlist's
   snapshots, keyed by typed identity; an archive without them leaves the
-  snapshots alone, malformed items are skipped, and a quota error on this
-  cache does not fail the restore.
+  snapshots alone, malformed items are skipped, a damaged cache is replaced,
+  and a quota error on this cache does not fail the restore.
 - A failed write fails the entry and keeps the snapshot parked, so the Xtream
-  store replays the complete state when the playlist next opens.
+  store replays the complete state when the playlist next opens. That replay
+  carries no title snapshots, so they are merged before the lists.
 
 Older builds ignore `collectionItems`; the manifest version stays `1`.
 

@@ -90,15 +90,16 @@ export class PwaXtreamBackupStateService {
     }
 
     /**
-     * Replaces the playlist's favorites, history and positions with the
-     * restore state, keyed and remapped to `playlistId`, then merges the
-     * archived title snapshots into the playlist's own. Those come from the
-     * archive `entry`, not from `state`: the pending restore state does not
-     * carry them.
+     * Merges the archived title snapshots into the playlist's own, then
+     * replaces its favorites, history and positions with the restore state,
+     * keyed and remapped to `playlistId`.
      *
      * Not one transaction: a failed write leaves the earlier ones applied and
      * throws, so the caller keeps the pending snapshot, which the Xtream store
-     * replays in full when the playlist next opens.
+     * replays in full when the playlist next opens. That replay carries no
+     * title snapshots — they come from the archive `entry`, not from `state` —
+     * which is why they are written first: a cache entry no list references
+     * yet is harmless, a restored list without its titles is not.
      */
     async restore(
         playlistId: string,
@@ -106,7 +107,12 @@ export class PwaXtreamBackupStateService {
         entry: XtreamPlaylistBackupEntry
     ): Promise<void> {
         // A user-supplied file: the field may be anything.
-        const archivedSnapshots: unknown = entry.userState.collectionItems;
+        const archived: unknown = entry.userState.collectionItems;
+        this.mergeSnapshots(
+            playlistId,
+            snapshotsByKey(Array.isArray(archived) ? archived : [])
+        );
+
         const favorites = state.favorites
             .map((item) => typedKey(item.contentType, item.xtreamId))
             .filter((key): key is string => key !== null);
@@ -131,32 +137,20 @@ export class PwaXtreamBackupStateService {
                 updatedAt: item.updatedAt ?? now,
             }))
         );
-
-        this.mergeSnapshots(
-            playlistId,
-            snapshotsByKey(
-                Array.isArray(archivedSnapshots) ? archivedSnapshots : []
-            )
-        );
     }
 
     /**
      * Snapshots are a display cache that the data source itself writes on a
-     * best-effort basis: an unreadable cache is replaced, as the data source
-     * would, and one the storage quota cannot fit leaves the restored lists
-     * intact. Their titles return once the catalog loads.
+     * best-effort basis: a damaged cache is replaced, as the data source
+     * would, and one the storage quota cannot fit does not stop the lists
+     * from being restored. Their titles return once the catalog loads.
      */
     private mergeSnapshots(
         playlistId: string,
         incoming: Record<string, XtreamBackupCollectionItem>
     ): void {
         if (Object.keys(incoming).length === 0) return;
-        let all: StoredMap;
-        try {
-            all = this.readMap('collectionItems');
-        } catch {
-            all = {};
-        }
+        const all = this.readMap('collectionItems', { replaceDamaged: true });
         const current = isRecord(all[playlistId]) ? all[playlistId] : {};
         try {
             this.writeMap('collectionItems', {
@@ -192,8 +186,12 @@ export class PwaXtreamBackupStateService {
      * Strict, unlike the data source's lenient reads: a storage error or a
      * damaged value throws instead of reading as "nothing stored", and a
      * write never replaces other playlists' entries it could not read.
+     * `replaceDamaged` relaxes only the second, for a cache.
      */
-    private readMap(name: UserDataMap): StoredMap {
+    private readMap(
+        name: UserDataMap,
+        { replaceDamaged = false } = {}
+    ): StoredMap {
         const key = XTREAM_USER_DATA_KEYS[name];
         const raw = this.storage.getItem(key);
         if (raw === null) return {};
@@ -203,10 +201,9 @@ export class PwaXtreamBackupStateService {
         } catch {
             parsed = null;
         }
-        if (!isRecord(parsed)) {
-            throw new Error(`Stored ${key} are unreadable.`);
-        }
-        return parsed;
+        if (isRecord(parsed)) return parsed;
+        if (replaceDamaged) return {};
+        throw new Error(`Stored ${key} are unreadable.`);
     }
 
     private writeMap(name: UserDataMap, map: StoredMap): void {

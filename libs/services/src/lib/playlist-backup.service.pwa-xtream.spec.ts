@@ -432,6 +432,7 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
 
         it('fails the entry and keeps the restore parked when a write fails', async () => {
             const manifest = await exportSeeded();
+            localStorage.clear();
             const storage = createBrowserBackedStorage();
             storage.setItem.mockImplementation((key: string, value: string) => {
                 if (key === KEYS.recentItems) throw new Error('disk full');
@@ -450,6 +451,39 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(
                 pendingRestore(service).getOrThrow('xtream-1')
             ).not.toBeNull();
+            // That replay carries no titles, so they were written first.
+            expect(read(KEYS.collectionItems)).toEqual({
+                'xtream-1': { 'movie:501': heat, 'series:77': legacyShow },
+            });
+        });
+
+        it('replaces a damaged title cache but refuses an unreadable storage', async () => {
+            const manifest = await exportSeeded();
+            localStorage.setItem(KEYS.collectionItems, '{"xtream-1": {');
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+            });
+
+            expect(
+                (await service.importBackup(xtreamOnly(manifest))).failed
+            ).toBe(0);
+            expect(read(KEYS.collectionItems)).toEqual({
+                'xtream-1': { 'movie:501': heat, 'series:77': legacyShow },
+            });
+
+            const denied = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: () => {
+                        throw new DOMException('denied', 'SecurityError');
+                    },
+                    setItem: jest.fn(),
+                    removeItem: jest.fn(),
+                }),
+            });
+            const summary = await denied.importBackup(xtreamOnly(manifest));
+            expect(summary.failed).toBe(1);
+            expect(summary.errors[0]).toContain('denied');
         });
 
         it('still restores the lists when the snapshots exceed the quota', async () => {
