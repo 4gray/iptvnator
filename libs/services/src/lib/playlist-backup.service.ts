@@ -5,6 +5,7 @@ import { SettingsStore } from './settings-store.service';
 import { DatabaseService } from './database-electron.service';
 import { VodSourcePinService } from './vod-source-pin.service';
 import { PlaybackPositionService } from './playback-position.service';
+import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import { ParentalLockService } from './parental-lock/parental-lock.service';
 import { removesParentalLocks } from './parental-lock/parental-lock-store.util';
@@ -62,9 +63,6 @@ export class PlaylistBackupError extends Error {
 
 type PlaylistPortalType = 'm3u' | 'xtream' | 'stalker';
 
-type XtreamContentType = XtreamBackupContentType;
-type XtreamCategoryType = XtreamBackupCategoryType;
-
 @Injectable({
     providedIn: 'root',
 })
@@ -78,6 +76,7 @@ export class PlaylistBackupService {
         XtreamPendingRestoreService
     );
     private readonly parentalLock = inject(ParentalLockService);
+    private readonly pwaXtream = inject(PwaXtreamBackupStateService);
     private backupImportTail?: Promise<void>;
 
     async exportBackup(): Promise<PlaylistBackupExportPayload> {
@@ -332,7 +331,7 @@ export class PlaylistBackupService {
             };
         }
         // An unavailable pin store is no opinion, never an authoritative [].
-        if (!this.hasElectronApi()) return entry;
+        if (!this.hasElectronApi()) return this.pwaXtream.exportInto(entry);
 
         const [
             liveCategories,
@@ -370,7 +369,7 @@ export class PlaylistBackupService {
                 ...this.optionalLockedXtreamCategories(playlist._id),
                 favorites: favorites.map((item) => ({
                     xtreamId: item.xtream_id,
-                    contentType: item.type as XtreamContentType,
+                    contentType: item.type as XtreamBackupContentType,
                     ...(item.added_at ? { addedAt: item.added_at } : {}),
                     ...(item.position !== undefined
                         ? { position: item.position }
@@ -378,7 +377,7 @@ export class PlaylistBackupService {
                 })),
                 recentlyViewed: recent.map((item) => ({
                     xtreamId: item.xtream_id,
-                    contentType: item.type as XtreamContentType,
+                    contentType: item.type as XtreamBackupContentType,
                     viewedAt: item.viewed_at ?? new Date().toISOString(),
                 })),
                 playbackPositions: playbackPositions.map((item) => ({
@@ -933,21 +932,20 @@ export class PlaylistBackupService {
             );
         }
 
-        if (!this.hasElectronApi()) {
-            return;
-        }
-
-        this.playbackPositionService.assertSupportsAtomicReplacement();
-
-        if (!(await this.hasCompletedOfflineCache(playlistId))) {
-            return;
+        // The browser build keeps no catalog to wait for: it applies at once.
+        const electron = this.hasElectronApi();
+        if (electron) {
+            this.playbackPositionService.assertSupportsAtomicReplacement();
+            if (!(await this.hasCompletedOfflineCache(playlistId))) return;
         }
 
         const restoreResult = await this.pendingRestoreService.applyAndConsume(
             playlistId,
             restoreSnapshot,
-            (pendingState) =>
-                this.applyXtreamRestoreState(playlistId, pendingState)
+            async (state) =>
+                electron
+                    ? this.applyXtreamRestoreState(playlistId, state)
+                    : this.pwaXtream.restore(playlistId, state, entry)
         );
         if (restoreResult !== 'consumed') {
             throw new PlaylistBackupError(
@@ -1213,9 +1211,9 @@ export class PlaylistBackupService {
         categories: Array<{
             hidden: boolean;
             xtream_id: number;
-            type: XtreamCategoryType;
+            type: XtreamBackupCategoryType;
         }>,
-        categoryType: XtreamCategoryType
+        categoryType: XtreamBackupCategoryType
     ): XtreamPendingRestoreState['hiddenCategories'] {
         return categories
             .filter((category) => category.hidden)

@@ -76,6 +76,17 @@ export interface XtreamBackupSourcePin {
     updatedAt?: string;
 }
 
+/**
+ * A favorite or recently viewed title as the browser build last displayed it,
+ * so the restored lists show titles and artwork before the provider catalog
+ * is fetched again. Every other field is the item exactly as it was stored.
+ */
+export interface XtreamBackupCollectionItem {
+    type: XtreamBackupContentType;
+    xtream_id: number;
+    [field: string]: unknown;
+}
+
 export interface XtreamBackupUserState {
     hiddenCategories: XtreamBackupHiddenCategory[];
     favorites: XtreamBackupFavoriteItem[];
@@ -83,6 +94,12 @@ export interface XtreamBackupUserState {
     playbackPositions: PlaybackPositionData[];
     /** Optional: absent in archives written before multi-source existed. */
     sourcePins?: XtreamBackupSourcePin[];
+    /**
+     * Optional and written only by the browser build, which keeps no catalog
+     * between sessions. A cache, not user state: restore merges it into the
+     * playlist's snapshots, and the desktop build ignores it.
+     */
+    collectionItems?: XtreamBackupCollectionItem[];
     /**
      * Parental-lock categories, same shape as `hiddenCategories`. Optional
      * like `sourcePins`: absence means the archive predates the lock and

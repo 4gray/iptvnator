@@ -8,10 +8,28 @@ import {
     XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistBackupService } from './playlist-backup.service';
+import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
+import {
+    createBrowserUserDataStorage,
+    UserDataStorage,
+} from './user-data-storage';
 import {
     XtreamPendingRestoreService,
     XtreamPendingRestoreSnapshot,
 } from './xtream-pending-restore.service';
+
+/**
+ * The browser build's Xtream backup state over `storage` — jsdom's
+ * localStorage unless a spec passes its own — without Angular DI.
+ */
+export function createPwaXtreamBackupState(
+    storage: UserDataStorage = createBrowserUserDataStorage()
+): PwaXtreamBackupStateService {
+    return Object.assign(
+        Object.create(PwaXtreamBackupStateService.prototype) as object,
+        { storage }
+    ) as PwaXtreamBackupStateService;
+}
 
 /**
  * Shared factory for PlaylistBackupService specs. Instantiates the service
@@ -132,6 +150,7 @@ export function createPlaylistBackupService(
             locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
             replacePlaylistLocks: jest.fn().mockResolvedValue(true),
         },
+        pwaXtream: createPwaXtreamBackupState(),
         ...overrides,
     });
 

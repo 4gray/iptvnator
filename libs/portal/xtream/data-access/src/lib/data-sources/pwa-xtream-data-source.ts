@@ -22,6 +22,7 @@ import {
     ParentalLockService,
     PlaylistsService,
     USER_DATA_STORAGE,
+    XTREAM_USER_DATA_KEYS,
 } from '@iptvnator/services';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -50,7 +51,7 @@ import { PwaCollectionStorage } from './pwa-collection-storage';
  */
 const STORAGE_KEYS = {
     PLAYLISTS: 'xtream-playlists',
-    PLAYBACK_POSITIONS: 'xtream-playback-positions',
+    PLAYBACK_POSITIONS: XTREAM_USER_DATA_KEYS.playbackPositions,
 };
 
 interface XtreamCachedContentItem {
