@@ -292,7 +292,48 @@ export function saveDeferredEdits(
     }
 }
 
-type UnconfirmedRegistry = Record<string, { at: number; keys: string[] }>;
+/** `closed`: the page unloaded (not into the back-forward cache). */
+type UnconfirmedRegistry = Record<
+    string,
+    { at: number; keys: string[]; closed?: boolean }
+>;
+
+/** Marks a page load's record as unloaded: a reload may take it over. */
+export function markClosed(
+    local: UserDataStorage,
+    instanceId: string,
+    page: string
+): void {
+    const registry = readRegistry(local, instanceId);
+    if (!registry[page]) {
+        return;
+    }
+    registry[page] = { ...registry[page], closed: true };
+    try {
+        local.setItem(unconfirmedKey(instanceId), JSON.stringify(registry));
+    } catch {
+        // Storage full: the record goes stale instead.
+    }
+}
+
+/**
+ * Whether a page load still runs: it has a fresh record and did not
+ * unload. A duplicated tab copies the tab's page load but must not take
+ * over its saved writes.
+ */
+export function pageIsLive(
+    local: UserDataStorage,
+    instanceId: string,
+    page: string,
+    now = Date.now()
+): boolean {
+    const record = readRegistry(local, instanceId)[page];
+    return (
+        !!record &&
+        !record.closed &&
+        now - Number(record.at) < UNCONFIRMED_TTL_MS
+    );
+}
 
 function readRegistry(
     local: UserDataStorage,

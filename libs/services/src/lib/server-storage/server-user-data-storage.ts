@@ -22,8 +22,10 @@ import {
 import { UserDataWriteQueue } from './server-user-data-queue';
 import {
     claimCache,
+    markClosed,
     markUnconfirmed,
     orphanedPages,
+    pageIsLive,
     othersUnconfirmed,
     readDeferredEdits,
     readUnsentWrites,
@@ -98,9 +100,15 @@ export class ServerUserDataStorage implements UserDataStorage {
         });
         claimCache(local, instanceId);
         const previous = swapPage(tabStore, instanceId, this.tabId);
-        if (previous) {
+        // A duplicated tab copies the page load of a tab that still runs.
+        if (previous && !pageIsLive(local, instanceId, previous)) {
             this.takeOver(previous);
         }
+    }
+
+    /** The page unloads: a reload of this tab may take its writes over. */
+    close(): void {
+        markClosed(this.local, this.instanceId, this.tabId);
     }
 
     /**
@@ -191,7 +199,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     getItem(key: string): string | null {
-        if (!this.isSynced(key)) {
+        if (!isServerUserStateNamespace(key)) {
             return this.local.getItem(key);
         }
         const value = this.cache.read(key);
@@ -200,7 +208,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     setItem(key: string, value: string): void {
-        if (this.isSynced(key)) {
+        if (isServerUserStateNamespace(key)) {
             this.write(key, value);
         } else {
             this.local.setItem(key, value);
@@ -208,7 +216,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     removeItem(key: string): void {
-        if (this.isSynced(key)) {
+        if (isServerUserStateNamespace(key)) {
             this.write(key, null);
         } else {
             this.local.removeItem(key);
@@ -393,10 +401,6 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.writes.scheduleFlush();
         }
         this.adoptClosedTabs();
-    }
-
-    private isSynced(key: string): key is ServerUserStateNamespace {
-        return isServerUserStateNamespace(key);
     }
 
     private queueChanges(

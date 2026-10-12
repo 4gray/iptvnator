@@ -1636,6 +1636,61 @@ describe('PlaylistsService', () => {
         );
     });
 
+    it('deletes everything only after queued writes, before later ones', async () => {
+        const order: string[] = [];
+        let finishWrite: () => void = () => undefined;
+        const electron = {
+            dbGetAppPlaylist: jest.fn(async () => {
+                order.push('read');
+                return { _id: 'p9', title: 'P', favorites: [] };
+            }),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async (key: string) =>
+                key === SQLITE_PLAYLIST_MIGRATION_FLAG ? '1' : null
+            ),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(
+                () =>
+                    new Promise<void>((resolve) => {
+                        order.push('write');
+                        finishWrite = () => resolve();
+                    })
+            ),
+            dbUpsertAppPlaylists: jest.fn(),
+            dbDeleteAllPlaylists: jest.fn(async () => {
+                order.push('delete all');
+            }),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+        // Microtasks only: a real timer would let other tests' late errors in.
+        const settle = async () => {
+            for (let i = 0; i < 50; i += 1) {
+                await Promise.resolve();
+            }
+        };
+
+        const first = firstValueFrom(
+            service.transformPlaylistFavorites('p9', (f) => [...f, 'a'])
+        );
+        await settle();
+        const removed = firstValueFrom(service.removeAll());
+        const later = firstValueFrom(
+            service.transformPlaylistFavorites('p9', (f) => [...f, 'b'])
+        );
+        await settle();
+        expect(order).toEqual(['read', 'write']);
+
+        finishWrite();
+        await first;
+        await removed;
+        await settle();
+        finishWrite();
+        await later;
+
+        expect(order).toEqual(['read', 'write', 'delete all', 'read', 'write']);
+    });
+
     it('runs a mutation again on a fresh read when the server refused it', async () => {
         const versions = [
             { _id: 'p9', title: 'P', favorites: ['a'] },

@@ -490,7 +490,8 @@ describe('ServerUserDataStorage', () => {
             },
         ]);
 
-        // Reload: a new instance over the same browser storage.
+        // Reload: the page unloads, a new instance over the same storage.
+        first.storage.close();
         const api = {
             ...first.api,
             sendJson: jest.fn().mockResolvedValue(undefined),
@@ -621,6 +622,7 @@ describe('ServerUserDataStorage', () => {
             'xtream-favorites',
             JSON.stringify({ p1: ['mine'] })
         );
+        first.storage.close();
 
         const api = {
             ...first.api,

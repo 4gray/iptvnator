@@ -206,7 +206,10 @@ settings and guards read them in every build.
   throws `PlaylistWriteConflict`, and `PlaylistsService`'s per-playlist
   write queue runs the mutation again on a fresh read (a retry on the same,
   unread copy writes unconditionally, as before). Imports and start-up
-  migrations (`dbUpsertAppPlaylists`) write unconditionally. An M3U favorite
+  migrations (`dbUpsertAppPlaylists`) write unconditionally, and the store
+  refuses a document without an id. "Remove all" first lets queued
+  playlist writes land, and writes issued meanwhile wait until it is done.
+  An M3U favorite
   toggle goes through `transformPlaylistFavorites`, adding or removing that
   one channel on the favorites read at write time. After a write the store
   keeps its copy only when `X-Replaced-ETag` names the version its payload
@@ -224,7 +227,10 @@ settings and guards read them in every build.
   per page load (`iptvnator-server:unsent-writes:<instanceId>:<page>`). The
   tab remembers its page load in `sessionStorage`, so a reload takes its
   writes over and sends them first (the old copy goes only once the new one
-  is saved, at the latest with this page's next saved copy); the writes of a tab closed before it
+  is saved, at the latest with this page's next saved copy). A page marks
+  its record closed on `pagehide` (not into the back-forward cache), and
+  only a closed, stale or missing record is taken over: a duplicated tab,
+  which copies `sessionStorage`, leaves the running tab its writes; the writes of a tab closed before it
   could send them are queued, ahead of its own, by the next re-read in
   another tab once that tab's record has gone stale; the result replays the
   closed tab's edits first and this tab's newer ones last. Tabs never clear each other's.
@@ -289,7 +295,8 @@ settings and guards read them in every build.
   late 401 for a token replaced since (a new sign-in) changes nothing.
 - **Moving browser data.** `ServerMigrationService` offers, once per server
   instance (marker `iptvnator-server:migration:<instanceId>`), to move the
-  playlists this browser kept in IndexedDB (`planServerMigration`). A
+  playlists this browser kept in IndexedDB (`planServerMigration`), Stalker
+  rows from before the portal-mode flag normalized first. A
   playlist the server already has, by id or by source (Xtream server and
   user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
   others upload with their ids. A merged playlist gains the browser

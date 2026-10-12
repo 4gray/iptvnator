@@ -396,4 +396,26 @@ describe('ServerMigrationService', () => {
         expect(result.failed).toBeGreaterThan(0);
         expect(migration.browserDataMoved()).toBe(false);
     });
+
+    it('uploads a legacy Stalker row with its portal flag set', async () => {
+        TestBed.overrideProvider(NgxIndexedDBService, {
+            useValue: {
+                getAll: () =>
+                    of([
+                        {
+                            _id: 's1',
+                            title: 'Portal',
+                            macAddress: '00:1A:79:00:00:01',
+                            portalUrl: 'http://portal.test/stalker_portal/c',
+                        },
+                    ]),
+            },
+        });
+
+        await TestBed.inject(ServerMigrationService).moveBrowserData();
+
+        expect(session.documentStore.dbUpsertAppPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: 's1', isFullStalkerPortal: true })
+        );
+    });
 });

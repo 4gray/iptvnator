@@ -147,7 +147,11 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         playlist: Playlist,
         conditional: boolean
     ): Promise<ElectronBridgeResult> {
-        const id = playlist._id;
+        const id = playlist?._id;
+        if (!id) {
+            // A mutation that ran after its playlist was deleted.
+            throw new Error('A playlist without an id cannot be stored.');
+        }
         const path = `/playlists/${encodeURIComponent(id)}`;
         const payloadEtag = this.servedPayloadEtag(playlist);
         // The version it was read at: of its payload, else of the copy it

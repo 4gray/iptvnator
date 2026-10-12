@@ -137,9 +137,13 @@ export class ServerStorageSession {
                 void this.refresh();
             }
         });
-        window.addEventListener('pagehide', () =>
-            this.userData.flushWithKeepalive()
-        );
+        window.addEventListener('pagehide', (event) => {
+            this.userData.flushWithKeepalive();
+            // Not into the back-forward cache: the page is gone for good.
+            if (!event.persisted) {
+                this.userData.close();
+            }
+        });
         setInterval(() => {
             this.userData.touch();
             // Also online: a write the server refused (a 5xx) or a first

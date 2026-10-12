@@ -7,6 +7,7 @@ import {
     type Playlist,
     type ServerUserStateNamespace,
     type ServerUserStateResponse,
+    withExplicitStalkerPortalFlag,
 } from '@iptvnator/shared/interfaces';
 import {
     combineUserData,
@@ -322,10 +323,13 @@ export class ServerMigrationService {
         return failed;
     }
 
-    private readBrowserPlaylists(): Promise<Playlist[]> {
-        return firstValueFrom(
+    private async readBrowserPlaylists(): Promise<Playlist[]> {
+        const playlists = await firstValueFrom(
             this.dbService.getAll<Playlist>(DbStores.Playlists)
         );
+        // A browser that skipped the Stalker metadata migration still has
+        // rows without the explicit portal flag.
+        return playlists.map(withExplicitStalkerPortalFlag);
     }
 
     private readMarker(): string | null {

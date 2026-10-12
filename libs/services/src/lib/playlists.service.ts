@@ -28,7 +28,6 @@ import {
     Channel,
     DbStores,
     extractStalkerItemId,
-    isFullStalkerPortalUrl,
     isM3uRecentlyViewedItem,
     M3uFavoriteChannel,
     M3uRecentlyViewedItem,
@@ -38,6 +37,7 @@ import {
     PlaylistUpdateState,
     StalkerPortalItem,
     normalizeStalkerDate,
+    withExplicitStalkerPortalFlag,
 } from '@iptvnator/shared/interfaces';
 import { PLAYLIST_DELETE_CLEANUP } from './playlist-delete-cleanup.token';
 import {
@@ -101,6 +101,8 @@ export class PlaylistsService {
     private startupMetas?: Promise<Playlist[]> | null;
     private indexedDbMigrationPromise: Promise<void> | null = null;
     private readonly playlistWriteQueues = new Map<string, Promise<unknown>>();
+    /** "Remove all" in progress: every playlist write waits for it. */
+    private deletingAll: Promise<void> = Promise.resolve();
 
     /** Electron bridge or server store; `null` means IndexedDB. */
     private get documentStore(): PlaylistDocumentStore | null {
@@ -242,19 +244,7 @@ export class PlaylistsService {
     }
 
     private withExplicitLegacyStalkerPortalFlag(playlist: Playlist): Playlist {
-        if (
-            !playlist?.macAddress ||
-            playlist.isFullStalkerPortal !== undefined
-        ) {
-            return playlist;
-        }
-
-        const portalUrl = playlist.portalUrl ?? playlist.url ?? '';
-
-        return {
-            ...playlist,
-            isFullStalkerPortal: isFullStalkerPortalUrl(portalUrl),
-        };
+        return withExplicitStalkerPortalFlag(playlist);
     }
 
     private collectStalkerMetadataMigrationUpdates(
@@ -412,8 +402,10 @@ export class PlaylistsService {
         operation: () => Promise<T>
     ): Observable<T> {
         return defer(() => {
-            const previous =
-                this.playlistWriteQueues.get(playlistId) ?? Promise.resolve();
+            const previous = Promise.all([
+                this.playlistWriteQueues.get(playlistId),
+                this.deletingAll,
+            ]);
             const next = previous.then(() => retryOnConflict(operation));
             const tail = next.then(
                 () => undefined,
@@ -1319,23 +1311,34 @@ export class PlaylistsService {
     }
 
     removeAll(): Observable<void> {
-        return defer(() =>
-            runWithPlaylistAuthorityReset(async () => {
-                if (this.usesDocumentStore) {
-                    await this.ensureElectronPlaylistMigrations();
-                    const store = this.documentStore;
-                    if (store) {
-                        this.startupMetas = null;
-                        await store.dbDeleteAllPlaylists();
-                        this.healthEvidence?.connections.next({});
-                    }
-                    return undefined;
-                }
+        // Writes already queued land first; new ones wait for the delete.
+        return defer(() => {
+            const pending = [...this.playlistWriteQueues.values()];
+            const run = Promise.all(pending).then(() => this.removeAllNow());
+            this.deletingAll = run.then(
+                () => undefined,
+                () => undefined
+            );
+            return run;
+        });
+    }
 
-                await firstValueFrom(this.dbService.clear(DbStores.Playlists));
+    private removeAllNow(): Promise<void> {
+        return runWithPlaylistAuthorityReset(async () => {
+            if (this.usesDocumentStore) {
+                await this.ensureElectronPlaylistMigrations();
+                const store = this.documentStore;
+                if (store) {
+                    this.startupMetas = null;
+                    await store.dbDeleteAllPlaylists();
+                    this.healthEvidence?.connections.next({});
+                }
                 return undefined;
-            })
-        );
+            }
+
+            await firstValueFrom(this.dbService.clear(DbStores.Playlists));
+            return undefined;
+        });
     }
 
     private normalizePortalRecentIdentity(value: unknown): string {

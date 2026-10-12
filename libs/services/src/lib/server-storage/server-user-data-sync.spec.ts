@@ -421,6 +421,7 @@ describe('ServerUserDataStorage with other devices', () => {
         before.setItem('xtream-favorites', JSON.stringify({ p1: ['S'] }));
         expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
 
+        before.close();
         const reloaded = open();
         await reloaded.hydrate();
         await reloaded.flush();
@@ -823,6 +824,7 @@ describe('ServerUserDataStorage with other devices', () => {
             setItem(key, value);
         };
         const kept = saved()[0];
+        before.close();
         const reloaded = new ServerUserDataStorage(
             offline as never,
             local,
@@ -869,6 +871,7 @@ describe('ServerUserDataStorage with other devices', () => {
         await before.flush();
 
         // Reloaded: the recovered write fails once, the read works.
+        before.close();
         const send = server.api.sendJson.getMockImplementation();
         const api = {
             ...server.api,
@@ -920,6 +923,7 @@ describe('ServerUserDataStorage with other devices', () => {
         await before.hydrate();
         before.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
         await before.flush();
+        before.close();
 
         const send = server.api.sendJson.getMockImplementation();
         const reloaded = new ServerUserDataStorage(
@@ -966,5 +970,51 @@ describe('ServerUserDataStorage with other devices', () => {
         expect(server.state['xtream-favorites']).toEqual({});
         expect(phone.hasUnsentWrites()).toBe(false);
         expect(favorites(phone)).toEqual({});
+    });
+
+    it('leaves a still running tab its saved writes when the tab is duplicated', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const local = memoryStorage();
+        const tabStore = memoryStorage();
+        const offline = {
+            ...server.api,
+            sendJson: jest
+                .fn()
+                .mockRejectedValue(new ServerApiError(0, 'network', 'offline')),
+        };
+        const original = new ServerUserDataStorage(
+            offline as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        await original.hydrate();
+        original.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['S', 'X'] })
+        );
+        await original.flush();
+
+        // A duplicated tab starts with a copy of the tab's own storage.
+        const copy = memoryStorage();
+        for (const [key, value] of tabStore.values) {
+            copy.setItem(key, value);
+        }
+        const duplicate = new ServerUserDataStorage(
+            offline as never,
+            local,
+            jest.fn(),
+            'default',
+            copy
+        );
+
+        expect(duplicate.hasUnsentWrites()).toBe(false);
+        expect(original.hasUnsentWrites()).toBe(true);
+        expect(
+            [...local.values.keys()].filter((key) =>
+                key.startsWith('iptvnator-server:unsent-writes:')
+            )
+        ).toHaveLength(1);
     });
 });

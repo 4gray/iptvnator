@@ -233,6 +233,15 @@ describe('ServerPlaylistDocumentStore', () => {
         });
     });
 
+    it('refuses a document without an id', async () => {
+        const { api, store } = setup();
+
+        await expect(
+            store.dbUpsertAppPlaylist({ title: 'Orphan' } as Playlist)
+        ).rejects.toThrow('without an id');
+        expect(api.sendJson).not.toHaveBeenCalled();
+    });
+
     it('writes imports as they are', async () => {
         const { api, store } = setup();
         api.request.mockResolvedValueOnce(fakeResponse(200, doc, '"b.0.1"'));
