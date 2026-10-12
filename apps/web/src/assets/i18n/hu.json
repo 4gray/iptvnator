@@ -673,6 +673,7 @@
         "SIGN_IN_HINT": "A szerver IPTVNATOR_ACCESS_TOKEN beállításában találja.",
         "SIGN_IN_REJECTED": "A tokent elutasította a szerver. Ellenőrizze, és próbálja újra.",
         "SIGN_IN_UNREACHABLE": "A szerver nem érhető el. Ellenőrizze a kapcsolatot, és próbálja újra.",
+        "SIGN_IN_STORAGE": "Ez a böngésző nem engedi, hogy az IPTVnator megőrizze a tokent. Engedélyezze a webhelyadatokat ehhez az oldalhoz, és próbálja újra.",
         "SIGN_IN_CONTINUE": "Tovább",
         "STATUS_ONLINE": "Szerver csatlakoztatva",
         "STATUS_OFFLINE": "A szerver nem érhető el",

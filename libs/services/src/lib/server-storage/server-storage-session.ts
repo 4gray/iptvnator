@@ -26,6 +26,7 @@ import { ServerUserDataStorage } from './server-user-data-storage';
 
 const RETRY_INTERVAL_MS = 30_000;
 const STARTUP_HYDRATE_WAIT_MS = 3_000;
+const NOTICE_REPEAT_MS = 5 * 60_000;
 
 /** Server mode for this page: created only when the probe found server storage. */
 @Injectable({ providedIn: 'root' })
@@ -37,6 +38,7 @@ export class ServerStorageSession {
     private readonly translate = inject(TranslateService);
     private readonly router = inject(Router);
     private reloading = false;
+    private lastNotice = { key: '', at: 0 };
 
     readonly api = new ServerApiClient({
         baseUrl: this.config.baseUrl,
@@ -140,7 +142,13 @@ export class ServerStorageSession {
         );
         setInterval(() => {
             this.userData.touch();
-            if (this.status.state() === 'offline') {
+            // Also online: a write the server refused (a 5xx) or a first
+            // read that failed is not retried by anything else.
+            const state = this.status.state();
+            if (
+                state === 'offline' ||
+                (state === 'online' && this.userData.needsSync())
+            ) {
                 void this.refresh();
             }
         }, RETRY_INTERVAL_MS);
@@ -156,6 +164,15 @@ export class ServerStorageSession {
             error?.status === 413
                 ? 'SERVER_STORAGE.TOO_LARGE'
                 : 'SERVER_STORAGE.WRITE_FAILED';
+        // Retries must not repeat the same notice every 30 s.
+        const now = Date.now();
+        if (
+            key === this.lastNotice.key &&
+            now - this.lastNotice.at < NOTICE_REPEAT_MS
+        ) {
+            return;
+        }
+        this.lastNotice = { key, at: now };
         this.snackBar.open(this.translate.instant(key), undefined, {
             duration: 5000,
         });

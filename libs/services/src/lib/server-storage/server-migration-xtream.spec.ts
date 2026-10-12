@@ -66,4 +66,19 @@ describe('typeLegacyXtreamRefs', () => {
             })['xtream-favorites']
         ).toEqual(['movie:42']);
     });
+
+    it('keeps a typed snapshot newer than its legacy alias', () => {
+        const typed = typeLegacyXtreamRefs({
+            'xtream-favorites': ['movie:42'],
+            'xtream-collection-items': {
+                '42': { xtream_id: 42, type: 'movie', backdrop: 'old' },
+                'movie:42': { xtream_id: 42, type: 'movie', backdrop: 'new' },
+            },
+        });
+
+        expect(typed['xtream-collection-items']).toEqual({
+            '42': { xtream_id: 42, type: 'movie', backdrop: 'old' },
+            'movie:42': { xtream_id: 42, type: 'movie', backdrop: 'new' },
+        });
+    });
 });

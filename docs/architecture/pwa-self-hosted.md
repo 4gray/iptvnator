@@ -253,18 +253,20 @@ settings and guards read them in every build.
   up to 3 s for the first read.
 - **Connection state.** `ServerStorageStatusService` is `online`, `offline`
   (a request did not reach the server, or a proxy answered 502, 503 or 504
-  for it; retried every 30 s and when the tab returns) or
+  for it; retried every 30 s and when the tab returns, as are writes the
+  server refused and a first read that failed while it is `online`) or
   `unauthorized` (a 401 clears the stored token; only a reload after a new
   token leaves it, so a late answer cannot undo sign-out). The rail shows a status
   shortcut, an offline banner sits above the workspace content, and failed
   writes raise a snackbar (`SERVER_STORAGE.WRITE_FAILED`, or `TOO_LARGE` for
-  a 413).
+  a 413), the same one at most every five minutes.
 - **Access token.** With `IPTVNATOR_ACCESS_TOKEN` the instance reports
   `auth: 'token'` (the backend refuses a token without server storage: the
   PWA has no sign-in flow for a stateless backend); without a stored token, or after a 401, the guards route to
   `/server-sign-in` (the start-up screen lets it through although the
   playlists could not load), which checks the token against `/v1/instance/status`
-  before it stores it under `iptvnator-server:access-token` and reloads.
+  before it stores it under `iptvnator-server:access-token` and reloads (a
+  browser that refuses to store it is told so instead).
   `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
   backend, and `PwaService` adds it to its two raw `fetch` calls. Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,

@@ -21,11 +21,13 @@ export function readServerAccessToken(): string | null {
     }
 }
 
-export function writeServerAccessToken(token: string): void {
+/** False when browser storage refused it (private mode, full). */
+export function writeServerAccessToken(token: string): boolean {
     try {
         localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, token.trim());
+        return true;
     } catch {
-        // Storage unavailable (private mode): the token cannot persist.
+        return false;
     }
 }
 

@@ -100,6 +100,41 @@ describe('ServerStorageSession', () => {
         expect(status.state()).toBe('online');
     });
 
+    it('retries a write the server refused while it stays online', async () => {
+        const { session, status } = setup('none');
+        await session.start();
+        const ok = fetchMock.getMockImplementation();
+        fetchMock.mockImplementation(
+            async (url: string, init?: { method?: string }) =>
+                init?.method === 'PUT'
+                    ? {
+                          status: 500,
+                          ok: false,
+                          headers: new Headers(),
+                          json: async () => ({ code: 'x', message: 'down' }),
+                      }
+                    : ok?.(url, init)
+        );
+
+        session.userData.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['x'] })
+        );
+        await session.userData.flush();
+        expect(status.state()).toBe('online');
+        expect(session.userData.hasUnsentWrites()).toBe(true);
+
+        fetchMock.mockImplementation(async () => ({
+            status: 200,
+            ok: true,
+            headers: new Headers(),
+            json: async () => ({ entries: {}, tag: 't' }),
+        }));
+        await jest.advanceTimersByTimeAsync(30_000);
+
+        expect(session.userData.hasUnsentWrites()).toBe(false);
+    });
+
     describe('after an offline start', () => {
         it('stays offline until the server answers, then reloads once', async () => {
             const { session, status } = setup('none', true);

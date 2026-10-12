@@ -178,6 +178,11 @@ export class ServerUserDataStorage implements UserDataStorage {
         }
     }
 
+    /** Not read yet, or holding writes the server has not taken. */
+    needsSync(): boolean {
+        return !this.hydrated || this.hasUnsentWrites();
+    }
+
     /** Whether a write is queued, being retried, or still travelling. */
     hasUnsentWrites(): boolean {
         return this.writes.hasUnsent() || this.deferred.size > 0;

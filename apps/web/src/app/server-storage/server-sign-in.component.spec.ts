@@ -82,4 +82,22 @@ describe('ServerSignInComponent', () => {
         expect(session.fetchStatus).not.toHaveBeenCalled();
         expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
     });
+
+    it('says when the browser will not keep the token', async () => {
+        const refuse = jest
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new DOMException('full', 'QuotaExceededError');
+            });
+        try {
+            component.edit('right');
+            await component.submit(new Event('submit'));
+            fixture.detectChanges();
+        } finally {
+            refuse.mockRestore();
+        }
+
+        expect(session.fetchStatus).not.toHaveBeenCalled();
+        expect(feedbackText()).toBe('SERVER_STORAGE.SIGN_IN_STORAGE');
+    });
 });

@@ -673,6 +673,7 @@
         "SIGN_IN_HINT": "可在服务器的 IPTVNATOR_ACCESS_TOKEN 设置中找到。",
         "SIGN_IN_REJECTED": "令牌被拒绝。请检查后重试。",
         "SIGN_IN_UNREACHABLE": "无法连接到服务器。请检查连接后重试。",
+        "SIGN_IN_STORAGE": "此浏览器不允许 IPTVnator 保存令牌。请允许此页面的网站数据后重试。",
         "SIGN_IN_CONTINUE": "继续",
         "STATUS_ONLINE": "服务器已连接",
         "STATUS_OFFLINE": "服务器不可用",

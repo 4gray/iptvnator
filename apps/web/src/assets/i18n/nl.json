@@ -673,6 +673,7 @@
         "SIGN_IN_HINT": "Je vindt het in de instelling IPTVNATOR_ACCESS_TOKEN van de server.",
         "SIGN_IN_REJECTED": "Token geweigerd. Controleer het en probeer het opnieuw.",
         "SIGN_IN_UNREACHABLE": "De server is niet bereikbaar. Controleer de verbinding en probeer het opnieuw.",
+        "SIGN_IN_STORAGE": "Deze browser laat IPTVnator het token niet bewaren. Sta sitegegevens voor deze pagina toe en probeer het opnieuw.",
         "SIGN_IN_CONTINUE": "Doorgaan",
         "STATUS_ONLINE": "Server verbonden",
         "STATUS_OFFLINE": "Server niet bereikbaar",

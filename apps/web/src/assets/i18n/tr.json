@@ -673,6 +673,7 @@
         "SIGN_IN_HINT": "Sunucunun IPTVNATOR_ACCESS_TOKEN ayarında bulabilirsiniz.",
         "SIGN_IN_REJECTED": "Belirteç reddedildi. Kontrol edip tekrar deneyin.",
         "SIGN_IN_UNREACHABLE": "Sunucuya ulaşılamıyor. Bağlantıyı kontrol edip tekrar deneyin.",
+        "SIGN_IN_STORAGE": "Bu tarayıcı IPTVnator'ın belirteci saklamasına izin vermiyor. Bu sayfa için site verilerine izin verip tekrar deneyin.",
         "SIGN_IN_CONTINUE": "Devam",
         "STATUS_ONLINE": "Sunucu bağlı",
         "STATUS_OFFLINE": "Sunucu kullanılamıyor",

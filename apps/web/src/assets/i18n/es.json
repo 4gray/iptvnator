@@ -673,6 +673,7 @@
         "SIGN_IN_HINT": "Lo encontrará en el ajuste IPTVNATOR_ACCESS_TOKEN del servidor.",
         "SIGN_IN_REJECTED": "Token rechazado. Compruébelo e inténtelo de nuevo.",
         "SIGN_IN_UNREACHABLE": "No se puede contactar con el servidor. Compruebe la conexión e inténtelo de nuevo.",
+        "SIGN_IN_STORAGE": "Este navegador no permite que IPTVnator guarde el token. Permita los datos del sitio para esta página e inténtelo de nuevo.",
         "SIGN_IN_CONTINUE": "Continuar",
         "STATUS_ONLINE": "Servidor conectado",
         "STATUS_OFFLINE": "Servidor no disponible",

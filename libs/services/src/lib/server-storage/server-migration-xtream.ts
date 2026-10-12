@@ -48,11 +48,12 @@ export function typeLegacyXtreamRefs(data: XtreamUserData): XtreamUserData {
     if (isRecord(data[SNAPSHOTS])) {
         // The bare key stays as an alias: a reference not yet rewritten (a
         // failed write, an older client) still finds its snapshot, and a
-        // retry can type it again.
+        // retry can type it again. A typed snapshot that exists is newer.
         const aliased: Record<string, unknown> = { ...snapshots };
         for (const [key, snapshot] of Object.entries(snapshots)) {
-            if (/^\d+$/.test(key)) {
-                aliased[String(typed(Number(key)))] = snapshot;
+            const typedKey = String(typed(Number(key)));
+            if (/^\d+$/.test(key) && !(typedKey in snapshots)) {
+                aliased[typedKey] = snapshot;
             }
         }
         result[SNAPSHOTS] = aliased;

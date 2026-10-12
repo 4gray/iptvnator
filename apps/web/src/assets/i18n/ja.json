@@ -673,6 +673,7 @@
         "SIGN_IN_HINT": "サーバーの IPTVNATOR_ACCESS_TOKEN 設定で確認できます。",
         "SIGN_IN_REJECTED": "トークンが拒否されました。確認して、もう一度お試しください。",
         "SIGN_IN_UNREACHABLE": "サーバーに接続できません。接続を確認して、もう一度お試しください。",
+        "SIGN_IN_STORAGE": "このブラウザーでは IPTVnator がトークンを保存できません。このページのサイトデータを許可して、もう一度お試しください。",
         "SIGN_IN_CONTINUE": "続行",
         "STATUS_ONLINE": "サーバーに接続済み",
         "STATUS_OFFLINE": "サーバーを利用できません",

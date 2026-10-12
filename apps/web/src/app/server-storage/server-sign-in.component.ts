@@ -19,7 +19,7 @@ import {
 } from '@iptvnator/services/server-storage';
 import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 
-export type ServerSignInFeedback = 'rejected' | 'unreachable';
+export type ServerSignInFeedback = 'rejected' | 'unreachable' | 'storage';
 
 @Component({
     selector: 'app-server-sign-in',
@@ -53,9 +53,13 @@ export class ServerSignInComponent {
         if (!token || this.busy()) {
             return;
         }
+        // Every request and the reload read the token from storage.
+        if (!writeServerAccessToken(token)) {
+            this.feedback.set('storage');
+            return;
+        }
         this.busy.set(true);
         this.feedback.set(null);
-        writeServerAccessToken(token);
         try {
             await this.session.fetchStatus();
             this.openWorkspace();

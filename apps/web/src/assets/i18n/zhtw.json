@@ -673,6 +673,7 @@
         "SIGN_IN_HINT": "可在伺服器的 IPTVNATOR_ACCESS_TOKEN 設定中找到。",
         "SIGN_IN_REJECTED": "權杖遭拒。請檢查後再試一次。",
         "SIGN_IN_UNREACHABLE": "無法連線到伺服器。請檢查連線後再試一次。",
+        "SIGN_IN_STORAGE": "此瀏覽器不允許 IPTVnator 儲存權杖。請允許此頁面的網站資料後再試一次。",
         "SIGN_IN_CONTINUE": "繼續",
         "STATUS_ONLINE": "伺服器已連線",
         "STATUS_OFFLINE": "伺服器無法使用",

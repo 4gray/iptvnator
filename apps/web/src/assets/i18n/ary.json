@@ -673,6 +673,7 @@
         "SIGN_IN_HINT": "تلقاه فالإعداد IPTVNATOR_ACCESS_TOKEN ديال السيرفر.",
         "SIGN_IN_REJECTED": "الرمز ترفض. تأكد منو وعاود جرب.",
         "SIGN_IN_UNREACHABLE": "ما قدرناش نوصلو للسيرفر. شوف الاتصال وعاود جرب.",
+        "SIGN_IN_STORAGE": "هاد المتصفح ما كيخليش IPTVnator يحفظ الرمز. سمح بداتا ديال الموقع لهاد الصفحة وعاود جرب.",
         "SIGN_IN_CONTINUE": "كمّل",
         "STATUS_ONLINE": "السيرفر متاصل",
         "STATUS_OFFLINE": "السيرفر ماشي متوفر",

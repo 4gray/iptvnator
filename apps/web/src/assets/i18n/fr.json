@@ -673,6 +673,7 @@
         "SIGN_IN_HINT": "Il figure dans le paramètre IPTVNATOR_ACCESS_TOKEN du serveur.",
         "SIGN_IN_REJECTED": "Jeton refusé. Vérifiez-le et réessayez.",
         "SIGN_IN_UNREACHABLE": "Serveur injoignable. Vérifiez la connexion et réessayez.",
+        "SIGN_IN_STORAGE": "Ce navigateur ne permet pas à IPTVnator d’enregistrer le jeton. Autorisez les données de site pour cette page et réessayez.",
         "SIGN_IN_CONTINUE": "Continuer",
         "STATUS_ONLINE": "Serveur connecté",
         "STATUS_OFFLINE": "Serveur indisponible",

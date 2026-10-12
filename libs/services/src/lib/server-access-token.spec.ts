@@ -27,4 +27,19 @@ describe('server access token', () => {
         clearServerAccessToken();
         expect(readServerAccessToken()).toBeNull();
     });
+
+    it('reports a token browser storage refuses', () => {
+        const refuse = jest
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new DOMException('full', 'QuotaExceededError');
+            });
+        try {
+            expect(writeServerAccessToken('s3cret')).toBe(false);
+            expect(readServerAccessToken()).toBeNull();
+        } finally {
+            refuse.mockRestore();
+        }
+        expect(writeServerAccessToken('s3cret')).toBe(true);
+    });
 });
