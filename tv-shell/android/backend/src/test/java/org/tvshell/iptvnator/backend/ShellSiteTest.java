@@ -22,6 +22,7 @@ public class ShellSiteTest {
         files.put("www/assets/i18n/fr.json", "{}".getBytes(UTF8));
         files.put("www/media/font-ABC.woff2", new byte[] {1, 2, 3});
         files.put("tvshell/tv.js", "/* tv */".getBytes(UTF8));
+        files.put("tvshell/THIRD-PARTY-NOTICES.txt", "notices".getBytes(UTF8));
         return new ShellSite(new ShellSite.AssetSource() {
             @Override
             public byte[] read(String relativePath) {
@@ -56,6 +57,13 @@ public class ShellSiteTest {
         s.setScreenWidth(960);
         String html = new String(s.serve("/").body, UTF8);
         assertTrue("scaled viewport served", html.contains("<meta name=\"viewport\" content=\"width=1280, initial-scale=0.75, minimum-scale=0.75, maximum-scale=0.75\">"));
+    }
+
+    public void testThirdPartyNoticesAreServed() throws IOException {
+        ShellSite.Resource notices = site().serve("/tvshell/THIRD-PARTY-NOTICES.txt");
+        assertEquals("status", 200, Integer.valueOf(notices.status));
+        assertEquals("text mime", "text/plain; charset=utf-8", notices.contentType);
+        assertEquals("body", "notices", new String(notices.body, UTF8));
     }
 
     public void testStaticFilesAndSpecialPaths() throws IOException {

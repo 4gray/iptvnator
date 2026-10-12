@@ -10,26 +10,30 @@ android {
         applicationId 'org.tvshell.iptvnator'
         minSdk 25          // Fire OS 6 (Android 7.1) and newer
         targetSdk 35
-        versionCode 1
+        // CI derives this from the commit time (minutes since the epoch) so every published
+        // APK upgrades the previous one, whichever repository built it. Local builds: 1.
+        versionCode = Integer.parseInt(System.getenv('TVSHELL_VERSION_CODE') ?: '1')
         versionName '0.1.0'
     }
 
     // Optional release signing: set the four TVSHELL_* environment variables
-    // (the GitHub workflow fills them from repository secrets). Without them,
-    // only the debug-signed APK is built — perfectly fine for sideloading.
+    // (the GitHub workflow fills them from repository secrets). Without them
+    // the release build is signed with the versioned debug key: still a
+    // non-debuggable APK, and it installs over earlier builds (same signer).
     def keystorePath = System.getenv('TVSHELL_KEYSTORE_PATH')
+    def hasReleaseKeystore = keystorePath != null && file(keystorePath).exists()
     signingConfigs {
-        // Debug builds use the versioned debug key (conventional, not secret)
-        // instead of the auto-generated one: CI runners are ephemeral, and a
-        // different signer on every build would make Android refuse to install
-        // a new APK over the previous one.
+        // The versioned debug key (conventional, not secret) replaces the
+        // auto-generated one: CI runners are ephemeral, and a different signer
+        // on every build would make Android refuse to install a new APK over
+        // the previous one.
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
-        if (keystorePath != null && file(keystorePath).exists()) {
+        if (hasReleaseKeystore) {
             release {
                 storeFile file(keystorePath)
                 storePassword System.getenv('TVSHELL_KEYSTORE_PASSWORD')
@@ -40,15 +44,10 @@ android {
     }
 
     buildTypes {
-        debug {
-            debuggable true
-        }
         release {
             minifyEnabled false
             shrinkResources false
-            if (keystorePath != null && file(keystorePath).exists()) {
-                signingConfig signingConfigs.release
-            }
+            signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
         }
     }
 
@@ -73,5 +72,9 @@ android {
 
 dependencies {
     implementation project(':backend')
+    // Last published NanoHTTPD. Known advisories do not apply: CVE-2020-13697 is in
+    // RouterNanoHTTPD (nanolets, not used); CVE-2022-21230 concerns temp files in a shared
+    // java.io.tmpdir, which on Android is the app-private cache dir. Request bodies are
+    // capped in TvShellServer before NanoHTTPD parses them.
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
 }

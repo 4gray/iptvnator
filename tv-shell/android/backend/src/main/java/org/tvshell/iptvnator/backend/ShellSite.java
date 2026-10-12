@@ -116,6 +116,11 @@ public class ShellSite {
             if (js == null) return text(404, "tv.js missing");
             return new Resource(200, MIME.get("js"), js, "no-store");
         }
+        if (path.equals("/tvshell/THIRD-PARTY-NOTICES.txt")) {
+            byte[] notices = assets.read("tvshell/THIRD-PARTY-NOTICES.txt");
+            if (notices == null) return text(404, "notices missing");
+            return new Resource(200, MIME.get("txt"), notices, "no-store");
+        }
         if (path.equals("/assets/app-config.js")) {
             String js = "window.__IPTVNATOR_CONFIG__ = {\"BACKEND_URL\":" + Json.write(backendUrl) + "};\n";
             return new Resource(200, MIME.get("js"), js.getBytes(UTF8), "no-store");

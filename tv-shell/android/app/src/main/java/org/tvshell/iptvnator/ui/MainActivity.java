@@ -6,6 +6,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -19,6 +20,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.ConsoleMessage;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -45,6 +47,11 @@ public class MainActivity extends Activity {
     private static final long LONG_PRESS_MS = 650;
     /** How long the web app may take to call TvShell.onReady() before the error panel explains the situation. */
     private static final long READY_TIMEOUT_MS = 30_000;
+    /** Renderer deaths are counted across Activity recreations; a burst means the page itself is the problem. */
+    private static final long RENDERER_DEATH_WINDOW_MS = 60_000;
+    private static final int RENDERER_DEATH_LIMIT = 3;
+    private static int rendererDeaths;
+    private static long lastRendererDeathAt;
 
     private WebView webView;
     private FrameLayout root;
@@ -58,6 +65,9 @@ public class MainActivity extends Activity {
     private long menuDownAt;
     private boolean menuLongPressFired;
     private String lastOfferedUrl;
+    private long lastOfferedAt;
+    private AlertDialog externalDialog;
+    private boolean resumed;
     private boolean pageReady;
     private int loadedLayoutWidth;
     private String lastConsoleError;
@@ -106,7 +116,6 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
-        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
         s.setSupportZoom(false);
@@ -125,11 +134,17 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                String url = request.getUrl().toString();
-                if (server != null && url.startsWith(server.baseUrl())) return false;
-                // Outside links (YouTube trailers, provider sites): hand them to the system.
+                Uri uri = request.getUrl();
+                if (server != null && uri.toString().startsWith(server.baseUrl())) return false;
+                // Outside links (YouTube trailers, provider sites): hand http(s) to the system, the
+                // same allowlist as the Electron shell. Any other scheme stays inside the shell.
+                String scheme = uri.getScheme();
+                if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+                    Log.w(ShellApp.TAG, "blocked navigation to scheme " + scheme);
+                    return true;
+                }
                 try {
-                    startActivity(new Intent(Intent.ACTION_VIEW, request.getUrl()));
+                    startActivity(new Intent(Intent.ACTION_VIEW, uri));
                 } catch (RuntimeException e) {
                     toast(getString(R.string.cannot_open_link));
                 }
@@ -146,6 +161,25 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 view.requestFocus(View.FOCUS_DOWN);
+            }
+
+            /** The sandboxed renderer died (OOM abort or system kill). Unhandled, Chromium crashes or kills the app. */
+            @Override
+            public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                boolean crashed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && detail.didCrash();
+                long now = SystemClock.uptimeMillis();
+                rendererDeaths = now - lastRendererDeathAt < RENDERER_DEATH_WINDOW_MS ? rendererDeaths + 1 : 1;
+                lastRendererDeathAt = now;
+                Log.w(ShellApp.TAG, "web renderer gone (crashed=" + crashed + ", count=" + rendererDeaths + ")");
+                handler.removeCallbacks(readyWatchdog);
+                root.removeView(view);
+                view.destroy();
+                webView = null; // every remaining use is null-guarded
+                if (resumed) {
+                    toast(getString(R.string.renderer_restarted));
+                    recreate(); // new Activity + WebView; ShellApp keeps the server
+                }
+                return true;
             }
         });
         webView.setWebChromeClient(new WebChromeClient() {
@@ -189,7 +223,13 @@ public class MainActivity extends Activity {
             }
         });
 
-        load();
+        if (rendererDeaths >= RENDERER_DEATH_LIMIT && SystemClock.uptimeMillis() - lastRendererDeathAt < RENDERER_DEATH_WINDOW_MS) {
+            rendererDeaths = 0;
+            server = ShellApp.currentServer(); // so the diagnostics show the port
+            showError(getString(R.string.renderer_gone_loop));
+        } else {
+            load();
+        }
     }
 
     private boolean isDebugBuild() {
@@ -205,6 +245,10 @@ public class MainActivity extends Activity {
     }
 
     private void load() {
+        if (webView == null) {
+            recreate();
+            return;
+        }
         errorPanel.setVisibility(View.GONE);
         splash.setVisibility(View.VISIBLE);
         pageReady = false;
@@ -305,6 +349,14 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
                 if (action == KeyEvent.ACTION_DOWN) media("fastforward");
                 return true;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                // A held OK is one activation. The WebView turns every Android key repeat into a fresh
+                // Enter keydown + keypress with KeyboardEvent.repeat === false, so the page cannot filter
+                // repeats itself; drop them here like the media keys above. D-pad repeats stay (hold to scroll).
+                if (action == KeyEvent.ACTION_DOWN && event.getRepeatCount() > 0) return true;
+                return super.dispatchKeyEvent(event);
             default:
                 return super.dispatchKeyEvent(event);
         }
@@ -316,7 +368,7 @@ public class MainActivity extends Activity {
             js("window.__tvShell ? window.__tvShell.back() : (document.fullscreenElement && document.exitFullscreen(), true)");
             return;
         }
-        if (!pageReady || webView.getVisibility() != View.VISIBLE) {
+        if (!pageReady || webView == null || webView.getVisibility() != View.VISIBLE) {
             finishAffinity();
             return;
         }
@@ -338,20 +390,27 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(readyWatchdog);
         splash.setVisibility(View.GONE);
         errorPanel.setVisibility(View.GONE);
-        webView.requestFocus(View.FOCUS_DOWN);
+        if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
     }
 
     void openExternal(String url, String title) {
         ExternalPlayer.open(this, url, title, prefs.externalPlayerPackage());
     }
 
-    /** Ask before leaving the app for a stream, unless the user said not to. */
+    /**
+     * Ask before leaving the app for a stream, unless the user said not to. One dialog at a time; the
+     * same URL is not offered again within a few seconds (a copy followed by the error of the same
+     * stream, or the player's error burst), but a later attempt on the channel asks again.
+     */
     void offerExternal(final String url, final String title, boolean becauseOfError) {
-        if (url == null || url.isEmpty()) return;
+        if (url == null || url.isEmpty() || webView == null || isFinishing()) return;
         if (becauseOfError && !prefs.promptExternalOnError()) return;
-        if (becauseOfError && url.equals(lastOfferedUrl)) return;
+        if (externalDialog != null && externalDialog.isShowing()) return;
+        long now = SystemClock.uptimeMillis();
+        if (becauseOfError && url.equals(lastOfferedUrl) && now - lastOfferedAt < 5_000) return;
         lastOfferedUrl = url;
-        new AlertDialog.Builder(this)
+        lastOfferedAt = now;
+        externalDialog = new AlertDialog.Builder(this)
             .setTitle(becauseOfError ? R.string.external_prompt_title_error : R.string.external_prompt_title)
             .setMessage(getString(R.string.external_prompt_message, title == null || title.isEmpty() ? url : title))
             .setPositiveButton(R.string.external_prompt_open, new DialogInterface.OnClickListener() {
@@ -364,7 +423,8 @@ public class MainActivity extends Activity {
             .setOnDismissListener(new DialogInterface.OnDismissListener() {
                 @Override
                 public void onDismiss(DialogInterface dialog) {
-                    webView.requestFocus(View.FOCUS_DOWN);
+                    externalDialog = null;
+                    if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
                 }
             })
             .show();
@@ -379,6 +439,7 @@ public class MainActivity extends Activity {
     }
 
     void showKeyboard() {
+        if (webView == null || isFinishing()) return;
         webView.requestFocus(View.FOCUS_DOWN);
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (imm != null) imm.showSoftInput(webView, InputMethodManager.SHOW_IMPLICIT);
@@ -392,7 +453,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        resumed = true;
         hideSystemUi();
+        if (webView == null) {
+            recreate(); // the renderer died while we were in the background
+            return;
+        }
         if (webView != null) {
             webView.onResume();
             webView.resumeTimers();
@@ -409,6 +475,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        resumed = false;
         if (webView != null) {
             webView.onPause();
         }
@@ -420,6 +487,7 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(readyWatchdog);
         if (webView != null) {
             webView.loadUrl("about:blank");
+            root.removeView(webView); // destroy() must not run on an attached WebView
             webView.destroy();
             webView = null;
         }
