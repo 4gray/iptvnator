@@ -31,7 +31,7 @@ SWAP_MB="${SWAP_MB:-512}"
 CORES="${CORES:-2}"
 CT_PASSWORD="${CT_PASSWORD:-}"
 INSTALL_SCRIPT="${INSTALL_SCRIPT:-}"
-SCRIPTS_BASE="${SCRIPTS_BASE:-https://raw.githubusercontent.com/ange-primiterra/iptvnator/proxmox-lxc/proxmox}"
+SCRIPTS_BASE="${SCRIPTS_BASE:-https://raw.githubusercontent.com/ange-primiterra/iptvnator/master/proxmox}"
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }

@@ -18,7 +18,7 @@ small Debian container on Proxmox VE, without Docker:
 On the Proxmox host (shell of the node, as root):
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ange-primiterra/iptvnator/proxmox-lxc/proxmox/create-lxc.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ange-primiterra/iptvnator/master/proxmox/create-lxc.sh)"
 ```
 
 The script prints the container's URL (`http://<ip>/`), its root password and
@@ -27,7 +27,7 @@ more memory and a different id:
 
 ```bash
 CTID=120 NET="ip=192.168.1.50/24,gw=192.168.1.1" MEMORY_MB=1024 \
-  bash -c "$(curl -fsSL https://raw.githubusercontent.com/ange-primiterra/iptvnator/proxmox-lxc/proxmox/create-lxc.sh)"
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/ange-primiterra/iptvnator/master/proxmox/create-lxc.sh)"
 ```
 
 | Variable | Default | Purpose |
