@@ -594,6 +594,35 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
         });
     });
 
+    it('follows the Xtream data source on a desktop bridge without its SQLite API', async () => {
+        // A partial or stale preload: XTREAM_DATA_SOURCE falls back to the
+        // browser storage, so the backup must read and restore that too.
+        (window as unknown as { electron?: unknown }).electron = {};
+        const runtime = { supportsXtreamSqliteDataSource: false };
+        const manifest = await (async () => {
+            seed();
+            const exporter = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                runtime,
+            });
+            return (await exporter.exportBackup()).manifest;
+        })();
+        expect(xtreamEntry(manifest).userState.favorites).toHaveLength(2);
+
+        localStorage.clear();
+        const importer = createPlaylistBackupService({
+            playlistsService: playlistsService([existingXtreamPlaylist]),
+            runtime,
+        });
+        const summary = await importer.importBackup(xtreamOnly(manifest));
+
+        expect(summary.failed).toBe(0);
+        expect(read(KEYS.favorites)).toEqual({
+            'xtream-1': ['movie:501', 'series:77'],
+        });
+        expect(pendingRestore(importer).getOrThrow('xtream-1')).toBeNull();
+    });
+
     it('reads and writes through USER_DATA_STORAGE, not localStorage', async () => {
         // The self-hosted server mode provides a server-synced storage here.
         const synced = new Map<string, string>();

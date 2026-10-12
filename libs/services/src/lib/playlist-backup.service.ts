@@ -4,6 +4,7 @@ import { PlaylistsService } from './playlists.service';
 import { SettingsStore } from './settings-store.service';
 import { DatabaseService } from './database-electron.service';
 import { VodSourcePinService } from './vod-source-pin.service';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { PlaybackPositionService } from './playback-position.service';
 import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
@@ -77,6 +78,7 @@ export class PlaylistBackupService {
     );
     private readonly parentalLock = inject(ParentalLockService);
     private readonly pwaXtream = inject(PwaXtreamBackupStateService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private backupImportTail?: Promise<void>;
 
     async exportBackup(): Promise<PlaylistBackupExportPayload> {
@@ -331,7 +333,9 @@ export class PlaylistBackupService {
             };
         }
         // An unavailable pin store is no opinion, never an authoritative [].
-        if (!this.hasElectronApi()) return this.pwaXtream.exportInto(entry);
+        // Same choice as XTREAM_DATA_SOURCE: user state lives where it reads.
+        if (!this.runtime.supportsXtreamSqliteDataSource)
+            return this.pwaXtream.exportInto(entry);
 
         const [
             liveCategories,
@@ -932,9 +936,9 @@ export class PlaylistBackupService {
             );
         }
 
-        // The browser build keeps no catalog to wait for: it applies at once.
-        const electron = this.hasElectronApi();
-        if (electron) {
+        // Browser storage has no catalog cache to wait for: apply at once.
+        const sqlite = this.runtime.supportsXtreamSqliteDataSource;
+        if (sqlite) {
             this.playbackPositionService.assertSupportsAtomicReplacement();
             if (!(await this.hasCompletedOfflineCache(playlistId))) return;
         }
@@ -943,7 +947,7 @@ export class PlaylistBackupService {
             playlistId,
             restoreSnapshot,
             async (state) =>
-                electron
+                sqlite
                     ? this.applyXtreamRestoreState(playlistId, state)
                     : this.pwaXtream.restore(playlistId, state, entry)
         );
@@ -1356,9 +1360,5 @@ export class PlaylistBackupService {
 
     private getErrorMessage(error: unknown): string {
         return error instanceof Error ? error.message : String(error);
-    }
-
-    private hasElectronApi(): boolean {
-        return !!(window as Window & { electron?: unknown }).electron;
     }
 }

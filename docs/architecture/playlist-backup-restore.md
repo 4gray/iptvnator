@@ -232,9 +232,12 @@ complete restore. It is consumed only after every restore step succeeds.
 
 ### Browser Runtime
 
-Without an Electron bridge, Xtream favorites, recently viewed items, playback
-positions and title snapshots live in the `USER_DATA_STORAGE` maps owned by
-`PwaXtreamDataSource` (`XTREAM_USER_DATA_KEYS`; see
+Whenever `XTREAM_DATA_SOURCE` resolves to `PwaXtreamDataSource` — the
+browser, or a desktop bridge without the Xtream SQLite API
+(`RuntimeCapabilitiesService.supportsXtreamSqliteDataSource`) — Xtream
+favorites, recently viewed items, playback positions and title snapshots live
+in the `USER_DATA_STORAGE` maps owned by `PwaXtreamDataSource`
+(`XTREAM_USER_DATA_KEYS`; see
 [PWA portal user data](./pwa-self-hosted.md#pwa-portal-user-data)).
 `PwaXtreamBackupStateService` reads and writes them through that token, so the
 self-hosted server storage is covered too.

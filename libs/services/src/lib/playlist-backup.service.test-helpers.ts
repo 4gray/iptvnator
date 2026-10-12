@@ -28,7 +28,7 @@ export function createPwaXtreamBackupState(
     return Object.assign(
         Object.create(PwaXtreamBackupStateService.prototype) as object,
         { storage }
-    ) as PwaXtreamBackupStateService;
+    ) as unknown as PwaXtreamBackupStateService;
 }
 
 /**
@@ -151,6 +151,12 @@ export function createPlaylistBackupService(
             replacePlaylistLocks: jest.fn().mockResolvedValue(true),
         },
         pwaXtream: createPwaXtreamBackupState(),
+        // Specs pick the runtime by setting or deleting `window.electron`.
+        runtime: {
+            get supportsXtreamSqliteDataSource() {
+                return !!(window as unknown as { electron?: unknown }).electron;
+            },
+        },
         ...overrides,
     });
 
