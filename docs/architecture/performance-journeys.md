@@ -1322,8 +1322,8 @@ largest distance in it, the content pane's 323 px, which is why Back added
 buttons appearing when the categories arrive. The skeletons of the category
 list and the grid are replaced by content without any shift. Nothing was
 hidden behind the startup overlay: the "Syncing playlist" overlay of the
-cached catalog load flashes for about two frames after the shift and covers
-no further one.
+cached catalog load flashed for about two frames after the shift and covered
+no further one. It no longer mounts on a J2 click (see the J2 section).
 
 The content frame and the header controls now slide into place instead of
 jumping ([Layout slides](./workspace-shell.md#layout-slides)): the new layout

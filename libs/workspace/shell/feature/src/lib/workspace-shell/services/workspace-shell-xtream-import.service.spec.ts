@@ -153,6 +153,16 @@ describe('WorkspaceShellXtreamImportService', () => {
             expect(service.showXtreamImportOverlay()).toBe(true);
         });
 
+        it('keeps the delay while another playlist prepares a refresh', () => {
+            refreshPreparation.set({ playlistId: 'other-playlist' });
+            activeImportSessionId.set('session-1');
+            advance(0);
+            expect(service.showXtreamImportOverlay()).toBe(false);
+
+            advance(XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS);
+            expect(service.showXtreamImportOverlay()).toBe(true);
+        });
+
         it('shows the overlay at once while a refresh prepares the playlist', () => {
             refreshPreparation.set({ playlistId: 'portal-1' });
             expect(service.showXtreamImportOverlay()).toBe(true);

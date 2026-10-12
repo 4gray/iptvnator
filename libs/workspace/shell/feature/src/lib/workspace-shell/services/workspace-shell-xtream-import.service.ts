@@ -109,15 +109,25 @@ export class WorkspaceShellXtreamImportService {
 
     /**
      * Remote imports (the store flags `isImporting` for every phase except
-     * `loading-cached`) and refresh preparation show the overlay at once. A
-     * session that has only read the saved catalog so far waits
-     * `XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS`, so a warm open never flashes it.
+     * `loading-cached`) and refresh preparation of the shown playlist (any
+     * on the dashboard) show the overlay at once. A session that has only
+     * read the saved catalog so far waits `XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS`,
+     * so a warm open never flashes it, even while another playlist prepares
+     * a refresh.
      */
-    private readonly isOverlayImmediate = computed(
-        () =>
-            Boolean(this.refreshPreparation()) ||
-            this.xtreamStore.isImporting()
-    );
+    private readonly isOverlayImmediate = computed(() => {
+        if (this.xtreamStore.isImporting()) {
+            return true;
+        }
+        if (this.routeState.currentRoute().kind === 'dashboard') {
+            return Boolean(this.refreshPreparation());
+        }
+        const playlistId = this.routeState.currentContext()?.playlistId;
+        return (
+            playlistId !== undefined &&
+            this.isRefreshPreparationRunningForPlaylist(playlistId)
+        );
+    });
     private readonly localLoadDelayElapsed = signal(false);
 
     readonly showXtreamImportOverlay = computed(
