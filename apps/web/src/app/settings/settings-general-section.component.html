@@ -1,276 +1,311 @@
 <section class="settings-group" id="general" [formGroup]="form()">
     <header class="settings-group__header">
-        <div class="settings-group__header-icon">
-            <mat-icon>settings</mat-icon>
-        </div>
-        <div class="settings-group__header-text">
-            <h3>{{ 'SETTINGS.GENERAL' | translate }}</h3>
-            <p>{{ 'SETTINGS.GENERAL_SUBTITLE' | translate }}</p>
-        </div>
+        <h2>{{ 'SETTINGS.GENERAL' | translate }}</h2>
+        <p>{{ 'SETTINGS.GENERAL_SUBTITLE' | translate }}</p>
     </header>
 
-    <div class="setting-item" data-setting-id="language">
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.LANGUAGE' | translate }}</h4>
-            <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
+    <section class="settings-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.CARD_APPEARANCE' | translate }}</h3>
         </div>
-        <div class="setting-item__control">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>{{
-                    'SETTINGS.VIDEO_PLAYER_PLACEHOLDER' | translate
-                }}</mat-label>
-                <mat-select
-                    formControlName="language"
-                    data-test-id="select-language"
-                >
-                    @for (
-                        language of languageEnum() | keyvalue;
-                        track language
-                    ) {
-                        <mat-option
-                            [value]="language.value"
-                            [attr.data-test-id]="language.value"
-                            >{{
-                                'LANGUAGES.' + language.key | translate
-                            }}</mat-option
-                        >
-                    }
-                </mat-select>
-            </mat-form-field>
-        </div>
-    </div>
-
-    <div
-        class="setting-item setting-item--full-control"
-        data-setting-id="theme"
-    >
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.THEME' | translate }}</h4>
-            <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
-        </div>
-        <div class="setting-item__control">
-            <div
-                class="theme-switcher"
-                role="radiogroup"
-                [attr.aria-label]="'SETTINGS.THEME' | translate"
-                data-test-id="select-theme"
-            >
-                @for (themeOption of themeOptions(); track themeOption.value) {
-                    <button
-                        type="button"
-                        class="theme-switcher__option"
-                        [class.theme-switcher__option--selected]="
-                            form().value.theme === themeOption.value
-                        "
-                        [attr.aria-checked]="
-                            form().value.theme === themeOption.value
-                        "
-                        [attr.data-test-id]="themeOption.value"
-                        role="radio"
-                        (click)="selectTheme.emit(themeOption.value)"
+        <div class="settings-card">
+            <div class="setting-item" data-setting-id="language">
+                <div class="setting-item__meta">
+                    <h4 id="language-label">
+                        {{ 'SETTINGS.LANGUAGE' | translate }}
+                    </h4>
+                    <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
+                </div>
+                <div class="setting-item__control">
+                    <mat-form-field
+                        class="settings-select"
+                        appearance="outline"
+                        subscriptSizing="dynamic"
                     >
-                        <mat-icon>{{ themeOption.icon }}</mat-icon>
-                        <span>{{ themeOption.labelKey | translate }}</span>
-                    </button>
-                }
-            </div>
-        </div>
-    </div>
-
-    <div
-        class="setting-item setting-item--full-control"
-        data-setting-id="cover-size"
-    >
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.COVER_SIZE' | translate }}</h4>
-            <p>{{ 'SETTINGS.COVER_SIZE_DESCRIPTION' | translate }}</p>
-        </div>
-        <div class="setting-item__control">
-            <div
-                class="theme-switcher"
-                role="radiogroup"
-                [attr.aria-label]="'SETTINGS.COVER_SIZE' | translate"
-                data-test-id="select-cover-size"
-            >
-                @for (option of coverSizeOptions(); track option.value) {
-                    <button
-                        type="button"
-                        class="theme-switcher__option"
-                        [class.theme-switcher__option--selected]="
-                            form().value.coverSize === option.value
-                        "
-                        [attr.aria-checked]="
-                            form().value.coverSize === option.value
-                        "
-                        [attr.data-test-id]="'cover-size-' + option.value"
-                        role="radio"
-                        (click)="selectCoverSize.emit(option.value)"
-                    >
-                        <mat-icon>{{ option.icon }}</mat-icon>
-                        <span>{{ option.labelKey | translate }}</span>
-                    </button>
-                }
-            </div>
-        </div>
-    </div>
-
-    <div class="setting-item" data-setting-id="cover-titles">
-        <div class="setting-item__meta">
-            <h4 id="cover-titles-label">
-                {{ 'SETTINGS.COVER_TITLES' | translate }}
-            </h4>
-            <p id="cover-titles-description">
-                {{ 'SETTINGS.COVER_TITLES_DESCRIPTION' | translate }}
-            </p>
-        </div>
-        <div class="setting-item__control setting-item__toggle">
-            <mat-checkbox
-                formControlName="showCoverTitles"
-                aria-labelledby="cover-titles-label"
-                aria-describedby="cover-titles-description"
-                data-test-id="cover-titles-toggle"
-            ></mat-checkbox>
-        </div>
-    </div>
-
-    <div class="setting-item" data-setting-id="startup-behavior">
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.STARTUP_BEHAVIOR' | translate }}</h4>
-            <p>
-                {{ 'SETTINGS.STARTUP_BEHAVIOR_DESCRIPTION' | translate }}
-            </p>
-        </div>
-        <div class="setting-item__control">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>{{
-                    'SETTINGS.STARTUP_BEHAVIOR' | translate
-                }}</mat-label>
-                <mat-select
-                    formControlName="startupBehavior"
-                    data-test-id="select-startup-behavior"
-                >
-                    @for (
-                        option of startupBehaviorOptions();
-                        track option.value
-                    ) {
-                        <mat-option
-                            [value]="option.value"
-                            [attr.data-test-id]="option.value"
+                        <mat-select
+                            formControlName="language"
+                            aria-labelledby="language-label"
+                            data-test-id="select-language"
                         >
-                            {{ option.labelKey | translate }}
-                        </mat-option>
-                    }
-                </mat-select>
-            </mat-form-field>
-        </div>
-    </div>
-
-    @if (supportsStartupWindowMode()) {
-        <div
-            class="setting-item"
-            data-setting-id="startup-window-mode"
-            data-test-id="startup-window-mode-setting"
-        >
-            <div class="setting-item__meta">
-                <h4>{{ 'SETTINGS.STARTUP_WINDOW_MODE' | translate }}</h4>
-                <p>
-                    {{ 'SETTINGS.STARTUP_WINDOW_MODE_DESCRIPTION' | translate }}
-                </p>
+                            @for (
+                                language of languageEnum() | keyvalue;
+                                track language
+                            ) {
+                                <mat-option
+                                    [value]="language.value"
+                                    [attr.data-test-id]="language.value"
+                                    >{{
+                                        'LANGUAGES.' + language.key | translate
+                                    }}</mat-option
+                                >
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                </div>
             </div>
-            <div class="setting-item__control">
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                    <mat-label>{{
-                        'SETTINGS.STARTUP_WINDOW_MODE' | translate
-                    }}</mat-label>
-                    <mat-select
-                        formControlName="startupWindowMode"
-                        data-test-id="select-startup-window-mode"
+
+            <div class="setting-item" data-setting-id="theme">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.THEME' | translate }}</h4>
+                    <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
+                </div>
+                <div class="setting-item__control">
+                    <div
+                        class="theme-switcher"
+                        role="radiogroup"
+                        [attr.aria-label]="'SETTINGS.THEME' | translate"
+                        data-test-id="select-theme"
                     >
                         @for (
-                            option of startupWindowModeOptions();
-                            track option.value
+                            themeOption of themeOptions();
+                            track themeOption.value
                         ) {
-                            <mat-option
-                                [value]="option.value"
-                                [attr.data-test-id]="
-                                    'startup-window-mode-' + option.value
+                            <button
+                                type="button"
+                                class="theme-switcher__option"
+                                [class.theme-switcher__option--selected]="
+                                    form().value.theme === themeOption.value
                                 "
+                                [attr.aria-checked]="
+                                    form().value.theme === themeOption.value
+                                "
+                                [attr.data-test-id]="themeOption.value"
+                                role="radio"
+                                (click)="selectTheme.emit(themeOption.value)"
                             >
-                                {{ option.labelKey | translate }}
-                            </mat-option>
+                                <mat-icon>{{ themeOption.icon }}</mat-icon>
+                                <span>{{ themeOption.labelKey | translate }}</span>
+                            </button>
                         }
-                    </mat-select>
-                </mat-form-field>
+                    </div>
+                </div>
             </div>
-        </div>
-    }
 
-    <div class="setting-item" data-setting-id="show-captions">
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.SHOW_CAPTIONS' | translate }}</h4>
-            <p>
-                {{ 'SETTINGS.SHOW_CAPTIONS_DESCRIPTION' | translate }}
-            </p>
-        </div>
-        <div class="setting-item__control setting-item__toggle">
-            <mat-checkbox formControlName="showCaptions"></mat-checkbox>
-        </div>
-    </div>
+            <div class="setting-item" data-setting-id="cover-size">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.COVER_SIZE' | translate }}</h4>
+                    <p>{{ 'SETTINGS.COVER_SIZE_DESCRIPTION' | translate }}</p>
+                </div>
+                <div class="setting-item__control">
+                    <div
+                        class="theme-switcher"
+                        role="radiogroup"
+                        [attr.aria-label]="'SETTINGS.COVER_SIZE' | translate"
+                        data-test-id="select-cover-size"
+                    >
+                        @for (option of coverSizeOptions(); track option.value) {
+                            <button
+                                type="button"
+                                class="theme-switcher__option"
+                                [class.theme-switcher__option--selected]="
+                                    form().value.coverSize === option.value
+                                "
+                                [attr.aria-checked]="
+                                    form().value.coverSize === option.value
+                                "
+                                [attr.data-test-id]="
+                                    'cover-size-' + option.value
+                                "
+                                role="radio"
+                                (click)="selectCoverSize.emit(option.value)"
+                            >
+                                <mat-icon>{{ option.icon }}</mat-icon>
+                                <span>{{ option.labelKey | translate }}</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
 
-    <div class="setting-item" data-setting-id="strip-country-prefix">
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.STRIP_COUNTRY_PREFIX' | translate }}</h4>
-            <p>
-                {{ 'SETTINGS.STRIP_COUNTRY_PREFIX_DESCRIPTION' | translate }}
-            </p>
-        </div>
-        <div class="setting-item__control setting-item__toggle">
-            <mat-checkbox formControlName="stripCountryPrefix"></mat-checkbox>
-        </div>
-    </div>
-</section>
-@if (supportsPortalConnectivityGuard()) {
-    <section
-        class="settings-group"
-        [formGroup]="form()"
-        data-test-id="portal-connectivity-setting"
-    >
-        <header class="settings-group__header">
-            <div class="settings-group__header-icon">
-                <mat-icon>hub</mat-icon>
-            </div>
-            <div class="settings-group__header-text">
-                <h3>{{ 'SETTINGS.PORTAL_CONNECTIONS' | translate }}</h3>
-            </div>
-        </header>
-        <div class="setting-item" data-setting-id="portal-connectivity-guard">
-            <div class="setting-item__meta">
-                <h4 id="portal-connectivity-label">
-                    {{ 'SETTINGS.PORTAL_CONNECTIVITY_GUARD' | translate }}
-                </h4>
-                <p id="portal-connectivity-description">
-                    {{
-                        'SETTINGS.PORTAL_CONNECTIVITY_GUARD_DESCRIPTION'
-                            | translate
-                    }}
-                </p>
-                @if (form().get('portalConnectivityGuard')?.value === false) {
-                    <p>
-                        {{
-                            'SETTINGS.PORTAL_CONNECTIVITY_GUARD_DISABLED'
-                                | translate
-                        }}
+            <div class="setting-item" data-setting-id="cover-titles">
+                <div class="setting-item__meta">
+                    <h4 id="cover-titles-label">
+                        {{ 'SETTINGS.COVER_TITLES' | translate }}
+                    </h4>
+                    <p id="cover-titles-description">
+                        {{ 'SETTINGS.COVER_TITLES_DESCRIPTION' | translate }}
                     </p>
-                }
-            </div>
-            <div class="setting-item__control setting-item__toggle">
-                <mat-checkbox
-                    formControlName="portalConnectivityGuard"
-                    aria-labelledby="portal-connectivity-label"
-                    aria-describedby="portal-connectivity-description"
-                    data-test-id="portal-connectivity-toggle"
-                ></mat-checkbox>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-slide-toggle
+                        formControlName="showCoverTitles"
+                        aria-labelledby="cover-titles-label"
+                        aria-describedby="cover-titles-description"
+                        data-test-id="cover-titles-toggle"
+                    ></mat-slide-toggle>
+                </div>
             </div>
         </div>
     </section>
-}
+
+    <section class="settings-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.CARD_STARTUP' | translate }}</h3>
+        </div>
+        <div class="settings-card">
+            <div class="setting-item" data-setting-id="startup-behavior">
+                <div class="setting-item__meta">
+                    <h4 id="startup-behavior-label">
+                        {{ 'SETTINGS.STARTUP_BEHAVIOR' | translate }}
+                    </h4>
+                    <p>
+                        {{ 'SETTINGS.STARTUP_BEHAVIOR_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <mat-form-field
+                        class="settings-select"
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                    >
+                        <mat-select
+                            formControlName="startupBehavior"
+                            aria-labelledby="startup-behavior-label"
+                            data-test-id="select-startup-behavior"
+                        >
+                            @for (
+                                option of startupBehaviorOptions();
+                                track option.value
+                            ) {
+                                <mat-option
+                                    [value]="option.value"
+                                    [attr.data-test-id]="option.value"
+                                >
+                                    {{ option.labelKey | translate }}
+                                </mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+            </div>
+
+            @if (supportsStartupWindowMode()) {
+                <div
+                    class="setting-item"
+                    data-setting-id="startup-window-mode"
+                    data-test-id="startup-window-mode-setting"
+                >
+                    <div class="setting-item__meta">
+                        <h4 id="startup-window-mode-label">
+                            {{ 'SETTINGS.STARTUP_WINDOW_MODE' | translate }}
+                            <span class="settings-chip">{{
+                                'SETTINGS.CHIP_RESTART' | translate
+                            }}</span>
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.STARTUP_WINDOW_MODE_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field
+                            class="settings-select"
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-select
+                                formControlName="startupWindowMode"
+                                aria-labelledby="startup-window-mode-label"
+                                data-test-id="select-startup-window-mode"
+                            >
+                                @for (
+                                    option of startupWindowModeOptions();
+                                    track option.value
+                                ) {
+                                    <mat-option
+                                        [value]="option.value"
+                                        [attr.data-test-id]="
+                                            'startup-window-mode-' +
+                                            option.value
+                                        "
+                                    >
+                                        {{ option.labelKey | translate }}
+                                    </mat-option>
+                                }
+                            </mat-select>
+                        </mat-form-field>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="settings-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.CARD_CHANNELS' | translate }}</h3>
+        </div>
+        <div class="settings-card">
+            <div class="setting-item" data-setting-id="strip-country-prefix">
+                <div class="setting-item__meta">
+                    <h4 id="strip-country-prefix-label">
+                        {{ 'SETTINGS.STRIP_COUNTRY_PREFIX' | translate }}
+                    </h4>
+                    <p id="strip-country-prefix-description">
+                        {{
+                            'SETTINGS.STRIP_COUNTRY_PREFIX_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-slide-toggle
+                        formControlName="stripCountryPrefix"
+                        aria-labelledby="strip-country-prefix-label"
+                        aria-describedby="strip-country-prefix-description"
+                        data-test-id="strip-country-prefix-toggle"
+                    ></mat-slide-toggle>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @if (supportsPortalConnectivityGuard()) {
+        <section
+            class="settings-section"
+            data-test-id="portal-connectivity-setting"
+        >
+            <div class="settings-section__header">
+                <h3>{{ 'SETTINGS.PORTAL_CONNECTIONS' | translate }}</h3>
+            </div>
+            <div class="settings-card">
+                <div
+                    class="setting-item"
+                    data-setting-id="portal-connectivity-guard"
+                >
+                    <div class="setting-item__meta">
+                        <h4 id="portal-connectivity-label">
+                            {{ 'SETTINGS.PORTAL_CONNECTIVITY_GUARD' | translate }}
+                        </h4>
+                        <p id="portal-connectivity-description">
+                            {{
+                                'SETTINGS.PORTAL_CONNECTIVITY_GUARD_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                        @if (
+                            form().get('portalConnectivityGuard')?.value ===
+                            false
+                        ) {
+                            <p>
+                                {{
+                                    'SETTINGS.PORTAL_CONNECTIVITY_GUARD_DISABLED'
+                                        | translate
+                                }}
+                            </p>
+                        }
+                    </div>
+                    <div class="setting-item__control setting-item__toggle">
+                        <mat-slide-toggle
+                            formControlName="portalConnectivityGuard"
+                            aria-labelledby="portal-connectivity-label"
+                            aria-describedby="portal-connectivity-description"
+                            data-test-id="portal-connectivity-toggle"
+                        ></mat-slide-toggle>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+</section>

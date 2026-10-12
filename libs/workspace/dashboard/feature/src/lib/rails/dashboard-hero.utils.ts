@@ -40,7 +40,7 @@ export interface DashboardHeroSlide extends DashboardHeroArtwork {
     readonly description: string | null;
     /** 0-100: watched share, or elapsed share of the live programme */
     readonly progress: number | null;
-    /** Title-derived hue for the live slide's glow (0-359) */
+    /** Title-derived hue (0-359): the live glow and the no-artwork gradient */
     readonly accentHue: number;
     readonly primaryAction: DashboardHeroAction;
     readonly secondaryAction: DashboardHeroAction | null;
@@ -51,14 +51,11 @@ export type DashboardHeroBackdropSource = 'backdrop' | 'poster' | 'fallback';
 export interface DashboardHeroArtworkInput {
     readonly backdropUrl?: string | null;
     readonly posterUrl?: string | null;
-    readonly title: string;
 }
 
 export interface DashboardHeroArtwork {
     readonly backdropUrl?: string;
     readonly backdropSource: DashboardHeroBackdropSource;
-    readonly fallbackBackdropBackground: string;
-    readonly fallbackPosterBackground: string;
     readonly hasBackdrop: boolean;
     readonly posterUrl?: string;
 }
@@ -85,49 +82,17 @@ export function resolveDashboardHeroArtwork(
     return {
         backdropUrl,
         backdropSource,
-        fallbackBackdropBackground: buildFallbackBackground(
-            item.title,
-            50,
-            15,
-            80,
-            5,
-            60
-        ),
-        fallbackPosterBackground: buildFallbackBackground(
-            item.title,
-            40,
-            25,
-            50,
-            15,
-            40
-        ),
         hasBackdrop: backdropSource === 'backdrop',
         posterUrl,
     };
 }
 
-function buildFallbackBackground(
-    title: string,
-    saturationA: number,
-    lightnessA: number,
-    saturationB: number,
-    lightnessB: number,
-    hueOffset: number
-): string {
-    const hue = calculateHue(title || 'placeholder');
-    const h2 = (hue + hueOffset) % 360;
-    return `linear-gradient(135deg, hsl(${hue}, ${saturationA}%, ${lightnessA}%) 0%, hsl(${h2}, ${saturationB}%, ${lightnessB}%) 100%)`;
-}
-
 /** Stable hue for a title, shared by every generated fallback surface. */
 export function dashboardHeroHue(text: string): number {
-    return calculateHue(text || 'placeholder');
-}
-
-function calculateHue(text: string): number {
+    const key = text || 'placeholder';
     let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-        hash = text.charCodeAt(i) + ((hash << 5) - hash);
+    for (let i = 0; i < key.length; i++) {
+        hash = key.charCodeAt(i) + ((hash << 5) - hash);
         hash = hash & hash;
     }
     return Math.abs(hash) % 360;

@@ -16,11 +16,11 @@ const modulePromise = import(
 test('rejects a timed-out worker sample before returning plain capture metrics', async () => {
     const module = await modulePromise;
     const assertCaptureValid = module.assertWorkerSampleCaptureValid;
-    assert.equal(typeof assertCaptureValid, 'function');
+    assert.ok(typeof assertCaptureValid === 'function');
 
-    assert.doesNotThrow(() => assertCaptureValid?.([]));
+    assert.doesNotThrow(() => assertCaptureValid([]));
     assert.throws(
-        () => assertCaptureValid?.(['worker-sample-timeout']),
+        () => assertCaptureValid(['worker-sample-timeout']),
         /main-capture-worker-sample-timeout/
     );
 });

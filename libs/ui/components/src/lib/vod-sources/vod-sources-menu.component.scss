@@ -1,4 +1,6 @@
-$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+@use '../../../../styles/focus-ring';
+
+$font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
 // The popover is height-capped by its overlay to the space beside the anchor,
 // so everything from the host down must let the list — and only the list —
@@ -41,7 +43,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     // size as the hint and the action beside it, so all three scanned as
     // column headers over the list.
     font-size: 15px;
-    font-weight: 650;
+    font-weight: 600;
     letter-spacing: -0.01em;
     color: var(--app-on-surface);
     overflow: hidden;
@@ -136,7 +138,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     background: var(--app-card-hover-bg);
 
     &:focus-within {
-        border-color: var(--app-selection-color);
+        border-color: var(--app-focus-ring);
     }
 }
 
@@ -236,8 +238,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 }
 
@@ -278,8 +279,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     cursor: pointer;
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 }
 

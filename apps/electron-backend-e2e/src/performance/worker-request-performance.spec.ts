@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
     type CancellationBenchmarkManifest,
     type CancellationIterationResult,
+    type NumericDistribution,
     PERFORMANCE_ITERATION_KIND,
     PERFORMANCE_WORKER_KIND,
     type WorkerCaptureMetrics,
@@ -120,6 +121,16 @@ function playlistWorker(
     };
 }
 
+const EMPTY_DISTRIBUTION: NumericDistribution = {
+    count: 0,
+    max: null,
+    mean: null,
+    median: null,
+    min: null,
+    p95: null,
+    p99: null,
+};
+
 function measuredIteration(
     workers: readonly WorkerCaptureMetrics[]
 ): CancellationIterationResult {
@@ -157,14 +168,28 @@ function measuredIteration(
         } as CancellationIterationResult['main'],
         phases: {} as CancellationIterationResult['phases'],
         renderer: {
+            cpuProfilePath: null,
+            frameGap: EMPTY_DISTRIBUTION,
+            heapSnapshotPath: null,
+            heartbeatDelay: EMPTY_DISTRIBUTION,
+            longTask: EMPTY_DISTRIBUTION,
             peakHeapUsedBytes: 0,
             postGcHeapUsedBytes: null,
             probe: {
+                cancelButtonFound: true,
+                cancelClickEpochMs: null,
+                events: [],
                 frameGapsMs: [],
                 heartbeatDelaysMs: [],
                 longTasksMs: [],
+                operationStartEpochMs: 0,
+                terminalEpochMs: null,
+                uiPaintedEpochMs: null,
+                uiPhaseEpochMs: {},
+                uiSettledEpochMs: null,
             },
-        } as CancellationIterationResult['renderer'],
+            tracePath: null,
+        },
         runId: 'measured-1',
     };
 }

@@ -15,11 +15,6 @@ export const SEARCH_SETTINGS_PLACEHOLDER =
 export const SEARCH_LOADED_ONLY_STATUS =
     'WORKSPACE.SHELL.SEARCH_STATUS_LOADED_ONLY';
 
-export const CLEAR_RECENTLY_VIEWED_TOOLTIP =
-    'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION';
-export const CLEAR_RECENTLY_VIEWED_ARIA =
-    'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION_ARIA';
-
 export const RAIL_TOOLTIP_KEYS: Readonly<
     Partial<Record<PortalRailSection, string>>
 > = {
@@ -38,13 +33,6 @@ export const RAIL_TOOLTIP_KEYS: Readonly<
 };
 
 export type XtreamImportPhaseTone = 'remote' | 'local' | null;
-
-export interface WorkspaceHeaderBulkAction {
-    icon: string;
-    tooltip: string;
-    ariaLabel: string;
-    disabled: boolean;
-}
 
 /**
  * Header toggle for the live-channel rail of the current route. It exists in

@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/focus-ring';
+
 :host {
     display: block;
     height: 100%;
@@ -20,16 +22,6 @@ button,
         height: 16px;
         font-size: 16px;
     }
-}
-
-.offline-detail__people-group {
-    min-width: 0;
-    max-width: 100%;
-}
-
-.offline-detail__person {
-    cursor: default;
-    user-select: text;
 }
 
 .offline-detail__portal-action {
@@ -108,9 +100,7 @@ button,
     }
 
     &:focus-visible {
-        outline: 2px solid
-            var(--app-selection-border, var(--mat-sys-primary, currentColor));
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 }
 

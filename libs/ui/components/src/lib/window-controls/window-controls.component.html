@@ -2,8 +2,8 @@
     type="button"
     class="window-control"
     data-test-id="window-minimize"
-    aria-label="Minimize"
-    title="Minimize"
+    [attr.aria-label]="'WORKSPACE.SHELL.WINDOW_MINIMIZE' | translate"
+    [attr.title]="'WORKSPACE.SHELL.WINDOW_MINIMIZE' | translate"
     (click)="onMinimize()"
 >
     <svg viewBox="0 0 10 10" class="crisp" aria-hidden="true">
@@ -15,8 +15,8 @@
     type="button"
     class="window-control"
     data-test-id="window-maximize"
-    [attr.aria-label]="isMaximized() ? 'Restore' : 'Maximize'"
-    [attr.title]="isMaximized() ? 'Restore' : 'Maximize'"
+    [attr.aria-label]="maximizeLabelKey() | translate"
+    [attr.title]="maximizeLabelKey() | translate"
     (click)="onToggleMaximize()"
 >
     @if (isMaximized()) {
@@ -45,8 +45,8 @@
     type="button"
     class="window-control close"
     data-test-id="window-close"
-    aria-label="Close"
-    title="Close"
+    [attr.aria-label]="'WORKSPACE.SHELL.WINDOW_CLOSE' | translate"
+    [attr.title]="'WORKSPACE.SHELL.WINDOW_CLOSE' | translate"
     (click)="onClose()"
 >
     <svg viewBox="0 0 10 10" aria-hidden="true">

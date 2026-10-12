@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/focus-ring';
+
 :host {
     display: block;
     margin: 4px 0 12px;
@@ -49,8 +51,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 
     &__icon {
@@ -187,8 +188,7 @@
         }
 
         &:focus-visible {
-            outline: 2px solid var(--app-selection-color);
-            outline-offset: 2px;
+            @include focus-ring.focus-ring-declarations;
         }
     }
 }

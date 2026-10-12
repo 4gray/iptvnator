@@ -4,9 +4,6 @@
 }
 
 .recording-detail__badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
     background: color-mix(in srgb, var(--mat-sys-error) 18%, transparent);
     color: var(--mat-sys-error);
     font-weight: 700;

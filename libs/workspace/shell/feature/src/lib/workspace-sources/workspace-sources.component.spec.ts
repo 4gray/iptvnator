@@ -23,6 +23,10 @@ import {
     selectAllPlaylistsMeta,
 } from '@iptvnator/m3u-state';
 import { SortBy, SortOrder, SortService } from '@iptvnator/services';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { WorkspaceSourcesComponent } from './workspace-sources.component';
 
@@ -138,6 +142,8 @@ describe('WorkspaceSourcesComponent', () => {
                         MatButtonModule,
                         MatIconModule,
                         MatMenuModule,
+                        MenuItemRadioCheckDirective,
+                        MenuItemRadioDirective,
                         MockRecentPlaylistsComponent,
                         TranslatePipe,
                     ],
@@ -222,5 +228,38 @@ describe('WorkspaceSourcesComponent', () => {
             fixture.nativeElement.querySelector('.sources-content');
 
         expect(content.classList.contains('app-scrollbar')).toBe(true);
+    });
+
+    it('offers the source sorts as radio rows with the active one checked', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        (
+            fixture.nativeElement.querySelector(
+                '.sort-trigger'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+
+        const rows = Array.from(
+            document.querySelectorAll<HTMLElement>(
+                '.cdk-overlay-container [mat-menu-item]'
+            )
+        );
+        expect(rows.map((row) => row.getAttribute('role'))).toEqual(
+            Array(5).fill('menuitemradio')
+        );
+        expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual([
+            'true',
+            'false',
+            'false',
+            'false',
+            'false',
+        ]);
+        for (const row of rows) {
+            expect(row.firstElementChild?.classList).toContain(
+                'app-menu-item-radio-check'
+            );
+        }
     });
 });

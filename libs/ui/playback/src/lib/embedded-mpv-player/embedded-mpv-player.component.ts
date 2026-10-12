@@ -16,15 +16,15 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { merge } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/services';
 import {
     EmbeddedMpvAudioTrack,
     RecordingStartMetadata,
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { sameTimelineSegments } from '../player-controls/chapter-timeline-segments';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type {
     PlayerMediaTitle,
@@ -32,6 +32,7 @@ import type {
     PlayerTimelineSegment,
 } from '../player-controls/player-controls.model';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { embeddedMpvTimelineSegments } from './embedded-mpv-chapter-segments';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvDockPanelComponent } from './embedded-mpv-dock-panel.component';
 import { EmbeddedMpvDockPanelState } from './embedded-mpv-dock-panels';
@@ -88,7 +89,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly upNext = input<PlayerUpNextItem | null>(null);
-    /** Catch-up programmes drawn as track segments; null draws one. */
+    /** Catch-up programmes drawn as track segments; they outrank chapters. */
     readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
         null
     );
@@ -113,14 +114,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      * otherwise labels keep the previous language (or the raw key when the
      * component mounts before the translation file finishes loading).
      */
-    private readonly translationsTick = toSignal(
-        merge(
-            this.translate.onLangChange,
-            this.translate.onTranslationChange,
-            this.translate.onDefaultLangChange
-        ),
-        { initialValue: null }
-    );
+    private readonly translationsTick = injectTranslationTick();
     readonly controller = inject(EmbeddedMpvSessionController);
     readonly sharedControls = inject(EmbeddedMpvControlsAdapter);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
@@ -143,6 +137,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     readonly support = this.controller.support;
     readonly session = this.controller.session;
+    /** Catch-up programmes first, else the file's chapters; see the helper. */
+    readonly controlsTimelineSegments = computed(
+        () =>
+            embeddedMpvTimelineSegments(this.timelineSegments(), this.session()),
+        { equal: sameTimelineSegments }
+    );
     readonly stalled = this.controller.stalled;
 
     readonly volume = signal(readStoredVolume());
@@ -224,7 +224,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
         if (session?.status === 'error') {
             return (
-                session.error ??
+                session.error ||
                 this.translate.instant('EMBEDDED_MPV.PLAYER.PLAYBACK_FAILED')
             );
         }
@@ -238,7 +238,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
         if (!this.isSupported()) {
             return (
-                this.support()?.reason ??
+                this.support()?.reason ||
                 this.translate.instant('EMBEDDED_MPV.PLAYER.NOT_AVAILABLE')
             );
         }

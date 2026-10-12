@@ -14,7 +14,6 @@ import {
     untracked,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -23,10 +22,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import {
-    isWorkspaceLayoutRoute,
-    queryParamSignal,
-} from '@iptvnator/portal/shared/util';
+import { queryParamSignal } from '@iptvnator/portal/shared/util';
 import {
     ChannelActions,
     FavoritesActions,
@@ -111,7 +107,6 @@ const EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS = 2000;
         CommonModule,
         FavoritesViewComponent,
         GroupsViewComponent,
-        MatButtonModule,
         MatIconModule,
         RecentViewComponent,
         TranslatePipe,
@@ -221,7 +216,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     readonly sidebarToggleRequested = output<void>();
     /** Groups view only: the group whose channels are currently listed. */
     readonly selectedGroupChange = output<string | null>();
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,
         'q',
@@ -232,7 +226,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         if (hostTerm !== null) {
             return foldSearchText(hostTerm.trim());
         }
-        return this.isWorkspaceLayout ? this.routeSearchTerm() : '';
+        return this.routeSearchTerm();
     });
 
     readonly currentUrl = toSignal(
@@ -708,26 +702,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 playlistId,
                 channelUrl
             )
-        );
-
-        this.store.dispatch(
-            PlaylistActions.updatePlaylistMeta({
-                playlist: {
-                    _id: playlistId,
-                    recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
-                } as PlaylistMeta,
-            }) as any
-        );
-    }
-
-    async clearRecentChannels(): Promise<void> {
-        const playlistId = this.resolvedPlaylistId();
-        if (!playlistId) {
-            return;
-        }
-
-        const updatedPlaylist = await firstValueFrom(
-            this.playlistsService.clearM3uRecentlyViewed(playlistId)
         );
 
         this.store.dispatch(

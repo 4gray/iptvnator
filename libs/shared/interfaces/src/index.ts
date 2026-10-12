@@ -6,8 +6,10 @@ export * from './lib/content-metadata.interface';
 export * from './lib/dev-logger.util';
 export * from './lib/download-metadata.interface';
 export * from './lib/embedded-mpv-session.interface';
+export * from './lib/embedded-mpv-support-watch.util';
 export * from './lib/subtitle-style.util';
 export * from './lib/zoom-level.util';
+export * from './lib/macos-traffic-lights';
 export * from './lib/electron-api.interface';
 export * from './lib/epg-channel-metadata.model';
 export * from './lib/epg-channel-with-programs.interface';
@@ -107,5 +109,7 @@ export * from './lib/vod-details-item.interface';
 export * from './lib/catchup-download.interface';
 
 export * from './lib/xtream-connection-test';
+export * from './lib/portal-request-failure.util';
 
 export * from './lib/source-health';
+export * from './lib/server-storage.contract';

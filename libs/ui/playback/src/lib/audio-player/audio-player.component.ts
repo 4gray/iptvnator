@@ -56,16 +56,17 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
                 </div>
 
                 <h2 class="station-name">
-                    {{ channelName() || 'Radio' }}
+                    {{ channelName() || ('AUDIO_PLAYER.RADIO' | translate) }}
                 </h2>
                 <span
                     class="station-badge"
                     [class.live]="playState() === 'play'"
                 >
                     @if (playState() === 'play') {
-                        <span class="pulse"></span> LIVE
+                        <span class="pulse"></span>
+                        {{ 'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate }}
                     } @else {
-                        PAUSED
+                        {{ 'AUDIO_PLAYER.PAUSED_BADGE' | translate }}
                     }
                 </span>
 
@@ -167,7 +168,7 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
         </div>
     `,
     styleUrls: ['./audio-player.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         FormsModule,
         MatButtonModule,

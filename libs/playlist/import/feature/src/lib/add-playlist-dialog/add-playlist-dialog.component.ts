@@ -72,7 +72,7 @@ const METHOD_BY_CANDIDATE_KIND: Record<
     selector: 'app-add-playlist',
     templateUrl: './add-playlist-dialog.component.html',
     styleUrl: './add-playlist-dialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
 })
 export class AddPlaylistDialogComponent {
@@ -260,9 +260,13 @@ export class AddPlaylistDialogComponent {
 
     rejectFile(filename: string): void {
         this.snackBar.open(
-            this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
-                filename,
-            })
+            filename
+                ? this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
+                      filename,
+                  })
+                : this.translateService.instant(
+                      'HOME.FILE_UPLOAD.REJECTED_UNNAMED'
+                  )
         );
     }
 

@@ -168,7 +168,11 @@ into `apps/website/public/blog/guides/screenshots/` instead of a release folder
 guard a release shot does; the add-playlist dialog shots fill the form with the
 mock's fictional `marketing` credentials and use a labeled hand-out for the
 Auto-detect method rather than a `get.php?username=…` link, because G4 rejects
-any URL carrying query credentials. Shots that walk into a Stalker portal
+any URL carrying query credentials. The Xtream shot clicks **Test HTTPS and
+HTTP** against the plain-`http://` mock, so no HTTPS probe is made, and fails
+the run unless the status line reports an active portal; the mock does not
+check passwords, so that verdict proves the scenario answered, not that the
+password is right. Shots that walk into a Stalker portal
 (`open-stalker-live`) make the run start the stalker-mock-server on port 3210
 and seed its `marketing-demo` portal as a third source, which is why they are
 never part of a release run. That scenario's MAC, `00:1A:79:00:00:07`, is the

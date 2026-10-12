@@ -51,6 +51,8 @@
 }
 
 // ─── Refine controls — show current sort/filter state compactly ──────────────
+// A chip shows its icon and a short value at every width; screen readers
+// get the full "Sort: …" text from a visually hidden span.
 .active-refinements {
     grid-area: refinements;
     justify-self: end;
@@ -93,7 +95,7 @@
     max-width: 220px;
     padding: 0 10px;
     background: var(--mat-sys-surface-container);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 6%, transparent);
     font-size: 0.78rem;
     font-weight: 600;
 }
@@ -105,21 +107,9 @@
     white-space: nowrap;
 }
 
-.refinement-chip-label-compact {
-    display: none;
-}
-
-@container category-content (max-width: 1120px) {
-    .refinement-chip-label-full {
-        display: none;
-    }
-
-    .refinement-chip-label-compact {
-        display: inline;
-    }
-}
-
 .sort-refinement-chip {
+    // Contains the absolutely positioned visually hidden text.
+    position: relative;
     color: var(--mat-sys-on-surface-variant);
     cursor: default;
     user-select: none;
@@ -135,7 +125,7 @@
     justify-self: end;
     padding: 0 12px;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 8%, transparent);
     app-region: no-drag;
 }
 
@@ -167,7 +157,7 @@
 .refine-menu-divider {
     height: 1px;
     margin: 6px 12px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--app-on-surface) 8%, transparent);
 }
 
 @container category-content (max-width: 920px) {
@@ -219,7 +209,6 @@
     .refine-action {
         justify-self: end;
     }
-
 }
 
 // ─── Grid scroll area ─────────────────────────────────────────────────────────

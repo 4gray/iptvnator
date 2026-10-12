@@ -55,10 +55,14 @@ export class SettingsBackupFacade {
                 );
             }
 
-            this.settingsSnackbar.open('Playlist backup exported.');
+            this.settingsSnackbar.open(
+                this.translate.instant('SETTINGS.BACKUP_EXPORTED')
+            );
         } catch (error) {
             console.error('Failed to export playlist backup:', error);
-            this.settingsSnackbar.open('Playlist backup export failed.');
+            this.settingsSnackbar.open(
+                this.translate.instant('SETTINGS.BACKUP_EXPORT_FAILED')
+            );
         } finally {
             this.isExportingData.set(false);
         }
@@ -132,6 +136,11 @@ export class SettingsBackupFacade {
     private buildBackupImportSummary(
         summary: PlaylistBackupImportSummary
     ): string {
-        return `Backup import finished: ${summary.imported} imported, ${summary.merged} merged, ${summary.skipped} skipped, ${summary.failed} failed.`;
+        return this.translate.instant('SETTINGS.BACKUP_IMPORT_SUMMARY', {
+            imported: summary.imported,
+            merged: summary.merged,
+            skipped: summary.skipped,
+            failed: summary.failed,
+        });
     }
 }

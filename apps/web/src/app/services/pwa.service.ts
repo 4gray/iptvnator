@@ -297,7 +297,7 @@ export class PwaService extends DataService {
                             ),
                             error
                         ),
-                        'Close',
+                        this.translateService.instant('CLOSE'),
                         {
                             duration: 5000,
                         }
@@ -327,7 +327,8 @@ export class PwaService extends DataService {
         let messageKey = 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
         switch (status) {
             case 413:
-                return 'This file is too big. Use standalone or self-hosted version of the app.';
+                messageKey = 'HOME.URL_UPLOAD.ERROR_413';
+                break;
             case 403:
                 messageKey = 'HOME.URL_UPLOAD.ERROR_403';
                 break;
@@ -503,8 +504,10 @@ export class PwaService extends DataService {
 
             this.logger.error('Xtream request error:', normalizedMessage);
             this.snackBar.open(
-                `Xtream request failed: ${normalizedMessage}`,
-                'Close',
+                this.translateService.instant('PORTALS.REQUEST_ERRORS.XTREAM', {
+                    message: normalizedMessage,
+                }),
+                this.translateService.instant('CLOSE'),
                 {
                     duration: 5000,
                 }
@@ -518,7 +521,9 @@ export class PwaService extends DataService {
     }
 
     private getReadableXtreamErrorMessage(error: unknown): string {
-        const fallback = 'Failed to connect to Xtream server';
+        const fallback = this.translateService.instant(
+            'PORTALS.REQUEST_ERRORS.XTREAM_CONNECTION'
+        );
         if (!error) {
             return fallback;
         }
@@ -693,8 +698,18 @@ export class PwaService extends DataService {
 
             if (!payload.silent) {
                 this.snackBar.open(
-                    `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
-                    'Close',
+                    this.translateService.instant(
+                        'PORTALS.REQUEST_ERRORS.STALKER',
+                        {
+                            message:
+                                errorInfo?.message ??
+                                this.translateService.instant(
+                                    'PORTALS.REQUEST_ERRORS.NOT_FOUND'
+                                ),
+                            status: errorInfo?.status ?? 404,
+                        }
+                    ),
+                    this.translateService.instant('CLOSE'),
                     {
                         duration: 5000,
                     }

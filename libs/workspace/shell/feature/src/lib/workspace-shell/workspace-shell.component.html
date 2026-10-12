@@ -1,4 +1,9 @@
-<div class="workspace-shell" appPlaylistDropZone #dropZone="playlistDropZone">
+<div
+    class="workspace-shell"
+    appPlaylistDropZone
+    #dropZone="playlistDropZone"
+    [appTrafficLightsClearance]="facade.isMacOS"
+>
     <app-playlist-drop-overlay [state]="dropZone.overlayState()" />
     @if (facade.showXtreamImportOverlay()) {
         <app-workspace-shell-import-overlay />
@@ -14,9 +19,6 @@
     <app-workspace-shell-rail
         [attr.inert]="contextDrawer.isOpen() ? '' : null"
         [isMacOS]="facade.isMacOS"
-        [brandLink]="facade.brandLink()"
-        [brandTooltipKey]="facade.brandTooltipKey()"
-        [brandAriaLabelKey]="facade.brandAriaLabelKey()"
         [workspaceLinks]="facade.workspaceLinks()"
         [primaryContextLinks]="facade.primaryContextLinks()"
         [secondaryContextLinks]="facade.secondaryContextLinks()"
@@ -28,6 +30,7 @@
     <app-workspace-shell-header
         #workspaceHeader
         [attr.inert]="contextDrawer.isOpen() ? '' : null"
+        [backTarget]="facade.backTarget()"
         [playlistTitle]="facade.playlistTitle()"
         [playlistSubtitle]="facade.playlistSubtitle()"
         [canOpenPlaylistInfo]="facade.canOpenPlaylistInfo()"
@@ -38,7 +41,6 @@
         [searchScopeLabel]="facade.searchScopeLabel()"
         [searchStatusLabel]="facade.searchStatusLabel()"
         [headerShortcut]="facade.headerShortcut()"
-        [headerBulkAction]="facade.headerBulkAction()"
         [headerSidebarToggle]="facade.headerSidebarToggle()"
         [canRefreshPlaylist]="facade.canRefreshPlaylist()"
         [isRefreshingPlaylist]="facade.isRefreshingPlaylist()"
@@ -52,6 +54,7 @@
         [isContextDrawerOpen]="contextDrawer.isOpen()"
         [contextDrawerToggleAriaKey]="facade.contextDrawerLabelKeys().aria"
         [contextDrawerTooltipKey]="facade.contextDrawerLabelKeys().tooltip"
+        (backRequested)="facade.goBack()"
         (contextDrawerToggleRequested)="contextDrawer.toggle()"
         (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"
@@ -60,7 +63,6 @@
         (shortcutsRequested)="keyboardShortcuts.openShortcutsDialog()"
         (addPlaylistRequested)="facade.openAddPlaylistDialog()"
         (headerShortcutRequested)="facade.runHeaderShortcut()"
-        (headerBulkActionRequested)="facade.runHeaderBulkAction()"
         (headerSidebarToggleRequested)="facade.toggleLiveSidebar()"
         (parentalLockToggleRequested)="facade.toggleParentalLock()"
         (downloadsRequested)="facade.openDownloadsShortcut()"
@@ -69,9 +71,13 @@
         (accountInfoForPlaylistRequested)="facade.openAccountInfoFor($event)"
     />
 
+    <!-- The content frame slides to make room for the context panel
+         instead of jumping (see LayoutSlideDirective). -->
     <div
         class="workspace-body"
         [class.single-pane]="!facade.showContextPanel()"
+        [appLayoutSlide]="facade.showContextPanel()"
+        layoutSlideTargets=".workspace-content-frame"
     >
         @if (facade.showContextPanel()) {
             <!-- Phone-only (CSS-hidden above 640px): tapping the scrim is
@@ -110,17 +116,22 @@
             />
         }
 
-        <!-- tabindex="-1": programmatic focus target for the drawer-close
-             fallback when the toggle is gone (navigated to a route without
-             a context panel); not in the Tab order. -->
-        <main
-            #workspaceContent
-            class="workspace-content"
-            tabindex="-1"
-            [attr.inert]="contextDrawer.isOpen() ? '' : null"
-        >
-            <router-outlet />
-        </main>
+        <!-- The frame carries the content surface's rounded corner and
+             shadow without clipping; the scroller inside clips to a
+             rectangle (see the stylesheet for why). -->
+        <div class="workspace-content-frame">
+            <!-- tabindex="-1": programmatic focus target for the drawer-close
+                 fallback when the toggle is gone (navigated to a route without
+                 a context panel); not in the Tab order. -->
+            <main
+                #workspaceContent
+                class="workspace-content"
+                tabindex="-1"
+                [attr.inert]="contextDrawer.isOpen() ? '' : null"
+            >
+                <router-outlet />
+            </main>
+        </div>
     </div>
 
     @if (facade.showExternalPlaybackBar()) {

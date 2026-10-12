@@ -18,11 +18,10 @@ import {
     WorkspacePortalContext,
     WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
+import { LayoutSlideDirective } from './layout-slide.directive';
+import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
 import { WorkspaceShellComponent } from './workspace-shell.component';
-import {
-    WorkspaceHeaderBulkAction,
-    WorkspaceShellFacade,
-} from './services/workspace-shell.facade';
+import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 
 @Component({
@@ -33,9 +32,6 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 })
 class MockWorkspaceShellRailComponent {
     readonly isMacOS = input(false);
-    readonly brandLink = input('/workspace/dashboard');
-    readonly brandTooltipKey = input('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = input('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = input<unknown[]>([]);
     readonly primaryContextLinks = input<unknown[]>([]);
     readonly secondaryContextLinks = input<unknown[]>([]);
@@ -51,6 +47,7 @@ class MockWorkspaceShellRailComponent {
     standalone: true,
 })
 class MockWorkspaceShellHeaderComponent {
+    readonly backTarget = input<unknown>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
     readonly canOpenPlaylistInfo = input(false);
@@ -72,9 +69,9 @@ class MockWorkspaceShellHeaderComponent {
     readonly isContextDrawerOpen = input(false);
     readonly contextDrawerToggleAriaKey = input('');
     readonly contextDrawerTooltipKey = input('');
-    readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = input<unknown>(null);
     readonly parentalLockState = input<'off' | 'locked' | 'unlocked'>('off');
+    readonly backRequested = output<void>();
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
@@ -83,7 +80,6 @@ class MockWorkspaceShellHeaderComponent {
     readonly headerShortcutRequested = output<void>();
     readonly refreshPlaylistRequested = output<void>();
     readonly downloadsRequested = output<void>();
-    readonly headerBulkActionRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
@@ -152,9 +148,8 @@ class MockWorkspaceKeyboardShortcutsService {
 }
 
 class MockWorkspaceShellFacade {
-    readonly brandLink = signal('/workspace/dashboard');
-    readonly brandTooltipKey = signal('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = signal('WORKSPACE.SHELL.OPEN_DASHBOARD');
+    readonly backTarget = signal(null);
+    goBack = jest.fn();
     readonly workspaceLinks = signal([]);
     readonly primaryContextLinks = signal([]);
     readonly secondaryContextLinks = signal([]);
@@ -178,7 +173,6 @@ class MockWorkspaceShellFacade {
     readonly hasNoPlaylists = signal(false);
     readonly isDownloadsView = signal(false);
     readonly activeDownloadsCount = signal(3);
-    readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = signal(null);
     toggleLiveSidebar = jest.fn();
     readonly parentalLockState = signal<'off' | 'locked' | 'unlocked'>('off');
@@ -227,7 +221,6 @@ class MockWorkspaceShellFacade {
     runHeaderShortcut = jest.fn();
     refreshCurrentPlaylist = jest.fn();
     openDownloadsShortcut = jest.fn();
-    runHeaderBulkAction = jest.fn();
     openPlaylistInfo = jest.fn();
     openAccountInfo = jest.fn();
     openAccountInfoFor = jest.fn();
@@ -272,6 +265,8 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {
@@ -309,6 +304,14 @@ describe('WorkspaceShellComponent', () => {
             By.directive(MockWorkspaceShellHeaderComponent)
         ).componentInstance as MockWorkspaceShellHeaderComponent;
         expect(header.activeDownloadsCount()).toBe(3);
+        // macOS: the rail and header read the traffic-light clearance.
+        expect(
+            (
+                fixture.nativeElement.querySelector(
+                    '.workspace-shell'
+                ) as HTMLElement
+            ).style.getPropertyValue('--traffic-lights-clear-x')
+        ).toMatch(/px$/);
         expect(
             fixture.nativeElement.querySelector(
                 'app-workspace-shell-context-sidebar'
@@ -359,6 +362,8 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {
@@ -436,6 +441,8 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {
@@ -509,6 +516,8 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {
@@ -608,6 +617,8 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellHeaderComponent,
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
+                        TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {

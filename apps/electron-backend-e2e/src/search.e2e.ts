@@ -486,7 +486,7 @@ test.describe('Electron Workspace Search', () => {
             await expectQueryParam(app.mainWindow, 'q', sample.targetTitle);
             await expectWorkspaceSearchScope(
                 app.mainWindow,
-                'Live TV / All Items'
+                'Live TV / All items'
             );
             await expect(
                 liveChannelSidebar(app.mainWindow)
@@ -581,9 +581,6 @@ test.describe('Electron Workspace Search', () => {
             );
             await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
             await expect(
-                app.mainWindow.locator('app-search-layout app-search-form')
-            ).toHaveCount(0);
-            await expect(
                 xtreamSearchResultCards(app.mainWindow).first()
             ).toBeVisible({ timeout: 20000 });
         } finally {
@@ -638,6 +635,18 @@ test.describe('Electron Workspace Search', () => {
             await expect(
                 xtreamSearchResultCards(app.mainWindow).first()
             ).toBeVisible({ timeout: 20000 });
+
+            // The search page's Back is the header's leading button, not an
+            // arrow beside its title, and it returns to the dashboard.
+            const headerBack = app.mainWindow.getByTestId(
+                'workspace-header-back'
+            );
+            await expect(headerBack).toBeVisible();
+            await expect(
+                app.mainWindow.getByRole('button', { name: 'Back', exact: true })
+            ).toHaveCount(1);
+            await headerBack.click();
+            await expectPathname(app.mainWindow, /\/workspace\/dashboard$/);
         } finally {
             await closeElectronApp(app);
         }
@@ -889,9 +898,6 @@ test.describe('Electron Workspace Search', () => {
                 /\/workspace\/stalker\/[^/]+\/search$/
             );
             await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
-            await expect(
-                app.mainWindow.locator('app-search-layout app-search-form')
-            ).toHaveCount(0);
 
             await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
 
@@ -1512,7 +1518,7 @@ async function expectXtreamRootCatalogSearch(
     await expectQueryParam(page, 'q', options.sample.targetTitle);
     await expectWorkspaceSearchScope(
         page,
-        `${options.sectionLabel} / All Items`
+        `${options.sectionLabel} / All items`
     );
     const contentLayout = page.locator('.category-content-layout');
     await expect(contentLayout).toContainText(
@@ -1540,12 +1546,9 @@ async function addCurrentDetailToFavorites(page: Page): Promise<void> {
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: the shell's sticky Back is route-level in browse
-    // and watch alike (closing the player is the bar's own Close button).
-    const backButton = page
-        .locator('app-portal-detail-shell')
-        .first()
-        .getByRole('button', { name: 'Back', exact: true });
+    // Return to the list: the header's Back is route-level in browse and
+    // watch alike (closing the player is the bar's own Close button).
+    const backButton = page.getByTestId('workspace-header-back');
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     await backButton.click();

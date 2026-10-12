@@ -20,6 +20,9 @@ export type SettingsSearchCapabilities = Readonly<
     Record<SettingsSearchRequirement, boolean>
 >;
 
+/** Settings navigation groups; About has none and sits in the footer. */
+export type SettingsNavGroup = 'app' | 'library' | 'devices' | 'data';
+
 /** One routed settings section page (`/workspace/settings/:id`). */
 export interface SettingsSectionDefinition {
     readonly id: string;
@@ -27,6 +30,8 @@ export interface SettingsSectionDefinition {
     readonly navLabelKey: string;
     readonly icon: string;
     readonly requires?: readonly SettingsSearchRequirement[];
+    /** Navigation group; omitted for sections pinned to the footer. */
+    readonly group?: SettingsNavGroup;
 }
 
 /**

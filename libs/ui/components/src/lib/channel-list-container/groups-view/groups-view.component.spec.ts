@@ -230,7 +230,9 @@ describe('GroupsViewComponent', () => {
 
     it('defaults to playlist order when no saved sort mode exists', () => {
         expect(component.groupChannelSortMode()).toBe('server');
-        expect(component.groupChannelSortLabel()).toBe('Playlist Order');
+        expect(component.groupChannelSortLabelKey()).toBe(
+            'CHANNELS.SORT_PLAYLIST_ORDER'
+        );
     });
 
     it('keeps the virtual-scroll item size aligned with row EPG density', () => {
@@ -259,7 +261,9 @@ describe('GroupsViewComponent', () => {
         createComponent();
 
         expect(component.groupChannelSortMode()).toBe('name-asc');
-        expect(component.groupChannelSortLabel()).toBe('Name A-Z');
+        expect(component.groupChannelSortLabelKey()).toBe(
+            'WORKSPACE.SORT_NAME_ASC'
+        );
 
         fixture.destroy();
         localStorage.setItem(GROUP_CHANNEL_SORT_STORAGE_KEY, 'invalid');

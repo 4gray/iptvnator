@@ -23,7 +23,7 @@ test('waits for an in-flight heartbeat and flushes its next deadline once', asyn
         'document',
         'HTMLButtonElement',
     ]);
-    let scheduledHeartbeat: (() => void) | null = null;
+    let scheduledHeartbeat = null as (() => void) | null;
     let releaseHeartbeat!: () => void;
     const heartbeatGate = new Promise<void>((resolve) => {
         releaseHeartbeat = resolve;

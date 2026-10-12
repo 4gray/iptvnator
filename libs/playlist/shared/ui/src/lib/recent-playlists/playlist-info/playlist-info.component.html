@@ -107,7 +107,20 @@
                     <mat-label>{{
                         'HOME.PLAYLISTS.INFO_DIALOG.PASSWORD' | translate
                     }}</mat-label>
-                    <input matInput formControlName="password" />
+                    <input
+                        matInput
+                        [type]="passwordToggle.inputType()"
+                        formControlName="password"
+                    />
+                    <button
+                        mat-icon-button
+                        matSuffix
+                        appPasswordVisibilityToggle
+                        #passwordToggle="appPasswordVisibilityToggle"
+                        [attr.aria-label]="'HOME.SHOW_PASSWORD' | translate"
+                    >
+                        <mat-icon>{{ passwordToggle.icon() }}</mat-icon>
+                    </button>
                 </mat-form-field>
             }
             @if (playlist.serverUrl && !playlist.portalUrl) {
@@ -152,6 +165,9 @@
                         type="button"
                         (click)="copyUrl()"
                         [matTooltip]="
+                            'HOME.PLAYLISTS.INFO_DIALOG.COPY_URL' | translate
+                        "
+                        [attr.aria-label]="
                             'HOME.PLAYLISTS.INFO_DIALOG.COPY_URL' | translate
                         "
                     >
@@ -260,6 +276,9 @@
                                 [matTooltip]="
                                     'SETTINGS.REFRESH_EPG' | translate
                                 "
+                                [attr.aria-label]="
+                                    'SETTINGS.REFRESH_EPG' | translate
+                                "
                                 (click)="refreshPlaylistEpgSource(epgUrl)"
                             >
                                 <mat-icon>refresh</mat-icon>
@@ -271,6 +290,9 @@
                                 [matTooltip]="
                                     'SETTINGS.ADD_EPG_SOURCE' | translate
                                 "
+                                [attr.aria-label]="
+                                    'SETTINGS.ADD_EPG_SOURCE' | translate
+                                "
                                 (click)="addPlaylistEpgSourceToSettings(epgUrl)"
                             >
                                 <mat-icon>playlist_add</mat-icon>
@@ -279,6 +301,9 @@
                                 mat-icon-button
                                 type="button"
                                 [matTooltip]="
+                                    'SETTINGS.REMOVE_EPG_SOURCE' | translate
+                                "
+                                [attr.aria-label]="
                                     'SETTINGS.REMOVE_EPG_SOURCE' | translate
                                 "
                                 (click)="removePlaylistEpgSource(epgUrl)"
@@ -337,6 +362,9 @@
                                     mat-icon-button
                                     type="button"
                                     [matTooltip]="
+                                        'SETTINGS.REMOVE_EPG_SOURCE' | translate
+                                    "
+                                    [attr.aria-label]="
                                         'SETTINGS.REMOVE_EPG_SOURCE' | translate
                                     "
                                     (click)="

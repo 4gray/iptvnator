@@ -1,0 +1,37 @@
+@if (entries().length) {
+    <app-detail-rail
+        [title]="'PORTALS.DETAIL.CAST_AND_CREW' | translate"
+        [count]="entries().length"
+        [headingId]="headingId()"
+        data-test-id="detail-cast-crew"
+    >
+        @for (entry of entries(); track entry.key) {
+            <div
+                class="person"
+                [class.person--clickable]="isClickable(entry)"
+                [attr.role]="isClickable(entry) ? 'button' : null"
+                [attr.tabindex]="isClickable(entry) ? 0 : null"
+                (click)="select(entry)"
+                (keydown.enter)="select(entry)"
+                (keydown.space)="$event.preventDefault(); select(entry)"
+            >
+                @if (entry.profileUrl; as photo) {
+                    <img
+                        class="person__avatar"
+                        [src]="photo"
+                        [alt]="entry.name"
+                        loading="lazy"
+                    />
+                } @else {
+                    <span
+                        class="person__avatar person__avatar--initials"
+                        aria-hidden="true"
+                        >{{ entry.initials }}</span
+                    >
+                }
+                <p class="person__name">{{ entry.name }}</p>
+                <small class="person__role">{{ entry.role ?? ' ' }}</small>
+            </div>
+        }
+    </app-detail-rail>
+}

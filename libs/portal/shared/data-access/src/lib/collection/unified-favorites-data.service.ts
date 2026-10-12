@@ -104,7 +104,7 @@ export class UnifiedFavoritesDataService {
                     return;
                 }
                 await this.xtreamDataSource.removeFavorite(
-                    item.contentId,
+                    { id: item.contentId, type: item.contentType },
                     item.playlistId
                 );
                 break;
@@ -149,7 +149,7 @@ export class UnifiedFavoritesDataService {
         const electron = this.electronActivityBridge;
         if (!electron) {
             await this.xtreamDataSource.addFavorite(
-                contentId,
+                { id: contentId, type: item.contentType },
                 item.playlistId,
                 item.posterUrl ?? item.logo ?? undefined
             );
@@ -365,7 +365,7 @@ export class UnifiedFavoritesDataService {
                     )
                     .map((item) =>
                         this.xtreamDataSource.removeFavorite(
-                            item.contentId,
+                            { id: item.contentId, type: item.contentType },
                             item.playlistId
                         )
                     )
@@ -849,8 +849,7 @@ export class UnifiedFavoritesDataService {
 
     private getStalkerFavoriteId(
         favorite:
-            | Pick<UnifiedCollectionItem, 'stalkerId' | 'uid'>
-            | StalkerPortalItem
+            Pick<UnifiedCollectionItem, 'stalkerId' | 'uid'> | StalkerPortalItem
     ): string {
         if ('uid' in favorite) {
             return String(

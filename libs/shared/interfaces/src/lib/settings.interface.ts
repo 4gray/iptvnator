@@ -145,6 +145,11 @@ export interface Settings {
      */
     playerAmbientMode?: boolean;
     /**
+     * Play a title's trailer, muted, behind the movie or series details a
+     * few seconds after the page opens. Off by default.
+     */
+    detailTrailerBackdrop?: boolean;
+    /**
      * Dock the inline series player to the left and show an "Up Next"
      * episode rail in the leftover stage column on wide windows. On by
      * default (the rail only appears when there is genuinely unused space);

@@ -1,8 +1,6 @@
 // ============================================================================
-// Netflix-style Detail View - Cinematic Streaming Design
+// Detail View - page shell shared by the movie and series pages
 // ============================================================================
-
-@use 'detail-view-actions' as detail-actions;
 
 @mixin base(
     $season-title-font-size: 1.375rem,
@@ -12,53 +10,24 @@
     $episode-title-letter-spacing: 0
 ) {
     :host {
-        --poster-width: 220px;
-        --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+        --poster-width: 190px;
+        --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
         --content-max-width: 1400px;
 
-        // Light theme colors (default - no .dark-theme class on body)
-        --hero-gradient-start: rgba(255, 250, 245, 0);
-        --hero-gradient-mid: rgba(255, 250, 245, 0.75);
-        --hero-gradient-end: rgba(255, 250, 245, 1);
-        --surface-bg: #fffaf5;
-        --text-primary: #1a1a1a;
-        --text-secondary: rgba(26, 26, 26, 0.75);
-        --text-muted: rgba(26, 26, 26, 0.5);
+        // Page surface and text follow the app theme (light by default).
+        --hero-gradient-start: color-mix(in srgb, var(--app-content-bg, #f5f6f8) 0%, transparent);
+        --hero-gradient-mid: color-mix(in srgb, var(--app-content-bg, #f5f6f8) 75%, transparent);
+        --hero-gradient-end: var(--app-content-bg, #f5f6f8);
+        --surface-bg: var(--app-content-bg, #f5f6f8);
+        --text-primary: var(--app-heading-color, #1a1d23);
+        --text-secondary: var(--app-body-color, #4a5060);
+        --text-muted: var(--app-muted-color, #8891a4);
         // Single primary CTA color — matches --app-selection-color so the
         // Play button reads as the same blue used everywhere else for
         // "active / call to action".
-        --accent-color: #2f7bff;
-        --tag-bg: rgba(0, 0, 0, 0.06);
-        --tag-border: rgba(0, 0, 0, 0.12);
-        --play-idle-bg: linear-gradient(
-            135deg,
-            #2f7bff 0%,
-            #3b86ff 52%,
-            #4a90ff 100%
-        );
-        --play-idle-fg: #ffffff;
-        --play-idle-border: rgba(47, 123, 255, 0.4);
-        --play-idle-shadow: 0 18px 38px rgba(47, 123, 255, 0.32);
-        --play-launching-bg: linear-gradient(
-            135deg,
-            #ffd36f 0%,
-            #ffb14c 46%,
-            #f57d35 100%
-        );
-        --play-launching-fg: #241103;
-        --play-launching-border: rgba(142, 66, 0, 0.2);
-        --play-launching-shadow: 0 22px 44px rgba(244, 136, 55, 0.32);
-        --play-stop-bg: linear-gradient(
-            135deg,
-            #ffd1c8 0%,
-            #ff9f8d 42%,
-            #ef5e64 100%
-        );
-        --play-stop-fg: #321012;
-        --play-stop-border: rgba(162, 38, 45, 0.18);
-        --play-stop-shadow: 0 22px 46px rgba(214, 74, 86, 0.26);
-        --play-icon-shell-bg: rgba(255, 255, 255, 0.32);
-        --play-icon-shell-border: rgba(255, 255, 255, 0.3);
+        --accent-color: var(--app-selection-color, #2f7bff);
+        --tag-bg: color-mix(in srgb, var(--app-on-surface, #1d1b1e) 10%, transparent);
+        --tag-border: color-mix(in srgb, var(--app-on-surface, #1d1b1e) 14%, transparent);
 
         width: 100%;
         height: 100%;
@@ -70,46 +39,7 @@
 
     // Dark theme overrides - cinematic dark mode
     :host-context(.dark-theme) {
-        --hero-gradient-start: rgba(20, 20, 20, 0);
-        --hero-gradient-mid: rgba(20, 20, 20, 0.7);
-        --hero-gradient-end: rgba(20, 20, 20, 1);
-        --surface-bg: #141414;
-        --text-primary: #fff;
-        --text-secondary: rgba(255, 255, 255, 0.7);
-        --text-muted: rgba(255, 255, 255, 0.5);
-        --accent-color: #78adff;
-        --tag-bg: rgba(255, 255, 255, 0.1);
-        --tag-border: rgba(255, 255, 255, 0.2);
-        --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-        --play-idle-bg: linear-gradient(
-            135deg,
-            #2f7bff 0%,
-            #4f8eff 58%,
-            #78adff 100%
-        );
-        --play-idle-fg: #ffffff;
-        --play-idle-border: rgba(120, 173, 255, 0.32);
-        --play-idle-shadow: 0 20px 42px rgba(47, 123, 255, 0.32);
-        --play-launching-bg: linear-gradient(
-            135deg,
-            #ffdd79 0%,
-            #ffb347 42%,
-            #ef6a3a 100%
-        );
-        --play-launching-fg: #1f1105;
-        --play-launching-border: rgba(255, 223, 136, 0.26);
-        --play-launching-shadow: 0 24px 50px rgba(255, 153, 71, 0.3);
-        --play-stop-bg: linear-gradient(
-            135deg,
-            #ffd7cf 0%,
-            #ff9b8b 40%,
-            #eb5961 100%
-        );
-        --play-stop-fg: #2d1012;
-        --play-stop-border: rgba(255, 205, 205, 0.24);
-        --play-stop-shadow: 0 24px 50px rgba(235, 89, 97, 0.24);
-        --play-icon-shell-bg: rgba(255, 255, 255, 0.28);
-        --play-icon-shell-border: rgba(255, 255, 255, 0.24);
+        --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
     }
 
     // ============================================================================
@@ -118,32 +48,6 @@
 
     .details {
         // Styles for projected content elements
-
-        &__tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 12px;
-            font-size: 0.8125rem;
-            font-weight: 500;
-            background: var(--tag-bg);
-            border: 1px solid var(--tag-border);
-            border-radius: 4px;
-            backdrop-filter: blur(8px);
-
-            &--rating {
-                color: #ffd700;
-                border-color: rgba(255, 215, 0, 0.3);
-            }
-
-            // Series production status — a state, not a fact about the
-            // title, so it reads quieter than the other tags
-            &--status {
-                text-transform: uppercase;
-                font-size: 0.6875rem;
-                letter-spacing: 0.06em;
-            }
-        }
 
         &__meta-item {
             font-size: 0.875rem;
@@ -161,364 +65,7 @@
                 font-weight: 500;
             }
         }
-
-        // Cast avatar chips (populated by TMDB enrichment)
-        &__cast-strip {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px 12px;
-            margin-top: 4px;
-        }
-
-        &__cast-chip {
-            align-items: center;
-            display: inline-flex;
-            gap: 6px;
-            max-width: 160px;
-
-            &--clickable {
-                cursor: pointer;
-
-                &:hover .details__cast-name {
-                    text-decoration: underline;
-                }
-            }
-        }
-
-        &__cast-avatar {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 50%;
-            flex-shrink: 0;
-            height: 32px;
-            object-fit: cover;
-            width: 32px;
-
-            &--fallback {
-                align-items: center;
-                color: var(--text-muted);
-                display: inline-flex;
-                font-size: 0.875rem;
-                font-weight: 600;
-                justify-content: center;
-                text-transform: uppercase;
-            }
-        }
-
-        &__cast-name {
-            color: var(--text-primary);
-            font-size: 0.8125rem;
-            font-weight: 500;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        // "Similar" rail (TMDB recommendations matched to the catalog)
-        &__similar {
-            margin-top: 24px;
-
-            h3 {
-                color: var(--text-primary);
-                font-size: 1rem;
-                font-weight: 600;
-                margin: 0 0 12px;
-            }
-        }
-
-        &__similar-strip {
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            padding-bottom: 8px;
-            scrollbar-width: thin;
-            scrollbar-color: color-mix(
-                    in srgb,
-                    var(--app-muted-color) 55%,
-                    transparent
-                )
-                transparent;
-        }
-
-        &__similar-card {
-            background: none;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-            gap: 6px;
-            padding: 0;
-            text-align: left;
-            width: 110px;
-
-            &:hover .details__similar-poster {
-                transform: scale(1.04);
-            }
-        }
-
-        &__similar-poster {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 8px;
-            height: 165px;
-            object-fit: cover;
-            transition: transform 0.15s ease;
-            width: 110px;
-
-            &--fallback {
-                align-items: center;
-                color: var(--text-muted);
-                display: inline-flex;
-                font-size: 2rem;
-                font-weight: 600;
-                justify-content: center;
-                text-transform: uppercase;
-            }
-        }
-
-        &__similar-title {
-            color: var(--text-primary);
-            font-size: 0.8125rem;
-            font-weight: 500;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        // Source playlist badge on cross-portal similar cards
-        &__similar-source {
-            color: var(--text-muted);
-            font-size: 0.6875rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
     }
-
-    // ============================================================================
-    // Action Buttons - Play, Favorite
-    // ============================================================================
-
-    .play-btn {
-        --play-btn-bg: var(--play-idle-bg);
-        --play-btn-fg: var(--play-idle-fg);
-        --play-btn-border: var(--play-idle-border);
-        --play-btn-shadow: var(--play-idle-shadow);
-
-        position: relative;
-        isolation: isolate;
-        overflow: hidden;
-        display: inline-flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 24px 10px 18px;
-        min-height: 64px;
-        font-size: 1rem;
-        font-weight: 600;
-        letter-spacing: 0;
-        background: var(--play-btn-bg);
-        background-size: 140% 140%;
-        background-position: 0% 50%;
-        color: var(--play-btn-fg);
-        border: 1px solid var(--play-btn-border);
-        border-radius: 16px;
-        box-shadow: var(--play-btn-shadow);
-        cursor: pointer;
-        transition:
-            transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-            background-position 280ms ease,
-            box-shadow 260ms ease,
-            border-color 220ms ease,
-            color 220ms ease,
-            filter 220ms ease;
-
-        &::before {
-            content: '';
-            position: absolute;
-            inset: 1px;
-            border-radius: inherit;
-            background:
-                linear-gradient(
-                    115deg,
-                    rgba(255, 255, 255, 0.34),
-                    transparent 36%
-                ),
-                linear-gradient(
-                    180deg,
-                    rgba(255, 255, 255, 0.18),
-                    transparent 62%
-                );
-            opacity: 0.7;
-            transition: opacity 220ms ease;
-            z-index: -1;
-        }
-
-        &:hover:not(:disabled) {
-            transform: translateY(-2px);
-            background-position: 100% 50%;
-            box-shadow:
-                var(--play-btn-shadow),
-                0 10px 20px rgba(255, 255, 255, 0.16) inset;
-        }
-
-        &:hover:not(:disabled)::before {
-            opacity: 0.95;
-        }
-
-        &:active:not(:disabled) {
-            transform: translateY(0);
-            box-shadow: var(--play-btn-shadow);
-        }
-
-        &:disabled {
-            cursor: progress;
-            opacity: 1;
-            filter: saturate(1.05);
-        }
-
-        mat-icon {
-            font-size: 24px;
-            width: 24px;
-            height: 24px;
-            transition:
-                transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-                color 220ms ease,
-                filter 220ms ease;
-        }
-
-        &:hover:not(:disabled) .play-btn__icon {
-            transform: scale(1.08);
-        }
-
-        &__icon-shell {
-            flex: 0 0 auto;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 34px;
-            height: 34px;
-            border-radius: 999px;
-            background: var(--play-icon-shell-bg);
-            border: 1px solid var(--play-icon-shell-border);
-            box-shadow:
-                inset 0 1px 0 rgba(255, 255, 255, 0.38),
-                0 6px 14px rgba(0, 0, 0, 0.08);
-            backdrop-filter: blur(10px);
-            transition:
-                transform 220ms ease,
-                background-color 220ms ease,
-                border-color 220ms ease,
-                box-shadow 220ms ease;
-        }
-
-        @include detail-actions.play-button-copy(var(--play-btn-fg));
-
-        &--state-launching,
-        &--state-stop {
-            color: var(--play-btn-fg);
-        }
-
-        &--state-launching {
-            --play-btn-bg: var(--play-launching-bg);
-            --play-btn-fg: var(--play-launching-fg);
-            --play-btn-border: var(--play-launching-border);
-            --play-btn-shadow: var(--play-launching-shadow);
-            animation: playButtonPulse 1.8s ease-in-out infinite;
-
-            .play-btn__icon-shell {
-                box-shadow:
-                    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-                    0 10px 22px rgba(184, 89, 26, 0.2);
-            }
-
-            .play-btn__icon {
-                animation: playIconLaunch 1.15s cubic-bezier(0.55, 0, 0.45, 1)
-                    infinite;
-            }
-        }
-
-        &--state-stop {
-            --play-btn-bg: var(--play-stop-bg);
-            --play-btn-fg: var(--play-stop-fg);
-            --play-btn-border: var(--play-stop-border);
-            --play-btn-shadow: var(--play-stop-shadow);
-
-            .play-btn__icon-shell {
-                box-shadow:
-                    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-                    0 12px 24px rgba(145, 38, 53, 0.18);
-            }
-
-            .play-btn__icon {
-                animation: playIconStop 1.2s ease-in-out infinite;
-            }
-        }
-    }
-
-    @keyframes playButtonPulse {
-        0%,
-        100% {
-            box-shadow: var(--play-btn-shadow);
-        }
-
-        50% {
-            box-shadow:
-                var(--play-btn-shadow),
-                0 0 0 6px rgba(255, 190, 92, 0.14);
-        }
-    }
-
-    @keyframes playIconLaunch {
-        0%,
-        100% {
-            transform: rotate(0deg) scale(1);
-        }
-
-        50% {
-            transform: rotate(18deg) scale(1.1);
-        }
-    }
-
-    @keyframes playIconStop {
-        0%,
-        100% {
-            transform: scale(1);
-        }
-
-        50% {
-            transform: scale(1.08);
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .play-btn,
-        .play-btn::before,
-        .play-btn mat-icon,
-        .play-btn__icon-shell {
-            animation: none !important;
-            transition-duration: 1ms !important;
-        }
-    }
-
-    .favorite-btn,
-    .download-btn {
-        @include detail-actions.secondary-action-button;
-    }
-
-    .favorite-btn {
-        @include detail-actions.favorite-button-state;
-    }
-
-    .download-btn {
-        @include detail-actions.download-button-state;
-    }
-
-    .icon-action-btn {
-        @include detail-actions.icon-action-button;
-        @include detail-actions.icon-action-button-states;
-        @include detail-actions.download-progress-ring;
-    }
-
-    @include detail-actions.icon-action-keyframes;
 
     // ============================================================================
     // Content Sections - Below the hero fold
@@ -617,42 +164,6 @@
     }
 
     // ============================================================================
-    // YouTube Trailer Section - Inside details
-    // ============================================================================
-
-    .youtube-trailer {
-        margin-top: 24px;
-        width: 100%;
-
-        h3 {
-            font-size: $episode-title-font-size;
-            font-weight: 600;
-            letter-spacing: $episode-title-letter-spacing;
-            margin: 0 0 12px 0;
-            color: var(--text-primary);
-        }
-
-        .trailer-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 560px;
-            aspect-ratio: 16 / 9;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-
-            iframe {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                border: none;
-            }
-        }
-    }
-
-    // ============================================================================
     // Legacy container support (for gradual migration)
     // ============================================================================
 
@@ -673,45 +184,8 @@
             --poster-width: 120px;
         }
 
-        .action-buttons {
-            width: 100%;
-            // This class is in ContentHeroComponent now, but these rules apply to children?
-            // No, .play-btn is a child of the PROJECTED content.
-            // So we should target the buttons directly for mobile
-        }
-
-        @include detail-actions.mobile-action-buttons;
-
-        .youtube-trailer {
-            margin-top: 16px;
-
-            .trailer-wrapper {
-                max-width: 100%;
-                border-radius: 4px;
-            }
-        }
-
         .seasons {
             padding: 16px 0 0;
-        }
-    }
-
-    // ============================================================================
-    // Animations
-    // ============================================================================
-
-    .youtube-trailer {
-        animation: fadeInUp 0.5s ease-out 0.4s both;
-    }
-
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
         }
     }
 

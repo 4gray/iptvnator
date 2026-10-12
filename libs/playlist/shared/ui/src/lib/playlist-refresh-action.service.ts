@@ -244,14 +244,8 @@ export class PlaylistRefreshActionService {
         }
 
         const ref = this.snackBar.open(
-            this.translateWithFallback(
-                'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
-                'Certificate for this playlist host is invalid.'
-            ),
-            this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-                'Trust host'
-            ),
+            this.translate.instant('HOME.URL_UPLOAD.ERROR_INVALID_TLS'),
+            this.translate.instant('HOME.URL_UPLOAD.TRUST_TLS_HOST'),
             { duration: 10000 }
         );
         ref.onAction().subscribe(() => {
@@ -266,9 +260,8 @@ export class PlaylistRefreshActionService {
     ): void {
         if (!host) {
             this.snackBar.open(
-                this.translateWithFallback(
-                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN',
-                    'Could not determine the playlist host. Please retry manually.'
+                this.translate.instant(
+                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN'
                 ),
                 this.translate.instant('CLOSE'),
                 { duration: 5000 }
@@ -277,17 +270,14 @@ export class PlaylistRefreshActionService {
         }
 
         this.dialogService.openConfirmDialog({
-            title: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE',
-                'Trust invalid certificate?'
+            title: this.translate.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE'
             ),
-            message: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING',
-                'Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.'
+            message: this.translate.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING'
             ),
-            confirmLabel: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-                'Trust host'
+            confirmLabel: this.translate.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST'
             ),
             width: '420px',
             onConfirm: () => {
@@ -308,11 +298,6 @@ export class PlaylistRefreshActionService {
         await this.settingsStore.updateSettings({
             trustedInsecureTlsHosts: Array.from(trustedHosts),
         });
-    }
-
-    private translateWithFallback(key: string, fallback: string): string {
-        const translated = this.translate.instant(key);
-        return translated === key ? fallback : translated;
     }
 
     private updateRefreshPreparationFromEvent(

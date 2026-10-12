@@ -14,7 +14,7 @@
     }
 
     &:has(> .content-card__activation:focus-visible) {
-        @include grid.focus-ring-declarations;
+        @include grid.card-focus-ring-declarations;
     }
 
     .remove-button {

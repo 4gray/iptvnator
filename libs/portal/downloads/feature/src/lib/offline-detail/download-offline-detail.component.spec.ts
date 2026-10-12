@@ -10,6 +10,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import type { WorkspaceNavigationTarget } from '@iptvnator/portal/shared/util';
 import { BehaviorSubject } from 'rxjs';
 import type {
@@ -282,7 +283,7 @@ describe('DownloadOfflineDetailComponent', () => {
         expect(downloads.loadDownloads).toHaveBeenCalledTimes(1);
         expect(
             (fixture.nativeElement as HTMLElement).querySelector(
-                'ngx-skeleton-loader'
+                '[data-test-id="hero-skeleton"]'
             )
         ).toBeTruthy();
         expect(text()).not.toContain('Download not found');
@@ -316,6 +317,12 @@ describe('DownloadOfflineDetailComponent', () => {
         expect(text()).toContain('Released');
         expect(text()).toContain('Ada Actor');
         expect(text()).toContain('Cora Creator');
+        // No actor page offline: the shared cast row renders plain entries.
+        const person = (fixture.nativeElement as HTMLElement).querySelector(
+            'app-cast-crew-row .person'
+        );
+        expect(person).not.toBeNull();
+        expect(person?.getAttribute('role')).toBeNull();
         expect(text()).toContain('2 KB');
         expect(text()).not.toContain('{{size}}');
         expect(downloads.formatBytes).toHaveBeenCalledWith(2_048);
@@ -1076,11 +1083,10 @@ describe('DownloadOfflineDetailComponent', () => {
             router.url = detailUrl;
             await render([download(17)]);
 
-            (
-                (fixture.nativeElement as HTMLElement).querySelector(
-                    '.shell__back-button'
-                ) as HTMLButtonElement
-            ).click();
+            // The workspace header renders the page's Back.
+            expect(
+                TestBed.inject(WorkspaceBackNavigationService).goBack()
+            ).toBe(true);
             await fixture.whenStable();
 
             expect(location.back).toHaveBeenCalledTimes(1);
@@ -1096,11 +1102,9 @@ describe('DownloadOfflineDetailComponent', () => {
         router.url = '/workspace/stalker/playlist-a/downloads/17';
         await render([download(17)]);
 
-        (
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.shell__back-button'
-            ) as HTMLButtonElement
-        ).click();
+        expect(TestBed.inject(WorkspaceBackNavigationService).goBack()).toBe(
+            true
+        );
         await fixture.whenStable();
 
         expect(location.back).not.toHaveBeenCalled();

@@ -401,6 +401,7 @@ sometimes only respond to that misspelled action.
 | `series:series`           | 2002  | live:3, vod:4, series:15   | 30        | active         |
 | `minimal:minimal`         | 3003  | 2 each                     | 5         | active         |
 | `epg:epg`                 | 6006  | live:2, vod:1, series:1    | 3         | active         |
+| `epglong:epglong`         | 6006  | live:2, vod:1, series:1    | 3         | active         |
 | `tzoffset:tzoffset`       | 6006  | live:2, vod:1, series:1    | 3         | active         |
 | `emptyvod:emptyvod`       | 7007  | 2 each                     | 5         | active         |
 | `marketing:marketing`     | 8020  | live:4, vod:4, series:4    | curated   | active         |
@@ -420,6 +421,12 @@ This scenario is reserved for Xtream EPG tests:
 That deliberate mismatch lets Electron tests verify the renderer uses timestamp
 fields for sorting, current-program selection, progress bars, and local clock
 labels instead of trusting provider-local strings.
+
+Timeshift URLs of `epg` and `epglong` play the local MPEG-TS clip
+(`src/fixtures/live.mpegts`). `epglong:epglong` is the same fixture with
+`LONG_PROGRAMME_TITLE`, a 120-character title, on the past programme, for
+the catch-up seek bar's label bounds; `epg:epg` keeps its short titles,
+which other tests assert verbatim.
 
 ### `marketing:marketing` fixture details
 

@@ -1,5 +1,8 @@
 import { Injector } from '@angular/core';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
 import { foldSearchText, sourceHealthType } from '@iptvnator/shared/interfaces';
 import { SourceHealthIndicatorComponent } from '../source-health/source-health-indicator.component';
@@ -16,7 +19,6 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatRippleModule } from '@angular/material/core';
@@ -43,7 +45,6 @@ import {
     isPortalAccountPlaylist,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
-import { startWith } from 'rxjs';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
 
@@ -89,10 +90,7 @@ export class PlaylistSwitcherComponent {
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private focusSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly healthInjector = inject(Injector);
@@ -161,8 +159,9 @@ export class PlaylistSwitcherComponent {
         );
     });
     readonly displayTitle = computed(() => {
+        this.languageTick();
         if (!this.activePlaylistId()) {
-            return 'Select playlist';
+            return this.translate.instant('HOME.PLAYLISTS.SELECT_PLAYLIST');
         }
 
         return (
@@ -171,7 +170,7 @@ export class PlaylistSwitcherComponent {
             this.activePlaylist()?.filename ||
             this.activePlaylist()?.url ||
             this.activePlaylist()?.portalUrl ||
-            'Untitled playlist'
+            this.translate.instant('HOME.PLAYLISTS.UNTITLED_PLAYLIST')
         );
     });
 
@@ -363,35 +362,16 @@ export class PlaylistSwitcherComponent {
         return getPlaylistSourceIcon(playlist);
     }
 
-    getPlaylistTypeLabel(playlist: PlaylistMeta): string {
-        if (playlist.macAddress) {
-            return 'Stalker Portal';
-        }
-        if (playlist.serverUrl) {
-            return 'Xtream Code';
-        }
-        return `${playlist.count} channels`;
-    }
-
     getPlaylistMetaLabel(playlist: PlaylistMeta): string {
-        const count = playlist.count ?? 0;
-        const channelsLabel = this.translate.instant(
-            'HOME.PLAYLISTS.CHANNELS_COUNT',
-            { count }
-        );
-        const fallback = `${count} channels`;
-        const countLabel =
-            channelsLabel && channelsLabel !== 'HOME.PLAYLISTS.CHANNELS_COUNT'
-                ? channelsLabel
-                : fallback;
-
         if (playlist.macAddress) {
-            return 'Stalker Portal';
+            return this.translate.instant('WORKSPACE.SHELL.STALKER_PORTAL');
         }
         if (playlist.serverUrl) {
-            return 'Xtream Code';
+            return this.translate.instant('WORKSPACE.SHELL.XTREAM_CODE');
         }
-        return countLabel;
+        return this.translate.instant('HOME.PLAYLISTS.CHANNELS_COUNT', {
+            count: playlist.count ?? 0,
+        });
     }
 
     getStatusClass(playlistId: string): string {

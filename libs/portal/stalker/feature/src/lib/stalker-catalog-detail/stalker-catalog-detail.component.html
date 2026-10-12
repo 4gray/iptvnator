@@ -12,6 +12,8 @@
             [item]="vodDetailsItem()!"
             [isFavorite]="isSelectedVodFavorite()"
             [playbackPosition]="selectedVodPlaybackPosition()"
+            [playbackDurationSeconds]="selectedVodPlaybackDuration()"
+            [sourceLabel]="sourceLabel()"
             [inlinePlayback]="inlinePlayback()"
             [externalPlayback]="externalPlayback.activeSession()"
             [providerOnly]="providerOnly()"
@@ -20,17 +22,19 @@
             [watchedToggleReady]="positionLoaded()"
             [playbackStartPending]="playbackStartPending()"
             (playClicked)="onVodPlay($event)"
-            (resumeClicked)="onVodResume($event)"
+            (resumeClicked)="onVodPlay($event.item, $event.positionSeconds)"
             (favoriteToggled)="onVodFavoriteToggled($event)"
             (watchedToggled)="onVodWatchedToggled($event)"
-            (downloadRequested)="onVodDownload($event)"
+            (downloadRequested)="vodDetailActions.download($event)"
             (backClicked)="onVodBack()"
             (inlineTimeUpdated)="handleInlineTimeUpdate($event)"
             (inlinePlaybackClosed)="closeInlinePlayer()"
-            (streamUrlCopied)="showCopyNotification()"
+            (streamUrlCopied)="vodDetailActions.notifyCopied()"
             (inlineExternalFallbackRequested)="
-                handleExternalFallbackRequest($event)
+                vodDetailActions.handleExternalFallback($event)
             "
+            (externalPlayRequested)="vodDetailActions.openExternal($event)"
+            (resetProgressRequested)="vodDetailActions.resetProgress($event)"
         />
     }
 } @else if (contentType() === 'series') {

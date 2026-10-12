@@ -32,7 +32,7 @@ import {
 import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import {
     PlaylistChannelSortMode,
-    getPlaylistChannelSortModeLabel,
+    getPlaylistChannelSortModeLabelKey,
     persistPlaylistChannelSortMode,
     restorePlaylistChannelSortMode,
     sortPlaylistChannelItems,
@@ -41,6 +41,10 @@ import { resolveChannelLogo } from '../channel-logo-fallback.util';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '../../menu-item-radio/menu-item-radio.directive';
 import { CategoryLockMenuComponent } from '../../category-lock-menu/category-lock-menu.component';
 import { ResizableDirective } from '../../resizable/resizable.directive';
 import {
@@ -78,6 +82,8 @@ interface FilteredGroupView {
         MatIconModule,
         MatMenuModule,
         MatTooltipModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         ResizableDirective,
         ScrollingModule,
         TitleCasePipe,
@@ -210,8 +216,8 @@ export class GroupsViewComponent {
     readonly groupChannelSortMode = signal<PlaylistChannelSortMode>(
         restorePlaylistChannelSortMode(GROUP_CHANNEL_SORT_STORAGE_KEY)
     );
-    readonly groupChannelSortLabel = computed(() =>
-        getPlaylistChannelSortModeLabel(this.groupChannelSortMode())
+    readonly groupChannelSortLabelKey = computed(() =>
+        getPlaylistChannelSortModeLabelKey(this.groupChannelSortMode())
     );
     readonly hasSearchQuery = computed(
         () =>

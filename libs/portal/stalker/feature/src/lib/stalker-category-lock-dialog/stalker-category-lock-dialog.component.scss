@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/focus-ring';
+
 // App tokens only: the theme declares no Material system colours. The
 // adult-chip red is local, with a value per theme (>= 4.5:1 on its tint).
 :host {
@@ -59,7 +61,7 @@
     cursor: text;
 
     &:focus-within {
-        border-color: var(--app-selection-color);
+        border-color: var(--app-focus-ring);
     }
 
     &__icon {
@@ -126,11 +128,10 @@
         background-color: var(--app-card-hover-bg);
     }
 
-    // The global reset strips every button outline; an inset ring keeps
-    // the focused row visible inside the list's clipped scroll box.
+    // An inset ring keeps the focused row visible inside the list's
+    // clipped scroll box.
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     &:not(:last-child) {

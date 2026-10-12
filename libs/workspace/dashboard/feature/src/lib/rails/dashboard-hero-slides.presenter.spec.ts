@@ -1,7 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
-import { Subject } from 'rxjs';
+import { EMPTY, Subject } from 'rxjs';
+import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import type {
     PlaybackPositionData,
     PortalActivityItem,
@@ -99,6 +100,7 @@ describe('DashboardHeroSlidesPresenter', () => {
     let favoritesLoading: ReturnType<typeof signal<boolean>>;
     let addedLoading: ReturnType<typeof signal<boolean>>;
     let liveAwaiting: ReturnType<typeof signal<boolean>>;
+    let positionsSettled: ReturnType<typeof signal<boolean>>;
     const positions = new Map<string | number, PlaybackPositionData>([
         [
             1,
@@ -136,6 +138,17 @@ describe('DashboardHeroSlidesPresenter', () => {
                         globalRecentItems: recentItems,
                         globalRecentVodItems: () =>
                             recentItems().filter((i) => i.type !== 'live'),
+                        continueWatchingSettled: () => positionsSettled(),
+                        continueWatchingItems: () =>
+                            positionsSettled()
+                                ? recentItems().filter(
+                                      (i) =>
+                                          i.type !== 'live' &&
+                                          !isPortalPlaybackWatched(
+                                              positions.get(i.id) ?? null
+                                          )
+                                  )
+                                : [],
                         globalFavoriteItems: favorites,
                         xtreamRecentlyAddedItems: addedItems,
                         getPlaybackPositionForItem: (
@@ -187,6 +200,8 @@ describe('DashboardHeroSlidesPresenter', () => {
                     provide: TranslateService,
                     useValue: {
                         onLangChange: new Subject(),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                         instant: (key: string, params?: object) =>
                             params ? `${key} ${JSON.stringify(params)}` : key,
                     },
@@ -209,6 +224,7 @@ describe('DashboardHeroSlidesPresenter', () => {
         favoritesLoading = signal(false);
         addedLoading = signal(false);
         liveAwaiting = signal(false);
+        positionsSettled = signal(true);
     });
 
     afterEach(() => {
@@ -228,6 +244,38 @@ describe('DashboardHeroSlidesPresenter', () => {
         expect(slides.some((slide) => slide.title === 'Finished Film')).toBe(
             false
         );
+    });
+
+    it('drops a season marker from a series title and leaves movies and live titles alone', () => {
+        // The rotation holds four slides: only the series, the live channel
+        // and a favorite movie compete here (the finished film never does).
+        recentItems.set([{ ...series, title: 'Big Pharma (1 сезон)' }]);
+        favorites.set([
+            { ...favoriteFilm, id: 9, type: 'movie', title: 'Film Season 2' },
+        ]);
+        addedItems.set([]);
+        candidates.set([
+            { origin: 'favorite', item: { ...channel, title: 'Sport S01' } },
+        ]);
+        const presenter = create();
+        const titles = presenter.slides().map((slide) => slide.title);
+        expect(titles).toContain('Big Pharma');
+        expect(titles).not.toContain('Big Pharma (1 сезон)');
+        expect(titles).toContain('Film Season 2');
+        expect(titles).toContain('Sport S01');
+    });
+
+    it('keeps the season marker of a series that no episode badge describes', () => {
+        // A favorite with no playback row: the marker is the only thing
+        // telling two per-season catalog entries of the show apart.
+        recentItems.set([]);
+        favorites.set([{ ...favoriteFilm, title: 'Burnley (2 сезон)' }]);
+        addedItems.set([]);
+        candidates.set([]);
+        const [slide] = create().slides();
+
+        expect(slide.episodeBadge).toBeNull();
+        expect(slide.title).toBe('Burnley (2 сезон)');
     });
 
     it('resumes an unfinished series and offers a detail-only way in', () => {
@@ -445,6 +493,26 @@ describe('DashboardHeroSlidesPresenter', () => {
         addedLoading.set(true);
 
         expect(create().loading()).toBe(false);
+    });
+
+    it('keeps the skeleton until playback positions tell finished titles apart', () => {
+        // History only: until the positions arrive the newest row could be a
+        // finished title, so neither a resume slide nor the history fallback
+        // may stand in for the slide that follows.
+        recentItems.set([watchedMovie, series]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        positionsSettled.set(false);
+        const presenter = create();
+        expect(presenter.slides()).toEqual([]);
+        expect(presenter.loading()).toBe(true);
+
+        positionsSettled.set(true);
+        expect(
+            presenter.slides().map((slide) => [slide.kind, slide.title])
+        ).toEqual([['continue', 'Big Pharma']]);
+        expect(presenter.loading()).toBe(false);
     });
 
     describe('with a live channel as the only candidate', () => {

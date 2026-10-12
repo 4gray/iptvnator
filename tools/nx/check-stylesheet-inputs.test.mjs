@@ -4,6 +4,7 @@ import { test } from 'node:test';
 
 import {
     extractRelativeImports,
+    extractStylesheetLoads,
     resolveStylesheet,
     stripScssComments,
     validateScanCoverage,
@@ -159,6 +160,30 @@ test('treats a @use configuration value as a value, not a second import', () => 
     ]);
 });
 
+test('reads the show or hide list of a @forward', () => {
+    const source = [
+        "@forward 'a' as p-* hide $p-w, mixin-x;",
+        "@forward 'b' show $w with ($w: 600);",
+        "@forward 'd' with ($mode: hide auto);",
+        "@forward 'show-tokens' as show-*;",
+        "@use 'c' as show;",
+    ].join('\n');
+
+    assert.deepEqual(
+        extractStylesheetLoads(source).map(({ target, filter }) => [
+            target,
+            filter,
+        ]),
+        [
+            ['a', { kind: 'hide', names: ['$p-w', 'mixin-x'] }],
+            ['b', { kind: 'show', names: ['$w'] }],
+            ['d', null],
+            ['show-tokens', null],
+            ['c', null],
+        ]
+    );
+});
+
 test('ignores a url() import the browser resolves at runtime', () => {
     assert.deepEqual(extractRelativeImports('@import url("./plain.css");'), []);
 });
@@ -170,6 +195,48 @@ test('keeps protocol slashes intact when stripping line comments', () => {
 
     assert.match(stripped, /https:\/\/example\.test/);
     assert.doesNotMatch(stripped, /trailing note/);
+});
+
+test('keeps comment markers inside strings', () => {
+    const source = [
+        "@use 'tokens' with ($asset: '//cdn/x', $w: 600); // note",
+        '/* a */ $b: "/* kept */";',
+    ].join('\n');
+    const stripped = stripScssComments(source);
+
+    assert.equal(stripped.length, source.length);
+    assert.match(stripped, /'\/\/cdn\/x', \$w: 600\);/);
+    assert.match(stripped, /"\/\* kept \*\/"/);
+    assert.doesNotMatch(stripped, /note|\/\* a/);
+    const [{ configuration }] = extractStylesheetLoads(source);
+    assert.equal(source.slice(...configuration), "$asset: '//cdn/x', $w: 600");
+    // A quoted `;` is a value, not the rule's end.
+    const dataUri =
+        "@use 'tokens' with ($asset: 'data:image/svg+xml;utf8,x', $w: 600);";
+    const [{ configuration: range }] = extractStylesheetLoads(dataUri);
+    assert.equal(
+        dataUri.slice(...range),
+        "$asset: 'data:image/svg+xml;utf8,x', $w: 600"
+    );
+    // So is a Sass interpolation's `}`.
+    const interpolated = "@use 'tokens' with ($w: #{600}, $h: #{$w});";
+    const [{ configuration: span }] = extractStylesheetLoads(interpolated);
+    assert.equal(interpolated.slice(...span), '$w: #{600}, $h: #{$w}');
+    // An escaped quote stays inside the string, an unclosed one ends at the
+    // line break, and an unquoted URL keeps its slashes.
+    for (const [text, kept, dropped] of [
+        ["$a: 'it\\'s // kept'; // gone", /\/\/ kept/, /gone/],
+        ["$a: 'open\n// gone", /open/, /gone/],
+        ['$a: url(//cdn/x.css); // gone', /url\(\/\/cdn/, /gone/],
+        ['$a: url(https://cdn/x.css); // gone', /https:\/\/cdn/, /gone/],
+        ['$a:// gone', /\$a:/, /gone/],
+        ['// a note on url(\n// gone', /\n/, /gone/],
+        ['$a: (// gone\n1);', /\$a: \(/, /gone/],
+    ]) {
+        const result = stripScssComments(text);
+        assert.match(result, kept);
+        assert.doesNotMatch(result, dropped);
+    }
 });
 
 test('resolves a specifier to its Sass partial file', () => {

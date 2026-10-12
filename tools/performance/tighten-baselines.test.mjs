@@ -93,6 +93,66 @@ test('a counter below its value in every run drops to the largest run', () => {
     assert.match(direction.lowered[0], /1,064 -> 1,059 bytes/);
 });
 
+test('a journey-run entry keeps its note and is lowered to three decimals', () => {
+    const score = {
+        value: 0.222,
+        unit: 'score',
+        slack: 0,
+        note: 'guard only, not validated',
+        updatedAt: '2026-10-04',
+        evidencePr: 1,
+        measuredWith: 'pnpm run perf:journeys',
+    };
+    const baselines = {
+        version: 1,
+        journeys: {
+            ...baselinesFile().journeys,
+            'open-source': { 'renderer.layoutShiftScore': score },
+            playback: { 'renderer.layoutShiftScore': { ...score, value: 0 } },
+        },
+    };
+    // The weekly job merges each runner's initial-bytes and journey summaries.
+    const runs = [0.221, 0.22, 0.221].map((value, index) =>
+        mergeRunSummaries(
+            [
+                bytesRun(1000),
+                {
+                    journeys: {
+                        'open-source': {
+                            counters: { 'renderer.layoutShiftScore': value },
+                        },
+                        playback: {
+                            counters: { 'renderer.layoutShiftScore': 0 },
+                        },
+                    },
+                },
+            ],
+            `run ${index + 1}`
+        )
+    );
+    const result = tighten(baselines, runs);
+    assert.deepEqual(
+        result.baselines.journeys['open-source']['renderer.layoutShiftScore'],
+        {
+            ...score,
+            value: 0.221,
+            updatedAt: '2026-10-05',
+            measuredWith:
+                '.github/workflows/performance-ratchet.yml, max of 3 runs',
+            evidenceRun: RUN_URL,
+        }
+    );
+    assert.deepEqual(
+        result.baselines.journeys.playback,
+        baselines.journeys.playback,
+        'a counter already at 0 is kept'
+    );
+    assert.match(
+        formatReport(result),
+        /\| `open-source\/renderer\.layoutShiftScore` \| 0\.222 score \| 0\.221 \| 0\.22 \| 0\.221 \| lowered to 0\.221 score \|/
+    );
+});
+
 test('one run at or above the value keeps the baseline untouched', () => {
     for (const measured of [1000, 1010]) {
         const baselines = baselinesFile();

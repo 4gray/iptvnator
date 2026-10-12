@@ -1,156 +1,81 @@
 <ng-template #vodActions>
     @let playableItem = playableVodItem();
     @if (playableItem || isDownloaded()) {
-        @if (hasPlaybackPosition()) {
-            <button
-                class="play-btn play-btn--resume"
-                (click)="onPrimaryAction(playableItem)"
-                [disabled]="isExternalLaunchPending()"
-                [class.play-btn--state-launching]="
-                    externalPrimaryButtonState() === 'launching'
-                "
-                [class.play-btn--state-stop]="
-                    externalPrimaryButtonState() === 'stop'
-                "
-            >
-                <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">
-                        {{
-                            isOfflinePrimary()
-                                ? 'play_circle'
-                                : externalPrimaryIcon()
-                        }}
-                    </mat-icon>
-                </span>
-                <span class="play-btn__label">
-                    @if (externalPrimaryLabel(); as label) {
-                        {{ label }}
-                    } @else if (isOfflinePrimary()) {
-                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
-                    } @else {
-                        {{ 'XTREAM.RESUME' | translate }}
-                        {{ formatPosition() }}
-                    }
-                </span>
-            </button>
-            @if (externalPrimaryButtonState() === 'idle' && !isDownloaded()) {
-                <button
-                    class="play-btn play-btn--restart"
-                    (click)="restartVod(playableItem)"
-                    [disabled]="isExternalLaunchPending()"
-                >
-                    <mat-icon>replay</mat-icon>
-                    {{ 'XTREAM.RESTART' | translate }}
-                </button>
-            }
-        } @else {
-            <button
-                class="play-btn"
-                (click)="onPrimaryAction(playableItem)"
-                [disabled]="isExternalLaunchPending()"
-                [class.play-btn--state-launching]="
-                    externalPrimaryButtonState() === 'launching'
-                "
-                [class.play-btn--state-stop]="
-                    externalPrimaryButtonState() === 'stop'
-                "
-            >
-                <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">
-                        {{
-                            isOfflinePrimary()
-                                ? 'play_circle'
-                                : externalPrimaryIcon()
-                        }}
-                    </mat-icon>
-                </span>
-                <span class="play-btn__label">
-                    @if (externalPrimaryLabel(); as label) {
-                        {{ label }}
-                    } @else if (isOfflinePrimary()) {
-                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
-                    } @else {
-                        {{ 'XTREAM.PLAY' | translate }}
-                    }
-                </span>
-            </button>
+        @let primary = hero.primaryAction();
+        <app-detail-action-button
+            [label]="primary.label"
+            [meta]="primary.meta"
+            [icon]="primary.icon"
+            [state]="primary.state"
+            [disabled]="startBlocked()"
+            testId="vod-primary-action"
+            (pressed)="onPrimaryAction(playableItem)"
+        />
+        @if (trailerEmbedUrl()) {
+            <app-detail-action-button
+                variant="secondary"
+                icon="smart_display"
+                [label]="'PORTALS.DETAIL.TRAILER' | translate"
+                testId="vod-trailer"
+                (pressed)="openTrailer()"
+            />
         }
         @if (playableItem) {
-            @let favoriteLabel =
-                (isFavorite()
-                    ? 'PORTALS.REMOVE_FROM_FAVORITES'
-                    : 'PORTALS.ADD_TO_FAVORITES'
-                ) | translate;
-            <button
-                type="button"
-                class="icon-action-btn icon-action-btn--favorite"
-                [class.is-active]="isFavorite()"
-                [class.is-pulsing]="favoritePulse()"
-                (click)="toggleFavorite()"
-                [matTooltip]="favoriteLabel"
-                [attr.aria-label]="favoriteLabel"
-                [attr.aria-pressed]="isFavorite()"
-                data-testid="vod-favorite-toggle"
-            >
-                <mat-icon>{{
-                    isFavorite() ? 'favorite' : 'favorite_border'
-                }}</mat-icon>
-            </button>
-            @let watchedLabel =
-                (isWatched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
-                    | translate;
-            <button
-                type="button"
-                class="icon-action-btn icon-action-btn--watched"
-                [class.is-active]="isWatched()"
+            <app-detail-icon-button
+                [label]="
+                    (isFavorite()
+                        ? 'PORTALS.REMOVE_FROM_FAVORITES'
+                        : 'PORTALS.ADD_TO_FAVORITES'
+                    ) | translate
+                "
+                [icon]="isFavorite() ? 'favorite' : 'favorite_border'"
+                tone="favorite"
+                [active]="isFavorite()"
+                [pulsing]="favoritePulse()"
+                [pressedState]="isFavorite()"
+                testId="vod-favorite-toggle"
+                (pressed)="toggleFavorite()"
+            />
+            <app-detail-icon-button
+                [label]="
+                    (isWatched()
+                        ? 'XTREAM.MARK_UNWATCHED'
+                        : 'XTREAM.MARK_WATCHED'
+                    ) | translate
+                "
+                [icon]="isWatched() ? 'check_circle' : 'check_circle_outline'"
+                tone="watched"
+                [active]="isWatched()"
+                [pressedState]="isWatched()"
                 [disabled]="!canToggleWatched()"
-                (click)="toggleWatched(playableItem)"
-                [matTooltip]="watchedLabel"
-                [attr.aria-label]="watchedLabel"
-                [attr.aria-pressed]="isWatched()"
-                data-testid="vod-watched-toggle"
-            >
-                <mat-icon>{{
-                    isWatched() ? 'check_circle' : 'check_circle_outline'
-                }}</mat-icon>
-            </button>
+                testId="vod-watched-toggle"
+                (pressed)="toggleWatched(playableItem)"
+            />
             @if (isElectron() && !providerOnly()) {
                 @if (isDownloaded()) {
-                    <button
-                        type="button"
-                        class="icon-action-btn icon-action-btn--done"
-                        (click)="revealDownloadedFile()"
-                        [matTooltip]="'DOWNLOADS.DOWNLOADED_REVEAL' | translate"
-                        [attr.aria-label]="
-                            'DOWNLOADS.DOWNLOADED_REVEAL' | translate
-                        "
-                        data-testid="vod-download-done"
-                    >
-                        <mat-icon>check_circle</mat-icon>
-                    </button>
+                    <app-detail-icon-button
+                        [label]="'DOWNLOADS.DOWNLOADED_REVEAL' | translate"
+                        icon="check_circle"
+                        tone="done"
+                        testId="vod-download-done"
+                        (pressed)="revealDownloadedFile()"
+                    />
                     <!-- The primary button plays the local file once a movie
-                         is downloaded, and the sources popover only exists
+                         is downloaded, and the sources panel only exists
                          when another playlist also carries the film. Without
                          this, a downloaded movie in a single-playlist library
                          offers no way to stream the provider's copy at all. -->
                     @if (externalPrimaryButtonState() === 'idle') {
-                        <button
-                            type="button"
-                            class="icon-action-btn"
-                            (click)="playFromProviderSource(playableItem)"
-                            [disabled]="isExternalLaunchPending()"
-                            [matTooltip]="
+                        <app-detail-icon-button
+                            [label]="
                                 'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
                                     | translate
                             "
-                            [attr.aria-label]="
-                                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
-                                    | translate
-                            "
-                            data-testid="vod-play-provider"
-                        >
-                            <mat-icon>play_arrow</mat-icon>
-                        </button>
+                            icon="play_arrow"
+                            [disabled]="startBlocked()"
+                            testId="vod-play-provider"
+                            (pressed)="playFromProviderSource(playableItem)"
+                        />
                     }
                 } @else if (isDownloading()) {
                     <!-- Covers downloading, queued and paused: the ring holds
@@ -163,112 +88,119 @@
                               ? ('DOWNLOADS.DOWNLOADING_PERCENT'
                                 | translate: { percent: downloadPercent() })
                               : ('DOWNLOADS.STATUS.DOWNLOADING' | translate);
-                    <button
-                        type="button"
-                        class="icon-action-btn icon-action-btn--progress"
-                        (click)="
+                    <app-detail-icon-button
+                        class="icon-action-btn--progress"
+                        [label]="downloadLabel"
+                        testId="vod-download-progress"
+                        (pressed)="
                             isPausedDownload()
                                 ? resumePausedDownload()
                                 : promptCancelDownload()
                         "
-                        [matTooltip]="downloadLabel"
-                        [attr.aria-label]="downloadLabel"
-                        data-testid="vod-download-progress"
                     >
-                        <svg
-                            class="download-ring"
-                            [class.download-ring--indeterminate]="
-                                downloadPercent() === null &&
-                                !isPausedDownload()
-                            "
-                            viewBox="0 0 36 36"
-                            aria-hidden="true"
-                        >
-                            <circle
-                                class="download-ring__track"
-                                cx="18"
-                                cy="18"
-                                r="15.5"
-                            />
-                            <circle
-                                class="download-ring__value"
-                                cx="18"
-                                cy="18"
-                                r="15.5"
-                                [style.stroke-dasharray]="
-                                    downloadRingCircumference
+                        <span glyph class="download-glyph">
+                            <svg
+                                class="download-ring"
+                                [class.download-ring--indeterminate]="
+                                    downloadPercent() === null &&
+                                    !isPausedDownload()
                                 "
-                                [style.stroke-dashoffset]="downloadRingOffset()"
-                            />
-                        </svg>
-                        @if (isPausedDownload()) {
-                            <mat-icon class="icon-action-btn__center"
-                                >play_arrow</mat-icon
+                                viewBox="0 0 36 36"
+                                aria-hidden="true"
                             >
-                        }
-                    </button>
+                                <circle
+                                    class="download-ring__track"
+                                    cx="18"
+                                    cy="18"
+                                    r="15.5"
+                                />
+                                <circle
+                                    class="download-ring__value"
+                                    cx="18"
+                                    cy="18"
+                                    r="15.5"
+                                    [style.stroke-dasharray]="
+                                        downloadRingCircumference
+                                    "
+                                    [style.stroke-dashoffset]="
+                                        downloadRingOffset()
+                                    "
+                                />
+                            </svg>
+                            @if (isPausedDownload()) {
+                                <mat-icon class="download-glyph__center"
+                                    >play_arrow</mat-icon
+                                >
+                            }
+                        </span>
+                    </app-detail-icon-button>
                 } @else {
-                    <button
-                        type="button"
-                        class="icon-action-btn"
-                        (click)="downloadVod(playableItem)"
-                        [matTooltip]="'DOWNLOADS.DOWNLOAD' | translate"
-                        [attr.aria-label]="'DOWNLOADS.DOWNLOAD' | translate"
-                        data-testid="vod-download-start"
-                    >
-                        <mat-icon>download</mat-icon>
-                    </button>
+                    <app-detail-icon-button
+                        [label]="'DOWNLOADS.DOWNLOAD' | translate"
+                        icon="download"
+                        testId="vod-download-start"
+                        (pressed)="downloadVod(playableItem)"
+                    />
                 }
             }
 
-            @if (multiSource.hasAlternatives()) {
-                <!-- No [count] override: the badge states the TOTAL number of
-                     copies across all playlists, i.e. what the popover lists. -->
-                <app-vod-sources-chip
-                    [sources]="multiSource.sources()"
-                    [title]="multiSourceTitle()"
-                    [matchKind]="multiSource.matchKind()"
-                    [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
-                    [autoFailoverSupported]="autoFailoverSupported()"
-                    [playbackLive]="playbackLive()"
-                    (playRequested)="playFromSource($event)"
-                    (pinRequested)="pinSource($event)"
-                    (checkRequested)="checkSource($event)"
-                    (autoFailoverToggled)="setAutoFailover($event)"
-                />
-            }
-
-            @if (activeSourceCaption(); as caption) {
-                <p class="source-caption">
-                    <span class="source-caption__label">
-                        {{ 'PORTALS.MULTI_SOURCE.PLAYING_FROM' | translate }}
-                    </span>
-                    <span class="source-caption__source">{{
-                        caption.source
-                    }}</span>
-                    @if (multiSource.hasAlternatives()) {
-                        <span class="source-caption__extra">
-                            @if (caption.alternativeCount === 1) {
-                                {{
-                                    'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_ONE'
-                                        | translate
-                                }}
-                            } @else {
-                                {{
-                                    'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_OTHER'
-                                        | translate
-                                            : {
-                                                  count: caption.alternativeCount,
-                                              }
-                                }}
-                            }
-                        </span>
-                    }
-                </p>
-            }
+            <app-vod-more-menu
+                [sections]="menu.sections()"
+                [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
+                testId="vod-more-menu"
+                [sources]="multiSource.sources()"
+                [sourcesTitle]="multiSourceTitle()"
+                [matchKind]="multiSource.matchKind()"
+                [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
+                [autoFailoverSupported]="autoFailoverSupported()"
+                [playbackLive]="playbackLive()"
+                (selected)="menu.run($event)"
+                (sourcePlayRequested)="playFromSource($event)"
+                (sourcePinRequested)="pinSource($event)"
+                (sourceCheckRequested)="checkSource($event)"
+                (autoFailoverToggled)="setAutoFailover($event)"
+            />
         }
     }
     <app-view-in-portal-action />
+</ng-template>
+
+<ng-template #vodCredits>
+    @if (activeSourceCaption(); as caption) {
+        <p class="source-caption">
+            <span class="source-caption__label">
+                {{ 'PORTALS.MULTI_SOURCE.PLAYING_FROM' | translate }}
+            </span>
+            <span class="source-caption__source">{{ caption.source }}</span>
+            @if (multiSource.hasAlternatives()) {
+                <span class="source-caption__extra">
+                    @if (caption.alternativeCount === 1) {
+                        {{
+                            'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_ONE' | translate
+                        }}
+                    } @else {
+                        {{
+                            'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_OTHER'
+                                | translate: { count: caption.alternativeCount }
+                        }}
+                    }
+                </span>
+            }
+        </p>
+    }
+    <app-detail-credits
+        [cast]="hero.castNames()"
+        [directors]="hero.directorNames()"
+        (moreRequested)="scrollToCast()"
+    />
+    @if (selectedVodInfo()?.rating_kinopoisk; as kinopoisk) {
+        <div class="details__meta-item">
+            <span class="label">{{
+                'XTREAM.KINOPOISK_RATING' | translate
+            }}</span>
+            <span class="value">{{ kinopoisk }}</span>
+        </div>
+    }
 </ng-template>
 
 <ng-template #inlinePlayer>
@@ -303,178 +235,90 @@
 @if (selectedVodInfo(); as info) {
     <app-portal-detail-shell
         [title]="info.name || item?.movie_data?.name"
+        [kindLabel]="hero.kindLabel()"
         [description]="info.description || info.plot"
         [posterUrl]="info.movie_image || info.cover_big"
         [backdropUrl]="getBackdropUrl(info)"
+        [progress]="hero.progress()"
+        [trailerBackdropUrl]="trailerBackdropUrl()"
+        [contentKey]="contentKey()"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"
     >
         <ng-template appDetailTags>
             @if (info.releasedate) {
-                @if (discover.canOpenYear(info.releasedate)) {
-                    <button
-                        type="button"
-                        class="details__tag details__tag--clickable"
-                        (click)="discover.openYear(info.releasedate)"
-                    >
-                        {{ discover.yearLabel(info.releasedate) }}
-                    </button>
-                } @else {
-                    <span class="details__tag">{{
-                        discover.yearLabel(info.releasedate) ??
-                            (info.releasedate | slice: 0 : 4)
-                    }}</span>
-                }
+                <app-meta-chip>
+                    @if (discover.canOpenYear(info.releasedate)) {
+                        <button
+                            type="button"
+                            class="meta-chip__facet"
+                            (click)="discover.openYear(info.releasedate)"
+                        >
+                            {{ discover.yearLabel(info.releasedate) }}
+                        </button>
+                    } @else {
+                        {{
+                            discover.yearLabel(info.releasedate) ??
+                                (info.releasedate | slice: 0 : 4)
+                        }}
+                    }
+                </app-meta-chip>
             }
-            @if (info.tmdb_genres?.length) {
-                @for (genre of info.tmdb_genres; track genre.id) {
-                    <button
-                        type="button"
-                        class="details__tag details__tag--clickable"
-                        (click)="discover.openGenre(genre)"
-                    >
-                        {{ genre.name }}
-                    </button>
-                }
-            } @else if (info.genre) {
-                <span class="details__tag">{{ info.genre }}</span>
+            @if (hero.durationLabel(); as duration) {
+                <app-meta-chip>{{ duration }}</app-meta-chip>
             }
-            @if (info.duration) {
-                <span class="details__tag">{{ info.duration }}</span>
+            @if (hero.genreChips().length) {
+                <app-meta-chip>
+                    @for (genre of hero.genreChips(); track genre.label) {
+                        @if (!$first) {
+                            <span class="meta-chip__sep" aria-hidden="true"
+                                >·</span
+                            >
+                        }
+                        @if (genre.facet; as facet) {
+                            <button
+                                type="button"
+                                class="meta-chip__facet"
+                                (click)="discover.openGenre(facet)"
+                            >
+                                {{ genre.label }}
+                            </button>
+                        } @else {
+                            {{ genre.label }}
+                        }
+                    }
+                </app-meta-chip>
+            }
+            @for (country of hero.countryChips(); track country.label) {
+                <app-meta-chip>
+                    @if (country.facet; as facet) {
+                        <button
+                            type="button"
+                            class="meta-chip__facet"
+                            (click)="discover.openCountry(facet)"
+                        >
+                            {{ country.label }}
+                        </button>
+                    } @else {
+                        {{ country.label }}
+                    }
+                </app-meta-chip>
             }
             @if (info.rating_imdb) {
-                <span class="details__tag details__tag--rating">
-                    ⭐ {{ info.rating_imdb }}
-                </span>
-            }
-            @if (info.tmdb_countries?.length) {
-                @for (country of info.tmdb_countries; track country.code) {
-                    <button
-                        type="button"
-                        class="details__tag details__tag--clickable"
-                        (click)="discover.openCountry(country)"
-                    >
-                        {{ country.name }}
-                    </button>
-                }
-            } @else if (info.country) {
-                <span class="details__tag">{{ info.country }}</span>
+                <app-meta-chip variant="rating"
+                    >★ {{ info.rating_imdb }}</app-meta-chip
+                >
             }
             @if (isDownloaded()) {
-                <span class="details__tag">
+                <app-meta-chip variant="status">
                     {{ 'DOWNLOADS.OFFLINE' | translate }}
-                </span>
+                </app-meta-chip>
             }
         </ng-template>
 
         <ng-template appDetailMeta>
-            @if (info.actors || info.cast || info.tmdb_cast?.length) {
-                <div class="details__meta-item">
-                    <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
-                    @if (info.tmdb_cast?.length) {
-                        <div class="details__cast-strip">
-                            @for (
-                                member of info.tmdb_cast;
-                                track member.tmdbPersonId
-                                    ? 'p' + member.tmdbPersonId
-                                    : 'i' + $index
-                            ) {
-                                <span
-                                    class="details__cast-chip"
-                                    [class.details__cast-chip--clickable]="
-                                        !!member.tmdbPersonId
-                                    "
-                                    (click)="openActor(member)"
-                                    [title]="
-                                        member.character
-                                            ? member.name +
-                                              ' — ' +
-                                              member.character
-                                            : member.name
-                                    "
-                                >
-                                    @if (member.profileUrl) {
-                                        <img
-                                            class="details__cast-avatar"
-                                            [src]="member.profileUrl"
-                                            [alt]="member.name"
-                                            loading="lazy"
-                                        />
-                                    } @else {
-                                        <span
-                                            class="details__cast-avatar details__cast-avatar--fallback"
-                                        >
-                                            {{ member.name.charAt(0) }}
-                                        </span>
-                                    }
-                                    <span class="details__cast-name">{{
-                                        member.name
-                                    }}</span>
-                                </span>
-                            }
-                        </div>
-                    } @else {
-                        <span class="value">{{
-                            info.actors || info.cast
-                        }}</span>
-                    }
-                </div>
-            }
-            @if (info.director || info.tmdb_directors?.length) {
-                <div class="details__meta-item">
-                    <span class="label">{{
-                        'XTREAM.DIRECTOR' | translate
-                    }}</span>
-                    @if (info.tmdb_directors?.length) {
-                        <div class="details__cast-strip">
-                            @for (
-                                member of info.tmdb_directors;
-                                track member.tmdbPersonId
-                                    ? 'p' + member.tmdbPersonId
-                                    : 'i' + $index
-                            ) {
-                                <span
-                                    class="details__cast-chip"
-                                    [class.details__cast-chip--clickable]="
-                                        !!member.tmdbPersonId
-                                    "
-                                    (click)="openActor(member)"
-                                    [title]="member.name"
-                                >
-                                    @if (member.profileUrl) {
-                                        <img
-                                            class="details__cast-avatar"
-                                            [src]="member.profileUrl"
-                                            [alt]="member.name"
-                                            loading="lazy"
-                                        />
-                                    } @else {
-                                        <span
-                                            class="details__cast-avatar details__cast-avatar--fallback"
-                                        >
-                                            {{ member.name.charAt(0) }}
-                                        </span>
-                                    }
-                                    <span class="details__cast-name">{{
-                                        member.name
-                                    }}</span>
-                                </span>
-                            }
-                        </div>
-                    } @else {
-                        <span class="value">{{ info.director }}</span>
-                    }
-                </div>
-            }
-            @if (info.rating_kinopoisk) {
-                <div class="details__meta-item">
-                    <span class="label">{{
-                        'XTREAM.KINOPOISK_RATING' | translate
-                    }}</span>
-                    <span class="value">{{ info.rating_kinopoisk }}</span>
-                </div>
-            }
+            <ng-container [ngTemplateOutlet]="vodCredits" />
         </ng-template>
 
         <ng-template appDetailActions>
@@ -483,134 +327,52 @@
         <ng-container detail-player [ngTemplateOutlet]="inlinePlayer" />
 
         <div detail-extras>
-            @if (trailerEmbedUrl(); as trailerUrl) {
-                <div class="youtube-trailer">
-                    <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
-                    <div class="trailer-wrapper">
-                        <iframe
-                            [src]="trailerUrl | safe"
-                            title="YouTube video player"
-                            allow="
-                                accelerometer;
-                                autoplay;
-                                clipboard-write;
-                                encrypted-media;
-                                gyroscope;
-                                picture-in-picture;
-                                web-share;
-                            "
-                            referrerpolicy="strict-origin-when-cross-origin"
-                            allowfullscreen
-                        ></iframe>
-                    </div>
-                </div>
-            }
-
-            @if (similarItems().length || similarInPortals().length) {
-                <section class="details__similar" data-test-id="tmdb-similar">
-                    <h3>{{ 'XTREAM.SIMILAR' | translate }}</h3>
-                    <div class="details__similar-strip">
-                        @for (item of similarItems(); track item.id) {
-                            <button
-                                type="button"
-                                class="details__similar-card"
-                                [title]="item.title"
-                                (click)="openSimilar(item)"
-                            >
-                                @if (item.posterUrl) {
-                                    <img
-                                        class="details__similar-poster"
-                                        [src]="item.posterUrl"
-                                        [alt]="item.title"
-                                        loading="lazy"
-                                    />
-                                } @else {
-                                    <span
-                                        class="details__similar-poster details__similar-poster--fallback"
-                                    >
-                                        {{ item.title.charAt(0) }}
-                                    </span>
-                                }
-                                <span class="details__similar-title">
-                                    {{ item.title }}
-                                </span>
-                            </button>
-                        }
-                        @for (
-                            item of similarInPortals();
-                            track 'x' +
-                                item.match.playlistId +
-                                '-' +
-                                item.match.xtreamId
-                        ) {
-                            <button
-                                type="button"
-                                class="details__similar-card"
-                                [title]="
-                                    item.title + ' — ' + item.match.playlistName
-                                "
-                                (click)="openSimilarInPortals(item)"
-                            >
-                                @if (item.posterUrl) {
-                                    <img
-                                        class="details__similar-poster"
-                                        [src]="item.posterUrl"
-                                        [alt]="item.title"
-                                        loading="lazy"
-                                    />
-                                } @else {
-                                    <span
-                                        class="details__similar-poster details__similar-poster--fallback"
-                                    >
-                                        {{ item.title.charAt(0) }}
-                                    </span>
-                                }
-                                <span class="details__similar-title">
-                                    {{ item.title }}
-                                </span>
-                                <span class="details__similar-source">
-                                    {{ item.match.playlistName }}
-                                </span>
-                            </button>
-                        }
-                    </div>
-                </section>
-            }
+            <app-similar-rail
+                [title]="'XTREAM.SIMILAR' | translate"
+                [items]="hero.similarRailItems()"
+                (selected)="openSimilarRailItem($event)"
+            />
+            <app-cast-crew-row
+                [cast]="hero.castMembers()"
+                [directors]="hero.directorMembers()"
+                (personSelected)="openActor($event)"
+            />
         </div>
     </app-portal-detail-shell>
 } @else if (fallbackView(); as fallback) {
     <app-portal-detail-shell
         [title]="fallback.title"
+        [kindLabel]="hero.kindLabel()"
         [posterUrl]="fallback.posterUrl"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"
     >
         <ng-template appDetailTags>
-            <span
-                class="details__tag details__tag--status"
+            <app-meta-chip
+                variant="status"
                 data-testid="xtream-vod-fallback-status"
             >
                 {{ 'XTREAM.DETAIL_FALLBACK.STATUS' | translate }}
-            </span>
+            </app-meta-chip>
             @if (fallback.year) {
-                <span class="details__tag">{{ fallback.year }}</span>
+                <app-meta-chip>{{ fallback.year }}</app-meta-chip>
             }
             @if (fallback.rating) {
-                <span class="details__tag details__tag--rating">
-                    ⭐ {{ fallback.rating }}
-                </span>
+                <app-meta-chip variant="rating"
+                    >★ {{ fallback.rating }}</app-meta-chip
+                >
             }
             @if (fallback.added) {
-                <span class="details__tag">{{ fallback.added }}</span>
+                <app-meta-chip>{{ fallback.added }}</app-meta-chip>
             }
             @if (fallback.format) {
-                <span class="details__tag">{{ fallback.format }}</span>
+                <app-meta-chip>{{ fallback.format }}</app-meta-chip>
             }
             @if (isDownloaded()) {
-                <span class="details__tag">
+                <app-meta-chip variant="status">
                     {{ 'DOWNLOADS.OFFLINE' | translate }}
-                </span>
+                </app-meta-chip>
             }
         </ng-template>
 

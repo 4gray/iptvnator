@@ -17,6 +17,7 @@ import {
     openSettings,
     openSettingsSection,
     saveSettings,
+    setSwitch,
     test,
 } from './electron-test-fixtures';
 
@@ -161,8 +162,8 @@ test.describe('Electron EPG', () => {
             });
             const guard = app.mainWindow
                 .getByTestId('portal-connectivity-toggle')
-                .locator('input');
-            await guard.uncheck();
+                .getByRole('switch');
+            await setSwitch(guard, false);
             await expect(
                 app.mainWindow.getByTestId('settings-unsaved-bar')
             ).toBeVisible();
@@ -192,10 +193,12 @@ test.describe('Electron EPG', () => {
                 });
             });
             await openSettingsSection(app.mainWindow, 'general');
-            await app.mainWindow
-                .getByTestId('portal-connectivity-toggle')
-                .locator('input')
-                .uncheck();
+            await setSwitch(
+                app.mainWindow
+                    .getByTestId('portal-connectivity-toggle')
+                    .getByRole('switch'),
+                false
+            );
             await openSettingsSection(app.mainWindow, 'epg');
             await app.mainWindow
                 .getByRole('button', { name: 'Add EPG source' })

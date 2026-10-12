@@ -343,29 +343,6 @@ export class PortalStatusService {
     }
 
     /**
-     * Gets a user-friendly message based on the portal status
-     *
-     * @param status The portal status
-     * @returns A message describing the status
-     */
-    getStatusMessage(status: PortalStatus | null): string {
-        switch (status) {
-            case 'active':
-                return 'Connection successful! Portal is active.';
-            case 'inactive':
-                return 'Portal is inactive.';
-            case 'expired':
-                return 'Portal subscription has expired.';
-            case 'unavailable':
-                return 'Could not connect to the portal.';
-            case 'checking':
-                return 'Checking portal status…';
-            default:
-                return '';
-        }
-    }
-
-    /**
      * Gets a CSS class name based on the portal status
      *
      * @param status The portal status

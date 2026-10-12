@@ -181,7 +181,7 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
                 </button>
             }
         </mat-dialog-actions>`,
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {

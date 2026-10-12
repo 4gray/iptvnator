@@ -154,6 +154,12 @@ describe('PwaService', () => {
         }
     );
 
+    it('translates the too-large upload message', () => {
+        expect(service.getErrorMessageByStatusCode(413)).toBe(
+            'HOME.URL_UPLOAD.ERROR_413'
+        );
+    });
+
     it('appends the proxy network code to the URL-import failure toast', async () => {
         // The /parse proxy reports connection-level failures as HTTP 500 with
         // a `code` field in the body (#1400). The toast must carry that code —
@@ -187,7 +193,7 @@ describe('PwaService', () => {
 
             expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ETIMEDOUT)',
-                'Close',
+                'CLOSE',
                 { duration: 5000 }
             );
         } finally {

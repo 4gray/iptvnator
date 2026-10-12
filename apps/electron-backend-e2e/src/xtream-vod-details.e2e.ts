@@ -10,6 +10,7 @@ import {
     waitForXtreamWorkspaceReady,
     xtreamMockServer,
 } from './electron-test-fixtures';
+import { pressScrollKey } from './keyboard-scroll';
 import {
     fetchXtreamVodFixture,
     getXtreamTitle,
@@ -210,34 +211,12 @@ for (const theme of ['light', 'dark']) {
                         (el) => getComputedStyle(el).scrollbarWidth
                     )
                 ).not.toBe('none');
-                await page.keyboard.press('PageDown');
-                await expect
-                    .poll(() => shell.evaluate((el) => el.scrollTop))
-                    .toBeGreaterThan(0);
-                // PageDown animates on macOS. Sending Home after the first
-                // changed frame races that animation rather than testing a
-                // second discrete keyboard action (same fence as web E2E).
-                await shell.evaluate(
-                    (element) =>
-                        new Promise<void>((resolve) => {
-                            let last = element.scrollTop;
-                            let stableFrames = 0;
-                            const frame = () => {
-                                stableFrames =
-                                    element.scrollTop === last
-                                        ? stableFrames + 1
-                                        : 0;
-                                last = element.scrollTop;
-                                if (stableFrames === 3) resolve();
-                                else requestAnimationFrame(frame);
-                            };
-                            requestAnimationFrame(frame);
-                        })
-                );
-                await page.keyboard.press('Home');
-                await expect
-                    .poll(() => shell.evaluate((el) => el.scrollTop))
-                    .toBe(0);
+                await pressScrollKey(page, shell, 'PageDown');
+                expect(
+                    await shell.evaluate((el) => el.scrollTop)
+                ).toBeGreaterThan(0);
+                await pressScrollKey(page, shell, 'Home');
+                expect(await shell.evaluate((el) => el.scrollTop)).toBe(0);
                 const box = (await shell.boundingBox())!;
                 await page.mouse.move(
                     box.x + box.width / 2,
@@ -247,10 +226,10 @@ for (const theme of ['light', 'dark']) {
                 await expect
                     .poll(() => shell.evaluate((el) => el.scrollTop))
                     .toBeGreaterThan(0);
-                await page.keyboard.press('Tab');
-                await expect(
-                    shell.locator('.shell__back-button')
-                ).toBeFocused();
+                // Back lives in the header, which never scrolls away.
+                const back = page.getByTestId('workspace-header-back');
+                await expect(back).toBeInViewport();
+                await back.focus();
                 await page.keyboard.press('Enter');
                 await expect(shell).toHaveCount(0);
             }

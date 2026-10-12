@@ -1,0 +1,32 @@
+@if (items().length) {
+    <app-detail-rail [title]="title()" data-test-id="tmdb-similar">
+        @for (item of items(); track item.key) {
+            <button
+                type="button"
+                class="similar-card"
+                [title]="item.tooltip ?? item.title"
+                (click)="selected.emit(item)"
+            >
+                @if (posterFor(item); as poster) {
+                    <img
+                        class="similar-card__poster"
+                        [src]="poster"
+                        [alt]="item.title"
+                        loading="lazy"
+                        (error)="markFailed(poster)"
+                    />
+                } @else {
+                    <span
+                        class="similar-card__poster similar-card__poster--fallback"
+                        aria-hidden="true"
+                        >{{ item.title.charAt(0) }}</span
+                    >
+                }
+                <span class="similar-card__title">{{ item.title }}</span>
+                @if (item.year) {
+                    <span class="similar-card__year">{{ item.year }}</span>
+                }
+            </button>
+        }
+    </app-detail-rail>
+}

@@ -8,14 +8,15 @@ import {
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
 import { TmdbApiService, TmdbCacheService } from '@iptvnator/services';
 import type { TmdbCacheStats } from '@iptvnator/shared/interfaces';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 
 type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
 
@@ -23,18 +24,17 @@ type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
     selector: 'app-settings-tmdb-section',
     imports: [
         MatButtonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         MatProgressSpinnerModule,
+        MatSlideToggleModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
     templateUrl: './settings-tmdb-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             app-settings-tmdb-section {
@@ -92,6 +92,7 @@ export class SettingsTmdbSectionComponent {
     readonly isClearing = signal(false);
 
     constructor() {
+        markSectionForCheckOnFormEvents(this.form);
         // Sizing the cache is a full table scan, but this component only
         // exists while its section page is open, so loading on construction
         // preserves the old "wait until the user is actually looking"

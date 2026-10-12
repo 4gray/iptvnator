@@ -41,7 +41,7 @@
                         mat-icon-button
                         (click)="onClose()"
                         class="radio-close-btn"
-                        aria-label="Close player"
+                        [attr.aria-label]="'PORTALS.CLOSE_PLAYER' | translate"
                     >
                         <mat-icon>close</mat-icon>
                     </button>

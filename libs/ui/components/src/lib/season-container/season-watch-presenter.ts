@@ -42,9 +42,7 @@ export interface SeasonWatchPresenterSources {
 @Injectable()
 export class SeasonWatchPresenter {
     private readonly logger = createLogger('SeasonWatchPresenter');
-    private readonly sources = signal<SeasonWatchPresenterSources | null>(
-        null
-    );
+    private readonly sources = signal<SeasonWatchPresenterSources | null>(null);
 
     connect(sources: SeasonWatchPresenterSources): void {
         this.sources.set(sources);
@@ -199,9 +197,7 @@ export class SeasonWatchPresenter {
         ) {
             return false;
         }
-        return (
-            this.loadedEpisodes().length > 0 || sources.hasUnloadedSeasons()
-        );
+        return this.loadedEpisodes().length > 0 || sources.hasUnloadedSeasons();
     });
 
     readonly seriesActionDisabled = computed(() => {
@@ -218,6 +214,25 @@ export class SeasonWatchPresenter {
             )
         );
     });
+
+    /**
+     * "Reset progress": clear every loaded episode's saved position. The
+     * host persists it through the same series toggle request as the menu.
+     */
+    buildResetRequest(): SeasonContainerSeriesPlaybackToggleRequest | null {
+        const sources = this.sources();
+        const playlistId = sources?.playlistId();
+        if (!sources || !playlistId || sources.batchRunning()) {
+            return null;
+        }
+        return buildSeriesWatchToggleRequest({
+            seasons: sources.seasons(),
+            seriesId: sources.seriesId(),
+            playlistId,
+            isEpisodeWatched: sources.isEpisodeWatched,
+            markWatched: false,
+        });
+    }
 
     toggleSeriesWatched(): void {
         const sources = this.sources();

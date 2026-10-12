@@ -37,6 +37,58 @@ See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
 [Portal Detail Navigation](./portal-detail-navigation.md), and
 [VOD Multi-Source](./vod-multi-source.md).
 
+## PWA Collection Persistence
+
+Collection operations carry `{ id, type }`: `id` remains the SQLite row ID
+on Electron and the provider ID on PWA. Electron unwraps the row ID at its
+existing database boundary. Typed lookups, favorite toggles, recent updates,
+removals, backdrops and backup/restore retain the content type. A favorite toggle
+reads persisted status for its exact typed target instead of borrowing the last
+detail's favorite state. Live history uses the same confirmed-playback gate as
+VOD and series: inline playback confirms its playlist-scoped session key, while
+external playback confirms its URL. The initiating playlist and typed identity
+remain captured across delayed confirmation. Selection without playback or a
+resolved URL does not update history. See the
+[playback-history contract](./embedded-inline-playback.md#recently-viewed-confirmation).
+
+PWA keeps the existing localStorage keys. `xtream-favorites` contains ordered
+`type:id` keys (for example `movie:42`); `xtream-recent-items` uses the same
+keys in each entry's `id`, retaining `viewedAt` and backdrop metadata.
+`xtream-collection-items` stores snapshots under those typed keys while each
+snapshot's `id` and `xtream_id` remain numeric provider IDs. Hydration fetches
+only the required content types; snapshots support collection reads offline.
+Typed add/remove/status operations use synchronous local migration and never
+wait for unrelated catalog hydration. `PwaCollectionStorage` owns that local
+migration and snapshot persistence; the data source owns provider hydration for
+collection loading and legacy numeric callers that still need identity evidence.
+
+Legacy numeric and numeric-string references migrate lazily. A valid legacy
+snapshot supplies its saved content type; otherwise all three catalogs must
+be loaded successfully and exactly one type must match (repeated rows within
+that same type are one identity). A partial catalog,
+failed hydration, missing item or colliding ID never chooses a type. Such
+references remain stored but hidden until identity can be resolved or the
+user explicitly adds a typed item. Legacy numeric snapshot entries remain as
+migration evidence for the other collection. Already-overwritten snapshots
+cannot recover information lost by an older version. Ambiguous references
+cannot be included in typed backup exports; the original browser storage is
+retained. Migration merges into current storage after hydration, preserving
+concurrent additions/removals, and duplicate recent references keep the newest
+timestamp.
+
+Migration writes and snapshot-cache writes are best effort when browser storage
+is full. Reads still resolve the retained legacy evidence in memory. Typed
+status and mutations match original numeric references through that evidence;
+removal filters the original stored keys without first expanding the remaining
+keys. Typed favorite-status checks never write storage. Additions save the
+requested reference before attempting optional migration or snapshot copies, so
+those copies cannot consume space needed by the requested save. Recent aliases
+are deduplicated in memory before the 50-item limit, keeping the newest timestamp
+and its original saved key until optional migration. Favorite/recent
+writes requested by the user still propagate storage failures. A new reference
+that fits can be saved without its optional snapshot and hydrated on a later
+collection load.
+
 ## Connection Input
 
 Xtream server URLs are normalized through
@@ -99,6 +151,22 @@ evidence. PWA URL/DNS-policy refusals and Electron URL/redirect-policy errors ar
 connection failures, never reported as provider HTTP statuses or used to
 authorize HTTP. Older backends without the envelope cannot authorize HTTP discovery.
 Provider JSON remains nested in `payload` and cannot provide this evidence.
+
+Electron resolves two more outcomes instead of rejecting them, because Electron
+logs every rejected `ipcMain.handle` promise as a handler error with a stack
+trace: a cancelled request (`XTREAM_CANCEL_SESSION`, a cancelled or expired
+source-health probe) and an HTTP 401/403. Both return a
+`{ portalRequestFailure }` envelope
+(`libs/shared/interfaces/src/lib/portal-request-failure.util.ts`, classified in
+`apps/electron-backend/src/app/events/portal-request-outcome.ts`) that
+`ElectronService.forwardXtreamRequest` turns back into what its callers already
+handle: health probes get an `AbortError` or an `HTTP Error <code>` Error
+carrying `status`; catalog calls get the usual `{ type: ERROR, status, message }`
+result — status 499 and no snackbar for a cancellation, the real 401/403
+(previously lost as `[object Object]`) for a refusal. The main process logs a
+refusal as one credential-free `console.warn` (unless `suppressErrorLog`), a
+cancellation only under `IPTVNATOR_TRACE_IPC`, and everything else as before
+at error level with a rejection.
 
 The saved base drives catalog refresh, provider EPG, live/VOD/series/catch-up URL
 construction and fresh Favorites/Recent resolution. The routed Xtream session
@@ -405,3 +473,40 @@ deduplicated list, `hasMoreContent` derives from accumulated length vs
 and the facade maps page 0 to the skeleton and later pages to the tail
 spinner. These catalog/search surfaces use incremental loading instead of
 page buttons.
+
+## Forced external launches from detail pages
+
+The "…" menu's MPV/VLC launch follows the shared rules in
+[Forced External Launches From Detail Pages](./embedded-inline-playback.md#forced-external-launches-from-detail-pages).
+The movie page's pin and reset rules are in
+[VOD Multi-Source](./vod-multi-source.md#menu-launch-and-reset-follow-the-primary-button).
+
+The series page keeps its launch state at module level in
+`serial-details-external-launch.ts`, so it outlives a recreated page:
+
+- The owner is `playlist:series` (`launchOwner()`). It changes when the page
+  shows another series and is null once the page is gone.
+- Forced launches of one owner run on one chain. A later launch waits for the
+  earlier one to settle, closes the owner's running episode session and then
+  launches. Each step rechecks the owner, and a launch that resolves after the
+  page left the owner closes the session it opened.
+- The duplicate guard is keyed by page token plus episode. The token
+  (`pageToken()`) is owner, page instance and visit, so a launch left behind
+  by an earlier visit of the same series does not swallow a launch from the
+  reopened page; that launch queues on the owner's chain.
+- While a forced launch of the owner is pending (`forcedLaunchPending`), a
+  start that does not force a player is queued instead of started. One choice
+  is kept per owner, the latest wins, and it carries the host and `start` of
+  the page that made it. Once the chain settles, the player the launch opened
+  is closed first while the owner stays pending. The choice is dropped when
+  that page no longer shows the owner or the close was not confirmed.
+- The pending flag also disables the menu's external-player row and the
+  season and series watched actions, and counts as active playback for "Reset
+  progress".
+- The launch-position marker and a launch-failure message apply only while
+  the page token is unchanged.
+
+Regression coverage: `serial-details-external-launch.spec.ts` (chain,
+duplicate guard, queued choice), `serial-details-playback.service.spec.ts`
+(page token) and, for the external-player and reset rows,
+`libs/ui/components/src/lib/detail-ui/series-hero.state.spec.ts`.

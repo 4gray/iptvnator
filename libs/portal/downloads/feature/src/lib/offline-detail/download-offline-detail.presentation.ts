@@ -2,6 +2,7 @@ import type { DownloadItem } from '@iptvnator/services';
 import type {
     DownloadMetadataPerson,
     DownloadMetadataSnapshot,
+    TmdbEnrichedCastMember,
 } from '@iptvnator/shared/interfaces';
 import type {
     DeepReadonly,
@@ -142,6 +143,18 @@ export function boundedOfflinePeople(
         if (people.length === 12) break;
     }
     return people;
+}
+
+/** The shared cast row's shape: the role becomes the character line. */
+export function offlinePeopleAsCast(
+    people: readonly DownloadMetadataPerson[]
+): TmdbEnrichedCastMember[] {
+    return people.map((person) => ({
+        name: person.name,
+        character: person.role,
+        profileUrl: person.profileUrl ?? null,
+        tmdbPersonId: person.tmdbPersonId,
+    }));
 }
 
 export function offlinePersonTrackKey(person: DownloadMetadataPerson): string {

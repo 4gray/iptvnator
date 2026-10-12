@@ -49,9 +49,9 @@
         box-shadow 0.15s ease;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-focus-ring);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-focus-ring) 12%, transparent);
     }
 }
 

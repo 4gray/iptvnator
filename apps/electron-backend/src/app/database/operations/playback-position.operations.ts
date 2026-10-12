@@ -232,6 +232,46 @@ export async function getAllPlaybackPositions(
         .where(eq(schema.playbackPositions.playlistId, playlistId));
 }
 
+/** Backup replacement must never commit deletion without all restored rows. */
+export async function replaceAllPlaybackPositions(
+    db: AppDatabase,
+    playlistId: string,
+    items: PlaybackPositionPayload[]
+): Promise<{ success: boolean }> {
+    db.transaction((tx) => {
+        tx.delete(schema.playbackPositions)
+            .where(eq(schema.playbackPositions.playlistId, playlistId))
+            .run();
+        for (const item of items) {
+            const values = {
+                playlistId,
+                contentXtreamId: item.contentXtreamId,
+                contentType: item.contentType,
+                seriesXtreamId: item.seriesXtreamId,
+                seasonNumber: item.seasonNumber,
+                episodeNumber: item.episodeNumber,
+                positionSeconds: item.positionSeconds,
+                durationSeconds: item.durationSeconds,
+                updatedAt: sql`CURRENT_TIMESTAMP`,
+            };
+            // Match the former save loop: later duplicate values win, while
+            // omitted optional fields retain the earlier snapshot's metadata.
+            tx.insert(schema.playbackPositions)
+                .values(values)
+                .onConflictDoUpdate({
+                    target: [
+                        schema.playbackPositions.contentXtreamId,
+                        schema.playbackPositions.playlistId,
+                        schema.playbackPositions.contentType,
+                    ],
+                    set: values,
+                })
+                .run();
+        }
+    });
+    return { success: true };
+}
+
 export async function clearAllPlaybackPositions(
     db: AppDatabase,
     playlistId: string

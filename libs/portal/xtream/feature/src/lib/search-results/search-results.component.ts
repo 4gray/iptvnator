@@ -5,21 +5,11 @@ import {
     computed,
     effect,
     inject,
-    Inject,
     linkedSignal,
-    Optional,
     signal,
-    viewChild,
 } from '@angular/core';
-import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import {
-    MAT_DIALOG_DATA,
-    MatDialogModule,
-    MatDialogRef,
-} from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -27,10 +17,11 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { DatabaseService } from '@iptvnator/services';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     buildXtreamNavigationTarget,
-    isWorkspaceLayoutRoute,
     queryParamSignal,
+    workspacePortalCommands,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { SearchFilters } from '@iptvnator/portal/xtream/data-access';
@@ -43,11 +34,6 @@ import {
     GlobalSearchResult,
     isM3uGlobalSearchResult,
 } from '@iptvnator/shared/interfaces';
-
-interface SearchResultsData {
-    isGlobalSearch: boolean;
-    initialQuery?: string;
-}
 
 interface GlobalSearchResultGroup {
     playlistId: string;
@@ -91,9 +77,7 @@ function groupResultsByPlaylistId(
         ContentCardComponent,
         FormsModule,
         MatCheckboxModule,
-        MatDialogModule,
         MatIcon,
-        MatIconButton,
         MatProgressSpinner,
         SearchLayoutComponent,
         TranslatePipe,
@@ -103,14 +87,12 @@ function groupResultsByPlaylistId(
     styleUrls: ['./search-results.component.scss'],
 })
 export class SearchResultsComponent implements AfterViewInit {
-    readonly searchLayoutComponent = viewChild(SearchLayoutComponent);
     readonly xtreamStore = inject(XtreamStore);
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
-    private readonly location = inject(Location);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly logger = createLogger('XtreamSearchResults');
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
     readonly routeSearchTerm = queryParamSignal(
         this.activatedRoute,
         'q',
@@ -136,7 +118,8 @@ export class SearchResultsComponent implements AfterViewInit {
     private static readonly TYPE_FILTERS_STORAGE_KEY =
         'global-search-type-filters';
 
-    isGlobalSearch = false;
+    readonly isGlobalSearch =
+        this.activatedRoute.snapshot.data?.['isGlobalSearch'] === true;
 
     /** Whether to group global search results by playlist */
     readonly groupByPlaylist = signal(
@@ -245,15 +228,7 @@ export class SearchResultsComponent implements AfterViewInit {
         }
     }
 
-    constructor(
-        @Optional() @Inject(MAT_DIALOG_DATA) data: SearchResultsData | null,
-        @Optional() public dialogRef: MatDialogRef<SearchResultsComponent>
-    ) {
-        this.isGlobalSearch =
-            data?.isGlobalSearch ||
-            this.activatedRoute.snapshot.data?.['isGlobalSearch'] === true;
-        const initialQuery = (data?.initialQuery ?? '').trim();
-
+    constructor() {
         if (this.isGlobalSearch) {
             const savedFilters = localStorage.getItem(
                 SearchResultsComponent.TYPE_FILTERS_STORAGE_KEY
@@ -272,10 +247,6 @@ export class SearchResultsComponent implements AfterViewInit {
                     // Ignore malformed storage value and keep defaults.
                 }
             }
-
-            if (initialQuery) {
-                this.xtreamStore.setSearchTerm(initialQuery);
-            }
         }
 
         effect((onCleanup) => {
@@ -289,10 +260,6 @@ export class SearchResultsComponent implements AfterViewInit {
         });
 
         effect(() => {
-            if (!this.isWorkspaceLayout) {
-                return;
-            }
-
             const queryTerm = this.routeSearchTerm();
             if (queryTerm === this.searchTerm()) {
                 return;
@@ -304,11 +271,6 @@ export class SearchResultsComponent implements AfterViewInit {
 
     ngAfterViewInit() {
         this.xtreamStore.setSelectedContentType('vod');
-        if (this.showInlineSearchInput) {
-            setTimeout(() => {
-                this.searchLayoutComponent()?.focusSearchInput();
-            });
-        }
     }
 
     executeSearch() {
@@ -327,13 +289,6 @@ export class SearchResultsComponent implements AfterViewInit {
                 excludeHidden,
             });
         }
-    }
-
-    /**
-     * Update search term in the store
-     */
-    updateSearchTerm(term: string) {
-        this.xtreamStore.setSearchTerm(term);
     }
 
     /**
@@ -525,21 +480,16 @@ export class SearchResultsComponent implements AfterViewInit {
             imageUrl: item.poster_url,
         });
 
-        if (this.isGlobalSearch) {
-            this.dialogRef?.close();
-        }
-
         void this.router.navigate(navigation.link, {
             state: navigation.state,
         });
     }
 
-    onCloseDialog() {
-        this.dialogRef?.close();
-    }
-
+    /** History Back; the portal's default section when it opened the session. */
     goBack(): void {
-        this.location.back();
+        this.backNavigation.back(() =>
+            workspacePortalCommands(this.activatedRoute, 'xtreams')
+        );
     }
 
     toggleGroupByPlaylist(value: boolean) {
@@ -565,24 +515,13 @@ export class SearchResultsComponent implements AfterViewInit {
         return this.groupedResults();
     }
 
-    get showInlineSearchInput(): boolean {
-        return !this.isWorkspaceLayout;
-    }
-
-    get showGlobalCloseButton(): boolean {
-        return this.isGlobalSearch && !this.isWorkspaceLayout;
-    }
-
     /**
      * The in-portal search is a nested view (reached from the toolbar
-     * search box or an actor page); the global search is a top-level
-     * sidebar destination, and the dialog has its own close button — a
-     * back arrow there would navigate the page behind the open dialog.
+     * search box or an actor page), so it offers the header's Back; the
+     * global search is a top-level sidebar destination.
      */
-    get showBackButton(): boolean {
-        return (
-            this.isWorkspaceLayout && !this.isGlobalSearch && !this.dialogRef
-        );
+    get backAvailable(): boolean {
+        return !this.isGlobalSearch;
     }
 
     get minSearchLength(): number {
@@ -611,10 +550,6 @@ export class SearchResultsComponent implements AfterViewInit {
     private selectM3uItem(item: GlobalSearchResult): void {
         if (!isM3uGlobalSearchResult(item)) {
             return;
-        }
-
-        if (this.isGlobalSearch) {
-            this.dialogRef?.close();
         }
 
         void this.router.navigate(

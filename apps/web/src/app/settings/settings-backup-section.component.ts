@@ -9,7 +9,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule } from '@ngx-translate/core';
+import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
+import { SettingsPlaylistDeleteSummary } from './settings.models';
 
+/**
+ * Backup & data: import/export plus the one destructive reset action, which
+ * used to be a page of its own.
+ */
 @Component({
     selector: 'app-settings-backup-section',
     imports: [
@@ -20,15 +26,20 @@ import { TranslateModule } from '@ngx-translate/core';
     ],
     templateUrl: './settings-backup-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
-    styles: [':host { display: contents; }'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrls: ['./settings-backup-section.component.scss'],
 })
 export class SettingsBackupSectionComponent {
+    readonly sourceIcons = SOURCE_TYPE_ICONS;
     readonly isPwa = input(false);
     readonly isRemovingAllPlaylists = input(false);
     readonly isExportingData = input(false);
+    readonly canRemoveAllPlaylists = input(false);
+    readonly playlistDeleteSummary =
+        input.required<SettingsPlaylistDeleteSummary>();
+    readonly removeAllProgressLabel = input<string | null>(null);
 
     readonly importData = output<void>();
     readonly exportData = output<void>();
+    readonly removeAll = output<void>();
 }

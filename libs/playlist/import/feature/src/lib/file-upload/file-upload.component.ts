@@ -18,7 +18,7 @@ const KB = 1024;
     imports: [DragDropFileUploadDirective, MatIconModule, TranslatePipe],
     selector: 'app-file-upload',
     templateUrl: './file-upload.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./file-upload.component.scss'],
 })
 export class FileUploadComponent {
@@ -118,7 +118,8 @@ export class FileUploadComponent {
         }
 
         if (result.reason !== 'cancelled') {
-            this.fileRejected.emit('selected playlist');
+            // The native dialog does not report a file name.
+            this.fileRejected.emit('');
         }
     }
 }

@@ -17,6 +17,11 @@ export interface WorkspaceCategoryViewItem {
     readonly category_name?: string;
     readonly count?: number;
     readonly id?: string | number;
+    /**
+     * Translation key of an entry the app adds itself (a provider's "All"
+     * genre); rendered through the pipe so a language switch re-labels it.
+     */
+    readonly labelKey?: string;
     readonly name?: string;
 }
 

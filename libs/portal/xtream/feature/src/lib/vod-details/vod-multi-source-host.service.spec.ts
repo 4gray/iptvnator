@@ -175,9 +175,11 @@ describe('VodMultiSourceHostService', () => {
             { startTime: 2538 }
         );
         expect(startPlayback).toHaveBeenCalledTimes(1);
+        // No forced player: the host picks inline or external itself.
         expect(startPlayback).toHaveBeenCalledWith(
             expect.objectContaining({ startTime: 2538 }),
-            expect.any(Function)
+            expect.any(Function),
+            undefined
         );
     });
 

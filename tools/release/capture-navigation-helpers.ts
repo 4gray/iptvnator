@@ -108,13 +108,16 @@ export async function dismissDialogs(page: Page): Promise<void> {
 /* Navigation moves                                                    */
 /* ------------------------------------------------------------------ */
 
-/** Returns to the dashboard via the always-visible brand link. */
+/** Returns to the dashboard via the rail's always-visible Dashboard link. */
 export async function goHome(page: Page): Promise<void> {
     if (/\/workspace\/dashboard/.test(page.url())) {
         return;
     }
 
-    await page.locator('a.brand[href$="/workspace/dashboard"]').first().click();
+    await page
+        .locator('app-workspace-shell-rail a[href$="/workspace/dashboard"]')
+        .first()
+        .click();
     await page.waitForURL(/\/workspace\/dashboard/, { timeout: 20_000 });
     await settleUi(page);
 }

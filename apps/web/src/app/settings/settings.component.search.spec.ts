@@ -95,6 +95,21 @@ describe('SettingsComponent search', () => {
         expect(query('app-settings-general-section')).not.toBeNull();
     });
 
+    it('follows Embedded MPV support only while the page is open', () => {
+        const stopFollowing = jest.fn();
+        const follow = jest
+            .spyOn(settingsSearch, 'followEmbeddedMpvSupport')
+            .mockReturnValue(stopFollowing);
+
+        const page = TestBed.createComponent(SettingsComponent);
+        expect(follow).toHaveBeenCalledTimes(1);
+        expect(stopFollowing).not.toHaveBeenCalled();
+
+        // Closing the page ends it: nothing shows these rows any more.
+        page.destroy();
+        expect(stopFollowing).toHaveBeenCalledTimes(1);
+    });
+
     it('shows an empty state when nothing matches', () => {
         setSettingsSearchQuery('zzzz-no-such-setting');
         fixture.detectChanges();
@@ -136,10 +151,10 @@ describe('SettingsComponent search', () => {
     it('scrolls to, focuses and briefly highlights a revealed row', () => {
         jest.useFakeTimers();
 
-        settingsSearch.reveal(entry('show-captions'));
+        settingsSearch.reveal(entry('cover-titles'));
         fixture.detectChanges();
 
-        const row = query('[data-setting-id="show-captions"]') as HTMLElement;
+        const row = query('[data-setting-id="cover-titles"]') as HTMLElement;
         expect(scrollIntoView).toHaveBeenCalled();
         expect(scrollIntoView.mock.contexts[0]).toBe(row);
         expect(row.classList).toContain(SETTINGS_REVEALED_CLASS);

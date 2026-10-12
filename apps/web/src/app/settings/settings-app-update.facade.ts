@@ -1,6 +1,10 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    DataService,
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
@@ -30,11 +34,35 @@ export class SettingsAppUpdateFacade {
     /** Latest updater status, polled once and then pushed by the backend */
     readonly status = signal<ElectronBridgeAppUpdateStatus | null>(null);
 
-    /** Current version of the app */
-    readonly version = signal('');
+    /**
+     * Installed version of the app. Known locally from the start, so it does
+     * not wait on (or vanish with) the GitHub releases check, which fails
+     * offline and when api.github.com rate-limits the client.
+     */
+    readonly version = signal(this.dataService.getAppVersion());
 
-    /** Update message to show */
-    readonly updateMessage = signal('');
+    /** Outcome of the last version check, kept apart from its wording. */
+    private readonly versionCheck = signal<{
+        outdated: boolean;
+        version: string;
+    } | null>(null);
+    /**
+     * The language switch happens on this very page, so the message is
+     * worded per language instead of stored in the one it was checked in.
+     */
+    private readonly languageTick = injectTranslationTick();
+
+    /** Update message to show, in the current language */
+    readonly updateMessage = computed(() => {
+        this.languageTick();
+        const check = this.versionCheck();
+        if (!check) {
+            return '';
+        }
+        return check.outdated
+            ? `${this.translate.instant('SETTINGS.NEW_VERSION_AVAILABLE') as string}: ${check.version}`
+            : (this.translate.instant('SETTINGS.LATEST_VERSION') as string);
+    });
 
     private unsubscribeStatus: (() => void) | null = null;
 
@@ -124,7 +152,12 @@ export class SettingsAppUpdateFacade {
         this.settingsService
             .getAppVersion()
             .pipe(take(1))
-            .subscribe((version) => this.showVersionInformation(version));
+            .subscribe({
+                next: (version) => this.showVersionInformation(version),
+                // SettingsService already logs the failure; without an
+                // answer there is simply no update note to show.
+                error: () => undefined,
+            });
     }
 
     /**
@@ -133,21 +166,10 @@ export class SettingsAppUpdateFacade {
      * @param currentVersion current version of the application
      */
     showVersionInformation(currentVersion: string): void {
-        const isOutdated = this.isCurrentVersionOutdated(currentVersion);
-
-        if (isOutdated) {
-            this.updateMessage.set(
-                `${
-                    this.translate.instant(
-                        'SETTINGS.NEW_VERSION_AVAILABLE'
-                    ) as string
-                }: ${currentVersion}`
-            );
-        } else {
-            this.updateMessage.set(
-                this.translate.instant('SETTINGS.LATEST_VERSION')
-            );
-        }
+        this.versionCheck.set({
+            outdated: this.isCurrentVersionOutdated(currentVersion),
+            version: currentVersion,
+        });
     }
 
     /**

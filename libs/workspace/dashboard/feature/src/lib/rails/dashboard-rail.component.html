@@ -33,13 +33,17 @@
         }
     </header>
 
-    <div class="rail__viewport">
+    <div
+        #viewport
+        class="rail__viewport"
+        [attr.data-test-id]="testId() ? testId() + '-viewport' : null"
+    >
         <button
             type="button"
             class="rail__chev rail__chev--left"
             [class.rail__chev--visible]="canScrollLeft()"
             (click)="scrollBy(-1)"
-            aria-label="Scroll left"
+            [attr.aria-label]="'PORTALS.SCROLL_LEFT' | translate"
             tabindex="-1"
         >
             <mat-icon>chevron_left</mat-icon>
@@ -49,7 +53,10 @@
             #track
             class="rail__track"
             [attr.data-layout]="layout()"
+            [attr.data-test-id]="testId() ? testId() + '-track' : null"
             (scroll)="onScroll()"
+            (focusin)="onTrackFocusIn($event)"
+            (pointerdown)="onTrackPointerDown($event)"
             role="list"
         >
             @for (card of items(); track card.id) {
@@ -67,6 +74,9 @@
                         <a
                             class="rail__channel-link"
                             [routerLink]="card.link"
+                            [attr.data-test-id]="
+                                testId() ? testId() + '-card-link' : null
+                            "
                             [queryParams]="card.queryParams ?? null"
                             [state]="card.state"
                         >
@@ -115,9 +125,9 @@
                                 </div>
                             </div>
                             <div class="rail__channel-progress-row">
-                                <span class="rail__channel-live-chip"
-                                    >LIVE</span
-                                >
+                                <span class="rail__channel-live-chip">{{
+                                    'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate
+                                }}</span>
                                 <span
                                     class="rail__channel-progress"
                                     [class.rail__channel-progress--idle]="
@@ -153,6 +163,9 @@
                         <a
                             class="rail__card-link"
                             [routerLink]="card.link"
+                            [attr.data-test-id]="
+                                testId() ? testId() + '-card-link' : null
+                            "
                             [queryParams]="card.queryParams ?? null"
                             [state]="card.state"
                         >
@@ -211,7 +224,8 @@
                                     card.episodeBadge ||
                                     card.remainingLabel ||
                                     card.subtitle ||
-                                    card.expiryBadge
+                                    card.expiryBadge ||
+                                    reserveMetaLine()
                                 ) {
                                     <span class="rail__card-meta-row">
                                         @if (card.episodeBadge) {
@@ -299,7 +313,7 @@
             class="rail__chev rail__chev--right"
             [class.rail__chev--visible]="canScrollRight()"
             (click)="scrollBy(1)"
-            aria-label="Scroll right"
+            [attr.aria-label]="'PORTALS.SCROLL_RIGHT' | translate"
             tabindex="-1"
         >
             <mat-icon>chevron_right</mat-icon>

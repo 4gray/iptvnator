@@ -39,6 +39,13 @@ export interface EmbeddedMpvSupport {
     supported: boolean;
     platform: string;
     reason?: string;
+    /**
+     * True when `supported: false` is not a verdict on this machine yet: the
+     * Linux native-view `mpv` executable was looked up before the login shell
+     * PATH arrived, and is looked up again once the shell answers. Never
+     * persist a decision made from such an answer; ask again later.
+     */
+    inconclusive?: boolean;
     capabilities?: EmbeddedMpvCapabilities;
     /**
      * Rendering engine the main process will use for new sessions.
@@ -83,6 +90,13 @@ export interface EmbeddedMpvAudioTrack {
 }
 
 export type EmbeddedMpvSubtitleTrack = EmbeddedMpvAudioTrack;
+
+/** One entry of mpv's `chapter-list`, in file order. */
+export interface EmbeddedMpvChapter {
+    /** Chapter start, in media seconds. */
+    timeSeconds: number;
+    title?: string;
+}
 
 export interface EmbeddedMpvRecordingState {
     active: boolean;
@@ -142,6 +156,11 @@ export interface EmbeddedMpvSession {
     selectedSubtitleTrackId: number | null;
     playbackSpeed: number;
     aspectOverride: string;
+    /**
+     * The file's chapters (mpv `chapter-list`). Absent from an addon built
+     * before chapters were observed and from the Linux `--wid` backend.
+     */
+    chapters?: EmbeddedMpvChapter[];
     /** Source video size (mpv dwidth/dheight); frame-copy engine only. */
     videoWidth?: number;
     videoHeight?: number;

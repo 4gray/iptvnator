@@ -36,8 +36,12 @@ const IPC_REJECTION_PREFIX =
     /^Error invoking remote method '[^']*': (?:Error: )?/;
 
 interface ReleaseNotesLoadError {
-    /** `not-found`: GitHub has no release for that version; `failed`: anything else. */
-    kind: 'not-found' | 'failed';
+    /**
+     * `not-found`: GitHub has no release for that version; `unavailable`: this
+     * build has no release-notes bridge; `failed`: anything else.
+     */
+    kind: 'not-found' | 'unavailable' | 'failed';
+    /** Raw detail shown under the generic failure; empty for the other kinds. */
     message: string;
     version?: string;
 }
@@ -84,6 +88,9 @@ function decorateReleaseNotesHtml(html: string): string {
                     mat-icon-button
                     type="button"
                     [disabled]="loading() || !notes()?.hasPrevious"
+                    [attr.aria-label]="
+                        'SETTINGS.APP_UPDATE_RELEASE_NOTES_OLDER' | translate
+                    "
                     (click)="load('previous')"
                     data-test-id="release-notes-previous"
                 >
@@ -103,6 +110,9 @@ function decorateReleaseNotesHtml(html: string): string {
                     mat-icon-button
                     type="button"
                     [disabled]="loading() || !notes()?.hasNext"
+                    [attr.aria-label]="
+                        'SETTINGS.APP_UPDATE_RELEASE_NOTES_NEWER' | translate
+                    "
                     (click)="load('next')"
                     data-test-id="release-notes-next"
                 >
@@ -127,6 +137,13 @@ function decorateReleaseNotesHtml(html: string): string {
                             {{
                                 'SETTINGS.APP_UPDATE_RELEASE_NOTES_NOT_FOUND'
                                     | translate: { version: loadError.version }
+                            }}
+                        </p>
+                    } @else if (loadError.kind === 'unavailable') {
+                        <p>
+                            {{
+                                'SETTINGS.APP_UPDATE_RELEASE_NOTES_UNAVAILABLE'
+                                    | translate
                             }}
                         </p>
                     } @else {
@@ -178,8 +195,7 @@ function decorateReleaseNotesHtml(html: string): string {
             </button>
         </mat-dialog-actions>
     `,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             .release-notes-dialog {
@@ -227,7 +243,7 @@ function decorateReleaseNotesHtml(html: string): string {
             }
 
             .release-notes-dialog__error--failed {
-                color: var(--app-error-color, #ef4444);
+                color: var(--mat-sys-error);
             }
 
             .release-notes-dialog__error p {
@@ -323,10 +339,7 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
         direction?: ElectronBridgeAppUpdateReleaseNotesDirection
     ): Promise<void> {
         if (!window.electron?.getAppUpdateReleaseNotes) {
-            this.error.set({
-                kind: 'failed',
-                message: 'Release notes are not available in this build.',
-            });
+            this.error.set({ kind: 'unavailable', message: '' });
             return;
         }
 

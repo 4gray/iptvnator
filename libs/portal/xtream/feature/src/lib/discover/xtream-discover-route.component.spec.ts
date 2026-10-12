@@ -2,6 +2,10 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import {
+    WorkspaceBackNavigationService,
+    WorkspaceBackParent,
+} from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     CatalogTitleMatchService,
@@ -25,6 +29,8 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
 
     let resolveDiscover: (titles: DiscoverTitle[] | null) => void;
     let discoverTitles: jest.Mock;
+    const back = jest.fn();
+    let facetParams: Record<string, string>;
 
     /** Creates the component and flushes the effect that starts the load */
     function createComponent(): XtreamDiscoverRouteComponent {
@@ -49,6 +55,8 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
         vodStreams.set([]);
         serialStreams.set([]);
 
+        back.mockReset();
+        facetParams = { type: 'movie', year: '1990' };
         discoverTitles = jest.fn().mockImplementation(
             () =>
                 new Promise<DiscoverTitle[] | null>((resolve) => {
@@ -61,13 +69,18 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
                 provideRouter([]),
                 {
                     provide: ActivatedRoute,
-                    useValue: {
-                        queryParams: of({ type: 'movie', year: '1990' }),
+                    useFactory: () => ({
+                        queryParams: of(facetParams),
                         snapshot: {
-                            queryParams: { type: 'movie', year: '1990' },
+                            queryParams: facetParams,
+                            params: { id: 'pl-1' },
                             pathFromRoot: [],
                         },
-                    },
+                    }),
+                },
+                {
+                    provide: WorkspaceBackNavigationService,
+                    useValue: { back },
                 },
                 {
                     provide: XtreamStore,
@@ -205,4 +218,26 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
 
         expect(component.isLoading()).toBe(true);
     });
+
+    it.each([
+        ['movie', 'vod'],
+        ['tv', 'series'],
+    ])(
+        'leads a %s Discover page that opened the session to the %s list',
+        async (type, section) => {
+            facetParams = { type, year: '1990' };
+            const component = createComponent();
+
+            component.goBack();
+            const resolveParent = back.mock.calls[0][0] as () =>
+                WorkspaceBackParent | Promise<WorkspaceBackParent>;
+
+            expect(await resolveParent()).toEqual([
+                '/workspace',
+                'xtreams',
+                'pl-1',
+                section,
+            ]);
+        }
+    );
 });

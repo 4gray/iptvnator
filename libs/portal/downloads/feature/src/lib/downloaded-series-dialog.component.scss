@@ -1,3 +1,5 @@
+@use '../../../../../ui/styles/focus-ring';
+
 :host {
     display: block;
     width: 100%;
@@ -33,7 +35,7 @@
 .downloaded-series-dialog__eyebrow {
     color: var(--app-eyebrow-color);
     font-size: 0.68rem;
-    font-weight: 750;
+    font-weight: 700;
     letter-spacing: 0.09em;
     text-transform: uppercase;
 }
@@ -93,7 +95,7 @@ mat-dialog-content {
     color: var(--mat-sys-primary);
     font-family: var(--mat-sys-label-small-font);
     font-size: 0.73rem;
-    font-weight: 750;
+    font-weight: 700;
     text-align: center;
 }
 
@@ -126,8 +128,7 @@ mat-dialog-content {
 }
 
 button:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
-    outline-offset: 2px;
+    @include focus-ring.focus-ring-declarations;
 }
 
 button:disabled {

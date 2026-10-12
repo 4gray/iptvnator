@@ -118,6 +118,7 @@ describe('RuntimeCapabilitiesService', () => {
             onPlaybackPositionUpdate: jest.fn(),
             dbDeleteXtreamContent: jest.fn(),
             dbRestoreXtreamUserData: jest.fn(),
+            dbReplaceAllPlaybackPositions: jest.fn(),
             downloadsStart: jest.fn(),
             downloadsCancel: jest.fn(),
             downloadsPause: jest.fn(),
@@ -594,6 +595,18 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSectionNavigation).toBe(true);
     });
 
+    it('keeps Xtream SQLite and ordinary position storage when atomic restore is unavailable', () => {
+        const bridge = createXtreamSqliteBridge();
+        testWindow.electron = bridge;
+        const service = new RuntimeCapabilitiesService();
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+        delete bridge['dbReplaceAllPlaybackPositions'];
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+        expect(service.supportsPlaybackPositionStorage).toBe(true);
+        bridge['dbReplaceAllPlaybackPositions'] = jest.fn();
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+    });
+
     it('supports Xtream section navigation in Electron when only the SQLite data source is available', () => {
         testWindow.electron = createXtreamSqliteBridge();
 
@@ -648,6 +661,7 @@ function createXtreamSqliteBridge(): Record<string, jest.Mock> {
         dbRemoveFavorite: jest.fn(),
         dbRemoveRecentItem: jest.fn(),
         dbRestoreXtreamUserData: jest.fn(),
+        dbReplaceAllPlaybackPositions: jest.fn(),
         dbSaveCategories: jest.fn(),
         dbSaveContent: jest.fn(),
         dbSavePlaybackPosition: jest.fn(),

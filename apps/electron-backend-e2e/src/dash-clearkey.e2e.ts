@@ -193,7 +193,9 @@ async function importDashPlaylistFromText(
     const dialog = app.mainWindow.locator('mat-dialog-container').last();
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
     await dialog.locator('textarea').fill(playlist);
-    await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await dialog.waitFor({ state: 'detached' });
     await waitForM3uCatalog(app.mainWindow);
 }
@@ -886,7 +888,12 @@ test('@electron @dash ClearKey DASH filters DRM fallback and reports external la
         await expect(mpvFallback).toHaveClass(
             /web-player-diagnostic__player-card--primary/
         );
-        await expect(dock).toContainText('E2E player launch failed');
+        // A failure without an error code shows the translated generic
+        // status; the raw main-process detail stays available as a tooltip.
+        await expect(dock).toContainText('External player error');
+        await expect(
+            dock.locator('.external-playback-dock__status-text')
+        ).toHaveAttribute('title', 'E2E player launch failed');
         await expect(
             dock.getByRole('button', { name: 'Dismiss' })
         ).toBeVisible();

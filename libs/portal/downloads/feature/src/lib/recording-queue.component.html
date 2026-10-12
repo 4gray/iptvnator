@@ -72,7 +72,9 @@
                                         class="recording-queue__rec-dot"
                                         aria-hidden="true"
                                     ></span>
-                                    REC&nbsp;{{ elapsedLabel(row.item) }}
+                                    {{
+                                        'DOWNLOADS.RECORDING_CHIP' | translate
+                                    }}&nbsp;{{ elapsedLabel(row.item) }}
                                 </span>
                             }
                             <button
@@ -99,7 +101,7 @@
                                         {{
                                             row.attentionReason ===
                                             'file-missing'
-                                                ? 'file_off'
+                                                ? 'error_outline'
                                                 : 'error'
                                         }}
                                     </mat-icon>

@@ -2,12 +2,14 @@ import {
     AfterViewInit,
     ChangeDetectionStrategy,
     Component,
+    computed,
     DestroyRef,
     ElementRef,
     inject,
     signal,
 } from '@angular/core';
 import { ElectronBridgeWindowState } from '@iptvnator/shared/interfaces';
+import { TranslatePipe } from '@ngx-translate/core';
 
 /**
  * Renderer-drawn window-management buttons (minimize / maximize-restore /
@@ -25,6 +27,7 @@ import { ElectronBridgeWindowState } from '@iptvnator/shared/interfaces';
  */
 @Component({
     selector: 'app-window-controls',
+    imports: [TranslatePipe],
     templateUrl: './window-controls.component.html',
     styleUrl: './window-controls.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,6 +39,11 @@ import { ElectronBridgeWindowState } from '@iptvnator/shared/interfaces';
 export class WindowControlsComponent implements AfterViewInit {
     readonly isMaximized = signal(false);
     readonly isFullScreen = signal(false);
+    readonly maximizeLabelKey = computed(() =>
+        this.isMaximized()
+            ? 'WORKSPACE.SHELL.WINDOW_RESTORE'
+            : 'WORKSPACE.SHELL.WINDOW_MAXIMIZE'
+    );
 
     private readonly host =
         inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;

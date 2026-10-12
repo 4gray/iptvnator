@@ -74,7 +74,7 @@ export class UnifiedRecentDataService {
             }
 
             await this.xtreamDataSource.removeRecentItem(
-                item.contentId,
+                { id: item.contentId, type: item.contentType },
                 item.playlistId
             );
             return;
@@ -113,7 +113,11 @@ export class UnifiedRecentDataService {
             return;
         }
 
-        const xtreamBatch: { contentId: number; playlistId: string }[] = [];
+        const xtreamBatch: {
+            contentId: number;
+            playlistId: string;
+            contentType: UnifiedCollectionItem['contentType'];
+        }[] = [];
         const groupedByPlaylist = new Map<string, (string | number)[]>();
 
         for (const item of items) {
@@ -122,6 +126,7 @@ export class UnifiedRecentDataService {
                     xtreamBatch.push({
                         contentId: item.contentId,
                         playlistId: item.playlistId,
+                        contentType: item.contentType,
                     });
                 }
                 continue;
@@ -145,12 +150,19 @@ export class UnifiedRecentDataService {
 
         if (xtreamBatch.length > 0) {
             if (this.hasPortalActivityStorage) {
-                tasks.push(this.dbService.removeRecentItemsBatch(xtreamBatch));
+                tasks.push(
+                    this.dbService.removeRecentItemsBatch(
+                        xtreamBatch.map(({ contentId, playlistId }) => ({
+                            contentId,
+                            playlistId,
+                        }))
+                    )
+                );
             } else {
                 tasks.push(
                     ...xtreamBatch.map((item) =>
                         this.xtreamDataSource.removeRecentItem(
-                            item.contentId,
+                            { id: item.contentId, type: item.contentType },
                             item.playlistId
                         )
                     )
@@ -276,7 +288,7 @@ export class UnifiedRecentDataService {
                     );
                 } else {
                     await this.xtreamDataSource.addRecentItem(
-                        contentId,
+                        { id: contentId, type: item.contentType },
                         item.playlistId
                     );
                 }

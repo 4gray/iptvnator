@@ -13,10 +13,13 @@ import {
     AutoUpdatePlaylistStatus,
     AutoUpdatePlaylistsResult,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
+    ERROR,
     PLAYLIST_PARSE_BY_URL,
+    STALKER_REQUEST,
     XTREAM_REQUEST,
     Playlist,
     SECURITY_ERROR_PREFIX,
+    tagExternalPlayerError,
 } from '@iptvnator/shared/interfaces';
 import { ElectronService } from './electron.service';
 
@@ -24,6 +27,7 @@ describe('ElectronService', () => {
     const session = { id: 'session-1' };
     let electronBridge: {
         xtreamRequest: jest.Mock;
+        stalkerRequest: jest.Mock;
         autoUpdatePlaylists: jest.Mock;
         fetchPlaylistByUrl: jest.Mock;
         onPlayerError: jest.Mock;
@@ -42,6 +46,7 @@ describe('ElectronService', () => {
 
         electronBridge = {
             xtreamRequest: jest.fn(),
+            stalkerRequest: jest.fn(),
             autoUpdatePlaylists: jest.fn(),
             fetchPlaylistByUrl: jest.fn(),
             onPlayerError: jest.fn(),
@@ -111,8 +116,14 @@ describe('ElectronService', () => {
 
     it('protects all startup-refresh sources until the request settles, including failure', async () => {
         let reject!: (error: Error) => void;
-        electronBridge.autoUpdatePlaylists.mockReturnValue(new Promise((_, r) => { reject = r; }));
-        const pending = service.sendIpcEvent(AUTO_UPDATE_PLAYLISTS, [{ _id: 'startup' }]);
+        electronBridge.autoUpdatePlaylists.mockReturnValue(
+            new Promise((_, r) => {
+                reject = r;
+            })
+        );
+        const pending = service.sendIpcEvent(AUTO_UPDATE_PLAYLISTS, [
+            { _id: 'startup' },
+        ]);
         const activity = TestBed.inject(SourceActivityService);
         expect(activity.isBusy('startup')).toBe(true);
         expect(activity.isBusy('other')).toBe(false);
@@ -121,25 +132,221 @@ describe('ElectronService', () => {
         expect(activity.isBusy('startup')).toBe(false);
     });
 
-    it.each([401, 403])('preserves a health HTTP %s rejection without global error handling', async (status) => {
-        const error = new Error(`Error invoking remote method: Error: HTTP Error ${status}`);
-        electronBridge.xtreamRequest.mockRejectedValue(error);
-        const post = jest.spyOn(window, 'postMessage');
-        await expect(service.sendIpcEvent(XTREAM_REQUEST, {
-            url: 'https://provider.example', params: {},
-            probe: { requestId: 'health', deadlineAt: Date.now() + 5000 },
-        })).rejects.toBe(error);
-        expect(snackBar.open).not.toHaveBeenCalled();
-        expect(post).not.toHaveBeenCalled();
+    it.each([401, 403])(
+        'preserves a health HTTP %s rejection without global error handling',
+        async (status) => {
+            const error = new Error(
+                `Error invoking remote method: Error: HTTP Error ${status}`
+            );
+            electronBridge.xtreamRequest.mockRejectedValue(error);
+            const post = jest.spyOn(window, 'postMessage');
+            await expect(
+                service.sendIpcEvent(XTREAM_REQUEST, {
+                    url: 'https://provider.example',
+                    params: {},
+                    probe: {
+                        requestId: 'health',
+                        deadlineAt: Date.now() + 5000,
+                    },
+                })
+            ).rejects.toBe(error);
+            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(post).not.toHaveBeenCalled();
+        }
+    );
+    describe('resolved portal request failures', () => {
+        // The main process resolves a cancellation or an HTTP 401/403 as this
+        // envelope instead of rejecting (Electron logs every rejected handler
+        // as an error); the service must hand its callers the error they
+        // already classify, never a successful empty answer.
+        const cancelledEnvelope = {
+            portalRequestFailure: { kind: 'cancelled' },
+        };
+        const refusedEnvelope = (status: number) => ({
+            portalRequestFailure: {
+                kind: 'http',
+                status,
+                statusText: status === 401 ? 'Unauthorized' : 'Forbidden',
+            },
+        });
+        const stalkerPayload = {
+            url: 'http://portal.example/portal.php',
+            macAddress: '00:1A:79:00:00:01',
+            params: { type: 'stb', action: 'get_profile' },
+        };
+        const xtreamPayload = {
+            url: 'https://provider.example',
+            params: {
+                username: 'user',
+                password: 'pass',
+                action: 'get_live_streams',
+            },
+        };
+
+        it('rethrows a cancelled Stalker request as an AbortError, silently', async () => {
+            electronBridge.stalkerRequest.mockResolvedValue(cancelledEnvelope);
+
+            await expect(
+                service.sendIpcEvent(STALKER_REQUEST, stalkerPayload)
+            ).rejects.toMatchObject({
+                name: 'AbortError',
+                message: 'Stalker request cancelled',
+            });
+            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(console.error).not.toHaveBeenCalled();
+        });
+
+        it.each([401, 403])(
+            'rethrows a Stalker HTTP %s carrying the status and reports it',
+            async (status) => {
+                electronBridge.stalkerRequest.mockResolvedValue(
+                    refusedEnvelope(status)
+                );
+
+                await expect(
+                    service.sendIpcEvent(STALKER_REQUEST, stalkerPayload)
+                ).rejects.toMatchObject({
+                    message: `HTTP Error ${status}: ${status === 401 ? 'Unauthorized' : 'Forbidden'}`,
+                    status,
+                });
+                expect(snackBar.open).toHaveBeenCalledTimes(1);
+                expect(snackBar.open).toHaveBeenCalledWith(
+                    'PORTALS.REQUEST_ERRORS.STALKER',
+                    'CLOSE',
+                    { duration: 5000 }
+                );
+                // The toast carries the portal's own error, not Electron's
+                // "Error invoking remote method" wrapper.
+                expect(translateService.instant).toHaveBeenCalledWith(
+                    'PORTALS.REQUEST_ERRORS.STALKER',
+                    {
+                        message: `HTTP Error ${status}: ${status === 401 ? 'Unauthorized' : 'Forbidden'}`,
+                        status,
+                    }
+                );
+            }
+        );
+
+        it('keeps a silent Stalker probe refusal off the snackbar', async () => {
+            electronBridge.stalkerRequest.mockResolvedValue(
+                refusedEnvelope(403)
+            );
+
+            await expect(
+                service.sendIpcEvent(STALKER_REQUEST, {
+                    ...stalkerPayload,
+                    silent: true,
+                })
+            ).rejects.toMatchObject({ status: 403 });
+            expect(snackBar.open).not.toHaveBeenCalled();
+        });
+
+        it('rethrows a cancelled Xtream health probe as an AbortError', async () => {
+            electronBridge.xtreamRequest.mockResolvedValue(cancelledEnvelope);
+            const post = jest.spyOn(window, 'postMessage');
+
+            await expect(
+                service.sendIpcEvent(XTREAM_REQUEST, {
+                    ...xtreamPayload,
+                    probe: {
+                        requestId: 'health',
+                        deadlineAt: Date.now() + 5000,
+                    },
+                })
+            ).rejects.toMatchObject({ name: 'AbortError' });
+            expect(post).not.toHaveBeenCalled();
+            expect(snackBar.open).not.toHaveBeenCalled();
+        });
+
+        it.each([401, 403])(
+            'rethrows an Xtream health-probe HTTP %s with the status in its message',
+            async (status) => {
+                electronBridge.xtreamRequest.mockResolvedValue(
+                    refusedEnvelope(status)
+                );
+
+                await expect(
+                    service.sendIpcEvent(XTREAM_REQUEST, {
+                        ...xtreamPayload,
+                        probe: {
+                            requestId: 'health',
+                            deadlineAt: Date.now() + 5000,
+                        },
+                    })
+                ).rejects.toMatchObject({
+                    message: expect.stringContaining(`HTTP Error ${status}`),
+                    status,
+                });
+                expect(snackBar.open).not.toHaveBeenCalled();
+            }
+        );
+
+        it('reports a cancelled Xtream request as a silent ERROR result, never a payload', async () => {
+            electronBridge.xtreamRequest.mockResolvedValue(cancelledEnvelope);
+            const post = jest.spyOn(window, 'postMessage');
+
+            const result = await service.sendIpcEvent(
+                XTREAM_REQUEST,
+                xtreamPayload
+            );
+
+            expect(result).toEqual({
+                type: ERROR,
+                status: 499,
+                message: 'Xtream request cancelled',
+            });
+            expect(result).not.toHaveProperty('payload');
+            expect(post).not.toHaveBeenCalled();
+            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(console.error).not.toHaveBeenCalled();
+        });
+
+        it.each([401, 403])(
+            'turns an Xtream HTTP %s into an ERROR result carrying the status',
+            async (status) => {
+                electronBridge.xtreamRequest.mockResolvedValue(
+                    refusedEnvelope(status)
+                );
+
+                const result = await service.sendIpcEvent(
+                    XTREAM_REQUEST,
+                    xtreamPayload
+                );
+
+                expect(result).toEqual({
+                    type: ERROR,
+                    status,
+                    message: `HTTP Error ${status}: ${status === 401 ? 'Unauthorized' : 'Forbidden'}`,
+                });
+                expect(snackBar.open).toHaveBeenCalledTimes(1);
+                expect(translateService.instant).toHaveBeenCalledWith(
+                    'PORTALS.REQUEST_ERRORS.XTREAM',
+                    { message: expect.stringContaining(`HTTP Error ${status}`) }
+                );
+            }
+        );
+
+        it('passes an ordinary Stalker answer through untouched', async () => {
+            const answer = { js: { id: 7, portalRequestFailure: 'field' } };
+            electronBridge.stalkerRequest.mockResolvedValue(answer);
+
+            await expect(
+                service.sendIpcEvent(STALKER_REQUEST, stalkerPayload)
+            ).resolves.toBe(answer);
+        });
     });
+
     it('keeps health success request-local without broadcasting catalog responses', async () => {
         const response = { payload: { user_info: { status: 'Active' } } };
         electronBridge.xtreamRequest.mockResolvedValue(response);
         const post = jest.spyOn(window, 'postMessage');
-        expect(await service.sendIpcEvent(XTREAM_REQUEST, {
-            url: 'https://provider.example', params: {},
-            probe: { requestId: 'health', deadlineAt: Date.now() + 5000 },
-        })).toEqual(response);
+        expect(
+            await service.sendIpcEvent(XTREAM_REQUEST, {
+                url: 'https://provider.example',
+                params: {},
+                probe: { requestId: 'health', deadlineAt: Date.now() + 5000 },
+            })
+        ).toEqual(response);
         expect(post).not.toHaveBeenCalled();
     });
 
@@ -200,13 +407,78 @@ describe('ElectronService', () => {
 
         listener({
             player: 'MPV',
-            error: 'Playback failed',
-            originalError: `Request failed: token=${secret}&channel=news`,
+            code: null,
+            error: `Request failed: token=${secret}&channel=news`,
         });
 
         const output = JSON.stringify((console.error as jest.Mock).mock.calls);
         expect(output).not.toContain(secret);
         expect(output).toContain('channel=news');
+    });
+
+    it('translates a classified player error by its code', () => {
+        const listener = electronBridge.onPlayerError.mock.calls[0][0];
+
+        listener({ player: 'VLC', code: 'access-denied', error: 'HTTP 403' });
+
+        expect(translateService.instant).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.ACCESS_DENIED',
+            { player: 'VLC', error: 'HTTP 403' }
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.ACCESS_DENIED',
+            'CLOSE',
+            expect.objectContaining({ duration: 7000 })
+        );
+    });
+
+    it('keeps unclassified player output in the translated message', () => {
+        const listener = electronBridge.onPlayerError.mock.calls[0][0];
+
+        listener({ player: 'MPV', code: null, error: 'demuxer gave up' });
+
+        expect(translateService.instant).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.UNKNOWN',
+            { player: 'MPV', error: 'demuxer gave up' }
+        );
+    });
+
+    it('translates a rejected launch by the code the main process tagged', async () => {
+        electronBridge.openInVlc.mockRejectedValueOnce(
+            new Error(
+                `Error invoking remote method 'OPEN_VLC_PLAYER': Error: ${tagExternalPlayerError(
+                    'previous-closing',
+                    'Cannot launch player'
+                )}`
+            )
+        );
+
+        await expect(
+            service.sendIpcEvent('OPEN_VLC_PLAYER', {
+                url: 'https://example.test/live.m3u8',
+            })
+        ).rejects.toThrow('Cannot launch player');
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.PREVIOUS_CLOSING',
+            'CLOSE',
+            { duration: 5000 }
+        );
+    });
+
+    it('shows a generic launch failure for an untagged rejection', async () => {
+        electronBridge.openInMpv.mockRejectedValueOnce(new Error('boom'));
+
+        await expect(
+            service.sendIpcEvent('OPEN_MPV_PLAYER', {
+                url: 'https://example.test/live.m3u8',
+            })
+        ).rejects.toThrow('boom');
+
+        expect(translateService.instant).toHaveBeenCalledWith(
+            'EXTERNAL_PLAYER.ERRORS.LAUNCH_FAILED',
+            { player: 'MPV' }
+        );
     });
 
     it('shows the trust-host action for Electron-wrapped security errors', async () => {
@@ -229,8 +501,8 @@ describe('ElectronService', () => {
         await Promise.resolve();
 
         expect(snackBar.open).toHaveBeenCalledWith(
-            'Certificate for this playlist host is invalid.',
-            'Trust host',
+            'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+            'HOME.URL_UPLOAD.TRUST_TLS_HOST',
             { duration: 10000 }
         );
     });

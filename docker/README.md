@@ -98,6 +98,11 @@ safe local defaults shown below.
 | `PORT`                                   | `3000`                  | Internal Express backend port. nginx proxy config is rendered from the template to match it at startup.                                      |
 | `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS` | `0`                     | Set to `1` or `true` only for trusted local/LAN deployments that intentionally proxy private network IPTV or mock endpoints.                 |
 | `NODE_EXTRA_CA_CERTS`                    | unset                   | Optional Node.js CA bundle path for providers using private certificate authorities. Mount the CA file into the container and set this path. |
+| `IPTVNATOR_STORAGE`                      | `server` in the image   | `server` opens the server storage database under `IPTVNATOR_DATA_DIR` and its `/api/v1` routes; `none` keeps the backend stateless.          |
+| `IPTVNATOR_DATA_DIR`                     | `/data` in the image    | Data root; the database is `<root>/databases/iptvnator.db`. Mount a volume here.                                                             |
+| `IPTVNATOR_ACCESS_TOKEN`                 | unset                   | When set, every route except `/`, `/health`, `/config.js` and `/v1/instance` requires `Authorization: Bearer <token>`, proxy routes included. The browser app cannot send a token yet: leave it unset until it can. |
+| `IPTVNATOR_MAX_DOCUMENT_MB`              | `64`                    | Largest playlist document the backend accepts. Keep the nginx `client_max_body_size` in step.                                                |
+| `IPTVNATOR_BACKEND_START_TIMEOUT`        | `300`                   | Seconds the entrypoint waits for the backend's `/health` before giving up. Database migrations run before the backend listens.              |
 
 The web backend proxy accepts only `http` and `https` provider URLs. The PWA
 first registers provider URLs through `/provider-targets`, then uses the
@@ -126,6 +131,22 @@ proxies `/api/*` to the internal backend. The Dockerfile and compose file both
 define a health check against `/api/health`. If nginx or the backend exits
 after startup, the entrypoint exits the container so Docker Compose can apply
 the `restart: unless-stopped` policy.
+
+## Server Storage
+
+The image opens a server storage database on the `/data` volume
+(`IPTVNATOR_STORAGE=server`, `IPTVNATOR_DATA_DIR=/data`) and serves its API
+under `/api/v1`. It is the backend half of keeping playlists, favorites,
+history and playback positions on the server for every device; the PWA
+starts using it in a follow-up change. Until then the volume holds an empty
+database and each browser keeps its own data.
+
+Provider credentials will be stored unencrypted in that database, as the
+desktop app does. Do not expose an instance with server storage to the
+internet without authentication in your reverse proxy. The backend already
+supports `IPTVNATOR_ACCESS_TOKEN`, but the browser app cannot send the
+token yet, so setting it now makes the app unusable. Back up the volume like any database: stop the container, or copy
+`databases/iptvnator.db` together with its `-wal` file.
 
 ## IPv6, VPNs, And Connection Fallback
 

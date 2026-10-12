@@ -109,3 +109,62 @@ describe('UrlUploadComponent', () => {
         expect(component.form.pristine).toBeTruthy();
     });
 });
+
+describe('UrlUploadComponent form', () => {
+    let component: UrlUploadComponent;
+    let fixture: ComponentFixture<UrlUploadComponent>;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({
+            imports: [
+                UrlUploadComponent,
+                TranslateModule.forRoot(),
+                NoopAnimationsModule,
+            ],
+            providers: [
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { isElectron: true },
+                },
+            ],
+        });
+        fixture = TestBed.createComponent(UrlUploadComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    function fieldText(controlName: string): string {
+        return (
+            (fixture.nativeElement as HTMLElement)
+                .querySelector(`[formcontrolname="${controlName}"]`)
+                ?.closest('mat-form-field')
+                ?.textContent?.replace(/\s+/g, ' ')
+                .trim() ?? ''
+        );
+    }
+
+    it('labels the name field like the other add-source forms', () => {
+        expect(fieldText('playlistName')).toContain(
+            'HOME.XTREAM_PLAYLIST.TITLE'
+        );
+    });
+
+    it('explains an invalid playlist URL once the field was touched', () => {
+        const root = fixture.nativeElement as HTMLElement;
+        const url = component.form.controls.playlistUrl;
+
+        url.setValue('playlist.m3u');
+        fixture.detectChanges();
+        expect(root.querySelector('mat-error')).toBeNull();
+
+        url.markAsTouched();
+        fixture.detectChanges();
+        expect(root.querySelector('mat-error')?.textContent?.trim()).toBe(
+            'HOME.URL_UPLOAD.URL_VALIDATION_ERROR'
+        );
+
+        url.setValue('https://example.org/playlist.m3u');
+        fixture.detectChanges();
+        expect(root.querySelector('mat-error')).toBeNull();
+    });
+});

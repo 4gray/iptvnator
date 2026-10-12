@@ -13,6 +13,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
+    VideoPlayer,
     XtreamCategory,
     XtreamVodDetails,
     XtreamVodStream,
@@ -153,6 +154,7 @@ describe('VodDetailsRouteComponent', () => {
                     provide: SettingsStore,
                     useValue: {
                         theme: signal('dark'),
+                        player: signal(VideoPlayer.Html5Player),
                     },
                 },
                 {

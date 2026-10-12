@@ -1,5 +1,6 @@
 :host {
-    display: block;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     min-height: 0;
 }
@@ -16,7 +17,10 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    height: 100%;
+    // Fills the host as a flex item rather than with `height: 100%`: without
+    // a border-box reset that height excludes the padding, so the panel ran
+    // its bottom padding past the window edge and items sat on it.
+    flex: 1 1 auto;
     padding: 12px;
     width: 300px;
     min-width: 0;
