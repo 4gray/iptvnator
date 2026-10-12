@@ -2,163 +2,91 @@
 
 <app-portal-detail-shell
     [title]="meta.title"
+    [kindLabel]="hero.kindLabel()"
     [description]="meta.description"
     [posterUrl]="meta.posterUrl"
     [backdropUrl]="meta.backdropUrl"
+    [progress]="hero.progress()"
+    [trailerBackdropUrl]="trailerBackdropUrl()"
+    [contentKey]="contentKey()"
     [playbackActive]="!!inlinePlayback()"
     (backClicked)="goBack()"
     (closePlayerRequested)="closeInlinePlayback()"
 >
-    <!-- Tags: Year, Genre, Duration, Rating -->
+    <!-- Chips: year, duration, genres, country, rating -->
     <ng-template appDetailTags>
         @if (meta.year) {
-            @if (discover.canOpenYear(meta.year)) {
-                <button
-                    type="button"
-                    class="details__tag details__tag--clickable"
-                    (click)="discover.openYear(meta.year)"
-                >
+            <app-meta-chip>
+                @if (discover.canOpenYear(meta.year)) {
+                    <button
+                        type="button"
+                        class="meta-chip__facet"
+                        (click)="discover.openYear(meta.year)"
+                    >
+                        {{ meta.year }}
+                    </button>
+                } @else {
                     {{ meta.year }}
-                </button>
-            } @else {
-                <span class="details__tag">{{ meta.year }}</span>
-            }
+                }
+            </app-meta-chip>
         }
-        @if (meta.tmdbGenres?.length) {
-            @for (genre of meta.tmdbGenres; track genre.id) {
-                <button
-                    type="button"
-                    class="details__tag details__tag--clickable"
-                    (click)="discover.openGenre(genre)"
-                >
-                    {{ genre.name }}
-                </button>
-            }
-        } @else if (meta.genre) {
-            <span class="details__tag">{{ meta.genre }}</span>
+        @if (hero.durationLabel(); as duration) {
+            <app-meta-chip>{{ duration }}</app-meta-chip>
         }
-        @if (meta.duration) {
-            <span class="details__tag">{{ meta.duration }}</span>
+        @if (hero.genreChips().length) {
+            <app-meta-chip>
+                @for (genre of hero.genreChips(); track genre.label) {
+                    @if (!$first) {
+                        <span class="meta-chip__sep" aria-hidden="true">·</span>
+                    }
+                    @if (genre.facet; as facet) {
+                        <button
+                            type="button"
+                            class="meta-chip__facet"
+                            (click)="discover.openGenre(facet)"
+                        >
+                            {{ genre.label }}
+                        </button>
+                    } @else {
+                        {{ genre.label }}
+                    }
+                }
+            </app-meta-chip>
+        }
+        @for (country of hero.countryChips(); track country.label) {
+            <app-meta-chip>
+                @if (country.facet; as facet) {
+                    <button
+                        type="button"
+                        class="meta-chip__facet"
+                        (click)="discover.openCountry(facet)"
+                    >
+                        {{ country.label }}
+                    </button>
+                } @else {
+                    {{ country.label }}
+                }
+            </app-meta-chip>
         }
         @if (meta.ratingImdb) {
-            <span class="details__tag details__tag--rating">
-                ⭐ {{ meta.ratingImdb }}
-            </span>
-        }
-        @if (meta.tmdbCountries?.length) {
-            @for (country of meta.tmdbCountries; track country.code) {
-                <button
-                    type="button"
-                    class="details__tag details__tag--clickable"
-                    (click)="discover.openCountry(country)"
-                >
-                    {{ country.name }}
-                </button>
-            }
-        } @else if (meta.country) {
-            <span class="details__tag">{{ meta.country }}</span>
+            <app-meta-chip variant="rating"
+                >★ {{ meta.ratingImdb }}</app-meta-chip
+            >
         }
         @if (isDownloaded()) {
-            <span class="details__tag">
+            <app-meta-chip variant="status">
                 {{ 'DOWNLOADS.OFFLINE' | translate }}
-            </span>
+            </app-meta-chip>
         }
     </ng-template>
 
-    <!-- Metadata Grid -->
+    <!-- Credits -->
     <ng-template appDetailMeta>
-        @if (meta.actors || meta.tmdbCast?.length) {
-            <div class="details__meta-item">
-                <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
-                @if (meta.tmdbCast?.length) {
-                    <div class="details__cast-strip">
-                        @for (
-                            member of meta.tmdbCast;
-                            track member.tmdbPersonId
-                                ? 'p' + member.tmdbPersonId
-                                : 'i' + $index
-                        ) {
-                            <span
-                                class="details__cast-chip"
-                                [class.details__cast-chip--clickable]="
-                                    !!member.tmdbPersonId
-                                "
-                                (click)="openActor(member)"
-                                [title]="
-                                    member.character
-                                        ? member.name + ' — ' + member.character
-                                        : member.name
-                                "
-                            >
-                                @if (member.profileUrl) {
-                                    <img
-                                        class="details__cast-avatar"
-                                        [src]="member.profileUrl"
-                                        [alt]="member.name"
-                                        loading="lazy"
-                                    />
-                                } @else {
-                                    <span
-                                        class="details__cast-avatar details__cast-avatar--fallback"
-                                    >
-                                        {{ member.name.charAt(0) }}
-                                    </span>
-                                }
-                                <span class="details__cast-name">{{
-                                    member.name
-                                }}</span>
-                            </span>
-                        }
-                    </div>
-                } @else {
-                    <span class="value">{{ meta.actors }}</span>
-                }
-            </div>
-        }
-        @if (meta.director || meta.tmdbDirectors?.length) {
-            <div class="details__meta-item">
-                <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
-                @if (meta.tmdbDirectors?.length) {
-                    <div class="details__cast-strip">
-                        @for (
-                            member of meta.tmdbDirectors;
-                            track member.tmdbPersonId
-                                ? 'p' + member.tmdbPersonId
-                                : 'i' + $index
-                        ) {
-                            <span
-                                class="details__cast-chip"
-                                [class.details__cast-chip--clickable]="
-                                    !!member.tmdbPersonId
-                                "
-                                (click)="openActor(member)"
-                                [title]="member.name"
-                            >
-                                @if (member.profileUrl) {
-                                    <img
-                                        class="details__cast-avatar"
-                                        [src]="member.profileUrl"
-                                        [alt]="member.name"
-                                        loading="lazy"
-                                    />
-                                } @else {
-                                    <span
-                                        class="details__cast-avatar details__cast-avatar--fallback"
-                                    >
-                                        {{ member.name.charAt(0) }}
-                                    </span>
-                                }
-                                <span class="details__cast-name">{{
-                                    member.name
-                                }}</span>
-                            </span>
-                        }
-                    </div>
-                } @else {
-                    <span class="value">{{ meta.director }}</span>
-                }
-            </div>
-        }
+        <app-detail-credits
+            [cast]="hero.castNames()"
+            [directors]="hero.directorNames()"
+            (moreRequested)="scrollToCast()"
+        />
         @if (meta.ratingKinopoisk) {
             <div class="details__meta-item">
                 <span class="label">{{
@@ -169,147 +97,103 @@
         }
     </ng-template>
 
-    <!-- Action Buttons -->
+    <!-- Action row -->
     <ng-template appDetailActions>
-        <!-- Resume/Play buttons -->
-        @if (hasPlaybackPosition()) {
-            <button
-                class="play-btn play-btn--resume"
-                (click)="onPrimaryAction()"
-                [disabled]="isExternalLaunchPending()"
-                [class.play-btn--state-launching]="
-                    externalPrimaryButtonState() === 'launching'
-                "
-                [class.play-btn--state-stop]="
-                    externalPrimaryButtonState() === 'stop'
-                "
-            >
-                <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">
-                        {{
-                            isOfflinePrimary()
-                                ? 'play_circle'
-                                : externalPrimaryIcon()
-                        }}
-                    </mat-icon>
-                </span>
-                <span class="play-btn__label">
-                    @if (externalPrimaryLabel(); as label) {
-                        {{ label }}
-                    } @else if (isOfflinePrimary()) {
-                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
-                    } @else {
-                        {{ 'XTREAM.RESUME' | translate }}
-                        {{ formattedPosition() }}
-                    }
-                </span>
-            </button>
-            @if (externalPrimaryButtonState() === 'idle' && !isDownloaded()) {
-                <button class="play-btn play-btn--restart" (click)="onPlay()">
-                    <mat-icon>replay</mat-icon>
-                    {{ 'XTREAM.RESTART' | translate }}
-                </button>
-            }
-        } @else {
-            <button
-                class="play-btn"
-                (click)="onPrimaryAction()"
-                [disabled]="isExternalLaunchPending()"
-                [class.play-btn--state-launching]="
-                    externalPrimaryButtonState() === 'launching'
-                "
-                [class.play-btn--state-stop]="
-                    externalPrimaryButtonState() === 'stop'
-                "
-            >
-                <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">
-                        {{
-                            isOfflinePrimary()
-                                ? 'play_circle'
-                                : externalPrimaryIcon()
-                        }}
-                    </mat-icon>
-                </span>
-                <span class="play-btn__label">
-                    @if (externalPrimaryLabel(); as label) {
-                        {{ label }}
-                    } @else if (isOfflinePrimary()) {
-                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
-                    } @else {
-                        {{ 'XTREAM.PLAY' | translate }}
-                    }
-                </span>
-            </button>
+        @let primary = hero.primaryAction();
+        <app-detail-action-button
+            [label]="primary.label"
+            [meta]="primary.meta"
+            [icon]="primary.icon"
+            [state]="primary.state"
+            [disabled]="isExternalLaunchPending() || playbackStartPending()"
+            testId="vod-primary-action"
+            (pressed)="onPrimaryAction()"
+        />
+        @if (trailerEmbedUrl()) {
+            <app-detail-action-button
+                variant="secondary"
+                icon="smart_display"
+                [label]="'PORTALS.DETAIL.TRAILER' | translate"
+                testId="vod-trailer"
+                (pressed)="openTrailer()"
+            />
         }
 
-        <!-- Favorites button -->
-        @if (!isFavorite()) {
-            <button class="favorite-btn" (click)="toggleFavorite()">
-                <mat-icon>add</mat-icon>
-                {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
-            </button>
-        } @else {
-            <button
-                class="favorite-btn favorite-btn--active"
-                (click)="toggleFavorite()"
-            >
-                <mat-icon>check</mat-icon>
-                {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
-            </button>
-        }
+        <app-detail-icon-button
+            [label]="
+                (isFavorite()
+                    ? 'PORTALS.REMOVE_FROM_FAVORITES'
+                    : 'PORTALS.ADD_TO_FAVORITES'
+                ) | translate
+            "
+            [icon]="isFavorite() ? 'favorite' : 'favorite_border'"
+            tone="favorite"
+            [active]="isFavorite()"
+            [pressedState]="isFavorite()"
+            testId="vod-favorite-toggle"
+            (pressed)="toggleFavorite()"
+        />
 
-        <!-- Manual watched toggle -->
-        @let watchedLabel =
-            (isWatched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
-                | translate;
-        <button
-            type="button"
-            class="favorite-btn watched-btn"
-            [class.favorite-btn--active]="isWatched()"
+        <app-detail-icon-button
+            [label]="
+                (isWatched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
+                    | translate
+            "
+            [icon]="isWatched() ? 'check_circle' : 'check_circle_outline'"
+            tone="watched"
+            [active]="isWatched()"
+            [pressedState]="isWatched()"
             [disabled]="!canToggleWatched()"
-            [attr.aria-pressed]="isWatched()"
-            [attr.aria-label]="watchedLabel"
-            (click)="toggleWatched()"
-            data-test-id="vod-watched-toggle"
-        >
-            <mat-icon>{{
-                isWatched() ? 'check_circle' : 'check_circle_outline'
-            }}</mat-icon>
-            {{ watchedLabel }}
-        </button>
+            testId="vod-watched-toggle"
+            (pressed)="toggleWatched()"
+        />
 
-        <!-- Download buttons (Electron only) -->
+        <!-- Download (Electron only) -->
         @if (isElectron() && !providerOnly()) {
             @if (isDownloaded()) {
                 @if (externalPrimaryButtonState() === 'idle') {
-                    <button class="download-btn" (click)="onProviderAction()">
-                        <mat-icon>play_arrow</mat-icon>
-                        {{
+                    <app-detail-icon-button
+                        [label]="
                             'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate
-                        }}
-                    </button>
+                        "
+                        icon="play_arrow"
+                        testId="vod-play-provider"
+                        [disabled]="
+                            isExternalLaunchPending() || playbackStartPending()
+                        "
+                        (pressed)="onProviderAction()"
+                    />
                 }
             } @else if (isPausedDownload()) {
-                <button
-                    class="download-btn download-btn--paused"
-                    (click)="resumePausedDownload()"
-                >
-                    <mat-icon>play_arrow</mat-icon>
-                    {{ 'DOWNLOADS.RESUME' | translate }}
-                </button>
+                <app-detail-icon-button
+                    [label]="'DOWNLOADS.RESUME' | translate"
+                    icon="play_arrow"
+                    testId="vod-download-progress"
+                    (pressed)="resumePausedDownload()"
+                />
             } @else if (isDownloading()) {
-                <button class="download-btn download-btn--downloading" disabled>
-                    <mat-icon>downloading</mat-icon>
-                    {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
-                </button>
+                <app-detail-icon-button
+                    [label]="'DOWNLOADS.STATUS.DOWNLOADING' | translate"
+                    icon="downloading"
+                    [disabled]="true"
+                    testId="vod-download-progress"
+                />
             } @else {
-                <button class="download-btn" (click)="onDownload()">
-                    <mat-icon>download</mat-icon>
-                    {{ 'DOWNLOADS.DOWNLOAD' | translate }}
-                </button>
+                <app-detail-icon-button
+                    [label]="'DOWNLOADS.DOWNLOAD' | translate"
+                    icon="download"
+                    testId="vod-download-start"
+                    (pressed)="onDownload()"
+                />
             }
         }
+
+        <app-vod-more-menu
+            [sections]="hero.menuSections()"
+            [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
+            testId="vod-more-menu"
+            (selected)="runMenuAction($event)"
+        />
         <app-view-in-portal-action />
     </ng-template>
 
@@ -328,70 +212,15 @@
     }
 
     <div detail-extras>
-        @if (similarInPortals().length) {
-            <section class="details__similar" data-test-id="tmdb-similar">
-                <h3>{{ 'XTREAM.SIMILAR' | translate }}</h3>
-                <div class="details__similar-strip">
-                    @for (
-                        item of similarInPortals();
-                        track item.match.xtreamId
-                    ) {
-                        <button
-                            type="button"
-                            class="details__similar-card"
-                            [title]="
-                                item.title + ' — ' + item.match.playlistName
-                            "
-                            (click)="openSimilarInPortals(item)"
-                        >
-                            @if (item.posterUrl) {
-                                <img
-                                    class="details__similar-poster"
-                                    [src]="item.posterUrl"
-                                    [alt]="item.title"
-                                    loading="lazy"
-                                />
-                            } @else {
-                                <span
-                                    class="details__similar-poster details__similar-poster--fallback"
-                                >
-                                    {{ item.title.charAt(0) }}
-                                </span>
-                            }
-                            <span class="details__similar-title">
-                                {{ item.title }}
-                            </span>
-                            <span class="details__similar-source">
-                                {{ item.match.playlistName }}
-                            </span>
-                        </button>
-                    }
-                </div>
-            </section>
-        }
-
-        <!-- YouTube Trailer (provider or TMDB enrichment) -->
-        @if (trailerEmbedUrl(); as trailerUrl) {
-            <div class="youtube-trailer">
-                <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
-                <div class="trailer-wrapper">
-                    <iframe
-                        [src]="trailerUrl | safe"
-                        title="YouTube video player"
-                        allow="
-                            accelerometer;
-                            autoplay;
-                            clipboard-write;
-                            encrypted-media;
-                            gyroscope;
-                            picture-in-picture;
-                            web-share;
-                        "
-                        referrerpolicy="strict-origin-when-cross-origin"
-                        allowfullscreen
-                    ></iframe>
-                </div>
-            </div>
-        }
+        <app-similar-rail
+            [title]="'XTREAM.SIMILAR' | translate"
+            [items]="hero.similarRailItems()"
+            (selected)="openSimilarRailItem($event)"
+        />
+        <app-cast-crew-row
+            [cast]="hero.castMembers()"
+            [directors]="hero.directorMembers()"
+            (personSelected)="openActor($event)"
+        />
     </div>
 </app-portal-detail-shell>

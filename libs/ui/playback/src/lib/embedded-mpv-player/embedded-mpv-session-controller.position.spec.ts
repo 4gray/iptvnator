@@ -4,6 +4,7 @@ import {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { TranslateModule } from '@ngx-translate/core';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 
 /**
@@ -71,6 +72,7 @@ describe('EmbeddedMpvSessionController position drift poll', () => {
         });
 
         TestBed.configureTestingModule({
+            imports: [TranslateModule.forRoot()],
             providers: [EmbeddedMpvSessionController],
         });
     });

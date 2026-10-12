@@ -1,3 +1,5 @@
+@use '../../../../../libs/ui/styles/focus-ring';
+
 :host {
     display: block;
 }
@@ -14,7 +16,7 @@
     gap: 14px;
     width: 100%;
     min-height: 56px;
-    padding: 12px 10px;
+    padding: 12px 16px;
     border: 0;
     border-top: 1px solid var(--settings-item-border);
     border-radius: 0;
@@ -29,14 +31,18 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
         border-radius: 8px;
     }
 }
 
 li:first-child .settings-search-result {
     border-top: 0;
+    border-radius: 12px 12px 0 0;
+}
+
+li:last-child .settings-search-result {
+    border-radius: 0 0 12px 12px;
 }
 
 .settings-search-result__icon,
@@ -54,16 +60,15 @@ li:first-child .settings-search-result {
 }
 
 .settings-search-result__label {
-    font-size: 0.95rem;
-    font-weight: 650;
-    letter-spacing: -0.01em;
+    font-size: 13.5px;
+    font-weight: 500;
     color: var(--app-heading-color);
 }
 
 .settings-search-result__description {
     overflow: hidden;
     color: var(--settings-muted);
-    font-size: 0.84rem;
+    font-size: 12.5px;
     line-height: 1.45;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -71,11 +76,12 @@ li:first-child .settings-search-result {
 
 .settings-search-result__section {
     flex-shrink: 0;
-    padding: 2px 10px;
-    border: 1px solid var(--settings-item-border);
+    padding: 1px 8px;
     border-radius: 999px;
-    color: var(--settings-muted);
-    font-size: 0.78rem;
+    background: var(--settings-chip-bg);
+    color: var(--settings-chip-fg);
+    font-size: 10.5px;
+    font-weight: 500;
     white-space: nowrap;
 }
 

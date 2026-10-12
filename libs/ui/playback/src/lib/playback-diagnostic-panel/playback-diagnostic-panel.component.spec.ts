@@ -241,7 +241,11 @@ describe('PlaybackDiagnosticPanelComponent', () => {
 
         const host = fixture.nativeElement as HTMLElement;
 
-        expect(getComputedStyle(host).display).toBe('contents');
+        // The host covers the player as the panel's size container.
+        expect(getComputedStyle(host).position).toBe('absolute');
+        expect(PANEL_STYLE_SOURCE).toContain(
+            'container: playback-diagnostic / size'
+        );
     });
 
     it('renders supplied policy-ranked action buttons in order with priority styling', () => {
@@ -669,6 +673,29 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         );
     });
 
+    it('wraps long translated action labels instead of ellipsizing them', () => {
+        fixture.componentRef.setInput('recommendations', [
+            recommendation('player', { target: 'mpv', priority: 'primary' }),
+            recommendation('player', { target: 'vlc' }),
+        ]);
+        fixture.detectChanges();
+
+        const labels = Array.from(
+            fixture.nativeElement.querySelectorAll(
+                '.web-player-diagnostic__player-label'
+            ) as NodeListOf<HTMLElement>
+        );
+
+        expect(labels).toHaveLength(2);
+        for (const label of labels) {
+            const styles = getComputedStyle(label);
+            expect(styles.whiteSpace).not.toBe('nowrap');
+            expect(styles.overflowWrap).toBe('anywhere');
+            expect(styles.textOverflow).not.toBe('ellipsis');
+            expect(styles.overflow).not.toBe('hidden');
+        }
+    });
+
     it('wraps long translated reasons and temporary hints without clipping', () => {
         fixture.componentRef.setInput('recommendations', [
             recommendation('player', {
@@ -723,7 +750,12 @@ describe('PlaybackDiagnosticPanelComponent', () => {
             '.web-player-diagnostic__player-card:focus-visible'
         );
         expect(styles).toContain('outline: 2px solid #ffb24c');
-        expect(styles).toContain('@container (max-width: 520px)');
+        expect(styles).toContain(
+            '@container playback-diagnostic (max-width: 520px)'
+        );
+        expect(styles).toContain(
+            '@container playback-diagnostic (max-height: 560px)'
+        );
         expect(styles).toMatch(
             /web-player-diagnostic__recommendations[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/
         );

@@ -22,6 +22,23 @@ describe('PlaylistsService', () => {
         jest.restoreAllMocks();
     });
 
+    function hasSqliteBridge(): boolean {
+        const electron = testWindow.electron as
+            Record<string, unknown> | undefined;
+        return (
+            !!electron &&
+            typeof electron['dbGetAppPlaylists'] === 'function' &&
+            typeof electron['dbUpsertAppPlaylist'] === 'function' &&
+            typeof electron['dbGetAppState'] === 'function' &&
+            typeof electron['dbSetAppState'] === 'function'
+        );
+    }
+
+    const testStorageBackend = {
+        kind: () => (hasSqliteBridge() ? 'electron' : 'indexeddb'),
+        documentStore: () => (hasSqliteBridge() ? testWindow.electron : null),
+    };
+
     function createService(overrides: Record<string, unknown> = {}) {
         const service = Object.create(
             PlaylistsService.prototype
@@ -45,19 +62,7 @@ describe('PlaylistsService', () => {
             translateService: {
                 instant: jest.fn((key: string) => key),
             },
-            runtime: {
-                get supportsSqlite() {
-                    const electron = testWindow.electron as
-                        Record<string, unknown> | undefined;
-                    return (
-                        !!electron &&
-                        typeof electron['dbGetAppPlaylists'] === 'function' &&
-                        typeof electron['dbUpsertAppPlaylist'] === 'function' &&
-                        typeof electron['dbGetAppState'] === 'function' &&
-                        typeof electron['dbSetAppState'] === 'function'
-                    );
-                },
-            },
+            storageBackend: testStorageBackend,
             electronMigrationPromise: null,
             indexedDbMigrationPromise: null,
             playlistWriteQueues: new Map(),
@@ -135,9 +140,11 @@ describe('PlaylistsService', () => {
                     finishCleanup = resolve;
                 })
         );
-        Object.defineProperties(service, {
-            isElectronStorageAvailable: { value: true },
-            electronApi: { value: { dbDeletePlaylist: jest.fn() } },
+        Object.assign(service, {
+            storageBackend: {
+                kind: () => 'electron',
+                documentStore: () => ({ dbDeletePlaylist: jest.fn() }),
+            },
         });
         Object.assign(service, {
             ensureElectronPlaylistMigrations: jest

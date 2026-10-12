@@ -166,12 +166,24 @@ export interface JourneyRendererProbeCounters {
     recentInputLayoutShiftScore: number;
 }
 
+/** A shift counted in `layoutShiftScore` or `recentInputLayoutShiftScore`. */
+export interface JourneyRendererProbeShift {
+    readonly hadRecentInput: boolean;
+    /** Entry start minus the journey start (navigation start for J1). */
+    readonly sinceStartMs: number;
+    /** `tag.class[data-test-id]` and the move of each source. */
+    readonly sources: JourneyRendererProbeLateShift['sources'];
+    readonly value: number;
+}
+
 export interface JourneyRendererProbeLateShift {
     /** Entry start minus the first-card terminal epoch. */
     readonly afterFirstCardMs: number;
-    /** `tag.class[data-test-id]` and the vertical move of each source. */
+    /** `tag.class[data-test-id]` and the move of each source. */
     readonly sources: readonly {
         readonly deltaHeight: number;
+        readonly deltaWidth: number;
+        readonly deltaX: number;
         readonly deltaY: number;
         readonly node: string;
     }[];
@@ -237,6 +249,13 @@ export interface JourneyRendererProbeState {
         readonly epochMs: number | null;
         readonly status: 'bridge-missing' | 'failed' | 'not-sent' | 'sent';
     };
+    /** Every shift counted until the cutoff; `shifts` keeps the first 20. */
+    shiftCount: number;
+    /**
+     * The first 20 shifts counted until the cutoff, with the nodes that
+     * moved, so a layout-shift score can be traced to its components.
+     */
+    shifts: JourneyRendererProbeShift[];
     /** `final` freezes the first-card counters; the settle window ends later. */
     settle: {
         /** Mutation records under the settle root after the cutoff. */
@@ -329,6 +348,8 @@ export function journeyRendererProbeScript(
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: null, status: 'not-sent' },
+        shiftCount: 0,
+        shifts: [],
         settle: {
             domMutations: 0,
             epochMs: null,
@@ -389,6 +410,7 @@ export function journeyRendererProbeScript(
         for (const entry of entries) {
             const shift = entry as PerformanceEntry & {
                 hadRecentInput?: boolean;
+                sources?: readonly LateShiftSource[];
                 value?: number;
             };
             if (
@@ -396,6 +418,18 @@ export function journeyRendererProbeScript(
                 !inWindow(entry, untilEpochMs)
             ) {
                 continue;
+            }
+            state.shiftCount += 1;
+            if (state.shifts.length < 20) {
+                state.shifts.push({
+                    hadRecentInput: shift.hadRecentInput === true,
+                    sinceStartMs:
+                        performance.timeOrigin +
+                        entry.startTime -
+                        (state.start?.epochMs ?? performance.timeOrigin),
+                    sources: (shift.sources ?? []).map(describeSource),
+                    value: shift.value,
+                });
             }
             if (shift.hadRecentInput === true) {
                 state.counters.recentInputLayoutShiftScore += shift.value;
@@ -530,10 +564,11 @@ export function journeyRendererProbeScript(
             state.idle.status = 'done';
         }, idle.durationMs);
     };
+    type ShiftRect = { height: number; width?: number; x?: number; y: number };
     type LateShiftSource = {
-        currentRect?: { height: number; y: number };
+        currentRect?: ShiftRect;
         node?: Node | null;
-        previousRect?: { height: number; y: number };
+        previousRect?: ShiftRect;
     };
     const describeSource = (source: LateShiftSource) => {
         const node = source.node;
@@ -550,9 +585,13 @@ export function journeyRendererProbeScript(
         }
         const before = source.previousRect;
         const after = source.currentRect;
+        const delta = (key: keyof ShiftRect) =>
+            before && after ? (after[key] ?? 0) - (before[key] ?? 0) : 0;
         return {
-            deltaHeight: before && after ? after.height - before.height : 0,
-            deltaY: before && after ? after.y - before.y : 0,
+            deltaHeight: delta('height'),
+            deltaWidth: delta('width'),
+            deltaX: delta('x'),
+            deltaY: delta('y'),
             node: label,
         };
     };

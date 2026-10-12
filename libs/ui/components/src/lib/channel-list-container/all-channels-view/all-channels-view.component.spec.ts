@@ -117,7 +117,9 @@ describe('AllChannelsViewComponent', () => {
 
     it('defaults to playlist order when no saved sort mode exists', () => {
         expect(component.allChannelsSortMode()).toBe('server');
-        expect(component.allChannelsSortLabel()).toBe('Playlist Order');
+        expect(component.allChannelsSortLabelKey()).toBe(
+            'CHANNELS.SORT_PLAYLIST_ORDER'
+        );
     });
 
     it('restores a saved valid sort mode and ignores invalid stored values', () => {
@@ -140,7 +142,9 @@ describe('AllChannelsViewComponent', () => {
         fixture.detectChanges();
 
         expect(component.allChannelsSortMode()).toBe('name-asc');
-        expect(component.allChannelsSortLabel()).toBe('Name A-Z');
+        expect(component.allChannelsSortLabelKey()).toBe(
+            'WORKSPACE.SORT_NAME_ASC'
+        );
 
         fixture.destroy();
         localStorage.setItem(ALL_CHANNELS_SORT_STORAGE_KEY, 'invalid');

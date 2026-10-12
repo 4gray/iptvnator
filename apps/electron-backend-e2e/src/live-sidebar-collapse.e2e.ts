@@ -24,6 +24,7 @@ import {
     routePlayableStreams,
     startAndConfirmPlayback,
 } from './playable-stream-fixture';
+import { clearRecentItems } from './recent-clear.e2e-support';
 
 /**
  * Issue #1458, second report: "all channels disappear after clearing the
@@ -160,13 +161,7 @@ test.describe('Live channel rail collapse (#1458)', () => {
                 channelItemByTitle(app.mainWindow, 'Channel Alpha').first()
             ).toBeVisible({ timeout: 20000 });
 
-            await app.mainWindow
-                .getByRole('button', { name: 'Clear recently viewed Live TV' })
-                .click();
-            await app.mainWindow
-                .locator('mat-dialog-container')
-                .getByRole('button', { name: 'Clear', exact: true })
-                .click();
+            await clearRecentItems(app.mainWindow, 'Live TV');
             await expect(
                 channelItemByTitle(app.mainWindow, 'Channel Alpha')
             ).toHaveCount(0);

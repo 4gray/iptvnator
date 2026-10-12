@@ -341,6 +341,8 @@ test('keeps summing shifts without recent input after the first-card cutoff unti
                 [
                     {
                         deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
                         deltaY: -240,
                         node: 'lib-dashboard-rail[data-test-id="dashboard-favorites-rail"]',
                     },
@@ -798,6 +800,13 @@ test('drops performance entries from before the click and keeps recent-input shi
         {
             entryType: 'layout-shift',
             hadRecentInput: true,
+            sources: [
+                {
+                    currentRect: { height: 40, width: 300, x: 48, y: 152 },
+                    node: fixture.card,
+                    previousRect: { height: 40, width: 320, x: 0, y: 100 },
+                },
+            ],
             startTime: now(),
             value: 0.25,
         },
@@ -823,6 +832,25 @@ test('drops performance entries from before the click and keeps recent-input shi
     assert.equal(state.final, true);
     assert.equal(state.counters.layoutShiftScore, 0.125);
     assert.equal(state.counters.recentInputLayoutShiftScore, 0.25);
+    // Each counted shift keeps its nodes; the pre-click ones are not listed.
+    assert.deepEqual(
+        state.shifts.map((shift) => [
+            shift.hadRecentInput,
+            shift.value,
+            shift.sources.map((source) => [
+                source.deltaX,
+                source.deltaY,
+                source.deltaWidth,
+            ]),
+        ]),
+        [
+            [true, 0.25, [[48, 52, -20]]],
+            [false, 0.125, []],
+        ]
+    );
+    assert.equal(state.shiftCount, 2);
+    assert.ok(state.shifts.every((shift) => shift.sinceStartMs >= 0));
+    assert.match(state.shifts[0]?.sources[0]?.node ?? '', /^[a-z-]+/);
     // J2 has no settle window: the observers close at the cutoff.
     assert.equal(state.settle.status, 'disabled');
     assert.equal(state.counters.layoutShiftScoreSettled, 0);
@@ -869,6 +897,8 @@ test('rejects a click start whose sentinel could not be sent', async () => {
     const started = {
         ...state,
         sentinel: { epochMs: 1, status: 'sent' as const },
+        shiftCount: 0,
+        shifts: [],
     };
     assert.throws(
         () => assertJourneyRendererProbeState(started),

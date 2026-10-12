@@ -6,7 +6,11 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../services/xtream-api.service';
-import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    PlaylistsService,
+    USER_DATA_STORAGE,
+} from '@iptvnator/services';
 import { of } from 'rxjs';
 
 describe('PwaXtreamDataSource', () => {
@@ -447,6 +451,9 @@ describe('PwaXtreamDataSource', () => {
         );
 
         await dataSource.getContent('playlist-1', credentials, 'movie');
+        apiService.getStreams.mockResolvedValue([]);
+        await dataSource.getContent('playlist-1', credentials, 'live');
+        await dataSource.getContent('playlist-1', credentials, 'series');
 
         await expect(dataSource.isFavorite(202, 'playlist-1')).resolves.toBe(
             true
@@ -618,8 +625,14 @@ describe('PwaXtreamDataSource', () => {
             })
         );
 
-        await dataSource.addFavorite(Number(content[0].id), 'playlist-1');
-        await dataSource.addRecentItem(Number(content[0].id), 'playlist-1');
+        await dataSource.addFavorite(
+            { id: Number(content[0].id), type: 'movie' },
+            'playlist-1'
+        );
+        await dataSource.addRecentItem(
+            { id: Number(content[0].id), type: 'movie' },
+            'playlist-1'
+        );
 
         await expect(dataSource.getFavorites('playlist-1')).resolves.toEqual([
             expect.objectContaining({
@@ -648,24 +661,31 @@ describe('PwaXtreamDataSource', () => {
         ]);
 
         await dataSource.getContent('playlist-1', credentials, 'movie');
-        await dataSource.addRecentItem(202, 'playlist-1');
+        await dataSource.addRecentItem(
+            { id: 202, type: 'movie' },
+            'playlist-1'
+        );
         const before = JSON.parse(
             localStorage.getItem('xtream-recent-items') || '{}'
         )['playlist-1'][0].viewedAt;
 
-        await dataSource.setContentMetadataIfMissing(202, 'playlist-1', {
-            backdropUrl: ' https://example.com/backdrop.png ',
-        });
+        await dataSource.setContentMetadataIfMissing(
+            { id: 202, type: 'movie' },
+            'playlist-1',
+            {
+                backdropUrl: ' https://example.com/backdrop.png ',
+            }
+        );
 
         const stored = JSON.parse(
             localStorage.getItem('xtream-recent-items') || '{}'
         )['playlist-1'][0];
         const storedSnapshot = JSON.parse(
             localStorage.getItem('xtream-collection-items') || '{}'
-        )['playlist-1']['202'];
+        )['playlist-1']['movie:202'];
         expect(stored).toEqual(
             expect.objectContaining({
-                id: 202,
+                id: 'movie:202',
                 backdropUrl: 'https://example.com/backdrop.png',
                 viewedAt: before,
             })
@@ -705,9 +725,9 @@ describe('PwaXtreamDataSource', () => {
         ]);
 
         await dataSource.getContent('playlist-1', credentials, 'movie');
-        await dataSource.addFavorite(202, 'playlist-1');
+        await dataSource.addFavorite({ id: 202, type: 'movie' }, 'playlist-1');
         await dataSource.addRecentItem(
-            202,
+            { id: 202, type: 'movie' },
             'playlist-1',
             'https://example.com/backdrop.png'
         );
@@ -715,7 +735,7 @@ describe('PwaXtreamDataSource', () => {
         const storedCollectionItems = JSON.parse(
             localStorage.getItem('xtream-collection-items') || '{}'
         );
-        expect(storedCollectionItems['playlist-1']['202']).toEqual(
+        expect(storedCollectionItems['playlist-1']['movie:202']).toEqual(
             expect.objectContaining({
                 title: 'Movie One',
                 xtream_id: 202,
@@ -898,6 +918,40 @@ describe('PwaXtreamDataSource', () => {
 
             expect(setItemSpy).not.toHaveBeenCalled();
             setItemSpy.mockRestore();
+        });
+    });
+
+    describe('with an injected user data storage', () => {
+        it('reads and writes favorites through it, not localStorage', async () => {
+            const values = new Map<string, string>();
+            const storage = {
+                getItem: (key: string) => values.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    values.set(key, value);
+                },
+                removeItem: (key: string) => {
+                    values.delete(key);
+                },
+            };
+            TestBed.resetTestingModule();
+            TestBed.configureTestingModule({
+                providers: [
+                    PwaXtreamDataSource,
+                    { provide: USER_DATA_STORAGE, useValue: storage },
+                    { provide: ParentalLockService, useValue: parentalLock },
+                    { provide: XtreamApiService, useValue: apiService },
+                    { provide: PlaylistsService, useValue: playlistsService },
+                ],
+            });
+            const source = TestBed.inject(PwaXtreamDataSource);
+
+            values.set('xtream-favorites', JSON.stringify({ p1: ['live:1'] }));
+            await source.deletePlaylist('p1');
+
+            expect(JSON.parse(values.get('xtream-favorites') ?? '{}')).toEqual(
+                {}
+            );
+            expect(localStorage.getItem('xtream-favorites')).toBeNull();
         });
     });
 });

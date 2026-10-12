@@ -4,6 +4,11 @@ jest.mock('electron', () => ({
     },
 }));
 
+jest.mock('fs', () => {
+    const actual = jest.requireActual<typeof import('fs')>('fs');
+    return { ...actual, existsSync: jest.fn(actual.existsSync) };
+});
+
 jest.mock('child_process', () => ({
     spawn: jest.fn(),
 }));
@@ -26,6 +31,10 @@ jest.mock('../services/store.service', () => ({
     },
 }));
 
+jest.mock('../startup/login-shell-path', () => ({
+    waitForLoginShellPath: jest.fn(() => Promise.resolve()),
+}));
+
 jest.mock('../services/stalker-playback-context.service', () => ({
     getStalkerPlaybackContextHeaders: jest.fn(() => undefined),
 }));
@@ -33,6 +42,7 @@ jest.mock('../services/stalker-playback-context.service', () => ({
 import { ipcMain } from 'electron';
 import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
+import * as fs from 'fs';
 import {
     MPV_PLAYER_PATH,
     store,
@@ -53,6 +63,7 @@ import {
     shouldUseMpvSocketBridge,
 } from './player.events';
 import { openVlcPlayer } from './vlc-session.service';
+import { waitForLoginShellPath } from '../startup/login-shell-path';
 
 function createPathExists(existingPaths: string[]) {
     return (candidatePath: string) => existingPaths.includes(candidatePath);
@@ -461,11 +472,122 @@ describe('openVlcPlayer', () => {
     });
 });
 
+describe('external player launch handlers', () => {
+    const pathKeys: Record<string, string> = {
+        OPEN_MPV_PLAYER: MPV_PLAYER_PATH,
+        OPEN_VLC_PLAYER: VLC_PLAYER_PATH,
+    };
+
+    function configurePlayerPath(channel: string, playerPath: string): void {
+        (store.get as unknown as jest.Mock).mockImplementation(
+            (key: string, fallback?: unknown) =>
+                key === pathKeys[channel] ? playerPath : fallback
+        );
+    }
+
+    async function launchUntilSpawn(
+        channel: string,
+        wait: Promise<void>,
+        afterLaunch: () => Promise<void>
+    ): Promise<void> {
+        (waitForLoginShellPath as jest.Mock).mockReturnValueOnce(wait);
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        const consoleErrorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            const launch = Promise.resolve(
+                getIpcMainHandler(channel)(
+                    {},
+                    'https://example.com/live.m3u8',
+                    'Live'
+                )
+            ).catch(() => undefined);
+            await afterLaunch();
+            proc.emit('error', new Error('spawn ENOENT'));
+            await launch;
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
+    }
+
+    beforeEach(() => {
+        (spawn as unknown as jest.Mock).mockReset();
+        (waitForLoginShellPath as jest.Mock).mockClear();
+    });
+
+    it.each(['OPEN_MPV_PLAYER', 'OPEN_VLC_PLAYER'])(
+        '%s spawns a bare player name only after the login shell PATH lookup settled',
+        async (channel) => {
+            configurePlayerPath(channel, 'player-on-shell-path');
+            let settle: () => void = () => undefined;
+            const wait = new Promise<void>((resolve) => {
+                settle = resolve;
+            });
+            await launchUntilSpawn(channel, wait, async () => {
+                await new Promise<void>((resolve) => setImmediate(resolve));
+                expect(spawn).not.toHaveBeenCalled();
+                settle();
+                await waitForSpawnCallCount(1);
+            });
+        }
+    );
+
+    it.each(['OPEN_MPV_PLAYER', 'OPEN_VLC_PLAYER'])(
+        '%s does not wait for a Flatpak host launch of a bare name',
+        async (channel) => {
+            const originalPlatform = process.platform;
+            const existsSync = fs.existsSync as unknown as jest.Mock;
+            existsSync.mockImplementation(
+                (candidate: unknown) => String(candidate) === '/.flatpak-info'
+            );
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            configurePlayerPath(channel, 'player-on-host-path');
+            try {
+                await launchUntilSpawn(
+                    channel,
+                    new Promise<void>(() => undefined),
+                    async () => {
+                        await waitForSpawnCallCount(1);
+                        expect(waitForLoginShellPath).not.toHaveBeenCalled();
+                        expect(
+                            (spawn as unknown as jest.Mock).mock.calls[0][0]
+                        ).toBe('flatpak-spawn');
+                    }
+                );
+            } finally {
+                existsSync.mockImplementation(
+                    jest.requireActual<typeof import('fs')>('fs').existsSync
+                );
+                Object.defineProperty(process, 'platform', {
+                    value: originalPlatform,
+                });
+            }
+        }
+    );
+
+    it.each(['OPEN_MPV_PLAYER', 'OPEN_VLC_PLAYER'])(
+        '%s starts a configured executable path without waiting',
+        async (channel) => {
+            configurePlayerPath(channel, '/opt/players/bin/player');
+            await launchUntilSpawn(
+                channel,
+                new Promise<void>(() => undefined),
+                async () => {
+                    await waitForSpawnCallCount(1);
+                    expect(waitForLoginShellPath).not.toHaveBeenCalled();
+                }
+            );
+        }
+    );
+});
+
 describe('buildVlcEnqueueCommands', () => {
     it('clears the playlist and adds the URL with no extra options', () => {
         expect(
             buildVlcEnqueueCommands({ url: 'http://stream.example/a.m3u8' })
-        ).toEqual(['clear', 'add http://stream.example/a.m3u8']);
+        ).toEqual(['clear', 'add http://stream.example/a.m3u8 :start-time=0']);
     });
 
     it('attaches per-input HTTP options inline with the add command', () => {
@@ -479,7 +601,7 @@ describe('buildVlcEnqueueCommands', () => {
 
         expect(commands[0]).toBe('clear');
         expect(commands[1]).toBe(
-            'add http://stream.example/a.m3u8 :http-user-agent=Custom/1.0 :http-referrer=https://referer.example :http-header=X-Token: abc :meta-title=Channel One'
+            'add http://stream.example/a.m3u8 :start-time=0 :http-user-agent=Custom/1.0 :http-referrer=https://referer.example :http-header=X-Token: abc :meta-title=Channel One'
         );
     });
 
@@ -500,7 +622,7 @@ describe('buildVlcEnqueueCommands', () => {
 
         expect(commands).toEqual([
             'clear',
-            'add http://stream.example/a.m3u8',
+            'add http://stream.example/a.m3u8 :start-time=42',
             'seek 42',
         ]);
     });

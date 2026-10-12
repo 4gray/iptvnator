@@ -13,6 +13,12 @@ export interface ScenarioConfig {
     expiryDate: string;
     /** Optional deterministic EPG fixture profile for scenario-specific tests. */
     epgFixture?: 'timezone-focus';
+    /**
+     * With `epgFixture`, the past programme carries
+     * {@link LONG_PROGRAMME_TITLE} instead of its short title, for the
+     * catch-up seek bar's label bounds.
+     */
+    longProgrammeTitle?: true;
     /** Large, deliberately reordered categories for sidebar scroll coverage. */
     categoryFixture?: 'scroll';
     /**
@@ -49,6 +55,10 @@ export interface ScenarioConfig {
      */
     silentActions?: readonly string[];
 }
+
+/** A 120-character programme title for label overflow tests. */
+export const LONG_PROGRAMME_TITLE =
+    'Extended Late Night Roundtable With Viewer Questions, Studio Guests and a Closing Summary of Every Story Covered Tonight';
 
 /**
  * Predefined scenarios keyed by "username:password".
@@ -174,6 +184,20 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         accountStatus: 'Active',
         expiryDate: '2099-12-31',
         epgFixture: 'timezone-focus',
+    },
+    'epglong:epglong': {
+        name: 'epg-fixture-long-title',
+        description:
+            'The EPG fixture with a 120-character title on the past programme, whose catch-up plays the local clip',
+        seed: 6006,
+        categoryCount: { live: 2, vod: 1, series: 1 },
+        itemsPerCategory: 3,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 3,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        epgFixture: 'timezone-focus',
+        longProgrammeTitle: true,
     },
     'tzoffset:tzoffset': {
         name: 'epg-fixture-offset-clock',

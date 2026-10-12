@@ -152,7 +152,7 @@ export class DownloadQueueComponent {
 
     statusIcon(row: DownloadListItemViewModel): string {
         return this.isMissingFile(row)
-            ? 'file_off'
+            ? 'error_outline'
             : STATUS_ICONS[row.item.status];
     }
 

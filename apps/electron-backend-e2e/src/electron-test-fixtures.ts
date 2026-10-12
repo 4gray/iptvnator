@@ -33,6 +33,10 @@ import {
     type ElectronExitConfirmationOptions,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
+import {
+    waitForXtreamImportCompleted,
+    xtreamPlaylistIdFromUrl,
+} from './xtream-import-wait';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -972,18 +976,33 @@ export async function openSettingsSection(
     await page.waitForURL(new RegExp(`/workspace/settings/${sectionId}$`));
 }
 
+/**
+ * Material slide toggles render `aria-checked` after Angular's next change
+ * detection, later than Playwright's `check()` looks, which then reports
+ * that the click changed nothing. Click when needed and wait for the state.
+ */
+export async function setSwitch(
+    toggle: Locator,
+    checked: boolean
+): Promise<void> {
+    if ((await toggle.isChecked()) !== checked) {
+        await toggle.click();
+    }
+    await expect(toggle).toBeChecked({ checked });
+}
+
 export async function enableRemoteControl(
     page: Page,
     port: number
 ): Promise<void> {
     await openSettingsSection(page, 'remote-control');
 
-    const remoteControlCheckbox = page.locator(
-        'mat-checkbox[formcontrolname="remoteControl"] input[type="checkbox"]'
+    const remoteControlSwitch = page.locator(
+        'mat-slide-toggle[formcontrolname="remoteControl"] [role="switch"]'
     );
 
-    await remoteControlCheckbox.scrollIntoViewIfNeeded();
-    await remoteControlCheckbox.check();
+    await remoteControlSwitch.scrollIntoViewIfNeeded();
+    await setSwitch(remoteControlSwitch, true);
     await page.locator('#remoteControlPort').fill(String(port));
 }
 
@@ -1013,7 +1032,7 @@ export async function saveSettings(page: Page): Promise<void> {
 
 export async function goToDashboard(page: Page): Promise<void> {
     const dashboardLink = page
-        .locator('a.brand[href$="/workspace/dashboard"]')
+        .locator('app-workspace-shell-rail a[href$="/workspace/dashboard"]')
         .first();
 
     await expect(dashboardLink).toBeVisible();
@@ -1488,7 +1507,7 @@ export async function selectSourceSort(
     await sortTrigger.click();
 
     const option = page
-        .locator('.cdk-overlay-pane [role="menuitem"]')
+        .locator('.cdk-overlay-pane [role="menuitemradio"]')
         .filter({
             hasText: flexibleTextPattern(sortLabel),
         })
@@ -1754,7 +1773,13 @@ export async function waitForXtreamImportToFinish(page: Page): Promise<void> {
     try {
         await overlay.waitFor({ state: 'visible', timeout: 5000 });
     } catch {
-        // The overlay may already be gone by the time the test reaches this point.
+        // The overlay may already be gone, or not shown yet: it appears only
+        // once the portal has answered, so the import status decides below.
+    }
+
+    const playlistId = xtreamPlaylistIdFromUrl(page.url());
+    if (playlistId) {
+        await waitForXtreamImportCompleted(page, playlistId);
     }
 
     await expect(overlay).toHaveCount(0, { timeout: 30000 });

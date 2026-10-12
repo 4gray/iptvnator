@@ -8,12 +8,17 @@ import {
 import {
     RuntimeCapabilitiesService,
     SourceActivityService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     isLiveExternalPlayerSession,
 } from '@iptvnator/portal/shared/util';
 import { PlaylistActions } from '@iptvnator/m3u-state';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
 import {
     foldSearchText,
     sourceHealthType,
@@ -37,7 +42,7 @@ import {
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
 } from '@iptvnator/m3u-state';
-import { map, startWith } from 'rxjs';
+import { map } from 'rxjs';
 import { SortBy, SortOrder, SortService } from '@iptvnator/services';
 import {
     WORKSPACE_SHELL_ACTIONS,
@@ -57,11 +62,13 @@ interface SortOption {
         MatButtonModule,
         MatIconModule,
         MatMenuModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         RecentPlaylistsComponent,
         TranslatePipe,
     ],
     templateUrl: './workspace-sources.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-sources.component.scss',
 })
 export class WorkspaceSourcesComponent {
@@ -126,10 +133,7 @@ export class WorkspaceSourcesComponent {
     private readonly playlists = this.store.selectSignal(
         selectAllPlaylistsMeta
     );
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly sortOptions: SortOption[] = [
         {

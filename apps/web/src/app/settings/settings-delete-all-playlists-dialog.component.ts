@@ -31,8 +31,7 @@ type SettingsDeleteSummaryItem = {
     selector: 'app-settings-delete-all-playlists-dialog',
     templateUrl: './settings-delete-all-playlists-dialog.component.html',
     styleUrls: ['./settings-delete-all-playlists-dialog.component.scss'],
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CommonModule,
         MatButtonModule,

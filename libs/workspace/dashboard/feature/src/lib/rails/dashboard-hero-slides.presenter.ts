@@ -8,10 +8,9 @@ import {
     signal,
     untracked,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
-import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
+import { injectTranslationTick } from '@iptvnator/services';
+import { splitSeasonSuffix } from '@iptvnator/portal/shared/util';
 import {
     playlistDisplayLabel,
     resolvePortalActivityWatchKind,
@@ -78,10 +77,7 @@ export class DashboardHeroSlidesPresenter {
     private readonly liveEpg = inject(DashboardLiveEpgPresenter);
     private readonly heroTmdb = inject(DashboardHeroTmdbService);
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     private readonly failedImages = signal<Record<string, true>>({});
     private readonly tmdbExtras = signal<
@@ -104,6 +100,7 @@ export class DashboardHeroSlidesPresenter {
         source: () =>
             this.slides().length === 0 &&
             (this.data.globalRecentLoading() ||
+                !this.data.continueWatchingSettled() ||
                 this.data.globalFavoritesLoading() ||
                 this.data.xtreamRecentlyAddedLoading() ||
                 (!this.liveAnswerWaitOver() &&
@@ -125,14 +122,7 @@ export class DashboardHeroSlidesPresenter {
 
     private readonly sources = computed(() =>
         pickDashboardHeroSources({
-            continueItems: this.data
-                .globalRecentVodItems()
-                .filter(
-                    (item) =>
-                        !isPortalPlaybackWatched(
-                            this.data.getPlaybackPositionForItem(item)
-                        )
-                ),
+            continueItems: this.data.continueWatchingItems(),
             live: this.liveSlide()?.candidate ?? null,
             reserveLive: this.liveEpg.heroLiveCandidates().length > 0,
             favorites: this.data
@@ -141,7 +131,11 @@ export class DashboardHeroSlidesPresenter {
                     (item) => item.type === 'movie' || item.type === 'series'
                 ),
             recentlyAdded: this.data.xtreamRecentlyAddedItems(),
-            mostRecent: this.data.globalRecentItems()[0] ?? null,
+            // Until the resume candidates are known the newest row may be one
+            // of them; featuring it as the fallback would swap the slide.
+            mostRecent: this.data.continueWatchingSettled()
+                ? (this.data.globalRecentItems()[0] ?? null)
+                : null,
         })
     );
 
@@ -218,30 +212,35 @@ export class DashboardHeroSlidesPresenter {
             {
                 backdropUrl: item.backdrop_url || extras?.backdropUrl || null,
                 posterUrl: item.poster_url,
-                title: item.title,
             },
             this.failedImages()
         );
 
+        // Watch kind: a Stalker embedded-VOD show routes as a movie
+        const watchKind = isLive
+            ? 'live'
+            : (resolvePortalActivityWatchKind(item) ?? item.type);
+        const episodeBadge = buildDashboardEpisodeBadge(
+            item,
+            position,
+            (key, params) => this.translate.instant(key, params)
+        );
         return {
             ...artwork,
             id: `${source.kind}:${dashboardHeroItemKey(item)}`,
             kind: source.kind,
             contentType: item.type,
-            title: item.title,
-            // Watch kind: a Stalker embedded-VOD show routes as a movie
-            typeLabelKey:
-                TYPE_LABEL_KEYS[
-                    isLive
-                        ? 'live'
-                        : (resolvePortalActivityWatchKind(item) ?? item.type)
-                ],
+            // "Большая фарма (1 сезон)" → "Большая фарма" only while the
+            // episode badge names the season; without a badge the marker is
+            // the sole season identity of a per-season catalog entry. A movie
+            // keeps its name as is.
+            title:
+                watchKind === 'series' && episodeBadge
+                    ? splitSeasonSuffix(item.title).title
+                    : item.title,
+            typeLabelKey: TYPE_LABEL_KEYS[watchKind],
             reasonLabelKey: this.reasonLabelKey(source),
-            episodeBadge: buildDashboardEpisodeBadge(
-                item,
-                position,
-                (key, params) => this.translate.instant(key, params)
-            ),
+            episodeBadge,
             rating: extras?.rating ?? null,
             genres: extras?.genres ?? [],
             year: extras?.year ?? item.release_year ?? null,

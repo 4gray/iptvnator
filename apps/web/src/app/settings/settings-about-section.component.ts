@@ -19,6 +19,12 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { UpdateChannelOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+
+interface SettingsUpdateStatusChip {
+    readonly labelKey: string;
+    readonly tone: 'accent' | 'success' | 'warn' | 'neutral';
+}
 
 @Component({
     selector: 'app-settings-about-section',
@@ -32,17 +38,8 @@ import { UpdateChannelOption } from './settings.models';
     ],
     templateUrl: './settings-about-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
-    styles: [
-        ':host { display: contents; }',
-        '.version-block .build-commit { opacity: 0.65; font-size: 0.85em; }',
-        '.app-update-channel { margin-top: 12px; }',
-        '.app-update-channel mat-form-field { width: 100%; max-width: 320px; }',
-        '.app-update-channel__note { display: block; margin-top: 4px; opacity: 0.75; font-size: 0.85em; }',
-        '.app-update-status__channel { align-self: flex-start; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase; color: var(--mat-sys-on-surface-variant); background: color-mix(in srgb, var(--mat-sys-on-surface) 9%, transparent); }',
-        '.app-update-status--stale strong, .app-update-status--stale .app-update-status__channel { opacity: 0.55; }',
-    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrls: ['./settings-about-section.component.scss'],
 })
 export class SettingsAboutSectionComponent {
     readonly isDesktop = input(false);
@@ -58,6 +55,13 @@ export class SettingsAboutSectionComponent {
      * setting. Absent in hosts that only render the version block.
      */
     readonly form = input<FormGroup | null>(null);
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly updateChannelOptions = input<UpdateChannelOption[]>([]);
 
     readonly buildCommitShort = computed(() => {
@@ -78,6 +82,8 @@ export class SettingsAboutSectionComponent {
     readonly installAppUpdate = output<void>();
     readonly openManualAppUpdate = output<void>();
     readonly openAppUpdateReleaseNotes = output<void>();
+    /** The nightly warning offers the backup page before switching. */
+    readonly openBackup = output<void>();
 
     readonly canSelectUpdateChannel = computed(
         () =>
@@ -169,6 +175,38 @@ export class SettingsAboutSectionComponent {
 
         return channel ? this.channelLabelKey(channel) : null;
     });
+
+    /** The one-word verdict beside the app name in the hero. */
+    readonly updateStatusChip = computed<SettingsUpdateStatusChip | null>(
+        () => {
+            switch (this.appUpdateStatus()?.status) {
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available:
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading:
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded:
+                    return {
+                        labelKey: 'SETTINGS.UPDATE_AVAILABLE_CHIP',
+                        tone: 'accent',
+                    };
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable:
+                    return {
+                        labelKey: 'SETTINGS.UPDATE_UP_TO_DATE',
+                        tone: 'success',
+                    };
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking:
+                    return {
+                        labelKey: 'SETTINGS.APP_UPDATE_CHECKING',
+                        tone: 'neutral',
+                    };
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error:
+                    return {
+                        labelKey: 'SETTINGS.APP_UPDATE_ERROR',
+                        tone: 'warn',
+                    };
+                default:
+                    return null;
+            }
+        }
+    );
 
     readonly isAppUpdateBusy = computed(() => {
         const status = this.appUpdateStatus()?.status;

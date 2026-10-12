@@ -1,8 +1,40 @@
-<header class="workspace-header" [class.is-settings-route]="isSettingsRoute()">
+<header
+    class="workspace-header"
+    [class.is-settings-route]="isSettingsRoute()"
+    [appLayoutSlide]="leadingNavigationKey()"
+    [layoutSlideRecordOn]="controlsLayoutKey()"
+    layoutSlideTargets=".context-drawer-toggle, .playlist-switcher, .search-field, .header-actions"
+>
+    <!-- The page's Back, or browser history while an in-app previous page
+         exists, at the leading edge where desktop apps and Material's top
+         app bar keep navigation (beside the macOS traffic lights). The
+         header never scrolls, so the control stays put over long pages. -->
+    @if (backTarget(); as back) {
+        @let backLabel = back.label() || ('BACK' | translate);
+        <button
+            type="button"
+            class="header-back"
+            [class.header-back--yields]="backYieldsToDrawerToggle()"
+            mat-icon-button
+            data-test-id="workspace-header-back"
+            (click)="backRequested.emit()"
+            (keydown.escape)="onBackEscape($event)"
+            [matTooltip]="
+                back.escapeShortcut() ? backLabel + ' (Esc)' : backLabel
+            "
+            [attr.aria-label]="backLabel"
+            [attr.aria-keyshortcuts]="back.escapeShortcut() ? 'Escape' : null"
+        >
+            <mat-icon>arrow_back</mat-icon>
+        </button>
+    }
+
     <!-- Phone-only (≤640px, CSS-hidden above): on phones the context panel
          is an off-canvas drawer, and this button is the only way to open
-         it, so it must never be dropped while the route has a panel. -->
-    @if (showContextDrawerToggle()) {
+         it. A detail page's Back takes its slot (one navigation icon, as in
+         Material's top app bar); the list Back returns to shows it again.
+         Settings keeps both, and the history fallback yields to it. -->
+    @if (showDrawerToggle()) {
         <button
             #contextDrawerToggle
             type="button"
@@ -95,7 +127,7 @@
          playlist is a global action, not playlist-scoped, so it must
          remain reachable (e.g. a fresh user configuring the app before
          importing their first source). Only the per-playlist shortcut
-         and bulk actions are hidden on Settings. -->
+         is hidden on Settings. -->
     <div class="header-actions header-actions--leading">
         <button
             type="button"
@@ -173,19 +205,6 @@
                     [attr.aria-label]="action.ariaLabelKey | translate"
                 >
                     <mat-icon>{{ action.icon }}</mat-icon>
-                </button>
-            }
-            @if (headerBulkAction(); as bulk) {
-                <button
-                    type="button"
-                    class="header-shortcut header-bulk-action"
-                    mat-icon-button
-                    [disabled]="bulk.disabled"
-                    (click)="onHeaderBulkActionRequested()"
-                    [matTooltip]="bulk.tooltip"
-                    [attr.aria-label]="bulk.ariaLabel"
-                >
-                    <mat-icon>{{ bulk.icon }}</mat-icon>
                 </button>
             }
         }

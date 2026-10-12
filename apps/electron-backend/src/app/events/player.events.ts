@@ -1,16 +1,21 @@
 import { ipcMain } from 'electron';
 import {
     CLOSE_EXTERNAL_PLAYER_SESSION,
+    type ExternalPlayerName,
     PLAYBACK_SET_KEEP_AWAKE,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
 import { setPlaybackKeepAwake } from '../services/playback-keep-awake.service';
+import { waitForLoginShellPath } from '../startup/login-shell-path';
 import {
     MPV_PLAYER_PATH,
     store,
     VLC_PLAYER_PATH,
 } from '../services/store.service';
-import { normalizePlayerPathForStore } from './external-player-launch-context';
+import {
+    normalizePlayerPathForStore,
+    resolveExternalPlayerLaunchContext as resolveLaunchContext,
+} from './external-player-launch-context';
 import {
     externalPlayerSessions,
     traceExternalPlayer,
@@ -34,6 +39,23 @@ export {
     parseVlcRcPlaybackState,
 } from './vlc-session.service';
 
+/**
+ * A player resolved to a bare name (no configured path, no well-known
+ * install found) is looked up through PATH, so it waits for the login shell
+ * PATH; a path to an executable starts right away. So does a Flatpak host
+ * launch: `flatpak-spawn --host` resolves the name with the host's PATH,
+ * which the sandbox's login shell lookup cannot change.
+ */
+async function waitForPathIfBareName(
+    player: ExternalPlayerName,
+    configuredPath: string | undefined
+): Promise<void> {
+    const context = resolveLaunchContext(player, configuredPath);
+    if (context.mode !== 'flatpak-host' && !/[\\/]/.test(context.playerPath)) {
+        await waitForLoginShellPath();
+    }
+}
+
 export default class PlayerEvents {
     static bootstrapPlayerEvents(): Electron.IpcMain {
         return ipcMain;
@@ -53,8 +75,9 @@ ipcMain.handle(
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>
-    ) =>
-        openMpvPlayer({
+    ) => {
+        await waitForPathIfBareName('mpv', store.get(MPV_PLAYER_PATH));
+        return openMpvPlayer({
             url,
             title,
             thumbnail,
@@ -64,7 +87,8 @@ ipcMain.handle(
             contentInfo,
             startTime,
             headers,
-        })
+        });
+    }
 );
 
 ipcMain.handle(
@@ -95,8 +119,9 @@ ipcMain.handle(
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>
-    ) =>
-        openVlcPlayer({
+    ) => {
+        await waitForPathIfBareName('vlc', store.get(VLC_PLAYER_PATH));
+        return openVlcPlayer({
             url,
             title,
             thumbnail,
@@ -106,7 +131,8 @@ ipcMain.handle(
             contentInfo,
             startTime,
             headers,
-        })
+        });
+    }
 );
 
 ipcMain.handle(

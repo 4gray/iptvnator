@@ -72,5 +72,11 @@ runs:
                       (($j.wallClock // {}) | to_entries[] | "| `\(.key)` | \(.value) | |"),
                       "",
                       ([($j.iterations // [])[] | select(.warmup | not) | .evidence.ipcSerialDepth // empty][0] // empty |
-                          "Serial IPC chain (first measured iteration): \(.chain | map("`\(.)`") | join(" → "))", ""))
+                          "Serial IPC chain (first measured iteration): \(.chain | map("`\(.)`") | join(" → "))", ""),
+                      ([($j.iterations // [])[] | select(.warmup | not) | .evidence.perKeystroke // empty][0] // empty |
+                          "Per keystroke (first measured iteration):", "",
+                          "| Key | Query calls | Bridge calls | SQL statements | DOM mutations | CD ticks |",
+                          "| --- | ---: | ---: | ---: | ---: | ---: |",
+                          (.[] | "| `\(.key)` | \(.queryCalls) | \(.ipcCalls) | \(.sqlStatements) | \(.domMutations) | \(.cdTicks) |"),
+                          ""))
               ' "$SUMMARY" | tee -a "$GITHUB_STEP_SUMMARY"

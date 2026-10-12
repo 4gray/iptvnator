@@ -51,6 +51,8 @@ https://example.channels/path-to-file/3.m3u8
 https://example.channels/path-to-file/4.m3u8
 `;
 const HLS_STUB = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+/** EPG-fixture users whose timeshift URLs play the local MPEG-TS clip. */
+const TIMESHIFT_CLIP_USERS = new Set(['epg', 'epglong']);
 // Loopback by default: the fixtures serve fabricated but unauthenticated
 // content, so they should not be reachable from other hosts unless a dev
 // explicitly opts in with HOST=0.0.0.0 (e.g. to point a phone or STB at them).
@@ -323,7 +325,7 @@ function installStreamRoutes(
     app.all(
         '/timeshift/:username/:password/:duration/:start/:streamId.ts',
         (request, response) => {
-            if (request.params['username'] === 'epg') {
+            if (TIMESHIFT_CLIP_USERS.has(request.params['username'])) {
                 response
                     .type('video/mp2t')
                     .send(

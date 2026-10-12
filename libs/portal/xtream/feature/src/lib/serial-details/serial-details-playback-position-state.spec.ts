@@ -3,6 +3,7 @@ import type {
     PlaybackPositionData,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { getSeriesQuickStartAction } from '@iptvnator/portal/shared/util';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
 import type { XtreamSerieDetailsView } from './serial-details-playback.service';
 
@@ -111,6 +112,51 @@ describe('SerialDetailsPlaybackPositionState', () => {
     });
 
     describe('bulk mutators', () => {
+        it('dates the rows the page writes, so the episode just played ranks newest', async () => {
+            jest.useFakeTimers({ now: new Date('2026-10-04T09:00:00.000Z') });
+            try {
+                // Stored rows carry the store's time; a player tick, an
+                // external-player update and a toggle do not.
+                await loadPositions([
+                    position(1001, {
+                        positionSeconds: 600,
+                        updatedAt: '2026-10-03 08:00:00',
+                    }),
+                ]);
+                const tick = position(1002, { positionSeconds: 600 });
+                delete tick.updatedAt;
+
+                state.update(tick);
+
+                expect(state.positions().get(1002)?.updatedAt).toBe(
+                    '2026-10-04T09:00:00.000Z'
+                );
+                // The series page resumes the episode just played, not the
+                // one stored yesterday.
+                expect(
+                    getSeriesQuickStartAction({
+                        seasons: seriesView().episodes,
+                        playbackPositions: state.positions(),
+                    })
+                ).toMatchObject({ kind: 'resume', episode: { id: '1002' } });
+
+                state.updateMany([{ ...tick, contentXtreamId: 2001 }]);
+                expect(state.positions().get(2001)?.updatedAt).toBe(
+                    '2026-10-04T09:00:00.000Z'
+                );
+                // The caller's row is not modified, and a dated row keeps its date.
+                expect(tick.updatedAt).toBeUndefined();
+                state.update(
+                    position(1001, { updatedAt: '2026-10-05 07:00:00' })
+                );
+                expect(state.positions().get(1001)?.updatedAt).toBe(
+                    '2026-10-05 07:00:00'
+                );
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
         it('updates many positions with a single map replacement', async () => {
             await loadPositions([position(1001)]);
             const before = state.positions();

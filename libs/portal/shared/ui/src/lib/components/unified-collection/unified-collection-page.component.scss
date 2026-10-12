@@ -6,6 +6,8 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    // Shared with unified-live-tab, which renders inside this page.
+    --collection-reload-dim-opacity: 0.6;
 }
 
 .skeleton-list {
@@ -150,7 +152,7 @@ app-unified-live-tab {
 
     .empty-title {
         font-size: 1.05rem;
-        font-weight: 520;
+        font-weight: 500;
         letter-spacing: -0.01em;
         margin: 0;
     }

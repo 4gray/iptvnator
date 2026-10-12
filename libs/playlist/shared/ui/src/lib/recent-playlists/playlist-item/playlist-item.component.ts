@@ -17,9 +17,9 @@ import {
     inject,
     input,
     output,
+    signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -27,19 +27,28 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
 import {
     PortalStatus,
     PortalStatusService,
     RuntimeCapabilitiesService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
+
+/** Translation keys for the status word in the portal status tooltip. */
+const PORTAL_STATUS_LABEL_KEYS: Record<PortalStatus, string> = {
+    active: 'HOME.PLAYLISTS.PORTAL_STATUS_ACTIVE',
+    inactive: 'HOME.PLAYLISTS.PORTAL_STATUS_INACTIVE',
+    expired: 'HOME.PLAYLISTS.PORTAL_STATUS_EXPIRED',
+    unavailable: 'HOME.PLAYLISTS.PORTAL_STATUS_UNAVAILABLE',
+    checking: 'HOME.PLAYLISTS.PORTAL_STATUS_CHECKING',
+};
 
 @Component({
     selector: 'app-playlist-item',
     templateUrl: './playlist-item.component.html',
     styleUrls: ['./playlist-item.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         SourceHealthIndicatorComponent,
         DatePipe,
@@ -70,7 +79,10 @@ export class PlaylistItemComponent implements OnInit {
     readonly removeClicked = output<string>();
     readonly cancelBusyActionClicked = output<void>();
 
-    portalStatus: PortalStatus = 'unavailable';
+    readonly portalStatus = signal<PortalStatus>('unavailable');
+    readonly portalStatusLabelKey = computed(
+        () => PORTAL_STATUS_LABEL_KEYS[this.portalStatus()]
+    );
     private readonly portalStatusService = inject(PortalStatusService);
     readonly runtime = inject(RuntimeCapabilitiesService);
     readonly sourceIcons = SOURCE_TYPE_ICONS;
@@ -98,10 +110,7 @@ export class PlaylistItemComponent implements OnInit {
         );
     }
     private readonly translate = inject(TranslateService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly supportsPlaylistRefresh = this.runtime.supportsPlaylistRefresh;
     readonly supportsXtreamSqliteDataSource =
@@ -125,21 +134,22 @@ export class PlaylistItemComponent implements OnInit {
 
     private async checkPortalStatus() {
         if (this.item.serverUrl && this.item.username && this.item.password) {
-            this.portalStatus =
+            this.portalStatus.set(
                 await this.portalStatusService.checkPortalStatus(
                     this.item.serverUrl,
                     this.item.username,
                     this.item.password
-                );
+                )
+            );
         }
     }
 
     getStatusClass(): string {
-        return this.portalStatusService.getStatusClass(this.portalStatus);
+        return this.portalStatusService.getStatusClass(this.portalStatus());
     }
 
     getStatusIcon(): string {
-        return this.portalStatusService.getStatusIcon(this.portalStatus);
+        return this.portalStatusService.getStatusIcon(this.portalStatus());
     }
 
     onPlaylistClick(): void {
@@ -148,5 +158,16 @@ export class PlaylistItemComponent implements OnInit {
         }
 
         this.playlistClicked.emit(this.item._id);
+    }
+
+    /**
+     * Enter/Space open the source like a click on the row; Space also
+     * prevents the page scroll. The drag handle and the actions are siblings
+     * of the activation element, never descendants, so their keys cannot
+     * reach this handler.
+     */
+    onActivationKey(event: Event): void {
+        event.preventDefault();
+        this.onPlaylistClick();
     }
 }

@@ -128,9 +128,6 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                             queryParamMap: convertToParamMap({}),
                         },
                         queryParamMap: of(convertToParamMap({})),
-                        pathFromRoot: [
-                            { snapshot: { data: { layout: 'workspace' } } },
-                        ],
                     },
                 },
                 {

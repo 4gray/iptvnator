@@ -87,7 +87,6 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
-    isWorkspaceLayoutRoute,
     LiveEpgPanelState,
     LiveLayoutSidebarStateService,
     persistLiveEpgPanelState,
@@ -231,7 +230,7 @@ function isInsideScrollableRegion(
         { provide: EPG_GUIDE_SOURCE, useExisting: M3uEpgGuideSourceService },
     ],
     templateUrl: './video-player.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './video-player.component.scss',
 })
 export class VideoPlayerComponent
@@ -713,13 +712,12 @@ export class VideoPlayerComponent
     );
 
     /** Selected video player options */
-    playerSettings: Partial<Settings> = {
+    readonly playerSettings = signal<Partial<Settings>>({
         player: VideoPlayer.VideoJs,
-    };
+    });
 
     readonly isDesktop = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
@@ -731,8 +729,8 @@ export class VideoPlayerComponent
     );
 
     /** Channel number input state */
-    channelNumberInput = '';
-    showChannelNumberOverlay = false;
+    readonly channelNumberInput = signal('');
+    readonly showChannelNumberOverlay = signal(false);
     private channelNumberTimeout?: number;
 
     /**
@@ -795,9 +793,9 @@ export class VideoPlayerComponent
 
         // React to settings changes
         effect(() => {
-            this.playerSettings = {
+            this.playerSettings.set({
                 player: this.settingsStore.player(),
-            };
+            });
         });
 
         // Keep "now" fresh so EPG state re-evaluates over time.
@@ -1191,10 +1189,10 @@ export class VideoPlayerComponent
     applySettings(): void {
         this.storage.get(STORE_KEY.Settings).subscribe((settings: unknown) => {
             if (settings && Object.keys(settings as Settings).length > 0) {
-                this.playerSettings = {
+                this.playerSettings.set({
                     player:
                         (settings as Settings).player || VideoPlayer.VideoJs,
-                };
+                });
             }
         });
     }
@@ -1472,12 +1470,14 @@ export class VideoPlayerComponent
         }
 
         // Add digit to current input
-        this.channelNumberInput += digit;
-        this.showChannelNumberOverlay = true;
+        this.channelNumberInput.update((input) => input + digit);
+        this.showChannelNumberOverlay.set(true);
 
         // Set timeout to switch channel after 2 seconds of no input
         this.channelNumberTimeout = window.setTimeout(() => {
-            this.switchToChannelByNumber(parseInt(this.channelNumberInput, 10));
+            this.switchToChannelByNumber(
+                parseInt(this.channelNumberInput(), 10)
+            );
             this.clearChannelNumberInput();
         }, 2000);
     }
@@ -1547,8 +1547,8 @@ export class VideoPlayerComponent
      * Clear channel number input and hide overlay
      */
     clearChannelNumberInput(): void {
-        this.channelNumberInput = '';
-        this.showChannelNumberOverlay = false;
+        this.channelNumberInput.set('');
+        this.showChannelNumberOverlay.set(false);
         if (this.channelNumberTimeout) {
             clearTimeout(this.channelNumberTimeout);
             this.channelNumberTimeout = undefined;
@@ -1663,7 +1663,7 @@ export class VideoPlayerComponent
             return true;
         }
 
-        const player = this.playerSettings.player;
+        const player = this.playerSettings().player;
         return (
             !this.isExternalPlayer(player) && player !== VideoPlayer.EmbeddedMpv
         );
@@ -1685,7 +1685,7 @@ export class VideoPlayerComponent
             return true;
         }
 
-        return !this.isExternalPlayer(this.playerSettings.player);
+        return !this.isExternalPlayer(this.playerSettings().player);
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
@@ -1748,7 +1748,7 @@ export class VideoPlayerComponent
     }
 
     private registerHeaderShortcut(): void {
-        if (!this.isWorkspaceLayout || !this.supportsEpg) {
+        if (!this.supportsEpg) {
             return;
         }
 

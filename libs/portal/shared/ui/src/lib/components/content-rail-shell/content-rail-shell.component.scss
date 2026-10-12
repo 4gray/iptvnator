@@ -1,3 +1,5 @@
+@use '../../../../../../../ui/styles/focus-ring';
+
 :host {
     display: block;
     --rail-gap: var(--cover-gap, 16px);
@@ -94,8 +96,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #2f7bff);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
     }
 }
 
@@ -226,8 +227,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 3px;
+        @include focus-ring.focus-ring-declarations($offset: 3px);
     }
 
     &--left {

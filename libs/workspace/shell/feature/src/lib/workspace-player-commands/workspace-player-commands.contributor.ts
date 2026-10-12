@@ -120,16 +120,20 @@ export class WorkspacePlayerCommandsContributor {
     }
 
     private async loadEmbeddedMpvSupport(): Promise<void> {
+        // Only a final answer is kept. An inconclusive one, or a failed
+        // request, hides the command for now: the next palette open asks again.
+        let final = false;
         try {
             const support = await window.electron?.getEmbeddedMpvSupport?.();
             this.embeddedMpvSupported.set(!!support?.supported);
+            final = !support?.inconclusive;
         } catch (error) {
             console.warn(
                 'Failed to verify embedded MPV support for the command palette.',
                 error
             );
         } finally {
-            this.embeddedMpvSupportChecked = true;
+            this.embeddedMpvSupportChecked = final;
             this.embeddedMpvSupportLoad = null;
         }
     }

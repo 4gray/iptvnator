@@ -147,7 +147,7 @@ function maskUrlQueryPasswords(url: string): string {
     selector: 'app-auto-import',
     templateUrl: './auto-import.component.html',
     styleUrl: './auto-import.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         MatButtonModule,
         MatFormFieldModule,

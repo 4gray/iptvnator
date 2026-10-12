@@ -1,6 +1,7 @@
 import { connect } from 'node:net';
 import express from 'express';
 import { resetAll } from './data-store.js';
+import { LONG_PROGRAMME_TITLE } from './scenarios.js';
 import {
     createXtreamMockApp,
     parseXtreamMockServerEnvironment,
@@ -71,6 +72,37 @@ describe('Xtream mock server factory', () => {
             expect(bytes.length).toBeGreaterThan(188);
             expect(bytes[0]).toBe(0x47);
             expect(bytes[188]).toBe(0x47);
+        } finally {
+            await running.close();
+        }
+    });
+
+    it('serves the long-title EPG scenario beside the unchanged epg one', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        const titles = async (user: string) => {
+            const response = await fetch(
+                `${running.origin}/player_api.php?username=${user}&password=${user}&action=get_simple_data_table&stream_id=10000`
+            );
+            const body = (await response.json()) as {
+                epg_listings: { title: string }[];
+            };
+            return body.epg_listings.map((listing) =>
+                Buffer.from(listing.title, 'base64').toString('utf8')
+            );
+        };
+        try {
+            expect(LONG_PROGRAMME_TITLE).toHaveLength(120);
+            expect(await titles('epglong')).toEqual([
+                LONG_PROGRAMME_TITLE,
+                'Global Headlines',
+                'Market Wrap',
+                'Overnight Update',
+                'Late Edition',
+                'After Midnight',
+            ]);
+            expect((await titles('epg'))[0]).toBe('Earlier Bulletin');
         } finally {
             await running.close();
         }

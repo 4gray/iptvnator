@@ -134,6 +134,48 @@ Completion reports list changed docs, tests added/updated, commands and results,
 skipped validation with reasons, and release-note status. A docs-only task needs
 Markdown/link validation, not app unit/E2E tests. Tooling changes need their own tests.
 
+## Local review before a pull request
+
+Every push to a pull-request branch starts the whole CI matrix and both review
+bots, and runs from several open pull requests queue behind one another. Fix
+rounds therefore happen locally: push only a commit that both reviewers have
+already accepted.
+
+Greptile reviews committed work only, so commit first and fetch the base; both
+reviewers then judge the same change. Run them from the branch's worktree and
+keep their output outside the repository:
+
+- Codex: `codex review --base origin/master -c model_reasoning_effort=high`.
+  The verdict is the final message on stdout; stderr carries the session log.
+  The flag pins the review effort whatever the caller's default is. Codex
+  otherwise runs with the caller's own configuration and may install
+  dependencies or run tests in the worktree, so do not start other installs or
+  builds there while it reviews.
+- Greptile: `greptile review --json`. Clean means `confidence` is 5 and
+  `comments` is empty. A non-zero exit means the review did not run, not that
+  it found problems.
+
+1. Finish the change and its targeted checks, then commit.
+2. Run both reviewers on the same commit; they are independent and can run in
+   parallel.
+3. Check every finding against the code. Fix the real ones and note a one-line
+   reason for each one declined. Never clear a finding by suppressing a rule or
+   weakening a test.
+4. Commit the fixes and review again. Stop when both reviewers are clean on the
+   same commit. Also stop after five rounds, or when a round repeats the
+   previous findings, and report what remains instead of pushing.
+5. Push, open the pull request, and name the reviewed commit and any declined
+   findings in the completion report.
+
+The GitHub bots still review the opened pull request. Treat their findings and
+CI failures the same way: collect the whole round, fix it locally, pass both
+local reviewers again and push once. Do not push one fix per finding.
+
+A reviewer whose CLI is missing, signed out, outside a Greptile organization or
+left without reviewable files (Greptile ignores Markdown-only changes) does not
+block the other one. Say which reviewer did not run; do not install a CLI, sign
+in or onboard an account on the maintainer's behalf.
+
 ## Repository skills
 
 Repository skills live under `.codex/skills/`. Descriptions are trigger-only,

@@ -550,7 +550,9 @@ Xtream-only row shape:
    as `Café` can still reach rows stored as either `Café` or `Cafe` before the
    worker's accent-insensitive ranking step. Existing databases rebuild this
    index once through the `migration:content-title-fts-trigram:v1` app-state
-   marker before legacy content cleanup/normalization migrations run; fresh
+   marker before legacy content cleanup/normalization migrations run (the
+   diacritics rebuild records that marker too, so it is never rebuilt twice;
+   see [VOD multi-source](vod-multi-source.md#short-titles-and-unicode)); fresh
    inserts, deletes, and title updates stay synchronized through SQLite triggers.
 2. `source_type = "m3u"` rows come from M3U playlist payloads stored in
    `playlists.payload`. The worker uses SQL `payload LIKE` against channel
@@ -661,6 +663,20 @@ is unavailable or the SQLite playlist migration has not completed.
 4. `DB_GET_RECENT_PLAYBACK_POSITIONS`
 5. `DB_GET_ALL_PLAYBACK_POSITIONS`
 6. `DB_CLEAR_PLAYBACK_POSITION`
+7. `DB_REPLACE_ALL_PLAYBACK_POSITIONS`
+
+Backup restore uses `DB_REPLACE_ALL_PLAYBACK_POSITIONS` to replace only the
+specified playlist's positions in one synchronous transaction. Every insert
+and the delete use `.run()` so an insertion failure rolls the whole replacement
+back. An empty replacement deliberately clears that playlist. Renderer backup
+callers propagate read/write errors and retain pending restore state for retry;
+normal playback persistence keeps its best-effort behavior. The renderer checks
+atomic replacement support at the start of the immediate or deferred restore
+pass, before updating existing categories, collections, positions, or pins.
+Missing support fails restore with the pending snapshot retained; it does not
+switch ordinary Xtream storage or backup export away from SQLite. Deferred
+catalog import can still seed newly imported categories from pending visibility
+state before that restore pass runs.
 
 ## SQLite Concurrency Rules
 

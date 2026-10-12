@@ -1,0 +1,33 @@
+<section class="rail">
+    <app-detail-section-header
+        [title]="title()"
+        [count]="count()"
+        [headingId]="headingId()"
+    >
+        @if (overflowing()) {
+            <div class="rail__arrows" section-header-end>
+                <button
+                    type="button"
+                    class="rail__arrow"
+                    [attr.aria-label]="
+                        'PORTALS.DETAIL.SCROLL_PREVIOUS' | translate
+                    "
+                    (click)="scrollBy(-1)"
+                >
+                    <mat-icon aria-hidden="true">chevron_left</mat-icon>
+                </button>
+                <button
+                    type="button"
+                    class="rail__arrow"
+                    [attr.aria-label]="'PORTALS.DETAIL.SCROLL_NEXT' | translate"
+                    (click)="scrollBy(1)"
+                >
+                    <mat-icon aria-hidden="true">chevron_right</mat-icon>
+                </button>
+            </div>
+        }
+    </app-detail-section-header>
+    <div #scroller class="rail__scroller">
+        <ng-content />
+    </div>
+</section>

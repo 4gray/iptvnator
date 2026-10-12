@@ -1,3 +1,4 @@
+import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 export interface SeriesEpisodeMetadata {
     label: string;
     seasonNumber: number;
@@ -41,6 +42,29 @@ export function formatSeriesEpisodeLabel(
     episodeNumber: number
 ): string {
     return `S${padSeriesNumber(seasonNumber)}E${padSeriesNumber(episodeNumber)}`;
+}
+
+/** The episode state of an inline playback, when it plays an episode of these seasons. */
+export function inlineSeriesEpisodeState<
+    TEpisode extends SeriesPlaybackEpisodeLike,
+>(
+    playback: ResolvedPortalPlayback | null,
+    episodesBySeason: ResolveSeriesPlaybackEpisodeStateOptions<TEpisode>['episodesBySeason']
+): SeriesPlaybackEpisodeState<TEpisode> | null {
+    const info = playback?.contentInfo;
+    if (
+        !episodesBySeason ||
+        info?.contentType !== 'episode' ||
+        info.contentXtreamId === undefined
+    ) {
+        return null;
+    }
+    return resolveSeriesPlaybackEpisodeState({
+        episodesBySeason,
+        currentEpisodeId: info.contentXtreamId,
+        fallbackSeasonNumber: info.seasonNumber,
+        fallbackEpisodeNumber: info.episodeNumber,
+    });
 }
 
 export function resolveSeriesPlaybackEpisodeState<

@@ -108,6 +108,9 @@
             "@iptvnator/ui/components/parental-lock-pin-dialog": [
                 "libs/ui/components/src/lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component.ts"
             ],
+            "@iptvnator/ui/components/password-visibility-toggle": [
+                "libs/ui/components/src/lib/password-visibility-toggle/password-visibility-toggle.directive.ts"
+            ],
             "@iptvnator/ui/components/window-controls": [
                 "libs/ui/components/src/lib/window-controls/window-controls.component.ts"
             ],
@@ -142,6 +145,9 @@
             "@iptvnator/shared/database": ["libs/shared/database/src/index.ts"],
             "@iptvnator/shared/database/schema": [
                 "libs/shared/database/src/lib/schema.ts"
+            ],
+            "@iptvnator/shared/database/app-playlist": [
+                "libs/shared/database/src/lib/app-playlist.ts"
             ],
             "@iptvnator/shared/database/path-utils": [
                 "libs/shared/database/src/lib/path-utils.ts"

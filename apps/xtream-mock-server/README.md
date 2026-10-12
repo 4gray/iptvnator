@@ -115,6 +115,7 @@ media. Barriers and delays are coordination tools, not timing inputs.
 | `series`      | `series`      | series-heavy               | 3         | 4        | 15          | 30        | active   |
 | `minimal`     | `minimal`     | minimal (edge cases)       | 2         | 2        | 2           | 5         | active   |
 | `epg`         | `epg`         | EPG fixture                | 2         | 1        | 1           | 3         | active   |
+| `epglong`     | `epglong`     | EPG fixture, long title    | 2         | 1        | 1           | 3         | active   |
 | `tzoffset`    | `tzoffset`    | EPG fixture, `UTC+3` clock | 2         | 1        | 1           | 3         | active   |
 | `emptyvod`    | `emptyvod`    | empty VOD metadata         | 2         | 2        | 2           | 5         | active   |
 | `marketing`   | `marketing`   | fictional release demo     | 4         | 4        | 4           | curated   | active   |

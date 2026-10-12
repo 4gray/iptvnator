@@ -108,7 +108,8 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
             } @else {
                 @for (item of items(); track $index) {
                     @let i = $any(item);
-                    @let title = channelTitle(i);
+                    @let title =
+                        channelTitle(i) || ('PORTALS.UNTITLED' | translate);
                     <mat-card
                         [class.grid-card--logo]="variant() === 'logo'"
                         role="button"
@@ -345,7 +346,8 @@ export class GridListComponent {
             raw,
             this.isLiveGrid() && this.settingsStore.stripCountryPrefix?.()
         );
-        return stripped || 'No name';
+        // Empty: the template shows the translated "Untitled" label.
+        return stripped;
     };
 
     readonly skeletonRows = computed(() =>

@@ -1,8 +1,4 @@
-import {
-    ChangeDetectionStrategy,
-    Component,
-    input,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
@@ -28,9 +24,6 @@ import { WorkspaceShellRailLinksComponent } from '../workspace-shell-rail-links/
 })
 export class WorkspaceShellRailComponent {
     readonly isMacOS = input(false);
-    readonly brandLink = input('/workspace/dashboard');
-    readonly brandTooltipKey = input('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = input('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = input<PortalRailLink[]>([]);
     readonly primaryContextLinks = input<PortalRailLink[]>([]);
     readonly secondaryContextLinks = input<PortalRailLink[]>([]);

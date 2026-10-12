@@ -1,0 +1,23 @@
+@if (cast().length) {
+    <div class="credits__row" data-test-id="detail-credits-cast">
+        <span class="credits__label">{{
+            'PORTALS.DETAIL.STARRING' | translate
+        }}</span>
+        <span class="credits__names">{{ leadCast() }}</span>
+        @if (hasMore()) {
+            <button
+                type="button"
+                class="credits__more"
+                (click)="moreRequested.emit()"
+            >
+                {{ 'PORTALS.DETAIL.AND_MORE' | translate }}
+            </button>
+        }
+    </div>
+}
+@if (directors().length) {
+    <div class="credits__row" data-test-id="detail-credits-director">
+        <span class="credits__label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
+        <span class="credits__names">{{ directorNames() }}</span>
+    </div>
+}

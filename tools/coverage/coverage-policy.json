@@ -374,7 +374,7 @@
             {
                 "name": "remote-control",
                 "root": "libs/ui/remote-control",
-                "reason": "No unit specs yet; validate through remote-control flows or add focused tests when behavior changes directly."
+                "reason": "Small phone UI: focused specs cover its labels and language choice; validate the rest through remote-control flows."
             },
             {
                 "name": "shared-portals",

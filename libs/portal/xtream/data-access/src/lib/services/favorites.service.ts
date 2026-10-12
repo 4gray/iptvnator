@@ -1,6 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { from, map, Observable } from 'rxjs';
-import { XTREAM_DATA_SOURCE } from '../data-sources/xtream-data-source.interface';
+import {
+    XTREAM_DATA_SOURCE,
+    XtreamCollectionRef,
+} from '../data-sources/xtream-data-source.interface';
 import { FavoriteItem } from './favorite-item.interface';
 
 function normalizeCategoryId(categoryId: string | number): number {
@@ -15,7 +18,7 @@ export class FavoritesService {
     private dataSource = inject(XTREAM_DATA_SOURCE);
 
     async addToFavorites(item: {
-        content_id: number;
+        content_id: XtreamCollectionRef;
         playlist_id: string;
         backdrop_url?: string;
     }): Promise<void> {
@@ -27,13 +30,16 @@ export class FavoritesService {
     }
 
     async removeFromFavorites(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string
     ): Promise<void> {
         await this.dataSource.removeFavorite(contentId, playlistId);
     }
 
-    async isFavorite(contentId: number, playlistId: string): Promise<boolean> {
+    async isFavorite(
+        contentId: XtreamCollectionRef,
+        playlistId: string
+    ): Promise<boolean> {
         return await this.dataSource.isFavorite(contentId, playlistId);
     }
 

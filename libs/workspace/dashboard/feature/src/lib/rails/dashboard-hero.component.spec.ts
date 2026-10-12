@@ -27,8 +27,6 @@ const slide = (id: string, title: string): DashboardHeroSlide => ({
     progress: null,
     accentHue: 200,
     backdropSource: 'fallback',
-    fallbackBackdropBackground: 'none',
-    fallbackPosterBackground: 'none',
     hasBackdrop: false,
     primaryAction: {
         labelKey: 'WORKSPACE.DASHBOARD.HERO_CONTINUE',
@@ -46,7 +44,7 @@ describe('DashboardHeroComponent', () => {
 
     const host = () => fixture.nativeElement as HTMLElement;
     const activeTitle = () =>
-        host().querySelector('[data-test-id=dashboard-hero-slide] h1')
+        host().querySelector('[data-test-id=dashboard-hero-slide] h2')
             ?.textContent;
     const dots = () =>
         Array.from(
@@ -256,6 +254,135 @@ describe('DashboardHeroComponent', () => {
         ).toBe('/workspace/a');
     });
 
+    it('lays out every slide but shows and exposes only the active one', () => {
+        // The hero is as tall as its tallest slide only while every slide
+        // stays in flow; re-creating one slide per change resized it.
+        render();
+        const contents = () =>
+            Array.from(host().querySelectorAll<HTMLElement>('.hero__content'));
+        const inert = () => contents().map((el) => el.hasAttribute('inert'));
+        const [first, second] = contents();
+        expect(inert()).toEqual([false, true, true]);
+        const hooks = (testId: string) =>
+            Array.from(host().querySelectorAll(`[data-test-id=${testId}]`));
+        for (const testId of [
+            'dashboard-hero-slide',
+            'dashboard-hero-badges',
+            'dashboard-hero-primary-action',
+        ]) {
+            expect(hooks(testId)).toHaveLength(1);
+            expect(first.contains(hooks(testId)[0])).toBe(true);
+        }
+
+        finishActiveDot();
+
+        expect(contents()).toHaveLength(3);
+        expect(contents()[0]).toBe(first);
+        expect(contents()[1]).toBe(second);
+        expect(inert()).toEqual([true, false, true]);
+        expect(second.getAttribute('data-test-id')).toBe(
+            'dashboard-hero-slide'
+        );
+        expect(first.hasAttribute('data-test-id')).toBe(false);
+    });
+
+    it('follows Enter to the primary action of the slide on screen', () => {
+        render();
+        const section = host().querySelector(
+            '[data-test-id=dashboard-hero]'
+        ) as HTMLElement;
+        const followed: (string | null)[] = [];
+        host()
+            .querySelectorAll<HTMLElement>('.hero__button--primary')
+            .forEach((button) =>
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    followed.push(button.getAttribute('href'));
+                })
+            );
+
+        dots()[1].click();
+        fixture.detectChanges();
+        section.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+
+        expect(followed).toEqual(['/workspace/b']);
+    });
+
+    it('titles each slide with an h2 and leaves the h1 to the page', () => {
+        render();
+
+        expect(host().querySelector('h1')).toBeNull();
+        expect(activeTitle()).toBe('First');
+    });
+
+    it('announces slide changes through one live region that outlives the slides', () => {
+        // A live region inserted together with its text is not announced (a
+        // slide can arrive late) and the slides not on screen are inert, so
+        // it must not belong to a slide.
+        render();
+        const announcement = () =>
+            host().querySelector<HTMLElement>(
+                '[data-test-id=dashboard-hero-announcement]'
+            );
+        const region = announcement();
+        expect(region).not.toBeNull();
+        expect(
+            region?.closest('[data-test-id=dashboard-hero-slide]')
+        ).toBeNull();
+        expect(
+            host()
+                .querySelector('[data-test-id=dashboard-hero-slide]')
+                ?.hasAttribute('aria-live')
+        ).toBe(false);
+        // Rotating on its own: silent.
+        expect(region?.getAttribute('aria-live')).toBe('off');
+        expect(region?.textContent).toContain('First');
+
+        const section = host().querySelector(
+            '[data-test-id=dashboard-hero]'
+        ) as HTMLElement;
+        section.dispatchEvent(new Event('focusin'));
+        dots()[1].click();
+        fixture.detectChanges();
+
+        expect(announcement()).toBe(region);
+        expect(region?.getAttribute('aria-live')).toBe('polite');
+        expect(region?.getAttribute('aria-atomic')).toBe('true');
+        expect(region?.textContent).toContain('Second');
+    });
+
+    it('names the progress bar after what is progressing', () => {
+        slides.set([
+            { ...slide('a', 'Movie'), progress: 42 },
+            {
+                ...slide('b', 'Channel'),
+                contentType: 'live',
+                programmeTitle: 'Evening programme',
+                progress: 10,
+            },
+        ]);
+        render();
+        const bar = () =>
+            host().querySelector(
+                '[data-test-id=dashboard-hero-slide] [role=progressbar]'
+            );
+
+        expect(bar()?.getAttribute('aria-label')).toBe('Movie');
+        // The translate pipe echoes the key in this test bed.
+        expect(bar()?.getAttribute('aria-valuetext')).toBe(
+            'WORKSPACE.DASHBOARD.PERCENT_WATCHED'
+        );
+
+        dots()[1].click();
+        fixture.detectChanges();
+        expect(bar()?.getAttribute('aria-label')).toBe('Evening programme');
+        // Elapsed share of a live programme: the plain percentage.
+        expect(bar()?.hasAttribute('aria-valuetext')).toBe(false);
+        expect(bar()?.getAttribute('aria-valuenow')).toBe('10');
+    });
+
     it('positions the progress fill through a custom property, never its width', () => {
         // Animating width re-lays out the page on every live-EPG tick; the
         // stylesheet slides the fill with a transform driven by this property.
@@ -276,6 +403,68 @@ describe('DashboardHeroComponent', () => {
         expect(
             host().querySelector('[data-test-id=dashboard-hero]')
         ).toBeNull();
+    });
+
+    it('switches slides with the arrow keys and follows Enter on the hero itself', () => {
+        render();
+        const section = host().querySelector(
+            '[data-test-id=dashboard-hero]'
+        ) as HTMLElement;
+        expect(section.getAttribute('tabindex')).toBe('0');
+
+        section.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })
+        );
+        fixture.detectChanges();
+        expect(activeTitle()).toBe('Second');
+
+        section.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })
+        );
+        fixture.detectChanges();
+        expect(activeTitle()).toBe('First');
+
+        const primary = host().querySelector<HTMLElement>(
+            '[data-test-id=dashboard-hero-primary-action]'
+        ) as HTMLElement;
+        const clicked = jest.fn();
+        primary.addEventListener('click', (event) => {
+            event.preventDefault();
+            clicked();
+        });
+        section.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+        expect(clicked).toHaveBeenCalledTimes(1);
+
+        // Keys pressed inside a control belong to that control.
+        const dot = dots()[0];
+        dot.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+        expect(clicked).toHaveBeenCalledTimes(1);
+    });
+
+    it('pauses the rotation while the document is hidden', () => {
+        const visibility = jest
+            .spyOn(document, 'visibilityState', 'get')
+            .mockReturnValue('visible');
+        render();
+        const section = host().querySelector(
+            '[data-test-id=dashboard-hero]'
+        ) as HTMLElement;
+        expect(section.classList).not.toContain('hero--paused');
+
+        visibility.mockReturnValue('hidden');
+        document.dispatchEvent(new Event('visibilitychange'));
+        fixture.detectChanges();
+        expect(section.classList).toContain('hero--paused');
+
+        visibility.mockReturnValue('visible');
+        document.dispatchEvent(new Event('visibilitychange'));
+        fixture.detectChanges();
+        expect(section.classList).not.toContain('hero--paused');
+        visibility.mockRestore();
     });
 });
 

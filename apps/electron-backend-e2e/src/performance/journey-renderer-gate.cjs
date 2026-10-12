@@ -22,6 +22,11 @@
  * therefore drops `ready-to-show` while the window is on `about:blank`;
  * Electron emits it again for the real document's first paint, because the
  * window is still hidden, which is the moment production sees.
+ * The app also shows its window at the main frame's `did-finish-load`
+ * when that comes first, so the gate keeps the app's `did-finish-load`
+ * listeners (those registered before the gated load) away from the
+ * about:blank load too. Electron's own listener that resolves
+ * `loadURL(about:blank)` is registered later and still runs.
  *
  * With `ipcMain` passed in, the gate also keeps the listeners registered
  * with `ipcMain.handle` for `TAPPED_IPC_CHANNELS`, so the test can call a
@@ -53,6 +58,38 @@ function holdReadyToShowWhileBlank(window, state) {
     };
 }
 
+function holdDidFinishLoadWhileBlank(window, state) {
+    const contents = window.webContents;
+    if (
+        !contents ||
+        typeof contents.emit !== 'function' ||
+        typeof contents.rawListeners !== 'function'
+    ) {
+        return;
+    }
+    const appListeners = contents.rawListeners('did-finish-load');
+    const originalEmit = contents.emit;
+    contents.emit = function gatedContentsEmit(eventName, ...args) {
+        if (eventName !== 'did-finish-load' || !isShowingBlank(window)) {
+            return originalEmit.call(this, eventName, ...args);
+        }
+        state.didFinishLoadHeldOnBlank += 1;
+        const attached = this.rawListeners(eventName);
+        const held = appListeners.filter((listener) =>
+            attached.includes(listener)
+        );
+        for (const listener of held) this.removeListener(eventName, listener);
+        try {
+            return originalEmit.call(this, eventName, ...args);
+        } finally {
+            // Raw listeners keep their `once` wrappers, so a re-added once
+            // listener still fires once for the real document.
+            for (const listener of held)
+                this.prependListener(eventName, listener);
+        }
+    };
+}
+
 function tapIpcHandlers(ipcMain, channels) {
     const handlers = new Map();
     const originalHandle = ipcMain.handle;
@@ -78,6 +115,7 @@ function installJourneyRendererGate(BrowserWindow, target, options = {}) {
         errors: [],
         gatedEpochMs: null,
         gatedMethod: null,
+        didFinishLoadHeldOnBlank: 0,
         passThroughLoads: 0,
         readyToShowHeldOnBlank: 0,
         releasedEpochMs: null,
@@ -128,6 +166,7 @@ function installJourneyRendererGate(BrowserWindow, target, options = {}) {
             state.gatedEpochMs = now();
             state.gatedMethod = method;
             holdReadyToShowWhileBlank(this, state);
+            holdDidFinishLoadWhileBlank(this, state);
             try {
                 await this.webContents.loadURL(BLANK_URL);
                 state.blankLoadedEpochMs = now();

@@ -13,6 +13,8 @@ export interface SettingsSection {
     label: string;
     icon: string;
     visible: boolean;
+    /** Navigation group; absent for sections pinned to the nav footer. */
+    group?: string;
 }
 
 export interface ThemeOption {

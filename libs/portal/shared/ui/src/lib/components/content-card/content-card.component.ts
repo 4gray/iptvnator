@@ -8,13 +8,12 @@ import {
     linkedSignal,
     output,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
-import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/services';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
 
 /** Channel-like cards always keep their label: logos rarely identify them. */
@@ -23,7 +22,7 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
 @Component({
     selector: 'app-content-card',
     standalone: true,
-    imports: [DatePipe, MatIcon, MatIconButton, MatTooltip],
+    imports: [DatePipe, MatIcon, MatIconButton, MatTooltip, TranslatePipe],
     templateUrl: './content-card.component.html',
     styleUrl: './content-card.component.scss',
     host: { '[class.content-card--posters-only]': 'postersOnly()' },
@@ -32,10 +31,7 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
 export class ContentCardComponent {
     private readonly translate = inject(TranslateService);
     private readonly coverTitles = inject(CoverTitlesService);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     /** URL of the poster image */
     readonly posterUrl = input<string>();
@@ -52,8 +48,8 @@ export class ContentCardComponent {
     /** Whether to show the remove button */
     readonly showRemoveButton = input<boolean>(false);
 
-    /** Tooltip text for the remove button */
-    readonly removeTooltip = input<string>('Remove');
+    /** Tooltip text for the remove button; empty means the generic "Remove" */
+    readonly removeTooltip = input<string>('');
 
     /** Whether to show placeholder when no poster */
     readonly showPlaceholder = input<boolean>(true);

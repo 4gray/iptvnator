@@ -7,7 +7,6 @@ import {
     withProps,
     withState,
 } from '@ngrx/signals';
-import { TranslateService } from '@ngx-translate/core';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     DataService,
@@ -22,6 +21,7 @@ import {
     StalkerItvChannel,
     StalkerVodSource,
 } from '../../models';
+import type { StalkerCategoryLabel } from '../../stalker-category-label';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { StalkerItvCacheService } from '../../stalker-itv-cache.service';
 import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
@@ -64,6 +64,7 @@ function withheldStalkerCategoryIds(
  * Content/categories/channels feature state.
  */
 export interface StalkerContentState {
+    categoryPlaylistKey: string | null;
     totalCount: number;
     vodCategories: StalkerCategoryItem[];
     seriesCategories: StalkerCategoryItem[];
@@ -96,6 +97,7 @@ export interface StalkerContentState {
 }
 
 const initialContentState: StalkerContentState = {
+    categoryPlaylistKey: null,
     totalCount: 0,
     vodCategories: [],
     seriesCategories: [],
@@ -134,9 +136,13 @@ interface StalkerContentResourceStoreContract extends StalkerContentFeatureStore
 }
 
 function getCategoriesByType(
-    store: StalkerCategorySliceContract,
-    contentType: StalkerContentType
+    store: StalkerCategorySliceContract & {
+        categoryPlaylistKey(): string | null;
+    },
+    contentType: StalkerContentType,
+    playlistKey: string | null
 ): StalkerCategoryItem[] {
+    if (store.categoryPlaylistKey() !== playlistKey) return [];
     switch (contentType) {
         case 'vod':
             return store.vodCategories();
@@ -165,24 +171,27 @@ function buildCategoryPatch(
     }
 }
 
+/**
+ * The every-item genre. It carries a translation key, not a translated
+ * name: the list outlives a runtime language switch, so the views translate
+ * the key whenever they render it.
+ */
 function buildAllCategory(
-    contentType: StalkerContentType,
-    translateService: TranslateService
+    contentType: StalkerContentType
 ): StalkerCategoryItem {
     return {
-        category_name: translateService.instant(
+        category_name: '',
+        category_id: '*',
+        labelKey:
             contentType === 'radio'
                 ? 'PORTALS.ALL_RADIO'
-                : 'PORTALS.ALL_CATEGORIES'
-        ),
-        category_id: '*',
+                : 'PORTALS.ALL_CATEGORIES',
     };
 }
 
 function prependAllCategory(
     contentType: StalkerContentType,
-    categories: StalkerCategoryItem[],
-    translateService: TranslateService
+    categories: StalkerCategoryItem[]
 ): StalkerCategoryItem[] {
     const allIndex = categories.findIndex(
         (category) => category.category_name.trim().toLowerCase() === 'all'
@@ -198,16 +207,14 @@ function prependAllCategory(
         categories.length > 0 &&
         !categories.some((category) => String(category.category_id) === '*')
     ) {
-        categories.unshift(buildAllCategory(contentType, translateService));
+        categories.unshift(buildAllCategory(contentType));
     }
 
     return categories;
 }
 
-function fallbackRadioCategories(
-    translateService: TranslateService
-): StalkerCategoryItem[] {
-    return [buildAllCategory('radio', translateService)];
+function fallbackRadioCategories(): StalkerCategoryItem[] {
+    return [buildAllCategory('radio')];
 }
 
 /** Stable identity of a Stalker portal inside the content resource. */
@@ -276,7 +283,6 @@ export function withStalkerContent() {
                 dataService = inject(DataService),
                 stalkerSession = inject(StalkerSessionService),
                 portalRepair = inject(StalkerPortalRepairService),
-                translateService = inject(TranslateService),
                 itvCache = inject(StalkerItvCacheService),
                 parentalLock = inject(ParentalLockService)
             ) => {
@@ -304,7 +310,26 @@ export function withStalkerContent() {
                         }),
                         loader: async ({
                             params,
+                            abortSignal,
                         }): Promise<StalkerCategoryItem[]> => {
+                            const playlistKey = stalkerPlaylistKey(
+                                params.currentPlaylist
+                            );
+                            if (store.categoryPlaylistKey() !== playlistKey) {
+                                patchState(store, {
+                                    categoryPlaylistKey: playlistKey,
+                                    vodCategories: [],
+                                    seriesCategories: [],
+                                    itvCategories: [],
+                                    radioCategories: [],
+                                    categoryError: null,
+                                });
+                            }
+                            const isCurrent = () =>
+                                !abortSignal.aborted &&
+                                stalkerPlaylistKey(
+                                    storeContext.currentPlaylist()
+                                ) === playlistKey;
                             if (!params.currentPlaylist) {
                                 patchState(store, { categoryError: null });
                                 return [];
@@ -312,7 +337,8 @@ export function withStalkerContent() {
 
                             const cachedCategories = getCategoriesByType(
                                 store,
-                                params.contentType
+                                params.contentType,
+                                playlistKey
                             );
                             if (cachedCategories.length > 0) {
                                 patchState(store, { categoryError: null });
@@ -332,6 +358,7 @@ export function withStalkerContent() {
                                         }
                                     );
 
+                                if (!isCurrent()) return [];
                                 if (!Array.isArray(response?.js)) {
                                     const invalidResponseError = new Error(
                                         'Invalid categories response'
@@ -342,9 +369,7 @@ export function withStalkerContent() {
                                     );
                                     if (params.contentType === 'radio') {
                                         const fallback =
-                                            fallbackRadioCategories(
-                                                translateService
-                                            );
+                                            fallbackRadioCategories();
                                         patchState(store, {
                                             radioCategories: fallback,
                                             categoryError: null,
@@ -374,11 +399,8 @@ export function withStalkerContent() {
                                     params.contentType,
                                     params.contentType === 'radio' &&
                                         normalizedCategories.length === 0
-                                        ? fallbackRadioCategories(
-                                              translateService
-                                          )
-                                        : normalizedCategories,
-                                    translateService
+                                        ? fallbackRadioCategories()
+                                        : normalizedCategories
                                 );
 
                                 patchState(store, {
@@ -391,15 +413,13 @@ export function withStalkerContent() {
 
                                 return categories;
                             } catch (error) {
+                                if (!isCurrent()) return [];
                                 logger.warn('Error loading categories', {
                                     contentType: params.contentType,
                                     error,
                                 });
                                 if (params.contentType === 'radio') {
-                                    const fallback =
-                                        fallbackRadioCategories(
-                                            translateService
-                                        );
+                                    const fallback = fallbackRadioCategories();
                                     patchState(store, {
                                         radioCategories: fallback,
                                         categoryError: null,
@@ -442,7 +462,10 @@ export function withStalkerContent() {
                                     : 0,
                             availableCategoryCount: getCategoriesByType(
                                 store,
-                                storeContext.selectedContentType()
+                                storeContext.selectedContentType(),
+                                stalkerPlaylistKey(
+                                    storeContext.currentPlaylist()
+                                )
                             ).filter(
                                 (category) =>
                                     String(category.category_id) !== '*'
@@ -945,7 +968,11 @@ export function withStalkerContent() {
                     storeContext.currentPlaylist(),
                     contentType
                 );
-                const categories = getCategoriesByType(store, contentType);
+                const categories = getCategoriesByType(
+                    store,
+                    contentType,
+                    stalkerPlaylistKey(storeContext.currentPlaylist())
+                );
                 return withheld.size === 0
                     ? categories
                     : categories.filter(
@@ -977,6 +1004,21 @@ export function withStalkerContent() {
                 }
                 counts.set(Number.NaN, channels.length);
                 return counts;
+            });
+            /** The selected genre as listed, or undefined (none or unknown). */
+            const selectedListedCategory = computed(() => {
+                const selectedCategoryId = storeContext.selectedCategoryId();
+                if (!selectedCategoryId) {
+                    return undefined;
+                }
+                return getCategoriesByType(
+                    store,
+                    storeContext.selectedContentType(),
+                    stalkerPlaylistKey(storeContext.currentPlaylist())
+                ).find(
+                    (item) =>
+                        String(item.category_id) === String(selectedCategoryId)
+                );
             });
 
             return {
@@ -1061,16 +1103,21 @@ export function withStalkerContent() {
                 ),
                 getSelectedCategory: computed(() => {
                     const categoryId = storeContext.selectedCategoryId();
+                    // Every item: the view supplies the translated title.
                     if (!categoryId) {
                         return {
                             id: 0,
-                            category_name: 'All Items',
+                            category_name: '',
                             type: storeContext.selectedContentType(),
                         };
                     }
 
                     const contentType = storeContext.selectedContentType();
-                    const categories = getCategoriesByType(store, contentType);
+                    const categories = getCategoriesByType(
+                        store,
+                        contentType,
+                        stalkerPlaylistKey(storeContext.currentPlaylist())
+                    );
 
                     return (
                         categories.find(
@@ -1084,23 +1131,16 @@ export function withStalkerContent() {
                         }
                     );
                 }),
-                getSelectedCategoryName: computed(() => {
-                    const selectedCategoryId =
-                        storeContext.selectedCategoryId();
-                    if (!selectedCategoryId) {
-                        return '';
-                    }
-
-                    const category = getCategoriesByType(
-                        store,
-                        storeContext.selectedContentType()
-                    ).find(
-                        (item) =>
-                            String(item.category_id) ===
-                            String(selectedCategoryId)
-                    );
-
-                    return category?.category_name ?? '';
+                /**
+                 * What the selected genre is called; render it with
+                 * `stalkerCategoryLabelText`. Empty while none is selected.
+                 */
+                getSelectedCategoryLabel: computed<StalkerCategoryLabel>(() => {
+                    const category = selectedListedCategory();
+                    return {
+                        name: category?.category_name ?? '',
+                        labelKey: category?.labelKey ?? null,
+                    };
                 }),
                 getPaginatedContent: computed(() => store.paginatedContent()),
                 isPaginatedContentLoading: computed(() =>
@@ -1112,7 +1152,8 @@ export function withStalkerContent() {
                 getAllCategoriesForSelectedType: computed(() =>
                     getCategoriesByType(
                         store,
-                        storeContext.selectedContentType()
+                        storeContext.selectedContentType(),
+                        stalkerPlaylistKey(storeContext.currentPlaylist())
                     )
                 ),
                 isCategoryResourceLoading: computed(() =>
@@ -1166,8 +1207,15 @@ export function withStalkerContent() {
                     type: StalkerContentType,
                     categories: StalkerCategoryItem[]
                 ) {
-                    patchState(store, buildCategoryPatch(type, categories));
+                    patchState(store, {
+                        categoryPlaylistKey: stalkerPlaylistKey(
+                            storeContext.currentPlaylist()
+                        ),
+                        ...buildCategoryPatch(type, categories),
+                    });
                 },
+                // Clears only: called on portal switches and route teardown,
+                // where a reload would ask the portal being left.
                 resetCategories() {
                     patchState(store, {
                         vodCategories: [],
@@ -1176,6 +1224,14 @@ export function withStalkerContent() {
                         radioCategories: [],
                         categoryError: null,
                     });
+                },
+                /**
+                 * Refetches the current portal's categories. For a reset that
+                 * keeps the owner: the resource's params do not change then,
+                 * so it would not load on its own.
+                 */
+                reloadCategories() {
+                    storeContext.categoryResource.reload();
                 },
                 setItvChannels(channels: StalkerItvChannel[]) {
                     patchState(store, {

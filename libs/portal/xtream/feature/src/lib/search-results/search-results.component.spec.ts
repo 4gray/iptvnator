@@ -1,6 +1,5 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MatDialogRef } from '@angular/material/dialog';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 import { DatabaseService } from '@iptvnator/services';
@@ -16,10 +15,6 @@ jest.mock('@iptvnator/portal/shared/ui', () => ({
     ContentCardComponent: class {},
     SearchLayoutComponent: class {},
 }));
-
-/** The component is opened as a route, not a dialog: `@Optional()` resolves nothing. */
-const NO_DIALOG_REF =
-    undefined as unknown as MatDialogRef<SearchResultsComponent>;
 
 const DEFAULT_SEARCH_FILTERS: SearchFilters = {
     live: true,
@@ -78,7 +73,7 @@ class MockXtreamStore {
     setSelectedContentType = jest.fn();
 }
 
-describe('SearchResultsComponent initialQuery contract', () => {
+describe('SearchResultsComponent global search', () => {
     let routerNavigateMock: jest.Mock;
 
     beforeEach(() => {
@@ -102,7 +97,6 @@ describe('SearchResultsComponent initialQuery contract', () => {
                         snapshot: {
                             data: {
                                 isGlobalSearch: true,
-                                layout: 'workspace',
                             },
                             queryParamMap: convertToParamMap({ q: '' }),
                         },
@@ -119,60 +113,24 @@ describe('SearchResultsComponent initialQuery contract', () => {
         });
     });
 
-    it('applies initialQuery when opened as global search', () => {
-        const component = TestBed.runInInjectionContext(
-            () =>
-                new SearchResultsComponent(
-                    {
-                        isGlobalSearch: true,
-                        initialQuery: 'matrix',
-                    },
-                    NO_DIALOG_REF
-                )
-        );
-
-        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
-        expect(store.setSearchTerm).toHaveBeenCalledWith('matrix');
-        expect(component.searchTerm()).toBe('matrix');
-    });
-
-    it('does not force search term when initialQuery is not provided', () => {
-        TestBed.runInInjectionContext(
-            () =>
-                new SearchResultsComponent(
-                    {
-                        isGlobalSearch: true,
-                    },
-                    NO_DIALOG_REF
-                )
-        );
-
-        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
-        expect(store.setSearchTerm).not.toHaveBeenCalled();
-    });
-
     it('clears the workspace global search term when the route q param is empty', () => {
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
         store.searchTerm.set('matrix');
 
         const component = TestBed.runInInjectionContext(
-            () => new SearchResultsComponent(null, NO_DIALOG_REF)
+            () => new SearchResultsComponent()
         );
         TestBed.flushEffects();
 
         expect(store.setSearchTerm).toHaveBeenCalledWith('');
         expect(component.searchTerm()).toBe('');
+        expect(component.isGlobalSearch).toBe(true);
+        expect(component.backAvailable).toBe(false);
     });
 
     it('navigates global search selection to workspace xtream route', () => {
         const component = TestBed.runInInjectionContext(
-            () =>
-                new SearchResultsComponent(
-                    {
-                        isGlobalSearch: true,
-                    },
-                    NO_DIALOG_REF
-                )
+            () => new SearchResultsComponent()
         );
 
         component.selectItem(
@@ -191,13 +149,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
 
     it('navigates M3U global search selection to the M3U player with route state', () => {
         const component = TestBed.runInInjectionContext(
-            () =>
-                new SearchResultsComponent(
-                    {
-                        isGlobalSearch: true,
-                    },
-                    NO_DIALOG_REF
-                )
+            () => new SearchResultsComponent()
         );
         const channel = {
             id: 'channel-news',
@@ -262,13 +214,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
             .mockResolvedValueOnce(freshResults);
 
         const component = TestBed.runInInjectionContext(
-            () =>
-                new SearchResultsComponent(
-                    {
-                        isGlobalSearch: true,
-                    },
-                    NO_DIALOG_REF
-                )
+            () => new SearchResultsComponent()
         );
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
 
@@ -309,13 +255,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
             .mockResolvedValueOnce(secondPage);
 
         const component = TestBed.runInInjectionContext(
-            () =>
-                new SearchResultsComponent(
-                    {
-                        isGlobalSearch: true,
-                    },
-                    NO_DIALOG_REF
-                )
+            () => new SearchResultsComponent()
         );
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
 
@@ -362,13 +302,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
             .mockReturnValueOnce(freshSearch.promise);
 
         const component = TestBed.runInInjectionContext(
-            () =>
-                new SearchResultsComponent(
-                    {
-                        isGlobalSearch: true,
-                    },
-                    NO_DIALOG_REF
-                )
+            () => new SearchResultsComponent()
         );
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
         store.searchResults.set([createSearchItem()]);
@@ -409,13 +343,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
         databaseService.globalSearchContent.mockResolvedValueOnce(nextPage);
 
         const component = TestBed.runInInjectionContext(
-            () =>
-                new SearchResultsComponent(
-                    {
-                        isGlobalSearch: true,
-                    },
-                    NO_DIALOG_REF
-                )
+            () => new SearchResultsComponent()
         );
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
         store.searchResults.set([createSearchItem({ id: 1, xtream_id: 1 })]);
@@ -465,13 +393,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
         databaseService.globalSearchContent.mockResolvedValueOnce(firstPage);
 
         const component = TestBed.runInInjectionContext(
-            () =>
-                new SearchResultsComponent(
-                    {
-                        isGlobalSearch: true,
-                    },
-                    NO_DIALOG_REF
-                )
+            () => new SearchResultsComponent()
         );
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
 
@@ -505,7 +427,7 @@ describe('SearchResultsComponent in-portal result window', () => {
                     provide: ActivatedRoute,
                     useValue: {
                         snapshot: {
-                            data: { layout: 'workspace' },
+                            data: {},
                             queryParamMap: convertToParamMap({ q: '' }),
                         },
                         queryParamMap: of(convertToParamMap({ q: '' })),
@@ -524,7 +446,7 @@ describe('SearchResultsComponent in-portal result window', () => {
     it('windows the full result set, reveals further chunks, and resets on a new result set', () => {
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
         const component = TestBed.runInInjectionContext(
-            () => new SearchResultsComponent(null, NO_DIALOG_REF)
+            () => new SearchResultsComponent()
         );
         const items = Array.from({ length: 130 }, (_, index) =>
             createSearchItem({
@@ -536,6 +458,7 @@ describe('SearchResultsComponent in-portal result window', () => {
         store.searchResults.set(items);
 
         expect(component.isGlobalSearch).toBe(false);
+        expect(component.backAvailable).toBe(true);
         expect(component.visibleInPortalResults()).toHaveLength(60);
         expect(component.renderedSearchResultsCount()).toBe(60);
         expect(component.hasMoreSearchResults()).toBe(true);
@@ -563,7 +486,7 @@ describe('SearchResultsComponent in-portal result window', () => {
     it('changes the reset identity on filter-only transitions', () => {
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
         const component = TestBed.runInInjectionContext(
-            () => new SearchResultsComponent(null, NO_DIALOG_REF)
+            () => new SearchResultsComponent()
         );
 
         const initialIdentity = component.searchResetIdentity();

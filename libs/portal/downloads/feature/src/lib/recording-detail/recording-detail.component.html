@@ -1,5 +1,6 @@
 @if (item(); as recording) {
     <app-portal-detail-shell
+        [contentKey]="'recording:' + recordingId()"
         [title]="title()"
         [description]="recording.programDescription ?? ''"
         [posterUrl]="recording.channelLogoUrl ?? ''"
@@ -36,28 +37,30 @@
                     [disabled]="isPending()"
                     (click)="runAction('remove')"
                 >
-                    <mat-icon aria-hidden="true">remove_circle_outline</mat-icon>
+                    <mat-icon aria-hidden="true"
+                        >remove_circle_outline</mat-icon
+                    >
                     {{ 'DOWNLOADS.REMOVE_FROM_MANAGER' | translate }}
                 </button>
             </div>
         } @else {
             <ng-template appDetailTags>
-                <span class="details__tag recording-detail__badge">
+                <app-meta-chip class="recording-detail__badge">
                     <mat-icon aria-hidden="true">fiber_manual_record</mat-icon>
                     {{ 'DOWNLOADS.RECORDING_BADGE' | translate }}
-                </span>
-                <span class="details__tag">{{ recording.channelName }}</span>
+                </app-meta-chip>
+                <app-meta-chip>{{ recording.channelName }}</app-meta-chip>
                 @if (durationLabel()) {
-                    <span class="details__tag">{{ durationLabel() }}</span>
+                    <app-meta-chip>{{ durationLabel() }}</app-meta-chip>
                 }
                 @if (sizeLabel()) {
-                    <span class="details__tag">{{ sizeLabel() }}</span>
+                    <app-meta-chip>{{ sizeLabel() }}</app-meta-chip>
                 }
-                <span class="details__tag">MPEG-TS</span>
+                <app-meta-chip>MPEG-TS</app-meta-chip>
                 @if (recording.status === 'interrupted') {
-                    <span class="details__tag details__tag--status">
+                    <app-meta-chip variant="status">
                         {{ 'DOWNLOADS.STATUS.INTERRUPTED' | translate }}
-                    </span>
+                    </app-meta-chip>
                 }
             </ng-template>
 
@@ -129,9 +132,7 @@
                     type="button"
                     data-testid="recording-overflow"
                     [matMenuTriggerFor]="detailMenu"
-                    [attr.aria-label]="
-                        'DOWNLOADS.MORE_ACTIONS' | translate
-                    "
+                    [attr.aria-label]="'DOWNLOADS.MORE_ACTIONS' | translate"
                 >
                     <mat-icon>more_vert</mat-icon>
                 </button>
@@ -167,17 +168,22 @@
                     @for (program of coveredPrograms(); track program.start) {
                         <li class="recording-detail__program">
                             <time>
-                                {{ programDisplayMs(program.start) | date: 'HH:mm' }} –
-                                {{ programDisplayMs(program.stop) | date: 'HH:mm' }}
+                                {{
+                                    programDisplayMs(program.start)
+                                        | date: 'HH:mm'
+                                }}
+                                –
+                                {{
+                                    programDisplayMs(program.stop)
+                                        | date: 'HH:mm'
+                                }}
                             </time>
                             <div>
                                 <div class="recording-detail__program-title">
                                     {{ program.title }}
                                 </div>
                                 @if (program.description) {
-                                    <div
-                                        class="recording-detail__program-desc"
-                                    >
+                                    <div class="recording-detail__program-desc">
                                         {{ program.description }}
                                     </div>
                                 }

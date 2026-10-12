@@ -408,7 +408,8 @@ file running in parallel workers, so isolation is per-MAC rather than global:
   else is talking to the server — a spec that used it would wipe a sibling
   spec's session mid-test.
 - `apps/web-e2e/src/stalker.e2e.ts` declares its shared scenario MACs in
-  `OWNED_MACS` and clears them in one batched request. The sibling specs that
+  `OWNED_MACS` (the constants live in `stalker-portal.fixture.ts`) and clears
+  them in one batched request. The sibling specs that
   reach this server (`self-hosted.e2e.ts`, the `sources-pwa` helpers) own a
   disjoint `00:1A:79:5F:*` range, so neither file can clear the other's state.
 - Within each browser project, tests deliberately share content-scenario MACs

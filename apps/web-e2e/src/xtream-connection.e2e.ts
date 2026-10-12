@@ -75,7 +75,7 @@ for (const canTryHttp of [true, false]) {
                 : ['https://panel.example/base']
         );
         await expect(
-            dialog.getByRole('button', { name: 'Add', exact: true })
+            dialog.getByRole('button', { name: 'Add playlist', exact: true })
         ).toBeEnabled();
     });
 }

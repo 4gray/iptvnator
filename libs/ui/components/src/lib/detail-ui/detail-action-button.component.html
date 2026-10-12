@@ -1,0 +1,20 @@
+<button
+    type="button"
+    class="play-btn"
+    [class.play-btn--secondary]="variant() === 'secondary'"
+    [class.play-btn--launching]="state() === 'launching'"
+    [class.play-btn--stop]="state() === 'stop'"
+    [class.play-btn--two-line]="!!meta()"
+    [disabled]="disabled()"
+    [attr.data-testid]="testId()"
+    [attr.aria-busy]="state() === 'launching' ? 'true' : null"
+    (click)="pressed.emit()"
+>
+    <mat-icon class="play-btn__icon" aria-hidden="true">{{ icon() }}</mat-icon>
+    <span class="play-btn__copy">
+        <span class="play-btn__label">{{ label() }}</span>
+        @if (meta(); as metaLine) {
+            <span class="play-btn__meta">{{ metaLine }}</span>
+        }
+    </span>
+</button>

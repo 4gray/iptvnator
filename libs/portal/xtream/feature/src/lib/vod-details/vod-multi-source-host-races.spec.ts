@@ -138,7 +138,8 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
             expect.objectContaining({
                 streamUrl: expect.stringContaining(String(ALT_THREE.contentId)),
             }),
-            expect.any(Function)
+            expect.any(Function),
+            undefined
         );
     });
 

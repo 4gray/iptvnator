@@ -48,6 +48,7 @@ import type {
     ElectronBridgeEpgLookupOptions,
     ElectronBridgeEpgProgress,
     ElectronBridgePlaybackPositionInput,
+    ElectronBridgePlayerError,
     ElectronBridgePlaylistInput,
     ElectronBridgePlaylistOpenRequest,
     ElectronBridgePlaylistUpsertInput,
@@ -312,13 +313,7 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.send('REMOTE_CONTROL_STATUS_UPDATE', status);
     },
     // Player error listener
-    onPlayerError: (
-        callback: (data: {
-            player: string;
-            error: string;
-            originalError: string;
-        }) => void
-    ) => {
+    onPlayerError: (callback: (data: ElectronBridgePlayerError) => void) => {
         ipcRenderer.on('player-error', (_event, data) => callback(data));
     },
     onPortalDebugEvent: (callback: (data: PortalDebugEvent) => void) => {
@@ -1083,6 +1078,10 @@ const electronApi: ElectronBridgeApi = {
         ),
     dbGetAllPlaybackPositions: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_ALL_PLAYBACK_POSITIONS', playlistId),
+    dbReplaceAllPlaybackPositions: (
+        playlistId: string,
+        items: ElectronBridgePlaybackPositionInput[]
+    ) => ipcRenderer.invoke('DB_REPLACE_ALL_PLAYBACK_POSITIONS', playlistId, items),
     dbClearAllPlaybackPositions: (playlistId: string) =>
         ipcRenderer.invoke('DB_CLEAR_ALL_PLAYBACK_POSITIONS', playlistId),
     dbClearPlaybackPosition: (

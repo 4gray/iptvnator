@@ -1,7 +1,6 @@
 import {
     Component,
     effect,
-    HostBinding,
     inject,
     OnInit,
     signal,
@@ -48,14 +47,14 @@ import { PlaybackKeepAwakeService } from './services/playback-keep-awake.service
 import { PlaylistOpenRequestService } from './services/playlist-open-request.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 import { AppStartupStatusComponent } from './app-startup-status.component';
+import { syncDocumentLanguage } from './services/document-language';
 
 const debugAppComponent = createDevLogger('AppComponent');
 
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         AppStartupStatusComponent,
         AppUpdateNotificationPanelComponent,
@@ -66,9 +65,6 @@ const debugAppComponent = createDevLogger('AppComponent');
 })
 export class AppComponent implements OnInit {
     readonly routeReady = signal(false);
-    @HostBinding('class.macos-platform') get isMacOS() {
-        return this.runtime.isMacOS;
-    }
     get usesCustomWindowControls() {
         return this.runtime.usesCustomWindowControls;
     }
@@ -98,6 +94,8 @@ export class AppComponent implements OnInit {
     private readonly DEFAULT_LANG = Language.ENGLISH;
 
     constructor() {
+        syncDocumentLanguage();
+
         // Body-level class (like 'dark-theme') so layout adjustments also
         // reach content rendered outside app-root, e.g. cdk-overlay content.
         if (this.runtime.usesCustomWindowControls) {

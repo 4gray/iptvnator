@@ -7,14 +7,19 @@ import {
     inject,
     signal,
 } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
 import {
     buildStalkerSelectedVodItem,
     isStalkerSeriesFlag,
     StalkerLinkFlagSource,
     StalkerStore,
     StalkerVodSource,
+    stalkerCategoryLabelText,
 } from '@iptvnator/portal/stalker/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import {
+    PlaybackPositionRuntimeBridgeService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import {
     PortalCatalogItemProgress,
     PortalCatalogPlaylistMeta,
@@ -27,6 +32,7 @@ import {
     resolvePortalWatchState,
 } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
 @Injectable()
 export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
@@ -35,6 +41,8 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     StalkerVodSource
 > {
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly translate = inject(TranslateService);
+    private readonly languageTick = injectTranslationTick();
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
@@ -52,6 +60,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     private positionsLoadGeneration = 0;
 
     readonly provider = 'stalker' as const;
+    readonly routeReady = inject(StalkerWorkspaceRouteSession).isReady;
     readonly contentType = this.stalkerStore.selectedContentType;
     readonly selectedCategory = this.stalkerStore.getSelectedCategory;
     readonly paginatedContent = computed(
@@ -82,16 +91,17 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
      */
     private readonly savedScrollPositions = new Map<string, number>();
     readonly selectedCategoryTitle = computed(() => {
-        const category = this.selectedCategory();
-        const fromCategory = category
-            ? String(category.category_name ?? '')
-            : '';
-
-        if (fromCategory) {
-            return fromCategory;
+        // No category means every item: the view supplies that title.
+        if (!this.stalkerStore.selectedCategoryId()) {
+            return null;
         }
-
-        return this.stalkerStore.getSelectedCategoryName() ?? '';
+        // The store's every-item genre is named by a key, translated in the
+        // current language; the tick re-runs this after a switch.
+        this.languageTick();
+        return stalkerCategoryLabelText(
+            this.stalkerStore.getSelectedCategoryLabel(),
+            (key) => this.translate.instant(key)
+        );
     });
     readonly categoryItemCount = computed(() => this.stalkerStore.totalCount());
     readonly contentSortMode = computed<PortalCatalogSortMode | null>(

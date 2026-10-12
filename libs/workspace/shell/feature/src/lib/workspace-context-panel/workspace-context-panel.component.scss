@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/focus-ring';
+
 :host {
     display: flex;
     flex-direction: column;
@@ -80,10 +82,6 @@
     text-transform: uppercase;
 }
 
-.context-sort-check {
-    margin-left: auto;
-}
-
 .context-header p {
     margin: 4px 0 0;
     font-size: 0.78rem;
@@ -108,9 +106,9 @@
         box-shadow 0.15s ease;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-focus-ring);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-focus-ring) 12%, transparent);
     }
 }
 
@@ -289,8 +287,7 @@ app-workspace-context-category-view {
 
     &:focus-visible {
         color: var(--app-heading-color);
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     mat-icon {

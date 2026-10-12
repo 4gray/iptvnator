@@ -40,7 +40,9 @@ export async function addLiveFormatPortal(page: Page) {
     await dialog.locator('#serverUrl').fill(liveFormatMock);
     await dialog.locator('#username').fill('live-fallback');
     await dialog.locator('#password').fill('live-fallback');
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await page.waitForURL(/xtreams.*vod/);
     await page.getByRole('link', { name: 'Live TV', exact: true }).click();
     await page.locator('.context-panel .category-item').first().click();
