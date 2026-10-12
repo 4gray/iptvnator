@@ -20,14 +20,13 @@
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
             },
             "renderer.domMutationsToFirstCard": {
-                "value": 571,
+                "value": 570,
                 "unit": "mutations",
                 "slack": 0,
                 "updatedAt": "2026-10-12",
                 "evidencePr": 1903,
-                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38206088310",
-                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), CI run on PR 1903",
-                "note": "Raised by 2 for self-hosted server storage: the rail server shortcut and the workspace offline banner each leave one @if anchor comment in every build, also when server storage is inactive."
+                "measuredWith": "J1 launch A/B on macOS (pnpm run perf:journeys builds, launch journey only): master 6fe684af5 555, PR 1903 556 in every iteration; CI measured 569 on master",
+                "note": "Raised by 1 for self-hosted server storage: its new lazy chunks (server sign-in, server-storage providers, Settings > Server) split one shared initial chunk in two, so index.html carries one more modulepreload link, a node the parser inserts. Initial bytes stay within their baseline."
             },
             "main.modulesRegisteredBeforeWindow": {
                 "value": 2,

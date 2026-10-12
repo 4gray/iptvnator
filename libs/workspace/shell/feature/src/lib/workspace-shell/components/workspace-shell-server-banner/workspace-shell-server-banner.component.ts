@@ -6,7 +6,8 @@ import { ServerStorageStatusService } from '@iptvnator/services';
 
 /**
  * Self-hosted server storage is unreachable: the library on screen is the
- * last copy this browser read, and changes cannot be saved.
+ * last copy this browser read, and changes cannot be saved. Styled by the
+ * workspace shell's stylesheet (see there why).
  */
 @Component({
     selector: 'app-workspace-shell-server-banner',
@@ -33,7 +34,6 @@ import { ServerStorageStatusService } from '@iptvnator/services';
             </div>
         }
     `,
-    styleUrl: './workspace-shell-server-banner.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceShellServerBannerComponent {
