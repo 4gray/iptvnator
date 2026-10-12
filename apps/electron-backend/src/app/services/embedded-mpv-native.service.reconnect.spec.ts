@@ -631,6 +631,30 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         expect(addon.loadPlayback).toHaveBeenCalledTimes(2);
     });
 
+    it('forgets where the reload resumed once the user seeks', () => {
+        service.createSession(BOUNDS, 'Title', 0.5, {
+            extraOptions: [],
+            autoReconnect: true,
+        });
+        service.loadPlayback('session-1', VOD);
+        poll('loading');
+        positionSeconds = 1_260;
+        durationSeconds = 2_700;
+        poll('playing');
+        poll('ended');
+        status = 'loading';
+        jest.advanceTimersByTime(2_000);
+        poll('playing');
+
+        // A seek away and back: the next early EOF near the old resume
+        // point is a new drop, not the reload ending where it resumed.
+        service.seek('session-1', 600);
+        service.seekBy('session-1', 662);
+        poll('ended');
+
+        expect(lastUpdate()?.reconnect?.attempt).toBe(2);
+    });
+
     it('treats EOF on a live stream as a drop', () => {
         startPlayingLive();
 

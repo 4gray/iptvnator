@@ -89,8 +89,9 @@ export interface EmbeddedMpvReconnectState {
      */
     positionReported: boolean;
     /**
-     * Where the last VOD reload resumed, until playback gets past it. An
-     * early EOF before then ended where the file does, not where it dropped.
+     * Where the last VOD reload resumed, until playback gets past it or the
+     * user seeks. An early EOF before then ended where the file does, not
+     * where it dropped.
      */
     resumedAtSeconds: number | null;
     timer: NodeJS.Timeout | null;
@@ -199,6 +200,14 @@ export class EmbeddedMpvReconnectCoordinator {
         state.positionReported = false;
         state.resumedAtSeconds = null;
         state.pending = null;
+    }
+
+    /**
+     * The user moved the playhead: an EOF after that is not the reload
+     * ending where it resumed, so it is judged on its position alone.
+     */
+    onUserSeek(state: EmbeddedMpvReconnectState): void {
+        state.resumedAtSeconds = null;
     }
 
     cancel(state: EmbeddedMpvReconnectState): void {
@@ -350,9 +359,11 @@ export class EmbeddedMpvReconnectCoordinator {
             state.timer = null;
             state.attempts = attempt;
             state.attemptInFlight = true;
-            state.resumedAtSeconds = playback.startTime ?? null;
             try {
                 this.hooks.reload(sessionId, playback);
+                // Only a reload that started can end where it resumed; a
+                // refused one leaves the original EOF, still a drop.
+                state.resumedAtSeconds = playback.startTime ?? null;
             } catch (error) {
                 state.attemptInFlight = false;
                 if (isEmbeddedMpvSessionGoneError(error)) {

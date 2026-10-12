@@ -411,6 +411,114 @@ describe('EmbeddedMpvReconnectCoordinator', () => {
         });
     });
 
+    it('keeps retrying an early EOF when the addon refuses the reload', () => {
+        startPlaying(VOD);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            1_200,
+            undefined,
+            2_700
+        );
+        coordinator.observe(
+            SESSION,
+            state,
+            'ended',
+            'playing',
+            1_200,
+            undefined,
+            2_700
+        );
+        reload.mockImplementationOnce(() => {
+            throw new Error('addon exploded');
+        });
+        jest.advanceTimersByTime(2_000);
+
+        // The refused reload left the original EOF in the snapshot: it is
+        // still the drop, not a reload that ended where it resumed.
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'ended',
+                1_200,
+                undefined,
+                2_700
+            )?.attempt
+        ).toBe(2);
+        jest.advanceTimersByTime(4_000);
+        expect(reload).toHaveBeenCalledTimes(2);
+    });
+
+    it('judges an EOF after a user seek on its position alone', () => {
+        startPlaying(VOD);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            1_200,
+            undefined,
+            2_700
+        );
+        coordinator.observe(
+            SESSION,
+            state,
+            'ended',
+            'playing',
+            1_200,
+            undefined,
+            2_700
+        );
+        jest.advanceTimersByTime(2_000);
+        coordinator.observe(SESSION, state, 'loading', 'ended');
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'loading',
+            1_201,
+            undefined,
+            2_700
+        );
+
+        // Back to 10 min; the connection drops again a few minutes later.
+        coordinator.onUserSeek(state);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            600,
+            undefined,
+            2_700
+        );
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            1_202,
+            undefined,
+            2_700
+        );
+
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'playing',
+                1_203,
+                undefined,
+                2_700
+            )?.attempt
+        ).toBe(2);
+    });
+
     it('resumes a VOD reload where it dropped but keeps live at the live edge', () => {
         startPlaying(VOD);
         coordinator.observe(SESSION, state, 'playing', 'playing', 95);

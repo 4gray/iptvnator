@@ -727,10 +727,12 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
 - A VOD `ended` counts only when more than `max(10 s, 1 % of the duration)`
   remained (`isEmbeddedMpvEarlyEof`): the margin absorbs container rounding
   and the whole-second snapshot values, and with no known duration an EOF is
-  always the end. The reload records where it resumed; an early EOF before
-  playback gets 5 s past that point ended where the file does (a duration
-  mpv estimated from the bitrate can overshoot) and is left as the end, so
-  autoplay still continues after one attempt instead of a reload loop.
+  always the end. A reload the engine accepted records where it resumed; an
+  early EOF before playback gets 5 s past that point (and with no user seek
+  in between) ended where the file does (a duration mpv estimated from the
+  bitrate can overshoot) and is left as the end, so autoplay still continues
+  after one attempt instead of a reload loop. A refused reload records
+  nothing, so the original EOF keeps its backoff.
   With the setting off, an early EOF stays a plain `ended`.
 - Backoff is 2 s, 4 s, 8 s, 16 s, 30 s, 30 s, at most six attempts per
   outage. The budget resets only after 30 s of uninterrupted `playing`, so a
