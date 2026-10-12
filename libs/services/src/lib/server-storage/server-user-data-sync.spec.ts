@@ -76,7 +76,21 @@ function fakeServer(initial: Record<string, Record<string, unknown>> = {}) {
                 write(path, init.headers ?? {})
         ),
         readJson: jest.fn((response: Response) => response.json()),
-        sendKeepalive: jest.fn().mockResolvedValue(true),
+        sendKeepalive: jest.fn(
+            async (
+                _method: string,
+                path: string,
+                body?: { value: unknown },
+                headers: Record<string, string> = {}
+            ) => {
+                try {
+                    write(path, headers, body?.value);
+                    return true;
+                } catch {
+                    return false;
+                }
+            }
+        ),
     };
     return { state, api };
 }
@@ -211,7 +225,7 @@ describe('ServerUserDataStorage with other devices', () => {
         ]);
     });
 
-    it('drops queued edits and cache before a playlist is deleted', async () => {
+    it('drops queued edits and cache once a playlist is deleted', async () => {
         const server = fakeServer({ 'xtream-favorites': { p1: ['a'] } });
         const phone = new ServerUserDataStorage(
             server.api as never,
@@ -221,11 +235,107 @@ describe('ServerUserDataStorage with other devices', () => {
         await phone.hydrate();
         phone.setItem('xtream-favorites', JSON.stringify({ p1: ['a', 'b'] }));
 
-        await phone.discard('p1');
+        await phone.deleting('p1', async () => {
+            await phone.flush();
+            delete server.state['xtream-favorites']['p1'];
+        });
         await phone.flush();
 
         expect(server.api.sendJson).not.toHaveBeenCalled();
         expect(favorites(phone)).toEqual({});
+        expect(phone.hasUnsentWrites()).toBe(false);
+    });
+
+    it('keeps the edits of a playlist whose delete failed', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['a'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['a', 'b'] }));
+
+        await expect(
+            phone.deleting('p1', async () => {
+                throw new Error('offline');
+            })
+        ).rejects.toThrow('offline');
+        await phone.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['a', 'b']);
+        expect(favorites(phone)).toEqual({ p1: ['a', 'b'] });
+    });
+
+    it("re-reads another tab's unsent value without the server's tag", async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const shared = memoryStorage();
+        const tab = () =>
+            new ServerUserDataStorage(
+                server.api as never,
+                shared,
+                jest.fn(),
+                'default',
+                memoryStorage()
+            );
+        const tabA = tab();
+        const tabB = tab();
+        await tabA.hydrate();
+        await tabB.hydrate();
+        // Tab A's favorite is not sent yet when another device saves one.
+        tabA.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        server.state['xtream-favorites']['p1'] = ['S', 'Z'];
+
+        await tabB.hydrate();
+        expect(favorites(tabB)).toEqual({ p1: ['S', 'X'] });
+        tabB.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['S', 'X', 'Y'] })
+        );
+        // Each conflict replays the edit on the newest value: the two tabs
+        // settle after a few rounds.
+        for (let round = 0; round < 4; round += 1) {
+            await tabB.flush();
+            await tabA.flush();
+        }
+
+        expect(tabA.hasUnsentWrites() || tabB.hasUnsentWrites()).toBe(false);
+        expect(
+            [...(server.state['xtream-favorites']['p1'] as string[])].sort()
+        ).toEqual(['S', 'X', 'Y', 'Z']);
+    });
+
+    it('sends a page-hide edit on the version a travelling write created', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+
+        let answer: () => void = () => undefined;
+        const send = server.api.sendJson.getMockImplementation();
+        if (!send) {
+            throw new Error('The fake server answers sendJson');
+        }
+        server.api.sendJson.mockImplementationOnce(
+            (...args: Parameters<typeof send>) =>
+                new Promise(
+                    (resolve) => (answer = () => resolve(send(...args)))
+                )
+        );
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        const first = phone.flush();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // X is removed again while its addition is travelling; the page hides.
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S'] }));
+        phone.flushWithKeepalive();
+        answer();
+        await first;
+        await phone.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S']);
         expect(phone.hasUnsentWrites()).toBe(false);
     });
 });

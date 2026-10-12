@@ -42,7 +42,7 @@ export class ServerStorageSession {
     });
     readonly documentStore = new ServerPlaylistDocumentStore(
         this.api,
-        (playlistId) => this.userData.discard(playlistId)
+        (playlistId, remove) => this.userData.deleting(playlistId, remove)
     );
     readonly userData = new ServerUserDataStorage(
         this.api,

@@ -142,7 +142,7 @@ describe('ServerPlaylistDocumentStore', () => {
         });
     });
 
-    it('clears user-data writes before deleting on the server', async () => {
+    it('runs deletes through the user-data hold', async () => {
         const order: string[] = [];
         const api = {
             request: jest.fn(async (path: string) => {
@@ -155,17 +155,23 @@ describe('ServerPlaylistDocumentStore', () => {
         };
         const store = new ServerPlaylistDocumentStore(
             api as never,
-            async (playlistId) => void order.push(`discard ${playlistId}`)
+            async (playlistId, remove) => {
+                order.push(`hold ${playlistId}`);
+                await remove();
+                order.push(`release ${playlistId}`);
+            }
         );
 
         await store.dbDeletePlaylist('p1');
         await store.dbDeleteAllPlaylists();
 
         expect(order).toEqual([
-            'discard p1',
+            'hold p1',
             'DELETE /playlists/p1',
-            'discard undefined',
+            'release p1',
+            'hold undefined',
             'DELETE /playlists',
+            'release undefined',
         ]);
     });
 });

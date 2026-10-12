@@ -145,13 +145,32 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     /**
-     * Before a playlist (or every playlist) is deleted on the server: drop
-     * its queued and early edits and its cache, and let writes already
-     * travelling land first, so none recreates deleted data afterwards.
+     * Runs the server delete of a playlist (without an id, of every
+     * playlist). Its user-data edits wait meanwhile and writes already
+     * travelling land first, so none recreates deleted data; a delete that
+     * succeeded drops its queued and early edits and its cache, a failed
+     * one leaves them to be sent as before.
      */
-    async discard(playlistId?: string): Promise<void> {
+    async deleting(
+        playlistId: string | undefined,
+        remove: () => Promise<unknown>
+    ): Promise<void> {
         const matches = (key: string) =>
             playlistId === undefined || splitEditKey(key)[1] === playlistId;
+        const release = this.writes.hold(matches);
+        try {
+            await this.writes.whenSent();
+            await remove();
+            this.forget(matches, playlistId);
+        } finally {
+            release();
+        }
+    }
+
+    private forget(
+        matches: (key: string) => boolean,
+        playlistId: string | undefined
+    ): void {
         for (const key of [...this.deferred.keys()]) {
             if (matches(key)) {
                 this.deferred.delete(key);
@@ -160,7 +179,7 @@ export class ServerUserDataStorage implements UserDataStorage {
         saveDeferredEdits(this.tabStore, this.instanceId, [
             ...this.deferred.values(),
         ]);
-        await this.writes.discard(matches, playlistId);
+        this.writes.drop(matches, playlistId);
         for (const namespace of SERVER_USER_STATE_NAMESPACES) {
             const map = this.baseline(namespace);
             if (playlistId === undefined) {
@@ -208,7 +227,13 @@ export class ServerUserDataStorage implements UserDataStorage {
             // so callers and the diff baseline see the same map.
             this.writeCache(namespace, JSON.stringify(value));
             if (tags) {
-                this.writes.setTags(namespace, tags[namespace] ?? {});
+                // A kept value is not what the server's tag describes: its
+                // next write must conflict and be replayed on the server's.
+                const fresh = { ...tags[namespace] };
+                for (const playlistId of keepCached) {
+                    delete fresh[playlistId];
+                }
+                this.writes.setTags(namespace, fresh);
             }
         }
         this.writes.settledUpTo(editsBefore);

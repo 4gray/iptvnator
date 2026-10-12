@@ -55,6 +55,8 @@ export class UserDataWriteQueue {
     /** Edit counter per `namespace|playlistId`, for re-reads to keep them. */
     private readonly edits = new Map<string, number>();
     private editCount = 0;
+    /** Entries a delete is waiting on: they stay queued and are not sent. */
+    private readonly held: ((key: string) => boolean)[] = [];
 
     constructor(
         private readonly api: ServerApi,
@@ -182,29 +184,18 @@ export class UserDataWriteQueue {
      * later writes wait for them in turn.
      */
     flushWithKeepalive(): void {
-        const entries = this.takePending();
-        if (entries.length === 0) {
-            // Writes still travelling may be cut off with the page.
-            this.hooks.changed();
+        // Saved first: the page may be gone before anything is answered.
+        this.hooks.changed();
+        if (this.pending.size === 0) {
             return;
         }
-        const sendAll = async (): Promise<void> => {
-            this.writesInFlight += 1;
-            try {
-                await Promise.all(
-                    entries.map((entry) => this.sendKeepalive(entry))
-                );
-            } finally {
-                this.writesInFlight -= 1;
-            }
-        };
-        for (const entry of entries) {
-            this.inFlight.set(entryKey(entry), entry);
-        }
-        this.hooks.changed();
-        // Idle: send synchronously, while the hiding page still runs.
+        // Idle: send synchronously, while the hiding page still runs. Behind
+        // a travelling write the entries stay queued until it is answered,
+        // so the version it created can still become their baseline.
         const run =
-            this.writesInFlight === 0 ? sendAll() : this.sending.then(sendAll);
+            this.writesInFlight === 0
+                ? this.sendKeepaliveBatch()
+                : this.sending.then(() => this.sendKeepaliveBatch());
         this.sending = run.then(
             () => undefined,
             () => undefined
@@ -212,14 +203,27 @@ export class UserDataWriteQueue {
     }
 
     /**
-     * Drops queued edits whose key `matches` and forgets their edit numbers,
-     * so a travelling write that fails is not retried; resolves once the
-     * travelling writes have landed. Without a playlist id, tags go too.
+     * Keeps the entries whose key `matches` queued but unsent until the
+     * returned release is called (a delete is running).
      */
-    async discard(
-        matches: (key: string) => boolean,
-        playlistId?: string
-    ): Promise<void> {
+    hold(matches: (key: string) => boolean): () => void {
+        this.held.push(matches);
+        return () => {
+            this.held.splice(this.held.indexOf(matches), 1);
+            this.scheduleFlush();
+        };
+    }
+
+    /** Resolves once the writes travelling now have been answered. */
+    whenSent(): Promise<void> {
+        return this.sending;
+    }
+
+    /**
+     * After a delete: forgets the queued edits whose key `matches`, their
+     * edit numbers and their tags (all tags without a playlist id).
+     */
+    drop(matches: (key: string) => boolean, playlistId?: string): void {
         for (const store of [this.pending, this.edits]) {
             for (const key of [...store.keys()]) {
                 if (matches(key)) {
@@ -227,7 +231,6 @@ export class UserDataWriteQueue {
                 }
             }
         }
-        await this.sending;
         for (const [namespace, tags] of this.tags) {
             if (playlistId === undefined) {
                 this.tags.set(namespace, {});
@@ -268,8 +271,13 @@ export class UserDataWriteQueue {
             clearTimeout(this.flushTimer);
             this.flushTimer = null;
         }
-        const batch = [...this.pending.values()];
-        this.pending.clear();
+        const batch: PendingEntry[] = [];
+        for (const [key, entry] of this.pending) {
+            if (!this.held.some((matches) => matches(key))) {
+                batch.push(entry);
+                this.pending.delete(key);
+            }
+        }
         return batch;
     }
 
@@ -289,6 +297,25 @@ export class UserDataWriteQueue {
         const key = entryKey(entry);
         if (this.inFlight.get(key)?.edit === entry.edit) {
             this.inFlight.delete(key);
+        }
+    }
+
+    private async sendKeepaliveBatch(): Promise<void> {
+        const entries = this.takePending();
+        if (entries.length === 0) {
+            return;
+        }
+        for (const entry of entries) {
+            this.inFlight.set(entryKey(entry), entry);
+        }
+        this.hooks.changed();
+        this.writesInFlight += 1;
+        try {
+            await Promise.all(
+                entries.map((entry) => this.sendKeepalive(entry))
+            );
+        } finally {
+            this.writesInFlight -= 1;
         }
     }
 

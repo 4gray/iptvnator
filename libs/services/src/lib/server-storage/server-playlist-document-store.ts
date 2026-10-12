@@ -33,12 +33,13 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
     constructor(
         private readonly api: ServerApi,
         /**
-         * Runs before a playlist (or, without an id, every playlist) is
-         * deleted on the server, so no user-data write lands afterwards.
+         * Runs the server delete of a playlist (without an id, of every
+         * playlist), so user-data writes cannot land after it.
          */
-        private readonly beforeDelete: (
-            playlistId?: string
-        ) => Promise<void> = async () => undefined
+        private readonly deleting: (
+            playlistId: string | undefined,
+            remove: () => Promise<unknown>
+        ) => Promise<void> = async (_, remove) => void (await remove())
     ) {}
 
     dbGetAppPlaylists(): Promise<Playlist[]> {
@@ -120,17 +121,19 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
     }
 
     async dbDeletePlaylist(playlistId: string): Promise<ElectronBridgeResult> {
-        await this.beforeDelete(playlistId);
-        await this.api.request(`/playlists/${encodeURIComponent(playlistId)}`, {
-            method: 'DELETE',
-        });
+        await this.deleting(playlistId, () =>
+            this.api.request(`/playlists/${encodeURIComponent(playlistId)}`, {
+                method: 'DELETE',
+            })
+        );
         this.cache.delete(playlistId);
         return { success: true };
     }
 
     async dbDeleteAllPlaylists(): Promise<ElectronBridgeResult> {
-        await this.beforeDelete();
-        await this.api.request('/playlists', { method: 'DELETE' });
+        await this.deleting(undefined, () =>
+            this.api.request('/playlists', { method: 'DELETE' })
+        );
         this.cache.clear();
         return { success: true };
     }

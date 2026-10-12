@@ -215,8 +215,11 @@ settings and guards read them in every build.
   as offline. Each write is sent on the tag of the entry it was made
   against (`UserDataWriteQueue`); after a `412` the edit (before → after) is
   replayed on the server's current value, so another device's change to the
-  same playlist's entry is kept. Deleting a playlist first drops its queued
-  edits and waits for writes still travelling. Edits made before the first successful read
+  same playlist's entry is kept. An entry a re-read keeps from the cache
+  gets no tag, so its next write conflicts and is replayed too. A page-hide
+  write behind a travelling one is taken from the queue only when that one
+  is answered. While a playlist is being deleted its edits wait; the
+  delete drops them only when it succeeds. Edits made before the first successful read
   are held as before → after and applied to the server's value once it
   arrives (`applyEdit`): a new device or a stale cache adds its favorite
   instead of replacing the server's list. They are saved in the tab too
