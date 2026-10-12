@@ -2,7 +2,10 @@ import { effect, inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import type { ServerStorageStatusResponse } from '@iptvnator/shared/interfaces';
+import type {
+    ServerInstanceInfo,
+    ServerStorageStatusResponse,
+} from '@iptvnator/shared/interfaces';
 import { PlaylistStorageBackend } from '../playlist-storage-backend';
 import {
     clearServerAccessToken,
@@ -39,6 +42,9 @@ export class ServerStorageSession {
         baseUrl: this.config.baseUrl,
         status: this.status,
         onWriteFailure: (error) => this.announceWriteFailure(error),
+        // A remembered instance may answer as another database: writes
+        // wait for the reload that checks which one it is.
+        holdWrites: this.config.startedOffline,
     });
     readonly documentStore = new ServerPlaylistDocumentStore(
         this.api,
@@ -83,14 +89,28 @@ export class ServerStorageSession {
 
     /** Re-reads synced user data; also the offline retry. */
     async refresh(): Promise<void> {
+        if (this.config.startedOffline) {
+            await this.reloadOnceReachable();
+            return;
+        }
         try {
             await this.userData.hydrate();
         } catch {
             // The API client already reported offline or unauthorized.
+        }
+    }
+
+    /**
+     * Nothing was read at start: once the server answers, boot again, so
+     * its instance is checked before anything is sent.
+     */
+    private async reloadOnceReachable(): Promise<void> {
+        try {
+            await this.api.getJson<ServerInstanceInfo>('/instance');
+        } catch {
             return;
         }
-        if (this.config.startedOffline && !this.reloading) {
-            // Nothing was read at start: boot again against the server.
+        if (!this.reloading) {
             this.reloading = true;
             this.reloadPage();
         }

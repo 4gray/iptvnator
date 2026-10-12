@@ -9,6 +9,7 @@ import {
     entryPath,
     type PendingEntry,
     preconditionHeaders,
+    type PriorEdit,
 } from './server-user-data-entries';
 import { applyEdit } from './server-user-data-edit';
 import { newestWrites } from './server-unsent-writes';
@@ -115,28 +116,49 @@ export class UserDataWriteQueue {
     }
 
     /**
-     * A newer edit of an entry that is still queued or travelling keeps
-     * that write's baseline and tag, so a conflict replays both edits.
+     * Queues an edit (`before` → `value`). A newer edit of an entry still
+     * queued joins it; one behind a travelling write keeps its own edit,
+     * carries the write's as `prior` and is based on the write's tag.
      */
     queue(
         namespace: ServerUserStateNamespace,
         playlistId: string,
         value: unknown,
         before: unknown,
-        tag = this.tagFor(namespace, playlistId)
+        tag = this.tagFor(namespace, playlistId),
+        prior?: Omit<PriorEdit, 'edit'>
     ): void {
         const key = `${namespace}|${playlistId}`;
-        const earlier = this.pending.get(key) ?? this.inFlight.get(key);
-        const entry: PendingEntry = {
-            namespace,
-            playlistId,
-            value,
-            edit: ++this.editCount,
-            before: earlier ? earlier.before : before,
-            tag: earlier ? earlier.tag : tag,
-        };
+        const queued = this.pending.get(key);
+        const travelling = this.inFlight.get(key);
+        const edit = ++this.editCount;
+        let entry: PendingEntry;
+        if (queued) {
+            entry = { ...queued, value, edit };
+        } else if (travelling) {
+            entry = {
+                namespace,
+                playlistId,
+                value,
+                edit,
+                before,
+                tag: travelling.tag,
+                prior: {
+                    before: travelling.prior
+                        ? travelling.prior.before
+                        : travelling.before,
+                    after: travelling.value,
+                    edit: travelling.edit,
+                },
+            };
+        } else {
+            entry = { namespace, playlistId, value, edit, before, tag };
+            if (prior) {
+                entry = { ...entry, prior: { ...prior, edit: 0 } };
+            }
+        }
         this.pending.set(key, entry);
-        this.edits.set(key, entry.edit);
+        this.edits.set(key, edit);
     }
 
     scheduleFlush(): void {
@@ -322,7 +344,7 @@ export class UserDataWriteQueue {
     private async sendKeepalive(entry: PendingEntry): Promise<void> {
         const path = entryPath(entry);
         const headers = preconditionHeaders(entry.tag);
-        const ok = await (entry.value === undefined
+        const outcome = await (entry.value === undefined
             ? this.api.sendKeepalive('DELETE', path, undefined, headers)
             : this.api.sendKeepalive(
                   'PUT',
@@ -331,7 +353,14 @@ export class UserDataWriteQueue {
                   headers
               ));
         this.retireInFlight(entry);
-        if (!ok) {
+        if (outcome.status === 'saved') {
+            // Without a tag a newer edit keeps this one as `prior`.
+            if (outcome.tag !== undefined) {
+                this.confirmed(entry, outcome.tag);
+            }
+        } else if (outcome.status === 'conflict') {
+            this.replayOnConflict(entry, outcome.current);
+        } else {
             this.requeue(entry);
         }
         this.hooks.changed();
@@ -375,20 +404,21 @@ export class UserDataWriteQueue {
         this.hooks.changed();
     }
 
-    /** The server took `entry`: a newer queued edit now builds on it. */
+    /** The server took `entry`: the edit queued behind it builds on it. */
     private confirmed(entry: PendingEntry, tag: string | null): void {
         this.setTag(entry.namespace, entry.playlistId, tag);
         const key = entryKey(entry);
         const next = this.pending.get(key);
-        if (next && next.before === entry.before && next.tag === entry.tag) {
-            this.pending.set(key, { ...next, before: entry.value, tag });
+        if (next?.prior?.edit === entry.edit) {
+            this.pending.set(key, { ...next, prior: undefined, tag });
         }
     }
 
     /**
-     * Another device changed the entry: apply this edit (before → after) to
-     * the server's current value, show the result and send it on that
-     * version, unless a newer edit of the entry will.
+     * Another device changed the entry and `entry` did not land: replay its
+     * edits on the server's current value (with the newer queued edit that
+     * carries it as `prior`, if any), show the result and send it on that
+     * version.
      */
     private replayOnConflict(
         entry: PendingEntry,
@@ -396,36 +426,35 @@ export class UserDataWriteQueue {
     ): void {
         this.setTag(entry.namespace, entry.playlistId, current.tag);
         const key = entryKey(entry);
-        const next = this.pending.get(key);
-        if (next) {
-            // The newer edit kept this one's baseline: replay both at once.
-            this.pending.set(key, {
-                ...next,
-                value: applyEdit(current.value, next.before, next.value),
-                before: current.value,
-                tag: current.tag,
-            });
-        } else if (this.edits.get(key) === entry.edit) {
-            const merged = applyEdit(current.value, entry.before, entry.value);
-            if (JSON.stringify(merged) !== JSON.stringify(current.value)) {
-                this.pending.set(key, {
-                    ...entry,
-                    value: merged,
-                    before: current.value,
-                    tag: current.tag,
-                });
-            } else {
-                this.hooks.show(entry.namespace, entry.playlistId, merged);
-                return;
-            }
-        } else {
+        const latest =
+            this.pending.get(key) ??
+            (this.edits.get(key) === entry.edit ? entry : undefined);
+        if (!latest) {
             return;
         }
-        this.hooks.show(
-            entry.namespace,
-            entry.playlistId,
-            this.pending.get(key)?.value
-        );
+        const merged = replay(current.value, latest);
+        this.hooks.show(entry.namespace, entry.playlistId, merged);
+        if (
+            latest === entry &&
+            JSON.stringify(merged) === JSON.stringify(current.value)
+        ) {
+            return;
+        }
+        this.pending.set(key, {
+            ...latest,
+            value: merged,
+            before: current.value,
+            tag: current.tag,
+            prior: undefined,
+        });
         this.scheduleFlush();
     }
+}
+
+/** An entry's edits, its `prior` first, applied to the server's value. */
+function replay(server: unknown, entry: PendingEntry): unknown {
+    const base = entry.prior
+        ? applyEdit(server, entry.prior.before, entry.prior.after)
+        : server;
+    return applyEdit(base, entry.before, entry.value);
 }

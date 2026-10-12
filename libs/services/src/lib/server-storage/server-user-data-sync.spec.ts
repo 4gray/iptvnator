@@ -84,10 +84,16 @@ function fakeServer(initial: Record<string, Record<string, unknown>> = {}) {
                 headers: Record<string, string> = {}
             ) => {
                 try {
-                    write(path, headers, body?.value);
-                    return true;
-                } catch {
-                    return false;
+                    const response = write(path, headers, body?.value);
+                    const { tag } = await response.json();
+                    return { status: 'saved' as const, tag };
+                } catch (error) {
+                    return error instanceof ServerApiError && error.current
+                        ? {
+                              status: 'conflict' as const,
+                              current: error.current,
+                          }
+                        : { status: 'failed' as const };
                 }
             }
         ),
@@ -337,5 +343,113 @@ describe('ServerUserDataStorage with other devices', () => {
 
         expect(server.state['xtream-favorites']['p1']).toEqual(['S']);
         expect(phone.hasUnsentWrites()).toBe(false);
+    });
+
+    it('removes an item again after a page-hide write added it', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+
+        let answer: () => void = () => undefined;
+        const keepalive = server.api.sendKeepalive.getMockImplementation();
+        if (!keepalive) {
+            throw new Error('The fake server answers sendKeepalive');
+        }
+        server.api.sendKeepalive.mockImplementationOnce(
+            (...args: Parameters<typeof keepalive>) =>
+                new Promise(
+                    (resolve) => (answer = () => resolve(keepalive(...args)))
+                )
+        );
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        phone.flushWithKeepalive();
+        // Back on the page, X is removed while the page-hide write travels.
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S'] }));
+        answer();
+        await phone.flush();
+        await phone.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S']);
+        expect(phone.hasUnsentWrites()).toBe(false);
+    });
+
+    it('recovers a removal queued behind a write whose answer was lost', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const local = memoryStorage();
+        const tabStore = memoryStorage();
+        const open = () =>
+            new ServerUserDataStorage(
+                server.api as never,
+                local,
+                jest.fn(),
+                'default',
+                tabStore
+            );
+        const before = open();
+        await before.hydrate();
+
+        const send = server.api.sendJson.getMockImplementation();
+        if (!send) {
+            throw new Error('The fake server answers sendJson');
+        }
+        // The server saves X, but the page reloads before the answer.
+        server.api.sendJson.mockImplementationOnce(
+            (...args: Parameters<typeof send>) => {
+                void send(...args);
+                return new Promise(() => undefined);
+            }
+        );
+        before.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        void before.flush();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        before.setItem('xtream-favorites', JSON.stringify({ p1: ['S'] }));
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+
+        const reloaded = open();
+        await reloaded.hydrate();
+        await reloaded.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S']);
+        expect(reloaded.hasUnsentWrites()).toBe(false);
+    });
+
+    it('replays a failed write it was queued behind on a conflict', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+
+        let fail: () => void = () => undefined;
+        server.api.sendJson.mockImplementationOnce(
+            () =>
+                new Promise((_, reject) => {
+                    fail = () =>
+                        reject(new ServerApiError(0, 'network', 'offline'));
+                })
+        );
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        const first = phone.flush();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        phone.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['S', 'X', 'Y'] })
+        );
+        // X never reached the server; another device saves Z meanwhile.
+        server.state['xtream-favorites']['p1'] = ['S', 'Z'];
+        fail();
+        await first;
+        await phone.flush();
+        await phone.flush();
+
+        expect(
+            [...(server.state['xtream-favorites']['p1'] as string[])].sort()
+        ).toEqual(['S', 'X', 'Y', 'Z']);
     });
 });

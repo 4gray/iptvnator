@@ -29,6 +29,7 @@ describe('ServerStorageSession', () => {
         jest.useRealTimers();
         fetchMock.mockReset();
         localStorage.clear();
+        sessionStorage.clear();
         TestBed.resetTestingModule();
     });
 
@@ -124,6 +125,37 @@ describe('ServerStorageSession', () => {
             await session.refresh();
 
             expect(reload).toHaveBeenCalledTimes(1);
+        });
+
+        it('sends no write before the reload checks the instance', async () => {
+            // A write the last visit could not send, for instance i-1.
+            sessionStorage.setItem(
+                'iptvnator-server:unsent-writes:i-1',
+                JSON.stringify([
+                    {
+                        namespace: 'xtream-favorites',
+                        playlistId: 'p1',
+                        value: ['x'],
+                    },
+                ])
+            );
+            const { session } = setup('none', true);
+            jest.spyOn(
+                session as unknown as { reloadPage(): void },
+                'reloadPage'
+            ).mockImplementation(() => undefined);
+
+            await session.start();
+            session.userData.flushWithKeepalive();
+            await session.userData.flush();
+
+            expect(
+                fetchMock.mock.calls.map(([url, init]) => [
+                    url,
+                    init?.method ?? 'GET',
+                ])
+            ).toEqual([['/api/v1/instance', 'GET']]);
+            expect(session.userData.hasUnsentWrites()).toBe(true);
         });
 
         it('never reloads after a normal start', async () => {

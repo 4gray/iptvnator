@@ -80,7 +80,8 @@ export class ServerUserDataStorage implements UserDataStorage {
                 write.playlistId,
                 write.value,
                 write.before,
-                write.tag
+                write.tag,
+                write.prior
             );
         }
         this.unsentSaved = this.writes.hasUnsent();

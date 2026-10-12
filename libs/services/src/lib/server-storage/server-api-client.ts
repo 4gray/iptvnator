@@ -1,6 +1,7 @@
 import type {
     ServerStorageErrorBody,
     ServerUserStateCurrent,
+    ServerUserStateWriteResponse,
 } from '@iptvnator/shared/interfaces';
 import {
     clearServerAccessToken,
@@ -26,6 +27,12 @@ export class ServerApiError extends Error {
     }
 }
 
+/** How a page-hide write ended, as far as the page could see. */
+export type KeepaliveOutcome =
+    | { readonly status: 'saved'; readonly tag?: string | null }
+    | { readonly status: 'conflict'; readonly current: ServerUserStateCurrent }
+    | { readonly status: 'failed' };
+
 export interface ServerApiClientOptions {
     readonly baseUrl: string;
     readonly status: Pick<
@@ -36,6 +43,12 @@ export interface ServerApiClientOptions {
     readonly onWriteFailure?: (error: ServerApiError) => void;
     readonly fetchFn?: typeof fetch;
     readonly timeoutMs?: number;
+    /**
+     * Refuse writes as if offline: a start from a remembered instance that
+     * has not answered yet, whose address may lead to another database by
+     * the time it does.
+     */
+    readonly holdWrites?: boolean;
 }
 
 /** `fetch` for `/v1`: token, timeout, error mapping, connection state. */
@@ -54,6 +67,9 @@ export class ServerApiClient {
         const isWrite = (init.method ?? 'GET') !== 'GET';
         let response: Response;
         try {
+            if (isWrite && this.options.holdWrites) {
+                throw new Error('Writes wait for the instance to answer.');
+            }
             response = await this.fetchFn()(this.url(path), {
                 ...init,
                 cache: 'no-store',
@@ -150,15 +166,18 @@ export class ServerApiClient {
     }
 
     /**
-     * A write that survives the page. Resolves whether the server took it;
-     * browsers reject keepalive bodies above 64 KiB, which resolves false.
+     * A write that survives the page. Browsers reject keepalive bodies
+     * above 64 KiB, which ends as `failed`.
      */
     async sendKeepalive(
         method: 'PUT' | 'DELETE',
         path: string,
         body?: unknown,
         headers: Record<string, string> = {}
-    ): Promise<boolean> {
+    ): Promise<KeepaliveOutcome> {
+        if (this.options.holdWrites) {
+            return { status: 'failed' };
+        }
         try {
             const response = await this.fetchFn()(this.url(path), {
                 method,
@@ -172,9 +191,21 @@ export class ServerApiClient {
                 },
                 ...(body === undefined ? {} : { body: JSON.stringify(body) }),
             });
-            return response.ok;
+            if (response.ok) {
+                const body = (await response
+                    .json()
+                    .catch(
+                        () => ({})
+                    )) as Partial<ServerUserStateWriteResponse>;
+                return { status: 'saved', tag: body?.tag };
+            }
+            const { current } =
+                response.status === 412 ? await readErrorBody(response) : {};
+            return current
+                ? { status: 'conflict', current }
+                : { status: 'failed' };
         } catch {
-            return false;
+            return { status: 'failed' };
         }
     }
 

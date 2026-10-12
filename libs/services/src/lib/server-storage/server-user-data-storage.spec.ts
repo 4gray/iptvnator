@@ -1,3 +1,4 @@
+import type { KeepaliveOutcome } from './server-api-client';
 import { ServerUserDataStorage } from './server-user-data-storage';
 
 function memoryStorage() {
@@ -34,7 +35,7 @@ describe('ServerUserDataStorage', () => {
             }),
             sendJson: jest.fn().mockResolvedValue(undefined),
             request: jest.fn().mockResolvedValue(undefined),
-            sendKeepalive: jest.fn().mockResolvedValue(true),
+            sendKeepalive: jest.fn().mockResolvedValue({ status: 'saved' }),
             readJson: jest.fn().mockResolvedValue({}),
         };
         const onWriteFailure = jest.fn();
@@ -269,7 +270,7 @@ describe('ServerUserDataStorage', () => {
     it('queues a page-hide write again when the server did not take it', async () => {
         const { api, storage } = setup();
         await storage.hydrate();
-        api.sendKeepalive.mockResolvedValueOnce(false);
+        api.sendKeepalive.mockResolvedValueOnce({ status: 'failed' });
 
         storage.setItem('xtream-favorites', JSON.stringify({ p1: ['big'] }));
         storage.flushWithKeepalive();
@@ -310,9 +311,9 @@ describe('ServerUserDataStorage', () => {
     it('lets a newer write wait for a page-hide write still travelling', async () => {
         const { api, storage } = setup();
         await storage.hydrate();
-        let acknowledge: (ok: boolean) => void = () => undefined;
+        let acknowledge: (outcome: KeepaliveOutcome) => void = () => undefined;
         api.sendKeepalive.mockReturnValueOnce(
-            new Promise<boolean>((resolve) => (acknowledge = resolve))
+            new Promise<KeepaliveOutcome>((resolve) => (acknowledge = resolve))
         );
 
         storage.setItem('xtream-favorites', JSON.stringify({ p1: ['old'] }));
@@ -323,7 +324,7 @@ describe('ServerUserDataStorage', () => {
         await settle();
         expect(api.sendJson).not.toHaveBeenCalled();
 
-        acknowledge(true);
+        acknowledge({ status: 'saved' });
         await newer;
         expect(api.sendJson).toHaveBeenCalledWith(
             'PUT',
@@ -397,9 +398,9 @@ describe('ServerUserDataStorage', () => {
     it('never retries an older page-hide write over a newer one', async () => {
         const { api, storage } = setup();
         await storage.hydrate();
-        const acks: ((ok: boolean) => void)[] = [];
+        const acks: ((outcome: KeepaliveOutcome) => void)[] = [];
         api.sendKeepalive.mockImplementation(
-            () => new Promise<boolean>((resolve) => acks.push(resolve))
+            () => new Promise<KeepaliveOutcome>((resolve) => acks.push(resolve))
         );
 
         for (const value of ['A', 'B', 'C']) {
@@ -410,7 +411,9 @@ describe('ServerUserDataStorage', () => {
             storage.flushWithKeepalive();
             await settle();
             // Each page-hide write waits for the previous one.
-            acks[acks.length - 1](value !== 'B');
+            acks[acks.length - 1]({
+                status: value === 'B' ? 'failed' : 'saved',
+            });
             await settle();
         }
 
@@ -651,7 +654,7 @@ describe('ServerUserDataStorage', () => {
             }),
             sendJson: jest.fn().mockResolvedValue(undefined),
             request: jest.fn().mockResolvedValue(undefined),
-            sendKeepalive: jest.fn().mockResolvedValue(true),
+            sendKeepalive: jest.fn().mockResolvedValue({ status: 'saved' }),
             readJson: jest.fn().mockResolvedValue({}),
         };
         const tab = () =>

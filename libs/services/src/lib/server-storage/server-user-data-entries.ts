@@ -15,6 +15,19 @@ export interface PendingEntry {
      * seen absent, `undefined` when unknown (an unconditional write).
      */
     readonly tag?: string | null;
+    /**
+     * The edit of the write this one was queued behind, which may or may
+     * not have reached the server: a conflict replays it first. Kept apart
+     * from this edit, so adding and then removing an item is not one no-op.
+     */
+    readonly prior?: PriorEdit;
+}
+
+export interface PriorEdit {
+    readonly before: unknown;
+    readonly after: unknown;
+    /** The write it was sent with; `0` after a reload. */
+    readonly edit: number;
 }
 
 /** `If-Match` / `If-None-Match` for a write based on `tag`. */

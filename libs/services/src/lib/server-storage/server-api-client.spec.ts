@@ -84,19 +84,56 @@ describe('ServerApiClient', () => {
         expect(status.reportOffline).not.toHaveBeenCalled();
     });
 
-    it('reports whether a keepalive write was taken', async () => {
-        const ok = jest.fn().mockResolvedValue(response(200, {}));
+    it('reports how a keepalive write ended', async () => {
+        const ok = jest.fn().mockResolvedValue(response(200, { tag: 't2' }));
         await expect(
             client(ok).sendKeepalive('PUT', '/user-state/a/b', { value: 1 })
-        ).resolves.toBe(true);
+        ).resolves.toEqual({ status: 'saved', tag: 't2' });
         expect(ok.mock.calls[0][1]).toMatchObject({ keepalive: true });
+
+        const conflict = jest.fn().mockResolvedValue(
+            response(412, {
+                code: 'conflict',
+                message: 'changed',
+                current: { value: [2], tag: 't3' },
+            })
+        );
+        await expect(
+            client(conflict).sendKeepalive('PUT', '/user-state/a/b', {
+                value: 1,
+            })
+        ).resolves.toEqual({
+            status: 'conflict',
+            current: { value: [2], tag: 't3' },
+        });
 
         const refused = jest
             .fn()
             .mockRejectedValue(new TypeError('body too large'));
         await expect(
             client(refused).sendKeepalive('DELETE', '/user-state/a/b')
-        ).resolves.toBe(false);
+        ).resolves.toEqual({ status: 'failed' });
+    });
+
+    it('holds writes, not reads, until the instance is checked', async () => {
+        const fetchFn = jest.fn().mockResolvedValue(response(200, {}));
+        const held = new ServerApiClient({
+            baseUrl: '/api',
+            status,
+            fetchFn: fetchFn as unknown as typeof fetch,
+            holdWrites: true,
+        });
+
+        await expect(
+            held.sendJson('PUT', '/user-state/a/b', { value: 1 })
+        ).rejects.toMatchObject({ status: 0, code: 'network' });
+        await expect(
+            held.sendKeepalive('DELETE', '/user-state/a/b')
+        ).resolves.toEqual({ status: 'failed' });
+        await held.getJson('/instance');
+
+        expect(fetchFn).toHaveBeenCalledTimes(1);
+        expect(fetchFn.mock.calls[0][0]).toBe('/api/v1/instance');
     });
 
     it('reports offline when a body is cut off after the headers', async () => {

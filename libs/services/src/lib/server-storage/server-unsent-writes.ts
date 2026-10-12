@@ -65,6 +65,8 @@ export interface UnsentWrite {
     readonly before?: unknown;
     /** The server version it is based on (see `PendingEntry.tag`). */
     readonly tag?: string | null;
+    /** A write sent before it, maybe saved (see `PendingEntry.prior`). */
+    readonly prior?: { readonly before: unknown; readonly after: unknown };
 }
 
 interface StoredWrite {
@@ -74,6 +76,8 @@ interface StoredWrite {
     readonly remove?: true;
     readonly before?: unknown;
     readonly tag?: string | null;
+    /** JSON drops an undefined side: absent reads back as undefined. */
+    readonly prior?: { readonly before?: unknown; readonly after?: unknown };
 }
 
 export function readUnsentWrites(
@@ -101,6 +105,13 @@ export function readUnsentWrites(
                 value: write.remove ? undefined : write.value,
                 before: write.before,
                 tag: write.tag,
+                prior:
+                    write.prior && typeof write.prior === 'object'
+                        ? {
+                              before: write.prior.before,
+                              after: write.prior.after,
+                          }
+                        : undefined,
             });
         }
     }
@@ -118,12 +129,15 @@ export function saveUnsentWrites(
             return;
         }
         const stored: StoredWrite[] = writes.map(
-            ({ namespace, playlistId, value, before, tag }) => ({
+            ({ namespace, playlistId, value, before, tag, prior }) => ({
                 namespace,
                 playlistId,
                 ...(value === undefined ? { remove: true } : { value }),
                 ...(before === undefined ? {} : { before }),
                 ...(tag === undefined ? {} : { tag }),
+                ...(prior === undefined
+                    ? {}
+                    : { prior: { before: prior.before, after: prior.after } }),
             })
         );
         local.setItem(writesKey(instanceId), JSON.stringify(stored));
