@@ -638,6 +638,10 @@ channel-list-container/
   restart. `M3uWorkspaceRouteSession` copies it from the full playlist read into
   the store (`updatePlaylistMeta` with `persist: false`) before publishing the
   channels, unless the store value changed while that read was queued (#1894).
+  A restored or deep-linked route can finish that read before the startup
+  inventory, which waits for settings and EPG reconciliation, publishes the
+  playlist; the hydration then waits for the entity, since `updateOne` drops an
+  update for a missing one.
 - The groups route keeps the manage action reachable even when every group is
   hidden by separating "playlist has no groups" from "no visible/search-matching
   groups" empty states.

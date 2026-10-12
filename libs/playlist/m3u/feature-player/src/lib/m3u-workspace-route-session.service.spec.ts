@@ -1,7 +1,6 @@
-import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
-import { of, Subject, throwError } from 'rxjs';
+import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 import {
     ChannelActions,
     FavoritesActions,
@@ -81,12 +80,13 @@ describe('M3uWorkspaceRouteSession', () => {
     const playlistsService = {
         getPlaylist: jest.fn(),
     };
-    const playlistEntities = signal<Record<string, PlaylistMeta | undefined>>(
-        {}
-    );
+    const playlistEntities = new BehaviorSubject<
+        Record<string, PlaylistMeta | undefined>
+    >({});
     const store = {
         dispatch: jest.fn(),
-        selectSignal: jest.fn(() => playlistEntities.asReadonly()),
+        select: jest.fn(() => playlistEntities.asObservable()),
+        selectSignal: jest.fn(() => () => playlistEntities.value),
     };
     const electronApi = {
         setUserAgent: jest.fn().mockResolvedValue(true),
@@ -108,7 +108,7 @@ describe('M3uWorkspaceRouteSession', () => {
         electronApi.setUserAgent.mockClear();
         playlistsService.getPlaylist.mockReset();
         store.dispatch.mockClear();
-        playlistEntities.set({
+        playlistEntities.next({
             [PLAYLIST_ID]: { _id: PLAYLIST_ID } as PlaylistMeta,
         });
 
@@ -273,7 +273,7 @@ describe('M3uWorkspaceRouteSession', () => {
 
         // The dialog's save lands in the store before the queued read returns
         // the row as it was before that save.
-        playlistEntities.set({
+        playlistEntities.next({
             [PLAYLIST_ID]: {
                 _id: PLAYLIST_ID,
                 hiddenGroupTitles: ['News'],
@@ -295,6 +295,41 @@ describe('M3uWorkspaceRouteSession', () => {
                     action.type === PlaylistActions.updatePlaylistMeta.type
             )
         ).toBe(false);
+    });
+
+    it('waits for the startup inventory when a restored route reads the playlist first', async () => {
+        playlistEntities.next({});
+        playlistsService.getPlaylist.mockReturnValue(
+            of({
+                hiddenGroupTitles: ['Sports'],
+                playlist: { items: [PRIMARY_CHANNEL] },
+            } as Playlist)
+        );
+        const hydration = PlaylistActions.updatePlaylistMeta({
+            playlist: {
+                _id: PLAYLIST_ID,
+                hiddenGroupTitles: ['Sports'],
+            } as PlaylistMeta,
+            persist: false,
+        });
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        // An update for an entity that is not in the store yet is dropped.
+        expect(store.dispatch).not.toHaveBeenCalledWith(hydration);
+
+        playlistEntities.next({
+            [PLAYLIST_ID]: { _id: PLAYLIST_ID } as PlaylistMeta,
+        });
+
+        expect(store.dispatch).toHaveBeenCalledWith(hydration);
+        expect(
+            store.dispatch.mock.calls.filter(
+                ([action]) =>
+                    action.type === PlaylistActions.updatePlaylistMeta.type
+            )
+        ).toHaveLength(1);
     });
 
     it('clears in-memory favorites without dispatching persistence when playlist loading fails', async () => {

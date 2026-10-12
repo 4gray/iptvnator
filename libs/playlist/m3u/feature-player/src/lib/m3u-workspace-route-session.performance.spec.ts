@@ -33,6 +33,7 @@ describe('M3uWorkspaceRouteSession performance phases', () => {
     const hookSymbol = Symbol.for(RENDERER_PERFORMANCE_PHASE_HOOK_KEY);
     const store = {
         dispatch: jest.fn(),
+        select: jest.fn(() => of({})),
         selectSignal: jest.fn(() => signal({})),
     };
 
