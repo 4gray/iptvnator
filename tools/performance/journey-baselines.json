@@ -81,14 +81,14 @@
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
             },
             "renderer.layoutShiftScore": {
-                "value": 0.233,
+                "value": 0,
                 "unit": "score",
                 "slack": 0,
                 "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
-                "updatedAt": "2026-10-06",
+                "updatedAt": "2026-10-11",
                 "evidencePr": null,
-                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37372780064",
-                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in every measured iteration of the 7 master runs from 84aef83a6 (#1814, which moved it from 0.222) to b78224376"
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38147072417",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), 0 with no shift recorded in all 5 measured iterations of PR #1895 (d2cb9445d), which slides the content frame and header controls instead of jumping (was 0.233)"
             }
         },
         "playback": {

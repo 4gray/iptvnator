@@ -21,6 +21,7 @@ import { WorkspaceShellContextSidebarComponent } from './components/workspace-sh
 import { WorkspaceShellHeaderComponent } from './components/workspace-shell-header/workspace-shell-header.component';
 import { WorkspaceShellImportOverlayComponent } from './components/workspace-shell-import-overlay/workspace-shell-import-overlay.component';
 import { WorkspaceShellRailComponent } from './components/workspace-shell-rail/workspace-shell-rail.component';
+import { LayoutSlideDirective } from './layout-slide.directive';
 import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
 import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './services/workspace-shell-xtream-import.service';
@@ -39,6 +40,7 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
     imports: [
         CdkTrapFocus,
         ExternalPlaybackDockComponent,
+        LayoutSlideDirective,
         TranslatePipe,
         PlaylistDropOverlayComponent,
         PlaylistDropZoneDirective,

@@ -240,6 +240,35 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(router.navigate).not.toHaveBeenCalled();
     });
 
+    it('renders the category search and sort actions disabled while the categories load', () => {
+        // Present from the skeleton on, so the header row keeps its width
+        // when the categories arrive instead of growing by two buttons.
+        const loaded = xtreamCategories();
+        fixture.componentRef.setInput('section', 'vod');
+        xtreamCategories.set([]);
+        xtreamIsLoadingCategories.set(true);
+        fixture.detectChanges();
+
+        const actions = () =>
+            Array.from(
+                fixture.nativeElement.querySelectorAll(
+                    '.context-header__action'
+                )
+            ) as HTMLButtonElement[];
+        expect(actions()).toHaveLength(3);
+        expect(actions().every((button) => button.disabled)).toBe(true);
+        expect(fixture.componentInstance.focusTarget()).toBeNull();
+
+        xtreamCategories.set(loaded);
+        xtreamIsLoadingCategories.set(false);
+        fixture.detectChanges();
+
+        expect(actions()).toHaveLength(3);
+        expect(actions()[0].disabled).toBe(false);
+        expect(actions()[1].disabled).toBe(false);
+        expect(fixture.componentInstance.focusTarget()).toBe(actions()[0]);
+    });
+
     it('keeps local xtream loading states quiet when no import is running', () => {
         fixture.componentRef.setInput('section', 'vod');
         xtreamIsImporting.set(false);

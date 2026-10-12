@@ -16,8 +16,13 @@ import { isEmbeddedMpvSessionGoneError } from './embedded-mpv-session-errors';
  * - Only a load that already reached `playing` is retried. A URL that never
  *   worked (404, refused credentials, unsupported container) keeps the manual
  *   Retry; hammering a panel six times with the same bad request helps nobody.
- * - EOF counts as a loss only for live playback — a broadcast never ends on
- *   its own, a movie does.
+ * - EOF counts as a loss for live playback — a broadcast never ends on its
+ *   own. A movie or episode does, so on VOD only an EOF well before the
+ *   known duration counts: mpv reports a connection that the server closed
+ *   and ffmpeg could not reopen as EOF, and taking it for the end made
+ *   series autoplay skip the rest of the episode (#1902). A reload that
+ *   ends again where it resumed proves the file ends there (a duration
+ *   estimated from the bitrate can overshoot), and is left as the end.
  * - The attempt budget belongs to one outage: it resets after
  *   {@link EMBEDDED_MPV_RECONNECT_STABLE_PLAYBACK_MS} of uninterrupted playing,
  *   not on the first `playing`, so a stream that flaps every few seconds runs
@@ -48,6 +53,15 @@ export const EMBEDDED_MPV_RECONNECT_MAX_ATTEMPTS = 6;
 export const EMBEDDED_MPV_RECONNECT_BASE_DELAY_MS = 2_000;
 export const EMBEDDED_MPV_RECONNECT_MAX_DELAY_MS = 30_000;
 export const EMBEDDED_MPV_RECONNECT_STABLE_PLAYBACK_MS = 30_000;
+/**
+ * A VOD EOF is the end of the file when less than this much remained
+ * (seconds, or the ratio of the duration when that is longer): the margin
+ * absorbs frame and container rounding and duration estimates.
+ */
+export const EMBEDDED_MPV_EARLY_EOF_MIN_REMAINING_SECONDS = 10;
+export const EMBEDDED_MPV_EARLY_EOF_MIN_REMAINING_RATIO = 0.01;
+/** Playback a resumed reload must make before another early EOF counts. */
+export const EMBEDDED_MPV_EARLY_EOF_PROGRESS_SECONDS = 5;
 
 export interface EmbeddedMpvReconnectState {
     /** `Settings.embeddedMpvAutoReconnect`, captured at session creation. */
@@ -74,6 +88,12 @@ export interface EmbeddedMpvReconnectState {
      * is trusted as a real seek-to-start only once that has happened.
      */
     positionReported: boolean;
+    /**
+     * Where the last VOD reload resumed, until playback gets past it or the
+     * user seeks. An early EOF before then ended where the file does, not
+     * where it dropped.
+     */
+    resumedAtSeconds: number | null;
     timer: NodeJS.Timeout | null;
     /** What the renderer is shown while an attempt is scheduled or in flight. */
     pending: EmbeddedMpvReconnectInfo | null;
@@ -100,6 +120,7 @@ export function createEmbeddedMpvReconnectState(
         attemptInFlight: false,
         lastPositionSeconds: null,
         positionReported: false,
+        resumedAtSeconds: null,
         timer: null,
         pending: null,
     };
@@ -131,6 +152,25 @@ export function isEmbeddedMpvStreamLoss(
     return status === 'error' || (status === 'ended' && isLive);
 }
 
+/** Whether a VOD EOF at `positionSeconds` came well before the end. */
+export function isEmbeddedMpvEarlyEof(
+    positionSeconds: number,
+    durationSeconds: number | null | undefined
+): boolean {
+    if (
+        typeof durationSeconds !== 'number' ||
+        !Number.isFinite(durationSeconds) ||
+        durationSeconds <= 0
+    ) {
+        return false;
+    }
+    const margin = Math.max(
+        EMBEDDED_MPV_EARLY_EOF_MIN_REMAINING_SECONDS,
+        durationSeconds * EMBEDDED_MPV_EARLY_EOF_MIN_REMAINING_RATIO
+    );
+    return durationSeconds - positionSeconds > margin;
+}
+
 export class EmbeddedMpvReconnectCoordinator {
     private readonly now: () => number;
     private readonly log: Pick<Console, 'log' | 'warn'>;
@@ -158,7 +198,16 @@ export class EmbeddedMpvReconnectCoordinator {
                 ? playback.startTime
                 : null;
         state.positionReported = false;
+        state.resumedAtSeconds = null;
         state.pending = null;
+    }
+
+    /**
+     * The user moved the playhead: an EOF after that is not the reload
+     * ending where it resumed, so it is judged on its position alone.
+     */
+    onUserSeek(state: EmbeddedMpvReconnectState): void {
+        state.resumedAtSeconds = null;
     }
 
     cancel(state: EmbeddedMpvReconnectState): void {
@@ -188,7 +237,8 @@ export class EmbeddedMpvReconnectCoordinator {
         status: EmbeddedMpvSessionStatus,
         previousStatus: EmbeddedMpvSessionStatus | null,
         positionSeconds?: number,
-        errorOrigin?: 'playback' | 'engine'
+        errorOrigin?: 'playback' | 'engine',
+        durationSeconds?: number | null
     ): EmbeddedMpvReconnectInfo | null {
         const now = this.now();
 
@@ -210,6 +260,14 @@ export class EmbeddedMpvReconnectCoordinator {
                 // position the zero is only the snapshot's placeholder and
                 // the seeded `startTime` stays the better resume point.
                 state.lastPositionSeconds = 0;
+            }
+            if (
+                state.resumedAtSeconds !== null &&
+                positionSeconds >
+                    state.resumedAtSeconds +
+                        EMBEDDED_MPV_EARLY_EOF_PROGRESS_SECONDS
+            ) {
+                state.resumedAtSeconds = null;
             }
         }
 
@@ -240,9 +298,13 @@ export class EmbeddedMpvReconnectCoordinator {
         const isLive =
             state.playback !== null &&
             isLiveEmbeddedMpvPlayback(state.playback);
-        if (!isEmbeddedMpvStreamLoss(status, isLive)) {
+        if (
+            !isEmbeddedMpvStreamLoss(status, isLive) &&
+            !this.isDroppedVod(state, status, positionSeconds, durationSeconds)
+        ) {
             // paused/idle are user actions, closed is teardown, ended on
-            // VOD is the movie finishing — none of them is an outage.
+            // VOD near its end is the movie finishing — none of them is an
+            // outage.
             if (status === 'paused') {
                 // Disarmed until the stream plays again: reloading a stream
                 // the user paused would resume it without them asking.
@@ -299,6 +361,9 @@ export class EmbeddedMpvReconnectCoordinator {
             state.attemptInFlight = true;
             try {
                 this.hooks.reload(sessionId, playback);
+                // Only a reload that started can end where it resumed; a
+                // refused one leaves the original EOF, still a drop.
+                state.resumedAtSeconds = playback.startTime ?? null;
             } catch (error) {
                 state.attemptInFlight = false;
                 if (isEmbeddedMpvSessionGoneError(error)) {
@@ -323,6 +388,39 @@ export class EmbeddedMpvReconnectCoordinator {
             this.hooks.publish(sessionId);
         }, delay);
         return state.pending;
+    }
+
+    /**
+     * A VOD `ended` well before the duration is a dropped connection, unless
+     * it is the reload that resumed there ending again: then the file itself
+     * ends there and the duration was only an estimate.
+     */
+    private isDroppedVod(
+        state: EmbeddedMpvReconnectState,
+        status: EmbeddedMpvSessionStatus,
+        positionSeconds: number | undefined,
+        durationSeconds: number | null | undefined
+    ): boolean {
+        if (status !== 'ended' || state.playback === null) {
+            return false;
+        }
+        const position =
+            typeof positionSeconds === 'number' &&
+            Number.isFinite(positionSeconds) &&
+            positionSeconds > 0
+                ? positionSeconds
+                : state.lastPositionSeconds;
+        if (
+            position === null ||
+            !isEmbeddedMpvEarlyEof(position, durationSeconds)
+        ) {
+            return false;
+        }
+        return (
+            state.resumedAtSeconds === null ||
+            position >
+                state.resumedAtSeconds + EMBEDDED_MPV_EARLY_EOF_PROGRESS_SECONDS
+        );
     }
 
     /**
