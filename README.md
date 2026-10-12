@@ -134,6 +134,8 @@ The application is available at <http://localhost:4333>. See
 [`docker/docker-compose.yml`](./docker/docker-compose.yml) for the ready-to-run
 compose file and [`docker/README.md`](./docker/README.md) for environment
 variables, reverse proxy notes, PWA limitations, and build details.
+Without Docker, [`proxmox/README.md`](./proxmox/README.md) installs the same
+PWA and backend in a Proxmox LXC container with one command.
 
 The self-hosted image runs the browser PWA rather than the Electron desktop app:
 EPG/XMLTV panels, Embedded MPV, managed MPV/VLC launching, the download manager,
