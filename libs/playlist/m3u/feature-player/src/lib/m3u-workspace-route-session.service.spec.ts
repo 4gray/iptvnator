@@ -257,7 +257,7 @@ describe('M3uWorkspaceRouteSession', () => {
             PlaylistActions.updatePlaylistMeta({
                 playlist: {
                     _id: PLAYLIST_ID,
-                    hiddenGroupTitles: [],
+                    hiddenGroupTitles: [] as string[],
                 } as PlaylistMeta,
                 persist: false,
             })
@@ -280,7 +280,7 @@ describe('M3uWorkspaceRouteSession', () => {
             } as PlaylistMeta,
         });
         response.next({
-            hiddenGroupTitles: [],
+            hiddenGroupTitles: [] as string[],
             playlist: { items: [PRIMARY_CHANNEL] },
         } as Playlist);
         response.complete();
