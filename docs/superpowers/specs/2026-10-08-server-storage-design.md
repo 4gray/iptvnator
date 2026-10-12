@@ -132,8 +132,8 @@ All JSON. Errors: `{ message, status, code? }`.
 | `DELETE /v1/playlists/:id` | Delete the row and its user-state entries. |
 | `DELETE /v1/playlists` | Delete all playlists and all user state. |
 | `GET/PUT /v1/app-state/:key` | `{ value }`. |
-| `GET /v1/user-state` | `{ entries: { [namespace]: { [playlistId]: value } } }`. |
-| `PUT/DELETE /v1/user-state/:namespace/:playlistId` | One entry. Namespaces are an allow-list. |
+| `GET /v1/user-state` | `{ entries: { [namespace]: { [playlistId]: value } }, tags }`, a content tag per entry. |
+| `PUT/DELETE /v1/user-state/:namespace/:playlistId` | One entry. Namespaces are an allow-list. `If-Match: "<tag>"` or `If-None-Match: *` makes it conditional: `412` with the current value and tag. |
 
 ETags are `"<bootId>-<revision>"` from an in-memory per-playlist revision
 counter; the server is the only writer of its database.
@@ -209,9 +209,10 @@ https://claude.ai/artifact/3WheJAgeNL5ag6kmtPrJcD
 
 ## 11. Risks
 
-- **Concurrent edits on two devices**: last write wins per document or per
-  Xtream map entry. Every playlist mutation re-reads first, so the window is
-  one round trip.
+- **Concurrent edits on two devices**: last write wins per document.
+  Every playlist mutation re-reads first, so the window is one round trip.
+  Xtream map entries are written on the tag they were read at and replayed
+  on the server's value after a `412`, so both devices' edits are kept.
 - **Large payloads**: M3U global favorites and backup export read all full
   documents, as IndexedDB does today.
 - **Open instances**: storing credentials raises the cost of an unprotected

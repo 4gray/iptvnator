@@ -88,7 +88,10 @@ Server storage adds versioned routes under `/v1`, which the PWA uses in
   replaced
 - `GET /v1/user-state`, `PUT|DELETE /v1/user-state/:namespace/:playlistId`:
   Xtream favorites, recently viewed, collection snapshots and playback
-  positions, one JSON value per namespace and playlist
+  positions, one JSON value per namespace and playlist; `GET` adds a
+  content tag per entry (`tags`), and a write with `If-Match: "<tag>"` or
+  `If-None-Match: *` answers `412` with the current value and tag when the
+  entry changed since
 - `GET|PUT /v1/app-state/:key`
 
 Server storage lives in `apps/web-backend/src/app/storage/`. With
@@ -208,9 +211,12 @@ settings and guards read them in every build.
   (`iptvnator-server:cache-owner`); another one behind the same address
   starts clean. Also,
   re-reads run one at a time and keep entries edited while they were in
-  flight or not yet saved. A re-read whose result does not fit the cache
-  keeps the old cache and baseline together. A response body cut off after
-  its headers counts as offline. Edits made before the first successful read
+  flight or not yet saved. A response body cut off after its headers counts
+  as offline. Each write is sent on the tag of the entry it was made
+  against (`UserDataWriteQueue`); after a `412` the edit (before → after) is
+  replayed on the server's current value, so another device's change to the
+  same playlist's entry is kept. Deleting a playlist first drops its queued
+  edits and waits for writes still travelling. Edits made before the first successful read
   are held as before → after and applied to the server's value once it
   arrives (`applyEdit`): a new device or a stale cache adds its favorite
   instead of replacing the server's list. They are saved in the tab too
