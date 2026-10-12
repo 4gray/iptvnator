@@ -1333,7 +1333,8 @@ export class EmbeddedMpvNativeService {
             payload.status,
             previousStatus,
             payload.positionSeconds,
-            snapshot.errorOrigin
+            snapshot.errorOrigin,
+            payload.durationSeconds
         );
         if (reconnect) {
             payload.reconnect = reconnect;
