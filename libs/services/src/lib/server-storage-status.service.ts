@@ -31,7 +31,9 @@ export class ServerStorageStatusService {
     }
 
     reportSuccess(): void {
-        if (!this.isActive()) {
+        // A late answer to a request sent with the old token must not undo
+        // sign-out; only a reload after a new token leaves this state.
+        if (!this.isActive() || this.stateSignal() === 'unauthorized') {
             return;
         }
         this.stateSignal.set('online');

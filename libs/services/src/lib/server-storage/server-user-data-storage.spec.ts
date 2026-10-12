@@ -417,7 +417,9 @@ describe('ServerUserDataStorage', () => {
         );
         await first.storage.flush();
         expect(first.storage.hasUnsentWrites()).toBe(true);
-        expect(first.local.values.get('iptvnator-server:unsent-writes')).toBe(
+        expect(
+            first.local.values.get('iptvnator-server:unsent-writes:default')
+        ).toBe(
             JSON.stringify([
                 {
                     namespace: 'xtream-favorites',
@@ -448,8 +450,60 @@ describe('ServerUserDataStorage', () => {
             { value: ['live:1', 'live:9'] }
         );
         expect(reloaded.hasUnsentWrites()).toBe(false);
-        expect(first.local.values.has('iptvnator-server:unsent-writes')).toBe(
+        expect(
+            first.local.values.has('iptvnator-server:unsent-writes:default')
+        ).toBe(false);
+    });
+
+    it('saves a write still travelling when the page hides', async () => {
+        const { api, local, storage } = setup();
+        await storage.hydrate();
+        api.sendJson.mockReturnValueOnce(new Promise(() => undefined));
+
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['x'] }));
+        void storage.flush();
+        await settle();
+        storage.flushWithKeepalive();
+
+        expect(
+            JSON.parse(
+                local.values.get('iptvnator-server:unsent-writes:default') ??
+                    '[]'
+            )
+        ).toEqual([
+            { namespace: 'xtream-favorites', playlistId: 'p1', value: ['x'] },
+        ]);
+    });
+
+    it('drops cache and saved writes of another server database', () => {
+        const local = memoryStorage();
+        local.setItem('iptvnator-server:cache-owner', 'old-db');
+        local.setItem('iptvnator-server:xtream-favorites', '{"p1":["a"]}');
+        local.setItem(
+            'iptvnator-server:unsent-writes:old-db',
+            JSON.stringify([
+                {
+                    namespace: 'xtream-favorites',
+                    playlistId: 'p1',
+                    value: ['a'],
+                },
+            ])
+        );
+
+        const storage = new ServerUserDataStorage(
+            {} as never,
+            local,
+            jest.fn(),
+            'new-db'
+        );
+
+        expect(storage.hasUnsentWrites()).toBe(false);
+        expect(local.values.has('iptvnator-server:xtream-favorites')).toBe(
             false
         );
+        expect(local.values.has('iptvnator-server:unsent-writes:old-db')).toBe(
+            false
+        );
+        expect(local.values.get('iptvnator-server:cache-owner')).toBe('new-db');
     });
 });

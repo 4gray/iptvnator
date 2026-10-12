@@ -200,8 +200,12 @@ settings and guards read them in every build.
   each change sends only the playlist entries that differ, debounced, with a
   `keepalive` flush when the page hides. Batches go out one after another
   (the page-hide flush waits for a batch still travelling), a failed write,
-  including a refused `keepalive` one, stays queued for the next flush and
-  survives a reload under `iptvnator-server:unsent-writes`, and
+  including a refused `keepalive` one, stays queued for the next flush, and
+  the page-hide flush saves every unconfirmed write (queued or travelling)
+  under `iptvnator-server:unsent-writes:<instanceId>` for the next visit.
+  Cache and saved writes belong to one server database
+  (`iptvnator-server:cache-owner`); another one behind the same address
+  starts clean. Also,
   re-reads run one at a time and keep entries edited while they were in
   flight or not yet saved. A re-read whose result does not fit the cache
   keeps the old cache and baseline together. A response body cut off after
@@ -213,7 +217,8 @@ settings and guards read them in every build.
 - **Connection state.** `ServerStorageStatusService` is `online`, `offline`
   (a request did not reach the server, or a proxy answered 502, 503 or 504
   for it; retried every 30 s and when the tab returns) or
-  `unauthorized` (a 401 clears the stored token). The rail shows a status
+  `unauthorized` (a 401 clears the stored token; only a reload after a new
+  token leaves it, so a late answer cannot undo sign-out). The rail shows a status
   shortcut, an offline banner sits above the workspace content, and failed
   writes raise a snackbar (`SERVER_STORAGE.WRITE_FAILED`, or `TOO_LARGE` for
   a 413).
@@ -236,9 +241,12 @@ settings and guards read them in every build.
   document's favorites and history (M3U favorites name channels by stream
   URL; older ones by a channel id that is random per import and is
   translated through the URL; nothing is dropped), and the legacy Xtream maps follow under
-  the server id; `combineUserData` unions lists (playback positions by
-  content type and Xtream id, renamed to the server playlist) and merges
-  maps, the server's value winning on a conflict. Browser data is never
+  the server id; each copy's bare legacy Xtream ids are typed from its own
+  snapshots first (`typeLegacyXtreamRefs`), then `combineUserData` unions
+  lists (playback positions by content type and Xtream id, renamed to the
+  server playlist) and merges maps, the server's value winning on a
+  conflict. Parental locks stay in the browser but move to the server
+  playlist id with it. Browser data is never
   deleted, the move does not start while user-data writes are unsent, and
   the marker is written only when nothing failed, so Settings → Server
   keeps offering a partial move.

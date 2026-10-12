@@ -14,6 +14,11 @@ import {
     unionItems,
 } from './server-migration-merge';
 import { planServerMigration } from './server-migration-plan';
+import {
+    typeLegacyXtreamRefs,
+    type XtreamUserData,
+} from './server-migration-xtream';
+import { ParentalLockService } from '../parental-lock/parental-lock.service';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 import { ServerStorageSession } from './server-storage-session';
 
@@ -44,6 +49,7 @@ export interface ServerMigrationResult {
 export class ServerMigrationService {
     private readonly dbService = inject(NgxIndexedDBService);
     private readonly session = inject(ServerStorageSession);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly instanceId = inject(SERVER_STORAGE_CONFIG).instance
         .instanceId;
 
@@ -131,6 +137,7 @@ export class ServerMigrationService {
         }
 
         failed += await this.copyXtreamUserData(targets);
+        failed += await this.moveParentalLocks(targets);
         await this.session.userData.hydrate();
         if (failed === 0) {
             // A partial move stays on offer, in Settings → Server.
@@ -184,9 +191,10 @@ export class ServerMigrationService {
     }
 
     /**
-     * Copies the legacy maps, one write per server entry: browser copies
-     * of one source are combined with each other and with the server's
-     * value. Returns how many writes failed.
+     * Copies the legacy maps, one write per server entry: each copy's
+     * legacy ids are typed first, then the browser copies of one source
+     * are combined with each other and with the server's value. Returns
+     * how many writes failed.
      */
     private async copyXtreamUserData(
         targets: ReadonlyMap<string, string>
@@ -198,25 +206,47 @@ export class ServerMigrationService {
             await this.session.api.getJson<ServerUserStateResponse>(
                 '/user-state'
             );
-        let failed = 0;
-        for (const namespace of SERVER_USER_STATE_NAMESPACES) {
-            const onServer: Record<string, unknown> = entries[namespace] ?? {};
-            const incoming = new Map<string, unknown[]>();
-            for (const [browserId, value] of Object.entries(
-                parseMap(readLocal(namespace))
-            )) {
-                const serverId = targets.get(browserId);
-                if (serverId) {
-                    incoming.set(serverId, [
-                        ...(incoming.get(serverId) ?? []),
-                        retargetUserData(value, browserId, serverId),
-                    ]);
+        const legacy = new Map(
+            SERVER_USER_STATE_NAMESPACES.map((namespace) => [
+                namespace,
+                parseMap(readLocal(namespace)),
+            ])
+        );
+        const copies = new Map<string, XtreamUserData[]>();
+        for (const [browserId, serverId] of targets) {
+            const copy: XtreamUserData = {};
+            for (const [namespace, map] of legacy) {
+                if (browserId in map) {
+                    copy[namespace] = retargetUserData(
+                        map[browserId],
+                        browserId,
+                        serverId
+                    );
                 }
             }
-            for (const [serverId, values] of incoming) {
-                const current = onServer[serverId];
-                const value = combineUserData([current, ...values]);
-                if (JSON.stringify(value) === JSON.stringify(current)) {
+            if (Object.keys(copy).length > 0) {
+                copies.set(serverId, [...(copies.get(serverId) ?? []), copy]);
+            }
+        }
+
+        let failed = 0;
+        for (const [serverId, browserCopies] of copies) {
+            const stored: XtreamUserData = {};
+            for (const namespace of SERVER_USER_STATE_NAMESPACES) {
+                const value = entries[namespace]?.[serverId];
+                if (value !== undefined) {
+                    stored[namespace] = value;
+                }
+            }
+            const typed = [stored, ...browserCopies].map(typeLegacyXtreamRefs);
+            for (const namespace of SERVER_USER_STATE_NAMESPACES) {
+                const value = combineUserData(
+                    typed.map((copy) => copy[namespace])
+                );
+                if (
+                    value === undefined ||
+                    JSON.stringify(value) === JSON.stringify(stored[namespace])
+                ) {
                     continue;
                 }
                 try {
@@ -228,6 +258,40 @@ export class ServerMigrationService {
                 } catch {
                     failed += 1;
                 }
+            }
+        }
+        return failed;
+    }
+
+    /**
+     * Parental locks stay in this browser, keyed by playlist id: a playlist
+     * merged under another id takes its locks along, or its locked
+     * categories would show after the move. Returns how many failed.
+     */
+    private async moveParentalLocks(
+        targets: ReadonlyMap<string, string>
+    ): Promise<number> {
+        await this.parentalLock.initialize();
+        let failed = 0;
+        for (const [browserId, serverId] of targets) {
+            const from = this.parentalLock.locksFor(browserId);
+            if (
+                browserId === serverId ||
+                from.xtream.length + from.stalker.length + from.m3u.length === 0
+            ) {
+                continue;
+            }
+            const to = this.parentalLock.locksFor(serverId);
+            const moved = await this.parentalLock.replacePlaylistLocks(
+                serverId,
+                {
+                    xtream: unionItems(to.xtream, from.xtream),
+                    stalker: unionItems(to.stalker, from.stalker),
+                    m3u: unionItems(to.m3u, from.m3u),
+                }
+            );
+            if (!moved) {
+                failed += 1;
             }
         }
         return failed;

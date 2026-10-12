@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { of } from 'rxjs';
+import { ParentalLockService } from '../parental-lock/parental-lock.service';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 import { ServerStorageSession } from './server-storage-session';
 import { ServerMigrationService } from './server-migration.service';
@@ -30,7 +31,19 @@ describe('ServerMigrationService', () => {
         };
     };
 
+    const emptyLocks = () => ({ xtream: [], stalker: [], m3u: [] });
+    let parentalLock: {
+        initialize: jest.Mock;
+        locksFor: jest.Mock;
+        replacePlaylistLocks: jest.Mock;
+    };
+
     beforeEach(() => {
+        parentalLock = {
+            initialize: jest.fn().mockResolvedValue(undefined),
+            locksFor: jest.fn(() => emptyLocks()),
+            replacePlaylistLocks: jest.fn().mockResolvedValue(true),
+        };
         session = {
             fetchStatus: jest.fn().mockResolvedValue({ playlists: 0 }),
             documentStore: {
@@ -57,6 +70,7 @@ describe('ServerMigrationService', () => {
                     useValue: { getAll: () => of(browserPlaylists) },
                 },
                 { provide: ServerStorageSession, useValue: session },
+                { provide: ParentalLockService, useValue: parentalLock },
                 {
                     provide: SERVER_STORAGE_CONFIG,
                     useValue: {
@@ -307,5 +321,46 @@ describe('ServerMigrationService', () => {
 
         expect(result).toEqual({ imported: 0, merged: 0, failed: 2 });
         expect(session.api.sendJson).not.toHaveBeenCalled();
+    });
+
+    it('takes parental locks along to the server playlist id', async () => {
+        session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
+            {
+                _id: 'server-x',
+                title: 'Provider',
+                serverUrl: 'http://panel.test',
+                username: 'user',
+            },
+        ]);
+        parentalLock.locksFor.mockImplementation((id: string) =>
+            id === 'x'
+                ? {
+                      xtream: [{ categoryType: 'live', xtreamId: 5 }],
+                      stalker: [],
+                      m3u: [],
+                  }
+                : {
+                      xtream: [{ categoryType: 'vod', xtreamId: 9 }],
+                      stalker: [],
+                      m3u: [],
+                  }
+        );
+
+        const result = await TestBed.inject(
+            ServerMigrationService
+        ).moveBrowserData();
+
+        expect(result.failed).toBe(0);
+        expect(parentalLock.replacePlaylistLocks).toHaveBeenCalledWith(
+            'server-x',
+            {
+                xtream: [
+                    { categoryType: 'vod', xtreamId: 9 },
+                    { categoryType: 'live', xtreamId: 5 },
+                ],
+                stalker: [],
+                m3u: [],
+            }
+        );
     });
 });

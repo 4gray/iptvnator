@@ -42,7 +42,8 @@ export class ServerStorageSession {
         this.api,
         // Lazy: a browser that denies storage must not stop the app here.
         createBrowserUserDataStorage(),
-        () => this.announceWriteFailure()
+        () => this.announceWriteFailure(),
+        this.config.instance.instanceId ?? undefined
     );
 
     constructor() {
