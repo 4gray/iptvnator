@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../../../../ui/styles/app-controls' as controls;
 @use '../../../../../../ui/styles/focus-ring';
 
@@ -11,7 +12,7 @@
 
 .source-row {
     --source-row-fill: var(--source-row-base);
-    --source-tile-ring: var(--source-row-fill);
+    --source-row-ring: var(--source-row-fill);
 
     position: relative;
     display: grid;
@@ -68,7 +69,7 @@
     &.source-row--current {
         // The same selected-row look as the side lists: a soft tint, and an
         // outline in light theme. The dot's ring approximates the tint.
-        --source-tile-ring: color-mix(
+        --source-row-ring: color-mix(
             in srgb,
             var(--app-selection-color) 16%,
             var(--source-row-base)
@@ -85,6 +86,12 @@
     font-size: 18px;
     color: var(--app-muted-color);
     cursor: grab;
+}
+
+// Set on the tile element itself: its host declares defaults, which an
+// inherited value would not override.
+app-source-tile {
+    --source-tile-ring: var(--source-row-ring);
 }
 
 .source-row--failing app-source-tile {
@@ -228,6 +235,23 @@
 
 .source-row__retry {
     @include controls.ghost-button(sm);
+}
+
+// Cancelling a running refresh or delete reads as destructive.
+.source-row__cancel {
+    @include mat.icon-button-overrides(
+        (
+            icon-color: var(--mat-sys-error),
+        )
+    );
+
+    &:not([disabled]):hover {
+        @include mat.icon-button-overrides(
+            (
+                icon-color: var(--mat-sys-error),
+            )
+        );
+    }
 }
 
 // Row actions appear on hover, keyboard focus and while the menu is open.

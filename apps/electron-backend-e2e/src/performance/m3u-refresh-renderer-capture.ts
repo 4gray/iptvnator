@@ -301,7 +301,7 @@ async function installRendererProbe(
             const epoch = (): number =>
                 performance.timeOrigin + performance.now();
             const sourceRow = (): Element | undefined =>
-                Array.from(document.querySelectorAll('app-playlist-item')).find(
+                Array.from(document.querySelectorAll('app-source-row')).find(
                     (element) => element.textContent?.includes(title)
                 );
             const state = {

@@ -260,7 +260,10 @@
             "NAME_DESC": "Name (Z-A)",
             "NEWEST": "Hinzugefügt (Neueste zuerst)",
             "OLDEST": "Hinzugefügt (Älteste zuerst)",
-            "CUSTOM_ORDER": "Benutzerdefinierte Reihenfolge (Drag & Drop)"
+            "CUSTOM_ORDER": "Benutzerdefinierte Reihenfolge (Drag & Drop)",
+            "UPDATED": "Zuletzt aktualisiert",
+            "CHANNELS": "Meiste Sender",
+            "FAILING_FIRST": "Nicht erreichbare zuerst"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (lokal, URL, Text)",
@@ -1915,7 +1918,16 @@
                 "EDIT": "Bearbeiten…",
                 "COPY_URL": "URL kopieren",
                 "OPEN": "Öffnen"
-            }
+            },
+            "STATUS": "Status (Erreichbarkeit)",
+            "STATUS_ANY": "Alle",
+            "STATUS_OK": "Erreichbar",
+            "STATUS_BAD": "Nicht erreichbar",
+            "NO_MATCHES": "Keine Playlists passen zu diesen Filtern",
+            "RESET_FILTERS": "Filter zurücksetzen",
+            "REMOVED": "„{{name}}“ entfernt",
+            "REMOVED_SWITCHED": "„{{name}}“ entfernt, zu „{{next}}“ gewechselt",
+            "REMOVE_FAILED": "„{{name}}“ konnte nicht entfernt werden"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategorien",

@@ -4,7 +4,11 @@ import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 export enum SortBy {
     DATE_ADDED = 'date',
+    /** Last refresh, falling back to the import date. */
+    UPDATED = 'updated',
     NAME = 'name',
+    /** Channel count; only M3U playlists store one. */
+    CHANNELS = 'channels',
     CUSTOM = 'custom',
 }
 
@@ -16,9 +20,21 @@ export enum SortOrder {
 export interface SortOptions {
     by: SortBy;
     order: SortOrder;
+    /**
+     * Lists that know source health put the sources that do not respond
+     * first, keeping this order within each part.
+     */
+    failingFirst?: boolean;
 }
 
+const SORT_BY_VALUES = new Set<string>(Object.values(SortBy));
+
 const SORT_OPTIONS_STORAGE_KEY = 'iptvnator-sort-options';
+
+function updatedAt(playlist: PlaylistMeta): number {
+    const time = playlist.updateDate ?? new Date(playlist.importDate).getTime();
+    return Number.isFinite(time) ? time : 0;
+}
 
 @Injectable({
     providedIn: 'root',
@@ -53,13 +69,17 @@ export class SortService {
 
             // Validate that the saved options match our expected types
             if (
-                (parsedOptions.by === SortBy.DATE_ADDED ||
-                    parsedOptions.by === SortBy.NAME ||
-                    parsedOptions.by === SortBy.CUSTOM) &&
+                SORT_BY_VALUES.has(parsedOptions.by) &&
                 (parsedOptions.order === SortOrder.ASC ||
                     parsedOptions.order === SortOrder.DESC)
             ) {
-                return parsedOptions;
+                return {
+                    by: parsedOptions.by,
+                    order: parsedOptions.order,
+                    ...(parsedOptions.failingFirst === true
+                        ? { failingFirst: true }
+                        : {}),
+                };
             }
 
             return defaultOptions;
@@ -100,6 +120,10 @@ export class SortService {
                 const dateA = new Date(a.importDate).getTime();
                 const dateB = new Date(b.importDate).getTime();
                 comparison = dateA - dateB;
+            } else if (by === SortBy.UPDATED) {
+                comparison = updatedAt(a) - updatedAt(b);
+            } else if (by === SortBy.CHANNELS) {
+                comparison = (a.count ?? 0) - (b.count ?? 0);
             } else if (by === SortBy.CUSTOM) {
                 // Sort by position field (lower position comes first)
                 const posA = a.position ?? Number.MAX_SAFE_INTEGER;

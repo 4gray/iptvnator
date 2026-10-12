@@ -84,6 +84,16 @@ $_sizes: (
     @include _disabled;
 }
 
+/// A secondary button at another height (toolbars that stack on narrow
+/// windows use 36px).
+@mixin secondary-button-height($height) {
+    @include mat.button-overrides(
+        (
+            filled-container-height: $height,
+        )
+    );
+}
+
 /// A text action: `--app-body-color`, the heading colour on hover.
 @mixin ghost-button($size: sm) {
     @include mat.button-overrides(
@@ -202,6 +212,19 @@ $_sizes: (
     .mat-mdc-menu-item {
         min-height: 36px;
         border-radius: 6px;
+
+        .mat-icon {
+            font-size: 16px;
+            line-height: 16px;
+        }
+    }
+
+    // The label span fills the row, so a trailing keyboard hint can sit at
+    // its end.
+    .mat-mdc-menu-item-text {
+        display: flex;
+        flex: 1;
+        align-items: center;
     }
 
     .mat-mdc-menu-item[aria-checked='true'] {

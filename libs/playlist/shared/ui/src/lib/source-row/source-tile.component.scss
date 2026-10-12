@@ -2,6 +2,10 @@
 // 2px ring takes `--source-tile-ring`, which the row sets to its own
 // background, so the dot reads as cut out of the tile in every state.
 :host {
+    // Defaults a row or trigger overrides on the `app-source-tile` element.
+    --source-tile-bg: var(--app-widget-bg);
+    --source-tile-color: var(--app-body-color);
+    --source-tile-ring: var(--app-content-bg);
     --source-tile-size: 36px;
     --source-tile-radius: 9px;
     --source-tile-icon: 17px;
@@ -15,8 +19,8 @@
     width: var(--source-tile-size);
     height: var(--source-tile-size);
     border-radius: var(--source-tile-radius);
-    background: var(--source-tile-bg, var(--app-widget-bg));
-    color: var(--source-tile-color, var(--app-body-color));
+    background: var(--source-tile-bg);
+    color: var(--source-tile-color);
 }
 
 :host(.source-tile--md) {
@@ -49,7 +53,7 @@
     width: var(--source-tile-dot);
     height: var(--source-tile-dot);
     border-radius: 50%;
-    border: 2px solid var(--source-tile-ring, var(--app-content-bg));
+    border: 2px solid var(--source-tile-ring);
     background: var(--app-muted-color);
 
     &[data-state='ok'] {

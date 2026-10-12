@@ -157,15 +157,18 @@ describe('Xtream Playwright scenario driver', () => {
     });
 
     it('does not require a misleading portal-status badge before refresh or delete', async () => {
-        for (const [scenarioId, selector, confirmLabel] of [
+        for (const [scenarioId, selector, confirmClick] of [
             [
                 XTREAM_SCENARIO_ID.REFRESH_LARGE,
-                '.refresh-btn',
-                'Refresh playlist',
+                '.source-row__refresh',
+                'name=Refresh playlist;exact=true',
             ],
-            [XTREAM_SCENARIO_ID.DELETE_LARGE, '.delete-btn', 'Remove playlist'],
+            [
+                XTREAM_SCENARIO_ID.DELETE_LARGE,
+                '.source-row__more',
+                '.source-removal-toast__close',
+            ],
         ] as const) {
-            const confirmClick = `name=${confirmLabel};exact=true`;
             const fake = new FakePage();
             const prepared = await prepareXtreamScenario(
                 fake.asPage(),

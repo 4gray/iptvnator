@@ -10,3 +10,4 @@ export * from './lib/xtream-refresh-flow.service';
 export * from './lib/source-health/source-cleanup-dialog.component';
 export * from './lib/source-row/source-row.component';
 export * from './lib/source-row/source-tile.component';
+export * from './lib/source-removal/source-removal.service';

@@ -260,7 +260,10 @@
             "NAME_DESC": "Név szerint (Z–A)",
             "NEWEST": "Hozzáadás dátuma (legújabb elöl)",
             "OLDEST": "Hozzáadás dátuma (legrégebbi elöl)",
-            "CUSTOM_ORDER": "Egyéni sorrend (húzás és ejtés)"
+            "CUSTOM_ORDER": "Egyéni sorrend (húzás és ejtés)",
+            "UPDATED": "Legutóbbi frissítés",
+            "CHANNELS": "Legtöbb csatorna",
+            "FAILING_FIRST": "Nem válaszolók elöl"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (helyi fájl, URL vagy szöveg)",
@@ -1915,7 +1918,16 @@
                 "EDIT": "Szerkesztés…",
                 "COPY_URL": "URL másolása",
                 "OPEN": "Megnyitás"
-            }
+            },
+            "STATUS": "Állapot",
+            "STATUS_ANY": "Bármelyik",
+            "STATUS_OK": "Válaszolnak",
+            "STATUS_BAD": "Nem válaszolnak",
+            "NO_MATCHES": "Egyik lejátszási lista sem felel meg ezeknek a szűrőknek",
+            "RESET_FILTERS": "Szűrők törlése",
+            "REMOVED": "„{{name}}” eltávolítva",
+            "REMOVED_SWITCHED": "„{{name}}” eltávolítva, váltás erre: „{{next}}”",
+            "REMOVE_FAILED": "„{{name}}” nem távolítható el"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategóriák",

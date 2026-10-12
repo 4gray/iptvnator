@@ -68,28 +68,42 @@ export async function prepareXtreamSourceActionTrigger(
     const row = xtreamSourceRow(page, sourceTitle);
     await row.waitFor({ state: 'visible' });
     for (const selector of [
-        '.busy-state__message',
-        '.action-spinner',
-        '.cancel-btn',
+        '.source-row__busy',
+        'mat-spinner',
+        '.source-row__cancel',
     ]) {
         await row.locator(selector).waitFor({ state: 'detached' });
     }
-    const actionSelector =
-        action === 'refresh' ? '.refresh-btn' : '.delete-btn';
-    const actionButton = row.locator(actionSelector);
-    await assertTriggerReady(actionButton, `xtream-source-${action}`);
-    await actionButton.click();
+    if (action === 'refresh') {
+        const refresh = row.locator('.source-row__refresh');
+        await assertTriggerReady(refresh, 'xtream-source-refresh');
+        await refresh.click();
+        const dialog = page.locator('mat-dialog-container').last();
+        await dialog.waitFor({ state: 'visible' });
+        const confirmation = dialog
+            .getByRole('button', { name: 'Refresh playlist', exact: true })
+            .last();
+        await assertTriggerReady(confirmation, 'xtream-source-refresh-confirm');
+        return confirmation;
+    }
 
-    const dialog = page.locator('mat-dialog-container').last();
-    await dialog.waitFor({ state: 'visible' });
-    const confirmation = dialog
-        .getByRole('button', {
-            name: action === 'refresh' ? 'Refresh playlist' : 'Remove playlist',
-            exact: true,
-        })
-        .last();
-    await assertTriggerReady(confirmation, `xtream-source-${action}-confirm`);
-    return confirmation;
+    // Delete leaves the list at once and offers Undo; the toast's close
+    // button commits it without waiting out the Undo window, so the
+    // measurement starts when the delete does.
+    const more = row.locator('.source-row__more');
+    await assertTriggerReady(more, 'xtream-source-delete-menu');
+    await more.click();
+    const remove = page
+        .locator('.cdk-overlay-pane [mat-menu-item]')
+        .filter({ hasText: 'Remove playlist' })
+        .first();
+    await assertTriggerReady(remove, 'xtream-source-delete');
+    await remove.click();
+    const commit = page.locator(
+        'mat-snack-bar-container.app-toast .source-removal-toast__close'
+    );
+    await assertTriggerReady(commit, 'xtream-source-delete-confirm');
+    return commit;
 }
 
 export async function waitForXtreamCatalogTerminal(page: Page): Promise<void> {
@@ -129,7 +143,10 @@ export async function waitForXtreamDeleteTerminal(
     page: Page,
     sourceTitle: string
 ): Promise<void> {
-    await xtreamSourceRow(page, sourceTitle).waitFor({ state: 'detached' });
+    const row = xtreamSourceRow(page, sourceTitle);
+    // The row returns as "Removing…" once the delete starts, then leaves.
+    await row.waitFor({ state: 'attached' });
+    await row.waitFor({ state: 'detached' });
 }
 
 async function selectXtreamMethod(dialog: Locator): Promise<void> {
@@ -157,9 +174,9 @@ async function selectXtreamMethod(dialog: Locator): Promise<void> {
 function xtreamSourceRow(page: Page, sourceTitle: string): Locator {
     const exactTitle = new RegExp(`^\\s*${escapeRegex(sourceTitle)}\\s*$`, 'u');
     return page
-        .locator('app-playlist-item')
+        .locator('app-workspace-sources app-source-row')
         .filter({
-            has: page.locator('.playlist-title', {
+            has: page.locator('.source-row__name', {
                 hasText: exactTitle,
             }),
         })

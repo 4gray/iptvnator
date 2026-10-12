@@ -260,7 +260,10 @@
             "NAME_DESC": "Naam (Z-A)",
             "NEWEST": "Datum toegevoegd (Nieuwste eerst)",
             "OLDEST": "Datum toegevoegd (Oudste eerst)",
-            "CUSTOM_ORDER": "Aangepaste volgorde (slepen en neerzetten)"
+            "CUSTOM_ORDER": "Aangepaste volgorde (slepen en neerzetten)",
+            "UPDATED": "Laatst bijgewerkt",
+            "CHANNELS": "Meeste zenders",
+            "FAILING_FIRST": "Niet-reagerende eerst"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (lokaal, URL, tekst)",
@@ -1915,7 +1918,16 @@
                 "EDIT": "Bewerken…",
                 "COPY_URL": "URL kopiëren",
                 "OPEN": "Openen"
-            }
+            },
+            "STATUS": "Bereikbaarheid",
+            "STATUS_ANY": "Alle",
+            "STATUS_OK": "Reageren",
+            "STATUS_BAD": "Reageren niet",
+            "NO_MATCHES": "Geen afspeellijsten voldoen aan deze filters",
+            "RESET_FILTERS": "Filters wissen",
+            "REMOVED": "‘{{name}}’ verwijderd",
+            "REMOVED_SWITCHED": "‘{{name}}’ verwijderd, overgeschakeld naar ‘{{next}}’",
+            "REMOVE_FAILED": "‘{{name}}’ kon niet worden verwijderd"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorieën",

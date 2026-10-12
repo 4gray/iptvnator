@@ -31,7 +31,7 @@ type RowRing = {
 function readRowRing(page: Page): Promise<RowRing> {
     return page.evaluate(() => {
         const focused = document.activeElement as HTMLElement;
-        const row = focused.closest('.playlist-item') as HTMLElement;
+        const row = focused.closest('.source-row') as HTMLElement;
         const probe = document.createElement('span');
         probe.style.color = 'var(--app-focus-ring)';
         row.append(probe);
@@ -93,16 +93,19 @@ test.describe('Electron Sources keyboard', () => {
                 timeout: 30_000,
             });
             await openSources(page);
-            await expect(page.locator('app-playlist-item')).toHaveCount(2, {
+            await expect(
+                page.locator('app-workspace-sources app-source-row')
+            ).toHaveCount(2, {
                 timeout: 30_000,
             });
             // Bravo opened last, so it is the active source; open the other.
             const row = sourceRowByTitle(page, 'keyboard-alpha').first();
-            await expect(row.locator('.playlist-item')).not.toHaveClass(
-                /\bselected\b/
+            await expect(row.locator('.source-row__body')).not.toHaveAttribute(
+                'aria-current',
+                'true'
             );
             const title = (
-                await row.locator('.playlist-title').textContent()
+                await row.locator('.source-row__name').textContent()
             )?.trim();
             expect(title).toBeTruthy();
 
@@ -153,7 +156,7 @@ test.describe('Electron Sources keyboard', () => {
             await expect(open).not.toBeFocused();
             expect(
                 await row
-                    .locator('.playlist-item')
+                    .locator('.source-row')
                     .evaluate((el) => getComputedStyle(el).outlineStyle)
             ).toBe('none');
             await page.keyboard.press('Shift+Tab');

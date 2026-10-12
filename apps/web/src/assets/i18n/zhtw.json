@@ -260,7 +260,10 @@
             "NAME_DESC": "名稱（Z-A）",
             "NEWEST": "新增日期（最新優先）",
             "OLDEST": "新增日期（最舊優先）",
-            "CUSTOM_ORDER": "自訂順序（拖放）"
+            "CUSTOM_ORDER": "自訂順序（拖放）",
+            "UPDATED": "最近更新",
+            "CHANNELS": "頻道數量",
+            "FAILING_FIRST": "無回應的優先"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U（本機、網址、文字）",
@@ -1915,7 +1918,16 @@
                 "EDIT": "編輯…",
                 "COPY_URL": "複製 URL",
                 "OPEN": "開啟"
-            }
+            },
+            "STATUS": "狀態",
+            "STATUS_ANY": "全部",
+            "STATUS_OK": "有回應",
+            "STATUS_BAD": "無回應",
+            "NO_MATCHES": "沒有符合這些篩選條件的播放清單",
+            "RESET_FILTERS": "重設篩選",
+            "REMOVED": "已移除「{{name}}」",
+            "REMOVED_SWITCHED": "已移除「{{name}}」，已切換到「{{next}}」",
+            "REMOVE_FAILED": "無法移除「{{name}}」"
         },
         "CONTEXT": {
             "CATEGORIES": "類別",

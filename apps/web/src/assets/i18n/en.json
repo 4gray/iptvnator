@@ -260,7 +260,10 @@
             "NAME_DESC": "Name (Z-A)",
             "NEWEST": "Date added (Newest first)",
             "OLDEST": "Date added (Oldest first)",
-            "CUSTOM_ORDER": "Custom order (Drag & Drop)"
+            "CUSTOM_ORDER": "Custom order (Drag & Drop)",
+            "UPDATED": "Last updated",
+            "CHANNELS": "Most channels",
+            "FAILING_FIRST": "Not responding first"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (local, url, text)",
@@ -1915,7 +1918,16 @@
                 "EDIT": "Edit…",
                 "COPY_URL": "Copy URL",
                 "OPEN": "Open"
-            }
+            },
+            "STATUS": "Status",
+            "STATUS_ANY": "Any",
+            "STATUS_OK": "Responding",
+            "STATUS_BAD": "Not responding",
+            "NO_MATCHES": "No playlists match these filters",
+            "RESET_FILTERS": "Reset filters",
+            "REMOVED": "Removed “{{name}}”",
+            "REMOVED_SWITCHED": "Removed “{{name}}”, switched to “{{next}}”",
+            "REMOVE_FAILED": "Could not remove “{{name}}”"
         },
         "CONTEXT": {
             "CATEGORIES": "Categories",

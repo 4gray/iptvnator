@@ -260,7 +260,10 @@
             "NAME_DESC": "Nome (Z-A)",
             "NEWEST": "Data de adição (Mais recente primeiro)",
             "OLDEST": "Data de adição (Mais antigo primeiro)",
-            "CUSTOM_ORDER": "Ordem personalizada (arrastar e soltar)"
+            "CUSTOM_ORDER": "Ordem personalizada (arrastar e soltar)",
+            "UPDATED": "Última atualização",
+            "CHANNELS": "Mais canais",
+            "FAILING_FIRST": "Primeiro as que não respondem"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (local, url, texto)",
@@ -1915,7 +1918,16 @@
                 "EDIT": "Editar…",
                 "COPY_URL": "Copiar URL",
                 "OPEN": "Abrir"
-            }
+            },
+            "STATUS": "Estado",
+            "STATUS_ANY": "Qualquer",
+            "STATUS_OK": "Respondem",
+            "STATUS_BAD": "Não respondem",
+            "NO_MATCHES": "Nenhuma lista corresponde a estes filtros",
+            "RESET_FILTERS": "Repor filtros",
+            "REMOVED": "«{{name}}» removida",
+            "REMOVED_SWITCHED": "«{{name}}» removida, mudou para «{{next}}»",
+            "REMOVE_FAILED": "Não foi possível remover «{{name}}»"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorias",

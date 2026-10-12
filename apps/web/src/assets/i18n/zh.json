@@ -260,7 +260,10 @@
             "NAME_DESC": "名称（Z-A）",
             "NEWEST": "添加日期（最新优先）",
             "OLDEST": "添加日期（最旧优先）",
-            "CUSTOM_ORDER": "自定义顺序（拖放）"
+            "CUSTOM_ORDER": "自定义顺序（拖放）",
+            "UPDATED": "最近更新",
+            "CHANNELS": "频道数量",
+            "FAILING_FIRST": "无响应的优先"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U（本地、URL、文本）",
@@ -1915,7 +1918,16 @@
                 "EDIT": "编辑…",
                 "COPY_URL": "复制 URL",
                 "OPEN": "打开"
-            }
+            },
+            "STATUS": "状态",
+            "STATUS_ANY": "全部",
+            "STATUS_OK": "有响应",
+            "STATUS_BAD": "无响应",
+            "NO_MATCHES": "没有符合这些筛选条件的播放列表",
+            "RESET_FILTERS": "重置筛选",
+            "REMOVED": "已删除“{{name}}”",
+            "REMOVED_SWITCHED": "已删除“{{name}}”，已切换到“{{next}}”",
+            "REMOVE_FAILED": "无法删除“{{name}}”"
         },
         "CONTEXT": {
             "CATEGORIES": "分类",

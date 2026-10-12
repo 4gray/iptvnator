@@ -260,7 +260,10 @@
             "NAME_DESC": "İsim (Z-A)",
             "NEWEST": "Eklenme tarihi (En yeni önce)",
             "OLDEST": "Eklenme tarihi (En eski önce)",
-            "CUSTOM_ORDER": "Özel sıra (sürükle ve bırak)"
+            "CUSTOM_ORDER": "Özel sıra (sürükle ve bırak)",
+            "UPDATED": "Son güncelleme",
+            "CHANNELS": "En çok kanal",
+            "FAILING_FIRST": "Önce yanıt vermeyenler"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (yerel, url, metin)",
@@ -1915,7 +1918,16 @@
                 "EDIT": "Düzenle…",
                 "COPY_URL": "URL'yi kopyala",
                 "OPEN": "Aç"
-            }
+            },
+            "STATUS": "Durum",
+            "STATUS_ANY": "Tümü",
+            "STATUS_OK": "Yanıt veriyor",
+            "STATUS_BAD": "Yanıt vermiyor",
+            "NO_MATCHES": "Bu filtrelere uyan oynatma listesi yok",
+            "RESET_FILTERS": "Filtreleri sıfırla",
+            "REMOVED": "“{{name}}” kaldırıldı",
+            "REMOVED_SWITCHED": "“{{name}}” kaldırıldı, “{{next}}” açıldı",
+            "REMOVE_FAILED": "“{{name}}” kaldırılamadı"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategoriler",

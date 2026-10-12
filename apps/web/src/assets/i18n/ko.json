@@ -260,7 +260,10 @@
             "NAME_DESC": "이름 (Z-A)",
             "NEWEST": "추가 날짜 (최신순)",
             "OLDEST": "추가 날짜 (오래된순)",
-            "CUSTOM_ORDER": "사용자 지정 순서(드래그 앤 드롭)"
+            "CUSTOM_ORDER": "사용자 지정 순서(드래그 앤 드롭)",
+            "UPDATED": "최근 업데이트",
+            "CHANNELS": "채널 많은 순",
+            "FAILING_FIRST": "응답 없는 항목 먼저"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (로컬, URL, 텍스트)",
@@ -1915,7 +1918,16 @@
                 "EDIT": "편집…",
                 "COPY_URL": "URL 복사",
                 "OPEN": "열기"
-            }
+            },
+            "STATUS": "상태",
+            "STATUS_ANY": "전체",
+            "STATUS_OK": "응답함",
+            "STATUS_BAD": "응답 없음",
+            "NO_MATCHES": "이 필터와 일치하는 재생목록이 없습니다",
+            "RESET_FILTERS": "필터 초기화",
+            "REMOVED": "'{{name}}' 삭제됨",
+            "REMOVED_SWITCHED": "'{{name}}' 삭제됨, '{{next}}'(으)로 전환됨",
+            "REMOVE_FAILED": "'{{name}}'을(를) 삭제할 수 없습니다"
         },
         "CONTEXT": {
             "CATEGORIES": "카테고리",

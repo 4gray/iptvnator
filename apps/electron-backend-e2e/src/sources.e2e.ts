@@ -717,14 +717,14 @@ https://streams.example.test/url-omega.m3u8
 
             await expect(
                 sourceRowByTitle(app.mainWindow, 'Delete Me Stalker').locator(
-                    'app-source-health-indicator [data-state]'
+                    '.source-tile__dot[data-state]'
                 )
-            ).toHaveAttribute('data-state', 'active', { timeout: 20000 });
+            ).toHaveAttribute('data-state', 'ok', { timeout: 20000 });
             await expect(
                 sourceRowByTitle(app.mainWindow, 'Delete Me Xtream').locator(
-                    'app-source-health-indicator [data-state]'
+                    '.source-tile__dot[data-state]'
                 )
-            ).toHaveAttribute('data-state', 'active', { timeout: 20000 });
+            ).toHaveAttribute('data-state', 'ok', { timeout: 20000 });
 
             await deleteSource(app.mainWindow, deletableLocalSourceDisplayName);
             await expect(
@@ -822,8 +822,8 @@ https://streams.example.test/original-url.m3u8
             await expect(
                 sourceRowByTitle(app.mainWindow, refreshLocalSourceDisplayName)
                     .first()
-                    .locator('.refresh-btn')
-            ).toBeVisible();
+                    .locator('.source-row__refresh')
+            ).toBeAttached();
 
             writeTemporaryM3uFile(dataDir, 'refresh-local-source.m3u', [
                 {
@@ -865,8 +865,8 @@ https://streams.example.test/refreshed-url.m3u8
             await expect(
                 sourceRowByTitle(app.mainWindow, 'refresh-url-source.m3u')
                     .first()
-                    .locator('.meta')
-            ).toContainText('Updated:');
+                    .locator('.source-row__meta')
+            ).toContainText('updated');
             await waitForSourceRowIdle(
                 app.mainWindow,
                 'refresh-url-source.m3u'
@@ -876,9 +876,11 @@ https://streams.example.test/refreshed-url.m3u8
                 'refresh-url-source.m3u'
             ).first();
             await expect(
-                refreshedUrlRow.locator('.playlist-item')
-            ).not.toHaveClass(/is-busy/);
-            await expect(refreshedUrlRow.locator('.refresh-btn')).toBeEnabled();
+                refreshedUrlRow.locator('.source-row')
+            ).not.toHaveClass(/source-row--busy/);
+            await expect(
+                refreshedUrlRow.locator('.source-row__refresh')
+            ).toBeEnabled();
             await refreshedUrlRow
                 .getByText('refresh-url-source.m3u', { exact: true })
                 .click();
@@ -904,8 +906,8 @@ https://streams.example.test/refreshed-url.m3u8
             await expect(
                 sourceRowByTitle(app.mainWindow, 'Refresh Xtream Source')
                     .first()
-                    .locator('.meta')
-            ).toContainText('Updated:');
+                    .locator('.source-row__meta')
+            ).toContainText('updated');
         } finally {
             await closeElectronApp(app);
             await urlServer.close();

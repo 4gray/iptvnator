@@ -102,7 +102,7 @@
                 <button
                     mat-icon-button
                     type="button"
-                    class="source-row__action source-row__action--visible"
+                    class="source-row__action source-row__action--visible source-row__cancel"
                     (click)="
                         $event.stopPropagation(); cancelBusyRequested.emit()
                     "
@@ -131,7 +131,7 @@
                 <button
                     mat-icon-button
                     type="button"
-                    class="source-row__action"
+                    class="source-row__action source-row__refresh"
                     [class.source-row__action--visible]="refreshing()"
                     [disabled]="busy()"
                     (click)="$event.stopPropagation(); refreshRequested.emit()"
@@ -149,7 +149,7 @@
             <button
                 mat-icon-button
                 type="button"
-                class="source-row__action"
+                class="source-row__action source-row__edit"
                 [disabled]="busy()"
                 (click)="$event.stopPropagation(); editRequested.emit()"
                 [matTooltip]="'WORKSPACE.SOURCES.ROW.EDIT' | translate"

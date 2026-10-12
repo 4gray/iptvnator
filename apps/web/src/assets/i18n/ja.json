@@ -260,7 +260,10 @@
             "NAME_DESC": "名前（Z-A）",
             "NEWEST": "追加日（新しい順）",
             "OLDEST": "追加日（古い順）",
-            "CUSTOM_ORDER": "カスタム順（ドラッグ＆ドロップ）"
+            "CUSTOM_ORDER": "カスタム順（ドラッグ＆ドロップ）",
+            "UPDATED": "最終更新",
+            "CHANNELS": "チャンネル数",
+            "FAILING_FIRST": "応答なしを先頭に"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U（ローカル、URL、テキスト）",
@@ -1915,7 +1918,16 @@
                 "EDIT": "編集…",
                 "COPY_URL": "URLをコピー",
                 "OPEN": "開く"
-            }
+            },
+            "STATUS": "状態",
+            "STATUS_ANY": "すべて",
+            "STATUS_OK": "応答あり",
+            "STATUS_BAD": "応答なし",
+            "NO_MATCHES": "この条件に一致するプレイリストはありません",
+            "RESET_FILTERS": "フィルターをリセット",
+            "REMOVED": "「{{name}}」を削除しました",
+            "REMOVED_SWITCHED": "「{{name}}」を削除し、「{{next}}」に切り替えました",
+            "REMOVE_FAILED": "「{{name}}」を削除できませんでした"
         },
         "CONTEXT": {
             "CATEGORIES": "カテゴリー",
