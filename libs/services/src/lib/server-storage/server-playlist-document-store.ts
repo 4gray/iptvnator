@@ -30,7 +30,9 @@ type ServerApi = Pick<
  */
 export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
     private readonly cache = new Map<string, CachedDocument>();
-    /** Versions a write was refused on (another device wrote since). */
+    /** The version each playlist was last read or written at. */
+    private readonly basis = new Map<string, string>();
+    /** `id|version` a write was refused on (another device wrote since). */
     private readonly refused = new Set<string>();
     /** Served payload object → the ETag of the document it came from. */
     private readonly servedPayloads = new WeakMap<object, string>();
@@ -66,6 +68,7 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         } catch (error) {
             if (error instanceof ServerApiError && error.status === 404) {
                 this.cache.delete(playlistId);
+                this.basis.delete(playlistId);
                 return null;
             }
             throw error;
@@ -79,58 +82,17 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         return this.serve(document, etag);
     }
 
-    async dbUpsertAppPlaylist(
-        playlist: Playlist
-    ): Promise<ElectronBridgeResult> {
-        const path = `/playlists/${encodeURIComponent(playlist._id)}`;
-        const payloadEtag = this.servedPayloadEtag(playlist);
-        if (payloadEtag !== null) {
-            try {
-                const response = await this.api.sendJson(
-                    'PUT',
-                    `${path}?keepPayload=1`,
-                    withoutPayload(playlist),
-                    // Built on the version it was read at; a retry on the
-                    // same copy, not read again, writes as before.
-                    this.refused.has(payloadEtag)
-                        ? {}
-                        : { 'If-Match': payloadEtag }
-                );
-                // The server kept its stored payload; it is ours only if
-                // nothing replaced it since we read it.
-                const replaced = response.headers.get(
-                    SERVER_REPLACED_ETAG_HEADER
-                );
-                if (replaced && sameEtag(replaced, payloadEtag)) {
-                    this.remember(playlist._id, response, playlist);
-                } else {
-                    this.cache.delete(playlist._id);
-                }
-                return { success: true };
-            } catch (error) {
-                if (error instanceof ServerApiError && error.status === 412) {
-                    this.refused.add(payloadEtag);
-                    this.cache.delete(playlist._id);
-                    throw new PlaylistWriteConflict(playlist._id);
-                }
-                if (!(
-                    error instanceof ServerApiError &&
-                    error.code === 'payload_missing'
-                )) {
-                    throw error;
-                }
-            }
-        }
-        const response = await this.api.sendJson('PUT', path, playlist);
-        this.remember(playlist._id, response, playlist);
-        return { success: true };
+    /** A mutation: built on the version it read, refused if it changed. */
+    dbUpsertAppPlaylist(playlist: Playlist): Promise<ElectronBridgeResult> {
+        return this.upsert(playlist, true);
     }
 
+    /** Imports and migrations: written as they are, outside any retry. */
     async dbUpsertAppPlaylists(
         playlists: Playlist[]
     ): Promise<ElectronBridgeCountResult> {
         for (const playlist of playlists) {
-            await this.dbUpsertAppPlaylist(playlist);
+            await this.upsert(playlist, false);
         }
         return { success: true, count: playlists.length };
     }
@@ -142,6 +104,7 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
             })
         );
         this.cache.delete(playlistId);
+        this.basis.delete(playlistId);
         return { success: true };
     }
 
@@ -150,6 +113,7 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
             this.api.request('/playlists', { method: 'DELETE' })
         );
         this.cache.clear();
+        this.basis.clear();
         return { success: true };
     }
 
@@ -174,6 +138,86 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         return { success: true };
     }
 
+    private async upsert(
+        playlist: Playlist,
+        conditional: boolean
+    ): Promise<ElectronBridgeResult> {
+        const id = playlist._id;
+        const path = `/playlists/${encodeURIComponent(id)}`;
+        const payloadEtag = this.servedPayloadEtag(playlist);
+        // The version it was read at: of its payload, else of the last read
+        // (portal documents have no payload). A retry on the same copy, not
+        // read again after a refusal, writes as before.
+        const read = payloadEtag ?? this.basis.get(id) ?? null;
+        const headers: Record<string, string> =
+            conditional && read && !this.refused.has(`${id}|${read}`)
+                ? { 'If-Match': read }
+                : {};
+        try {
+            if (payloadEtag !== null) {
+                const response = await this.keepPayload(
+                    playlist,
+                    payloadEtag,
+                    headers
+                );
+                if (response) {
+                    return { success: true };
+                }
+            }
+            const response = await this.api.sendJson(
+                'PUT',
+                path,
+                playlist,
+                payloadEtag === null ? headers : {}
+            );
+            this.remember(id, response, playlist);
+            return { success: true };
+        } catch (error) {
+            if (error instanceof ServerApiError && error.status === 412) {
+                this.refused.add(`${id}|${read}`);
+                this.cache.delete(id);
+                this.basis.delete(id);
+                throw new PlaylistWriteConflict(id);
+            }
+            throw error;
+        }
+    }
+
+    /** `null` when the server has no payload to keep (write it in full). */
+    private async keepPayload(
+        playlist: Playlist,
+        payloadEtag: string,
+        headers: Record<string, string>
+    ): Promise<Response | null> {
+        let response: Response;
+        try {
+            response = await this.api.sendJson(
+                'PUT',
+                `/playlists/${encodeURIComponent(playlist._id)}?keepPayload=1`,
+                withoutPayload(playlist),
+                headers
+            );
+        } catch (error) {
+            if (
+                error instanceof ServerApiError &&
+                error.code === 'payload_missing'
+            ) {
+                return null;
+            }
+            throw error;
+        }
+        // The server kept its stored payload; it is ours only if nothing
+        // replaced it since we read it.
+        const replaced = response.headers.get(SERVER_REPLACED_ETAG_HEADER);
+        if (replaced && sameEtag(replaced, payloadEtag)) {
+            this.remember(playlist._id, response, playlist);
+        } else {
+            this.cache.delete(playlist._id);
+            this.noteWrite(playlist._id, response);
+        }
+        return response;
+    }
+
     private remember(
         id: string,
         response: Response,
@@ -185,7 +229,18 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         } else {
             this.cache.delete(id);
         }
+        this.noteWrite(id, response);
         return etag;
+    }
+
+    /** The version a read or write left the playlist at. */
+    private noteWrite(id: string, response: Response): void {
+        const etag = response.headers.get('etag');
+        if (etag) {
+            this.basis.set(id, etag);
+        } else {
+            this.basis.delete(id);
+        }
     }
 
     private serve(document: Playlist, etag: string | null): Playlist {
@@ -193,6 +248,7 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         if (!etag) {
             return copy;
         }
+        this.basis.set(document._id, etag);
         const record = copy as unknown as Record<string, unknown>;
         for (const field of SERVER_PAYLOAD_FIELDS) {
             const value = record[field];

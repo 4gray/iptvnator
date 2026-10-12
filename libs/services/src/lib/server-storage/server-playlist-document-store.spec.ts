@@ -165,6 +165,59 @@ describe('ServerPlaylistDocumentStore', () => {
         expect(api.sendJson.mock.calls[1][3]).toEqual({});
     });
 
+    it('writes a portal document on the version it read', async () => {
+        const { api, store } = setup();
+        const portal = { _id: 'p2', title: 'Portal', macAddress: 'm' };
+        api.request.mockResolvedValueOnce(fakeResponse(200, portal, '"b.0.1"'));
+        const served = await store.dbGetAppPlaylist('p2');
+        if (!served) throw new Error('expected a document');
+        api.sendJson.mockResolvedValueOnce(fakeResponse(200, {}, '"b.0.2"'));
+
+        await store.dbUpsertAppPlaylist({ ...served, title: 'Renamed' });
+
+        expect(api.sendJson.mock.calls[0][1]).toBe('/playlists/p2');
+        expect(api.sendJson.mock.calls[0][3]).toEqual({
+            'If-Match': '"b.0.1"',
+        });
+    });
+
+    it("keeps checking a playlist after another one's refusal", async () => {
+        const { api, store } = setup();
+        // Both playlists are at revision 1 of the same boot: one ETag.
+        for (const id of ['p1', 'p2']) {
+            api.request.mockResolvedValueOnce(
+                fakeResponse(200, { ...doc, _id: id }, '"b.0.1"')
+            );
+        }
+        const first = await store.dbGetAppPlaylist('p1');
+        const second = await store.dbGetAppPlaylist('p2');
+        if (!first || !second) throw new Error('expected documents');
+        api.sendJson.mockRejectedValueOnce(
+            new ServerApiError(412, 'conflict', 'changed')
+        );
+        await expect(
+            store.dbUpsertAppPlaylist({ ...first, title: 'A' })
+        ).rejects.toBeInstanceOf(PlaylistWriteConflict);
+
+        api.sendJson.mockResolvedValueOnce(putResponse('"b.0.2"', '"b.0.1"'));
+        await store.dbUpsertAppPlaylist({ ...second, title: 'B' });
+
+        expect(api.sendJson.mock.calls[1][3]).toEqual({
+            'If-Match': '"b.0.1"',
+        });
+    });
+
+    it('writes imports as they are', async () => {
+        const { api, store } = setup();
+        api.request.mockResolvedValueOnce(fakeResponse(200, doc, '"b.0.1"'));
+        await store.dbGetAppPlaylist('p1');
+        api.sendJson.mockResolvedValue(fakeResponse(200, {}, '"b.0.2"'));
+
+        await store.dbUpsertAppPlaylists([{ ...doc, title: 'Imported' }]);
+
+        expect(api.sendJson.mock.calls[0][3]).toEqual({});
+    });
+
     it('runs deletes through the user-data hold', async () => {
         const order: string[] = [];
         const api = {

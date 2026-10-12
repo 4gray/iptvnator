@@ -717,4 +717,109 @@ describe('ServerUserDataStorage with other devices', () => {
         });
         expect(favorites(tabA)).toEqual({ p1: ['a', 'A1'], p2: ['b', 'B2'] });
     });
+
+    it("keeps this tab's newer progress over a closed tab's older one", async () => {
+        const at = (seconds: number) => [
+            {
+                contentType: 'vod',
+                contentXtreamId: 1,
+                positionSeconds: seconds,
+            },
+        ];
+        const server = fakeServer({
+            'xtream-playback-positions': { p1: at(10) },
+        });
+        const shared = memoryStorage();
+        const offline = () =>
+            Promise.reject(new ServerApiError(0, 'network', 'offline'));
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+        const closed = new ServerUserDataStorage(
+            { ...server.api, sendJson: jest.fn(offline) } as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await closed.hydrate();
+        closed.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({ p1: at(20) })
+        );
+        await closed.flush();
+
+        // This tab starts while the server cannot be read: its edit waits.
+        let readable = false;
+        const tab = new ServerUserDataStorage(
+            {
+                ...server.api,
+                getJson: jest.fn(() =>
+                    readable ? server.api.getJson() : offline()
+                ),
+            } as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await expect(tab.hydrate()).rejects.toBeInstanceOf(ServerApiError);
+        tab.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({ p1: at(30) })
+        );
+        // Later the closed tab's record is stale and the server answers.
+        clock.mockReturnValue(1_000 + UNCONFIRMED_TTL_MS + 1);
+        readable = true;
+        await tab.hydrate();
+        await tab.flush();
+        await tab.flush();
+        clock.mockRestore();
+
+        expect(server.state['xtream-playback-positions']['p1']).toEqual(at(30));
+    });
+
+    it("keeps the last page load's saved writes when storage refuses the copy", async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const local = memoryStorage();
+        const tabStore = memoryStorage();
+        const offline = {
+            ...server.api,
+            sendJson: jest
+                .fn()
+                .mockRejectedValue(new ServerApiError(0, 'network', 'offline')),
+        };
+        const before = new ServerUserDataStorage(
+            offline as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        await before.hydrate();
+        before.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await before.flush();
+        const saved = () =>
+            [...local.values.keys()].filter((key) =>
+                key.startsWith('iptvnator-server:unsent-writes:')
+            );
+        expect(saved()).toHaveLength(1);
+
+        // Storage is full now: the reloaded page cannot save its copy.
+        const setItem = local.setItem;
+        local.setItem = (key: string, value: string) => {
+            if (key.startsWith('iptvnator-server:unsent-writes:')) {
+                throw new DOMException('full', 'QuotaExceededError');
+            }
+            setItem(key, value);
+        };
+        const reloaded = new ServerUserDataStorage(
+            offline as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+
+        expect(reloaded.hasUnsentWrites()).toBe(true);
+        expect(saved()).toHaveLength(1);
+    });
 });

@@ -17,7 +17,6 @@ import {
     applyEdit,
     type DeferredEdit,
     refreshedNamespace,
-    replaySteps,
 } from './server-user-data-edit';
 import { UserDataWriteQueue } from './server-user-data-queue';
 import {
@@ -58,6 +57,8 @@ export class ServerUserDataStorage implements UserDataStorage {
      */
     private readonly deferred = new Map<string, DeferredEdit>();
     private hydrated = false;
+    /** Closed tabs' page loads this one took over (once each). */
+    private readonly adopted = new Set<string>();
     /** This page load: names its saved writes and its registry record. */
     private readonly tabId = Math.random().toString(36).slice(2);
     private readonly cache: UserDataCache;
@@ -124,11 +125,13 @@ export class ServerUserDataStorage implements UserDataStorage {
         )) {
             this.deferred.set(`${edit.namespace}|${edit.playlistId}`, edit);
         }
-        // Saved under this page load before the old one is forgotten.
-        this.saveDeferred();
-        this.saveUnsent();
+        // Saved under this page load before the old one is forgotten; if
+        // storage refuses the copy, the old one stays.
+        const saved = [this.saveDeferred(), this.saveUnsent()].every(Boolean);
         this.publishUnconfirmed();
-        removePage(this.local, this.instanceId, page);
+        if (saved) {
+            removePage(this.local, this.instanceId, page);
+        }
     }
 
     /**
@@ -140,7 +143,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.local,
             this.instanceId,
             this.tabId
-        )) {
+        ).filter((page) => !this.adopted.has(page))) {
             const edits = [
                 ...readDeferredEdits(this.local, this.instanceId, page),
                 ...readUnsentWrites(this.local, this.instanceId, page),
@@ -151,23 +154,22 @@ export class ServerUserDataStorage implements UserDataStorage {
                 this.tabId
             );
             for (const { namespace, playlistId, steps } of edits) {
-                const value = replaySteps(
-                    this.cache.map(namespace)[playlistId],
-                    steps
-                );
-                this.cache.setEntry(namespace, playlistId, value);
                 // Queued even when the cache shows it already.
-                this.writes.adopt(
+                const value = this.writes.adopt(
                     namespace,
                     playlistId,
-                    value,
+                    this.cache.map(namespace)[playlistId],
                     steps,
                     foreign.has(`${namespace}|${playlistId}`)
                 );
+                this.cache.setEntry(namespace, playlistId, value);
             }
-            // Saved here before the closed tab's copy is forgotten.
+            this.adopted.add(page);
+            // The closed tab's copy goes only once this tab saved its own.
+            if (this.saveUnsent()) {
+                removePage(this.local, this.instanceId, page);
+            }
             this.writes.scheduleFlush();
-            removePage(this.local, this.instanceId, page);
         }
     }
 
@@ -423,19 +425,26 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     /** Persists what the server has not confirmed; skips idle rewrites. */
-    private saveUnsent(): void {
+    /** False when browser storage refused the copy. */
+    private saveUnsent(): boolean {
         // A newer edit can be queued while an older one is still travelling.
         const writes = this.writes.unsentWrites();
         if (writes.length === 0 && !this.unsentSaved) {
-            return;
+            return true;
         }
-        saveUnsentWrites(this.local, this.instanceId, this.tabId, writes);
-        this.unsentSaved = writes.length > 0;
+        const saved = saveUnsentWrites(
+            this.local,
+            this.instanceId,
+            this.tabId,
+            writes
+        );
+        this.unsentSaved = writes.length > 0 || !saved;
         this.publishUnconfirmed();
+        return saved;
     }
 
-    private saveDeferred(): void {
-        saveDeferredEdits(this.local, this.instanceId, this.tabId, [
+    private saveDeferred(): boolean {
+        return saveDeferredEdits(this.local, this.instanceId, this.tabId, [
             ...this.deferred.values(),
         ]);
     }

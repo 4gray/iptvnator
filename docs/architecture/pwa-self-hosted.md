@@ -197,11 +197,13 @@ settings and guards read them in every build.
   `electron`, `server`, `indexeddb`). The store caches full documents by
   ETag and uploads a document whose payload it served unchanged with
   `keepPayload=1`, so a favorite or a rename does not resend a large M3U.
-  Such a write carries `If-Match` with the version it was read at: when
+  A mutation carries `If-Match` with the version it was read at (of its
+  payload, else of the playlist's last read, as for portal documents): when
   another device wrote in between, the server answers `412`, the store
   throws `PlaylistWriteConflict`, and `PlaylistsService`'s per-playlist
   write queue runs the mutation again on a fresh read (a retry on the same,
-  unread copy writes unconditionally, as before). After a write the store
+  unread copy writes unconditionally, as before). Imports and start-up
+  migrations (`dbUpsertAppPlaylists`) write unconditionally. After a write the store
   keeps its copy only when `X-Replaced-ETag` names the version its payload
   came from.
 - **Xtream user data.** `USER_DATA_STORAGE` becomes `ServerUserDataStorage`:
@@ -216,9 +218,11 @@ settings and guards read them in every build.
   every unconfirmed write (queued or travelling) is saved in `localStorage`
   per page load (`iptvnator-server:unsent-writes:<instanceId>:<page>`). The
   tab remembers its page load in `sessionStorage`, so a reload takes its
-  writes over and sends them first; the writes of a tab closed before it
+  writes over and sends them first (the old copy goes only once the new one
+  is saved); the writes of a tab closed before it
   could send them are queued, ahead of its own, by the next re-read in
-  another tab once that tab's record has gone stale. Tabs never clear each other's.
+  another tab once that tab's record has gone stale; the result replays the
+  closed tab's edits first and this tab's newer ones last. Tabs never clear each other's.
   Cache and saved writes belong to one server database
   (`iptvnator-server:cache-owner`); another one behind the same address
   starts clean. Also,

@@ -187,19 +187,38 @@ export class UserDataWriteQueue {
     adopt(
         namespace: ServerUserStateNamespace,
         playlistId: string,
-        value: unknown,
+        current: unknown,
         steps: readonly EditStep[],
         foreign: boolean
-    ): void {
-        this.queue(namespace, playlistId, value, value, { foreign });
+    ): unknown {
         const key = `${namespace}|${playlistId}`;
+        const adopted = uncertain(steps);
+        const queued = this.pending.get(key);
+        if (queued) {
+            // This tab's queued edits are newer: they replay last.
+            const all = [...adopted, ...queued.steps];
+            const value = replaySteps(queued.steps[0]?.before, all);
+            const edit = ++this.editCount;
+            this.pending.set(key, {
+                ...queued,
+                value,
+                edit,
+                steps: all,
+                tag: foreign ? UNKNOWN_TAG : queued.tag,
+            });
+            this.edits.set(key, edit);
+            return value;
+        }
+        const value = replaySteps(current, steps);
+        this.queue(namespace, playlistId, value, value, { foreign });
         const entry = this.pending.get(key);
         if (entry) {
             this.pending.set(key, {
                 ...entry,
-                steps: [...uncertain(steps), ...entry.steps],
+                steps: [...adopted, ...entry.steps],
             });
         }
+        return value;
     }
 
     scheduleFlush(): void {

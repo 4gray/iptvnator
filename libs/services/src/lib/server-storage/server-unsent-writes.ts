@@ -186,11 +186,11 @@ export function saveUnsentWrites(
     instanceId: string,
     page: string,
     writes: readonly UnsentWrite[]
-): void {
+): boolean {
     try {
         if (writes.length === 0) {
             local.removeItem(writesKey(instanceId, page));
-            return;
+            return true;
         }
         const stored: StoredWrite[] = writes.map(
             ({ namespace, playlistId, value, tag, steps }) => ({
@@ -202,8 +202,10 @@ export function saveUnsentWrites(
             })
         );
         local.setItem(writesKey(instanceId, page), JSON.stringify(stored));
+        return true;
     } catch {
         // Storage unavailable or full: the queue stays in memory only.
+        return false;
     }
 }
 
@@ -267,11 +269,11 @@ export function saveDeferredEdits(
     instanceId: string,
     page: string,
     edits: readonly SavedDeferredEdit[]
-): void {
+): boolean {
     try {
         if (edits.length === 0) {
             local.removeItem(deferredKey(instanceId, page));
-            return;
+            return true;
         }
         local.setItem(
             deferredKey(instanceId, page),
@@ -283,8 +285,10 @@ export function saveDeferredEdits(
                 }))
             )
         );
+        return true;
     } catch {
         // Storage unavailable or full: the edits stay in memory only.
+        return false;
     }
 }
 
