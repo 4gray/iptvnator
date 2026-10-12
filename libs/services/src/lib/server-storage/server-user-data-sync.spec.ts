@@ -822,4 +822,59 @@ describe('ServerUserDataStorage with other devices', () => {
         expect(reloaded.hasUnsentWrites()).toBe(true);
         expect(saved()).toHaveLength(1);
     });
+
+    it('keeps a recovered write under an early edit made on it', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const local = memoryStorage();
+        const tabStore = memoryStorage();
+        const offline = {
+            ...server.api,
+            sendJson: jest
+                .fn()
+                .mockRejectedValue(new ServerApiError(0, 'network', 'offline')),
+        };
+        const before = new ServerUserDataStorage(
+            offline as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        await before.hydrate();
+        before.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['S', 'old'] })
+        );
+        await before.flush();
+
+        // Reloaded: the recovered write fails once, the read works.
+        const send = server.api.sendJson.getMockImplementation();
+        const api = {
+            ...server.api,
+            sendJson: jest
+                .fn()
+                .mockRejectedValueOnce(
+                    new ServerApiError(0, 'network', 'offline')
+                )
+                .mockImplementation(send),
+        };
+        const reloaded = new ServerUserDataStorage(
+            api as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        reloaded.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: [...favorites(reloaded).p1, 'new'] })
+        );
+        await reloaded.hydrate();
+        await reloaded.flush();
+        await reloaded.flush();
+
+        expect(
+            [...(server.state['xtream-favorites']['p1'] as string[])].sort()
+        ).toEqual(['S', 'new', 'old']);
+    });
 });

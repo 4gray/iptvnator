@@ -178,6 +178,23 @@ describe('ServerApiClient', () => {
         expect(status.reportUnauthorized).toHaveBeenCalled();
     });
 
+    it('keeps a token stored while a request with the old one ran', async () => {
+        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'old');
+        const fetchFn = jest.fn(async () => {
+            // The user signs in again before the old request is answered.
+            localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'new');
+            return response(401, { code: 'unauthorized' });
+        });
+
+        await expect(
+            client(fetchFn).getJson('/playlists')
+        ).rejects.toBeInstanceOf(ServerApiError);
+        expect(localStorage.getItem(SERVER_ACCESS_TOKEN_STORAGE_KEY)).toBe(
+            'new'
+        );
+        expect(status.reportUnauthorized).not.toHaveBeenCalled();
+    });
+
     it('passes 304 through and maps error bodies', async () => {
         const fetchFn = jest
             .fn()

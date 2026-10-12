@@ -5,6 +5,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import {
     clearServerAccessToken,
+    readServerAccessToken,
     serverAuthorizationHeaders,
 } from '../server-access-token';
 import type { ServerStorageStatusService } from '../server-storage-status.service';
@@ -65,6 +66,7 @@ export class ServerApiClient {
 
     async request(path: string, init: RequestInit = {}): Promise<Response> {
         const isWrite = (init.method ?? 'GET') !== 'GET';
+        const token = readServerAccessToken();
         let response: Response;
         try {
             if (isWrite && this.options.holdWrites) {
@@ -93,8 +95,11 @@ export class ServerApiClient {
         }
 
         if (response.status === 401) {
-            clearServerAccessToken();
-            this.options.status.reportUnauthorized();
+            // A late answer to a token replaced since (a new sign-in) is moot.
+            if (readServerAccessToken() === token) {
+                clearServerAccessToken();
+                this.options.status.reportUnauthorized();
+            }
             throw new ServerApiError(
                 401,
                 'unauthorized',

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
+import { SERVER_ACCESS_TOKEN_STORAGE_KEY } from './server-access-token';
 import { ServerStorageStatusService } from './server-storage-status.service';
 
 const instance: ServerInstanceInfo = {
@@ -47,5 +48,22 @@ describe('ServerStorageStatusService', () => {
         status.reportSuccess();
         status.reportOffline();
         expect(status.state()).toBe('unauthorized');
+    });
+
+    it('ignores a refusal of a token replaced since', () => {
+        status.activate(instance, jest.fn());
+        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'new');
+
+        status.reportAccessDenied('old');
+        expect(status.state()).toBe('online');
+        expect(localStorage.getItem(SERVER_ACCESS_TOKEN_STORAGE_KEY)).toBe(
+            'new'
+        );
+
+        status.reportAccessDenied('new');
+        expect(status.state()).toBe('unauthorized');
+        expect(
+            localStorage.getItem(SERVER_ACCESS_TOKEN_STORAGE_KEY)
+        ).toBeNull();
     });
 });

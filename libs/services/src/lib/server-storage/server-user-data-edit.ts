@@ -18,7 +18,9 @@ export function refreshedNamespace(
     server: Readonly<Record<string, unknown>>,
     cached: Readonly<Record<string, unknown>>,
     keepCached: ReadonlySet<string>,
-    deferred: readonly DeferredEdit[]
+    deferred: readonly DeferredEdit[],
+    /** What an early edit was made on; the server's entry by default. */
+    baseOf: (playlistId: string) => unknown = (playlistId) => server[playlistId]
 ): Record<string, unknown> {
     const value: Record<string, unknown> = { ...server };
     for (const playlistId of keepCached) {
@@ -29,7 +31,7 @@ export function refreshedNamespace(
         }
     }
     for (const edit of deferred) {
-        const merged = replaySteps(server[edit.playlistId], edit.steps);
+        const merged = replaySteps(baseOf(edit.playlistId), edit.steps);
         if (merged === undefined) {
             delete value[edit.playlistId];
         } else {

@@ -51,7 +51,8 @@ describe('ServerPlaylistDocumentStore', () => {
         expect(api.request.mock.calls[1][1]).toEqual({
             headers: { 'If-None-Match': 'W/"b.0.1"' },
         });
-        expect(second).toEqual(doc);
+        // structuredClone drops the served-version symbol, as JSON does.
+        expect(structuredClone(second)).toEqual(doc);
         expect(second).not.toBe(first);
     });
 
@@ -77,7 +78,11 @@ describe('ServerPlaylistDocumentStore', () => {
 
         const [method, path, body] = api.sendJson.mock.calls[0];
         expect([method, path]).toEqual(['PUT', '/playlists/p1?keepPayload=1']);
-        expect(body).toEqual({ _id: 'p1', title: 'Family', favorites: ['a'] });
+        expect(JSON.parse(JSON.stringify(body))).toEqual({
+            _id: 'p1',
+            title: 'Family',
+            favorites: ['a'],
+        });
     });
 
     it('uploads a new payload in full', async () => {
@@ -176,6 +181,27 @@ describe('ServerPlaylistDocumentStore', () => {
         await store.dbUpsertAppPlaylist({ ...served, title: 'Renamed' });
 
         expect(api.sendJson.mock.calls[0][1]).toBe('/playlists/p2');
+        expect(api.sendJson.mock.calls[0][3]).toEqual({
+            'If-Match': '"b.0.1"',
+        });
+    });
+
+    it('names the version of the copy a mutation was built on', async () => {
+        const { api, store } = setup();
+        const portal = { _id: 'p2', title: 'Portal', macAddress: 'm' };
+        api.request
+            .mockResolvedValueOnce(fakeResponse(200, portal, '"b.0.1"'))
+            // Another device wrote; a later read sees its version.
+            .mockResolvedValueOnce(
+                fakeResponse(200, { ...portal, title: 'Theirs' }, '"b.0.2"')
+            );
+        const older = await store.dbGetAppPlaylist('p2');
+        await store.dbGetAppPlaylist('p2');
+        if (!older) throw new Error('expected a document');
+        api.sendJson.mockResolvedValueOnce(fakeResponse(200, {}, '"b.0.3"'));
+
+        await store.dbUpsertAppPlaylist({ ...older, title: 'Mine' });
+
         expect(api.sendJson.mock.calls[0][3]).toEqual({
             'If-Match': '"b.0.1"',
         });

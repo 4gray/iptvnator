@@ -5,6 +5,7 @@ import {
     DbStores,
     SERVER_USER_STATE_NAMESPACES,
     type Playlist,
+    type ServerUserStateNamespace,
     type ServerUserStateResponse,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -207,12 +208,21 @@ export class ServerMigrationService {
             await this.session.api.getJson<ServerUserStateResponse>(
                 '/user-state'
             );
-        const legacy = new Map(
-            SERVER_USER_STATE_NAMESPACES.map((namespace) => [
-                namespace,
-                parseMap(readLocal(namespace)),
-            ])
-        );
+        // A map this browser has but cannot read fails the move, so it
+        // stays on offer instead of being marked done without it.
+        let unreadable = 0;
+        const legacy = new Map<
+            ServerUserStateNamespace,
+            Record<string, unknown>
+        >();
+        for (const namespace of SERVER_USER_STATE_NAMESPACES) {
+            const map = readLegacyMap(namespace);
+            if (map) {
+                legacy.set(namespace, map);
+            } else {
+                unreadable += 1;
+            }
+        }
         const copies = new Map<string, XtreamUserData[]>();
         for (const [browserId, serverId] of targets) {
             const copy: XtreamUserData = {};
@@ -230,7 +240,7 @@ export class ServerMigrationService {
             }
         }
 
-        let failed = 0;
+        let failed = unreadable;
         for (const [serverId, browserCopies] of copies) {
             const stored: XtreamUserData = {};
             for (const namespace of SERVER_USER_STATE_NAMESPACES) {
@@ -346,13 +356,23 @@ function readLocal(key: string): string | null {
     }
 }
 
-function parseMap(value: string | null): Record<string, unknown> {
+/** A browser map, `{}` when absent, `null` when it cannot be read. */
+function readLegacyMap(key: string): Record<string, unknown> | null {
+    let value: string | null;
     try {
-        const parsed: unknown = value ? JSON.parse(value) : {};
+        value = localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+    if (value === null) {
+        return {};
+    }
+    try {
+        const parsed: unknown = JSON.parse(value);
         return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
             ? (parsed as Record<string, unknown>)
-            : {};
+            : null;
     } catch {
-        return {};
+        return null;
     }
 }

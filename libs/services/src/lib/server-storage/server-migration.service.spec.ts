@@ -386,4 +386,14 @@ describe('ServerMigrationService', () => {
         expect(result.failed).toBeGreaterThan(0);
         expect(parentalLock.replacePlaylistLocks).not.toHaveBeenCalled();
     });
+
+    it('keeps the move on offer when browser favorites cannot be read', async () => {
+        localStorage.setItem('xtream-favorites', '{not json');
+        const migration = TestBed.inject(ServerMigrationService);
+
+        const result = await migration.moveBrowserData();
+
+        expect(result.failed).toBeGreaterThan(0);
+        expect(migration.browserDataMoved()).toBe(false);
+    });
 });

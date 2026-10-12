@@ -16,6 +16,7 @@ import {
 import {
     DataService,
     isServerAccessChallenge,
+    readServerAccessToken,
     serverAuthorizationHeaders,
     ServerStorageStatusService,
 } from '@iptvnator/services';
@@ -201,6 +202,7 @@ export class PwaService extends DataService {
         );
 
         try {
+            const token = readServerAccessToken();
             const response = await fetch(
                 `${this.corsProxyUrl}/connectivity-guard/reset`,
                 {
@@ -213,7 +215,7 @@ export class PwaService extends DataService {
                     signal: controller.signal,
                 }
             );
-            this.noteServerAccess(response);
+            this.noteServerAccess(response, token);
 
             if (!response.ok) {
                 return { reset: false };
@@ -647,10 +649,11 @@ export class PwaService extends DataService {
             logPortalDebugRequest(context);
 
             // Make the fetch request
+            const accessToken = readServerAccessToken();
             const response = await fetch(requestUrl, {
                 headers: serverAuthorizationHeaders(),
             });
-            this.noteServerAccess(response);
+            this.noteServerAccess(response, accessToken);
 
             if (!response.ok) {
                 throw new Error(
@@ -804,7 +807,7 @@ export class PwaService extends DataService {
     }
 
     /** A token changed on the server shows up on any backend call. */
-    private noteServerAccess(response: Response): void {
+    private noteServerAccess(response: Response, token: string | null): void {
         if (
             response.status === 401 &&
             isServerAccessChallenge(
@@ -812,7 +815,7 @@ export class PwaService extends DataService {
                 response.headers.get('WWW-Authenticate')
             )
         ) {
-            this.serverStatus.reportAccessDenied();
+            this.serverStatus.reportAccessDenied(token);
         }
     }
 }

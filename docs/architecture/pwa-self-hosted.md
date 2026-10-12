@@ -198,7 +198,8 @@ settings and guards read them in every build.
   ETag and uploads a document whose payload it served unchanged with
   `keepPayload=1`, so a favorite or a rename does not resend a large M3U.
   A mutation carries `If-Match` with the version it was read at (of its
-  payload, else of the playlist's last read, as for portal documents): when
+  payload, else of the served copy it was built from, as for portal
+  documents): when
   another device wrote in between, the server answers `412`, the store
   throws `PlaylistWriteConflict`, and `PlaylistsService`'s per-playlist
   write queue runs the mutation again on a fresh read (a retry on the same,
@@ -248,8 +249,9 @@ settings and guards read them in every build.
   being deleted its edits wait; the delete drops them only when it
   succeeds. Edits made before the first successful read
   are held as before → after and applied to the server's value once it
-  arrives (`applyEdit`): a new device or a stale cache adds its favorite
-  instead of replacing the server's list. They are saved per page load too
+  arrives (`applyEdit`), or to this tab's recovered unsent write when it has
+  one: a new device or a stale cache adds its favorite instead of replacing
+  the server's list. They are saved per page load too
   (`iptvnator-server:deferred-edits:<instanceId>:<page>`). A shared
   registry in `localStorage` (`iptvnator-server:unconfirmed:<instanceId>`,
   one record per page load, renewed every 30 s while it has unsent writes,
@@ -279,7 +281,8 @@ settings and guards read them in every build.
   `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
   backend, and `PwaService` adds it to its two raw `fetch` calls. Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
-  so a token changed on the server sends an open page back to sign-in.
+  so a token changed on the server sends an open page back to sign-in; a
+  late 401 for a token replaced since (a new sign-in) changes nothing.
 - **Moving browser data.** `ServerMigrationService` offers, once per server
   instance (marker `iptvnator-server:migration:<instanceId>`), to move the
   playlists this browser kept in IndexedDB (`planServerMigration`). A
@@ -295,8 +298,8 @@ settings and guards read them in every build.
   lists (playback positions by content type and Xtream id, renamed to the
   server playlist) and merges maps, the server's value winning on a
   conflict. Parental locks stay in the browser but move to the server
-  playlist id with it; while the lock store cannot be read the move counts
-  as failed. Browser data is never
+  playlist id with it; while the lock store or a browser user-data map
+  cannot be read the move counts as failed. Browser data is never
   deleted, the move does not start while user-data writes are unsent, and
   the marker is written only when nothing failed, so Settings → Server
   keeps offering a partial move.

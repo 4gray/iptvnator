@@ -324,6 +324,10 @@ export class ServerUserDataStorage implements UserDataStorage {
             unsaved.add(key);
         }
         const deferred = [...this.deferred.values()];
+        // This tab's own unsent writes (recovered after a reload): an early
+        // edit was made on them, not on the server's value.
+        const own = new Set(this.writes.unconfirmedKeys());
+        const base = new Map<string, unknown>();
         const refreshed = new Map<string, Record<string, unknown>>();
         for (const namespace of SERVER_USER_STATE_NAMESPACES) {
             const keepCached = new Set<string>();
@@ -333,11 +337,25 @@ export class ServerUserDataStorage implements UserDataStorage {
                     keepCached.add(playlistId);
                 }
             }
+            const cached = this.cache.map(namespace);
+            const early = deferred.filter(
+                (edit) => edit.namespace === namespace
+            );
+            for (const { playlistId } of early) {
+                const key = `${namespace}|${playlistId}`;
+                base.set(
+                    key,
+                    own.has(key)
+                        ? cached[playlistId]
+                        : entries[namespace]?.[playlistId]
+                );
+            }
             const value = refreshedNamespace(
                 entries[namespace] ?? {},
-                this.cache.map(namespace),
+                cached,
                 keepCached,
-                deferred.filter((edit) => edit.namespace === namespace)
+                early,
+                (playlistId) => base.get(`${namespace}|${playlistId}`)
             );
             refreshed.set(namespace, value);
             // A value too big for browser storage stays readable in memory,
@@ -363,7 +381,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                     edit.namespace,
                     edit.playlistId,
                     refreshed.get(edit.namespace)?.[edit.playlistId],
-                    entries[edit.namespace]?.[edit.playlistId]
+                    base.get(`${edit.namespace}|${edit.playlistId}`)
                 );
             }
             this.saveDeferred();

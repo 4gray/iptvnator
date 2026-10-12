@@ -47,7 +47,7 @@ export class ServerAccessTokenInterceptor implements HttpInterceptor {
                             error.headers.get('WWW-Authenticate')
                         )
                     ) {
-                        this.status.reportAccessDenied();
+                        this.status.reportAccessDenied(token);
                     }
                 },
             })

@@ -11,6 +11,16 @@ import {
 } from '../playlist-storage-backend';
 import { ServerApiError, type ServerApiClient } from './server-api-client';
 
+/** The version a served copy came from; JSON never sends it. */
+const SERVED_VERSION = Symbol('servedVersion');
+
+function servedVersion(playlist: Playlist): string | null {
+    const version = (playlist as unknown as Record<symbol, unknown>)[
+        SERVED_VERSION
+    ];
+    return typeof version === 'string' ? version : null;
+}
+
 interface CachedDocument {
     readonly etag: string;
     readonly document: Playlist;
@@ -30,8 +40,6 @@ type ServerApi = Pick<
  */
 export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
     private readonly cache = new Map<string, CachedDocument>();
-    /** The version each playlist was last read or written at. */
-    private readonly basis = new Map<string, string>();
     /** `id|version` a write was refused on (another device wrote since). */
     private readonly refused = new Set<string>();
     /** Served payload object → the ETag of the document it came from. */
@@ -68,7 +76,6 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         } catch (error) {
             if (error instanceof ServerApiError && error.status === 404) {
                 this.cache.delete(playlistId);
-                this.basis.delete(playlistId);
                 return null;
             }
             throw error;
@@ -104,7 +111,6 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
             })
         );
         this.cache.delete(playlistId);
-        this.basis.delete(playlistId);
         return { success: true };
     }
 
@@ -113,7 +119,6 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
             this.api.request('/playlists', { method: 'DELETE' })
         );
         this.cache.clear();
-        this.basis.clear();
         return { success: true };
     }
 
@@ -145,10 +150,10 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         const id = playlist._id;
         const path = `/playlists/${encodeURIComponent(id)}`;
         const payloadEtag = this.servedPayloadEtag(playlist);
-        // The version it was read at: of its payload, else of the last read
-        // (portal documents have no payload). A retry on the same copy, not
-        // read again after a refusal, writes as before.
-        const read = payloadEtag ?? this.basis.get(id) ?? null;
+        // The version it was read at: of its payload, else of the copy it
+        // was built from (portal documents have no payload). A retry on the
+        // same copy, not read again after a refusal, writes as before.
+        const read = payloadEtag ?? servedVersion(playlist);
         const headers: Record<string, string> =
             conditional && read && !this.refused.has(`${id}|${read}`)
                 ? { 'If-Match': read }
@@ -176,7 +181,6 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
             if (error instanceof ServerApiError && error.status === 412) {
                 this.refused.add(`${id}|${read}`);
                 this.cache.delete(id);
-                this.basis.delete(id);
                 throw new PlaylistWriteConflict(id);
             }
             throw error;
@@ -213,7 +217,6 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
             this.remember(playlist._id, response, playlist);
         } else {
             this.cache.delete(playlist._id);
-            this.noteWrite(playlist._id, response);
         }
         return response;
     }
@@ -229,18 +232,7 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         } else {
             this.cache.delete(id);
         }
-        this.noteWrite(id, response);
         return etag;
-    }
-
-    /** The version a read or write left the playlist at. */
-    private noteWrite(id: string, response: Response): void {
-        const etag = response.headers.get('etag');
-        if (etag) {
-            this.basis.set(id, etag);
-        } else {
-            this.basis.delete(id);
-        }
     }
 
     private serve(document: Playlist, etag: string | null): Playlist {
@@ -248,7 +240,8 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         if (!etag) {
             return copy;
         }
-        this.basis.set(document._id, etag);
+        // Spreads copy it along, so a mutation built on this copy names it.
+        (copy as unknown as Record<symbol, string>)[SERVED_VERSION] = etag;
         const record = copy as unknown as Record<string, unknown>;
         for (const field of SERVER_PAYLOAD_FIELDS) {
             const value = record[field];
