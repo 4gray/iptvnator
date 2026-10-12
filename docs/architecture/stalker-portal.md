@@ -422,6 +422,17 @@ Failure-handling rule:
   not `undefined` collections or renderer exceptions. The workspace Stalker
   context panel and live layout rely on this guarantee.
 
+Detail metadata rule:
+
+- `createStalkerInfo()` (`stalker-vod.utils.ts`) is the mapping both detail
+  templates read: the series view binds `info` directly and the shared VOD
+  view reads it through `normalizeStalkerVod()`. Each field takes the first
+  usable candidate, and portal stand-ins (`N/A`, `-`, an unrated `0` score)
+  become `''` there — see the placeholder rule in
+  [Embedded Inline Playback](./embedded-inline-playback.md). It runs before
+  TMDB enrichment, which keeps a non-empty provider rating and release date,
+  so a surviving stand-in would also block the TMDB value.
+
 ## Stalker Identity Policy
 
 Full Stalker/Ministra portal authentication defaults to MAC-only identity. The

@@ -157,6 +157,14 @@ Contracts:
 - Hosts provide hero chips/meta/actions as `*appDetailTags` / `*appDetailMeta` /
   `*appDetailActions` templates; the shell stamps them into the hero and again
   into the About block. Degradation stays "missing → not rendered".
+- Provider stand-ins count as missing: `N/A` (any case), a lone `-`, and a
+  `0` IMDb/Kinopoisk score are dropped where provider rows are mapped, by
+  `readProviderText` / `readProviderRating`
+  (`libs/shared/interfaces/src/lib/provider-metadata.util.ts`) — in
+  `createStalkerInfo()`, the `vod-details-adapters.ts` normalizers and the
+  Xtream store's detail selection. Templates keep plain `@if` guards; do not
+  teach them the placeholder list. Widen the list only with evidence of a
+  provider sending the new stand-in.
 - The shell never wraps the `[detail-player]` slot in a conditional; the
   host's `@if (inlinePlayback())` is the only creator/destroyer of the
   player subtree, so shell state changes cannot recreate the `<video>`.
