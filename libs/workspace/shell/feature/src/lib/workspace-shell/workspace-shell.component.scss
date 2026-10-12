@@ -114,6 +114,20 @@ app-workspace-shell-context-sidebar {
         clip-path: inset(0);
         pointer-events: none;
     }
+
+    // While the frame slides into place beside a context panel that appeared
+    // or left (LayoutSlideDirective), its old width is wider than the new
+    // one, so the side it moves away from would show the body colour. The
+    // content surface extends over that strip until the slide ends.
+    &.layout-slide-active::after {
+        content: '';
+        position: absolute;
+        inset: 0 calc(-1 * var(--layout-slide-end, 0px)) 0
+            calc(-1 * var(--layout-slide-start, 0px));
+        z-index: -1;
+        background: var(--app-content-bg, var(--mat-sys-surface));
+        pointer-events: none;
+    }
 }
 
 .workspace-content {

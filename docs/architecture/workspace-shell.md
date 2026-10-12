@@ -127,6 +127,57 @@ synthesized mask, unlike any content layer) may span half the content area,
 and the backdrop-filtered controls must really be composited, so the check
 cannot pass on a page with nothing to clip.
 
+### Layout slides
+
+When a route change adds or removes the context panel, the content frame
+moves by the panel's width (323 px on desktop), and when Back or the phone
+drawer toggle appears or leaves, the header controls after it move by the
+slot's width (44 px). Both happen in the frame that swaps the page, so they
+used to be one jump: a layout shift of 0.233 in the open-source journey,
+0.222 of it the content frame (see
+[performance journeys](./performance-journeys.md#j2-open-source-open-a-source-to-a-browsable-list)).
+
+`LayoutSlideDirective` (`workspace-shell/layout-slide.directive.ts`) turns
+these jumps into a 180 ms slide, the duration of the context panel's own
+width transition. The new layout applies at once; each target starts
+translated back to the position it had and animates its transform to none
+(FLIP), so nothing waits for the animation and Chromium records no layout
+shift for a transform. The shell's `.workspace-body` slides
+`.workspace-content-frame` when `showContextPanel` changes; the header slides
+the drawer toggle, switcher, search and action groups when its leading
+navigation (Back, drawer toggle) changes.
+
+1. **Previous positions.** `offsetLeft` values, which ignore transforms, are
+   recorded after every render in which the slide key or the record key
+   changed (the header's record key covers the other inputs that move its
+   controls: settings route, no playlists, parental lock, shortcuts) and
+   when the host or a target resizes (window resize, a context panel folding
+   or being dragged wider). A slide therefore starts where the target was
+   last laid out, and a target that has no recorded position or did not move
+   is left alone.
+2. **The uncovered strip.** The frame is narrower beside the panel than
+   without it, so the side it moves away from would show the body colour
+   during the slide. While a slide runs the target carries
+   `layout-slide-active` and the uncovered widths as `--layout-slide-start`
+   and `--layout-slide-end`; the frame's stylesheet extends the content
+   surface over that strip with an `::after` below the scroller.
+3. **Back fades in** over the same 180 ms, so the switcher still sliding away
+   from its slot does not draw over the arrow.
+4. **Reduced motion.** Under `prefers-reduced-motion` there is no animation:
+   the jump (and its layout shift) remains.
+5. **Compositing.** While it runs, each slid target is its own composited
+   layer (`ActiveTransformAnimation`): the frame at its width plus the
+   covered strip (1220×664 CSS pixels at 1280×720), the header controls a
+   few small ones. No synthesized clip mask appears, because no ancestor of
+   the frame clips with a radius ([content surface
+   corner](#content-surface-corner)), and the layers go away when the slide
+   ends: `perf:compositing` reads the same layer and mask counts on every
+   route as before the slides (#1895).
+6. **Not covered.** A slide does not change what the route renders. Going
+   back from a portal to the dashboard still shows one frame with the new
+   dashboard below the old page before the old page leaves; that jump is a
+   routing issue, not a layout slide.
+
 `WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
 kept as a thin template-facing API and delegates ownership to component-scoped
 services:
@@ -215,9 +266,10 @@ return logic (`backClicked`).
 
 When there is nowhere to go, the slot is empty rather than a disabled arrow.
 Sessions often start on a page that never navigates (an M3U playlist or live
-TV), where a disabled arrow would stay for the whole session. The cost is one
-shift of the switcher and search when Back first appears or leaves, which
-happens only at the start of the history and together with a route change.
+TV), where a disabled arrow would stay for the whole session. When Back first
+appears or leaves, which happens only at the start of the history and together
+with a route change, the switcher and search slide by the slot's width instead
+of jumping (see [Layout slides](#layout-slides)).
 There is no Forward button: Stalker inline details are store state, not
 history entries, so Forward would skip them.
 
@@ -263,7 +315,10 @@ Xtream and Stalker category panels preserve provider/server category order by
 default. The panel header exposes a sort menu next to category search with
 `Server sorting`, `A-Z`, and `Z-A`; when alphabetical sorting is active,
 synthetic "all categories" entries stay pinned before sorted provider
-categories.
+categories. Search and sort render disabled while the categories load (beside
+the disabled Manage categories button), so the header row has its final width
+under the skeleton instead of growing by two buttons when the list arrives;
+they are hidden only once a load ended with no categories.
 
 On live sections the category panel can be folded away independently of the
 channels list; the folded panel is reachable as a popover from the channels
