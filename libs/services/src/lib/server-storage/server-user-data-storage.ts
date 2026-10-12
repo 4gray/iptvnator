@@ -122,8 +122,8 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     /**
-     * Saved writes and early edits of closed tabs: replayed as this tab's
-     * own edits on what it shows now, then forgotten there.
+     * Saved writes and early edits of closed tabs: shown on what this tab
+     * shows now and queued with its writes, then forgotten there.
      */
     private adoptClosedTabs(): void {
         for (const page of orphanedPages(
@@ -135,18 +135,28 @@ export class ServerUserDataStorage implements UserDataStorage {
                 ...readDeferredEdits(this.local, this.instanceId, page),
                 ...readUnsentWrites(this.local, this.instanceId, page),
             ];
-            for (const edit of edits) {
-                const before = this.baseline(edit.namespace);
-                const after = { ...before };
-                const value = replaySteps(before[edit.playlistId], edit.steps);
-                if (value === undefined) {
-                    delete after[edit.playlistId];
-                } else {
-                    after[edit.playlistId] = value;
-                }
-                this.writeCache(edit.namespace, JSON.stringify(after));
-                this.queueChanges(edit.namespace, after, before);
+            const foreign = othersUnconfirmed(
+                this.local,
+                this.instanceId,
+                this.tabId
+            );
+            for (const { namespace, playlistId, steps } of edits) {
+                const value = replaySteps(
+                    this.baseline(namespace)[playlistId],
+                    steps
+                );
+                this.showEntry(namespace, playlistId, value);
+                // Queued even when the cache shows it already.
+                this.writes.adopt(
+                    namespace,
+                    playlistId,
+                    value,
+                    steps,
+                    foreign.has(`${namespace}|${playlistId}`)
+                );
             }
+            // Saved here before the closed tab's copy is forgotten.
+            this.writes.scheduleFlush();
             removePage(this.local, this.instanceId, page);
         }
     }

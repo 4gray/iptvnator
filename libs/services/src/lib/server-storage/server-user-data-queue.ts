@@ -11,9 +11,11 @@ import {
     type EditStep,
     type PendingEntry,
     preconditionHeaders,
+    uncertain,
     UNKNOWN_TAG,
 } from './server-user-data-entries';
 import { replaySteps } from './server-user-data-edit';
+import { UserStateTags } from './server-user-data-tags';
 import { newestWrites } from './server-unsent-writes';
 
 const FLUSH_DELAY_MS = 500;
@@ -44,10 +46,7 @@ export interface UserDataQueueHooks {
  */
 export class UserDataWriteQueue {
     /** Server version tag per entry; absent until the first read. */
-    private readonly tags = new Map<
-        ServerUserStateNamespace,
-        Record<string, string>
-    >();
+    private readonly tags = new UserStateTags();
     private readonly pending = new Map<string, PendingEntry>();
     /** Writes still travelling (normal or page-hide), by entry key. */
     private readonly inFlight = new Map<string, PendingEntry>();
@@ -114,7 +113,7 @@ export class UserDataWriteQueue {
         namespace: ServerUserStateNamespace,
         tags: Readonly<Record<string, string>>
     ): void {
-        this.tags.set(namespace, { ...tags });
+        this.tags.set(namespace, tags);
     }
 
     /**
@@ -168,8 +167,10 @@ export class UserDataWriteQueue {
                 tag:
                     base.tag !== undefined
                         ? base.tag
-                        : this.tagFor(namespace, playlistId),
-                steps: base.steps ?? [{ before, after: value }],
+                        : this.tags.of(namespace, playlistId),
+                steps: base.steps
+                    ? uncertain(base.steps)
+                    : [{ before, after: value }],
             };
         }
         if (base.foreign) {
@@ -177,6 +178,28 @@ export class UserDataWriteQueue {
         }
         this.pending.set(key, entry);
         this.edits.set(key, edit);
+    }
+
+    /**
+     * A closed tab's saved edits, ahead of this tab's own (which may have
+     * been made on them): sent with them, replayed first on a conflict.
+     */
+    adopt(
+        namespace: ServerUserStateNamespace,
+        playlistId: string,
+        value: unknown,
+        steps: readonly EditStep[],
+        foreign: boolean
+    ): void {
+        this.queue(namespace, playlistId, value, value, { foreign });
+        const key = `${namespace}|${playlistId}`;
+        const entry = this.pending.get(key);
+        if (entry) {
+            this.pending.set(key, {
+                ...entry,
+                steps: [...uncertain(steps), ...entry.steps],
+            });
+        }
     }
 
     scheduleFlush(): void {
@@ -271,39 +294,8 @@ export class UserDataWriteQueue {
                 }
             }
         }
-        for (const [namespace, tags] of this.tags) {
-            if (playlistId === undefined) {
-                this.tags.set(namespace, {});
-            } else {
-                delete tags[playlistId];
-            }
-        }
+        this.tags.forget(playlistId);
         this.hooks.changed();
-    }
-
-    /** `undefined` until the server's tags are known (or not offered). */
-    private tagFor(
-        namespace: ServerUserStateNamespace,
-        playlistId: string
-    ): string | null | undefined {
-        const tags = this.tags.get(namespace);
-        return tags ? (tags[playlistId] ?? null) : undefined;
-    }
-
-    private setTag(
-        namespace: ServerUserStateNamespace,
-        playlistId: string,
-        tag: string | null
-    ): void {
-        const tags = this.tags.get(namespace);
-        if (!tags) {
-            return;
-        }
-        if (tag === null) {
-            delete tags[playlistId];
-        } else {
-            tags[playlistId] = tag;
-        }
     }
 
     private takePending(): PendingEntry[] {
@@ -328,7 +320,7 @@ export class UserDataWriteQueue {
     private requeue(entry: PendingEntry): void {
         const key = entryKey(entry);
         if (this.edits.get(key) === entry.edit && !this.pending.has(key)) {
-            this.pending.set(key, entry);
+            this.pending.set(key, { ...entry, steps: uncertain(entry.steps) });
         }
     }
 
@@ -424,7 +416,7 @@ export class UserDataWriteQueue {
 
     /** The server took `entry`: the edit queued behind it builds on it. */
     private confirmed(entry: PendingEntry, tag: string | null): void {
-        this.setTag(entry.namespace, entry.playlistId, tag);
+        this.tags.update(entry.namespace, entry.playlistId, tag);
         const key = entryKey(entry);
         const next = this.pending.get(key);
         if (next?.steps.some((step) => step.sent === entry.edit)) {
@@ -446,7 +438,7 @@ export class UserDataWriteQueue {
         entry: PendingEntry,
         current: ServerUserStateCurrent
     ): void {
-        this.setTag(entry.namespace, entry.playlistId, current.tag);
+        this.tags.update(entry.namespace, entry.playlistId, current.tag);
         const key = entryKey(entry);
         const latest =
             this.pending.get(key) ??

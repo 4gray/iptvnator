@@ -27,8 +27,17 @@ export interface PendingEntry {
 export interface EditStep {
     readonly before: unknown;
     readonly after: unknown;
-    /** The travelling write that carries it, until that one is answered. */
+    /**
+     * The travelling write that carries it, until that one is answered;
+     * `0` once a write that carried it was lost or saved for a later page:
+     * it may have landed, so a later edit never joins it.
+     */
     readonly sent?: number;
+}
+
+/** Steps whose write may or may not have landed. */
+export function uncertain(steps: readonly EditStep[]): EditStep[] {
+    return steps.map((step) => ({ ...step, sent: 0 }));
 }
 
 /**

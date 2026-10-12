@@ -1,4 +1,5 @@
 import { ServerApiError } from './server-api-client';
+import { UNCONFIRMED_TTL_MS } from './server-unsent-writes';
 import { ServerUserDataStorage } from './server-user-data-storage';
 
 function memoryStorage() {
@@ -592,5 +593,89 @@ describe('ServerUserDataStorage with other devices', () => {
         await phone.flush();
 
         expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+    });
+
+    it('keeps a removal made after a write whose answer was lost', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+        const send = server.api.sendJson.getMockImplementation();
+        if (!send) {
+            throw new Error('The fake server answers sendJson');
+        }
+        // The server saves X, but the answer never arrives.
+        server.api.sendJson.mockImplementationOnce(
+            async (...args: Parameters<typeof send>) => {
+                await send(...args);
+                throw new ServerApiError(0, 'network', 'offline');
+            }
+        );
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await phone.flush();
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S'] }));
+        await phone.flush();
+        await phone.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S']);
+    });
+
+    it("sends a closed tab's favorite this tab's cache already shows", async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const shared = memoryStorage();
+        const send = server.api.sendJson.getMockImplementation();
+        if (!send) {
+            throw new Error('The fake server answers sendJson');
+        }
+        const offline = () =>
+            Promise.reject(new ServerApiError(0, 'network', 'offline'));
+        let online = false;
+        const tabApi = {
+            ...server.api,
+            sendJson: jest.fn((...args: Parameters<typeof send>) =>
+                online ? send(...args) : offline()
+            ),
+        };
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+        const closed = new ServerUserDataStorage(
+            { ...server.api, sendJson: jest.fn(offline) } as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await closed.hydrate();
+        closed.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await closed.flush();
+        const tab = new ServerUserDataStorage(
+            tabApi as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await tab.hydrate();
+        tab.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: [...favorites(tab).p1, 'Y'] })
+        );
+        await tab.flush();
+
+        // Later the closed tab's record is stale; this tab is still offline.
+        clock.mockReturnValue(1_000 + UNCONFIRMED_TTL_MS + 1);
+        await tab.hydrate();
+        online = true;
+        await tab.flush();
+        await tab.flush();
+        clock.mockRestore();
+
+        expect(
+            [...(server.state['xtream-favorites']['p1'] as string[])].sort()
+        ).toEqual(['S', 'X', 'Y']);
     });
 });

@@ -210,8 +210,8 @@ settings and guards read them in every build.
   per page load (`iptvnator-server:unsent-writes:<instanceId>:<page>`). The
   tab remembers its page load in `sessionStorage`, so a reload takes its
   writes over and sends them first; the writes of a tab closed before it
-  could send them are replayed by the next re-read in another tab once
-  that tab's record has gone stale. Tabs never clear each other's.
+  could send them are queued, ahead of its own, by the next re-read in
+  another tab once that tab's record has gone stale. Tabs never clear each other's.
   Cache and saved writes belong to one server database
   (`iptvnator-server:cache-owner`); another one behind the same address
   starts clean. Also,
@@ -222,8 +222,9 @@ settings and guards read them in every build.
   replayed on the server's current value, so another device's change to the
   same playlist's entry is kept. A queued write keeps its edits as steps
   (before → after, also in the saved writes): an edit continuing the last
-  one joins it, one made behind a travelling write or on another tab's
-  change is kept apart, and a conflict replays them in order. So a lost
+  one joins it; one made behind a travelling write, after a write whose
+  answer was lost, or on another tab's change is kept apart; and a
+  conflict replays them in order. So a lost
   write is not dropped, and adding and then removing an item still removes
   it when the addition landed. When two tabs edit one entry before either
   write lands, a removal of the other tab's unsent item holds if that tab's
