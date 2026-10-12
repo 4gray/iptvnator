@@ -20,13 +20,14 @@
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
             },
             "renderer.domMutationsToFirstCard": {
-                "value": 569,
+                "value": 571,
                 "unit": "mutations",
                 "slack": 0,
-                "updatedAt": "2026-10-10",
-                "evidencePr": 1871,
-                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38045444230",
-                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
+                "updatedAt": "2026-10-12",
+                "evidencePr": 1903,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38206088310",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), CI run on PR 1903",
+                "note": "Raised by 2 for self-hosted server storage: the rail server shortcut and the workspace offline banner each leave one @if anchor comment in every build, also when server storage is inactive."
             },
             "main.modulesRegisteredBeforeWindow": {
                 "value": 2,

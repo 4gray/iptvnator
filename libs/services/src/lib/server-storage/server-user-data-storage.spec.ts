@@ -406,4 +406,50 @@ describe('ServerUserDataStorage', () => {
             { value: ['live:1', 'live:3'] }
         );
     });
+
+    it('keeps unconfirmed writes across a reload and sends them first', async () => {
+        const first = setup();
+        await first.storage.hydrate();
+        first.api.sendJson.mockRejectedValue(new Error('offline'));
+        first.storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['live:1', 'live:9'] })
+        );
+        await first.storage.flush();
+        expect(first.storage.hasUnsentWrites()).toBe(true);
+        expect(first.local.values.get('iptvnator-server:unsent-writes')).toBe(
+            JSON.stringify([
+                {
+                    namespace: 'xtream-favorites',
+                    playlistId: 'p1',
+                    value: ['live:1', 'live:9'],
+                },
+            ])
+        );
+
+        // Reload: a new instance over the same browser storage.
+        const api = {
+            ...first.api,
+            sendJson: jest.fn().mockResolvedValue(undefined),
+            getJson: jest.fn().mockResolvedValue({
+                entries: { 'xtream-favorites': { p1: ['live:1', 'live:9'] } },
+            }),
+        };
+        const reloaded = new ServerUserDataStorage(
+            api as never,
+            first.local,
+            jest.fn()
+        );
+        await reloaded.hydrate();
+
+        expect(api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['live:1', 'live:9'] }
+        );
+        expect(reloaded.hasUnsentWrites()).toBe(false);
+        expect(first.local.values.has('iptvnator-server:unsent-writes')).toBe(
+            false
+        );
+    });
 });

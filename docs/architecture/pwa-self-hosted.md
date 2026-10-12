@@ -200,7 +200,8 @@ settings and guards read them in every build.
   each change sends only the playlist entries that differ, debounced, with a
   `keepalive` flush when the page hides. Batches go out one after another
   (the page-hide flush waits for a batch still travelling), a failed write,
-  including a refused `keepalive` one, stays queued for the next flush, and
+  including a refused `keepalive` one, stays queued for the next flush and
+  survives a reload under `iptvnator-server:unsent-writes`, and
   re-reads run one at a time and keep entries edited while they were in
   flight or not yet saved. A re-read whose result does not fit the cache
   keeps the old cache and baseline together. A response body cut off after
@@ -237,7 +238,8 @@ settings and guards read them in every build.
   translated through the URL; nothing is dropped), and the legacy Xtream maps follow under
   the server id; `combineUserData` unions lists (playback positions by
   content type and Xtream id, renamed to the server playlist) and merges
-  maps, the server's value winning on a conflict. Browser data is never deleted, and
+  maps, the server's value winning on a conflict. Browser data is never
+  deleted, the move does not start while user-data writes are unsent, and
   the marker is written only when nothing failed, so Settings → Server
   keeps offering a partial move.
 

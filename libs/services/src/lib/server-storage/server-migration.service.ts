@@ -82,6 +82,11 @@ export class ServerMigrationService {
     }
 
     async moveBrowserData(): Promise<ServerMigrationResult> {
+        // An edit still unsent could land after the combined values below.
+        await this.session.userData.flush();
+        if (this.session.userData.hasUnsentWrites()) {
+            throw new Error('Unsent user data; try again when online');
+        }
         const [browser, server] = await Promise.all([
             this.readBrowserPlaylists(),
             this.session.documentStore.dbGetAppPlaylistMetas(),
@@ -95,9 +100,14 @@ export class ServerMigrationService {
         let merged = 0;
         let failed = 0;
 
+        const onServer = new Set(server.map((playlist) => playlist._id));
         for (const step of planServerMigration(browser, server)) {
             try {
                 if (step.kind === 'merge') {
+                    // A duplicate of a browser playlist whose upload failed.
+                    if (!onServer.has(step.serverId)) {
+                        throw new Error('Merge target was not uploaded');
+                    }
                     const playlist = byId.get(step.browserId);
                     if (playlist) {
                         await this.mergeDocumentUserData(
@@ -112,6 +122,7 @@ export class ServerMigrationService {
                         step.playlist
                     );
                     imported += 1;
+                    onServer.add(step.playlist._id);
                     targets.set(step.playlist._id, step.playlist._id);
                 }
             } catch {
@@ -119,8 +130,6 @@ export class ServerMigrationService {
             }
         }
 
-        // Queued edits go out first, so none lands after the combined values.
-        await this.session.userData.flush();
         failed += await this.copyXtreamUserData(targets);
         await this.session.userData.hydrate();
         if (failed === 0) {

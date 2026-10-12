@@ -23,7 +23,11 @@ describe('ServerMigrationService', () => {
             dbUpsertAppPlaylist: jest.Mock;
         };
         api: { getJson: jest.Mock; sendJson: jest.Mock };
-        userData: { flush: jest.Mock; hydrate: jest.Mock };
+        userData: {
+            flush: jest.Mock;
+            hasUnsentWrites: jest.Mock;
+            hydrate: jest.Mock;
+        };
     };
 
     beforeEach(() => {
@@ -42,6 +46,7 @@ describe('ServerMigrationService', () => {
             },
             userData: {
                 flush: jest.fn().mockResolvedValue(undefined),
+                hasUnsentWrites: jest.fn(() => false),
                 hydrate: jest.fn().mockResolvedValue(undefined),
             },
         };
@@ -264,5 +269,43 @@ describe('ServerMigrationService', () => {
             failed: 0,
         });
         expect(migration.browserDataMoved()).toBe(true);
+    });
+
+    it('does not start while user-data writes are still unsent', async () => {
+        session.userData.hasUnsentWrites.mockReturnValue(true);
+        const migration = TestBed.inject(ServerMigrationService);
+
+        await expect(migration.moveBrowserData()).rejects.toThrow('Unsent');
+        expect(
+            session.documentStore.dbUpsertAppPlaylist
+        ).not.toHaveBeenCalled();
+        expect(session.api.sendJson).not.toHaveBeenCalled();
+        expect(migration.browserDataMoved()).toBe(false);
+    });
+
+    it('counts a duplicate of a failed upload as failed, not merged', async () => {
+        TestBed.overrideProvider(NgxIndexedDBService, {
+            useValue: {
+                getAll: () =>
+                    of([
+                        browserPlaylists[1],
+                        { ...browserPlaylists[1], _id: 'x2' },
+                    ]),
+            },
+        });
+        session.documentStore.dbUpsertAppPlaylist.mockRejectedValue(
+            new Error('500')
+        );
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ x: ['live:1'], x2: ['live:2'] })
+        );
+
+        const result = await TestBed.inject(
+            ServerMigrationService
+        ).moveBrowserData();
+
+        expect(result).toEqual({ imported: 0, merged: 0, failed: 2 });
+        expect(session.api.sendJson).not.toHaveBeenCalled();
     });
 });

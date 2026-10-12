@@ -6,19 +6,18 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { UserDataStorage } from '../user-data-storage';
 import type { ServerApiClient } from './server-api-client';
+import {
+    entryKey,
+    entryPath,
+    parseMap,
+    type PendingEntry,
+    splitEditKey,
+} from './server-user-data-entries';
+import { readUnsentWrites, saveUnsentWrites } from './server-unsent-writes';
 
 /** Server-mode cache keys; the legacy unprefixed keys are never touched. */
 export const SERVER_CACHE_PREFIX = 'iptvnator-server:';
 const FLUSH_DELAY_MS = 500;
-
-interface PendingEntry {
-    readonly namespace: ServerUserStateNamespace;
-    readonly playlistId: string;
-    /** `undefined` deletes the entry. */
-    readonly value: unknown;
-    /** The edit this value came from; a retry never replaces a newer one. */
-    readonly edit: number;
-}
 
 type ServerApi = Pick<
     ServerApiClient,
@@ -42,7 +41,8 @@ export class ServerUserDataStorage implements UserDataStorage {
     private sending: Promise<void> = Promise.resolve();
     private writesInFlight = 0;
     /** Page-hide writes still travelling, by `namespace|playlistId`. */
-    private readonly keepaliveKeys = new Set<string>();
+    private readonly keepalive = new Map<string, PendingEntry>();
+    private unsentSaved = false;
     /** Re-reads run one at a time, so an older one never lands last. */
     private hydration: Promise<void> = Promise.resolve();
     /** Edit counter per `namespace|playlistId`, for hydrate to keep them. */
@@ -53,7 +53,19 @@ export class ServerUserDataStorage implements UserDataStorage {
         private readonly api: ServerApi,
         private readonly local: UserDataStorage,
         private readonly onWriteFailure: (error: unknown) => void
-    ) {}
+    ) {
+        // Writes a previous visit could not confirm go out with the first
+        // flush, and the first read keeps them.
+        for (const write of readUnsentWrites(local)) {
+            this.queue(write.namespace, write.playlistId, write.value);
+        }
+        this.unsentSaved = this.pending.size > 0;
+    }
+
+    /** Whether a write is queued, being retried, or still travelling. */
+    hasUnsentWrites(): boolean {
+        return this.pending.size > 0 || this.keepalive.size > 0;
+    }
 
     getItem(key: string): string | null {
         return this.isSynced(key)
@@ -110,7 +122,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             );
             const unsaved = new Set([
                 ...this.pending.keys(),
-                ...this.keepaliveKeys,
+                ...this.keepalive.keys(),
             ]);
             for (const [key, edit] of this.edits) {
                 if (edit > editsBefore) {
@@ -144,7 +156,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             if (
                 edit <= editsBefore &&
                 !this.pending.has(key) &&
-                !this.keepaliveKeys.has(key)
+                !this.keepalive.has(key)
             ) {
                 this.edits.delete(key);
             }
@@ -192,6 +204,10 @@ export class ServerUserDataStorage implements UserDataStorage {
                 this.writesInFlight -= 1;
             }
         };
+        for (const entry of entries) {
+            this.keepalive.set(entryKey(entry), entry);
+        }
+        this.saveUnsent();
         // Idle: send synchronously, while the hiding page still runs.
         const run =
             this.writesInFlight === 0 ? sendAll() : this.sending.then(sendAll);
@@ -288,16 +304,15 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     private async sendKeepalive(entry: PendingEntry): Promise<void> {
-        const key = entryKey(entry);
         const path = entryPath(entry);
-        this.keepaliveKeys.add(key);
         const ok = await (entry.value === undefined
             ? this.api.sendKeepalive('DELETE', path)
             : this.api.sendKeepalive('PUT', path, { value: entry.value }));
-        this.keepaliveKeys.delete(key);
+        this.keepalive.delete(entryKey(entry));
         if (!ok) {
             this.requeue(entry);
         }
+        this.saveUnsent();
     }
 
     private async send(entry: PendingEntry): Promise<void> {
@@ -309,33 +324,21 @@ export class ServerUserDataStorage implements UserDataStorage {
                     value: entry.value,
                 });
             }
+            this.saveUnsent();
         } catch (error) {
             this.requeue(entry);
+            this.saveUnsent();
             this.onWriteFailure(error);
         }
     }
-}
 
-function entryKey(entry: PendingEntry): string {
-    return `${entry.namespace}|${entry.playlistId}`;
-}
-
-function splitEditKey(key: string): [string, string] {
-    const separator = key.indexOf('|');
-    return [key.slice(0, separator), key.slice(separator + 1)];
-}
-
-function entryPath(entry: PendingEntry): string {
-    return `/user-state/${entry.namespace}/${encodeURIComponent(entry.playlistId)}`;
-}
-
-function parseMap(value: string): Record<string, unknown> {
-    try {
-        const parsed: unknown = JSON.parse(value);
-        return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-            ? (parsed as Record<string, unknown>)
-            : {};
-    } catch {
-        return {};
+    /** Persists what the server has not confirmed; skips idle rewrites. */
+    private saveUnsent(): void {
+        const writes = [...this.pending.values(), ...this.keepalive.values()];
+        if (writes.length === 0 && !this.unsentSaved) {
+            return;
+        }
+        saveUnsentWrites(this.local, writes);
+        this.unsentSaved = writes.length > 0;
     }
 }
