@@ -72,8 +72,17 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
         write(KEYS.recentItems, {
             'xtream-1': [
                 { id: 'live:601', viewedAt: '2026-07-04T18:30:00.000Z' },
-                { id: 'movie:501', viewedAt: '2026-07-01T10:00:00.000Z' },
-                { id: 'movie:501', viewedAt: '2026-07-03T10:00:00.000Z' },
+                {
+                    id: 'movie:501',
+                    viewedAt: '2026-07-01T10:00:00.000Z',
+                    backdropUrl: 'https://img.example.com/heat-old.jpg',
+                },
+                {
+                    id: 'movie:501',
+                    viewedAt: '2026-07-03T10:00:00.000Z',
+                    // Saved by an older build in snake_case.
+                    backdrop_url: 'https://img.example.com/heat-still.jpg',
+                },
             ],
             'xtream-2': [
                 { id: 'live:9', viewedAt: '2026-07-02T10:00:00.000Z' },
@@ -164,6 +173,8 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
                         contentType: 'movie',
                         xtreamId: 501,
                         viewedAt: '2026-07-03T10:00:00.000Z',
+                        // The history's own artwork, ahead of the snapshot's.
+                        backdropUrl: 'https://img.example.com/heat-still.jpg',
                     },
                 ],
                 playbackPositions: [position],
@@ -295,7 +306,11 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(read(KEYS.recentItems)).toEqual({
                 'local-xtream': [
                     { id: 'live:601', viewedAt: '2026-07-04T18:30:00.000Z' },
-                    { id: 'movie:501', viewedAt: '2026-07-03T10:00:00.000Z' },
+                    {
+                        id: 'movie:501',
+                        viewedAt: '2026-07-03T10:00:00.000Z',
+                        backdropUrl: 'https://img.example.com/heat-still.jpg',
+                    },
                 ],
             });
             expect(read(KEYS.playbackPositions)).toEqual({

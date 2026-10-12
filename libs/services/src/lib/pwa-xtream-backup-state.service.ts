@@ -54,17 +54,21 @@ export class PwaXtreamBackupStateService {
             if (ref) favorites.set(ref.key, ref.item);
         }
 
-        // Newest view wins, as when the data source reads the list.
+        // Newest view wins, artwork included, as when the data source reads
+        // the list.
         const recent = new Map<string, XtreamBackupRecentlyViewedItem>();
         for (const item of this.listFor('recentItems', playlistId)) {
-            const ref = isRecord(item)
-                ? resolveKey(item['id'], snapshots)
-                : null;
-            const viewedAt = isRecord(item) ? item['viewedAt'] : undefined;
+            if (!isRecord(item)) continue;
+            const ref = resolveKey(item['id'], snapshots);
+            const viewedAt = item['viewedAt'];
             if (!ref || typeof viewedAt !== 'string') continue;
             const previous = recent.get(ref.key)?.viewedAt;
             if (!previous || Date.parse(viewedAt) > Date.parse(previous)) {
-                recent.set(ref.key, { ...ref.item, viewedAt });
+                recent.set(ref.key, {
+                    ...ref.item,
+                    viewedAt,
+                    ...backdropOf(item),
+                });
             }
         }
 
@@ -118,11 +122,16 @@ export class PwaXtreamBackupStateService {
             .filter((key): key is string => key !== null);
         this.writeFor('favorites', playlistId, [...new Set(favorites)]);
 
-        const recent: { id: string; viewedAt: string }[] = [];
+        const recent: { id: string; viewedAt: string; backdropUrl?: string }[] =
+            [];
         for (const item of state.recentlyViewed) {
             const id = typedKey(item.contentType, item.xtreamId);
             if (id !== null && typeof item.viewedAt === 'string') {
-                recent.push({ id, viewedAt: item.viewedAt });
+                recent.push({
+                    id,
+                    viewedAt: item.viewedAt,
+                    ...backdropOf(item),
+                });
             }
         }
         this.writeFor('recentItems', playlistId, recent);
@@ -256,6 +265,18 @@ function snapshotsByKey(
         if (key !== null) byKey[key] = item as XtreamBackupCollectionItem;
     }
     return byKey;
+}
+
+/**
+ * Artwork saved with a view. The data source shows it ahead of the title
+ * snapshot's, and reads the snake_case spelling of older builds too.
+ */
+function backdropOf(item: object): { backdropUrl?: string } {
+    const record = item as StoredMap;
+    const value = record['backdropUrl'] ?? record['backdrop_url'];
+    return typeof value === 'string' && value.trim()
+        ? { backdropUrl: value.trim() }
+        : {};
 }
 
 function isPlaybackPosition(value: unknown): value is PlaybackPositionData {

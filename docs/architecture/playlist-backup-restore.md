@@ -63,7 +63,8 @@ Xtream backups export only connection metadata plus portable user state.
 - User state:
     - hidden categories by `{ categoryType, xtreamId }`
     - favorites by `{ contentType, xtreamId, addedAt?, position? }`
-    - recently viewed by `{ contentType, xtreamId, viewedAt }`
+    - recently viewed by `{ contentType, xtreamId, viewedAt, backdropUrl? }`
+      (`backdropUrl` is written and read by the browser build only)
     - playback positions as `PlaybackPositionData[]`
     - optional VOD source pins by `{ matchKey, contentId, updatedAt? }`
     - optional title snapshots `collectionItems` (browser build only; see
@@ -241,7 +242,8 @@ self-hosted server storage is covered too.
 - Export converts each playlist's entries to the archive shape. Typed keys
   (`movie:42`) carry their identity; a legacy bare id resolves only through
   the snapshot stored under it, and is left out when none identifies it.
-  Recently viewed keeps the newest view per title. `collectionItems` carries
+  Recently viewed keeps the newest view per title, with the artwork saved
+  for that view as `backdropUrl`. `collectionItems` carries
   the snapshots of exported favorites and history, and is omitted when there
   are none. Hidden categories stay `[]` and `sourcePins` stays absent: the
   browser tracks neither.

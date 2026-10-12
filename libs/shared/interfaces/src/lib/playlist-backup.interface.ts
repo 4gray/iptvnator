@@ -62,6 +62,12 @@ export interface XtreamBackupRecentlyViewedItem {
     contentType: XtreamBackupContentType;
     xtreamId: number;
     viewedAt: string;
+    /**
+     * Artwork the browser build saved with this view, shown ahead of the
+     * title snapshot's. Optional; the desktop build neither writes nor
+     * reads it.
+     */
+    backdropUrl?: string;
 }
 
 /**
