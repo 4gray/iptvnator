@@ -3,8 +3,11 @@
  * and the player controls must be reachable from the picture.
  */
 import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
-const { chromium } = require('playwright');
+const { chromium } = require('@playwright/test');
+const SHOTS = join(dirname(fileURLToPath(import.meta.url)), 'shots');
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -54,7 +57,7 @@ console.log('  channel numbers visited:', numbers.filter((n, i) => i % 7 === 0).
 check(last >= 60, 'Down scrolled through the virtual list past channel 60 (reached ' + last + ')');
 const distinct = new Set(numbers.filter((n) => n !== null));
 check(distinct.size >= 55, `${distinct.size} distinct channels reached in 70 presses`);
-await page.screenshot({ path: 'tests/shots/longlist-down.png' });
+await page.screenshot({ path: join(SHOTS, 'longlist-down.png') });
 
 console.log('2. walk back up');
 for (let i = 0; i < 30; i++) f = await key('ArrowUp', 1, 120);
@@ -71,27 +74,6 @@ f = await focused();
 const onVideo = /^video/.test(f || '');
 check(onVideo, 'picture reachable with Right: ' + f);
 if (onVideo) {
-    // OK on a playing picture must fullscreen the player surface (video + controls), not the
-    // bare video.js root. On a source in error (the mock's .ts streams) OK offers the external
-    // player instead, by design, so the check only runs when the player has no error.
-    const playable = await page.evaluate(() => {
-        const v = document.activeElement;
-        return !v.error && !(v.closest('.video-js') || v).classList.contains('vjs-error');
-    });
-    if (playable) {
-        await key('Enter', 1, 500);
-        const fs = await page.evaluate(() => {
-            const el = document.fullscreenElement;
-            return el ? { tag: el.tagName.toLowerCase(), cls: el.className.slice(0, 60), hasDock: !!el.querySelector('app-player-controls'), hasVideo: !!el.querySelector('video'), isVjsRoot: el.classList.contains('video-js') } : null;
-        });
-        check(!!fs && fs.hasVideo && !fs.isVjsRoot, 'OK on the picture fullscreens the player surface: ' + JSON.stringify(fs));
-        await page.evaluate(() => window.__tvShell.back());
-        await page.waitForTimeout(400);
-        check(await page.evaluate(() => !document.fullscreenElement), 'Back leaves fullscreen');
-        f = await reach(/^video/, ['ArrowRight', 'ArrowUp']);
-    } else {
-        console.log('  (fullscreen check skipped: the source is in error, OK offers the external player instead)');
-    }
     const down = [];
     for (let i = 0; i < 3; i++) down.push(((await key('ArrowDown', 1, 300)) || '∅').slice(0, 80));
     console.log('  Down ×3 from the picture:\n    ' + down.join('\n    '));
@@ -104,10 +86,42 @@ if (onVideo) {
     f = await reach(/Copy stream URL/i, ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
     await key('Enter');
     await page.waitForTimeout(500);
-    await page.screenshot({ path: 'tests/shots/longlist-controls.png' });
+    await page.screenshot({ path: join(SHOTS, 'longlist-controls.png') });
 }
 console.log('4. external player prompt after the unsupported .ts source');
 console.log('  state:', await page.evaluate(() => window.__tvShell.state()));
+
+console.log('5. a playable source: OK on the picture fullscreens the player surface, not the bare video.js root');
+// Back on a channel row, then straight up the list: the clip is its first entry.
+f = await reach(/button\.channel-content/);
+for (let i = 0; f && !/Playable clip/i.test(f) && i < 200; i++) {
+    const before = f;
+    f = await key('ArrowUp', 1, 120);
+    if (f === before) {
+        f = await key('ArrowUp', 1, 400); // virtual list: scroll, then look again
+        if (f === before) break;
+    }
+}
+check(!!f && /Playable clip/i.test(f), 'the playable mock channel is reachable: ' + f);
+await key('Enter');
+await page.waitForTimeout(2500);
+f = await reach(/^video/, ['ArrowRight', 'ArrowUp'], 8);
+const playable = !!f && (await page.evaluate(() => {
+    const v = document.activeElement;
+    return v.tagName === 'VIDEO' && !v.error && !(v.closest('.video-js') || v).classList.contains('vjs-error');
+}));
+check(playable, 'the playable mock channel is not in error: ' + f);
+if (playable) {
+    await key('Enter', 1, 600);
+    const fs = await page.evaluate(() => {
+        const el = document.fullscreenElement;
+        return el ? { tag: el.tagName.toLowerCase(), cls: String(el.className).slice(0, 60), hasDock: !!el.querySelector('app-player-controls'), hasVideo: !!el.querySelector('video'), isVjsRoot: el.classList.contains('video-js') } : null;
+    });
+    check(!!fs && fs.hasVideo && !fs.isVjsRoot, 'OK on the picture fullscreens the player surface: ' + JSON.stringify(fs));
+    await page.evaluate(() => window.__tvShell.back());
+    await page.waitForTimeout(400);
+    check(await page.evaluate(() => !document.fullscreenElement), 'Back leaves fullscreen');
+}
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();

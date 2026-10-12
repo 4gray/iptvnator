@@ -32,8 +32,9 @@ APK
   real JavaScript parser (`tools/gen-parser-fixtures.mjs`, verified in CI).
 - **Playback** with the PWA's own players (HLS `.m3u8`, MP4, DASH ClearKey) in
   the WebView. Streams a browser cannot play (raw `.ts`, AC3 audio...) trigger
-  an **"Open in another player"** prompt (VLC, Kodi, MX Player...). The app's
-  "Copy stream URL" button does the same on a TV.
+  a **"This stream cannot be played here"** prompt offering to open them in
+  another player (VLC, Kodi, MX Player...). The app's "Copy stream URL" button
+  does the same on a TV.
 - **Shell settings** (long-press Menu): interface size (960 / 1280 / 1600 px),
   preferred external player, data reset, diagnostics (WebView version, screen).
 - Data (playlists, favourites, positions) is stored by the PWA in the WebView
@@ -228,8 +229,9 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   another application; close it or restart the stick. The chosen port is
   remembered because the app's data is bound to `http://127.0.0.1:port`.
 - **"The player was restarted after it ran out of memory"**: the WebView's
-  renderer was killed; the page reloads where it was. If it keeps happening,
-  use a smaller playlist (hide categories in IPTVnator).
+  renderer was killed; the app reloads from its start view (the last view only
+  when IPTVnator's start-up setting restores it). If it keeps happening, use a
+  smaller playlist (hide categories in IPTVnator).
 
 ### Display
 

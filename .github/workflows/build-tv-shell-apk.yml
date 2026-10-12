@@ -2,7 +2,8 @@ name: Build TV shell APK
 
 # Builds the IPTVnator PWA from this repository, bundles it into the Fire TV /
 # Android TV shell (tv-shell/), runs the shell's backend tests and publishes the
-# APK as a workflow artifact and, on manual dispatch, as a GitHub release.
+# APK as a workflow artifact and, on manual dispatch with `create_release`
+# ticked, as a GitHub release.
 # By default that release is a pre-release never marked "Latest": in the
 # IPTVnator repository a Latest release without the desktop updater's
 # latest*.yml would break auto-update and the website download resolver (see
@@ -23,11 +24,16 @@ on:
     paths:
       - "tv-shell/**"
       - ".github/workflows/build-tv-shell-apk.yml"
+      # a parser upgrade must regenerate the Java port's fixtures
+      - "package.json"
+      - "pnpm-lock.yaml"
   push:
     branches: [master]
     paths:
       - "tv-shell/**"
       - ".github/workflows/build-tv-shell-apk.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
 
 # Superseded PR pushes cancel their still-running build; master and manual runs
 # get a unique group (run_id), the same pattern as ci.yml.
@@ -86,10 +92,12 @@ jobs:
         shell: bash
         env:
           NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+          # Settings > About shows "<version> (<sha>)" like the Docker and desktop
+          # builds; on a PR the head SHA, not the ephemeral merge commit.
+          BUILD_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          # Settings > About shows "<version> (<sha>)" like the Docker and desktop builds.
-          BUILD_COMMIT="$(git rev-parse HEAD)" node tools/build/inject-build-commit.mjs
+          node tools/build/inject-build-commit.mjs
           pnpm nx build web --configuration=pwa --skip-nx-cache
           test -f dist/apps/web/index.html
 
@@ -124,6 +132,7 @@ jobs:
           TVSHELL_KEYSTORE_PASSWORD: ${{ secrets.TVSHELL_KEYSTORE_PASSWORD }}
           TVSHELL_KEY_ALIAS: ${{ secrets.TVSHELL_KEY_ALIAS }}
           TVSHELL_KEY_PASSWORD: ${{ secrets.TVSHELL_KEY_PASSWORD }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           # versionCode: commit time in minutes, monotonic across forks and upstream.
@@ -141,7 +150,7 @@ jobs:
           APK=app/build/outputs/apk/release/app-release.apk
           test -f "$APK"
           VERSION=$(grep -oP "versionName '\K[^']+" app/build.gradle)
-          OUT="iptvnator-tv-shell-${VERSION}-${GITHUB_SHA::7}.apk"
+          OUT="iptvnator-tv-shell-${VERSION}-${HEAD_SHA::7}.apk"
           mkdir -p ../../dist && cp "$APK" "../../dist/$OUT"
           echo "APK $OUT: versionCode $TVSHELL_VERSION_CODE, signed with the $SIGNER key"
           echo "name=$OUT" >> "$GITHUB_OUTPUT"

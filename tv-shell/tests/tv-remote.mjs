@@ -6,10 +6,11 @@
  */
 import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('playwright');
+const { chromium } = require('@playwright/test');
 
 const args = process.argv.slice(2);
 const opt = (name, def) => {
@@ -17,7 +18,7 @@ const opt = (name, def) => {
     return i === -1 ? def : args[i + 1];
 };
 const URL_ = opt('--url', 'http://127.0.0.1:43330');
-const SHOTS = opt('--shots', 'tests/shots');
+const SHOTS = opt('--shots', join(dirname(fileURLToPath(import.meta.url)), 'shots'));
 const PROVIDER = opt('--provider', 'http://127.0.0.1:43331');
 mkdirSync(SHOTS, { recursive: true });
 
@@ -174,8 +175,7 @@ const walk = [];
 for (const k of ['ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowDown', 'ArrowDown']) walk.push((await key(k)) || '∅');
 console.log('  ' + walk.map((w) => w.slice(0, 70)).join('\n  '));
 
-if (consoleErrors.length) {
-    console.log('7. Back walks up to the root, then arms the exit instead of dead presses');
+console.log('7. Back walks up to the root, then arms the exit instead of dead presses');
 let armed = false;
 for (let i = 0; i < 8 && !armed; i++) {
     const canGoBack = await page.evaluate(() => window.__tvShell.state().canGoBack);
@@ -186,7 +186,8 @@ for (let i = 0; i < 8 && !armed; i++) {
 }
 check(armed, 'Back reaches the exit prompt within a few presses');
 
-console.log('console errors (' + consoleErrors.length + '):');
+if (consoleErrors.length) {
+    console.log('console errors (' + consoleErrors.length + '):');
     for (const e of consoleErrors.slice(0, 10)) console.log('  - ' + e.slice(0, 200));
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');

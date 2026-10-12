@@ -24,9 +24,11 @@ cette page résume l'installation, les touches et le dépannage.
    Add Xtream / Add Stalker** ; OK sur un champ texte ouvre le clavier Fire TV.
 5. Installez **VLC pour Android** (Appstore) pour les flux `.ts`.
 
-Les APK publiés par le workflow sont signés avec la clé de debug versionnée
-(`android/app/debug.keystore`) : les nouvelles versions s'installent par-dessus
-les anciennes. Le `versionCode` est l'heure du commit en minutes. Pour publier
+Sans secrets de signature (`TVSHELL_KEYSTORE_B64`, `TVSHELL_KEYSTORE_PASSWORD`,
+`TVSHELL_KEY_ALIAS`, `TVSHELL_KEY_PASSWORD`), les APK publiés par le workflow
+sont signés avec la clé de debug versionnée (`android/app/debug.keystore`) : les
+nouvelles versions s'installent par-dessus les anciennes. Le `versionCode` est
+l'heure du commit en minutes. Pour publier
 une release : **Actions → Build TV shell APK → Run workflow**, cochez
 `create_release` et décochez `prerelease` (dans le dépôt IPTVnator lui-même,
 `prerelease` doit rester coché : une release « Latest » sans les fichiers de

@@ -152,13 +152,11 @@ public class TvShellServer extends NanoHTTPD {
                 WebBackend.Response r = backend.handle(method.name(), sub, query, body);
                 Response response = newFixedLengthResponse(status(r.status), r.contentType, new ByteArrayInputStream(r.body), r.body.length);
                 for (Map.Entry<String, String> header : r.headers.entrySet()) response.addHeader(header.getKey(), header.getValue());
-                response.setGzipEncoding(false);
                 return response;
             }
             ShellSite.Resource res = site.serve(uri);
             Response response = newFixedLengthResponse(status(res.status), res.contentType, new ByteArrayInputStream(res.body), res.body.length);
             response.addHeader("Cache-Control", res.cacheControl);
-            response.setGzipEncoding(false);
             return response;
         } catch (IOException e) {
             Log.e(ShellApp.TAG, "serve " + uri + " failed", e);
@@ -174,9 +172,14 @@ public class TvShellServer extends NanoHTTPD {
             Log.e(ShellApp.TAG, "serve " + uri + " ran out of memory");
             Response r = newFixedLengthResponse(status(500), "application/json; charset=utf-8",
                 "{\"message\":\"The provider response is too large for this device's memory\",\"status\":500}");
-            r.setGzipEncoding(false);
             return r;
         }
+    }
+
+    /** Loopback traffic gains nothing from compression; NanoHTTPD would otherwise gzip text answers after serve(). */
+    @Override
+    protected boolean useGzipWhenAccepted(Response r) {
+        return false;
     }
 
     /** The body was not read: close the socket so NanoHTTPD does not parse it as the next keep-alive request. */
@@ -187,7 +190,6 @@ public class TvShellServer extends NanoHTTPD {
 
     private static Response error(Response.IStatus status, String message) {
         Response response = newFixedLengthResponse(status, "text/plain; charset=utf-8", message == null ? "" : message);
-        response.setGzipEncoding(false);
         return response;
     }
 }

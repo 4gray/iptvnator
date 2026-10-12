@@ -9,8 +9,9 @@
  *                      (Android's FocusFinder algorithm), with "scroll and look
  *                      again" for virtual-scroll lists.
  *   Center / Enter   → activation (native for buttons/links, synthesized click
- *                      for elements this layer made focusable, play/pause on a
- *                      focused <video>, soft keyboard on text fields).
+ *                      for elements this layer made focusable, fullscreen on a
+ *                      focused <video> — external player when it is in error —,
+ *                      soft keyboard on text fields).
  *   Back             → window.__tvShell.back(): closes overlays (Escape), leaves
  *                      fullscreen, goes back in history, finally asks the shell
  *                      to exit.
@@ -18,7 +19,8 @@
  *   Media keys       → window.__tvShell.media('playpause' | 'rewind' | ...).
  *
  * The Android side exposes `window.TvShell` (JavascriptInterface). Without it
- * (plain browser) a console stub is used and F9/F10/F8 emulate Back/Menu/Play.
+ * (plain browser) a console stub is used and F9/F10/F8/F7 emulate Back/Menu/
+ * Play-Pause/External player.
  */
 (function () {
     'use strict';
@@ -612,10 +614,6 @@
     /** Back button. Returns true when consumed by the page. */
     api.back = function () {
         var active = document.activeElement;
-        if (document.fullscreenElement) {
-            document.exitFullscreen().catch(function () { /* ignore */ });
-            return true;
-        }
         // Open overlay (dialog, menu, select panel, bottom sheet, popover): Escape closes it.
         var pane = document.querySelector('.cdk-overlay-pane [role="dialog"],.cdk-overlay-pane [role="menu"],.cdk-overlay-pane [role="listbox"],.cdk-overlay-pane mat-bottom-sheet-container,.cdk-overlay-pane .mat-mdc-autocomplete-panel');
         if (pane) {
@@ -627,6 +625,10 @@
             setTimeout(function () {
                 if (!document.activeElement || document.activeElement === document.body) focusFirst();
             }, 120);
+            return true;
+        }
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(function () { /* ignore */ });
             return true;
         }
         // Focus parked on the video: leave "player mode" first.

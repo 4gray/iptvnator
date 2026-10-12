@@ -226,6 +226,7 @@ public class MainActivity extends Activity {
         if (rendererDeaths >= RENDERER_DEATH_LIMIT && SystemClock.uptimeMillis() - lastRendererDeathAt < RENDERER_DEATH_WINDOW_MS) {
             rendererDeaths = 0;
             server = ShellApp.currentServer(); // so the diagnostics show the port
+            loadedLayoutWidth = prefs.layoutWidth(); // and the layout; also keeps onResume() from reloading over the panel
             showError(getString(R.string.renderer_gone_loop));
         } else {
             load();
@@ -254,12 +255,12 @@ public class MainActivity extends Activity {
         pageReady = false;
         lastConsoleError = null;
         handler.removeCallbacks(readyWatchdog);
+        loadedLayoutWidth = prefs.layoutWidth();
         server = ((ShellApp) getApplication()).ensureServer();
         if (server == null) {
             showError(getString(R.string.server_error));
             return;
         }
-        loadedLayoutWidth = prefs.layoutWidth();
         server.setLayoutWidth(loadedLayoutWidth);
         server.setScreenWidth(screenCssWidth(this));
         webView.setVisibility(View.VISIBLE);

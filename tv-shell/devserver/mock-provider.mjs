@@ -150,6 +150,9 @@ function accountInfo(username, password) {
 
 function sampleM3u() {
     const lines = ['#EXTM3U x-tvg-url="http://127.0.0.1/guide.xml"'];
+    // A source the browser can really play (clip.webm): the fullscreen test needs one.
+    lines.push('#EXTINF:-1 group-title="Special",Playable clip');
+    lines.push(`${BASE}/movie/user/pass/clip.webm`);
     for (const cat of liveCategories) {
         for (let i = 1; i <= 60; i++) {
             lines.push(`#EXTINF:-1 tvg-id="m3u-${cat.category_id}-${i}" tvg-name="${cat.category_name} ${i}" tvg-logo="" group-title="${cat.category_name}",${cat.category_name} ${i}`);
