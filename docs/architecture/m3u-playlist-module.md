@@ -1843,6 +1843,11 @@ shared data access. Electron checks Xtream account info, Stalker account/profile
 facts through the existing session, and the first 64 KiB of M3U URL responses.
 An M3U success describes the playlist URL, not every channel. Local files and
 text imports have no network indicator. PWA retains its existing Xtream path.
+Lists read one status per source through `SourceStatusService`, which falls
+back to the last conclusive result kept by `SourceHealthHistoryService`
+(localStorage, by playlist ID: state, check time and the start of a failing
+run; no URL or credential). Deleting a source or resetting the library clears
+its entry. See the [UI guidelines](iptvnator-ui-guidelines.md#network-source-indicators-electron).
 
 Checks are demand-driven, never a startup readiness barrier: four at a time,
 two per origin, shared between surfaces. Known results remain visible during
