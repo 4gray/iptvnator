@@ -39,6 +39,14 @@ describe.each(['desktop', 'browser'])(
                 epgUrls: [],
             };
             const collaborators = createStatefulBackupCollaborators(state);
+            if (runtime === 'browser') {
+                // IndexedDB add rejects an occupied ID; document stores upsert.
+                const savePlaylist = collaborators.playlistsService.addPlaylist;
+                collaborators.playlistsService.addPlaylist = (playlist) =>
+                    state.playlists.some((item) => item._id === playlist._id)
+                        ? throwError(() => new Error('Duplicate playlist ID'))
+                        : savePlaylist(playlist);
+            }
             const ensureLocksReadable = jest.fn().mockResolvedValue(true);
             const service = createPlaylistBackupService({
                 ...collaborators,
