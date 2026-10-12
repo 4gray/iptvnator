@@ -18,6 +18,7 @@ import {
     WorkspacePortalContext,
     WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
+import { LayoutSlideDirective } from './layout-slide.directive';
 import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
 import { WorkspaceShellComponent } from './workspace-shell.component';
 import { WorkspaceShellFacade } from './services/workspace-shell.facade';
@@ -265,6 +266,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
                         TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {
@@ -361,6 +363,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
                         TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {
@@ -439,6 +442,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
                         TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {
@@ -513,6 +517,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
                         TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {
@@ -613,6 +618,7 @@ describe('WorkspaceShellComponent', () => {
                         MockWorkspaceShellImportOverlayComponent,
                         MockWorkspaceShellRailComponent,
                         TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
                     ],
                     providers: [
                         {

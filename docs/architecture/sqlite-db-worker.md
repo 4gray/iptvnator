@@ -550,7 +550,9 @@ Xtream-only row shape:
    as `Café` can still reach rows stored as either `Café` or `Cafe` before the
    worker's accent-insensitive ranking step. Existing databases rebuild this
    index once through the `migration:content-title-fts-trigram:v1` app-state
-   marker before legacy content cleanup/normalization migrations run; fresh
+   marker before legacy content cleanup/normalization migrations run (the
+   diacritics rebuild records that marker too, so it is never rebuilt twice;
+   see [VOD multi-source](vod-multi-source.md#short-titles-and-unicode)); fresh
    inserts, deletes, and title updates stay synchronized through SQLite triggers.
 2. `source_type = "m3u"` rows come from M3U playlist payloads stored in
    `playlists.payload`. The worker uses SQL `payload LIKE` against channel
