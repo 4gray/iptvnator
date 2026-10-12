@@ -173,6 +173,12 @@ public class TvShellServer extends NanoHTTPD {
             Response r = newFixedLengthResponse(status(500), "application/json; charset=utf-8",
                 "{\"message\":\"The provider response is too large for this device's memory\",\"status\":500}");
             return r;
+        } catch (StackOverflowError e) {
+            // Same reasoning: the JSON reader bounds its nesting (Json.MAX_DEPTH), this is the
+            // backstop for any other deep recursion a hostile payload might find.
+            Log.e(ShellApp.TAG, "serve " + uri + " overflowed the stack");
+            return newFixedLengthResponse(status(500), "application/json; charset=utf-8",
+                "{\"message\":\"The provider response is too deeply nested for this device\",\"status\":500}");
         }
     }
 

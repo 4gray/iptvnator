@@ -201,9 +201,18 @@ public final class Json {
         }
     }
 
+    /**
+     * Nesting the reader accepts. Provider payloads are a few levels deep; the
+     * limit turns a hostile {@code [[[[...} body into a {@link JsonException}
+     * (an HTTP 400/502) instead of a {@link StackOverflowError} that would
+     * take the whole app down with it.
+     */
+    static final int MAX_DEPTH = 256;
+
     private static final class Reader {
         private final String s;
         private int pos;
+        private int depth;
 
         Reader(String s) {
             this.s = s;
@@ -228,9 +237,19 @@ public final class Json {
             char c = s.charAt(pos);
             switch (c) {
                 case '{':
-                    return readObject();
+                    enter();
+                    try {
+                        return readObject();
+                    } finally {
+                        depth--;
+                    }
                 case '[':
-                    return readArray();
+                    enter();
+                    try {
+                        return readArray();
+                    } finally {
+                        depth--;
+                    }
                 case '"':
                     return readString();
                 case 't':
@@ -246,6 +265,10 @@ public final class Json {
                     if (c == '-' || (c >= '0' && c <= '9')) return readNumber();
                     throw new JsonException("Unexpected character '" + c + "' at " + pos);
             }
+        }
+
+        private void enter() {
+            if (++depth > MAX_DEPTH) throw new JsonException("JSON nested deeper than " + MAX_DEPTH + " levels at " + pos);
         }
 
         private void expectWord(String word) {
@@ -363,24 +386,41 @@ public final class Json {
             }
         }
 
+        /** RFC 8259 number grammar: {@code -?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?}. */
         private JsonNumber readNumber() {
             int start = pos;
             if (peek() == '-') pos++;
-            while (!atEnd() && Character.isDigit(s.charAt(pos))) pos++;
+            if (atEnd() || !isAsciiDigit(s.charAt(pos))) throw invalidNumber(start);
+            if (s.charAt(pos) == '0') {
+                pos++; // a leading zero stands alone: "01" stops here and fails on the '1'
+            } else {
+                skipDigits();
+            }
             if (!atEnd() && s.charAt(pos) == '.') {
                 pos++;
-                while (!atEnd() && Character.isDigit(s.charAt(pos))) pos++;
+                if (skipDigits() == 0) throw invalidNumber(start);
             }
             if (!atEnd() && (s.charAt(pos) == 'e' || s.charAt(pos) == 'E')) {
                 pos++;
                 if (!atEnd() && (s.charAt(pos) == '+' || s.charAt(pos) == '-')) pos++;
-                while (!atEnd() && Character.isDigit(s.charAt(pos))) pos++;
+                if (skipDigits() == 0) throw invalidNumber(start);
             }
-            String text = s.substring(start, pos);
-            if (text.equals("-") || text.endsWith(".") || text.endsWith("e") || text.endsWith("E") || text.endsWith("+")) {
-                throw new JsonException("Invalid number '" + text + "' at " + start);
-            }
-            return new JsonNumber(text);
+            return new JsonNumber(s.substring(start, pos));
+        }
+
+        private int skipDigits() {
+            int from = pos;
+            while (!atEnd() && isAsciiDigit(s.charAt(pos))) pos++;
+            return pos - from;
+        }
+
+        private JsonException invalidNumber(int start) {
+            int end = Math.min(s.length(), Math.max(pos + 1, start + 1));
+            return new JsonException("Invalid number '" + s.substring(start, end) + "' at " + start);
+        }
+
+        private static boolean isAsciiDigit(char c) {
+            return c >= '0' && c <= '9';
         }
     }
 

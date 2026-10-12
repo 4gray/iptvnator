@@ -107,6 +107,41 @@ jobs:
           set -euo pipefail
           "$SHELL_DIR/scripts/bundle-pwa.sh" dist/apps/web
 
+      # The two remote-control suites drive the PWA just built, served by the
+      # Node twin of the loopback server, with nothing but remote keys.
+      - name: Install Chromium for the remote-control suites
+        shell: bash
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Remote-control suites (tv.js against the real PWA)
+        shell: bash
+        env:
+          WWW: ${{ github.workspace }}/dist/apps/web
+          SHOTS: ${{ runner.temp }}/tv-shell-shots
+        run: |
+          set -euo pipefail
+          "$SHELL_DIR/devserver/run-dev.sh" > "$RUNNER_TEMP/devserver.log" 2>&1 &
+          DEV_PID=$!
+          for _ in $(seq 1 60); do
+            if curl -sS -o /dev/null --max-time 2 http://127.0.0.1:43330/ \
+                && curl -sS -o /dev/null --max-time 2 http://127.0.0.1:43331/player_api.php; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS -o /dev/null http://127.0.0.1:43330/ || { cat "$RUNNER_TEMP/devserver.log"; exit 1; }
+          node "$SHELL_DIR/tests/tv-remote.mjs" --shots "$SHOTS/remote"
+          node "$SHELL_DIR/tests/tv-longlist.mjs" --shots "$SHOTS/longlist"
+          kill "$DEV_PID" 2>/dev/null || true
+
+      - name: Upload the suites' screenshots
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: tv-shell-remote-control-shots
+          path: ${{ runner.temp }}/tv-shell-shots
+          if-no-files-found: ignore
+
       - name: Set up Java
         uses: actions/setup-java@v6
         with:
