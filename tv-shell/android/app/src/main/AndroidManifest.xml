@@ -22,9 +22,13 @@
         </intent>
     </queries>
 
+    <!-- Cleartext traffic is required: the app's own origin is http://127.0.0.1 (Android's
+         cleartext policy has no loopback exemption) and most IPTV portals and streams are
+         plain http. A network-security-config scoped to 127.0.0.1 would break those providers.
+         Backups are off: the WebView storage holds portal credentials. -->
     <application
         android:name=".ShellApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:banner="@drawable/banner"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"

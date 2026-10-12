@@ -32,7 +32,7 @@ public final class TestMain {
     public static void main(String[] args) throws Exception {
         Class<?>[] suites = {
             JsonTest.class, M3uParserTest.class, KodiPropTest.class, PortalUrlsTest.class,
-            StalkerIdentityTest.class, WebBackendTest.class, ShellSiteTest.class
+            StalkerIdentityTest.class, WebBackendTest.class, ShellSiteTest.class, HttpFetcherTest.class
         };
         int passed = 0;
         List<String> failures = new ArrayList<String>();

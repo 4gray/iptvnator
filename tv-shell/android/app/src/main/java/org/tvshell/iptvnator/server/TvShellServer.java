@@ -36,6 +36,8 @@ public class TvShellServer extends NanoHTTPD {
     private final ShellSite site;
     private final WebBackend backend;
     private final int port;
+    /** Same bound as the upstream web backend (express.json limit 16kb): only tiny JSON bodies are legitimate. */
+    private static final long MAX_API_BODY_BYTES = 16 * 1024;
 
     public TvShellServer(Context context, Prefs prefs, int port) {
         super("127.0.0.1", port);
@@ -124,6 +126,20 @@ public class TvShellServer extends NanoHTTPD {
                 String body = null;
                 Method method = session.getMethod();
                 if (Method.POST.equals(method) || Method.PUT.equals(method)) {
+                    // NanoHTTPD trusts Content-Length and copies the whole body into a byte[] and a String;
+                    // an OutOfMemoryError there is not caught by its client thread and kills the process.
+                    long declared = 0;
+                    String length = session.getHeaders().get("content-length");
+                    if (length != null) {
+                        try {
+                            declared = Long.parseLong(length.trim());
+                        } catch (NumberFormatException e) {
+                            return close(error(Response.Status.BAD_REQUEST, "invalid Content-Length"));
+                        }
+                    }
+                    if (declared > MAX_API_BODY_BYTES) {
+                        return close(error(Response.Status.PAYLOAD_TOO_LARGE, "request body too large"));
+                    }
                     Map<String, String> files = new HashMap<String, String>();
                     try {
                         session.parseBody(files);
@@ -150,7 +166,23 @@ public class TvShellServer extends NanoHTTPD {
         } catch (RuntimeException e) {
             Log.e(ShellApp.TAG, "serve " + uri + " crashed", e);
             return error(Response.Status.INTERNAL_ERROR, "Internal error: " + e);
+        } catch (OutOfMemoryError e) {
+            // NanoHTTPD's ClientHandler only catches Exception: an Error escaping serve() reaches
+            // Android's default uncaught handler, which kills the whole process. Once this frame
+            // unwinds the request buffers are unreachable, so answering is safe; the PWA shows the
+            // message in its usual error toast (same body shape as the backend's 500 answers).
+            Log.e(ShellApp.TAG, "serve " + uri + " ran out of memory");
+            Response r = newFixedLengthResponse(status(500), "application/json; charset=utf-8",
+                "{\"message\":\"The provider response is too large for this device's memory\",\"status\":500}");
+            r.setGzipEncoding(false);
+            return r;
         }
+    }
+
+    /** The body was not read: close the socket so NanoHTTPD does not parse it as the next keep-alive request. */
+    private static Response close(Response response) {
+        response.addHeader("Connection", "close");
+        return response;
     }
 
     private static Response error(Response.IStatus status, String message) {

@@ -13,6 +13,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
@@ -25,7 +26,9 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 /**
  * The outbound side of the backend: GET a provider URL as text, following up
  * to five redirects (cross-protocol included, like the web backend's manual
- * redirect loop), decoding gzip/deflate, with a per-request timeout.
+ * redirect loop) and, like its ValidatedHttpClient, dropping Authorization,
+ * Cookie, Proxy-Authorization, SN and Host when a redirect leaves the origin;
+ * decoding gzip/deflate, with a per-request timeout.
  *
  * Failures are reported as {@link ProviderException}: an HTTP status with its
  * reason phrase, or a Node-style error code (ENOTFOUND, ECONNREFUSED,
@@ -49,6 +52,29 @@ public class HttpFetcher {
             this.body = body;
             this.contentType = contentType;
         }
+    }
+
+    /**
+     * Same rule as the web backend's ValidatedHttpClient (SENSITIVE_HEADERS): identity
+     * headers never follow a redirect to another origin (scheme, host or effective port).
+     * Returns the same map when the origin is unchanged, a filtered copy otherwise.
+     */
+    static Map<String, String> headersForRedirect(Map<String, String> headers, URL from, URL to) {
+        if (headers == null || sameOrigin(from, to)) return headers;
+        Map<String, String> kept = new LinkedHashMap<String, String>();
+        for (Map.Entry<String, String> header : headers.entrySet()) {
+            String name = header.getKey().toLowerCase(Locale.ROOT);
+            if (name.equals("authorization") || name.equals("cookie") || name.equals("proxy-authorization")
+                || name.equals("sn") || name.equals("host")) continue;
+            kept.put(header.getKey(), header.getValue());
+        }
+        return kept;
+    }
+
+    static boolean sameOrigin(URL a, URL b) {
+        int portA = a.getPort() == -1 ? a.getDefaultPort() : a.getPort();
+        int portB = b.getPort() == -1 ? b.getDefaultPort() : b.getPort();
+        return a.getProtocol().equalsIgnoreCase(b.getProtocol()) && a.getHost().equalsIgnoreCase(b.getHost()) && portA == portB;
     }
 
     public Result get(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
@@ -102,7 +128,10 @@ public class HttpFetcher {
                     }
                     if (redirects >= MAX_REDIRECTS) throw new ProviderException("Too many redirects", "ERR_TOO_MANY_REDIRECTS");
                     try {
-                        current = new URL(new URL(current), location).toString();
+                        URL from = new URL(current);
+                        URL next = new URL(from, location);
+                        headers = headersForRedirect(headers, from, next);
+                        current = next.toString();
                     } catch (MalformedURLException e) {
                         throw new ProviderException("Redirect location is not a valid URL", "ERR_REDIRECT_LOCATION");
                     }

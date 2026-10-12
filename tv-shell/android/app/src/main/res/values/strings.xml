@@ -6,6 +6,8 @@
     <string name="load_error">Error: %1$s (code %2$s)</string>
     <string name="server_error">The embedded server could not start (no free port).</string>
     <string name="load_timeout">The web app did not start within 30 seconds. The WebView of this device may be too old for IPTVnator (Chrome engine 94 or newer is required). Long-press Menu for the diagnostics.</string>
+    <string name="renderer_restarted">The player was restarted after it ran out of memory.</string>
+    <string name="renderer_gone_loop">The web view keeps stopping (out of memory?). Try a smaller playlist, or erase the app data from the settings.</string>
     <string name="retry">Retry</string>
     <string name="settings_title">Shell settings</string>
     <string name="done">Done</string>
