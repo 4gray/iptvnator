@@ -104,6 +104,19 @@ for (const [re, value] of fields) {
     if (f) await page.keyboard.type(value, { delay: 5 });
 }
 await snap('form-filled');
+// Arrows reach the page only while the caret can still move: Left at the end of the
+// typed value is the browser's, Left at the start is the D-pad's (the layer stops it).
+await page.evaluate(() => {
+    window.__arrowSeen = 0;
+    window.addEventListener('keydown', (e) => { if (e.key.startsWith('Arrow')) window.__arrowSeen += 1; });
+});
+await page.keyboard.press('ArrowLeft');
+const passedThrough = await page.evaluate(() => window.__arrowSeen);
+await page.evaluate(() => document.activeElement.setSelectionRange(0, 0));
+await page.keyboard.press('ArrowLeft');
+await page.waitForTimeout(200);
+const takenByDpad = (await page.evaluate(() => window.__arrowSeen)) === passedThrough;
+check(passedThrough === 1 && takenByDpad, 'arrows pass through a text field only while the caret can move');
 f = await reach(/^button.*"Add"$|^button.*\bAdd\b/i, ['ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowRight'], 12);
 check(!!f, 'submit button focused: ' + f);
 await key('Enter');
@@ -162,7 +175,18 @@ for (const k of ['ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowDown', 'ArrowDown
 console.log('  ' + walk.map((w) => w.slice(0, 70)).join('\n  '));
 
 if (consoleErrors.length) {
-    console.log('console errors (' + consoleErrors.length + '):');
+    console.log('7. Back walks up to the root, then arms the exit instead of dead presses');
+let armed = false;
+for (let i = 0; i < 8 && !armed; i++) {
+    const canGoBack = await page.evaluate(() => window.__tvShell.state().canGoBack);
+    const r = await page.evaluate(() => window.__tvShell.back());
+    await page.waitForTimeout(700);
+    console.log('  back #' + (i + 1) + ': canGoBack=' + canGoBack + ' handled=' + r + ' url=' + new URL(page.url()).pathname);
+    if (r === false) armed = true;
+}
+check(armed, 'Back reaches the exit prompt within a few presses');
+
+console.log('console errors (' + consoleErrors.length + '):');
     for (const e of consoleErrors.slice(0, 10)) console.log('  - ' + e.slice(0, 200));
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');

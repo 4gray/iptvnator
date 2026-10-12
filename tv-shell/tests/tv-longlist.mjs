@@ -71,6 +71,27 @@ f = await focused();
 const onVideo = /^video/.test(f || '');
 check(onVideo, 'picture reachable with Right: ' + f);
 if (onVideo) {
+    // OK on a playing picture must fullscreen the player surface (video + controls), not the
+    // bare video.js root. On a source in error (the mock's .ts streams) OK offers the external
+    // player instead, by design, so the check only runs when the player has no error.
+    const playable = await page.evaluate(() => {
+        const v = document.activeElement;
+        return !v.error && !(v.closest('.video-js') || v).classList.contains('vjs-error');
+    });
+    if (playable) {
+        await key('Enter', 1, 500);
+        const fs = await page.evaluate(() => {
+            const el = document.fullscreenElement;
+            return el ? { tag: el.tagName.toLowerCase(), cls: el.className.slice(0, 60), hasDock: !!el.querySelector('app-player-controls'), hasVideo: !!el.querySelector('video'), isVjsRoot: el.classList.contains('video-js') } : null;
+        });
+        check(!!fs && fs.hasVideo && !fs.isVjsRoot, 'OK on the picture fullscreens the player surface: ' + JSON.stringify(fs));
+        await page.evaluate(() => window.__tvShell.back());
+        await page.waitForTimeout(400);
+        check(await page.evaluate(() => !document.fullscreenElement), 'Back leaves fullscreen');
+        f = await reach(/^video/, ['ArrowRight', 'ArrowUp']);
+    } else {
+        console.log('  (fullscreen check skipped: the source is in error, OK offers the external player instead)');
+    }
     const down = [];
     for (let i = 0; i < 3; i++) down.push(((await key('ArrowDown', 1, 300)) || '∅').slice(0, 80));
     console.log('  Down ×3 from the picture:\n    ' + down.join('\n    '));

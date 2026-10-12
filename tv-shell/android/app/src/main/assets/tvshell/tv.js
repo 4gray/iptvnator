@@ -416,6 +416,16 @@
     }
 
     // -------------------------------------------------- app widget handling
+    // The browser still needs the key while the caret can move that way; once it
+    // cannot, the D-pad leaves the field (the Android EditText behaviour).
+    function caretCanMove(el, dir) {
+        var start = el.selectionStart, end = el.selectionEnd;
+        if (typeof start !== 'number' || typeof end !== 'number') return el.value.length > 0; // email/number: null in Chrome
+        if (start !== end) return true;
+        if (dir === 'left' || dir === 'up') return start > 0;
+        return end < el.value.length;
+    }
+
     function passThroughArrow(el, dir) {
         if (!el || el === document.body) return false;
         var horizontal = dir === 'left' || dir === 'right';
@@ -427,11 +437,12 @@
         if (tag === 'INPUT') {
             var type = (el.getAttribute('type') || 'text').toLowerCase();
             if (type === 'range') return horizontal;
-            if (/^(text|search|url|email|password|tel|number)$/.test(type)) return horizontal && el.value.length > 0;
+            if (/^(text|search|url|email|password|tel|number)$/.test(type)) return horizontal && caretCanMove(el, dir);
             if (type === 'radio') return true;
             return false;
         }
-        if (tag === 'TEXTAREA' || el.isContentEditable) return true;
+        if (tag === 'TEXTAREA') return caretCanMove(el, dir);
+        if (el.isContentEditable) return true; // no value/selection to inspect
         var role = el.getAttribute('role');
         if (role === 'slider') return horizontal;
         if (role === 'combobox' && el.getAttribute('aria-expanded') === 'true') return true;
@@ -446,7 +457,13 @@
         if (!player) return;
         var target = player.tagName === 'VIDEO' ? player.parentElement || player : player;
         try {
-            target.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 10, clientY: 10 }));
+            // The shared controls surface (libs/ui/playback player-controls) reveals on
+            // pointermove only; a synthetic MouseEvent never reaches those listeners.
+            // pointerType 'mouse': the surface ignores 'touch'.
+            if (window.PointerEvent) {
+                target.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse', isPrimary: true, clientX: 10, clientY: 10 }));
+            }
+            target.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 10, clientY: 10 })); // legacy video.js chrome
         } catch (e) {
             /* ignore */
         }
@@ -546,7 +563,19 @@
             document.exitFullscreen().catch(function () { /* ignore */ });
             return;
         }
-        var root = media.closest('.video-js,.art-video-player,[class*="player-container"],[class*="player__"]') || media.parentElement || media;
+        // The app owns fullscreen: its F shortcut (player-controls ControlsShortcuts) puts
+        // the right surface in fullscreen for every player, dock, title and channel panel
+        // included, and calls preventDefault when it handled the key. Still inside the
+        // trusted Enter keydown, so requestFullscreen keeps its user activation.
+        var shortcut = new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', keyCode: 70, which: 70, bubbles: true, cancelable: true });
+        shortcut.__tvshell = true;
+        media.dispatchEvent(shortcut);
+        if (shortcut.defaultPrevented) {
+            setTimeout(function () { setFocus(media, { silent: true }); }, 300);
+            return;
+        }
+        // Fallback (no shortcut owner attached): the player shell first, then vendor roots.
+        var root = media.closest('[class*="player-shell"],.video-js,.art-video-player,[class*="player-container"],[class*="player__"]') || media.parentElement || media;
         var request = root.requestFullscreen || root.webkitRequestFullscreen;
         if (request) {
             try {
@@ -607,16 +636,17 @@
             focusFirst();
             return true;
         }
-        // The app's own page-level Back lives in the workspace header.
-        var headerBack = document.querySelector('[data-tv-back],[aria-label="Back"],button[mat-icon-button][aria-label*="Back" i],button[aria-label*="Retour" i],button[aria-label*="Zurück" i]');
+        // The app's own page-level Back lives in the workspace header. Match it by its
+        // stable hooks (component class and the test id upstream relies on), not by the
+        // aria-label, which is translated and overridden on detail pages.
+        var headerBack = document.querySelector('[data-tv-back],.header-back,[data-test-id="workspace-header-back"]');
         if (headerBack && isVisible(headerBack) && !isDisabled(headerBack)) {
             headerBack.click();
             scheduleRefocus();
             return true;
         }
-        if (navDepth > 0) {
-            navDepth -= 1;
-            history.back();
+        if (canGoBackInApp()) {
+            history.back(); // popstate decrements the fallback counter
             scheduleRefocus();
             return true;
         }
@@ -716,6 +746,7 @@
             active: active && active !== document.body ? describe(active) : null,
             lastMediaUrl: lastMediaUrl,
             navDepth: navDepth,
+            canGoBack: canGoBackInApp(),
             scope: navigationScope() === document ? 'document' : 'overlay'
         };
     };
@@ -778,7 +809,14 @@
                 lastMediaTitle = document.title;
             }
         }, true);
-        var promptedFor = null;
+        var promptedFor = null, promptedRoot = null;
+        /** One prompt per load attempt of a URL (the error event and the vjs-error mutation form one attempt). */
+        function armPrompt(url, root) {
+            if (url === promptedFor && root === promptedRoot) return false;
+            promptedFor = url;
+            promptedRoot = root;
+            return true;
+        }
         document.addEventListener('error', function (e) {
             var t = e.target;
             if (!t || !(t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) return;
@@ -786,8 +824,7 @@
             setTimeout(function () {
                 var url = api.currentStreamUrl();
                 var code = (t.error && t.error.code) || (hasPlayerError(t) ? 4 : 0);
-                if (!url || !code || url === promptedFor) return;
-                promptedFor = url;
+                if (!url || !code || !armPrompt(url, t.closest ? t.closest('.video-js') : null)) return;
                 lastMediaTitle = document.title;
                 native('onPlaybackError', url, lastMediaTitle || '', String(code));
             }, 400);
@@ -799,8 +836,7 @@
                 var el = mutations[i].target;
                 if (el.nodeType !== 1 || !el.classList || !el.classList.contains('video-js') || !el.classList.contains('vjs-error')) continue;
                 var url = videoJsSource();
-                if (!url || url === promptedFor) continue;
-                promptedFor = url;
+                if (!url || !armPrompt(url, el)) continue;
                 lastMediaTitle = document.title;
                 native('onPlaybackError', url, lastMediaTitle || '', '4');
             }
@@ -811,6 +847,8 @@
             if (t && (t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) {
                 currentVideo = t;
                 noteMediaUrl(t.currentSrc || t.getAttribute('src'));
+                promptedFor = null; // a new load attempt may prompt once more
+                promptedRoot = null;
             }
         }, true);
     }
@@ -859,6 +897,18 @@
     }
 
     // ------------------------------------------------------- navigation
+    /** True when the previous history entry belongs to this document (the test the
+     *  workspace header uses); navDepth is the fallback without the Navigation API. */
+    function canGoBackInApp() {
+        var nav = window.navigation;
+        if (nav && nav.currentEntry && typeof nav.entries === 'function') {
+            var index = nav.currentEntry.index;
+            var prev = index > 0 ? nav.entries()[index - 1] : null;
+            return !!(prev && prev.sameDocument);
+        }
+        return navDepth > 0;
+    }
+
     function installHistoryTracking() {
         var pushState = history.pushState;
         history.pushState = function () {
@@ -868,6 +918,7 @@
             return result;
         };
         window.addEventListener('popstate', function () {
+            if (navDepth > 0) navDepth -= 1;
             scheduleRefocus();
         });
     }
