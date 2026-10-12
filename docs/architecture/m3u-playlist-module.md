@@ -633,6 +633,11 @@ channel-list-container/
 - `PlaylistsService.updatePlaylistMeta()` persists `hiddenGroupTitles` into the
   stored playlist payload, and M3U refresh/update flows preserve the existing
   value when refreshed playlist data omits the field.
+- Electron loads the playlist store from `DB_GET_APP_PLAYLIST_METAS`, which
+  reads columns only, so `hiddenGroupTitles` is absent from the store after a
+  restart. `M3uWorkspaceRouteSession` copies it from the full playlist read into
+  the store (`updatePlaylistMeta` with `persist: false`) before publishing the
+  channels, unless the store value changed while that read was queued (#1894).
 - The groups route keeps the manage action reachable even when every group is
   hidden by separating "playlist has no groups" from "no visible/search-matching
   groups" empty states.

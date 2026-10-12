@@ -1,10 +1,15 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
-import { ChannelActions, FavoritesActions } from '@iptvnator/m3u-state';
+import {
+    ChannelActions,
+    FavoritesActions,
+    PlaylistActions,
+} from '@iptvnator/m3u-state';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from '@iptvnator/services';
-import { Channel, Playlist } from '@iptvnator/shared/interfaces';
+import { Channel, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { M3uWorkspaceRouteSession } from './m3u-workspace-route-session.service';
 
@@ -76,8 +81,12 @@ describe('M3uWorkspaceRouteSession', () => {
     const playlistsService = {
         getPlaylist: jest.fn(),
     };
+    const playlistEntities = signal<Record<string, PlaylistMeta | undefined>>(
+        {}
+    );
     const store = {
         dispatch: jest.fn(),
+        selectSignal: jest.fn(() => playlistEntities.asReadonly()),
     };
     const electronApi = {
         setUserAgent: jest.fn().mockResolvedValue(true),
@@ -99,6 +108,9 @@ describe('M3uWorkspaceRouteSession', () => {
         electronApi.setUserAgent.mockClear();
         playlistsService.getPlaylist.mockReset();
         store.dispatch.mockClear();
+        playlistEntities.set({
+            [PLAYLIST_ID]: { _id: PLAYLIST_ID } as PlaylistMeta,
+        });
 
         await TestBed.configureTestingModule({
             providers: [
@@ -201,6 +213,86 @@ describe('M3uWorkspaceRouteSession', () => {
         expect(
             store.dispatch.mock.calls.some(
                 ([action]) => action.type === FavoritesActions.setFavorites.type
+            )
+        ).toBe(false);
+    });
+
+    it('hydrates the hidden groups the startup metadata list leaves out, before the channels (#1894)', async () => {
+        playlistsService.getPlaylist.mockReturnValue(
+            of({
+                hiddenGroupTitles: ['Sports'],
+                playlist: {
+                    items: [PRIMARY_CHANNEL],
+                },
+            } as Playlist)
+        );
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        const types = store.dispatch.mock.calls.map(([action]) => action.type);
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    _id: PLAYLIST_ID,
+                    hiddenGroupTitles: ['Sports'],
+                } as PlaylistMeta,
+                persist: false,
+            })
+        );
+        expect(
+            types.indexOf(PlaylistActions.updatePlaylistMeta.type)
+        ).toBeLessThan(types.indexOf(ChannelActions.setChannels.type));
+    });
+
+    it('hydrates no hidden groups for a playlist that never saved any', async () => {
+        playlistsService.getPlaylist.mockReturnValue(
+            of({ playlist: { items: [PRIMARY_CHANNEL] } } as Playlist)
+        );
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    _id: PLAYLIST_ID,
+                    hiddenGroupTitles: [],
+                } as PlaylistMeta,
+                persist: false,
+            })
+        );
+    });
+
+    it('keeps hidden groups saved while the playlist read was queued', async () => {
+        const response = new Subject<Playlist>();
+        playlistsService.getPlaylist.mockReturnValue(response.asObservable());
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        // The dialog's save lands in the store before the queued read returns
+        // the row as it was before that save.
+        playlistEntities.set({
+            [PLAYLIST_ID]: {
+                _id: PLAYLIST_ID,
+                hiddenGroupTitles: ['News'],
+            } as PlaylistMeta,
+        });
+        response.next({
+            hiddenGroupTitles: [],
+            playlist: { items: [PRIMARY_CHANNEL] },
+        } as Playlist);
+        response.complete();
+        await flushEffects();
+
+        expect(store.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setChannels({ channels: [PRIMARY_CHANNEL] })
+        );
+        expect(
+            store.dispatch.mock.calls.some(
+                ([action]) =>
+                    action.type === PlaylistActions.updatePlaylistMeta.type
             )
         ).toBe(false);
     });
