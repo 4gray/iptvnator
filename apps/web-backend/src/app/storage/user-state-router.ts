@@ -25,9 +25,20 @@ export function createUserStateRouter(storage: ServerStorage): Router {
     });
 
     const write = (req: Request, res: Response, value: unknown) => {
+        const namespace = requireNamespace(String(req.params['namespace']));
+        const playlistId = String(req.params['playlistId']);
+        // An edit another device queued before the playlist was deleted
+        // must not bring its user state back.
+        if (value !== undefined && !storage.playlists.exists(playlistId)) {
+            throw new StorageRequestError(
+                404,
+                'playlist_missing',
+                'The playlist does not exist.'
+            );
+        }
         const result = storage.userState.writeIf(
-            requireNamespace(String(req.params['namespace'])),
-            String(req.params['playlistId']),
+            namespace,
+            playlistId,
             value,
             expectedTag(req)
         );

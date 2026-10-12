@@ -92,7 +92,9 @@ Server storage adds versioned routes under `/v1`, which the PWA uses in
   positions, one JSON value per namespace and playlist; `GET` adds a
   content tag per entry (`tags`), and a write with `If-Match: "<tag>"` or
   `If-None-Match: *` answers `412` with the current value and tag when the
-  entry changed since
+  entry changed since, and a `PUT` for a playlist the server does not have
+  answers `404 playlist_missing` (the client drops that edit), so an edit
+  queued on another device cannot bring a deleted playlist's state back
 - `GET|PUT /v1/app-state/:key`
 
 Server storage lives in `apps/web-backend/src/app/storage/`. With

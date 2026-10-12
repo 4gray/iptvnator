@@ -21,6 +21,8 @@ function fakeServer(initial: Record<string, Record<string, unknown>> = {}) {
         'xtream-playback-positions': {},
         ...structuredClone(initial),
     };
+    /** Playlists deleted on the server: their user state is refused. */
+    const deleted = new Set<string>();
     const tagOf = (value: unknown) =>
         value === undefined
             ? null
@@ -33,6 +35,9 @@ function fakeServer(initial: Record<string, Record<string, unknown>> = {}) {
         value?: unknown
     ) => {
         const [, , namespace, playlistId] = path.split('/');
+        if (value !== undefined && deleted.has(playlistId)) {
+            throw new ServerApiError(404, 'playlist_missing', 'gone');
+        }
         const current = state[namespace][playlistId];
         const expected =
             headers['If-None-Match'] === '*'
@@ -89,6 +94,12 @@ function fakeServer(initial: Record<string, Record<string, unknown>> = {}) {
                     const { tag } = await response.json();
                     return { status: 'saved' as const, tag };
                 } catch (error) {
+                    if (
+                        error instanceof ServerApiError &&
+                        error.code === 'playlist_missing'
+                    ) {
+                        return { status: 'gone' as const };
+                    }
                     return error instanceof ServerApiError && error.current
                         ? {
                               status: 'conflict' as const,
@@ -99,7 +110,7 @@ function fakeServer(initial: Record<string, Record<string, unknown>> = {}) {
             }
         ),
     };
-    return { state, api };
+    return { state, api, deleted };
 }
 
 const favorites = (storage: ServerUserDataStorage) =>
@@ -934,5 +945,26 @@ describe('ServerUserDataStorage with other devices', () => {
         await reloaded.flush();
 
         expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'Z']);
+    });
+
+    it('drops an edit of a playlist another device deleted', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        // Another device deletes the playlist before this edit is sent.
+        server.deleted.add('p1');
+        delete server.state['xtream-favorites']['p1'];
+
+        await phone.flush();
+        await phone.flush();
+
+        expect(server.state['xtream-favorites']).toEqual({});
+        expect(phone.hasUnsentWrites()).toBe(false);
+        expect(favorites(phone)).toEqual({});
     });
 });

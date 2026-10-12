@@ -12,6 +12,9 @@ import type { ServerStorageStatusService } from '../server-storage-status.servic
 
 const REQUEST_TIMEOUT_MS = 20_000;
 
+/** A user-state write for a playlist the server no longer has. */
+export const PLAYLIST_MISSING = 'playlist_missing';
+
 /** nginx answers these while the backend behind it is down. */
 const GATEWAY_UNAVAILABLE = new Set([502, 503, 504]);
 
@@ -32,6 +35,7 @@ export class ServerApiError extends Error {
 export type KeepaliveOutcome =
     | { readonly status: 'saved'; readonly tag?: string | null }
     | { readonly status: 'conflict'; readonly current: ServerUserStateCurrent }
+    | { readonly status: 'gone' }
     | { readonly status: 'failed' };
 
 export interface ServerApiClientOptions {
@@ -204,8 +208,13 @@ export class ServerApiClient {
                     )) as Partial<ServerUserStateWriteResponse>;
                 return { status: 'saved', tag: body?.tag };
             }
-            const { current } =
-                response.status === 412 ? await readErrorBody(response) : {};
+            const { code, current } =
+                response.status === 412 || response.status === 404
+                    ? await readErrorBody(response)
+                    : {};
+            if (code === PLAYLIST_MISSING) {
+                return { status: 'gone' };
+            }
             return current
                 ? { status: 'conflict', current }
                 : { status: 'failed' };

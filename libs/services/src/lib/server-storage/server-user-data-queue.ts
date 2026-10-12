@@ -3,7 +3,11 @@ import type {
     ServerUserStateNamespace,
     ServerUserStateWriteResponse,
 } from '@iptvnator/shared/interfaces';
-import { ServerApiError, type ServerApiClient } from './server-api-client';
+import {
+    PLAYLIST_MISSING,
+    ServerApiError,
+    type ServerApiClient,
+} from './server-api-client';
 import {
     entryKey,
     entryPath,
@@ -353,6 +357,8 @@ export class UserDataWriteQueue {
             }
         } else if (outcome.status === 'conflict') {
             this.replayOnConflict(entry, outcome.current);
+        } else if (outcome.status === 'gone') {
+            this.gone(entry);
         } else {
             this.requeue(entry);
         }
@@ -389,12 +395,26 @@ export class UserDataWriteQueue {
                 error.current
             ) {
                 this.replayOnConflict(entry, error.current);
+            } else if (
+                error instanceof ServerApiError &&
+                error.code === PLAYLIST_MISSING
+            ) {
+                this.gone(entry);
             } else {
                 this.requeue(entry);
                 this.hooks.writeFailed(error);
             }
         }
         this.hooks.changed();
+    }
+
+    /** The playlist was deleted elsewhere: its edit goes with it. */
+    private gone(entry: PendingEntry): void {
+        const key = entryKey(entry);
+        if (this.edits.get(key) === entry.edit) {
+            this.edits.delete(key);
+            this.hooks.show(entry.namespace, entry.playlistId, undefined);
+        }
     }
 
     /** The server took `entry`: the edit queued behind it builds on it. */

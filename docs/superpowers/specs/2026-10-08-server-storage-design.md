@@ -133,7 +133,7 @@ All JSON. Errors: `{ message, status, code? }`.
 | `DELETE /v1/playlists` | Delete all playlists and all user state. |
 | `GET/PUT /v1/app-state/:key` | `{ value }`. |
 | `GET /v1/user-state` | `{ entries: { [namespace]: { [playlistId]: value } }, tags }`, a content tag per entry. |
-| `PUT/DELETE /v1/user-state/:namespace/:playlistId` | One entry. Namespaces are an allow-list. `If-Match: "<tag>"` or `If-None-Match: *` makes it conditional: `412` with the current value and tag. |
+| `PUT/DELETE /v1/user-state/:namespace/:playlistId` | One entry. Namespaces are an allow-list. `If-Match: "<tag>"` or `If-None-Match: *` makes it conditional: `412` with the current value and tag. A `PUT` for a playlist the server does not have answers `404 playlist_missing`. |
 
 ETags are `"<bootId>-<revision>"` from an in-memory per-playlist revision
 counter; the server is the only writer of its database.

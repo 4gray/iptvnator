@@ -205,6 +205,25 @@ describe('server storage routes', () => {
             })
         ));
 
+    it('refuses user state for a playlist it does not have', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const entry = `${baseUrl}/v1/user-state/xtream-favorites/gone`;
+                const put = await fetch(
+                    entry,
+                    json({ value: ['live:1'] }, { method: 'PUT' })
+                );
+                expect(put.status).toBe(404);
+                await expect(put.json()).resolves.toMatchObject({
+                    code: 'playlist_missing',
+                });
+                // Removing what is not there stays harmless.
+                expect((await fetch(entry, { method: 'DELETE' })).status).toBe(
+                    200
+                );
+            })
+        ));
+
     it('refuses a playlist write built on a replaced version', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {
@@ -235,6 +254,10 @@ describe('server storage routes', () => {
     it('writes user state only on the tag it was read at', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {
+                await fetch(
+                    `${baseUrl}/v1/playlists/p1`,
+                    json(m3uDocument('p1'), { method: 'PUT' })
+                );
                 const entry = `${baseUrl}/v1/user-state/xtream-favorites/p1`;
                 // Created only while absent.
                 const created = await fetch(

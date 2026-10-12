@@ -107,6 +107,15 @@ describe('ServerApiClient', () => {
             current: { value: [2], tag: 't3' },
         });
 
+        const gone = jest
+            .fn()
+            .mockResolvedValue(
+                response(404, { code: 'playlist_missing', message: 'gone' })
+            );
+        await expect(
+            client(gone).sendKeepalive('PUT', '/user-state/a/b', { value: 1 })
+        ).resolves.toEqual({ status: 'gone' });
+
         const refused = jest
             .fn()
             .mockRejectedValue(new TypeError('body too large'));
