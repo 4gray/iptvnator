@@ -17,7 +17,9 @@ import { type DeferredEdit, refreshedNamespace } from './server-user-data-edit';
 import {
     claimCache,
     newestWrites,
+    readDeferredEdits,
     readUnsentWrites,
+    saveDeferredEdits,
     saveUnsentWrites,
 } from './server-unsent-writes';
 
@@ -76,6 +78,9 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.queue(write.namespace, write.playlistId, write.value);
         }
         this.unsentSaved = this.pending.size > 0;
+        for (const edit of readDeferredEdits(local, instanceId)) {
+            this.deferred.set(`${edit.namespace}|${edit.playlistId}`, edit);
+        }
     }
 
     /** Whether a write is queued, being retried, or still travelling. */
@@ -142,7 +147,12 @@ export class ServerUserDataStorage implements UserDataStorage {
                 unsaved.add(key);
             }
         }
+        // Another tab's unconfirmed writes are in the shared cache too.
+        for (const write of readUnsentWrites(this.local, this.instanceId)) {
+            unsaved.add(`${write.namespace}|${write.playlistId}`);
+        }
         const deferred = [...this.deferred.values()];
+        const refreshed = new Map<string, Record<string, unknown>>();
         for (const namespace of SERVER_USER_STATE_NAMESPACES) {
             const keepCached = new Set<string>();
             for (const key of unsaved) {
@@ -159,6 +169,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                 keepCached,
                 deferred.filter((edit) => edit.namespace === namespace)
             );
+            refreshed.set(namespace, value);
             try {
                 this.local.setItem(
                     SERVER_CACHE_PREFIX + namespace,
@@ -188,9 +199,10 @@ export class ServerUserDataStorage implements UserDataStorage {
                 this.queue(
                     edit.namespace,
                     edit.playlistId,
-                    this.synced.get(edit.namespace)?.[edit.playlistId]
+                    refreshed.get(edit.namespace)?.[edit.playlistId]
                 );
             }
+            saveDeferredEdits(this.local, this.instanceId, []);
             this.scheduleFlush();
         }
     }
@@ -284,12 +296,17 @@ export class ServerUserDataStorage implements UserDataStorage {
                 return;
             }
             const key = `${namespace}|${playlistId}`;
+            const earlier = this.deferred.get(key);
             this.deferred.set(key, {
                 namespace,
                 playlistId,
-                before: this.deferred.get(key)?.before ?? previous[playlistId],
+                // An earlier edit's baseline stays, even when it was empty.
+                before: earlier ? earlier.before : previous[playlistId],
                 after: value,
             });
+            saveDeferredEdits(this.local, this.instanceId, [
+                ...this.deferred.values(),
+            ]);
         };
         for (const [playlistId, value] of Object.entries(next)) {
             if (
@@ -323,7 +340,12 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     private scheduleFlush(): void {
-        if (this.flushTimer !== null || this.pending.size === 0) {
+        if (this.pending.size === 0) {
+            return;
+        }
+        // Saved at once: another tab's re-read must not replace them.
+        this.saveUnsent();
+        if (this.flushTimer !== null) {
             return;
         }
         this.flushTimer = setTimeout(() => {

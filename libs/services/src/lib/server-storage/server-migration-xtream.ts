@@ -15,14 +15,21 @@ const SNAPSHOTS = 'xtream-collection-items';
 export function typeLegacyXtreamRefs(data: XtreamUserData): XtreamUserData {
     const snapshots = isRecord(data[SNAPSHOTS]) ? data[SNAPSHOTS] : {};
     const typed = (key: unknown): unknown => {
-        if (typeof key !== 'number') {
+        // Bare ids were stored as numbers and, older still, numeric strings.
+        const id =
+            typeof key === 'number'
+                ? key
+                : typeof key === 'string' && /^\d+$/.test(key)
+                  ? Number(key)
+                  : null;
+        if (id === null) {
             return key;
         }
-        const snapshot = snapshots[String(key)];
+        const snapshot = snapshots[String(id)];
         return isRecord(snapshot) &&
-            snapshot['xtream_id'] === key &&
+            snapshot['xtream_id'] === id &&
             typeof snapshot['type'] === 'string'
-            ? `${snapshot['type']}:${key}`
+            ? `${snapshot['type']}:${id}`
             : key;
     };
 

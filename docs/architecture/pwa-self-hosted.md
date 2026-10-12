@@ -212,7 +212,9 @@ settings and guards read them in every build.
   its headers counts as offline. Edits made before the first successful read
   are held as before → after and applied to the server's value once it
   arrives (`applyEdit`): a new device or a stale cache adds its favorite
-  instead of replacing the server's list. A re-read
+  instead of replacing the server's list. They are saved too
+  (`iptvnator-server:deferred-edits:<instanceId>`), and queued writes are
+  saved as soon as they are queued, so a re-read in another tab keeps them. A re-read
   updates the cache; views already open show another device's changes on
   their next load (no live push). Start-up waits
   up to 3 s for the first read.

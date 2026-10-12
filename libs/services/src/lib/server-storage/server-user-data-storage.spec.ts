@@ -569,4 +569,94 @@ describe('ServerUserDataStorage', () => {
             { namespace: 'xtream-favorites', playlistId: 'p1', value: ['new'] },
         ]);
     });
+
+    it('keeps two early additions to an empty entry', async () => {
+        const { api, storage } = setup();
+        let answer: (value: unknown) => void = () => undefined;
+        api.getJson.mockReturnValueOnce(
+            new Promise((resolve) => (answer = resolve))
+        );
+
+        const firstRead = storage.hydrate();
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['A'] }));
+        storage.setItem('xtream-favorites', JSON.stringify({ p1: ['A', 'B'] }));
+        answer({ entries: { 'xtream-favorites': { p1: ['S'] } } });
+        await firstRead;
+        await storage.flush();
+
+        expect(api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['S', 'A', 'B'] }
+        );
+    });
+
+    it('keeps early edits across a reload before the first read', async () => {
+        const first = setup();
+        first.api.getJson.mockReturnValueOnce(new Promise(() => undefined));
+        void first.storage.hydrate();
+        first.storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['mine'] })
+        );
+
+        const api = {
+            ...first.api,
+            sendJson: jest.fn().mockResolvedValue(undefined),
+            getJson: jest.fn().mockResolvedValue({
+                entries: { 'xtream-favorites': { p1: ['theirs'] } },
+            }),
+        };
+        const reloaded = new ServerUserDataStorage(
+            api as never,
+            first.local,
+            jest.fn()
+        );
+        await reloaded.hydrate();
+        await reloaded.flush();
+
+        expect(api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/p1',
+            { value: ['theirs', 'mine'] }
+        );
+    });
+
+    it("does not replace another tab's unconfirmed edit on a re-read", async () => {
+        // A server that keeps what it is sent.
+        const state: Record<string, Record<string, unknown>> = {
+            'xtream-favorites': { p1: ['live:1'] },
+        };
+        const tabA = setup();
+        tabA.api.getJson.mockImplementation(async () => ({
+            entries: structuredClone(state),
+        }));
+        tabA.api.sendJson.mockImplementation(
+            async (_method: string, path: string, body: { value: unknown }) => {
+                const [, , namespace, playlistId] = path.split('/');
+                state[namespace] = {
+                    ...state[namespace],
+                    [playlistId]: body.value,
+                };
+            }
+        );
+        await tabA.storage.hydrate();
+        tabA.storage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['live:1', 'live:7'] })
+        );
+
+        // Tab A's write is queued, not sent yet; tab B starts and re-reads.
+        const tabB = new ServerUserDataStorage(
+            tabA.api as never,
+            tabA.local,
+            jest.fn()
+        );
+        await tabB.hydrate();
+
+        expect(JSON.parse(tabB.getItem('xtream-favorites') ?? '')).toEqual({
+            p1: ['live:1', 'live:7'],
+        });
+        expect(state['xtream-favorites']['p1']).toEqual(['live:1', 'live:7']);
+    });
 });

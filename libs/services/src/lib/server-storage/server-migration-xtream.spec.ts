@@ -52,4 +52,15 @@ describe('typeLegacyXtreamRefs', () => {
             'live:42': { xtream_id: 42, type: 'live' },
         });
     });
+
+    it('types numeric-string ids too', () => {
+        expect(
+            typeLegacyXtreamRefs({
+                'xtream-favorites': ['42'],
+                'xtream-collection-items': {
+                    '42': { xtream_id: 42, type: 'movie' },
+                },
+            })['xtream-favorites']
+        ).toEqual(['movie:42']);
+    });
 });
