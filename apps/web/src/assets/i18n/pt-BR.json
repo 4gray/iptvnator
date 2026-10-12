@@ -103,8 +103,8 @@
                 "PLAYLIST_EXPORT_ERROR": "Erro: Falha ao exportar a lista de reprodução.",
                 "EXPORT_PLAYLIST_FAILED": "Falha ao exportar a lista de reprodução.",
                 "EXPORT_FILE_TYPE": "Arquivo de lista de reprodução",
-                "COPY_URL": "Copiar URL para a área de download",
-                "URL_COPIED": "URL copiada para a área de download"
+                "COPY_URL": "Copiar URL para a área de transferência",
+                "URL_COPIED": "URL copiada para a área de transferência"
             },
             "REMOVE_DIALOG": {
                 "TITLE": "Remover lista de reprodução",
@@ -1526,8 +1526,8 @@
         "PLAY": "Reproduzir",
         "REVEAL": "Mostrar na pasta",
         "COPY_URL": "Copiar URL de download",
-        "URL_COPIED": "URL de download copiada para a área de download",
-        "URL_COPY_FAILED": "Falha ao copiar URL para a área de download",
+        "URL_COPIED": "URL de download copiada para a área de transferência",
+        "URL_COPY_FAILED": "Falha ao copiar URL para a área de transferência",
         "STATUS": {
             "QUEUED": "Na fila",
             "DOWNLOADING": "Baixando",

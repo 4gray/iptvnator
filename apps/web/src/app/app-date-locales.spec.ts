@@ -127,24 +127,32 @@ describe('AppDateLocaleService', () => {
         expect(formatDate(sampleDate, 'MMMM', 'hu')).toBe('január');
     });
 
-    it('updates the cold-start hint on a saved Portuguese switch without reloading', async () => {
-        await service.use(Language.PORTUGUESE_PORTUGAL);
+    it('updates the normalized cold-start hint synchronously before switching the UI', async () => {
+        const portugal = service.use('pt_PT');
         expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
             'pt-PT'
         );
+        expect(translate.use).not.toHaveBeenCalled();
+        await portugal;
 
-        await service.use('pt');
-        expect(translate.use).toHaveBeenLastCalledWith('pt-BR');
+        const brazil = service.use('pt');
         expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
             'pt-BR'
         );
+        await brazil;
+        expect(translate.use).toHaveBeenLastCalledWith('pt-BR');
     });
 
     it('applies only the language requested last when switches overlap', async () => {
-        await Promise.all([
-            service.use(Language.ITALIAN),
-            service.use(Language.TURKISH),
-        ]);
+        const first = service.use(Language.ITALIAN);
+        expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
+            Language.ITALIAN
+        );
+        const last = service.use(Language.TURKISH);
+        expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
+            Language.TURKISH
+        );
+        await Promise.all([first, last]);
 
         expect(translate.use).toHaveBeenCalledTimes(1);
         expect(translate.use).toHaveBeenCalledWith(Language.TURKISH);

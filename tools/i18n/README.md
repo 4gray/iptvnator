@@ -160,8 +160,9 @@ including Claude, receive the full sentence, UI context and locale glossary;
 they do not replace semantic review. Brand-only and autonym labels intentionally
 match across languages.
 
-`i18n:check` also rejects empty/non-string values, changed interpolation
-placeholders (including their multiplicity), and changed inline HTML. The
-baseline never exempts these errors. Coverage checks cannot prove semantic
-correctness or catch all stale translations after English wording changes;
-review the source change against every language and verify relevant UI flows.
+`i18n:check` also rejects empty/non-string values in English and every
+translation, changed interpolation placeholders (including their multiplicity),
+and changed inline HTML. The baseline never exempts these errors. Coverage
+checks cannot prove semantic correctness or catch all stale translations after
+English wording changes; review the source change against every language and
+verify relevant UI flows.

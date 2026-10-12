@@ -302,3 +302,26 @@ test('rejects removed HTML, empty strings and non-string translations', () => {
     assert.match(output, /expected a non-empty string/);
     assert.match(output, /baseline not written/);
 });
+
+for (const [name, value] of [
+    ['null', null],
+    ['array', []],
+    ['empty string', ''],
+    ['whitespace', '   '],
+    ['boolean', false],
+    ['number', 42],
+]) {
+    test(`rejects an English ${name} value in every mode without writing the baseline`, () => {
+        writeLocale('en', { LABEL: value });
+        writeLocale('de', { LABEL: 'Beschriftung' });
+        writeBaseline({ de: { KEEP: 'Retained entry' } });
+        const originalBaseline = readFileSync(baselinePath, 'utf8');
+
+        for (const args of [[], ['--fail-on-identical'], ['--update-baseline']]) {
+            const { code, output } = check(...args);
+            assert.equal(code, 1);
+            assert.match(output, /en\.json LABEL: expected a non-empty string/);
+            assert.equal(readFileSync(baselinePath, 'utf8'), originalBaseline);
+        }
+    });
+}

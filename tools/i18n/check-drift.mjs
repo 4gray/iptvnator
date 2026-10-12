@@ -51,13 +51,18 @@ export function collectLeaves(value, prefix = '', leaves = new Map()) {
     return leaves;
 }
 
+function findInvalidValues(leaves) {
+    return [...leaves]
+        .filter(([, value]) => typeof value !== 'string' || !value.trim())
+        .map(([key]) => [key, 'expected a non-empty string']);
+}
+
 /** Reject translations that would lose values or alter the source markup. */
 export function findInvalidTranslations(enLeaves, localeLeaves) {
-    const invalid = [];
+    const invalid = findInvalidValues(localeLeaves);
     for (const [key, translated] of localeLeaves) {
         if (!enLeaves.has(key)) continue;
         if (typeof translated !== 'string' || !translated.trim()) {
-            invalid.push([key, 'expected a non-empty string']);
             continue;
         }
         const source = enLeaves.get(key);
@@ -317,7 +322,11 @@ export function run({
     const locales = listLocales(i18nDir);
     const identicalByLocale = new Map();
     const rejected = [];
-    let failed = false;
+    const invalidSource = findInvalidValues(enLeaves);
+    for (const [key, reason] of invalidSource) {
+        log(`FAIL ${EN_LOCALE}.json ${key}: ${reason}`);
+    }
+    let failed = invalidSource.length > 0;
     let staleTotal = 0;
 
     for (const locale of locales) {
@@ -355,7 +364,7 @@ export function run({
         // Only a complete, readable set of locales is a state worth recording.
         if (failed) {
             log(
-                'FAIL baseline not written: fix the unreadable, missing or extra keys above first.'
+                'FAIL baseline not written: fix invalid values, unreadable files, missing or extra keys above first.'
             );
             return 1;
         }

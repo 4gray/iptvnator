@@ -113,7 +113,8 @@ export class AppDateLocaleService {
     }
 
     /**
-     * Registers the locale data, then switches the UI language. Switches are
+     * Persists the startup hint synchronously, registers the locale data,
+     * then switches the UI language. Switches are
      * ordered by request, not by completion: a switch whose data arrives
      * after a newer request was made is dropped, so the language chosen last
      * is the one that ends up active.
@@ -121,10 +122,10 @@ export class AppDateLocaleService {
     async use(language: string): Promise<void> {
         const request = ++this.latestRequest;
         const normalizedLanguage = normalizeAppLanguage(language);
+        rememberLanguage(normalizedLanguage);
         await registerAppDateLocale(normalizedLanguage);
         if (request === this.latestRequest) {
             this.translate.use(normalizedLanguage);
-            rememberLanguage(normalizedLanguage);
         }
     }
 }
