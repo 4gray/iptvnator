@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Stalker 재생목록",
             "ALL_PLAYLISTS": "모든 재생목록",
             "PLAYLIST_COUNT_ONE": "1개 재생목록",
-            "PLAYLIST_COUNT_OTHER": "{{count}}개 재생목록"
+            "PLAYLIST_COUNT_OTHER": "{{count}}개 재생목록",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · 파일",
+                "ADDED": "{{date}} 추가됨",
+                "UPDATED": "{{date}} 업데이트됨",
+                "UNREACHABLE": "응답 없음",
+                "UNREACHABLE_FOR": "응답 없음 · {{duration}}",
+                "EXPIRED": "만료됨",
+                "EDIT": "편집…",
+                "COPY_URL": "URL 복사",
+                "OPEN": "열기"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "카테고리",

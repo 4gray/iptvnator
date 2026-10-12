@@ -12,6 +12,7 @@ import {
     sourceHealthUnknown,
     sourceHealthError,
 } from '@iptvnator/shared/interfaces';
+import { SourceHealthHistoryService } from './source-health-history.service';
 import { SourceHealthProbesService } from './source-health-probes.service';
 
 interface Job {
@@ -32,6 +33,7 @@ interface Job {
 export class SourceHealthService {
     private readonly probes = inject(SourceHealthProbesService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly history = inject(SourceHealthHistoryService);
     readonly snapshots = signal<ReadonlyMap<string, SourceHealthSnapshot>>(
         new Map()
     );
@@ -301,5 +303,10 @@ export class SourceHealthService {
                     : previous?.lastSuccessAt,
         };
         this.snapshots.update((map) => new Map(map).set(key, snapshot));
+        // Every playlist with these connection details shares the result.
+        const ids = [...this.identities]
+            .filter(([, identity]) => identity === key)
+            .map(([id]) => id);
+        if (ids.length) this.history.record(ids, snapshot);
     }
 }

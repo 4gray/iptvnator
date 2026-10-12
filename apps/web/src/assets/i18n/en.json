@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Stalker Playlists",
             "ALL_PLAYLISTS": "All Playlists",
             "PLAYLIST_COUNT_ONE": "1 playlist",
-            "PLAYLIST_COUNT_OTHER": "{{count}} playlists"
+            "PLAYLIST_COUNT_OTHER": "{{count}} playlists",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · file",
+                "ADDED": "added {{date}}",
+                "UPDATED": "updated {{date}}",
+                "UNREACHABLE": "Not responding",
+                "UNREACHABLE_FOR": "Not responding · {{duration}}",
+                "EXPIRED": "Expired",
+                "EDIT": "Edit…",
+                "COPY_URL": "Copy URL",
+                "OPEN": "Open"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "Categories",

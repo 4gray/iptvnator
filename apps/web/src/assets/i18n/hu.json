@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Stalker-lejátszási listák",
             "ALL_PLAYLISTS": "Összes lejátszási lista",
             "PLAYLIST_COUNT_ONE": "1 lejátszási lista",
-            "PLAYLIST_COUNT_OTHER": "{{count}} lejátszási lista"
+            "PLAYLIST_COUNT_OTHER": "{{count}} lejátszási lista",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · fájl",
+                "ADDED": "hozzáadva: {{date}}",
+                "UPDATED": "frissítve: {{date}}",
+                "UNREACHABLE": "Nem válaszol",
+                "UNREACHABLE_FOR": "Nem válaszol · {{duration}}",
+                "EXPIRED": "Lejárt",
+                "EDIT": "Szerkesztés…",
+                "COPY_URL": "URL másolása",
+                "OPEN": "Megnyitás"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "Kategóriák",

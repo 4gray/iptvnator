@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Stalkerプレイリスト",
             "ALL_PLAYLISTS": "すべてのプレイリスト",
             "PLAYLIST_COUNT_ONE": "1 件のプレイリスト",
-            "PLAYLIST_COUNT_OTHER": "{{count}} 件のプレイリスト"
+            "PLAYLIST_COUNT_OTHER": "{{count}} 件のプレイリスト",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · ファイル",
+                "ADDED": "{{date}}に追加",
+                "UPDATED": "{{date}}に更新",
+                "UNREACHABLE": "応答なし",
+                "UNREACHABLE_FOR": "応答なし · {{duration}}",
+                "EXPIRED": "期限切れ",
+                "EDIT": "編集…",
+                "COPY_URL": "URLをコピー",
+                "OPEN": "開く"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "カテゴリー",

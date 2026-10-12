@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Stalker Oynatma Listeleri",
             "ALL_PLAYLISTS": "Tüm Oynatma Listeleri",
             "PLAYLIST_COUNT_ONE": "1 oynatma listesi",
-            "PLAYLIST_COUNT_OTHER": "{{count}} oynatma listesi"
+            "PLAYLIST_COUNT_OTHER": "{{count}} oynatma listesi",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · dosya",
+                "ADDED": "{{date}} eklendi",
+                "UPDATED": "{{date}} güncellendi",
+                "UNREACHABLE": "Yanıt vermiyor",
+                "UNREACHABLE_FOR": "Yanıt vermiyor · {{duration}}",
+                "EXPIRED": "Süresi doldu",
+                "EDIT": "Düzenle…",
+                "COPY_URL": "URL'yi kopyala",
+                "OPEN": "Aç"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "Kategoriler",

@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Stalker плейлисты",
             "ALL_PLAYLISTS": "Все плейлисты",
             "PLAYLIST_COUNT_ONE": "1 плейлист",
-            "PLAYLIST_COUNT_OTHER": "{{count}} плейлистов"
+            "PLAYLIST_COUNT_OTHER": "{{count}} плейлистов",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · файл",
+                "ADDED": "добавлен {{date}}",
+                "UPDATED": "обновлён {{date}}",
+                "UNREACHABLE": "Не отвечает",
+                "UNREACHABLE_FOR": "Не отвечает · {{duration}}",
+                "EXPIRED": "Истёк",
+                "EDIT": "Изменить…",
+                "COPY_URL": "Копировать URL",
+                "OPEN": "Открыть"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "Категории",

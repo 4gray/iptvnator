@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "قوائم Stalker",
             "ALL_PLAYLISTS": "جميع قوائم التشغيل",
             "PLAYLIST_COUNT_ONE": "قائمة تشغيل واحدة",
-            "PLAYLIST_COUNT_OTHER": "{{count}} قائمة تشغيل"
+            "PLAYLIST_COUNT_OTHER": "{{count}} قائمة تشغيل",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · ملف",
+                "ADDED": "أُضيف {{date}}",
+                "UPDATED": "حُدِّث {{date}}",
+                "UNREACHABLE": "لا يستجيب",
+                "UNREACHABLE_FOR": "لا يستجيب · {{duration}}",
+                "EXPIRED": "منتهي",
+                "EDIT": "تعديل…",
+                "COPY_URL": "نسخ الرابط",
+                "OPEN": "فتح"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "الفئات",

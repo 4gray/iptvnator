@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Listas Stalker",
             "ALL_PLAYLISTS": "Todas las listas",
             "PLAYLIST_COUNT_ONE": "1 lista de reproducción",
-            "PLAYLIST_COUNT_OTHER": "{{count}} listas de reproducción"
+            "PLAYLIST_COUNT_OTHER": "{{count}} listas de reproducción",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · archivo",
+                "ADDED": "añadido el {{date}}",
+                "UPDATED": "actualizado el {{date}}",
+                "UNREACHABLE": "No responde",
+                "UNREACHABLE_FOR": "No responde · {{duration}}",
+                "EXPIRED": "Caducada",
+                "EDIT": "Editar…",
+                "COPY_URL": "Copiar URL",
+                "OPEN": "Abrir"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "Categorías",

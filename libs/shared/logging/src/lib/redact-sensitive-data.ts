@@ -54,7 +54,7 @@ const SENSITIVE_KEY_SUFFIXES = [
     'username',
 ];
 
-const XTREAM_CREDENTIAL_PATH_SEGMENTS = new Set([
+export const XTREAM_CREDENTIAL_PATH_SEGMENTS: ReadonlySet<string> = new Set([
     'live',
     'movie',
     'series',
@@ -79,7 +79,7 @@ function normalizeKey(key: string): string {
     return key.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-function isSensitiveKey(key: string): boolean {
+export function isSensitiveKey(key: string): boolean {
     const normalized = normalizeKey(key);
     return (
         SENSITIVE_KEY_NAMES.has(normalized) ||
@@ -196,7 +196,7 @@ function redactEmbeddedSensitivePairs(value: string): string {
     );
 }
 
-function looksLikeSearchParams(value: string): boolean {
+export function looksLikeSearchParams(value: string): boolean {
     return /^[^=&\s]+=[^&]*(?:&[^=&\s]+=[^&]*)*$/u.test(value);
 }
 

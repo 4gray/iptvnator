@@ -1,4 +1,5 @@
 export {
+    isSensitiveKey,
     REDACTED_VALUE,
     redactSensitiveData,
 } from './lib/redact-sensitive-data';
@@ -24,3 +25,4 @@ export type {
     RendererPerformancePhaseMetadata,
     RendererPerformancePhaseOutcome,
 } from './lib/renderer-performance-phase';
+export { stripUrlCredentials } from './lib/strip-url-credentials';

@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Stalker 播放列表",
             "ALL_PLAYLISTS": "所有播放列表",
             "PLAYLIST_COUNT_ONE": "1 个播放列表",
-            "PLAYLIST_COUNT_OTHER": "{{count}} 个播放列表"
+            "PLAYLIST_COUNT_OTHER": "{{count}} 个播放列表",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · 文件",
+                "ADDED": "{{date}} 添加",
+                "UPDATED": "{{date}} 更新",
+                "UNREACHABLE": "无响应",
+                "UNREACHABLE_FOR": "无响应 · {{duration}}",
+                "EXPIRED": "已过期",
+                "EDIT": "编辑…",
+                "COPY_URL": "复制 URL",
+                "OPEN": "打开"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "分类",

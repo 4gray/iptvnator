@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Λίστες αναπαραγωγής Stalker",
             "ALL_PLAYLISTS": "Όλες οι λίστες αναπαραγωγής",
             "PLAYLIST_COUNT_ONE": "1 λίστα αναπαραγωγής",
-            "PLAYLIST_COUNT_OTHER": "{{count}} λίστες αναπαραγωγής"
+            "PLAYLIST_COUNT_OTHER": "{{count}} λίστες αναπαραγωγής",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · αρχείο",
+                "ADDED": "προστέθηκε {{date}}",
+                "UPDATED": "ενημερώθηκε {{date}}",
+                "UNREACHABLE": "Δεν αποκρίνεται",
+                "UNREACHABLE_FOR": "Δεν αποκρίνεται · {{duration}}",
+                "EXPIRED": "Έληξε",
+                "EDIT": "Επεξεργασία…",
+                "COPY_URL": "Αντιγραφή URL",
+                "OPEN": "Άνοιγμα"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "Κατηγορίες",

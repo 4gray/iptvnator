@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Stalker-afspeellijsten",
             "ALL_PLAYLISTS": "Alle afspeellijsten",
             "PLAYLIST_COUNT_ONE": "1 afspeellijst",
-            "PLAYLIST_COUNT_OTHER": "{{count}} afspeellijsten"
+            "PLAYLIST_COUNT_OTHER": "{{count}} afspeellijsten",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · bestand",
+                "ADDED": "toegevoegd {{date}}",
+                "UPDATED": "bijgewerkt {{date}}",
+                "UNREACHABLE": "Reageert niet",
+                "UNREACHABLE_FOR": "Reageert niet · {{duration}}",
+                "EXPIRED": "Verlopen",
+                "EDIT": "Bewerken…",
+                "COPY_URL": "URL kopiëren",
+                "OPEN": "Openen"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "Categorieën",

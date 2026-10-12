@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "قوائم تشغيل Stalker",
             "ALL_PLAYLISTS": "جميع قوائم التشغيل",
             "PLAYLIST_COUNT_ONE": "قائمة تشغيل وحدة",
-            "PLAYLIST_COUNT_OTHER": "{{count}} ديال قوائم التشغيل"
+            "PLAYLIST_COUNT_OTHER": "{{count}} ديال قوائم التشغيل",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · فيشي",
+                "ADDED": "تزاد {{date}}",
+                "UPDATED": "تحدّث {{date}}",
+                "UNREACHABLE": "ما كيجاوبش",
+                "UNREACHABLE_FOR": "ما كيجاوبش · {{duration}}",
+                "EXPIRED": "سالات",
+                "EDIT": "بدّل…",
+                "COPY_URL": "نسخ الرابط",
+                "OPEN": "حلّ"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "الفئات",

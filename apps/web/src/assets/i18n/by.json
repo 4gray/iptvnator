@@ -1904,7 +1904,18 @@
             "STALKER_PLAYLISTS": "Stalker плэйлісты",
             "ALL_PLAYLISTS": "Усе плэйлісты",
             "PLAYLIST_COUNT_ONE": "1 плэйліст",
-            "PLAYLIST_COUNT_OTHER": "{{count}} плэйлістаў"
+            "PLAYLIST_COUNT_OTHER": "{{count}} плэйлістаў",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · файл",
+                "ADDED": "дададзены {{date}}",
+                "UPDATED": "абноўлены {{date}}",
+                "UNREACHABLE": "Не адказвае",
+                "UNREACHABLE_FOR": "Не адказвае · {{duration}}",
+                "EXPIRED": "Скончыўся",
+                "EDIT": "Змяніць…",
+                "COPY_URL": "Скапіяваць URL",
+                "OPEN": "Адкрыць"
+            }
         },
         "CONTEXT": {
             "CATEGORIES": "Катэгорыі",
