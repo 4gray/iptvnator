@@ -44,7 +44,10 @@ import {
     runWithPlaylistAuthorityMutation,
     runWithPlaylistAuthorityReset,
 } from './playlist-cross-context-lock';
-import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
+import {
+    PlaylistDocumentStore,
+    PlaylistStorageBackend,
+} from './playlist-storage-backend';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
@@ -58,33 +61,6 @@ type PortalFavoriteItem = StalkerPortalItem & {
 
 type PlaylistRawItem = {
     raw?: string;
-};
-
-type PlaylistStorageElectronApi = {
-    dbDeleteAllPlaylists: () => Promise<unknown>;
-    dbDeletePlaylist: (playlistId: string) => Promise<unknown>;
-    dbGetAppPlaylist: (
-        playlistId: string,
-        operationId?: string
-    ) => Promise<Playlist | null>;
-    dbGetAppPlaylistFavoriteChannels?: (
-        playlistId: string
-    ) => Promise<M3uFavoriteChannel[]>;
-    dbGetAppPlaylistMetas?: () => Promise<Playlist[]>;
-    dbGetAppPlaylists: () => Promise<Playlist[]>;
-    dbGetAppState: (key: string) => Promise<string | null>;
-    dbSetAppState: (key: string, value: string) => Promise<unknown>;
-    dbUpsertAppPlaylist: (
-        playlist: Playlist,
-        operationId?: string
-    ) => Promise<unknown>;
-    dbMigrateAppPlaylists: (playlists: Playlist[]) => Promise<unknown>;
-    dbRecoverLegacyPlaylists?: () => Promise<void>;
-    dbUpsertAppPlaylists: (playlists: Playlist[]) => Promise<unknown>;
-};
-
-type PlaylistStorageWindow = Window & {
-    electron?: PlaylistStorageElectronApi;
 };
 
 type AddManyPlaylistsResult = Playlist[] | IDBValidKey[];
@@ -112,7 +88,7 @@ export class PlaylistsService {
     private readonly databaseService = inject(DatabaseService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
-    private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly storageBackend = inject(PlaylistStorageBackend);
     private readonly playlistDeleteCleanups =
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
     private electronMigrationPromise: Promise<void> | null = null;
@@ -125,16 +101,18 @@ export class PlaylistsService {
     private indexedDbMigrationPromise: Promise<void> | null = null;
     private readonly playlistWriteQueues = new Map<string, Promise<unknown>>();
 
-    private get electronApi(): PlaylistStorageElectronApi | null {
-        if (typeof window === 'undefined') {
-            return null;
-        }
-
-        return (window as PlaylistStorageWindow).electron ?? null;
+    /** Electron bridge or server store; `null` means IndexedDB. */
+    private get documentStore(): PlaylistDocumentStore | null {
+        return this.storageBackend.documentStore();
     }
 
-    private get isElectronStorageAvailable(): boolean {
-        return this.runtime.supportsSqlite;
+    private get usesDocumentStore(): boolean {
+        return this.storageBackend.kind() !== 'indexeddb';
+    }
+
+    /** Desktop-only paths: legacy IndexedDB import, worker deletion. */
+    private get usesElectronStorage(): boolean {
+        return this.storageBackend.kind() === 'electron';
     }
 
     private runOnSqlite<T>(operation: () => Promise<T>) {
@@ -150,14 +128,14 @@ export class PlaylistsService {
     }
 
     private async ensureElectronPlaylistMigrations(): Promise<void> {
-        if (!this.isElectronStorageAvailable) {
+        if (!this.usesElectronStorage) {
             return;
         }
 
         if (!this.electronMigrationPromise) {
             this.electronMigrationPromise = (async () => {
                 await this.migrateIndexedDbPlaylistsToSqlite();
-                await this.electronApi?.dbRecoverLegacyPlaylists?.();
+                await this.documentStore?.dbRecoverLegacyPlaylists?.();
                 await this.migrateStalkerPlaylistMetadataInSqlite();
             })().catch((error) => {
                 this.electronMigrationPromise = null;
@@ -169,7 +147,7 @@ export class PlaylistsService {
     }
 
     private async ensureIndexedDbPlaylistMigrations(): Promise<void> {
-        if (this.isElectronStorageAvailable) {
+        if (this.usesDocumentStore) {
             return;
         }
 
@@ -196,12 +174,9 @@ export class PlaylistsService {
     }
 
     private async migrateIndexedDbPlaylistsToSqlite(): Promise<void> {
-        const electron = this.electronApi;
-        if (!electron) return;
-        if (
-            (await electron.dbGetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG)) ===
-            '1'
-        )
+        const store = this.documentStore;
+        if (!store?.dbMigrateAppPlaylists) return;
+        if ((await store.dbGetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG)) === '1')
             return;
         const playlists = await firstValueFrom(
             this.dbService.getAll<Playlist>(DbStores.Playlists)
@@ -209,9 +184,9 @@ export class PlaylistsService {
         if (playlists.length) {
             // The worker commits rows and the receipt atomically. Keep the
             // original IndexedDB as a recovery source, even after success.
-            await electron.dbMigrateAppPlaylists(playlists);
+            await store.dbMigrateAppPlaylists(playlists);
         } else {
-            await electron.dbSetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG, '1');
+            await store.dbSetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG, '1');
         }
     }
 
@@ -315,12 +290,12 @@ export class PlaylistsService {
 
     private async migrateStalkerPlaylistMetadataInSqlite(): Promise<void> {
         try {
-            const electron = this.electronApi;
-            if (!electron) {
+            const store = this.documentStore;
+            if (!store) {
                 return;
             }
 
-            const alreadyMigrated = await electron.dbGetAppState(
+            const alreadyMigrated = await store.dbGetAppState(
                 STALKER_PLAYLIST_METADATA_MIGRATION_FLAG
             );
             if (alreadyMigrated === '1') {
@@ -328,15 +303,15 @@ export class PlaylistsService {
             }
 
             const storedPlaylists =
-                (await electron.dbGetAppPlaylists()) as Playlist[];
+                (await store.dbGetAppPlaylists()) as Playlist[];
             const updates =
                 this.collectStalkerMetadataMigrationUpdates(storedPlaylists);
 
             if (updates.length > 0) {
-                await electron.dbUpsertAppPlaylists(updates);
+                await store.dbUpsertAppPlaylists(updates);
             }
 
-            await electron.dbSetAppState(
+            await store.dbSetAppState(
                 STALKER_PLAYLIST_METADATA_MIGRATION_FLAG,
                 '1'
             );
@@ -398,16 +373,16 @@ export class PlaylistsService {
 
     private upsertSqlitePlaylist(playlist: Playlist, operationId?: string) {
         return this.runOnSqlite(async () => {
-            const electron = this.electronApi;
-            if (!electron) {
+            const store = this.documentStore;
+            if (!store) {
                 return playlist;
             }
 
             this.startupMetas = null;
             if (operationId === undefined) {
-                await electron.dbUpsertAppPlaylist(playlist);
+                await store.dbUpsertAppPlaylist(playlist);
             } else {
-                await electron.dbUpsertAppPlaylist(playlist, operationId);
+                await store.dbUpsertAppPlaylist(playlist, operationId);
             }
             this.healthEvidence?.connections.next({ id: playlist._id, playlist });
             return playlist;
@@ -416,13 +391,13 @@ export class PlaylistsService {
 
     private upsertManySqlitePlaylists(playlists: Playlist[]) {
         return this.runOnSqlite(async () => {
-            const electron = this.electronApi;
-            if (!electron) {
+            const store = this.documentStore;
+            if (!store) {
                 return playlists;
             }
 
             this.startupMetas = null;
-            await electron.dbUpsertAppPlaylists(playlists);
+            await store.dbUpsertAppPlaylists(playlists);
             playlists.forEach((playlist) => this.healthEvidence?.connections.next({ id: playlist._id, playlist }));
             return playlists;
         });
@@ -457,7 +432,7 @@ export class PlaylistsService {
         nextPlaylist: Playlist,
         operationId?: string
     ) {
-        if (this.isElectronStorageAvailable) {
+        if (this.usesDocumentStore) {
             return firstValueFrom(
                 this.upsertSqlitePlaylist(nextPlaylist, operationId)
             );
@@ -499,16 +474,16 @@ export class PlaylistsService {
     }
 
     getAllPlaylists() {
-        if (this.isElectronStorageAvailable) {
+        if (this.usesDocumentStore) {
             const shared = this.startupMetas;
             // A joining caller gets its own copy of the shared result.
             if (shared) return from(shared.then((p) => structuredClone(p)));
             const read = firstValueFrom(
                 this.runOnSqlite(async () => {
-                    const electron = this.electronApi;
-                    const playlists = electron
-                        ? await (electron.dbGetAppPlaylistMetas?.() ??
-                              electron.dbGetAppPlaylists())
+                    const store = this.documentStore;
+                    const playlists = store
+                        ? await (store.dbGetAppPlaylistMetas?.() ??
+                              store.dbGetAppPlaylists())
                         : [];
                     return (playlists as Playlist[]).map((playlist) =>
                         this.toPlaylistMeta(playlist)
@@ -533,7 +508,7 @@ export class PlaylistsService {
     addPlaylist(playlist: Playlist) {
         return this.serializePlaylistWrite(playlist._id, () =>
             runWithPlaylistAuthorityMutation([playlist._id], async () => {
-                if (this.isElectronStorageAvailable) {
+                if (this.usesDocumentStore) {
                     return firstValueFrom(this.upsertSqlitePlaylist(playlist));
                 }
 
@@ -570,12 +545,12 @@ export class PlaylistsService {
             playlistId,
             () =>
                 runWithPlaylistAuthorityMutation([playlistId], async () => {
-                    if (this.isElectronStorageAvailable) {
+                    if (this.usesDocumentStore) {
                         await this.ensureElectronPlaylistMigrations();
-                        const electron = this.electronApi;
-                        if (electron) {
+                        const store = this.documentStore;
+                        if (store) {
                             this.startupMetas = null;
-                            if (options) {
+                            if (options && this.usesElectronStorage) {
                                 const deleted =
                                     await this.databaseService.deletePlaylist(
                                         playlistId,
@@ -585,7 +560,7 @@ export class PlaylistsService {
                                     throw new Error(
                                         'Playlist deletion did not complete'
                                     );
-                            } else await electron.dbDeletePlaylist(playlistId);
+                            } else await store.dbDeletePlaylist(playlistId);
                         }
                         return undefined;
                     }
@@ -707,15 +682,15 @@ export class PlaylistsService {
     }
 
     getPlaylistById(id: string, operationId?: string) {
-        if (this.isElectronStorageAvailable) {
+        if (this.usesDocumentStore) {
             return this.runOnSqlite(async () => {
-                const electron = this.electronApi;
+                const store = this.documentStore;
                 let playlist: Playlist | null = null;
-                if (electron) {
+                if (store) {
                     playlist =
                         operationId === undefined
-                            ? await electron.dbGetAppPlaylist(id)
-                            : await electron.dbGetAppPlaylist(id, operationId);
+                            ? await store.dbGetAppPlaylist(id)
+                            : await store.dbGetAppPlaylist(id, operationId);
                 }
                 return playlist
                     ? this.createSqliteFallbackPlaylist(playlist as Playlist)
@@ -754,7 +729,7 @@ export class PlaylistsService {
         isCurrent?: (playlist: Playlist) => boolean
     ): Observable<Playlist | null> {
         return this.serializePlaylistWrite(updatedPlaylist._id, async () => {
-            if (isCurrent && !this.isElectronStorageAvailable) {
+            if (isCurrent && !this.usesDocumentStore) {
                 await this.ensureIndexedDbPlaylistMigrations();
                 return this.transformIndexedDbPlaylistMeta(
                     updatedPlaylist._id,
@@ -1010,7 +985,7 @@ export class PlaylistsService {
         }
 
         return this.serializePlaylistWrite(playlistId, async () => {
-            if (!this.isElectronStorageAvailable) {
+            if (!this.usesDocumentStore) {
                 await this.ensureIndexedDbPlaylistMigrations();
                 return this.transformIndexedDbPlaylistMeta(
                     playlistId,
@@ -1080,11 +1055,11 @@ export class PlaylistsService {
     getM3uFavoriteChannels(
         playlistId: string
     ): Observable<M3uFavoriteChannel[] | null> {
-        const electron = this.electronApi;
-        const getFavoriteChannels = electron?.dbGetAppPlaylistFavoriteChannels;
+        const store = this.documentStore;
+        const getFavoriteChannels = store?.dbGetAppPlaylistFavoriteChannels;
         if (
-            !electron ||
-            !this.isElectronStorageAvailable ||
+            !store ||
+            !this.usesElectronStorage ||
             typeof getFavoriteChannels !== 'function'
         ) {
             return of(null);
@@ -1095,7 +1070,7 @@ export class PlaylistsService {
                 // A favorite toggled just before this read may still be queued;
                 // the queue tail never rejects.
                 await this.playlistWriteQueues.get(playlistId);
-                const alreadyMigrated = await electron.dbGetAppState(
+                const alreadyMigrated = await store.dbGetAppState(
                     SQLITE_PLAYLIST_MIGRATION_FLAG
                 );
                 if (alreadyMigrated !== '1') {
@@ -1273,7 +1248,7 @@ export class PlaylistsService {
             runWithPlaylistAuthorityMutation(
                 playlists.map((playlist) => playlist._id),
                 async () => {
-                    if (this.isElectronStorageAvailable) {
+                    if (this.usesDocumentStore) {
                         return firstValueFrom(
                             this.upsertManySqlitePlaylists(playlists)
                         );
@@ -1328,11 +1303,11 @@ export class PlaylistsService {
     }
 
     getAllData() {
-        if (this.isElectronStorageAvailable) {
+        if (this.usesDocumentStore) {
             return this.runOnSqlite(async () => {
-                const electron = this.electronApi;
-                return electron
-                    ? ((await electron.dbGetAppPlaylists()) as Playlist[])
+                const store = this.documentStore;
+                return store
+                    ? ((await store.dbGetAppPlaylists()) as Playlist[])
                     : [];
             });
         }
@@ -1345,12 +1320,12 @@ export class PlaylistsService {
     removeAll(): Observable<void> {
         return defer(() =>
             runWithPlaylistAuthorityReset(async () => {
-                if (this.isElectronStorageAvailable) {
+                if (this.usesDocumentStore) {
                     await this.ensureElectronPlaylistMigrations();
-                    const electron = this.electronApi;
-                    if (electron) {
+                    const store = this.documentStore;
+                    if (store) {
                         this.startupMetas = null;
-                        await electron.dbDeleteAllPlaylists();
+                        await store.dbDeleteAllPlaylists();
                         this.healthEvidence?.connections.next({});
                     }
                     return undefined;

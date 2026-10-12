@@ -61,6 +61,11 @@ import {
     setVlcReuseInstance,
     shutdownVlcSession,
 } from './vlc-session.service';
+import {
+    createMpvSocketMock,
+    MpvSocketMock,
+    MpvSocketMockOptions,
+} from './mpv-ipc-socket.test-helpers';
 
 function createMockChildProcess(): ChildProcess {
     return Object.assign(new EventEmitter(), {
@@ -92,6 +97,13 @@ function mockStoreValues(values: Record<string, unknown>): void {
     (store.get as unknown as jest.Mock).mockImplementation(
         (key: string, fallback?: unknown) =>
             key in values ? values[key] : fallback
+    );
+}
+
+/** Every reused-instance IPC connection answers like a healthy mpv. */
+function mockMpvSockets(options: MpvSocketMockOptions = {}): void {
+    (createConnection as unknown as jest.Mock).mockImplementation(() =>
+        createMpvSocketMock(options)
     );
 }
 
@@ -263,15 +275,7 @@ describe('external player shutdown on app quit', () => {
             title: 'First stream',
             url: 'https://example.com/one.m3u8',
         });
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
-            setImmediate(() => socket.emit('connect'));
-            return socket;
-        });
+        mockMpvSockets();
         const current = await openMpvPlayer({
             title: 'Second stream',
             url: 'https://example.com/two.m3u8',
@@ -305,15 +309,7 @@ describe('external player shutdown on app quit', () => {
             url: 'https://example.com/one.m3u8',
         });
         const written: string[] = [];
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn((chunk: string) => written.push(chunk)),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
-            setImmediate(() => socket.emit('connect'));
-            return socket;
-        });
+        mockMpvSockets({ written });
         const reused = await openMpvPlayer({
             title: 'Second stream',
             url: 'https://example.com/two.m3u8',
@@ -394,15 +390,7 @@ describe('external player shutdown on app quit', () => {
         expect(launchArgs).toContain('--start=42');
 
         const written: string[] = [];
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn((chunk: string) => written.push(chunk)),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
-            setImmediate(() => socket.emit('connect'));
-            return socket;
-        });
+        mockMpvSockets({ written });
         const loadfileOptionsOf = async (startTime: number | undefined) => {
             written.length = 0;
             await openMpvPlayer({
@@ -456,15 +444,7 @@ describe('external player shutdown on app quit', () => {
 
         // Capture the JSON IPC traffic of the second, reused launch.
         const written: string[] = [];
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn((chunk: string) => written.push(chunk)),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
-            setImmediate(() => socket.emit('connect'));
-            return socket;
-        });
+        mockMpvSockets({ written });
 
         await openMpvPlayer({
             title: 'Stalker live stream',
@@ -509,15 +489,7 @@ describe('external player shutdown on app quit', () => {
             url: 'https://example.com/one.m3u8',
         });
 
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
-            setImmediate(() => socket.emit('connect'));
-            return socket;
-        });
+        mockMpvSockets();
         const reused = await openMpvPlayer({
             title: 'Second stream',
             url: 'https://example.com/two.m3u8',
@@ -560,15 +532,7 @@ describe('external player shutdown on app quit', () => {
             title: 'First stream',
             url: 'https://example.com/one.m3u8',
         });
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
-            setImmediate(() => socket.emit('connect'));
-            return socket;
-        });
+        mockMpvSockets();
         const reused = await openMpvPlayer({
             title: 'Second stream',
             url: 'https://example.com/two.m3u8',
@@ -622,27 +586,15 @@ describe('external player shutdown on app quit', () => {
             url: 'https://example.com/one.m3u8',
         });
 
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
-            setImmediate(() => socket.emit('connect'));
-            return socket;
-        });
+        mockMpvSockets();
         const session = await openMpvPlayer({
             title: 'Second stream',
             url: 'https://example.com/two.m3u8',
         });
 
-        const sockets: EventEmitter[] = [];
+        const sockets: MpvSocketMock[] = [];
         (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
+            const socket = createMpvSocketMock({ connect: false });
             sockets.push(socket);
             return socket;
         });
@@ -676,19 +628,12 @@ describe('external player shutdown on app quit', () => {
             url: 'https://example.com/one.m3u8',
         });
 
-        const sockets: Array<
-            EventEmitter & { write: jest.Mock; end: jest.Mock }
-        > = [];
+        const sockets: MpvSocketMock[] = [];
         (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
+            const socket = createMpvSocketMock({
+                connect: sockets.length >= 2,
             });
             sockets.push(socket);
-            if (sockets.length > 2) {
-                setImmediate(() => socket.emit('connect'));
-            }
             return socket;
         });
 
@@ -720,7 +665,7 @@ describe('external player shutdown on app quit', () => {
         expect(spawn).toHaveBeenCalledTimes(1);
     });
 
-    it('does not spawn a replacement when Stop interrupts reused MPV seek', async () => {
+    it('does not spawn a replacement when Stop interrupts a reused MPV loadfile reply', async () => {
         shutdownMpvSession();
         const proc = createMockChildProcess();
         (spawn as unknown as jest.Mock).mockReturnValue(proc);
@@ -733,17 +678,14 @@ describe('external player shutdown on app quit', () => {
             url: 'https://example.com/one.m3u8',
         });
 
-        const sockets: EventEmitter[] = [];
+        // The content command is written but mpv never answers it; the quit
+        // connection that Stop opens answers normally.
+        const sockets: MpvSocketMock[] = [];
         (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
+            const socket = createMpvSocketMock({
+                reply: sockets.length === 0 ? () => null : undefined,
             });
             sockets.push(socket);
-            if (sockets.length === 1 || sockets.length === 3) {
-                setImmediate(() => socket.emit('connect'));
-            }
             return socket;
         });
 
@@ -752,19 +694,19 @@ describe('external player shutdown on app quit', () => {
             url: 'https://example.com/two.m3u8',
             startTime: 120,
         });
-        while (sockets.length < 2) {
+        while (!sockets[0]?.write.mock.calls.length) {
             await new Promise<void>((resolve) => setImmediate(resolve));
         }
         const replacementId =
             externalPlayerSessions.getActiveSessionId() as string;
         const closing = externalPlayerSessions.closeSession(replacementId);
-        while (sockets.length < 3) {
+        while (sockets.length < 2) {
             await new Promise<void>((resolve) => setImmediate(resolve));
         }
 
         Object.defineProperty(proc, 'exitCode', { value: 0 });
         proc.emit('exit', 0);
-        sockets[1].emit('error', new Error('connection closed'));
+        sockets[0].emit('error', new Error('connection closed'));
 
         await expect(closing).resolves.toMatchObject({
             id: replacementId,
@@ -972,22 +914,11 @@ describe('external player shutdown on app quit', () => {
             title: 'First stream',
             url: 'https://example.com/one.m3u8',
         });
-        let connectionCount = 0;
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            connectionCount += 1;
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
-            setImmediate(() => {
-                if (connectionCount === 1) {
-                    socket.emit('connect');
-                } else {
-                    socket.emit('error', new Error('seek failed'));
-                }
-            });
-            return socket;
+        // mpv rejects the content command after it was written, so the
+        // player may already have changed.
+        mockMpvSockets({
+            reply: (command) =>
+                command[0] === 'loadfile' ? 'error running command' : 'success',
         });
 
         jest.useFakeTimers();
@@ -1153,22 +1084,11 @@ describe('external player shutdown on app quit', () => {
             title: 'First stream',
             url: 'https://example.com/one.m3u8',
         });
-        let connectionCount = 0;
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            connectionCount += 1;
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
-            });
-            setImmediate(() => {
-                if (connectionCount === 1) {
-                    socket.emit('connect');
-                } else {
-                    socket.emit('error', new Error('seek failed'));
-                }
-            });
-            return socket;
+        // mpv rejects the content command after it was written, so the
+        // player may already have changed.
+        mockMpvSockets({
+            reply: (command) =>
+                command[0] === 'loadfile' ? 'error running command' : 'success',
         });
 
         const session = await openMpvPlayer({

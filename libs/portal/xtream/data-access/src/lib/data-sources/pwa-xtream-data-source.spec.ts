@@ -6,7 +6,11 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../services/xtream-api.service';
-import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    PlaylistsService,
+    USER_DATA_STORAGE,
+} from '@iptvnator/services';
 import { of } from 'rxjs';
 
 describe('PwaXtreamDataSource', () => {
@@ -914,6 +918,40 @@ describe('PwaXtreamDataSource', () => {
 
             expect(setItemSpy).not.toHaveBeenCalled();
             setItemSpy.mockRestore();
+        });
+    });
+
+    describe('with an injected user data storage', () => {
+        it('reads and writes favorites through it, not localStorage', async () => {
+            const values = new Map<string, string>();
+            const storage = {
+                getItem: (key: string) => values.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    values.set(key, value);
+                },
+                removeItem: (key: string) => {
+                    values.delete(key);
+                },
+            };
+            TestBed.resetTestingModule();
+            TestBed.configureTestingModule({
+                providers: [
+                    PwaXtreamDataSource,
+                    { provide: USER_DATA_STORAGE, useValue: storage },
+                    { provide: ParentalLockService, useValue: parentalLock },
+                    { provide: XtreamApiService, useValue: apiService },
+                    { provide: PlaylistsService, useValue: playlistsService },
+                ],
+            });
+            const source = TestBed.inject(PwaXtreamDataSource);
+
+            values.set('xtream-favorites', JSON.stringify({ p1: ['live:1'] }));
+            await source.deletePlaylist('p1');
+
+            expect(JSON.parse(values.get('xtream-favorites') ?? '{}')).toEqual(
+                {}
+            );
+            expect(localStorage.getItem('xtream-favorites')).toBeNull();
         });
     });
 });

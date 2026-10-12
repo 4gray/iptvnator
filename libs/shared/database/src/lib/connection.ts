@@ -755,15 +755,19 @@ function upgradeContentTitleFtsTokenizer(sqliteDb: Database.Database): boolean {
                 )
                 .run();
 
-            sqliteDb
-                .prepare(
-                    `INSERT INTO app_state (key, value, updated_at)
-                     VALUES (?, 'done', datetime('now'))
-                     ON CONFLICT(key) DO UPDATE SET
-                        value = excluded.value,
-                        updated_at = excluded.updated_at`
-                )
-                .run(CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY);
+            // The rebuild is also all that `ensureContentTitleFts` does, so
+            // its record is written too. Without it the next launch rebuilds
+            // the whole index again, on the main thread, on the first launch
+            // after a fresh install has imported its catalog.
+            const markDone = sqliteDb.prepare(
+                `INSERT INTO app_state (key, value, updated_at)
+                 VALUES (?, 'done', datetime('now'))
+                 ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = excluded.updated_at`
+            );
+            markDone.run(CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY);
+            markDone.run(CONTENT_TITLE_FTS_MIGRATION_KEY);
         });
 
         executeMigration();

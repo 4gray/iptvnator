@@ -1053,9 +1053,24 @@ was unchanged from passing launches (the same 119 statements before the
 first key, the usual 2 for the query, none afterwards), and every failure
 traced was the first launch after seeding. The journey fails such an
 iteration instead of measuring it, so a full run occasionally fails J4.
-The cause is in the app, not the harness, and is not fixed here. No J4
-baseline exists yet; J4 counters join the ratchet once three runner runs
-agree.
+
+The cause was the seed, not the query. The portal's import starts only
+after its account check answers, and a freshly started mock generates the
+`large` catalog on that first request (up to about 10 s on a busy machine).
+`waitForXtreamImportToFinish` gave the loading overlay 5 s to appear and
+then accepted "no overlay" as finished, so the seed closed the app while
+the series import was still running. The template then held 4,000 live
+channels and 4,000 movies but no series, and `system` matches only series.
+A run stops at its first failed iteration, which is why the failure always
+showed at the first launch after seeding. The wait now also requires the
+catalog to be complete the way the app judges it on its next start
+(`apps/electron-backend-e2e/src/xtream-import-wait.ts`): every type's
+persisted status (`xtream-import-status:<id>:<type>`) reads `completed` and
+the type has rows, unless the portal has no categories of that type. Rows
+are required because a refresh deletes the catalog without resetting the
+status. `xtream-import-wait.e2e.ts` holds the account check past the overlay
+window and fails without it. No J4 baseline exists yet; J4 counters join the
+ratchet once three runner runs agree.
 
 ## `renderer.initialBytes`
 
