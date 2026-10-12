@@ -435,6 +435,7 @@ async function openMoviesWithRatingFilter(page: Page): Promise<void> {
         timeout: 20_000,
     });
     await view.locator('.refine-action').click();
+    await page.locator('.refine-rating-trigger').click();
     await page
         .getByRole('menuitemradio', { name: /^\s*5\.0 and higher/ })
         .click();

@@ -213,6 +213,15 @@ threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
 - A menu with several groups, such as the catalog refine menu, wraps each
   group in `role="group"`. The group is named by its section title, and
   `role="separator"` sits between groups.
+- Keep a menu short enough to open whole below its trigger in a 600px-tall
+  window. Material 22 sets no max-height on a menu panel: a taller menu is
+  pushed up over its own trigger, then clipped. Move a secondary group into
+  a submenu whose row shows the active value, as the refine menu does with
+  its rating thresholds.
+- Material offsets a submenu by the `offsetTop` of the parent menu's first
+  direct `mat-menu-item`. When the earlier rows sit inside a `role="group"`,
+  that first direct item is the submenu trigger itself, and the submenu
+  opens off screen. Wrap such a trigger in `<div role="none">`.
 
 A chip that shows the active state next to its menu trigger, such as the
 catalog sort chip, shows its icon and a short value at every width, for
