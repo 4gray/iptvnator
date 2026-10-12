@@ -14,6 +14,7 @@ import {
     unionItems,
 } from './server-migration-merge';
 import { planServerMigration } from './server-migration-plan';
+import { preconditionHeaders } from './server-user-data-entries';
 import {
     typeLegacyXtreamRefs,
     type XtreamUserData,
@@ -202,7 +203,7 @@ export class ServerMigrationService {
         if (targets.size === 0) {
             return 0;
         }
-        const { entries } =
+        const { entries, tags } =
             await this.session.api.getJson<ServerUserStateResponse>(
                 '/user-state'
             );
@@ -250,10 +251,17 @@ export class ServerMigrationService {
                     continue;
                 }
                 try {
+                    // On the version read above: a device that changed it
+                    // meanwhile wins, and the move stays on offer.
                     await this.session.api.sendJson(
                         'PUT',
                         `/user-state/${namespace}/${encodeURIComponent(serverId)}`,
-                        { value }
+                        { value },
+                        tags
+                            ? preconditionHeaders(
+                                  tags[namespace]?.[serverId] ?? null
+                              )
+                            : {}
                     );
                 } catch {
                     failed += 1;

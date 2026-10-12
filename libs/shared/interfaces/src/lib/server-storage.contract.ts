@@ -58,10 +58,30 @@ export interface ServerStorageStatusResponse {
 
 export interface ServerUserStateResponse {
     readonly entries: Record<ServerUserStateNamespace, Record<string, unknown>>;
+    /**
+     * Version tag of every entry. A write sends the tag it is based on
+     * (`If-Match: "<tag>"`, or `If-None-Match: *` for an entry the client
+     * saw absent); a stale tag gets `412` with the current entry.
+     */
+    readonly tags?: Record<ServerUserStateNamespace, Record<string, string>>;
+}
+
+/** Answer to a user-state write: the entry's new tag, `null` once deleted. */
+export interface ServerUserStateWriteResponse {
+    readonly tag: string | null;
+}
+
+/** The entry as the server has it, sent with a `412` conflict. */
+export interface ServerUserStateCurrent {
+    /** Absent when the entry does not exist. */
+    readonly value?: unknown;
+    readonly tag: string | null;
 }
 
 export interface ServerStorageErrorBody {
     readonly message: string;
     readonly status: number;
     readonly code?: string;
+    /** With `code: 'conflict'` (412): the user-state entry as it is now. */
+    readonly current?: ServerUserStateCurrent;
 }

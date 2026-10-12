@@ -205,6 +205,75 @@ describe('server storage routes', () => {
             })
         ));
 
+    it('writes user state only on the tag it was read at', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const entry = `${baseUrl}/v1/user-state/xtream-favorites/p1`;
+                // Created only while absent.
+                const created = await fetch(
+                    entry,
+                    json(
+                        { value: ['live:1'] },
+                        { method: 'PUT', headers: { 'if-none-match': '*' } }
+                    )
+                );
+                const { tag } = (await created.json()) as { tag: string };
+                expect(tag).toMatch(/^[0-9a-f]{16}$/);
+                const again = await fetch(
+                    entry,
+                    json(
+                        { value: ['live:2'] },
+                        { method: 'PUT', headers: { 'if-none-match': '*' } }
+                    )
+                );
+                expect(again.status).toBe(412);
+                await expect(again.json()).resolves.toMatchObject({
+                    code: 'conflict',
+                    current: { value: ['live:1'], tag },
+                });
+
+                const read = (await (
+                    await fetch(`${baseUrl}/v1/user-state`)
+                ).json()) as ServerUserStateResponse;
+                expect(read.tags?.['xtream-favorites']['p1']).toBe(tag);
+
+                // Another device wrote meanwhile: a stale tag is refused.
+                const next = await fetch(
+                    entry,
+                    json(
+                        { value: ['live:1', 'live:9'] },
+                        { method: 'PUT', headers: { 'if-match': `"${tag}"` } }
+                    )
+                );
+                const nextTag = ((await next.json()) as { tag: string }).tag;
+                const stale = await fetch(
+                    entry,
+                    json(
+                        { value: ['live:1', 'live:5'] },
+                        { method: 'PUT', headers: { 'if-match': `"${tag}"` } }
+                    )
+                );
+                expect(stale.status).toBe(412);
+                await expect(stale.json()).resolves.toMatchObject({
+                    current: { value: ['live:1', 'live:9'], tag: nextTag },
+                });
+
+                const removed = await fetch(entry, {
+                    method: 'DELETE',
+                    headers: { 'if-match': `"${nextTag}"` },
+                });
+                await expect(removed.json()).resolves.toMatchObject({
+                    tag: null,
+                });
+                // Unconditional writes keep working for older clients.
+                const plain = await fetch(
+                    entry,
+                    json({ value: ['x'] }, { method: 'PUT' })
+                );
+                expect(plain.status).toBe(200);
+            })
+        ));
+
     it('keeps browser app state away from server-owned keys', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {

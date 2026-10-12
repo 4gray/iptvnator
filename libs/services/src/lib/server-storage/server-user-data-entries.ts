@@ -8,6 +8,23 @@ export interface PendingEntry {
     readonly value: unknown;
     /** The edit this value came from; a retry never replaces a newer one. */
     readonly edit: number;
+    /** The entry as the edit found it, to replay the edit on a conflict. */
+    readonly before: unknown;
+    /**
+     * The server version the edit is based on: a tag, `null` for an entry
+     * seen absent, `undefined` when unknown (an unconditional write).
+     */
+    readonly tag?: string | null;
+}
+
+/** `If-Match` / `If-None-Match` for a write based on `tag`. */
+export function preconditionHeaders(
+    tag: string | null | undefined
+): Record<string, string> {
+    if (tag === undefined) {
+        return {};
+    }
+    return tag === null ? { 'If-None-Match': '*' } : { 'If-Match': `"${tag}"` };
 }
 
 export function entryKey(entry: PendingEntry): string {

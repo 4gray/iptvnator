@@ -35,6 +35,7 @@ describe('ServerUserDataStorage', () => {
             sendJson: jest.fn().mockResolvedValue(undefined),
             request: jest.fn().mockResolvedValue(undefined),
             sendKeepalive: jest.fn().mockResolvedValue(true),
+            readJson: jest.fn().mockResolvedValue({}),
         };
         const onWriteFailure = jest.fn();
         const storage = new ServerUserDataStorage(
@@ -67,11 +68,12 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p2',
-            { value: ['live:9'] }
+            { value: ['live:9'] },
+            {}
         );
         expect(api.request).toHaveBeenCalledWith(
             '/user-state/xtream-favorites/p1',
-            { method: 'DELETE' }
+            { method: 'DELETE', headers: {} }
         );
         expect(api.sendJson).toHaveBeenCalledTimes(1);
     });
@@ -95,7 +97,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendKeepalive).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-recent-items/p1',
-            { value: [] }
+            { value: [] },
+            {}
         );
         await jest.runOnlyPendingTimersAsync();
         expect(api.sendJson).not.toHaveBeenCalled();
@@ -138,7 +141,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p2',
-            { value: ['live:2'] }
+            { value: ['live:2'] },
+            {}
         );
 
         // The next edit does not send a delete for the kept entry.
@@ -149,7 +153,7 @@ describe('ServerUserDataStorage', () => {
         await jest.runOnlyPendingTimersAsync();
         expect(api.request).not.toHaveBeenCalledWith(
             '/user-state/xtream-favorites/p2',
-            { method: 'DELETE' }
+            { method: 'DELETE', headers: {} }
         );
     });
 
@@ -212,7 +216,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenLastCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p1',
-            { value: ['live:1', 'live:2'] }
+            { value: ['live:1', 'live:2'] },
+            {}
         );
         expect(JSON.parse(storage.getItem('xtream-favorites') ?? '')).toEqual({
             p1: ['live:1', 'live:2'],
@@ -256,7 +261,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendKeepalive).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p1',
-            { value: ['b'] }
+            { value: ['b'] },
+            {}
         );
     });
 
@@ -277,7 +283,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p1',
-            { value: ['big'] }
+            { value: ['big'] },
+            {}
         );
     });
 
@@ -321,7 +328,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p1',
-            { value: ['new'] }
+            { value: ['new'] },
+            {}
         );
     });
 
@@ -354,6 +362,7 @@ describe('ServerUserDataStorage', () => {
                 'PUT',
                 '/user-state/xtream-favorites/p1',
                 { value: ['live:1', 'a', 'c'] },
+                {},
             ],
         ]);
         expect(JSON.parse(storage.getItem('xtream-favorites') ?? '')).toEqual({
@@ -380,7 +389,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p1',
-            { value: ['live:1', 'live:2', 'live:9'] }
+            { value: ['live:1', 'live:2', 'live:9'] },
+            {}
         );
     });
 
@@ -442,6 +452,7 @@ describe('ServerUserDataStorage', () => {
                 'PUT',
                 '/user-state/xtream-favorites/p1',
                 { value: ['live:1', 'live:3'] },
+                {},
             ],
         ]);
     });
@@ -457,16 +468,18 @@ describe('ServerUserDataStorage', () => {
         await first.storage.flush();
         expect(first.storage.hasUnsentWrites()).toBe(true);
         expect(
-            first.local.values.get('iptvnator-server:unsent-writes:default')
-        ).toBe(
-            JSON.stringify([
-                {
-                    namespace: 'xtream-favorites',
-                    playlistId: 'p1',
-                    value: ['live:1', 'live:9'],
-                },
-            ])
-        );
+            JSON.parse(
+                first.local.values.get(
+                    'iptvnator-server:unsent-writes:default'
+                ) ?? '[]'
+            )
+        ).toMatchObject([
+            {
+                namespace: 'xtream-favorites',
+                playlistId: 'p1',
+                value: ['live:1', 'live:9'],
+            },
+        ]);
 
         // Reload: a new instance over the same browser storage.
         const api = {
@@ -486,7 +499,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p1',
-            { value: ['live:1', 'live:9'] }
+            { value: ['live:1', 'live:9'] },
+            {}
         );
         expect(reloaded.hasUnsentWrites()).toBe(false);
         expect(
@@ -509,7 +523,7 @@ describe('ServerUserDataStorage', () => {
                 local.values.get('iptvnator-server:unsent-writes:default') ??
                     '[]'
             )
-        ).toEqual([
+        ).toMatchObject([
             { namespace: 'xtream-favorites', playlistId: 'p1', value: ['x'] },
         ]);
     });
@@ -570,7 +584,7 @@ describe('ServerUserDataStorage', () => {
                 local.values.get('iptvnator-server:unsent-writes:default') ??
                     '[]'
             )
-        ).toEqual([
+        ).toMatchObject([
             { namespace: 'xtream-favorites', playlistId: 'p1', value: ['new'] },
         ]);
     });
@@ -592,7 +606,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p1',
-            { value: ['S', 'A', 'B'] }
+            { value: ['S', 'A', 'B'] },
+            {}
         );
     });
 
@@ -623,7 +638,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p1',
-            { value: ['theirs', 'mine'] }
+            { value: ['theirs', 'mine'] },
+            {}
         );
     });
 
@@ -636,6 +652,7 @@ describe('ServerUserDataStorage', () => {
             sendJson: jest.fn().mockResolvedValue(undefined),
             request: jest.fn().mockResolvedValue(undefined),
             sendKeepalive: jest.fn().mockResolvedValue(true),
+            readJson: jest.fn().mockResolvedValue({}),
         };
         const tab = () =>
             new ServerUserDataStorage(
@@ -691,7 +708,8 @@ describe('ServerUserDataStorage', () => {
         expect(api.sendJson).toHaveBeenLastCalledWith(
             'PUT',
             '/user-state/xtream-favorites/p1',
-            { value: ['S', 'B', 'C'] }
+            { value: ['S', 'B', 'C'] },
+            {}
         );
     });
 });

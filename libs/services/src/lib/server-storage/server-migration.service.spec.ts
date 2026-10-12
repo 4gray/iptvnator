@@ -123,7 +123,8 @@ describe('ServerMigrationService', () => {
         expect(session.api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-favorites/x',
-            { value: ['live:1'] }
+            { value: ['live:1'] },
+            {}
         );
         expect(session.api.sendJson).toHaveBeenCalledTimes(1);
         // Queued edits were sent before the combined values were read.
@@ -175,11 +176,13 @@ describe('ServerMigrationService', () => {
                 'PUT',
                 '/user-state/xtream-favorites/server-x',
                 { value: ['live:1'] },
+                {},
             ],
             [
                 'PUT',
                 '/user-state/xtream-recent-items/server-x',
                 { value: ['vod:9', 'vod:1'] },
+                {},
             ],
         ]);
     });
@@ -209,6 +212,7 @@ describe('ServerMigrationService', () => {
                 'PUT',
                 '/user-state/xtream-favorites/x',
                 { value: ['live:1', 'live:2'] },
+                {},
             ],
         ]);
     });

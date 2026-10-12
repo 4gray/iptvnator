@@ -61,6 +61,10 @@ export interface UnsentWrite {
     readonly playlistId: string;
     /** `undefined` deletes the entry. */
     readonly value: unknown;
+    /** The entry the edit was made against, to replay it on a conflict. */
+    readonly before?: unknown;
+    /** The server version it is based on (see `PendingEntry.tag`). */
+    readonly tag?: string | null;
 }
 
 interface StoredWrite {
@@ -68,6 +72,8 @@ interface StoredWrite {
     readonly playlistId: string;
     readonly value?: unknown;
     readonly remove?: true;
+    readonly before?: unknown;
+    readonly tag?: string | null;
 }
 
 export function readUnsentWrites(
@@ -93,6 +99,8 @@ export function readUnsentWrites(
                 namespace: write.namespace,
                 playlistId: write.playlistId,
                 value: write.remove ? undefined : write.value,
+                before: write.before,
+                tag: write.tag,
             });
         }
     }
@@ -110,10 +118,13 @@ export function saveUnsentWrites(
             return;
         }
         const stored: StoredWrite[] = writes.map(
-            ({ namespace, playlistId, value }) =>
-                value === undefined
-                    ? { namespace, playlistId, remove: true }
-                    : { namespace, playlistId, value }
+            ({ namespace, playlistId, value, before, tag }) => ({
+                namespace,
+                playlistId,
+                ...(value === undefined ? { remove: true } : { value }),
+                ...(before === undefined ? {} : { before }),
+                ...(tag === undefined ? {} : { tag }),
+            })
         );
         local.setItem(writesKey(instanceId), JSON.stringify(stored));
     } catch {

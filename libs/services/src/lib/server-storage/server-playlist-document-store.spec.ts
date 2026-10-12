@@ -141,4 +141,31 @@ describe('ServerPlaylistDocumentStore', () => {
             await expect(readThenEdit('"b.0.4"')).resolves.toEqual({});
         });
     });
+
+    it('clears user-data writes before deleting on the server', async () => {
+        const order: string[] = [];
+        const api = {
+            request: jest.fn(async (path: string) => {
+                order.push(`DELETE ${path}`);
+                return fakeResponse(200, { success: true });
+            }),
+            getJson: jest.fn(),
+            readJson: jest.fn(),
+            sendJson: jest.fn(),
+        };
+        const store = new ServerPlaylistDocumentStore(
+            api as never,
+            async (playlistId) => void order.push(`discard ${playlistId}`)
+        );
+
+        await store.dbDeletePlaylist('p1');
+        await store.dbDeleteAllPlaylists();
+
+        expect(order).toEqual([
+            'discard p1',
+            'DELETE /playlists/p1',
+            'discard undefined',
+            'DELETE /playlists',
+        ]);
+    });
 });

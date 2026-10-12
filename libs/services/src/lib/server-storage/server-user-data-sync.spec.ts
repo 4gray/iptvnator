@@ -1,0 +1,231 @@
+import { ServerApiError } from './server-api-client';
+import { ServerUserDataStorage } from './server-user-data-storage';
+
+function memoryStorage() {
+    const values = new Map<string, string>();
+    return {
+        values,
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => void values.set(key, value),
+        removeItem: (key: string) => void values.delete(key),
+    };
+}
+
+/** A server that keeps entries, tags them by content and refuses stale tags. */
+function fakeServer(initial: Record<string, Record<string, unknown>> = {}) {
+    const state: Record<string, Record<string, unknown>> = {
+        'xtream-favorites': {},
+        'xtream-recent-items': {},
+        'xtream-collection-items': {},
+        'xtream-playback-positions': {},
+        ...structuredClone(initial),
+    };
+    const tagOf = (value: unknown) =>
+        value === undefined
+            ? null
+            : `t${JSON.stringify(value).replace(/"/g, "'")}`;
+    const answer = (body: unknown) =>
+        ({ json: async () => body }) as unknown as Response;
+    const write = (
+        path: string,
+        headers: Record<string, string>,
+        value?: unknown
+    ) => {
+        const [, , namespace, playlistId] = path.split('/');
+        const current = state[namespace][playlistId];
+        const expected =
+            headers['If-None-Match'] === '*'
+                ? null
+                : headers['If-Match']?.replace(/^"|"$/g, '');
+        if (expected !== undefined && expected !== tagOf(current)) {
+            throw new ServerApiError(412, 'conflict', 'changed', {
+                ...(current === undefined ? {} : { value: current }),
+                tag: tagOf(current),
+            });
+        }
+        if (value === undefined) {
+            delete state[namespace][playlistId];
+        } else {
+            state[namespace][playlistId] = value;
+        }
+        return answer({ tag: tagOf(value) });
+    };
+    const api = {
+        getJson: jest.fn(async () => {
+            const tags: Record<string, Record<string, string>> = {};
+            for (const [namespace, entries] of Object.entries(state)) {
+                tags[namespace] = Object.fromEntries(
+                    Object.entries(entries).map(([id, value]) => [
+                        id,
+                        tagOf(value) as string,
+                    ])
+                );
+            }
+            return { entries: structuredClone(state), tags };
+        }),
+        sendJson: jest.fn(
+            async (
+                _method: string,
+                path: string,
+                body: { value: unknown },
+                headers: Record<string, string> = {}
+            ) => write(path, headers, body.value)
+        ),
+        request: jest.fn(
+            async (path: string, init: { headers?: Record<string, string> }) =>
+                write(path, init.headers ?? {})
+        ),
+        readJson: jest.fn((response: Response) => response.json()),
+        sendKeepalive: jest.fn().mockResolvedValue(true),
+    };
+    return { state, api };
+}
+
+const favorites = (storage: ServerUserDataStorage) =>
+    JSON.parse(storage.getItem('xtream-favorites') ?? '{}');
+
+describe('ServerUserDataStorage with other devices', () => {
+    it('replays an edit on what another device saved meanwhile', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['live:1'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+
+        // The TV adds live:2 after the phone read the entry.
+        server.state['xtream-favorites']['p1'] = ['live:1', 'live:2'];
+        phone.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['live:1', 'live:9'] })
+        );
+        await phone.flush();
+        await phone.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual([
+            'live:1',
+            'live:2',
+            'live:9',
+        ]);
+        expect(favorites(phone)).toEqual({
+            p1: ['live:1', 'live:2', 'live:9'],
+        });
+    });
+
+    it('replays a newer queued edit together with the refused one', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+        server.state['xtream-favorites']['p1'] = ['S', 'Z'];
+
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        const first = phone.flush();
+        phone.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['S', 'X', 'Y'] })
+        );
+        await first;
+        await phone.flush();
+        await phone.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual([
+            'S',
+            'Z',
+            'X',
+            'Y',
+        ]);
+    });
+
+    it('builds a queued edit on the version its predecessor created', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+
+        let answer: () => void = () => undefined;
+        const send = server.api.sendJson.getMockImplementation();
+        if (!send) {
+            throw new Error('The fake server answers sendJson');
+        }
+        server.api.sendJson.mockImplementationOnce(
+            (...args: Parameters<typeof send>) =>
+                new Promise(
+                    (resolve) => (answer = () => resolve(send(...args)))
+                )
+        );
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        const first = phone.flush();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // The first write is travelling when the second edit comes in.
+        phone.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['S', 'X', 'Y'] })
+        );
+        answer();
+        await first;
+        await phone.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X', 'Y']);
+        // No conflict round trip: the second write carried the new tag.
+        expect(server.api.sendJson).toHaveBeenCalledTimes(2);
+    });
+
+    it("never sends another tab's change to an entry it did not edit", async () => {
+        const server = fakeServer({
+            'xtream-favorites': { p1: ['a'], p2: ['b'] },
+        });
+        const shared = memoryStorage();
+        const tab = () =>
+            new ServerUserDataStorage(
+                server.api as never,
+                shared,
+                jest.fn(),
+                'default',
+                memoryStorage()
+            );
+        const tabA = tab();
+        const tabB = tab();
+        await tabA.hydrate();
+        await tabB.hydrate();
+
+        tabB.setItem(
+            'xtream-favorites',
+            JSON.stringify({ ...favorites(tabB), p1: ['a', 'b1'] })
+        );
+        tabA.setItem(
+            'xtream-favorites',
+            JSON.stringify({ ...favorites(tabA), p2: ['b', 'a2'] })
+        );
+        await tabA.flush();
+
+        expect(server.api.sendJson.mock.calls.map(([, path]) => path)).toEqual([
+            '/user-state/xtream-favorites/p2',
+        ]);
+    });
+
+    it('drops queued edits and cache before a playlist is deleted', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['a'] } });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+        phone.setItem('xtream-favorites', JSON.stringify({ p1: ['a', 'b'] }));
+
+        await phone.discard('p1');
+        await phone.flush();
+
+        expect(server.api.sendJson).not.toHaveBeenCalled();
+        expect(favorites(phone)).toEqual({});
+        expect(phone.hasUnsentWrites()).toBe(false);
+    });
+});

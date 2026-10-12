@@ -11,7 +11,10 @@ import {
 import { TestBed } from '@angular/core/testing';
 import { SERVER_ACCESS_TOKEN_STORAGE_KEY } from '../server-access-token';
 import { ServerStorageStatusService } from '../server-storage-status.service';
-import { ServerAccessTokenInterceptor } from './server-access-token.interceptor';
+import {
+    isBackendUrl,
+    ServerAccessTokenInterceptor,
+} from './server-access-token.interceptor';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 
 describe('ServerAccessTokenInterceptor', () => {
@@ -90,5 +93,38 @@ describe('ServerAccessTokenInterceptor', () => {
         expect(
             localStorage.getItem(SERVER_ACCESS_TOKEN_STORAGE_KEY)
         ).toBeNull();
+    });
+});
+
+describe('isBackendUrl', () => {
+    const page = 'http://nas.local:4333/workspace';
+
+    it('matches the backend path and nothing else', () => {
+        expect(isBackendUrl('/api/xtream', '/api', page)).toBe(true);
+        expect(isBackendUrl('/api', '/api', page)).toBe(true);
+        expect(isBackendUrl('/apiary', '/api', page)).toBe(false);
+        expect(isBackendUrl('https://other.test/api/x', '/api', page)).toBe(
+            false
+        );
+    });
+
+    it('keeps other origins out for a root deployment', () => {
+        expect(isBackendUrl('/v1/playlists', '/', page)).toBe(true);
+        expect(
+            isBackendUrl('https://api.github.com/repos/x/releases', '/', page)
+        ).toBe(false);
+    });
+
+    it('handles an absolute backend URL', () => {
+        expect(
+            isBackendUrl(
+                'http://nas.local:3000/parse',
+                'http://nas.local:3000',
+                page
+            )
+        ).toBe(true);
+        expect(isBackendUrl('/parse', 'http://nas.local:3000', page)).toBe(
+            false
+        );
     });
 });

@@ -1,4 +1,7 @@
-import type { ServerStorageErrorBody } from '@iptvnator/shared/interfaces';
+import type {
+    ServerStorageErrorBody,
+    ServerUserStateCurrent,
+} from '@iptvnator/shared/interfaces';
 import {
     clearServerAccessToken,
     serverAuthorizationHeaders,
@@ -14,7 +17,9 @@ export class ServerApiError extends Error {
     constructor(
         readonly status: number,
         readonly code: string | undefined,
-        message: string
+        message: string,
+        /** A `412` conflict's user-state entry as the server has it. */
+        readonly current?: ServerUserStateCurrent
     ) {
         super(message);
         this.name = 'ServerApiError';
@@ -91,7 +96,8 @@ export class ServerApiClient {
             const error = new ServerApiError(
                 response.status,
                 body.code,
-                body.message
+                body.message,
+                body.current
             );
             if (
                 isWrite &&
@@ -133,16 +139,16 @@ export class ServerApiClient {
     sendJson(
         method: 'PUT' | 'POST',
         path: string,
-        body: unknown
+        body: unknown,
+        headers: Record<string, string> = {}
     ): Promise<Response> {
         return this.request(path, {
             method,
             body: JSON.stringify(body),
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...headers },
         });
     }
 
-    /** Best effort while the page is hidden or closed; errors are ignored. */
     /**
      * A write that survives the page. Resolves whether the server took it;
      * browsers reject keepalive bodies above 64 KiB, which resolves false.
@@ -150,7 +156,8 @@ export class ServerApiClient {
     async sendKeepalive(
         method: 'PUT' | 'DELETE',
         path: string,
-        body?: unknown
+        body?: unknown,
+        headers: Record<string, string> = {}
     ): Promise<boolean> {
         try {
             const response = await this.fetchFn()(this.url(path), {
@@ -158,6 +165,7 @@ export class ServerApiClient {
                 keepalive: true,
                 headers: {
                     ...serverAuthorizationHeaders(),
+                    ...headers,
                     ...(body === undefined
                         ? {}
                         : { 'Content-Type': 'application/json' }),
@@ -183,12 +191,13 @@ export class ServerApiClient {
 
 async function readErrorBody(
     response: Response
-): Promise<{ message: string; code?: string }> {
+): Promise<Pick<ServerStorageErrorBody, 'message' | 'code' | 'current'>> {
     try {
         const body = (await response.json()) as Partial<ServerStorageErrorBody>;
         return {
             message: body.message ?? response.statusText,
             code: body.code,
+            current: body.current,
         };
     } catch {
         return { message: response.statusText };

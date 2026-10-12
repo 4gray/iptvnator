@@ -40,7 +40,10 @@ export class ServerStorageSession {
         status: this.status,
         onWriteFailure: (error) => this.announceWriteFailure(error),
     });
-    readonly documentStore = new ServerPlaylistDocumentStore(this.api);
+    readonly documentStore = new ServerPlaylistDocumentStore(
+        this.api,
+        (playlistId) => this.userData.discard(playlistId)
+    );
     readonly userData = new ServerUserDataStorage(
         this.api,
         // Lazy: a browser that denies storage must not stop the app here.

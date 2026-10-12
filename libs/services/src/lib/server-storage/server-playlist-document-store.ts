@@ -30,7 +30,16 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
     /** Served payload object → the ETag of the document it came from. */
     private readonly servedPayloads = new WeakMap<object, string>();
 
-    constructor(private readonly api: ServerApi) {}
+    constructor(
+        private readonly api: ServerApi,
+        /**
+         * Runs before a playlist (or, without an id, every playlist) is
+         * deleted on the server, so no user-data write lands afterwards.
+         */
+        private readonly beforeDelete: (
+            playlistId?: string
+        ) => Promise<void> = async () => undefined
+    ) {}
 
     dbGetAppPlaylists(): Promise<Playlist[]> {
         return this.api.getJson<Playlist[]>('/playlists');
@@ -111,6 +120,7 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
     }
 
     async dbDeletePlaylist(playlistId: string): Promise<ElectronBridgeResult> {
+        await this.beforeDelete(playlistId);
         await this.api.request(`/playlists/${encodeURIComponent(playlistId)}`, {
             method: 'DELETE',
         });
@@ -119,6 +129,7 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
     }
 
     async dbDeleteAllPlaylists(): Promise<ElectronBridgeResult> {
+        await this.beforeDelete();
         await this.api.request('/playlists', { method: 'DELETE' });
         this.cache.clear();
         return { success: true };
