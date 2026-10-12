@@ -1112,8 +1112,8 @@ persisted status (`xtream-import-status:<id>:<type>`) reads `completed` and
 the type has rows, unless the portal has no categories of that type. Rows
 are required because a refresh deletes the catalog without resetting the
 status. `xtream-import-wait.e2e.ts` holds the account check past the overlay
-window and fails without it. No J4 baseline exists yet; J4 counters join the
-ratchet once three runner runs agree.
+window and fails without it. Two J4 counters are enforced since #1899
+(see [Enforced journey counters](#enforced-journey-counters)).
 
 ## `renderer.initialBytes`
 
@@ -1380,6 +1380,14 @@ changes) and the wall-clock entries did not move. Under
 `prefers-reduced-motion` there is no slide, so a user with that preference
 still sees the jump that the journey no longer measures.
 
+The two J4 entries, `search/renderer.ipcCallsPerSearch` 1 and
+`search/renderer.sqlStatementsPerSearch` 2 (#1899, `evidenceRun`
+38165392046), were identical in all 816 J4 iterations of the 136 CI journey
+jobs since #1816 and in all 18 iterations of three runs of #1899. They guard
+the debounce: a search that queried per keystroke, or ran a second query for
+the same term, raises them. Like the entries in the table they carry the
+guard-only note: #1899 halved the J4 wall clock without moving either.
+
 Being deterministic is not the same as being validated. Principle 3 of the
 plan promotes a counter to a guardrail once a PR has shown that lowering it
 lowered the journey's wall-clock. None of these counters has that evidence
@@ -1415,7 +1423,12 @@ Not enforced, with the reason:
 - J3 `renderer.ipcSerialDepthToPlaying` (4 on the runner, 3 on a Mac):
   added after these runs and measured in one runner run so far; a
   candidate once `master` runs agree.
-- J4: not measured yet.
+- J4 `renderer.domMutationsToResults` (402 on `master`, 392 since #1899),
+  `renderer.ipcSerialDepthToResults` (1) and `renderer.layoutShiftScore`
+  (0): identical in the three #1899 runs; candidates once `master` runs
+  agree.
+- J4 `renderer.cdTicksToResults` (11 to 13) and `renderer.longTasks`: see
+  the general reasons above.
 
 Runner counters differ from a Mac (the Linux-only `getWindowState` call, for
 one), so take every journey baseline value from the runner only.
