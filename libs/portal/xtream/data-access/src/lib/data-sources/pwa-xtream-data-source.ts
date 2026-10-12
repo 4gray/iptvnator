@@ -1414,12 +1414,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
         this.collectionStorage.saveRecentItemsToStorage(recentItems);
 
-        // Restore playback positions
+        // Restore playback positions under this playlist: an archive's carry
+        // the id they were exported with, and the player matches on it.
         this.clearPlaybackPositionsForPlaylist(playlistId);
         const playbackPositions = this.getPlaybackPositionsFromStorage();
         playbackPositions[playlistId] = restoreState.playbackPositions.map(
             (position) => ({
                 ...position,
+                playlistId,
                 updatedAt: position.updatedAt ?? new Date().toISOString(),
             })
         );
