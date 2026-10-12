@@ -258,9 +258,13 @@ self-hosted server storage is covered too.
   snapshots, keyed by typed identity; an archive without them leaves the
   snapshots alone, malformed items are skipped, a damaged cache is replaced,
   and a quota error on this cache does not fail the restore.
-- A failed write fails the entry and keeps the snapshot parked, so the Xtream
-  store replays the complete state when the playlist next opens. That replay
-  carries no title snapshots, so they are merged before the lists.
+- The lists are written before the optional title snapshots, so the cache
+  never takes storage space they need (as for additions; see the
+  [snapshot-storage contract](./xtream-portal-compatibility.md)). A failed
+  write fails the entry and keeps the snapshot parked, so the Xtream store
+  replays the complete state when the playlist next opens. That replay
+  carries no title snapshots, so they are still merged after a failed list
+  write, unless storage is full and they would take room the replay needs.
 
 Older builds ignore `collectionItems`; the manifest version stays `1`.
 

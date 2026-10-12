@@ -21,27 +21,22 @@ interface ResolvedKey {
 const CONTENT_TYPES: readonly unknown[] = ['live', 'movie', 'series'];
 
 /**
- * Backup export and restore of the Xtream user state the browser build keeps
- * in USER_DATA_STORAGE: favorites, recently viewed items, playback positions
- * and the title snapshots that let both lists render without a catalog.
- *
- * `PwaXtreamDataSource` (portal data-access, which this library cannot
- * import) owns these maps, so their stored shapes are read here directly.
- * Collection keys are `"<type>:<xtreamId>"`, or a bare provider id written
- * by builds that predate typed keys.
+ * Backup export and restore of the Xtream favorites, recently viewed items,
+ * playback positions and title snapshots the browser build keeps in
+ * USER_DATA_STORAGE. `PwaXtreamDataSource` owns these maps in a library this
+ * one cannot import, so their stored shapes are read here: keys are
+ * `"<type>:<xtreamId>"`, or a bare provider id written by older builds.
  */
 @Injectable({ providedIn: 'root' })
 export class PwaXtreamBackupStateService {
     private readonly storage = inject(USER_DATA_STORAGE);
 
     /**
-     * The entry with the playlist's stored favorites, history, positions and
-     * snapshots filled in. Hidden categories and pins stay as `entry` has
-     * them: the browser build tracks neither.
-     *
-     * A store that cannot be read fails the export. Restore treats these
-     * collections as authoritative, so writing "could not read" as `[]`
-     * would turn the archive into an instruction to delete.
+     * The entry with the playlist's stored lists and snapshots filled in;
+     * hidden categories and pins, which the browser build does not track,
+     * stay as `entry` has them. An unreadable store fails the export: restore
+     * treats these lists as authoritative, so "could not read" written as
+     * `[]` would turn the archive into an instruction to delete.
      */
     exportInto(entry: XtreamPlaylistBackupEntry): XtreamPlaylistBackupEntry {
         const playlistId = entry.exportedId;
@@ -54,8 +49,7 @@ export class PwaXtreamBackupStateService {
             if (ref) favorites.set(ref.key, ref.item);
         }
 
-        // Newest view wins, artwork included, as when the data source reads
-        // the list.
+        // Newest view wins, artwork included, as in the data source.
         const recent = new Map<string, XtreamBackupRecentlyViewedItem>();
         for (const item of this.listFor('recentItems', playlistId)) {
             if (!isRecord(item)) continue;
@@ -94,16 +88,15 @@ export class PwaXtreamBackupStateService {
     }
 
     /**
-     * Merges the archived title snapshots into the playlist's own, then
-     * replaces its favorites, history and positions with the restore state,
-     * keyed and remapped to `playlistId`.
+     * Replaces the playlist's favorites, history and positions with the
+     * restore state, keyed and remapped to `playlistId`, then merges the
+     * archived title snapshots into the playlist's own.
      *
-     * Not one transaction: a failed write leaves the earlier ones applied and
-     * throws, so the caller keeps the pending snapshot, which the Xtream store
-     * replays in full when the playlist next opens. That replay carries no
-     * title snapshots — they come from the archive `entry`, not from `state` —
-     * which is why they are written first: a cache entry no list references
-     * yet is harmless, a restored list without its titles is not.
+     * Lists first, so the optional cache never takes space they need. A
+     * failed write throws with earlier ones applied, and the caller keeps the
+     * pending snapshot for the Xtream store to replay on the next open. The
+     * replay carries no titles (they come from `entry`, not `state`), so they
+     * are still merged then, unless storage is full and they would crowd it.
      */
     async restore(
         playlistId: string,
@@ -112,18 +105,34 @@ export class PwaXtreamBackupStateService {
     ): Promise<void> {
         // A user-supplied file: the field may be anything.
         const archived: unknown = entry.userState.collectionItems;
-        this.mergeSnapshots(
-            playlistId,
-            snapshotsByKey(Array.isArray(archived) ? archived : [])
+        const snapshots = snapshotsByKey(
+            Array.isArray(archived) ? archived : []
         );
+        try {
+            this.replaceLists(playlistId, state);
+        } catch (error) {
+            if (!isQuotaExceeded(error)) {
+                try {
+                    this.mergeSnapshots(playlistId, snapshots);
+                } catch {
+                    // The list failure is the one to report.
+                }
+            }
+            throw error;
+        }
+        this.mergeSnapshots(playlistId, snapshots);
+    }
 
+    private replaceLists(
+        playlistId: string,
+        state: XtreamPendingRestoreState
+    ): void {
         const favorites = state.favorites
             .map((item) => typedKey(item.contentType, item.xtreamId))
             .filter((key): key is string => key !== null);
         this.writeFor('favorites', playlistId, [...new Set(favorites)]);
 
-        const recent: { id: string; viewedAt: string; backdropUrl?: string }[] =
-            [];
+        const recent: StoredMap[] = [];
         for (const item of state.recentlyViewed) {
             const id = typedKey(item.contentType, item.xtreamId);
             if (id !== null && typeof item.viewedAt === 'string') {
@@ -149,10 +158,9 @@ export class PwaXtreamBackupStateService {
     }
 
     /**
-     * Snapshots are a display cache that the data source itself writes on a
-     * best-effort basis: a damaged cache is replaced, as the data source
-     * would, and one the storage quota cannot fit does not stop the lists
-     * from being restored. Their titles return once the catalog loads.
+     * A display cache the data source itself writes on a best-effort basis:
+     * a damaged one is replaced, as the data source would, and a full
+     * storage skips it. Its titles return once the catalog loads.
      */
     private mergeSnapshots(
         playlistId: string,
@@ -167,12 +175,7 @@ export class PwaXtreamBackupStateService {
                 [playlistId]: { ...current, ...incoming },
             });
         } catch (error) {
-            if (
-                !(error instanceof DOMException) ||
-                error.name !== 'QuotaExceededError'
-            ) {
-                throw error;
-            }
+            if (!isQuotaExceeded(error)) throw error;
         }
     }
 
@@ -192,10 +195,9 @@ export class PwaXtreamBackupStateService {
     }
 
     /**
-     * Strict, unlike the data source's lenient reads: a storage error or a
-     * damaged value throws instead of reading as "nothing stored", and a
-     * write never replaces other playlists' entries it could not read.
-     * `replaceDamaged` relaxes only the second, for a cache.
+     * Strict, unlike the data source: a storage error or a damaged value
+     * throws rather than read as "nothing stored", so a write never replaces
+     * entries it could not read. A cache may `replaceDamaged` values.
      */
     private readMap(
         name: UserDataMap,
@@ -267,10 +269,7 @@ function snapshotsByKey(
     return byKey;
 }
 
-/**
- * Artwork saved with a view. The data source shows it ahead of the title
- * snapshot's, and reads the snake_case spelling of older builds too.
- */
+/** Artwork saved with a view, in either spelling the data source reads. */
 function backdropOf(item: object): { backdropUrl?: string } {
     const record = item as StoredMap;
     const value = record['backdropUrl'] ?? record['backdrop_url'];
@@ -287,6 +286,10 @@ function isPlaybackPosition(value: unknown): value is PlaybackPositionData {
             value['contentType'] === 'episode') &&
         Number.isFinite(value['positionSeconds'])
     );
+}
+
+function isQuotaExceeded(error: unknown): boolean {
+    return error instanceof DOMException && error.name === 'QuotaExceededError';
 }
 
 function isRecord(value: unknown): value is StoredMap {

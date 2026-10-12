@@ -466,7 +466,7 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(
                 pendingRestore(service).getOrThrow('xtream-1')
             ).not.toBeNull();
-            // That replay carries no titles, so they were written first.
+            // That replay carries no titles, so they are merged regardless.
             expect(read(KEYS.collectionItems)).toEqual({
                 'xtream-1': { 'movie:501': heat, 'series:77': legacyShow },
             });
@@ -526,6 +526,71 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
                 'series:77',
             ]);
             expect(read(KEYS.collectionItems)).toBeNull();
+        });
+    });
+
+    describe('near the storage quota', () => {
+        const listKeys = [
+            KEYS.favorites,
+            KEYS.recentItems,
+            KEYS.playbackPositions,
+        ];
+
+        /** Storage that refuses a write once all values exceed `budget`. */
+        function quotaStorage(budget: number) {
+            const data = new Map<string, string>();
+            const used = () =>
+                [...data].reduce((sum, [k, v]) => sum + k.length + v.length, 0);
+            const storage: UserDataStorage = {
+                getItem: (key) => data.get(key) ?? null,
+                setItem: (key, value) => {
+                    const previous = data.get(key);
+                    data.set(key, value);
+                    if (used() <= budget) return;
+                    if (previous === undefined) data.delete(key);
+                    else data.set(key, previous);
+                    throw new DOMException('full', 'QuotaExceededError');
+                },
+                removeItem: (key) => void data.delete(key),
+            };
+            return { data, storage };
+        }
+
+        async function importInto(budget: number) {
+            const manifest = await exportSeeded();
+            const quota = quotaStorage(budget);
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState(quota.storage),
+            });
+            const summary = await service.importBackup(xtreamOnly(manifest));
+            return { summary, data: quota.data };
+        }
+
+        async function listsSize(): Promise<number> {
+            const { data } = await importInto(Infinity);
+            return listKeys.reduce(
+                (sum, key) => sum + key.length + (data.get(key) ?? '').length,
+                0
+            );
+        }
+
+        it('restores the lists that fit without the optional snapshots', async () => {
+            const { summary, data } = await importInto(await listsSize());
+
+            expect(summary.failed).toBe(0);
+            expect(JSON.parse(data.get(KEYS.favorites) ?? '{}')).toEqual({
+                'xtream-1': ['movie:501', 'series:77'],
+            });
+            expect(data.has(KEYS.collectionItems)).toBe(false);
+        });
+
+        it('leaves the space to the replay when a list does not fit', async () => {
+            const { summary, data } = await importInto((await listsSize()) - 1);
+
+            expect(summary.failed).toBe(1);
+            // The snapshots would only take room the store's replay needs.
+            expect(data.has(KEYS.collectionItems)).toBe(false);
         });
     });
 
