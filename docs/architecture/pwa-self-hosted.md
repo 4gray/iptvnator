@@ -206,9 +206,12 @@ settings and guards read them in every build.
   `keepalive` flush when the page hides. Batches go out one after another
   (the page-hide flush waits for a batch still travelling), a failed write,
   including a refused `keepalive` one, stays queued for the next flush, and
-  every unconfirmed write (queued or travelling) is saved in the tab's own
-  `sessionStorage` (`iptvnator-server:unsent-writes:<instanceId>`) and sent
-  first after a reload; tabs never clear each other's.
+  every unconfirmed write (queued or travelling) is saved in `localStorage`
+  per page load (`iptvnator-server:unsent-writes:<instanceId>:<page>`). The
+  tab remembers its page load in `sessionStorage`, so a reload takes its
+  writes over and sends them first; the writes of a tab closed before it
+  could send them are replayed by the next re-read in another tab once
+  that tab's record has gone stale. Tabs never clear each other's.
   Cache and saved writes belong to one server database
   (`iptvnator-server:cache-owner`); another one behind the same address
   starts clean. Also,
@@ -221,19 +224,21 @@ settings and guards read them in every build.
   keeps its own before → after and carries the travelling one as `prior`
   (also in the saved writes): if that write was lost, a conflict replays
   both in order, and if it landed, adding and then removing an item still
-  removes it. An entry a re-read keeps from the cache gets no tag, so its
-  next write conflicts and is replayed too. Page-hide writes report their
+  removes it. An edit made on another tab's unsent change, and an entry a
+  re-read keeps from the cache, are sent on a version no entry has
+  (`UNKNOWN_TAG`), so they conflict and are replayed too. Page-hide writes report their
   new tag or conflict like any other, and one behind a travelling write is
   taken from the queue only when that one is answered. While a playlist is
   being deleted its edits wait; the delete drops them only when it
   succeeds. Edits made before the first successful read
   are held as before → after and applied to the server's value once it
   arrives (`applyEdit`): a new device or a stale cache adds its favorite
-  instead of replacing the server's list. They are saved in the tab too
-  (`iptvnator-server:deferred-edits:<instanceId>`). A shared registry in
-  `localStorage` (`iptvnator-server:unconfirmed:<instanceId>`, one record
-  per tab, ignored after ten minutes) lets a re-read in one tab keep the
-  cache values another tab is still sending. A value too big for
+  instead of replacing the server's list. They are saved per page load too
+  (`iptvnator-server:deferred-edits:<instanceId>:<page>`). A shared
+  registry in `localStorage` (`iptvnator-server:unconfirmed:<instanceId>`,
+  one record per page load, renewed every 30 s while it has unsent writes,
+  stale after ten minutes) lets a re-read in one tab keep the cache values
+  another tab is still sending. A value too big for
   `localStorage` stays readable from memory, so callers and the diff
   baseline agree. A re-read
   updates the cache; views already open show another device's changes on
@@ -272,7 +277,8 @@ settings and guards read them in every build.
   lists (playback positions by content type and Xtream id, renamed to the
   server playlist) and merges maps, the server's value winning on a
   conflict. Parental locks stay in the browser but move to the server
-  playlist id with it. Browser data is never
+  playlist id with it; while the lock store cannot be read the move counts
+  as failed. Browser data is never
   deleted, the move does not start while user-data writes are unsent, and
   the marker is written only when nothing failed, so Settings → Server
   keeps offering a partial move.

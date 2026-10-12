@@ -6,20 +6,25 @@ import {
 import type { UserDataStorage } from '../user-data-storage';
 
 /**
- * User-data writes the server has not confirmed, kept across reloads: a
- * failed write, or a page-hide write whose answer the page did not live to
- * see, is sent again on the next visit instead of being replaced by the
- * server's older value.
+ * User-data writes the server has not confirmed, kept in `localStorage`
+ * per page load: a failed write, or a page-hide write whose answer the page
+ * did not live to see, is sent again after a reload (by the same tab) or
+ * after the tab closed (by another, see `orphanedPages`), instead of being
+ * replaced by the server's older value.
  */
 export const UNSENT_WRITES_KEY = 'iptvnator-server:unsent-writes';
 /** Which server database the cached user data belongs to. */
 export const CACHE_OWNER_KEY = 'iptvnator-server:cache-owner';
+/** The tab's current page load, in the tab's own storage. */
+export const PAGE_KEY = 'iptvnator-server:page';
 
-const writesKey = (instanceId: string) => `${UNSENT_WRITES_KEY}:${instanceId}`;
+const writesKey = (instanceId: string, page: string) =>
+    `${UNSENT_WRITES_KEY}:${instanceId}:${page}`;
 /**
- * Which entries each open tab has not had confirmed yet, so a re-read in
- * one tab keeps the cache values another tab is still sending. A record
- * older than `UNCONFIRMED_TTL_MS` belongs to a tab that is gone.
+ * Which entries each page load has not had confirmed yet, so a re-read in
+ * one tab keeps the cache values another tab is still sending. A live tab
+ * renews its record; one older than `UNCONFIRMED_TTL_MS` belongs to a tab
+ * that is gone. The records also list whose saved writes exist.
  */
 export const UNCONFIRMED_KEY = 'iptvnator-server:unconfirmed';
 export const UNCONFIRMED_TTL_MS = 10 * 60 * 1000;
@@ -28,8 +33,8 @@ const unconfirmedKey = (instanceId: string) =>
 
 /** Edits made before the first read of a visit, kept as before → after. */
 export const DEFERRED_EDITS_KEY = 'iptvnator-server:deferred-edits';
-const deferredKey = (instanceId: string) =>
-    `${DEFERRED_EDITS_KEY}:${instanceId}`;
+const deferredKey = (instanceId: string, page: string) =>
+    `${DEFERRED_EDITS_KEY}:${instanceId}:${page}`;
 
 /**
  * Another database behind this address (a new volume, another backend):
@@ -46,9 +51,11 @@ export function claimCache(local: UserDataStorage, instanceId: string): void {
             local.removeItem(`iptvnator-server:${namespace}`);
         }
         if (owner) {
+            for (const page of Object.keys(readRegistry(local, owner))) {
+                local.removeItem(writesKey(owner, page));
+                local.removeItem(deferredKey(owner, page));
+            }
             local.removeItem(unconfirmedKey(owner));
-            local.removeItem(writesKey(owner));
-            local.removeItem(deferredKey(owner));
         }
         local.setItem(CACHE_OWNER_KEY, instanceId);
     } catch {
@@ -80,13 +87,63 @@ interface StoredWrite {
     readonly prior?: { readonly before?: unknown; readonly after?: unknown };
 }
 
+/**
+ * Records `page` as the tab's current page load and returns the one
+ * before it: a reload, whose saved writes this page takes over.
+ */
+export function swapPage(
+    tabStore: UserDataStorage,
+    instanceId: string,
+    page: string
+): string | null {
+    try {
+        const previous = tabStore.getItem(`${PAGE_KEY}:${instanceId}`);
+        tabStore.setItem(`${PAGE_KEY}:${instanceId}`, page);
+        return previous;
+    } catch {
+        return null;
+    }
+}
+
+/** Page loads whose record went stale: closed tabs nobody sends for. */
+export function orphanedPages(
+    local: UserDataStorage,
+    instanceId: string,
+    page: string,
+    now = Date.now()
+): string[] {
+    return Object.entries(readRegistry(local, instanceId))
+        .filter(
+            ([owner, record]) =>
+                owner !== page &&
+                !(now - Number(record?.at) < UNCONFIRMED_TTL_MS)
+        )
+        .map(([owner]) => owner);
+}
+
+/** Forgets a page load's saved writes, early edits and record. */
+export function removePage(
+    local: UserDataStorage,
+    instanceId: string,
+    page: string
+): void {
+    try {
+        local.removeItem(writesKey(instanceId, page));
+        local.removeItem(deferredKey(instanceId, page));
+    } catch {
+        // Storage unavailable: nothing was saved there either.
+    }
+    markUnconfirmed(local, instanceId, page, []);
+}
+
 export function readUnsentWrites(
     local: UserDataStorage,
-    instanceId: string
+    instanceId: string,
+    page: string
 ): UnsentWrite[] {
     let stored: unknown;
     try {
-        stored = JSON.parse(local.getItem(writesKey(instanceId)) ?? '[]');
+        stored = JSON.parse(local.getItem(writesKey(instanceId, page)) ?? '[]');
     } catch {
         return [];
     }
@@ -121,11 +178,12 @@ export function readUnsentWrites(
 export function saveUnsentWrites(
     local: UserDataStorage,
     instanceId: string,
+    page: string,
     writes: readonly UnsentWrite[]
 ): void {
     try {
         if (writes.length === 0) {
-            local.removeItem(writesKey(instanceId));
+            local.removeItem(writesKey(instanceId, page));
             return;
         }
         const stored: StoredWrite[] = writes.map(
@@ -140,7 +198,7 @@ export function saveUnsentWrites(
                     : { prior: { before: prior.before, after: prior.after } }),
             })
         );
-        local.setItem(writesKey(instanceId), JSON.stringify(stored));
+        local.setItem(writesKey(instanceId, page), JSON.stringify(stored));
     } catch {
         // Storage unavailable or full: the queue stays in memory only.
     }
@@ -170,11 +228,14 @@ export interface SavedDeferredEdit {
 
 export function readDeferredEdits(
     local: UserDataStorage,
-    instanceId: string
+    instanceId: string,
+    page: string
 ): SavedDeferredEdit[] {
     let stored: unknown;
     try {
-        stored = JSON.parse(local.getItem(deferredKey(instanceId)) ?? '[]');
+        stored = JSON.parse(
+            local.getItem(deferredKey(instanceId, page)) ?? '[]'
+        );
     } catch {
         return [];
     }
@@ -204,15 +265,16 @@ export function readDeferredEdits(
 export function saveDeferredEdits(
     local: UserDataStorage,
     instanceId: string,
+    page: string,
     edits: readonly SavedDeferredEdit[]
 ): void {
     try {
         if (edits.length === 0) {
-            local.removeItem(deferredKey(instanceId));
+            local.removeItem(deferredKey(instanceId, page));
             return;
         }
         local.setItem(
-            deferredKey(instanceId),
+            deferredKey(instanceId, page),
             JSON.stringify(
                 edits.map((edit) => ({
                     namespace: edit.namespace,

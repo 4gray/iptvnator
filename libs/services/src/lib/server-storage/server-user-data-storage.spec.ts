@@ -12,6 +12,18 @@ function memoryStorage() {
 }
 
 /** Lets chained promises run without advancing the fake timers. */
+/** The saved writes of the one page load that has any, for `instanceId`. */
+function savedWrites(
+    local: ReturnType<typeof memoryStorage>,
+    instanceId = 'default'
+): unknown[] {
+    const prefix = `iptvnator-server:unsent-writes:${instanceId}:`;
+    const key = [...local.values.keys()].find((name) =>
+        name.startsWith(prefix)
+    );
+    return key ? JSON.parse(local.values.get(key) ?? '[]') : [];
+}
+
 async function settle(): Promise<void> {
     for (let i = 0; i < 10; i += 1) {
         await Promise.resolve();
@@ -470,13 +482,7 @@ describe('ServerUserDataStorage', () => {
         );
         await first.storage.flush();
         expect(first.storage.hasUnsentWrites()).toBe(true);
-        expect(
-            JSON.parse(
-                first.local.values.get(
-                    'iptvnator-server:unsent-writes:default'
-                ) ?? '[]'
-            )
-        ).toMatchObject([
+        expect(savedWrites(first.local)).toMatchObject([
             {
                 namespace: 'xtream-favorites',
                 playlistId: 'p1',
@@ -506,9 +512,7 @@ describe('ServerUserDataStorage', () => {
             {}
         );
         expect(reloaded.hasUnsentWrites()).toBe(false);
-        expect(
-            first.local.values.has('iptvnator-server:unsent-writes:default')
-        ).toBe(false);
+        expect(savedWrites(first.local)).toEqual([]);
     });
 
     it('saves a write still travelling when the page hides', async () => {
@@ -521,12 +525,7 @@ describe('ServerUserDataStorage', () => {
         await settle();
         storage.flushWithKeepalive();
 
-        expect(
-            JSON.parse(
-                local.values.get('iptvnator-server:unsent-writes:default') ??
-                    '[]'
-            )
-        ).toMatchObject([
+        expect(savedWrites(local)).toMatchObject([
             { namespace: 'xtream-favorites', playlistId: 'p1', value: ['x'] },
         ]);
     });
@@ -536,7 +535,11 @@ describe('ServerUserDataStorage', () => {
         local.setItem('iptvnator-server:cache-owner', 'old-db');
         local.setItem('iptvnator-server:xtream-favorites', '{"p1":["a"]}');
         local.setItem(
-            'iptvnator-server:unsent-writes:old-db',
+            'iptvnator-server:unconfirmed:old-db',
+            JSON.stringify({ tab: { at: 0, keys: ['xtream-favorites|p1'] } })
+        );
+        local.setItem(
+            'iptvnator-server:unsent-writes:old-db:tab',
             JSON.stringify([
                 {
                     namespace: 'xtream-favorites',
@@ -557,7 +560,8 @@ describe('ServerUserDataStorage', () => {
         expect(local.values.has('iptvnator-server:xtream-favorites')).toBe(
             false
         );
-        expect(local.values.has('iptvnator-server:unsent-writes:old-db')).toBe(
+        expect(savedWrites(local, 'old-db')).toEqual([]);
+        expect(local.values.has('iptvnator-server:unconfirmed:old-db')).toBe(
             false
         );
         expect(local.values.get('iptvnator-server:cache-owner')).toBe('new-db');
@@ -582,12 +586,7 @@ describe('ServerUserDataStorage', () => {
         await settle();
 
         expect(storage.hasUnsentWrites()).toBe(true);
-        expect(
-            JSON.parse(
-                local.values.get('iptvnator-server:unsent-writes:default') ??
-                    '[]'
-            )
-        ).toMatchObject([
+        expect(savedWrites(local)).toMatchObject([
             { namespace: 'xtream-favorites', playlistId: 'p1', value: ['new'] },
         ]);
     });

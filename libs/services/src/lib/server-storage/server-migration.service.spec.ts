@@ -33,14 +33,14 @@ describe('ServerMigrationService', () => {
 
     const emptyLocks = () => ({ xtream: [], stalker: [], m3u: [] });
     let parentalLock: {
-        initialize: jest.Mock;
+        ensureLocksReadable: jest.Mock;
         locksFor: jest.Mock;
         replacePlaylistLocks: jest.Mock;
     };
 
     beforeEach(() => {
         parentalLock = {
-            initialize: jest.fn().mockResolvedValue(undefined),
+            ensureLocksReadable: jest.fn().mockResolvedValue(true),
             locksFor: jest.fn(() => emptyLocks()),
             replacePlaylistLocks: jest.fn().mockResolvedValue(true),
         };
@@ -366,5 +366,24 @@ describe('ServerMigrationService', () => {
                 m3u: [],
             }
         );
+    });
+
+    it('keeps the move on offer while parental locks cannot be read', async () => {
+        session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
+            {
+                _id: 'server-x',
+                title: 'Provider',
+                serverUrl: 'http://panel.test',
+                username: 'user',
+            },
+        ]);
+        parentalLock.ensureLocksReadable.mockResolvedValue(false);
+
+        const result = await TestBed.inject(
+            ServerMigrationService
+        ).moveBrowserData();
+
+        expect(result.failed).toBeGreaterThan(0);
+        expect(parentalLock.replacePlaylistLocks).not.toHaveBeenCalled();
     });
 });

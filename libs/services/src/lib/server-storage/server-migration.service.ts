@@ -279,7 +279,14 @@ export class ServerMigrationService {
     private async moveParentalLocks(
         targets: ReadonlyMap<string, string>
     ): Promise<number> {
-        await this.parentalLock.initialize();
+        const moving = [...targets].filter(([from, to]) => from !== to);
+        // An unreadable lock store reads as empty: keep the move on offer.
+        if (
+            moving.length > 0 &&
+            !(await this.parentalLock.ensureLocksReadable())
+        ) {
+            return moving.length;
+        }
         let failed = 0;
         for (const [browserId, serverId] of targets) {
             const from = this.parentalLock.locksFor(browserId);

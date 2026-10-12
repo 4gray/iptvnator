@@ -139,6 +139,7 @@ export class ServerStorageSession {
             this.userData.flushWithKeepalive()
         );
         setInterval(() => {
+            this.userData.touch();
             if (this.status.state() === 'offline') {
                 void this.refresh();
             }

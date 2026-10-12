@@ -114,3 +114,18 @@ function isMapOrMissing(
 function isListOrMissing(value: unknown): value is unknown[] | undefined {
     return value === undefined || Array.isArray(value);
 }
+
+/** A saved write's edits, its `prior` first, applied to `server`. */
+export function replayWrite(
+    server: unknown,
+    write: {
+        readonly before?: unknown;
+        readonly value: unknown;
+        readonly prior?: { readonly before: unknown; readonly after: unknown };
+    }
+): unknown {
+    const base = write.prior
+        ? applyEdit(server, write.prior.before, write.prior.after)
+        : server;
+    return applyEdit(base, write.before, write.value);
+}

@@ -452,4 +452,86 @@ describe('ServerUserDataStorage with other devices', () => {
             [...(server.state['xtream-favorites']['p1'] as string[])].sort()
         ).toEqual(['S', 'X', 'Y', 'Z']);
     });
+
+    it('keeps a removal made after another tab built on the unsent item', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const shared = memoryStorage();
+        const tab = () =>
+            new ServerUserDataStorage(
+                server.api as never,
+                shared,
+                jest.fn(),
+                'default',
+                memoryStorage()
+            );
+        const tabA = tab();
+        const tabB = tab();
+        await tabA.hydrate();
+        await tabB.hydrate();
+
+        tabA.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        // Tab B sees X in the shared cache and adds Y next to it.
+        tabB.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: [...favorites(tabB).p1, 'Y'] })
+        );
+        // Tab A takes X back before anything was sent.
+        tabA.setItem(
+            'xtream-favorites',
+            JSON.stringify({
+                p1: favorites(tabA).p1.filter((id: string) => id !== 'X'),
+            })
+        );
+        for (let round = 0; round < 4; round += 1) {
+            await tabB.flush();
+            await tabA.flush();
+        }
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'Y']);
+    });
+
+    it('sends the saved writes of a tab that was closed offline', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const shared = memoryStorage();
+        const offline = {
+            ...server.api,
+            sendJson: jest
+                .fn()
+                .mockRejectedValue(new ServerApiError(0, 'network', 'offline')),
+        };
+        const closed = new ServerUserDataStorage(
+            offline as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await closed.hydrate();
+        closed.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await closed.flush();
+        // The tab is gone: its record stops being renewed.
+        const registry = 'iptvnator-server:unconfirmed:default';
+        const records = JSON.parse(shared.values.get(registry) ?? '{}');
+        for (const record of Object.values(records)) {
+            (record as { at: number }).at = 0;
+        }
+        shared.setItem(registry, JSON.stringify(records));
+
+        const next = new ServerUserDataStorage(
+            server.api as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await next.hydrate();
+        await next.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+        expect(
+            [...shared.values.keys()].filter((key) =>
+                key.startsWith('iptvnator-server:unsent-writes:')
+            )
+        ).toEqual([]);
+    });
 });

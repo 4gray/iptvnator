@@ -30,6 +30,13 @@ export interface PriorEdit {
     readonly edit: number;
 }
 
+/**
+ * A version no entry ever has: a write based on what the cache shows but
+ * the server may not have (another tab's unsent change) always conflicts
+ * and is replayed on the server's value.
+ */
+export const UNKNOWN_TAG = '~unknown';
+
 /** `If-Match` / `If-None-Match` for a write based on `tag`. */
 export function preconditionHeaders(
     tag: string | null | undefined

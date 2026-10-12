@@ -128,9 +128,10 @@ describe('ServerStorageSession', () => {
         });
 
         it('sends no write before the reload checks the instance', async () => {
-            // A write the last visit could not send, for instance i-1.
-            sessionStorage.setItem(
-                'iptvnator-server:unsent-writes:i-1',
+            // A write this tab's last page load could not send.
+            sessionStorage.setItem('iptvnator-server:page:i-1', 'last');
+            localStorage.setItem(
+                'iptvnator-server:unsent-writes:i-1:last',
                 JSON.stringify([
                     {
                         namespace: 'xtream-favorites',

@@ -10,8 +10,9 @@ import {
     type PendingEntry,
     preconditionHeaders,
     type PriorEdit,
+    UNKNOWN_TAG,
 } from './server-user-data-entries';
-import { applyEdit } from './server-user-data-edit';
+import { replayWrite } from './server-user-data-edit';
 import { newestWrites } from './server-unsent-writes';
 
 const FLUSH_DELAY_MS = 500;
@@ -118,15 +119,20 @@ export class UserDataWriteQueue {
     /**
      * Queues an edit (`before` → `value`). A newer edit of an entry still
      * queued joins it; one behind a travelling write keeps its own edit,
-     * carries the write's as `prior` and is based on the write's tag.
+     * carries the write's as `prior` and is based on the write's tag. A
+     * `foreign` edit was made on another tab's unsent change: its write
+     * must conflict and be replayed.
      */
     queue(
         namespace: ServerUserStateNamespace,
         playlistId: string,
         value: unknown,
         before: unknown,
-        tag = this.tagFor(namespace, playlistId),
-        prior?: Omit<PriorEdit, 'edit'>
+        base: {
+            readonly tag?: string | null;
+            readonly prior?: Omit<PriorEdit, 'edit'>;
+            readonly foreign?: boolean;
+        } = {}
     ): void {
         const key = `${namespace}|${playlistId}`;
         const queued = this.pending.get(key);
@@ -152,10 +158,17 @@ export class UserDataWriteQueue {
                 },
             };
         } else {
+            const tag =
+                base.tag !== undefined
+                    ? base.tag
+                    : this.tagFor(namespace, playlistId);
             entry = { namespace, playlistId, value, edit, before, tag };
-            if (prior) {
-                entry = { ...entry, prior: { ...prior, edit: 0 } };
+            if (base.prior) {
+                entry = { ...entry, prior: { ...base.prior, edit: 0 } };
             }
+        }
+        if (base.foreign) {
+            entry = { ...entry, tag: UNKNOWN_TAG };
         }
         this.pending.set(key, entry);
         this.edits.set(key, edit);
@@ -410,7 +423,12 @@ export class UserDataWriteQueue {
         const key = entryKey(entry);
         const next = this.pending.get(key);
         if (next?.prior?.edit === entry.edit) {
-            this.pending.set(key, { ...next, prior: undefined, tag });
+            // A foreign edit stays unknown: its baseline is not this value.
+            this.pending.set(key, {
+                ...next,
+                prior: undefined,
+                tag: next.tag === UNKNOWN_TAG ? UNKNOWN_TAG : tag,
+            });
         }
     }
 
@@ -432,7 +450,7 @@ export class UserDataWriteQueue {
         if (!latest) {
             return;
         }
-        const merged = replay(current.value, latest);
+        const merged = replayWrite(current.value, latest);
         this.hooks.show(entry.namespace, entry.playlistId, merged);
         if (
             latest === entry &&
@@ -449,12 +467,4 @@ export class UserDataWriteQueue {
         });
         this.scheduleFlush();
     }
-}
-
-/** An entry's edits, its `prior` first, applied to the server's value. */
-function replay(server: unknown, entry: PendingEntry): unknown {
-    const base = entry.prior
-        ? applyEdit(server, entry.prior.before, entry.prior.after)
-        : server;
-    return applyEdit(base, entry.before, entry.value);
 }

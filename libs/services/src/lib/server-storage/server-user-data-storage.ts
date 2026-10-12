@@ -6,17 +6,28 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { UserDataStorage } from '../user-data-storage';
 import type { ServerApiClient } from './server-api-client';
-import { parseMap, splitEditKey } from './server-user-data-entries';
-import { type DeferredEdit, refreshedNamespace } from './server-user-data-edit';
+import {
+    parseMap,
+    splitEditKey,
+    UNKNOWN_TAG,
+} from './server-user-data-entries';
+import {
+    type DeferredEdit,
+    refreshedNamespace,
+    replayWrite,
+} from './server-user-data-edit';
 import { UserDataWriteQueue } from './server-user-data-queue';
 import {
     claimCache,
     markUnconfirmed,
+    orphanedPages,
     othersUnconfirmed,
     readDeferredEdits,
     readUnsentWrites,
+    removePage,
     saveDeferredEdits,
     saveUnsentWrites,
+    swapPage,
 } from './server-unsent-writes';
 
 /** Server-mode cache keys; the legacy unprefixed keys are never touched. */
@@ -45,7 +56,7 @@ export class ServerUserDataStorage implements UserDataStorage {
      */
     private readonly deferred = new Map<string, DeferredEdit>();
     private hydrated = false;
-    /** This tab, in the shared registry of unconfirmed entries. */
+    /** This page load: names its saved writes and its registry record. */
     private readonly tabId = Math.random().toString(36).slice(2);
     /** Cache values that did not fit into browser storage. */
     private readonly overflow = new Map<ServerUserStateNamespace, string>();
@@ -59,11 +70,10 @@ export class ServerUserDataStorage implements UserDataStorage {
         /** Scopes the cache and saved writes to one server database. */
         private readonly instanceId = 'default',
         /**
-         * Where this tab keeps what the server has not confirmed: its own
-         * (`sessionStorage` in the app), so tabs never clear each other's,
-         * and a reload of the tab finds it again.
+         * The tab's own storage (`sessionStorage` in the app): remembers
+         * its page load, so a reload takes over the writes it saved.
          */
-        private readonly tabStore: UserDataStorage = local
+        tabStore: UserDataStorage = local
     ) {
         this.writes = new UserDataWriteQueue(api, {
             changed: () => this.saveUnsent(),
@@ -72,21 +82,80 @@ export class ServerUserDataStorage implements UserDataStorage {
             writeFailed: onWriteFailure,
         });
         claimCache(local, instanceId);
-        // Writes a previous visit could not confirm go out with the first
-        // flush, and the first read keeps them.
-        for (const write of readUnsentWrites(tabStore, instanceId)) {
+        const previous = swapPage(tabStore, instanceId, this.tabId);
+        if (previous) {
+            this.takeOver(previous);
+        }
+    }
+
+    /**
+     * A reload of this tab: the writes its last page load could not confirm
+     * go out with the first flush, and the first read keeps them.
+     */
+    private takeOver(page: string): void {
+        for (const write of readUnsentWrites(
+            this.local,
+            this.instanceId,
+            page
+        )) {
             this.writes.queue(
                 write.namespace,
                 write.playlistId,
                 write.value,
                 write.before,
-                write.tag,
-                write.prior
+                { tag: write.tag, prior: write.prior }
             );
         }
-        this.unsentSaved = this.writes.hasUnsent();
-        for (const edit of readDeferredEdits(tabStore, instanceId)) {
+        for (const edit of readDeferredEdits(
+            this.local,
+            this.instanceId,
+            page
+        )) {
             this.deferred.set(`${edit.namespace}|${edit.playlistId}`, edit);
+        }
+        // Saved under this page load before the old one is forgotten.
+        this.saveDeferred();
+        this.saveUnsent();
+        this.publishUnconfirmed();
+        removePage(this.local, this.instanceId, page);
+    }
+
+    /**
+     * Saved writes and early edits of closed tabs: replayed as this tab's
+     * own edits on what it shows now, then forgotten there.
+     */
+    private adoptClosedTabs(): void {
+        for (const page of orphanedPages(
+            this.local,
+            this.instanceId,
+            this.tabId
+        )) {
+            const edits = [
+                ...readDeferredEdits(this.local, this.instanceId, page).map(
+                    (edit) => ({ ...edit, value: edit.after })
+                ),
+                ...readUnsentWrites(this.local, this.instanceId, page),
+            ];
+            for (const edit of edits) {
+                const before = this.baseline(edit.namespace);
+                const after = { ...before };
+                const value = replayWrite(before[edit.playlistId], edit);
+                if (value === undefined) {
+                    delete after[edit.playlistId];
+                } else {
+                    after[edit.playlistId] = value;
+                }
+                this.writeCache(edit.namespace, JSON.stringify(after));
+                this.queueChanges(edit.namespace, after, before);
+            }
+            removePage(this.local, this.instanceId, page);
+        }
+    }
+
+    /** Tells other tabs this one is alive and still sending its writes. */
+    touch(): void {
+        if (this.hasUnsentWrites()) {
+            this.publishUnconfirmed();
         }
     }
 
@@ -177,9 +246,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                 this.deferred.delete(key);
             }
         }
-        saveDeferredEdits(this.tabStore, this.instanceId, [
-            ...this.deferred.values(),
-        ]);
+        this.saveDeferred();
         this.writes.drop(matches, playlistId);
         for (const namespace of SERVER_USER_STATE_NAMESPACES) {
             const map = this.baseline(namespace);
@@ -232,7 +299,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                 // next write must conflict and be replayed on the server's.
                 const fresh = { ...tags[namespace] };
                 for (const playlistId of keepCached) {
-                    delete fresh[playlistId];
+                    fresh[playlistId] = UNKNOWN_TAG;
                 }
                 this.writes.setTags(namespace, fresh);
             }
@@ -250,9 +317,10 @@ export class ServerUserDataStorage implements UserDataStorage {
                     entries[edit.namespace]?.[edit.playlistId]
                 );
             }
-            saveDeferredEdits(this.tabStore, this.instanceId, []);
+            this.saveDeferred();
             this.writes.scheduleFlush();
         }
+        this.adoptClosedTabs();
     }
 
     private readCache(namespace: ServerUserStateNamespace): string | null {
@@ -314,13 +382,18 @@ export class ServerUserDataStorage implements UserDataStorage {
         next: Record<string, unknown>,
         previous: Record<string, unknown>
     ): void {
+        // The cache shows other tabs' unsent changes too.
+        const foreign = this.hydrated
+            ? othersUnconfirmed(this.local, this.instanceId, this.tabId)
+            : new Set<string>();
         const change = (playlistId: string, value: unknown) => {
             if (this.hydrated) {
                 this.writes.queue(
                     namespace,
                     playlistId,
                     value,
-                    previous[playlistId]
+                    previous[playlistId],
+                    { foreign: foreign.has(`${namespace}|${playlistId}`) }
                 );
                 return;
             }
@@ -333,9 +406,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                 before: earlier ? earlier.before : previous[playlistId],
                 after: value,
             });
-            saveDeferredEdits(this.tabStore, this.instanceId, [
-                ...this.deferred.values(),
-            ]);
+            this.saveDeferred();
             this.publishUnconfirmed();
         };
         for (const [playlistId, value] of Object.entries(next)) {
@@ -360,9 +431,15 @@ export class ServerUserDataStorage implements UserDataStorage {
         if (writes.length === 0 && !this.unsentSaved) {
             return;
         }
-        saveUnsentWrites(this.tabStore, this.instanceId, writes);
+        saveUnsentWrites(this.local, this.instanceId, this.tabId, writes);
         this.unsentSaved = writes.length > 0;
         this.publishUnconfirmed();
+    }
+
+    private saveDeferred(): void {
+        saveDeferredEdits(this.local, this.instanceId, this.tabId, [
+            ...this.deferred.values(),
+        ]);
     }
 
     private publishUnconfirmed(): void {
