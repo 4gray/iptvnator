@@ -641,7 +641,11 @@ channel-list-container/
   A restored or deep-linked route can finish that read before the startup
   inventory, which waits for settings and EPG reconciliation, publishes the
   playlist; the hydration then waits for the entity, since `updateOne` drops an
-  update for a missing one.
+  update for a missing one. The startup screen keeps the router outlet hidden
+  until that inventory is published, and the hydration runs in the same store
+  update, so the rail never renders a hidden group. A save's meta write joins
+  the per-playlist queue that `getPlaylist()` reads through, so a reopened
+  route reads the saved value.
 - The groups route keeps the manage action reachable even when every group is
   hidden by separating "playlist has no groups" from "no visible/search-matching
   groups" empty states.
