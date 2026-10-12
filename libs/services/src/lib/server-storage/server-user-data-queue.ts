@@ -8,6 +8,7 @@ import {
     entryKey,
     entryPath,
     addStep,
+    behind,
     type EditStep,
     type PendingEntry,
     preconditionHeaders,
@@ -46,7 +47,7 @@ export interface UserDataQueueHooks {
  */
 export class UserDataWriteQueue {
     /** Server version tag per entry; absent until the first read. */
-    private readonly tags = new UserStateTags();
+    readonly tags = new UserStateTags();
     private readonly pending = new Map<string, PendingEntry>();
     /** Writes still travelling (normal or page-hide), by entry key. */
     private readonly inFlight = new Map<string, PendingEntry>();
@@ -109,13 +110,6 @@ export class UserDataWriteQueue {
         }
     }
 
-    setTags(
-        namespace: ServerUserStateNamespace,
-        tags: Readonly<Record<string, string>>
-    ): void {
-        this.tags.set(namespace, tags);
-    }
-
     /**
      * Queues an edit (`before` → `value`). A newer edit of an entry still
      * queued joins it; one behind a travelling write keeps that write's
@@ -146,17 +140,11 @@ export class UserDataWriteQueue {
                 steps: addStep(queued.steps, before, value),
             };
         } else if (travelling) {
-            const sent = travelling.steps.map((step) => ({
-                ...step,
-                sent: travelling.edit,
-            }));
             entry = {
-                namespace,
-                playlistId,
+                ...travelling,
                 value,
                 edit,
-                tag: travelling.tag,
-                steps: [...sent, { before, after: value }],
+                steps: [...behind(travelling), { before, after: value }],
             };
         } else {
             entry = {
@@ -180,45 +168,21 @@ export class UserDataWriteQueue {
         this.edits.set(key, edit);
     }
 
-    /**
-     * A closed tab's saved edits, ahead of this tab's own (which may have
-     * been made on them): sent with them, replayed first on a conflict.
-     */
-    adopt(
-        namespace: ServerUserStateNamespace,
-        playlistId: string,
-        current: unknown,
-        steps: readonly EditStep[],
-        foreign: boolean
-    ): unknown {
-        const key = `${namespace}|${playlistId}`;
-        const adopted = uncertain(steps);
-        const queued = this.pending.get(key);
-        if (queued) {
-            // This tab's queued edits are newer: they replay last.
-            const all = [...adopted, ...queued.steps];
-            const value = replaySteps(queued.steps[0]?.before, all);
-            const edit = ++this.editCount;
-            this.pending.set(key, {
-                ...queued,
-                value,
-                edit,
-                steps: all,
-                tag: foreign ? UNKNOWN_TAG : queued.tag,
-            });
-            this.edits.set(key, edit);
-            return value;
-        }
-        const value = replaySteps(current, steps);
-        this.queue(namespace, playlistId, value, value, { foreign });
-        const entry = this.pending.get(key);
-        if (entry) {
-            this.pending.set(key, {
-                ...entry,
-                steps: [...adopted, ...entry.steps],
-            });
-        }
-        return value;
+    /** The write of an entry: queued, else travelling. */
+    unsent(key: string): PendingEntry | undefined {
+        return this.pending.get(key) ?? this.inFlight.get(key);
+    }
+
+    isQueued(key: string): boolean {
+        return this.pending.has(key);
+    }
+
+    /** Queues `entry` as this tab's newest edit of it. */
+    put(entry: Omit<PendingEntry, 'edit'>): void {
+        const key = entryKey(entry as PendingEntry);
+        const edit = ++this.editCount;
+        this.pending.set(key, { ...entry, edit });
+        this.edits.set(key, edit);
     }
 
     scheduleFlush(): void {

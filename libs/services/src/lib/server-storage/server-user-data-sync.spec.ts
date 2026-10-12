@@ -811,6 +811,7 @@ describe('ServerUserDataStorage with other devices', () => {
             }
             setItem(key, value);
         };
+        const kept = saved()[0];
         const reloaded = new ServerUserDataStorage(
             offline as never,
             local,
@@ -820,7 +821,16 @@ describe('ServerUserDataStorage with other devices', () => {
         );
 
         expect(reloaded.hasUnsentWrites()).toBe(true);
+        expect(saved()).toEqual([kept]);
+
+        // Space again: this page's copy replaces the one it kept.
+        local.setItem = setItem;
+        reloaded.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: [...favorites(reloaded).p1, 'Y'] })
+        );
         expect(saved()).toHaveLength(1);
+        expect(saved()).not.toEqual([kept]);
     });
 
     it('keeps a recovered write under an early edit made on it', async () => {
@@ -876,5 +886,53 @@ describe('ServerUserDataStorage with other devices', () => {
         expect(
             [...(server.state['xtream-favorites']['p1'] as string[])].sort()
         ).toEqual(['S', 'new', 'old']);
+    });
+
+    it('keeps an early removal of an item a recovered write adds', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const local = memoryStorage();
+        const tabStore = memoryStorage();
+        const before = new ServerUserDataStorage(
+            {
+                ...server.api,
+                sendJson: jest
+                    .fn()
+                    .mockRejectedValue(
+                        new ServerApiError(0, 'network', 'offline')
+                    ),
+            } as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        await before.hydrate();
+        before.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await before.flush();
+
+        const send = server.api.sendJson.getMockImplementation();
+        const reloaded = new ServerUserDataStorage(
+            {
+                ...server.api,
+                sendJson: jest
+                    .fn()
+                    .mockRejectedValueOnce(
+                        new ServerApiError(0, 'network', 'offline')
+                    )
+                    .mockImplementation(send),
+            } as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        // X is taken back before the first read; another device adds Z.
+        reloaded.setItem('xtream-favorites', JSON.stringify({ p1: ['S'] }));
+        server.state['xtream-favorites']['p1'] = ['S', 'Z'];
+        await reloaded.hydrate();
+        await reloaded.flush();
+        await reloaded.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'Z']);
     });
 });

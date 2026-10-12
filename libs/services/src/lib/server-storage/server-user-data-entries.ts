@@ -35,6 +35,11 @@ export interface EditStep {
     readonly sent?: number;
 }
 
+/** A travelling write's steps, marked as carried by it. */
+export function behind(entry: PendingEntry): EditStep[] {
+    return entry.steps.map((step) => ({ ...step, sent: entry.edit }));
+}
+
 /** Steps whose write may or may not have landed. */
 export function uncertain(steps: readonly EditStep[]): EditStep[] {
     return steps.map((step) => ({ ...step, sent: 0 }));

@@ -124,3 +124,23 @@ export function replaySteps(
     }
     return value;
 }
+
+/** The entries `next` changed against `read`, applied to `current`. */
+export function mergeEdits(
+    current: Record<string, unknown>,
+    read: Record<string, unknown>,
+    next: Record<string, unknown>
+): Record<string, unknown> {
+    const merged = { ...current };
+    for (const id of new Set([...Object.keys(read), ...Object.keys(next)])) {
+        if (JSON.stringify(read[id]) !== JSON.stringify(next[id])) {
+            const value = applyEdit(current[id], read[id], next[id]);
+            if (value === undefined) {
+                delete merged[id];
+            } else {
+                merged[id] = value;
+            }
+        }
+    }
+    return merged;
+}

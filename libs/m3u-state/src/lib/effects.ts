@@ -89,9 +89,21 @@ export class PlaylistEffects {
                     this.store.select(selectActivePlaylistId)
                 ),
                 filter(([, , playlistId]) => !!playlistId),
-                switchMap(([, favorites, playlistId]) =>
-                    this.playlistsService.updateFavorites(playlistId, favorites)
-                ),
+                // The toggle, applied to the favorites as stored at write
+                // time: another device's changes to other channels stay, also
+                // when a conflict makes the write run again on a fresh read.
+                mergeMap(([{ channel }, favorites, playlistId]) => {
+                    const added = favorites.includes(channel.url);
+                    return this.playlistsService.transformPlaylistFavorites(
+                        playlistId,
+                        (current) => {
+                            const others = current.filter(
+                                (favorite) => favorite !== channel.url
+                            );
+                            return added ? [...others, channel.url] : others;
+                        }
+                    );
+                }),
                 tap(() => {
                     this.snackBar.open(
                         this.translate.instant('CHANNELS.FAVORITES_UPDATED'),

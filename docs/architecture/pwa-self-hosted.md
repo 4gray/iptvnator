@@ -204,7 +204,9 @@ settings and guards read them in every build.
   throws `PlaylistWriteConflict`, and `PlaylistsService`'s per-playlist
   write queue runs the mutation again on a fresh read (a retry on the same,
   unread copy writes unconditionally, as before). Imports and start-up
-  migrations (`dbUpsertAppPlaylists`) write unconditionally. After a write the store
+  migrations (`dbUpsertAppPlaylists`) write unconditionally. An M3U favorite
+  toggle goes through `transformPlaylistFavorites`, adding or removing that
+  one channel on the favorites read at write time. After a write the store
   keeps its copy only when `X-Replaced-ETag` names the version its payload
   came from.
 - **Xtream user data.** `USER_DATA_STORAGE` becomes `ServerUserDataStorage`:
@@ -220,7 +222,7 @@ settings and guards read them in every build.
   per page load (`iptvnator-server:unsent-writes:<instanceId>:<page>`). The
   tab remembers its page load in `sessionStorage`, so a reload takes its
   writes over and sends them first (the old copy goes only once the new one
-  is saved); the writes of a tab closed before it
+  is saved, at the latest with this page's next saved copy); the writes of a tab closed before it
   could send them are queued, ahead of its own, by the next re-read in
   another tab once that tab's record has gone stale; the result replays the
   closed tab's edits first and this tab's newer ones last. Tabs never clear each other's.
@@ -249,9 +251,9 @@ settings and guards read them in every build.
   being deleted its edits wait; the delete drops them only when it
   succeeds. Edits made before the first successful read
   are held as before → after and applied to the server's value once it
-  arrives (`applyEdit`), or to this tab's recovered unsent write when it has
-  one: a new device or a stale cache adds its favorite instead of replacing
-  the server's list. They are saved per page load too
+  arrives (`applyEdit`): a new device or a stale cache adds its favorite
+  instead of replacing the server's list. On this tab's recovered unsent
+  write they are kept as their own steps after it. They are saved per page load too
   (`iptvnator-server:deferred-edits:<instanceId>:<page>`). A shared
   registry in `localStorage` (`iptvnator-server:unconfirmed:<instanceId>`,
   one record per page load, renewed every 30 s while it has unsent writes,

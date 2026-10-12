@@ -12,10 +12,11 @@ import {
     splitEditKey,
     UNKNOWN_TAG,
 } from './server-user-data-entries';
+import { adoptEdits, extendUnsent } from './server-user-data-adopt';
 import { UserDataCache } from './server-user-data-cache';
 import {
-    applyEdit,
     type DeferredEdit,
+    mergeEdits,
     refreshedNamespace,
 } from './server-user-data-edit';
 import { UserDataWriteQueue } from './server-user-data-queue';
@@ -59,6 +60,8 @@ export class ServerUserDataStorage implements UserDataStorage {
     private hydrated = false;
     /** Closed tabs' page loads this one took over (once each). */
     private readonly adopted = new Set<string>();
+    /** Page loads taken over whose copy stays until this one saves. */
+    private readonly retained = new Set<string>();
     /** This page load: names its saved writes and its registry record. */
     private readonly tabId = Math.random().toString(36).slice(2);
     private readonly cache: UserDataCache;
@@ -129,9 +132,7 @@ export class ServerUserDataStorage implements UserDataStorage {
         // storage refuses the copy, the old one stays.
         const saved = [this.saveDeferred(), this.saveUnsent()].every(Boolean);
         this.publishUnconfirmed();
-        if (saved) {
-            removePage(this.local, this.instanceId, page);
-        }
+        this.release(page, saved);
     }
 
     /**
@@ -155,7 +156,8 @@ export class ServerUserDataStorage implements UserDataStorage {
             );
             for (const { namespace, playlistId, steps } of edits) {
                 // Queued even when the cache shows it already.
-                const value = this.writes.adopt(
+                const value = adoptEdits(
+                    this.writes,
                     namespace,
                     playlistId,
                     this.cache.map(namespace)[playlistId],
@@ -166,9 +168,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             }
             this.adopted.add(page);
             // The closed tab's copy goes only once this tab saved its own.
-            if (this.saveUnsent()) {
-                removePage(this.local, this.instanceId, page);
-            }
+            this.release(page, this.saveUnsent());
             this.writes.scheduleFlush();
         }
     }
@@ -346,7 +346,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                 base.set(
                     key,
                     own.has(key)
-                        ? cached[playlistId]
+                        ? this.writes.unsent(key)?.value
                         : entries[namespace]?.[playlistId]
                 );
             }
@@ -368,7 +368,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                 for (const playlistId of keepCached) {
                     fresh[playlistId] = UNKNOWN_TAG;
                 }
-                this.writes.setTags(namespace, fresh);
+                this.writes.tags.set(namespace, fresh);
             }
         }
         this.writes.settledUpTo(editsBefore);
@@ -377,12 +377,17 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.hydrated = true;
             this.deferred.clear();
             for (const edit of deferred) {
-                this.writes.queue(
-                    edit.namespace,
-                    edit.playlistId,
-                    refreshed.get(edit.namespace)?.[edit.playlistId],
-                    base.get(`${edit.namespace}|${edit.playlistId}`)
-                );
+                const key = `${edit.namespace}|${edit.playlistId}`;
+                if (own.has(key)) {
+                    extendUnsent(this.writes, key, edit.steps);
+                } else {
+                    this.writes.queue(
+                        edit.namespace,
+                        edit.playlistId,
+                        refreshed.get(edit.namespace)?.[edit.playlistId],
+                        base.get(key)
+                    );
+                }
             }
             this.saveDeferred();
             this.writes.scheduleFlush();
@@ -458,7 +463,23 @@ export class ServerUserDataStorage implements UserDataStorage {
         );
         this.unsentSaved = writes.length > 0 || !saved;
         this.publishUnconfirmed();
+        if (saved && this.retained.size > 0 && this.saveDeferred()) {
+            // This page's copy now stands for the ones it kept.
+            for (const page of this.retained) {
+                removePage(this.local, this.instanceId, page);
+            }
+            this.retained.clear();
+        }
         return saved;
+    }
+
+    /** Forgets another page load's copy, or keeps it until this one saves. */
+    private release(page: string, saved: boolean): void {
+        if (saved) {
+            removePage(this.local, this.instanceId, page);
+        } else {
+            this.retained.add(page);
+        }
     }
 
     private saveDeferred(): boolean {
@@ -473,24 +494,4 @@ export class ServerUserDataStorage implements UserDataStorage {
             ...this.deferred.keys(),
         ]);
     }
-}
-
-/** The entries `next` changed against `read`, applied to `current`. */
-function mergeEdits(
-    current: Record<string, unknown>,
-    read: Record<string, unknown>,
-    next: Record<string, unknown>
-): Record<string, unknown> {
-    const merged = { ...current };
-    for (const id of new Set([...Object.keys(read), ...Object.keys(next)])) {
-        if (JSON.stringify(read[id]) !== JSON.stringify(next[id])) {
-            const value = applyEdit(current[id], read[id], next[id]);
-            if (value === undefined) {
-                delete merged[id];
-            } else {
-                merged[id] = value;
-            }
-        }
-    }
-    return merged;
 }
