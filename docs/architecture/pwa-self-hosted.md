@@ -232,7 +232,8 @@ settings and guards read them in every build.
   only a closed, stale or missing record is taken over: a duplicated tab,
   which copies `sessionStorage`, leaves the running tab its writes. A page
   load that still looked live (or whose close flag storage refused) is
-  checked again every 30 s and taken over once it does not; the writes of a tab closed before it
+  checked again every 30 s and, once it does not, adopted like a closed
+  tab's: its edits go ahead of this page's newer ones; the writes of a tab closed before it
   could send them are queued, ahead of its own, by the next re-read in
   another tab once that tab's record has gone stale; the result replays the
   closed tab's edits first and this tab's newer ones last. Tabs never clear each other's.

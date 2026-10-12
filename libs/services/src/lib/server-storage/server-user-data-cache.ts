@@ -1,4 +1,7 @@
-import type { ServerUserStateNamespace } from '@iptvnator/shared/interfaces';
+import {
+    SERVER_USER_STATE_NAMESPACES,
+    type ServerUserStateNamespace,
+} from '@iptvnator/shared/interfaces';
 import type { UserDataStorage } from '../user-data-storage';
 import { parseMap } from './server-user-data-entries';
 
@@ -43,6 +46,19 @@ export class UserDataCache {
 
     map(namespace: ServerUserStateNamespace): Record<string, unknown> {
         return parseMap(this.read(namespace) ?? '{}');
+    }
+
+    /** After a delete: one playlist's entries, without an id all of them. */
+    forget(playlistId?: string): void {
+        for (const namespace of SERVER_USER_STATE_NAMESPACES) {
+            const map = this.map(namespace);
+            if (playlistId === undefined) {
+                this.write(namespace, null);
+            } else if (playlistId in map) {
+                delete map[playlistId];
+                this.write(namespace, JSON.stringify(map));
+            }
+        }
     }
 
     /** `undefined` removes the playlist's entry. */

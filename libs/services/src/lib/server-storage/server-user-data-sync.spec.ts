@@ -1067,4 +1067,120 @@ describe('ServerUserDataStorage with other devices', () => {
 
         expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
     });
+
+    describe('a reload whose close flag was lost', () => {
+        const at = (seconds: number) => [
+            {
+                contentType: 'vod',
+                contentXtreamId: 1,
+                positionSeconds: seconds,
+            },
+        ];
+        const offline = () =>
+            Promise.reject(new ServerApiError(0, 'network', 'offline'));
+
+        /** The last page load saves its edit, then unloads on a full disk. */
+        async function lastPageLoad(
+            server: ReturnType<typeof fakeServer>,
+            local: ReturnType<typeof memoryStorage>,
+            tabStore: ReturnType<typeof memoryStorage>,
+            edit: (page: ServerUserDataStorage) => Promise<void>
+        ) {
+            const page = new ServerUserDataStorage(
+                { ...server.api, sendJson: jest.fn(offline) } as never,
+                local,
+                jest.fn(),
+                'default',
+                tabStore
+            );
+            await edit(page);
+            const setItem = local.setItem;
+            local.setItem = () => {
+                throw new DOMException('full', 'QuotaExceededError');
+            };
+            page.close();
+            local.setItem = setItem;
+        }
+
+        it('keeps the newer progress of the page that adopts it later', async () => {
+            const server = fakeServer({
+                'xtream-playback-positions': { p1: at(10) },
+            });
+            const local = memoryStorage();
+            const tabStore = memoryStorage();
+            const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+            await lastPageLoad(server, local, tabStore, async (page) => {
+                await page.hydrate();
+                page.setItem(
+                    'xtream-playback-positions',
+                    JSON.stringify({ p1: at(20) })
+                );
+                await page.flush();
+            });
+            let online = false;
+            const send = server.api.sendJson.getMockImplementation();
+            if (!send) {
+                throw new Error('The fake server answers sendJson');
+            }
+            const reloaded = new ServerUserDataStorage(
+                {
+                    ...server.api,
+                    sendJson: jest.fn((...args: Parameters<typeof send>) =>
+                        online ? send(...args) : offline()
+                    ),
+                } as never,
+                local,
+                jest.fn(),
+                'default',
+                tabStore
+            );
+            await reloaded.hydrate();
+            reloaded.setItem(
+                'xtream-playback-positions',
+                JSON.stringify({ p1: at(30) })
+            );
+            await reloaded.flush();
+
+            clock.mockReturnValue(1_000 + UNCONFIRMED_TTL_MS + 1);
+            reloaded.touch();
+            online = true;
+            await reloaded.flush();
+            await reloaded.flush();
+            clock.mockRestore();
+
+            expect(server.state['xtream-playback-positions']['p1']).toEqual(
+                at(30)
+            );
+        });
+
+        it('sends its early edits after this page has read', async () => {
+            const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+            const local = memoryStorage();
+            const tabStore = memoryStorage();
+            const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+            await lastPageLoad(server, local, tabStore, async (page) => {
+                // Never read: the edit stays an early one.
+                page.setItem(
+                    'xtream-favorites',
+                    JSON.stringify({ p1: ['S', 'X'] })
+                );
+            });
+            const reloaded = new ServerUserDataStorage(
+                server.api as never,
+                local,
+                jest.fn(),
+                'default',
+                tabStore
+            );
+            await reloaded.hydrate();
+
+            clock.mockReturnValue(1_000 + UNCONFIRMED_TTL_MS + 1);
+            reloaded.touch();
+            await reloaded.flush();
+            await reloaded.flush();
+            clock.mockRestore();
+
+            expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+        });
+    });
 });

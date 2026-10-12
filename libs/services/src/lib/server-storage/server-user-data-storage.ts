@@ -101,11 +101,15 @@ export class ServerUserDataStorage implements UserDataStorage {
             writeFailed: onWriteFailure,
         });
         claimCache(local, instanceId);
+        const previous = swapPage(tabStore, instanceId, this.tabId);
         // A duplicated tab copies the page load of a tab that still runs;
         // so does a reload whose close flag could not be saved: `touch`
-        // takes it over once it no longer looks live.
-        this.awaited = swapPage(tabStore, instanceId, this.tabId);
-        this.touch();
+        // adopts it once it no longer looks live.
+        if (previous && pageIsLive(local, instanceId, previous)) {
+            this.awaited = previous;
+        } else if (previous) {
+            this.takeOver(previous);
+        }
     }
 
     /** The page unloads: a reload of this tab may take its writes over. */
@@ -155,40 +159,46 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.instanceId,
             this.tabId
         ).filter((page) => !this.adopted.has(page))) {
-            const edits = [
-                ...readDeferredEdits(this.local, this.instanceId, page),
-                ...readUnsentWrites(this.local, this.instanceId, page),
-            ];
-            const foreign = othersUnconfirmed(
-                this.local,
-                this.instanceId,
-                this.tabId
-            );
-            for (const { namespace, playlistId, steps } of edits) {
-                // Queued even when the cache shows it already.
-                const value = adoptEdits(
-                    this.writes,
-                    namespace,
-                    playlistId,
-                    this.cache.map(namespace)[playlistId],
-                    steps,
-                    foreign.has(`${namespace}|${playlistId}`)
-                );
-                this.cache.setEntry(namespace, playlistId, value);
-            }
-            this.adopted.add(page);
-            // The closed tab's copy goes only once this tab saved its own.
-            this.release(page, this.saveUnsent());
-            this.writes.scheduleFlush();
+            this.adoptPage(page);
         }
+    }
+
+    /** Its edits go ahead of this tab's own, which may be newer. */
+    private adoptPage(page: string): void {
+        const edits = [
+            ...readDeferredEdits(this.local, this.instanceId, page),
+            ...readUnsentWrites(this.local, this.instanceId, page),
+        ];
+        const foreign = othersUnconfirmed(
+            this.local,
+            this.instanceId,
+            this.tabId
+        );
+        for (const { namespace, playlistId, steps } of edits) {
+            // Queued even when the cache shows it already.
+            const value = adoptEdits(
+                this.writes,
+                namespace,
+                playlistId,
+                this.cache.map(namespace)[playlistId],
+                steps,
+                foreign.has(`${namespace}|${playlistId}`)
+            );
+            this.cache.setEntry(namespace, playlistId, value);
+        }
+        this.adopted.add(page);
+        // The other page's copy goes only once this tab saved its own.
+        this.release(page, this.saveUnsent());
+        this.writes.scheduleFlush();
     }
 
     /** Tells other tabs this one is alive and still sending its writes. */
     touch(): void {
         const page = this.awaited;
         if (page && !pageIsLive(this.local, this.instanceId, page)) {
+            // This page may have read and edited since: adopt, not restore.
             this.awaited = null;
-            this.takeOver(page);
+            this.adoptPage(page);
         }
         if (this.hasUnsentWrites()) {
             this.publishUnconfirmed();
@@ -292,31 +302,14 @@ export class ServerUserDataStorage implements UserDataStorage {
         try {
             await this.writes.whenSent();
             await remove();
-            this.forget(matches, playlistId);
-        } finally {
-            release();
-        }
-    }
-
-    private forget(
-        matches: (key: string) => boolean,
-        playlistId: string | undefined
-    ): void {
-        for (const key of [...this.deferred.keys()]) {
-            if (matches(key)) {
+            for (const key of [...this.deferred.keys()].filter(matches)) {
                 this.deferred.delete(key);
             }
-        }
-        this.saveDeferred();
-        this.writes.drop(matches, playlistId);
-        for (const namespace of SERVER_USER_STATE_NAMESPACES) {
-            const map = this.cache.map(namespace);
-            if (playlistId === undefined) {
-                this.cache.write(namespace, null);
-            } else if (playlistId in map) {
-                delete map[playlistId];
-                this.cache.write(namespace, JSON.stringify(map));
-            }
+            this.saveDeferred();
+            this.writes.drop(matches, playlistId);
+            this.cache.forget(playlistId);
+        } finally {
+            release();
         }
     }
 
