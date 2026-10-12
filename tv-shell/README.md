@@ -69,8 +69,11 @@ features in IPTVnator).
 
 The `Build TV shell APK` workflow runs on pull requests and `master` pushes that
 touch `tv-shell/` (artifact only) and on demand (**Actions → Build TV shell APK
-→ Run workflow**; tick `create_release` to also publish a GitHub
-**pre-release** `tv-shell-v0.1.0-N`, never marked "Latest"). It builds the PWA
+→ Run workflow**; tick `create_release` to also publish a GitHub release
+`tv-shell-v0.1.0-N`). The release is a **pre-release never marked "Latest"**
+unless you untick `prerelease`: keep it on in the IPTVnator repository itself,
+where a Latest release without the desktop updater's files would break
+auto-update; a fork publishing for its own users can untick it. It builds the PWA
 (`pnpm nx build web --configuration=pwa`, as the Docker image does), checks the
 parser fixtures against the installed parser, runs the backend tests, assembles
 the release APK and uploads `iptvnator-tv-shell-0.1.0-<sha>.apk`.
@@ -102,7 +105,7 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
    sources* (or *Install unknown apps → Downloader*) and, for ADB, *ADB
    debugging*.
 2. **Downloader**: install the *Downloader* app from the Appstore, enter the
-   APK's URL from the GitHub pre-release (right-click the `.apk` asset → copy
+   APK's URL from the GitHub release (right-click the `.apk` asset → copy
    link), install.
 3. **ADB** (from a PC on the same network):
    ```bash
@@ -210,7 +213,7 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   key and update each other with `adb install -r`.
 - **Downloader refuses to install**: enable *Apps from unknown sources* (or
   *Install unknown apps → Downloader*) in Developer options and use the direct
-  `.apk` link of the pre-release.
+  `.apk` link of the release.
 - **`adb connect` refused**: enable *ADB debugging*, accept the prompt on the TV
   at the first `adb` command; the IP is under About → Network.
 
