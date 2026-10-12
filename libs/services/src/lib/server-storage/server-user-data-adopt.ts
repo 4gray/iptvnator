@@ -24,6 +24,12 @@ export function adoptEdits(
     const key = `${namespace}|${playlistId}`;
     const adopted = uncertain(steps);
     const queued = writes.isQueued(key) ? writes.unsent(key) : undefined;
+    // Without a server version this page read, the write must conflict and
+    // be replayed on the server's value, never overwrite it blindly.
+    const unknown =
+        foreign ||
+        (queued ? queued.tag : writes.tags.of(namespace, playlistId)) ===
+            undefined;
     if (queued) {
         // This tab's queued edits are newer: they replay last.
         const all = [...adopted, ...queued.steps];
@@ -32,12 +38,12 @@ export function adoptEdits(
             ...queued,
             value,
             steps: all,
-            tag: foreign ? UNKNOWN_TAG : queued.tag,
+            tag: unknown ? UNKNOWN_TAG : queued.tag,
         });
         return value;
     }
     const value = replaySteps(current, steps);
-    writes.queue(namespace, playlistId, value, value, { foreign });
+    writes.queue(namespace, playlistId, value, value, { foreign: unknown });
     const entry = writes.unsent(key);
     if (entry) {
         writes.put({ ...entry, steps: [...adopted, ...entry.steps] });

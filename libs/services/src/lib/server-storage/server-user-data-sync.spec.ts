@@ -1182,5 +1182,39 @@ describe('ServerUserDataStorage with other devices', () => {
 
             expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
         });
+
+        it("replays its writes on the server's value when this page never read it", async () => {
+            const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+            const local = memoryStorage();
+            const tabStore = memoryStorage();
+            const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+            await lastPageLoad(server, local, tabStore, async (page) => {
+                await page.hydrate();
+                page.setItem(
+                    'xtream-favorites',
+                    JSON.stringify({ p1: ['S', 'X'] })
+                );
+                await page.flush();
+            });
+            // Another device saves Z; this page's reads keep failing.
+            server.state['xtream-favorites']['p1'] = ['S', 'Z'];
+            const reloaded = new ServerUserDataStorage(
+                { ...server.api, getJson: jest.fn(offline) } as never,
+                local,
+                jest.fn(),
+                'default',
+                tabStore
+            );
+
+            clock.mockReturnValue(1_000 + UNCONFIRMED_TTL_MS + 1);
+            reloaded.touch();
+            await reloaded.flush();
+            await reloaded.flush();
+            clock.mockRestore();
+
+            expect(
+                [...(server.state['xtream-favorites']['p1'] as string[])].sort()
+            ).toEqual(['S', 'X', 'Z']);
+        });
     });
 });
