@@ -30,6 +30,7 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { RecentCommandsService } from '../../recent-commands';
 import { WorkspacePlayerCommandsContributor } from '../../workspace-player-commands';
+import { XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS } from './helpers/workspace-shell-constants';
 import { WorkspaceShellFacade } from './workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
@@ -503,16 +504,31 @@ describe('WorkspaceShellFacade', () => {
         expect(facade.showXtreamImportOverlay()).toBe(true);
     });
 
-    it('keeps a cache-only Xtream import session blocking and cancellable', () => {
-        const xtreamStore = TestBed.inject(
-            XtreamStore
-        ) as unknown as MockXtreamStore;
-        const xtreamImport = TestBed.inject(WorkspaceShellXtreamImportService);
-        xtreamStore.activeImportSessionId.set('xtream-import-session');
+    it('keeps a slow cache-only Xtream import session blocking and cancellable', () => {
+        jest.useFakeTimers();
+        try {
+            const xtreamStore = TestBed.inject(
+                XtreamStore
+            ) as unknown as MockXtreamStore;
+            const xtreamImport = TestBed.inject(
+                WorkspaceShellXtreamImportService
+            );
+            xtreamStore.activeImportSessionId.set('xtream-import-session');
+            TestBed.tick();
 
-        expect(xtreamStore.isImporting()).toBe(false);
-        expect(facade.showXtreamImportOverlay()).toBe(true);
-        expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+            // A saved-catalog read waits out the show delay so a quick one
+            // never flashes the overlay, but stays cancellable meanwhile.
+            expect(xtreamStore.isImporting()).toBe(false);
+            expect(facade.showXtreamImportOverlay()).toBe(false);
+            expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+
+            jest.advanceTimersByTime(XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS);
+
+            expect(facade.showXtreamImportOverlay()).toBe(true);
+            expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('shows the Xtream overlay during refresh preparation on the dashboard', () => {

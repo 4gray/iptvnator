@@ -704,6 +704,11 @@ source's default section, which is VOD (`getPlaylistLink` links to
 and the first page is the "All items" grid. The plan's "live category list"
 would need a second click and is not measured; the landed section is
 recorded under `evidence.firstPage.section`.
+The seeded portal is already imported, so the click only reads the saved
+catalog and finishes well inside the shell's show delay for the import
+overlay ([workspace shell](workspace-shell.md)): a J2 click must not mount
+`app-workspace-shell-import-overlay`, and before that delay it flashed for
+about two frames between the skeleton and the first page.
 
 **HTTP requests to the mock.** The J2 profile is seeded with the origin of a
 loopback proxy in the test process
@@ -1317,8 +1322,8 @@ largest distance in it, the content pane's 323 px, which is why Back added
 buttons appearing when the categories arrive. The skeletons of the category
 list and the grid are replaced by content without any shift. Nothing was
 hidden behind the startup overlay: the "Syncing playlist" overlay of the
-cached catalog load flashes for about two frames after the shift and covers
-no further one.
+cached catalog load flashed for about two frames after the shift and covered
+no further one. It no longer mounts on a J2 click (see the J2 section).
 
 The content frame and the header controls now slide into place instead of
 jumping ([Layout slides](./workspace-shell.md#layout-slides)): the new layout
