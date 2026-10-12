@@ -5,7 +5,10 @@ import {
     type ElectronBridgeResult,
     type Playlist,
 } from '@iptvnator/shared/interfaces';
-import type { PlaylistDocumentStore } from '../playlist-storage-backend';
+import {
+    type PlaylistDocumentStore,
+    PlaylistWriteConflict,
+} from '../playlist-storage-backend';
 import { ServerApiError, type ServerApiClient } from './server-api-client';
 
 interface CachedDocument {
@@ -27,6 +30,8 @@ type ServerApi = Pick<
  */
 export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
     private readonly cache = new Map<string, CachedDocument>();
+    /** Versions a write was refused on (another device wrote since). */
+    private readonly refused = new Set<string>();
     /** Served payload object → the ETag of the document it came from. */
     private readonly servedPayloads = new WeakMap<object, string>();
 
@@ -84,7 +89,12 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
                 const response = await this.api.sendJson(
                     'PUT',
                     `${path}?keepPayload=1`,
-                    withoutPayload(playlist)
+                    withoutPayload(playlist),
+                    // Built on the version it was read at; a retry on the
+                    // same copy, not read again, writes as before.
+                    this.refused.has(payloadEtag)
+                        ? {}
+                        : { 'If-Match': payloadEtag }
                 );
                 // The server kept its stored payload; it is ours only if
                 // nothing replaced it since we read it.
@@ -98,6 +108,11 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
                 }
                 return { success: true };
             } catch (error) {
+                if (error instanceof ServerApiError && error.status === 412) {
+                    this.refused.add(payloadEtag);
+                    this.cache.delete(playlist._id);
+                    throw new PlaylistWriteConflict(playlist._id);
+                }
                 if (!(
                     error instanceof ServerApiError &&
                     error.code === 'payload_missing'

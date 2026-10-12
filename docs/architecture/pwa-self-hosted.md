@@ -85,7 +85,8 @@ Server storage adds versioned routes under `/v1`, which the PWA uses in
   `PUT ...?keepPayload=1` keeps the stored `playlist`, `items` and
   `header` fields (`409 payload_missing` without a stored row); every `PUT`
   answers with the new `ETag` and `X-Replaced-ETag`, the version it
-  replaced
+  replaced, and one with `If-Match` answers `412 conflict` when another
+  write replaced that version
 - `GET /v1/user-state`, `PUT|DELETE /v1/user-state/:namespace/:playlistId`:
   Xtream favorites, recently viewed, collection snapshots and playback
   positions, one JSON value per namespace and playlist; `GET` adds a
@@ -193,12 +194,16 @@ settings and guards read them in every build.
 
 - **Playlists.** `ServerStorageSession.start()` (an app initializer) plugs
   `ServerPlaylistDocumentStore` into `PlaylistStorageBackend` (kinds
-  `electron`, `server`, `indexeddb`), so `PlaylistsService` is unchanged. The
-  store caches full documents by ETag and uploads a document whose payload it
-  served unchanged with `keepPayload=1`, so a favorite or a rename does not
-  resend a large M3U. It keeps its copy after such a write only when
-  `X-Replaced-ETag` names the version its payload came from; otherwise
-  another device wrote in between and the next read fetches the document.
+  `electron`, `server`, `indexeddb`). The store caches full documents by
+  ETag and uploads a document whose payload it served unchanged with
+  `keepPayload=1`, so a favorite or a rename does not resend a large M3U.
+  Such a write carries `If-Match` with the version it was read at: when
+  another device wrote in between, the server answers `412`, the store
+  throws `PlaylistWriteConflict`, and `PlaylistsService`'s per-playlist
+  write queue runs the mutation again on a fresh read (a retry on the same,
+  unread copy writes unconditionally, as before). After a write the store
+  keeps its copy only when `X-Replaced-ETag` names the version its payload
+  came from.
 - **Xtream user data.** `USER_DATA_STORAGE` becomes `ServerUserDataStorage`:
   the four synced namespaces are cached under the `iptvnator-server:` key
   prefix (the legacy unprefixed keys are never written in server mode) and

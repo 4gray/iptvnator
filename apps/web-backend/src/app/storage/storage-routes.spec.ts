@@ -205,6 +205,33 @@ describe('server storage routes', () => {
             })
         ));
 
+    it('refuses a playlist write built on a replaced version', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const first = await fetch(
+                    `${baseUrl}/v1/playlists/p1`,
+                    json(m3uDocument('p1'), { method: 'PUT' })
+                );
+                const read = first.headers.get('etag') ?? '';
+                const edit = (ifMatch: string) =>
+                    fetch(
+                        `${baseUrl}/v1/playlists/p1?keepPayload=1`,
+                        json(
+                            { _id: 'p1', title: 'Renamed' },
+                            { method: 'PUT', headers: { 'if-match': ifMatch } }
+                        )
+                    );
+
+                expect((await edit(read)).status).toBe(200);
+                // Another device wrote since `read`.
+                const stale = await edit(read);
+                expect(stale.status).toBe(412);
+                await expect(stale.json()).resolves.toMatchObject({
+                    code: 'conflict',
+                });
+            })
+        ));
+
     it('writes user state only on the tag it was read at', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {

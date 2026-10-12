@@ -1,4 +1,5 @@
 import type { Playlist } from '@iptvnator/shared/interfaces';
+import { PlaylistWriteConflict } from '../playlist-storage-backend';
 import { ServerApiError } from './server-api-client';
 import { ServerPlaylistDocumentStore } from './server-playlist-document-store';
 
@@ -140,6 +141,28 @@ describe('ServerPlaylistDocumentStore', () => {
             // The server kept a newer payload than the one this client has.
             await expect(readThenEdit('"b.0.4"')).resolves.toEqual({});
         });
+    });
+
+    it('writes an edit on the version it read and reports a refusal', async () => {
+        const { api, store } = setup();
+        api.request.mockResolvedValueOnce(fakeResponse(200, doc, '"b.0.1"'));
+        const served = await store.dbGetAppPlaylist('p1');
+        if (!served) throw new Error('expected a document');
+        api.sendJson.mockRejectedValueOnce(
+            new ServerApiError(412, 'conflict', 'changed')
+        );
+
+        await expect(
+            store.dbUpsertAppPlaylist({ ...served, favorites: ['a'] })
+        ).rejects.toBeInstanceOf(PlaylistWriteConflict);
+        expect(api.sendJson.mock.calls[0][3]).toEqual({
+            'If-Match': '"b.0.1"',
+        });
+
+        // A retry on the same copy, not read again, writes as before.
+        api.sendJson.mockResolvedValueOnce(putResponse('"b.0.3"', '"b.0.2"'));
+        await store.dbUpsertAppPlaylist({ ...served, favorites: ['a'] });
+        expect(api.sendJson.mock.calls[1][3]).toEqual({});
     });
 
     it('runs deletes through the user-data hold', async () => {

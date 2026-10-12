@@ -28,6 +28,17 @@ export type PlaylistDocumentStore = Pick<
         >
     >;
 
+/**
+ * The server refused a write built on a playlist version another device has
+ * replaced since; the write queue runs the mutation again on a fresh read.
+ */
+export class PlaylistWriteConflict extends Error {
+    constructor(readonly playlistId: string) {
+        super(`Playlist ${playlistId} changed since it was read.`);
+        this.name = 'PlaylistWriteConflict';
+    }
+}
+
 export type PlaylistStorageKind = 'electron' | 'server' | 'indexeddb';
 
 /** Single place that decides where `PlaylistsService` persists playlists. */

@@ -47,6 +47,7 @@ import {
 import {
     PlaylistDocumentStore,
     PlaylistStorageBackend,
+    PlaylistWriteConflict,
 } from './playlist-storage-backend';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
@@ -413,7 +414,7 @@ export class PlaylistsService {
         return defer(() => {
             const previous =
                 this.playlistWriteQueues.get(playlistId) ?? Promise.resolve();
-            const next = previous.then(() => operation());
+            const next = previous.then(() => retryOnConflict(operation));
             const tail = next.then(
                 () => undefined,
                 () => undefined
@@ -1551,5 +1552,21 @@ export class PlaylistsService {
 
     clearM3uRecentlyViewed(playlistId: string) {
         return this.clearPlaylistRecentlyViewed(playlistId);
+    }
+}
+
+/**
+ * A mutation the server refused as built on an older version (another device
+ * wrote since) runs again: it reads the playlist afresh first.
+ */
+async function retryOnConflict<T>(operation: () => Promise<T>): Promise<T> {
+    for (let attempt = 1; ; attempt += 1) {
+        try {
+            return await operation();
+        } catch (error) {
+            if (!(error instanceof PlaylistWriteConflict) || attempt >= 3) {
+                throw error;
+            }
+        }
     }
 }

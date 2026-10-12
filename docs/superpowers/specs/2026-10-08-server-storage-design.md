@@ -209,8 +209,11 @@ https://claude.ai/artifact/3WheJAgeNL5ag6kmtPrJcD
 
 ## 11. Risks
 
-- **Concurrent edits on two devices**: last write wins per document.
-  Every playlist mutation re-reads first, so the window is one round trip.
+- **Concurrent edits on two devices**: a metadata edit (`keepPayload`) is
+  sent with `If-Match` on the version it was read at; on a `412` the
+  per-playlist write queue runs the mutation again on a fresh read. Other
+  document writes (refresh, import) stay last write wins; every playlist
+  mutation re-reads first, so the window is one round trip.
   Xtream map entries are written on the tag they were read at and replayed
   on the server's value after a `412`, so both devices' edits are kept.
 - **Large payloads**: M3U global favorites and backup export read all full

@@ -1,5 +1,6 @@
 import { EMPTY, firstValueFrom, from, of } from 'rxjs';
 import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { PlaylistWriteConflict } from './playlist-storage-backend';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
@@ -1632,6 +1633,42 @@ describe('PlaylistsService', () => {
                 _id: 'playlist-4',
                 recentlyViewed: [],
             })
+        );
+    });
+
+    it('runs a mutation again on a fresh read when the server refused it', async () => {
+        const versions = [
+            { _id: 'p9', title: 'P', favorites: ['a'] },
+            { _id: 'p9', title: 'P', favorites: ['a', 'theirs'] },
+        ] as unknown as Playlist[];
+        let reads = 0;
+        const electron = {
+            dbGetAppPlaylist: jest.fn(
+                async () => versions[Math.min(reads++, 1)]
+            ),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async (key: string) =>
+                key === SQLITE_PLAYLIST_MIGRATION_FLAG ? '1' : null
+            ),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest
+                .fn()
+                .mockRejectedValueOnce(new PlaylistWriteConflict('p9'))
+                .mockResolvedValue(undefined),
+            dbUpsertAppPlaylists: jest.fn(),
+        };
+        testWindow.electron = electron;
+
+        await firstValueFrom(
+            createService().transformPlaylistFavorites('p9', (favorites) => [
+                ...favorites,
+                'mine',
+            ])
+        );
+
+        expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledTimes(2);
+        expect(electron.dbUpsertAppPlaylist).toHaveBeenLastCalledWith(
+            expect.objectContaining({ favorites: ['a', 'theirs', 'mine'] })
         );
     });
 

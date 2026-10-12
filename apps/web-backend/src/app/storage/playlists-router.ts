@@ -55,6 +55,15 @@ export function createPlaylistsRouter(
     router.put('/playlists/:id', json, (req, res) => {
         const id = requirePlaylistId(req.params.id);
         const replaced = revisions.etag(id);
+        // An edit built on a version another device has replaced since.
+        const ifMatch = req.get('if-match');
+        if (ifMatch && !matchesEtag(ifMatch, replaced)) {
+            throw new StorageRequestError(
+                412,
+                'conflict',
+                'The playlist changed since it was read.'
+            );
+        }
         playlists.upsert(
             { ...requireDocument(req.body), _id: id },
             { keepPayload: req.query['keepPayload'] === '1' }
