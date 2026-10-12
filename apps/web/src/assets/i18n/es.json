@@ -1917,7 +1917,8 @@
                 "EXPIRED": "Caducada",
                 "EDIT": "Editar…",
                 "COPY_URL": "Copiar URL",
-                "OPEN": "Abrir"
+                "OPEN": "Abrir",
+                "CHANNELS_ONE": "1 canal"
             },
             "STATUS": "Estado",
             "STATUS_ANY": "Cualquiera",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "Restablecer filtros",
             "REMOVED": "Se eliminó «{{name}}»",
             "REMOVED_SWITCHED": "Se eliminó «{{name}}» y se cambió a «{{next}}»",
-            "REMOVE_FAILED": "No se pudo eliminar «{{name}}»"
+            "REMOVE_FAILED": "No se pudo eliminar «{{name}}»",
+            "ADD_SOURCE": "Añadir una fuente"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorías",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "Añade una lista de reproducción y tu historial de visualización aparecerá aquí.",
             "NO_ITEMS_TITLE": "Aún no has visto nada",
             "NO_ITEMS_BODY": "Empieza a ver cualquier contenido de tu biblioteca y aparecerá aquí."
+        },
+        "SWITCHER": {
+            "SEARCH": "Buscar una lista…",
+            "RECENT": "Recientes",
+            "NO_MATCHES": "No se encontró nada",
+            "ALL_SOURCES": "Todas las fuentes",
+            "HINT_SELECT": "elegir",
+            "HINT_OPEN": "abrir",
+            "HINT_CLOSE": "cerrar"
         }
     },
     "LOADING": "Cargando",

@@ -52,8 +52,6 @@ export class WorkspaceShellHeaderComponent {
     readonly backTarget = input<WorkspaceBackTarget | null>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
-    readonly canOpenPlaylistInfo = input(false);
-    readonly canOpenAccountInfo = input(false);
     readonly searchQuery = input('');
     readonly canUseSearch = input(false);
     readonly searchPlaceholder = input('');
@@ -143,8 +141,6 @@ export class WorkspaceShellHeaderComponent {
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
     readonly downloadsRequested = output<void>();
-    readonly playlistInfoRequested = output<void>();
-    readonly accountInfoRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
     readonly accountInfoForPlaylistRequested = output<PlaylistMeta>();
 
@@ -194,14 +190,6 @@ export class WorkspaceShellHeaderComponent {
         }
         keyboard.preventDefault();
         this.backRequested.emit();
-    }
-
-    onPlaylistInfoRequested(): void {
-        this.playlistInfoRequested.emit();
-    }
-
-    onAccountInfoRequested(): void {
-        this.accountInfoRequested.emit();
     }
 
     onAccountInfoForPlaylistRequested(playlist: PlaylistMeta): void {

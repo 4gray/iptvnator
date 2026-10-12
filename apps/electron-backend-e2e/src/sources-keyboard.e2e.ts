@@ -175,4 +175,69 @@ test.describe('Electron Sources keyboard', () => {
             await closeElectronApp(app);
         }
     });
+
+    test('@m3u @electron deletes from the row menu and undoes from the toast, keyboard only', async ({
+        dataDir,
+    }) => {
+        const alpha = writeTemporaryM3uFile(dataDir, 'undo-alpha.m3u', [
+            {
+                groupTitle: 'News',
+                name: 'Undo Alpha News',
+                url: 'https://streams.example.test/undo-alpha.m3u8',
+            },
+        ]);
+        const bravo = writeTemporaryM3uFile(dataDir, 'undo-bravo.m3u', [
+            {
+                groupTitle: 'Sports',
+                name: 'Undo Bravo Sports',
+                url: 'https://streams.example.test/undo-bravo.m3u8',
+            },
+        ]);
+        const app = await launchElectronApp(dataDir, {
+            appArgs: [alpha, bravo],
+        });
+        const page = app.mainWindow;
+        const rows = page.locator('app-workspace-sources app-source-row');
+
+        try {
+            await page.waitForURL(/\/workspace\/playlists\/.+/, {
+                timeout: 30_000,
+            });
+            await openSources(page);
+            await expect(rows).toHaveCount(2, { timeout: 30_000 });
+            const before = await rows
+                .locator('.source-row__name')
+                .allTextContents();
+
+            // Focus the first row's ⋯ and open its menu from the keyboard.
+            const row = rows.first();
+            await row.locator('.source-row__more').focus();
+            await page.keyboard.press('Enter');
+            const remove = page.getByRole('menuitem', {
+                name: 'Remove playlist',
+            });
+            await expect(remove).toBeVisible();
+            await page.keyboard.press('End');
+            await expect(remove).toBeFocused();
+            await page.keyboard.press('Enter');
+
+            // The row leaves at once; Undo takes the focus the row had.
+            await expect(rows).toHaveCount(1);
+            const undo = page.locator(
+                'mat-snack-bar-container.app-toast .source-removal-toast__undo'
+            );
+            await expect(undo).toBeFocused();
+            await page.keyboard.press('Enter');
+
+            await expect(rows).toHaveCount(2);
+            expect(
+                await rows.locator('.source-row__name').allTextContents()
+            ).toEqual(before);
+            await expect(
+                page.locator('mat-snack-bar-container.app-toast')
+            ).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
 });

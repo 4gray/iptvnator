@@ -182,12 +182,15 @@ test('@stalker account info dialog shows subscription facts from the portal', as
 }) => {
     await addStalkerPortal(page);
 
-    // Open the header playlist switcher and its "Account info" entry for
-    // the active stalker portal.
-    await page.locator('.playlist-switcher-trigger').click();
+    // Open the header playlist switcher and the "Account info" entry in the
+    // active stalker portal's row menu.
+    await page.locator('[data-test-id="playlist-switcher-trigger"]').click();
     await page
-        .locator('.context-action-item', { hasText: 'Account info' })
+        .locator(
+            'app-playlist-switcher-panel [role="option"][aria-current="true"] .source-row__more'
+        )
         .click();
+    await page.getByRole('menuitem', { name: 'Account info' }).click();
 
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();

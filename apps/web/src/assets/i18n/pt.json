@@ -1917,7 +1917,8 @@
                 "EXPIRED": "Expirada",
                 "EDIT": "Editar…",
                 "COPY_URL": "Copiar URL",
-                "OPEN": "Abrir"
+                "OPEN": "Abrir",
+                "CHANNELS_ONE": "1 canal"
             },
             "STATUS": "Estado",
             "STATUS_ANY": "Qualquer",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "Repor filtros",
             "REMOVED": "«{{name}}» removida",
             "REMOVED_SWITCHED": "«{{name}}» removida, mudou para «{{next}}»",
-            "REMOVE_FAILED": "Não foi possível remover «{{name}}»"
+            "REMOVE_FAILED": "Não foi possível remover «{{name}}»",
+            "ADD_SOURCE": "Adicionar uma fonte"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorias",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "Adicione uma playlist e seu histórico de visualização aparecerá aqui.",
             "NO_ITEMS_TITLE": "Nada assistido ainda",
             "NO_ITEMS_BODY": "Comece a assistir qualquer item da sua biblioteca e ele aparecerá aqui."
+        },
+        "SWITCHER": {
+            "SEARCH": "Procurar uma lista…",
+            "RECENT": "Recentes",
+            "NO_MATCHES": "Nada encontrado",
+            "ALL_SOURCES": "Todas as fontes",
+            "HINT_SELECT": "escolher",
+            "HINT_OPEN": "abrir",
+            "HINT_CLOSE": "fechar"
         }
     },
     "LOADING": "A carregar",

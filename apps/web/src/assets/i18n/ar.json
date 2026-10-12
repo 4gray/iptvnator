@@ -1917,7 +1917,8 @@
                 "EXPIRED": "منتهي",
                 "EDIT": "تعديل…",
                 "COPY_URL": "نسخ الرابط",
-                "OPEN": "فتح"
+                "OPEN": "فتح",
+                "CHANNELS_ONE": "قناة واحدة"
             },
             "STATUS": "الحالة",
             "STATUS_ANY": "أي حالة",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "إعادة تعيين عوامل التصفية",
             "REMOVED": "تمت إزالة «{{name}}»",
             "REMOVED_SWITCHED": "تمت إزالة «{{name}}»، والانتقال إلى «{{next}}»",
-            "REMOVE_FAILED": "تعذّرت إزالة «{{name}}»"
+            "REMOVE_FAILED": "تعذّرت إزالة «{{name}}»",
+            "ADD_SOURCE": "إضافة مصدر"
         },
         "CONTEXT": {
             "CATEGORIES": "الفئات",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "أضف قائمة تشغيل وسيظهر سجل المشاهدة هنا.",
             "NO_ITEMS_TITLE": "لا توجد مشاهدات بعد",
             "NO_ITEMS_BODY": "ابدأ بمشاهدة أي محتوى من مكتبتك وسيظهر هنا."
+        },
+        "SWITCHER": {
+            "SEARCH": "ابحث عن قائمة تشغيل…",
+            "RECENT": "الأخيرة",
+            "NO_MATCHES": "لم يُعثر على شيء",
+            "ALL_SOURCES": "كل المصادر",
+            "HINT_SELECT": "تحديد",
+            "HINT_OPEN": "فتح",
+            "HINT_CLOSE": "إغلاق"
         }
     },
     "LOADING": "جارٍ التحميل",

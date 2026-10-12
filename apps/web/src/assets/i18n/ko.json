@@ -1917,7 +1917,8 @@
                 "EXPIRED": "만료됨",
                 "EDIT": "편집…",
                 "COPY_URL": "URL 복사",
-                "OPEN": "열기"
+                "OPEN": "열기",
+                "CHANNELS_ONE": "채널 1개"
             },
             "STATUS": "상태",
             "STATUS_ANY": "전체",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "필터 초기화",
             "REMOVED": "'{{name}}' 삭제됨",
             "REMOVED_SWITCHED": "'{{name}}' 삭제됨, '{{next}}'(으)로 전환됨",
-            "REMOVE_FAILED": "'{{name}}'을(를) 삭제할 수 없습니다"
+            "REMOVE_FAILED": "'{{name}}'을(를) 삭제할 수 없습니다",
+            "ADD_SOURCE": "소스 추가"
         },
         "CONTEXT": {
             "CATEGORIES": "카테고리",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "플레이리스트를 추가하면 시청 기록이 여기에 표시됩니다.",
             "NO_ITEMS_TITLE": "아직 시청 기록이 없습니다",
             "NO_ITEMS_BODY": "라이브러리의 콘텐츠를 시청하기 시작하면 여기에 표시됩니다."
+        },
+        "SWITCHER": {
+            "SEARCH": "재생목록 찾기…",
+            "RECENT": "최근",
+            "NO_MATCHES": "찾은 항목 없음",
+            "ALL_SOURCES": "모든 소스",
+            "HINT_SELECT": "선택",
+            "HINT_OPEN": "열기",
+            "HINT_CLOSE": "닫기"
         }
     },
     "LOADING": "로드 중",

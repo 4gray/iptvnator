@@ -31,11 +31,6 @@ import { LayoutSlideDirective } from '../../layout-slide.directive';
 class MockPlaylistSwitcherComponent {
     readonly currentTitle = input.required<string>();
     readonly subtitle = input('');
-    readonly showPlaylistInfo = input(false);
-    readonly showAccountInfo = input(false);
-    readonly showAddPlaylist = input(false);
-    readonly playlistInfoRequested = output<void>();
-    readonly accountInfoRequested = output<void>();
     readonly addPlaylistRequested = output<void>();
 }
 

@@ -1917,7 +1917,8 @@
                 "EXPIRED": "Expired",
                 "EDIT": "Edit…",
                 "COPY_URL": "Copy URL",
-                "OPEN": "Open"
+                "OPEN": "Open",
+                "CHANNELS_ONE": "1 channel"
             },
             "STATUS": "Status",
             "STATUS_ANY": "Any",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "Reset filters",
             "REMOVED": "Removed “{{name}}”",
             "REMOVED_SWITCHED": "Removed “{{name}}”, switched to “{{next}}”",
-            "REMOVE_FAILED": "Could not remove “{{name}}”"
+            "REMOVE_FAILED": "Could not remove “{{name}}”",
+            "ADD_SOURCE": "Add a source"
         },
         "CONTEXT": {
             "CATEGORIES": "Categories",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        },
+        "SWITCHER": {
+            "SEARCH": "Find a playlist…",
+            "RECENT": "Recent",
+            "NO_MATCHES": "Nothing found",
+            "ALL_SOURCES": "All sources",
+            "HINT_SELECT": "select",
+            "HINT_OPEN": "open",
+            "HINT_CLOSE": "close"
         }
     },
     "LOADING": "Loading",

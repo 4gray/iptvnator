@@ -1917,7 +1917,8 @@
                 "EXPIRED": "Expiré",
                 "EDIT": "Modifier…",
                 "COPY_URL": "Copier l’URL",
-                "OPEN": "Ouvrir"
+                "OPEN": "Ouvrir",
+                "CHANNELS_ONE": "1 chaîne"
             },
             "STATUS": "État",
             "STATUS_ANY": "Tous",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "Réinitialiser les filtres",
             "REMOVED": "« {{name}} » supprimée",
             "REMOVED_SWITCHED": "« {{name}} » supprimée, passage à « {{next}} »",
-            "REMOVE_FAILED": "Impossible de supprimer « {{name}} »"
+            "REMOVE_FAILED": "Impossible de supprimer « {{name}} »",
+            "ADD_SOURCE": "Ajouter une source"
         },
         "CONTEXT": {
             "CATEGORIES": "Catégories",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "Ajoutez une playlist et votre historique de visionnage apparaîtra ici.",
             "NO_ITEMS_TITLE": "Rien regardé pour le moment",
             "NO_ITEMS_BODY": "Commencez à regarder un contenu de votre bibliothèque et il apparaîtra ici."
+        },
+        "SWITCHER": {
+            "SEARCH": "Trouver une playlist…",
+            "RECENT": "Récentes",
+            "NO_MATCHES": "Aucun résultat",
+            "ALL_SOURCES": "Toutes les sources",
+            "HINT_SELECT": "choisir",
+            "HINT_OPEN": "ouvrir",
+            "HINT_CLOSE": "fermer"
         }
     },
     "LOADING": "Chargement",

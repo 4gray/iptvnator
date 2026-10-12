@@ -1917,7 +1917,8 @@
                 "EXPIRED": "سالات",
                 "EDIT": "بدّل…",
                 "COPY_URL": "نسخ الرابط",
-                "OPEN": "حلّ"
+                "OPEN": "حلّ",
+                "CHANNELS_ONE": "قناة وحدة"
             },
             "STATUS": "الحالة",
             "STATUS_ANY": "أي حالة",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "رجّع الفلاتر",
             "REMOVED": "تحيّدات «{{name}}»",
             "REMOVED_SWITCHED": "تحيّدات «{{name}}»، دوّزنا لـ «{{next}}»",
-            "REMOVE_FAILED": "ما قدرناش نحيّدو «{{name}}»"
+            "REMOVE_FAILED": "ما قدرناش نحيّدو «{{name}}»",
+            "ADD_SOURCE": "زيد مصدر"
         },
         "CONTEXT": {
             "CATEGORIES": "الفئات",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "زيد قائمة تشغيل وسجل التفرج ديالك غادي يبان هنا.",
             "NO_ITEMS_TITLE": "ما تشاف حتى شي حاجة دابا",
             "NO_ITEMS_BODY": "بدا تفرج فشي حاجة من المكتبة ديالك وغادي تبان هنا."
+        },
+        "SWITCHER": {
+            "SEARCH": "قلّب على ليستة…",
+            "RECENT": "الجداد",
+            "NO_MATCHES": "ما لقينا والو",
+            "ALL_SOURCES": "كاع المصادر",
+            "HINT_SELECT": "ختار",
+            "HINT_OPEN": "حلّ",
+            "HINT_CLOSE": "سدّ"
         }
     },
     "LOADING": "كيتشارجا",

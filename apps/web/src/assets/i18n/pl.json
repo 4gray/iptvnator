@@ -1917,7 +1917,8 @@
                 "EXPIRED": "Wygasło",
                 "EDIT": "Edytuj…",
                 "COPY_URL": "Kopiuj URL",
-                "OPEN": "Otwórz"
+                "OPEN": "Otwórz",
+                "CHANNELS_ONE": "1 kanał"
             },
             "STATUS": "Stan",
             "STATUS_ANY": "Dowolny",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "Wyczyść filtry",
             "REMOVED": "Usunięto „{{name}}”",
             "REMOVED_SWITCHED": "Usunięto „{{name}}”, przełączono na „{{next}}”",
-            "REMOVE_FAILED": "Nie udało się usunąć „{{name}}”"
+            "REMOVE_FAILED": "Nie udało się usunąć „{{name}}”",
+            "ADD_SOURCE": "Dodaj źródło"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategorie",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "Dodaj listę odtwarzania, a historia oglądania pojawi się tutaj.",
             "NO_ITEMS_TITLE": "Jeszcze nic nie oglądano",
             "NO_ITEMS_BODY": "Zacznij oglądać cokolwiek ze swojej biblioteki, a pojawi się tutaj."
+        },
+        "SWITCHER": {
+            "SEARCH": "Znajdź playlistę…",
+            "RECENT": "Ostatnie",
+            "NO_MATCHES": "Nic nie znaleziono",
+            "ALL_SOURCES": "Wszystkie źródła",
+            "HINT_SELECT": "wybór",
+            "HINT_OPEN": "otwórz",
+            "HINT_CLOSE": "zamknij"
         }
     },
     "LOADING": "Ładowanie",

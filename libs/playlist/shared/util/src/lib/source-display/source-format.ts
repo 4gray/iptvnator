@@ -142,7 +142,12 @@ export function sourceMetaParts(
         const count = new Intl.NumberFormat(locale).format(playlist.count ?? 0);
         parts.push({
             kind: 'channels',
-            text: translate('HOME.PLAYLISTS.CHANNELS_COUNT', { count }),
+            text: translate(
+                playlist.count === 1
+                    ? 'WORKSPACE.SOURCES.ROW.CHANNELS_ONE'
+                    : 'HOME.PLAYLISTS.CHANNELS_COUNT',
+                { count }
+            ),
         });
     }
     const added = compact

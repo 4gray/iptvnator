@@ -1917,7 +1917,8 @@
                 "EXPIRED": "Lejárt",
                 "EDIT": "Szerkesztés…",
                 "COPY_URL": "URL másolása",
-                "OPEN": "Megnyitás"
+                "OPEN": "Megnyitás",
+                "CHANNELS_ONE": "1 csatorna"
             },
             "STATUS": "Állapot",
             "STATUS_ANY": "Bármelyik",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "Szűrők törlése",
             "REMOVED": "„{{name}}” eltávolítva",
             "REMOVED_SWITCHED": "„{{name}}” eltávolítva, váltás erre: „{{next}}”",
-            "REMOVE_FAILED": "„{{name}}” nem távolítható el"
+            "REMOVE_FAILED": "„{{name}}” nem távolítható el",
+            "ADD_SOURCE": "Forrás hozzáadása"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategóriák",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "Adjon hozzá egy lejátszási listát, és megtekintési előzményei itt fognak megjelenni.",
             "NO_ITEMS_TITLE": "Még nincs megtekintett tartalom",
             "NO_ITEMS_BODY": "Indítson el bármit a médiatárából, és itt meg fog jelenni."
+        },
+        "SWITCHER": {
+            "SEARCH": "Lejátszási lista keresése…",
+            "RECENT": "Legutóbbiak",
+            "NO_MATCHES": "Nincs találat",
+            "ALL_SOURCES": "Összes forrás",
+            "HINT_SELECT": "kijelölés",
+            "HINT_OPEN": "megnyitás",
+            "HINT_CLOSE": "bezárás"
         }
     },
     "LOADING": "Betöltés",

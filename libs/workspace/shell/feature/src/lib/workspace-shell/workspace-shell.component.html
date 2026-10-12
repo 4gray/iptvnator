@@ -33,8 +33,6 @@
         [backTarget]="facade.backTarget()"
         [playlistTitle]="facade.playlistTitle()"
         [playlistSubtitle]="facade.playlistSubtitle()"
-        [canOpenPlaylistInfo]="facade.canOpenPlaylistInfo()"
-        [canOpenAccountInfo]="facade.canOpenAccountInfo()"
         [searchQuery]="facade.searchQuery()"
         [canUseSearch]="facade.canUseSearch()"
         [searchPlaceholder]="facade.searchPlaceholder()"
@@ -63,8 +61,6 @@
         (headerSidebarToggleRequested)="facade.toggleLiveSidebar()"
         (parentalLockToggleRequested)="facade.toggleParentalLock()"
         (downloadsRequested)="facade.openDownloadsShortcut()"
-        (playlistInfoRequested)="facade.openPlaylistInfo()"
-        (accountInfoRequested)="facade.openAccountInfo()"
         (accountInfoForPlaylistRequested)="facade.openAccountInfoFor($event)"
     />
 

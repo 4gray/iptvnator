@@ -59,11 +59,6 @@
             class="playlist-switcher"
             [currentTitle]="playlistTitle()"
             [subtitle]="playlistSubtitle()"
-            [showPlaylistInfo]="canOpenPlaylistInfo()"
-            [showAccountInfo]="canOpenAccountInfo()"
-            [showAddPlaylist]="true"
-            (playlistInfoRequested)="onPlaylistInfoRequested()"
-            (accountInfoRequested)="onAccountInfoRequested()"
             (accountInfoForPlaylistRequested)="
                 onAccountInfoForPlaylistRequested($event)
             "

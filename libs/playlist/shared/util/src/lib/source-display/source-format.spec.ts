@@ -97,6 +97,12 @@ describe('sourceMetaParts', () => {
         expect(parts[4].text).toBe('https://cdn.tv/…/list.m3u');
     });
 
+    it('counts a single channel in the singular', () => {
+        expect(sourceMetaParts({ ...m3u, count: 1 }, context())[1].text).toBe(
+            'WORKSPACE.SOURCES.ROW.CHANNELS_ONE {"count":"1"}'
+        );
+    });
+
     it('leaves out empty parts and zero channels', () => {
         const parts = sourceMetaParts(
             { title: 'x', count: 0, importDate: '' },

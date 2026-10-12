@@ -1917,7 +1917,8 @@
                 "EXPIRED": "Abgelaufen",
                 "EDIT": "Bearbeiten…",
                 "COPY_URL": "URL kopieren",
-                "OPEN": "Öffnen"
+                "OPEN": "Öffnen",
+                "CHANNELS_ONE": "1 Sender"
             },
             "STATUS": "Status (Erreichbarkeit)",
             "STATUS_ANY": "Alle",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "Filter zurücksetzen",
             "REMOVED": "„{{name}}“ entfernt",
             "REMOVED_SWITCHED": "„{{name}}“ entfernt, zu „{{next}}“ gewechselt",
-            "REMOVE_FAILED": "„{{name}}“ konnte nicht entfernt werden"
+            "REMOVE_FAILED": "„{{name}}“ konnte nicht entfernt werden",
+            "ADD_SOURCE": "Quelle hinzufügen"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategorien",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "Füge eine Wiedergabeliste hinzu, und dein Wiedergabeverlauf erscheint hier.",
             "NO_ITEMS_TITLE": "Noch nichts angesehen",
             "NO_ITEMS_BODY": "Beginne, etwas aus deiner Bibliothek anzusehen, dann erscheint es hier."
+        },
+        "SWITCHER": {
+            "SEARCH": "Playlist suchen…",
+            "RECENT": "Zuletzt geöffnet",
+            "NO_MATCHES": "Nichts gefunden",
+            "ALL_SOURCES": "Alle Quellen",
+            "HINT_SELECT": "auswählen",
+            "HINT_OPEN": "öffnen",
+            "HINT_CLOSE": "schließen"
         }
     },
     "LOADING": "Laden",

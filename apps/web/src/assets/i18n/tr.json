@@ -1917,7 +1917,8 @@
                 "EXPIRED": "Süresi doldu",
                 "EDIT": "Düzenle…",
                 "COPY_URL": "URL'yi kopyala",
-                "OPEN": "Aç"
+                "OPEN": "Aç",
+                "CHANNELS_ONE": "1 kanal"
             },
             "STATUS": "Durum",
             "STATUS_ANY": "Tümü",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "Filtreleri sıfırla",
             "REMOVED": "“{{name}}” kaldırıldı",
             "REMOVED_SWITCHED": "“{{name}}” kaldırıldı, “{{next}}” açıldı",
-            "REMOVE_FAILED": "“{{name}}” kaldırılamadı"
+            "REMOVE_FAILED": "“{{name}}” kaldırılamadı",
+            "ADD_SOURCE": "Kaynak ekle"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategoriler",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "Bir oynatma listesi ekleyin; izleme geçmişiniz burada görünecek.",
             "NO_ITEMS_TITLE": "Henüz hiçbir şey izlenmedi",
             "NO_ITEMS_BODY": "Kitaplığınızdaki herhangi bir şeyi izlemeye başlayın, burada görünecek."
+        },
+        "SWITCHER": {
+            "SEARCH": "Oynatma listesi bul…",
+            "RECENT": "Son açılanlar",
+            "NO_MATCHES": "Hiçbir şey bulunamadı",
+            "ALL_SOURCES": "Tüm kaynaklar",
+            "HINT_SELECT": "seç",
+            "HINT_OPEN": "aç",
+            "HINT_CLOSE": "kapat"
         }
     },
     "LOADING": "Yükleniyor",

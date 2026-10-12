@@ -1917,7 +1917,8 @@
                 "EXPIRED": "Verlopen",
                 "EDIT": "Bewerken…",
                 "COPY_URL": "URL kopiëren",
-                "OPEN": "Openen"
+                "OPEN": "Openen",
+                "CHANNELS_ONE": "1 zender"
             },
             "STATUS": "Bereikbaarheid",
             "STATUS_ANY": "Alle",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "Filters wissen",
             "REMOVED": "‘{{name}}’ verwijderd",
             "REMOVED_SWITCHED": "‘{{name}}’ verwijderd, overgeschakeld naar ‘{{next}}’",
-            "REMOVE_FAILED": "‘{{name}}’ kon niet worden verwijderd"
+            "REMOVE_FAILED": "‘{{name}}’ kon niet worden verwijderd",
+            "ADD_SOURCE": "Bron toevoegen"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorieën",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "Voeg een afspeellijst toe en uw kijkgeschiedenis verschijnt hier.",
             "NO_ITEMS_TITLE": "Nog niets bekeken",
             "NO_ITEMS_BODY": "Begin iets uit uw bibliotheek te kijken en het verschijnt hier."
+        },
+        "SWITCHER": {
+            "SEARCH": "Afspeellijst zoeken…",
+            "RECENT": "Onlangs geopend",
+            "NO_MATCHES": "Niets gevonden",
+            "ALL_SOURCES": "Alle bronnen",
+            "HINT_SELECT": "kiezen",
+            "HINT_OPEN": "openen",
+            "HINT_CLOSE": "sluiten"
         }
     },
     "LOADING": "Laden",

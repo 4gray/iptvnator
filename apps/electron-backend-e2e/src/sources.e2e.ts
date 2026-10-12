@@ -785,11 +785,20 @@ https://streams.example.test/original-url.m3u8
         try {
             await dropM3uPlaylistOntoWorkspace(app.mainWindow, localFilePath);
             await waitForM3uCatalog(app.mainWindow);
+            // Refresh for the active source lives in its switcher row menu.
+            await app.mainWindow.getByTestId('playlist-switcher-trigger').click();
+            const currentRow = app.mainWindow.locator(
+                'app-playlist-switcher-panel [role="option"][aria-current="true"]'
+            );
+            await currentRow.locator('.source-row__more').click();
             await expect(
-                app.mainWindow.locator(
-                    'app-playlist-switcher .trigger-refresh-button'
-                )
+                app.mainWindow.getByRole('menuitem', { name: 'Refresh playlist' })
             ).toBeVisible();
+            await app.mainWindow.keyboard.press('Escape');
+            await app.mainWindow.keyboard.press('Escape');
+            await expect(
+                app.mainWindow.locator('app-playlist-switcher-panel')
+            ).toHaveCount(0);
 
             await goToDashboard(app.mainWindow);
             const sourceCard = app.mainWindow

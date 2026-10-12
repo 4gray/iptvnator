@@ -50,8 +50,6 @@ class MockWorkspaceShellHeaderComponent {
     readonly backTarget = input<unknown>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
-    readonly canOpenPlaylistInfo = input(false);
-    readonly canOpenAccountInfo = input(false);
     readonly searchQuery = input('');
     readonly canUseSearch = input(false);
     readonly searchPlaceholder = input('');
@@ -79,8 +77,6 @@ class MockWorkspaceShellHeaderComponent {
     readonly downloadsRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
-    readonly playlistInfoRequested = output<void>();
-    readonly accountInfoRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
 
     focusSearchInput = jest.fn();

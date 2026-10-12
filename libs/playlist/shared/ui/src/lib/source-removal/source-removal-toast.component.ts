@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    ElementRef,
+    inject,
+    viewChild,
+} from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import {
@@ -17,7 +24,9 @@ export interface SourceRemovalToastData {
 
 /**
  * "Removed …" with Undo, and a close button that commits the delete at
- * once instead of waiting out the toast.
+ * once instead of waiting out the toast. A delete from a row's menu takes
+ * the row, and with it the focus, off the page: Undo then takes the focus,
+ * so the keyboard can reach it.
  */
 @Component({
     selector: 'app-source-removal-toast',
@@ -33,6 +42,7 @@ export interface SourceRemovalToastData {
         <span matSnackBarLabel>{{ data.message }}</span>
         <span matSnackBarActions>
             <button
+                #undo
                 mat-button
                 matSnackBarAction
                 type="button"
@@ -59,4 +69,17 @@ export class SourceRemovalToastComponent {
     readonly data = inject<SourceRemovalToastData>(MAT_SNACK_BAR_DATA);
     readonly ref =
         inject<MatSnackBarRef<SourceRemovalToastComponent>>(MatSnackBarRef);
+    private readonly undo = viewChild.required('undo', { read: ElementRef });
+
+    constructor() {
+        const document = inject(DOCUMENT);
+        // After the opening animation: by then a closing menu has tried, and
+        // failed, to give focus back to the removed row's ⋯ button.
+        this.ref.afterOpened().subscribe(() => {
+            const active = document.activeElement;
+            if (!active || active === document.body) {
+                (this.undo().nativeElement as HTMLElement).focus();
+            }
+        });
+    }
 }

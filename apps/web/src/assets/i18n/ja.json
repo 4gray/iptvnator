@@ -1917,7 +1917,8 @@
                 "EXPIRED": "期限切れ",
                 "EDIT": "編集…",
                 "COPY_URL": "URLをコピー",
-                "OPEN": "開く"
+                "OPEN": "開く",
+                "CHANNELS_ONE": "1 チャンネル"
             },
             "STATUS": "状態",
             "STATUS_ANY": "すべて",
@@ -1927,7 +1928,8 @@
             "RESET_FILTERS": "フィルターをリセット",
             "REMOVED": "「{{name}}」を削除しました",
             "REMOVED_SWITCHED": "「{{name}}」を削除し、「{{next}}」に切り替えました",
-            "REMOVE_FAILED": "「{{name}}」を削除できませんでした"
+            "REMOVE_FAILED": "「{{name}}」を削除できませんでした",
+            "ADD_SOURCE": "ソースを追加"
         },
         "CONTEXT": {
             "CATEGORIES": "カテゴリー",
@@ -2020,6 +2022,15 @@
             "NO_PLAYLISTS_BODY": "プレイリストを追加すると、視聴履歴がここに表示されます。",
             "NO_ITEMS_TITLE": "視聴履歴はまだありません",
             "NO_ITEMS_BODY": "ライブラリ内のコンテンツを視聴し始めると、ここに表示されます。"
+        },
+        "SWITCHER": {
+            "SEARCH": "プレイリストを検索…",
+            "RECENT": "最近",
+            "NO_MATCHES": "見つかりませんでした",
+            "ALL_SOURCES": "すべてのソース",
+            "HINT_SELECT": "選択",
+            "HINT_OPEN": "開く",
+            "HINT_CLOSE": "閉じる"
         }
     },
     "LOADING": "読み込み中",
