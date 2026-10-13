@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonToggleGroup } from '@angular/material/button-toggle';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -25,6 +26,7 @@ import {
     liveSidebarStateStorageKey,
 } from '@iptvnator/portal/shared/util';
 import {
+    UnifiedCollectionDataService,
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
@@ -158,6 +160,7 @@ describe('UnifiedCollectionPageComponent', () => {
     const dialogService = {
         openConfirmDialog: jest.fn(),
     };
+    const snackBar = { open: jest.fn() };
     const workspaceViewCommands = {
         registerCommand: jest.fn(),
     };
@@ -251,6 +254,7 @@ describe('UnifiedCollectionPageComponent', () => {
                 TranslateModule.forRoot(),
             ],
             providers: [
+                { provide: MatSnackBar, useValue: snackBar },
                 {
                     provide: ActivatedRoute,
                     useValue: route,
@@ -322,6 +326,39 @@ describe('UnifiedCollectionPageComponent', () => {
         fixture.componentRef.setInput('mode', 'favorites');
         fixture.componentRef.setInput('defaultScope', 'all');
     });
+
+    it.each([
+        [
+            'XTREAM_FAVORITE_IDENTITY_CONFLICT',
+            'PORTALS.FAVORITE_IDENTITY_CONFLICT',
+        ],
+        ['SQLite write failed', 'PORTALS.FAVORITE_SAVE_FAILED'],
+    ])(
+        'reports %s without filling the recent favorite heart',
+        async (error, message) => {
+            fixture.componentRef.setInput('mode', 'recent');
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::source::live:7',
+                name: 'Recent channel',
+                sourceType: 'xtream',
+                contentType: 'live',
+                playlistId: 'source',
+                playlistName: 'Source',
+                contentId: 42,
+            };
+            favoritesData.addFavorite.mockRejectedValueOnce(new Error(error));
+            await expect(
+                fixture.componentInstance.onFavoriteToggled(item)
+            ).resolves.toBeUndefined();
+            expect(snackBar.open).toHaveBeenCalledWith(message, undefined, {
+                duration: 6000,
+            });
+            const data = fixture.debugElement.injector.get(
+                UnifiedCollectionDataService
+            );
+            expect(data.favoriteUidSet().has(item.uid)).toBe(false);
+        }
+    );
 
     it('uses compact loading rows when the runtime has no EPG support', () => {
         fixture.detectChanges();

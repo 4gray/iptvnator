@@ -99,6 +99,8 @@ describe('UnifiedRecentDataService', () => {
 
     const createPortalActivityElectronApi = (): Window['electron'] =>
         ({
+            dbGetPlaylist: jest.fn(),
+            dbRestoreXtreamFavorites: jest.fn(),
             dbGetRecentlyViewed: jest.fn(),
             dbClearRecentlyViewed: jest.fn(),
             dbGetAllGlobalFavorites: jest.fn(),

@@ -162,11 +162,14 @@ export class UnifiedFavoritesDataService {
             return;
         }
 
-        await electron.dbAddFavorite(
+        const result = await electron.dbAddFavorite(
             contentId,
             item.playlistId,
             item.posterUrl ?? item.logo ?? undefined
         );
+        if (!result.success) {
+            throw new Error(result.error ?? 'Favorite could not be saved');
+        }
     }
 
     private async addStalkerFavorite(

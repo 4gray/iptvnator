@@ -4,12 +4,26 @@ import {
     normalizeXtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 
+type FavoriteRestoreSupport = Partial<
+    Pick<ElectronBridgeApi, 'dbReplaceAllPlaybackPositions'>
+>;
+
+/** Parked archives must not bypass the restore-only atomic replacement preflight. */
+export function assertXtreamFavoriteRestoreSupported(
+    bridge: FavoriteRestoreSupport
+): void {
+    if (typeof bridge.dbReplaceAllPlaybackPositions !== 'function') {
+        throw new Error('Playback position replacement method is unavailable');
+    }
+}
+
 /** Reads must recover older parked favorites without entering a network bootstrap. */
 export async function materializePendingXtreamFavorites(
     bridge: Pick<
         ElectronBridgeApi,
         'dbGetPlaylist' | 'dbRestoreXtreamFavorites'
-    >,
+    > &
+        FavoriteRestoreSupport,
     playlistId?: string,
     failureMode: 'throw' | 'continue' = 'throw'
 ): Promise<void> {
@@ -49,6 +63,7 @@ export async function materializePendingXtreamFavorites(
             // Never recreate a playlist or let an orphan block other saved entries.
             const playlist = await bridge.dbGetPlaylist(id);
             if (!playlist || playlist.type !== 'xtream') continue;
+            assertXtreamFavoriteRestoreSupported(bridge);
             const result = await bridge.dbRestoreXtreamFavorites(
                 id,
                 state.favorites,

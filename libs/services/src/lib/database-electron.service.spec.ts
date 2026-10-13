@@ -61,6 +61,7 @@ describe('DatabaseService browser guards', () => {
             JSON.stringify(pending)
         );
         const bridge = {
+            dbReplaceAllPlaybackPositions: jest.fn(),
             dbGetPlaylist: jest.fn().mockResolvedValue({ type: 'xtream' }),
             dbRestoreXtreamFavorites: jest
                 .fn()
@@ -115,6 +116,7 @@ describe('DatabaseService browser guards', () => {
             Object.defineProperty(window, 'electron', {
                 configurable: true,
                 value: {
+                    dbReplaceAllPlaybackPositions: jest.fn(),
                     dbGetPlaylist: jest
                         .fn()
                         .mockResolvedValue({ type: 'xtream' }),
@@ -164,6 +166,7 @@ describe('DatabaseService browser guards', () => {
             const rows = [{ favorite_id: 1, title: 'Saved favorite' }];
             const read = jest.fn().mockResolvedValue(rows);
             const bridge = {
+                dbReplaceAllPlaybackPositions: jest.fn(),
                 dbGetPlaylist: jest.fn().mockResolvedValue({ type: 'xtream' }),
                 dbRestoreXtreamFavorites: jest
                     .fn()
@@ -231,6 +234,62 @@ describe('DatabaseService browser guards', () => {
         }
     );
 
+    it('does not replay a parked backup through collection, export or direct snapshot reads until restore is supported', async () => {
+        const favorites = [{ contentType: 'movie' as const, xtreamId: 7 }];
+        const pending = JSON.stringify({
+            favorites,
+            favoritesRestoreId: 'parked-backup',
+        });
+        localStorage.setItem('xtream-restore-playlist-1', pending);
+        const rows = [{ favorite_id: 1, title: 'Previously saved favorite' }];
+        const bridge = {
+            dbGetPlaylist: jest.fn().mockResolvedValue({ type: 'xtream' }),
+            dbRestoreXtreamFavorites: jest
+                .fn()
+                .mockResolvedValue({ success: true }),
+            dbGetFavorites: jest.fn().mockResolvedValue(rows),
+            dbGetGlobalFavorites: jest.fn().mockResolvedValue(rows),
+            dbGetAllGlobalFavorites: jest.fn().mockResolvedValue(rows),
+            dbGetFavoritesForBackup: jest.fn().mockResolvedValue(rows),
+            dbReplaceAllPlaybackPositions: undefined as jest.Mock | undefined,
+        };
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: bridge,
+        });
+        for (const method of [
+            'getFavorites',
+            'getGlobalFavorites',
+            'getAllGlobalFavorites',
+        ] as const) {
+            await expect(service[method]('playlist-1')).resolves.toEqual(rows);
+        }
+        expect(bridge.dbRestoreXtreamFavorites).not.toHaveBeenCalled();
+        await expect(service.getFavoritesOrThrow('playlist-1')).rejects.toThrow(
+            'replacement method is unavailable'
+        );
+        await expect(
+            service.restoreXtreamFavoriteSnapshots(
+                'playlist-1',
+                favorites,
+                'parked-backup'
+            )
+        ).rejects.toThrow('replacement method is unavailable');
+        expect(bridge.dbRestoreXtreamFavorites).not.toHaveBeenCalled();
+        expect(bridge.dbGetFavoritesForBackup).not.toHaveBeenCalled();
+        expect(localStorage.getItem('xtream-restore-playlist-1')).toBe(pending);
+        bridge.dbReplaceAllPlaybackPositions = jest.fn();
+        await expect(
+            service.getFavoritesOrThrow('playlist-1')
+        ).resolves.toEqual(rows);
+        expect(bridge.dbRestoreXtreamFavorites).toHaveBeenCalledWith(
+            'playlist-1',
+            favorites,
+            'parked-backup'
+        );
+        expect(bridge.dbReplaceAllPlaybackPositions).not.toHaveBeenCalled();
+    });
+
     it('ignores orphan legacy state but never treats failed conversion as an empty backup', async () => {
         localStorage.setItem(
             'xtream-restore-orphan',
@@ -239,6 +298,7 @@ describe('DatabaseService browser guards', () => {
             })
         );
         const bridge = {
+            dbReplaceAllPlaybackPositions: jest.fn(),
             dbGetPlaylist: jest.fn().mockResolvedValue(null),
             dbRestoreXtreamFavorites: jest
                 .fn()

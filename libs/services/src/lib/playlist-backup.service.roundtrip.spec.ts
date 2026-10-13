@@ -436,10 +436,8 @@ describe('PlaylistBackupService export → import round-trip', () => {
             expect(
                 collaborators.pendingRestoreService.getOrThrow('xtream-1')
             ).toEqual({ ...userState, favoritesRestoreId: expect.any(String) });
-            const parkedExport = await service.exportBackup();
-            expect(xtreamEntry(parkedExport.manifest).userState).toEqual(
-                userState
-            );
+            await expect(service.exportBackup()).rejects.toThrow('unavailable');
+            expect(favorites).not.toHaveBeenCalled();
 
             preflight.mockImplementation(() => undefined);
             collaborators.databaseService.getXtreamImportStatus = async () =>

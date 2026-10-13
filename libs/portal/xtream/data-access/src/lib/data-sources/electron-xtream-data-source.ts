@@ -689,6 +689,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         state: XtreamPendingRestoreState
     ): Promise<void> {
+        this.playbackService.assertSupportsAtomicReplacement();
         await this.dbService.restoreXtreamFavoriteSnapshots(
             playlistId,
             state.favorites,

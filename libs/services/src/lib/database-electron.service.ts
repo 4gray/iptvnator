@@ -1,4 +1,7 @@
-import { materializePendingXtreamFavorites } from './xtream-pending-favorites';
+import {
+    assertXtreamFavoriteRestoreSupported,
+    materializePendingXtreamFavorites,
+} from './xtream-pending-favorites';
 import type {
     ElectronBridgeXtreamFavorite,
     XtreamFavoriteRemovalRef,
@@ -303,6 +306,7 @@ export class DatabaseService {
         restoreId?: string
     ): Promise<void> {
         if (favorites.length === 0) return;
+        assertXtreamFavoriteRestoreSupported(window.electron);
         const result = await window.electron.dbRestoreXtreamFavorites(
             playlistId,
             favorites,

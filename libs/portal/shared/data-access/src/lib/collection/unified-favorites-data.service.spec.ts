@@ -12,10 +12,14 @@ import {
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
+import { UnifiedCollectionDataService } from './unified-collection-data.service';
+import { UnifiedRecentDataService } from './unified-recent-data.service';
 
 describe('UnifiedFavoritesDataService', () => {
     let service: UnifiedFavoritesDataService;
     let electronApi: {
+        dbGetPlaylist: jest.Mock;
+        dbRestoreXtreamFavorites: jest.Mock;
         dbAddFavorite: jest.Mock;
         dbAddRecentItem: jest.Mock;
         dbClearPlaylistRecentItems: jest.Mock;
@@ -108,6 +112,8 @@ describe('UnifiedFavoritesDataService', () => {
 
     beforeEach(() => {
         electronApi = {
+            dbGetPlaylist: jest.fn(),
+            dbRestoreXtreamFavorites: jest.fn(),
             dbAddFavorite: jest.fn().mockResolvedValue({ success: true }),
             dbAddRecentItem: jest.fn(),
             dbClearPlaylistRecentItems: jest.fn(),
@@ -198,6 +204,8 @@ describe('UnifiedFavoritesDataService', () => {
         TestBed.configureTestingModule({
             providers: [
                 UnifiedFavoritesDataService,
+                UnifiedCollectionDataService,
+                { provide: UnifiedRecentDataService, useValue: {} },
                 {
                     provide: Store,
                     useValue: store,
@@ -675,6 +683,31 @@ describe('UnifiedFavoritesDataService', () => {
             'xtream-1',
             'live.png'
         );
+    });
+
+    it('keeps a recent item heart empty when SQLite rejects its saved identity', async () => {
+        const item: UnifiedCollectionItem = {
+            uid: 'xtream::xtream-1::movie:101',
+            name: 'Replacement movie',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            xtreamId: 101,
+            contentId: 42,
+        };
+        electronApi.dbAddFavorite.mockResolvedValue({
+            success: false,
+            error: 'XTREAM_FAVORITE_IDENTITY_CONFLICT',
+        });
+        const collection = TestBed.inject(UnifiedCollectionDataService);
+        await expect(collection.toggleFavorite(item)).rejects.toThrow(
+            'XTREAM_FAVORITE_IDENTITY_CONFLICT'
+        );
+        expect(collection.favoriteUidSet().has(item.uid)).toBe(false);
+        electronApi.dbAddFavorite.mockResolvedValue({ success: true });
+        await collection.toggleFavorite(item);
+        expect(collection.favoriteUidSet().has(item.uid)).toBe(true);
     });
 
     it('uses the Xtream id as the favorite key in PWA when cached content is cold', async () => {

@@ -379,6 +379,28 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             ).not.toHaveBeenCalled();
         });
 
+        it('rejects the early pending-favorite restore before calling the database on an unsupported bridge', async () => {
+            harness.playbackService.assertSupportsAtomicReplacement.mockImplementation(
+                () => {
+                    throw new Error(
+                        'Playback position replacement method is unavailable'
+                    );
+                }
+            );
+            await expect(
+                harness.dataSource.restoreFavoriteSnapshots(playlistId, {
+                    favorites: [{ xtreamId: 7, contentType: 'movie' }],
+                    favoritesRestoreId: 'parked-backup',
+                    hiddenCategories: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                })
+            ).rejects.toThrow('unavailable');
+            expect(
+                harness.dbService.restoreXtreamFavoriteSnapshots
+            ).not.toHaveBeenCalled();
+        });
+
         it('rejects deferred restore when position replacement fails, retaining the caller retry', async () => {
             const restoreState = {
                 hiddenCategories: [],

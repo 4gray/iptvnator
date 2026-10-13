@@ -60,8 +60,9 @@ waiting for another import. Blank catalog fields retain their saved values.
 Conflicting known TMDB IDs or release years prevent automatic reconnection;
 changed provider IDs never reconnect by title.
 Adding a conflicting replacement returns an explicit failure and retains the
-older favorite. The detail toggle stays inactive and explains that the older
-entry must be removed from Favorites before the replacement can be saved.
+older favorite. Detail and recent-collection toggles stay inactive and explain
+that the older entry must be removed from Favorites before the replacement can
+be saved. Collection hearts change only after the storage write succeeds.
 
 `catalog_status` is `present`, `missing`, or `unknown`. Only a completed import
 of the relevant type can prove absence. Failed, cancelled and in-progress
@@ -99,6 +100,10 @@ favorite conversion bridge; activity reads also require playlist lookup. The
 SQLite capability also requires the unfiltered favorite backup reader. An
 unsupported atomic restore performs no favorite writes: a fresh archive stays
 parked, while an older pending restore is retained without being overwritten.
+Subsequent collection reads and early catalog imports must enforce the same
+preflight before replaying those favorites. Ordinary reads still return existing
+SQLite records. Exports that need to materialize parked favorites fail while
+atomic restore is unsupported; exports with no pending favorites remain available.
 
 Records already deleted by an older build cannot be recovered without a
 surviving pending state or backup. Opening an Xtream section may initialize

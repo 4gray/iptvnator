@@ -324,6 +324,9 @@ export class PlaylistBackupService {
             // then export the current saved records (including explicit removals).
             let favorites = pending.favorites;
             if (this.runtime.supportsXtreamSqliteDataSource) {
+                if (favorites.length) {
+                    this.playbackPositionService.assertSupportsAtomicReplacement();
+                }
                 await this.databaseService.restoreXtreamFavoriteSnapshots(
                     playlist._id,
                     pending.favorites,
