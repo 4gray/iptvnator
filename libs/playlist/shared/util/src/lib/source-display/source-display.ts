@@ -202,11 +202,21 @@ function sourceSecrets(playlist: SourceDisplayFields): string[] {
     return shown;
 }
 
+/**
+ * Whether the text shows any of the source's secrets. Escapes may be
+ * written in either case (`%3a` for `%3A`) and a MAC in either letter case,
+ * so text and secrets are compared lower-cased, the text as written and
+ * fully decoded.
+ */
 export function containsSourceSecret(
     text: string,
     playlist: SourceDisplayFields
 ): boolean {
-    return sourceSecrets(playlist).some((secret) => text.includes(secret));
+    const forms = [text, decodeFully(text)].map((form) => form.toLowerCase());
+    return sourceSecrets(playlist).some((secret) => {
+        const needle = secret.toLowerCase();
+        return forms.some((form) => form.includes(needle));
+    });
 }
 
 /**
@@ -270,7 +280,11 @@ export function sourceDisplayUrl(playlist: SourceDisplayFields): string | null {
             return null;
         }
         const base = `${server.protocol}//${server.host}`;
-        return playlist.username ? `${base} · ${playlist.username}` : base;
+        // An account name that is, or holds, the password stays off screen.
+        const user = playlist.username;
+        return user && !containsSourceSecret(user, playlist)
+            ? `${base} · ${user}`
+            : base;
     }
 
     const stripped = parseUrl(

@@ -262,6 +262,18 @@ describe('sourceDisplayUrl', () => {
         ).toBe('http://xtream.tv:8080 · joe');
     });
 
+    it('leaves out an account name that is, or holds, the password', () => {
+        for (const username of ['hunter2', 'joe-hunter2']) {
+            expect(
+                sourceDisplayUrl({
+                    serverUrl: 'http://xtream.tv:8080/',
+                    username,
+                    password: 'hunter2',
+                })
+            ).toBe('http://xtream.tv:8080');
+        }
+    });
+
     it('shows the portal URL for Stalker, never the MAC', () => {
         expect(
             sourceDisplayUrl({
@@ -279,6 +291,24 @@ describe('sourceDisplayUrl', () => {
                 portalUrl: 'http://portal.tv/00:1A:79:00:00:01/c/',
             })
         ).toBe('http://portal.tv');
+    });
+
+    it('finds a secret whatever the case of its escapes or letters', () => {
+        for (const portalUrl of [
+            'http://portal.tv/00%3a1A%3a79%3a00%3a00%3a01/c/',
+            'http://portal.tv/00:1a:79:00:00:01/c/',
+        ]) {
+            expect(
+                sourceDisplayUrl({ macAddress: '00:1A:79:00:00:01', portalUrl })
+            ).toBe('http://portal.tv');
+        }
+        expect(
+            sourceDisplayName({
+                title: 'Box 00:1a:79:00:00:01',
+                macAddress: '00:1A:79:00:00:01',
+                portalUrl: 'http://portal.tv/c/',
+            })
+        ).toBe('portal.tv');
     });
 
     it('has no URL for a local file or an unparsable address', () => {
