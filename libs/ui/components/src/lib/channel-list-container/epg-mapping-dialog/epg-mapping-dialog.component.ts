@@ -22,6 +22,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { debounceTime, from, Subject, switchMap } from 'rxjs';
+import { provideFormFieldDefaults } from '../../form-field-defaults/form-field-defaults';
 
 export interface EpgMappingDialogData {
     channelKey: string;
@@ -39,6 +40,7 @@ const SEARCH_MIN_CHARS = 2;
 
 @Component({
     selector: 'app-epg-mapping-dialog',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './epg-mapping-dialog.component.html',
     styleUrl: './epg-mapping-dialog.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1033,6 +1033,13 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
 
 ## Forms
 
+Every `<mat-form-field>` is outlined with a dynamic subscript. A component
+that renders one adds `providers: [provideFormFieldDefaults()]`
+(`@iptvnator/ui/components/form-field-defaults`); the root injector does not
+provide the defaults, because the token import there would load Material's
+form field and `@angular/forms` on startup. `pnpm run
+ui:form-field-defaults:validate` (in CI) reports a missing provider.
+
 The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
 vocabulary, so a field reads the same wherever it appears:
 
