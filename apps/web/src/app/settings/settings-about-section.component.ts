@@ -8,10 +8,10 @@ import {
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { TranslateModule } from '@ngx-translate/core';
+import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import {
     AppUpdateChannel,
     APP_UPDATE_CHANNELS,
@@ -30,7 +30,7 @@ interface SettingsUpdateStatusChip {
     selector: 'app-settings-about-section',
     imports: [
         MatButtonModule,
-        MatFormFieldModule,
+        AppFormFieldModule,
         MatIconModule,
         MatSelectModule,
         ReactiveFormsModule,

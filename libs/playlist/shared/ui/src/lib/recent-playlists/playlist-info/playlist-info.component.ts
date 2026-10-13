@@ -28,6 +28,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { firstValueFrom } from 'rxjs';
@@ -168,6 +169,7 @@ type DesktopFileSaveBridge = Pick<
     providers: [DatePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        AppFormFieldModule,
         ClipboardModule,
         MatButton,
         MatCheckboxModule,

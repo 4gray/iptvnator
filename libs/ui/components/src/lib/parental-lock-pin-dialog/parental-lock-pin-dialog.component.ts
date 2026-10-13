@@ -16,10 +16,10 @@ import {
     MatDialogModule,
     MatDialogRef,
 } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
+import { AppFormFieldModule } from '../form-field/app-form-field.module';
 import {
     createParentalLockPinThrottle,
     isValidParentalLockPin,
@@ -66,7 +66,7 @@ export interface ParentalLockPinDialogData {
         FormsModule,
         MatButtonModule,
         MatDialogModule,
-        MatFormFieldModule,
+        AppFormFieldModule,
         MatIconModule,
         MatInputModule,
         TranslatePipe,

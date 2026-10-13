@@ -18,12 +18,12 @@ import {
 } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     legacyTransformStalkerPortalUrl,
@@ -66,7 +66,7 @@ interface StalkerSettledIdentity {
     imports: [
         FormsModule,
         MatCheckboxModule,
-        MatFormFieldModule,
+        AppFormFieldModule,
         MatIcon,
         MatIconButton,
         MatInputModule,

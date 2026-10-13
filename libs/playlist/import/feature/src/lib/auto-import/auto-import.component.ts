@@ -9,10 +9,10 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
+import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import {
     detectProviderImportCandidates,
     ProviderImportCandidate,
@@ -150,7 +150,7 @@ function maskUrlQueryPasswords(url: string): string {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         MatButtonModule,
-        MatFormFieldModule,
+        AppFormFieldModule,
         MatIcon,
         MatInputModule,
         ReactiveFormsModule,

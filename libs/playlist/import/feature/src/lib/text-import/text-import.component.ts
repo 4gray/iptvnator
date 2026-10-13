@@ -12,13 +12,19 @@ import {
 } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
+import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 
 @Component({
     selector: 'app-text-import',
     templateUrl: './text-import.component.html',
     styleUrls: ['./text-import.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatInputModule, ReactiveFormsModule, TranslatePipe],
+    imports: [
+        AppFormFieldModule,
+        MatInputModule,
+        ReactiveFormsModule,
+        TranslatePipe,
+    ],
 })
 export class TextImportComponent {
     @Output() textAdded = new EventEmitter<string>();

@@ -430,6 +430,12 @@ jobs:
             - name: Validate icon-only button names
               run: pnpm run a11y:icon-buttons:validate
 
+            # The form-field defaults travel with AppFormFieldModule, not a
+            # root provider: a component that renders <mat-form-field>
+            # without it silently gets Material's filled look.
+            - name: Validate form-field defaults
+              run: pnpm run styles:form-field-defaults:validate
+
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is
             # unset, so this checks both the local and the CI inference.

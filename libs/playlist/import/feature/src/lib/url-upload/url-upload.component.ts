@@ -11,9 +11,9 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
+import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 
 @Component({
@@ -21,7 +21,7 @@ import { RuntimeCapabilitiesService } from '@iptvnator/services';
     templateUrl: './url-upload.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        MatFormFieldModule,
+        AppFormFieldModule,
         MatInputModule,
         ReactiveFormsModule,
         TranslatePipe,
