@@ -1,5 +1,10 @@
 import { XtreamVodDetails, getXtreamVodInfo } from './xtream-vod-details.interface';
 import { StalkerVodDetails } from './stalker-vod-details.interface';
+import {
+    firstProviderText,
+    readProviderRating,
+    readProviderText,
+} from './provider-metadata.util';
 import { parseFacetYear } from './tmdb.interface';
 import {
     NormalizedVodMeta,
@@ -11,24 +16,28 @@ import {
 /**
  * Normalizes Xtream VOD details into a display-friendly format.
  * Handles the various field name variations in Xtream API responses.
+ * Provider stand-ins ("N/A", "-", an unrated "0") read as absent — see
+ * `provider-metadata.util.ts`.
  */
 export function normalizeXtreamVod(item: XtreamVodDetails): NormalizedVodMeta {
     const info = getXtreamVodInfo(item);
     const movieData = item?.movie_data;
 
     return {
-        title: info?.name || movieData?.name || 'Unknown',
-        description: info?.description || info?.plot,
-        posterUrl: info?.movie_image || info?.cover_big,
-        backdropUrl: info?.backdrop_path?.[0],
-        year: extractYear(info?.releasedate),
-        genre: info?.genre,
-        duration: info?.duration || formatDuration(info?.duration_secs),
-        country: info?.country,
-        director: info?.director,
-        actors: info?.actors || info?.cast,
-        ratingImdb: info?.rating_imdb,
-        ratingKinopoisk: info?.rating_kinopoisk,
+        title: firstProviderText(info?.name, movieData?.name) ?? 'Unknown',
+        description: firstProviderText(info?.description, info?.plot),
+        posterUrl: firstProviderText(info?.movie_image, info?.cover_big),
+        backdropUrl: readProviderText(info?.backdrop_path?.[0]),
+        year: extractYear(readProviderText(info?.releasedate)),
+        genre: readProviderText(info?.genre),
+        duration:
+            readProviderText(info?.duration) ??
+            formatDuration(info?.duration_secs),
+        country: readProviderText(info?.country),
+        director: readProviderText(info?.director),
+        actors: firstProviderText(info?.actors, info?.cast),
+        ratingImdb: readProviderRating(info?.rating_imdb),
+        ratingKinopoisk: readProviderRating(info?.rating_kinopoisk),
         youtubeTrailer: info?.youtube_trailer,
         tmdbCast: info?.tmdb_cast,
         tmdbDirectors: info?.tmdb_directors,
@@ -42,24 +51,26 @@ export function normalizeXtreamVod(item: XtreamVodDetails): NormalizedVodMeta {
  * Normalizes Stalker VOD details into a display-friendly format.
  * Stalker has fewer metadata fields than Xtream.
  * Prefers o_name (original title) over name (often formatted/generic).
+ * Provider stand-ins ("N/A", "-", an unrated "0") read as absent — see
+ * `provider-metadata.util.ts`.
  */
 export function normalizeStalkerVod(item: StalkerVodDetails): NormalizedVodMeta {
     const info = item?.info;
 
     return {
-        title: info?.o_name || info?.name || 'Unknown',
-        description: info?.description,
-        posterUrl: info?.movie_image,
+        title: firstProviderText(info?.o_name, info?.name) ?? 'Unknown',
+        description: readProviderText(info?.description),
+        posterUrl: readProviderText(info?.movie_image),
         // Stalker portals never provide a backdrop; TMDB enrichment can
         backdropUrl: info?.tmdb_backdrop,
-        year: extractYear(info?.releasedate),
-        genre: info?.genre,
+        year: extractYear(readProviderText(info?.releasedate)),
+        genre: readProviderText(info?.genre),
         duration: undefined, // Stalker doesn't provide duration
         country: undefined, // Stalker doesn't provide country
-        director: info?.director,
-        actors: info?.actors,
-        ratingImdb: info?.rating_imdb,
-        ratingKinopoisk: info?.rating_kinopoisk,
+        director: readProviderText(info?.director),
+        actors: readProviderText(info?.actors),
+        ratingImdb: readProviderRating(info?.rating_imdb),
+        ratingKinopoisk: readProviderRating(info?.rating_kinopoisk),
         // Stalker portals provide no trailers; TMDB enrichment can
         youtubeTrailer: info?.tmdb_trailer,
         tmdbCast: info?.tmdb_cast,
