@@ -336,6 +336,38 @@ describe('SourceRemovalService', () => {
         expect(toasts).toHaveLength(1);
     });
 
+    it('keeps a deleted row busy until the whole delete has settled', async () => {
+        let finish!: (deleted: boolean) => void;
+        deletePlaylist.mockImplementation(
+            (
+                _playlist: PlaylistMeta,
+                options: { onEvent: (event: object) => void }
+            ) => {
+                options.onEvent({
+                    operation: 'delete-playlist',
+                    operationId: 'op-2',
+                    status: 'completed',
+                });
+                return new Promise<boolean>((resolve) => (finish = resolve));
+            }
+        );
+        service.remove({ ...playlist('x'), serverUrl: 'http://x.test' });
+        expireUndo();
+        await flush();
+
+        // The database is done, its cleanup is not: no Cancel, still busy.
+        expect(service.progress.isDeleting('x')).toBe(true);
+        expect(service.progress.canCancel('x')).toBe(false);
+        expect(dispatch).not.toHaveBeenCalled();
+
+        finish(true);
+        await flush();
+        expect(dispatch).toHaveBeenCalledWith(
+            PlaylistActions.playlistRemovalCommitted({ playlistId: 'x' })
+        );
+        expect(service.progress.isDeleting('x')).toBe(false);
+    });
+
     it('brings the source back and says so when the delete fails', async () => {
         deletePlaylist.mockResolvedValue(false);
         service.remove(playlist('a'));

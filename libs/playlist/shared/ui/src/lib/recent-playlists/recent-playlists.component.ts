@@ -122,13 +122,21 @@ export class RecentPlaylistsComponent {
         };
         const options = this.sortOptions();
         const filter = this.viewState.filter();
-        const filtered = filterSources(
+        const matching = filterSources(
             this.playlists(),
             this.statusService.supportsStatusFilter
                 ? filter
                 : { ...filter, status: 'all' },
             this.searchQueryInput(),
             bucketOf
+        );
+        // A running delete keeps its row, whatever the filters: its
+        // progress and Cancel live there (one started from the switcher
+        // has nowhere else to show).
+        const filtered = this.playlists().filter(
+            (playlist) =>
+                matching.includes(playlist) ||
+                this.removal.progress.isDeleting(playlist._id)
         );
         const sorted = this.sortService.sortPlaylists(
             filtered,

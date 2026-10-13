@@ -77,18 +77,28 @@ export class SourceDeleteProgressService {
         return this.cancelled.delete(id);
     }
 
+    /**
+     * Follows a running delete. A terminal event ends what Cancel can stop,
+     * but the row stays busy: the delete still cleans up (parental lock,
+     * stored state) before its source leaves the store, so the caller clears
+     * it once the whole delete has settled.
+     */
     track(id: string, event: DbOperationEvent): void {
-        if (['completed', 'cancelled', 'error'].includes(event.status)) {
-            this.clear(id);
-            return;
-        }
+        const terminal = ['completed', 'cancelled', 'error'].includes(
+            event.status
+        );
         this.operations.update((current) =>
-            new Map(current).set(id, {
-                operationId: event.operationId,
-                phase: event.phase,
-                current: event.current,
-                total: event.total,
-            })
+            new Map(current).set(
+                id,
+                terminal
+                    ? { ...current.get(id), operationId: undefined }
+                    : {
+                          operationId: event.operationId,
+                          phase: event.phase,
+                          current: event.current,
+                          total: event.total,
+                      }
+            )
         );
     }
 

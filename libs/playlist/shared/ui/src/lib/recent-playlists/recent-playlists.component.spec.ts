@@ -214,6 +214,15 @@ describe('RecentPlaylistsComponent', () => {
         expect(removal.remove).toHaveBeenCalledWith(M3U, FILE);
     });
 
+    it('keeps a running delete on screen whatever the filters', () => {
+        (
+            removal.progress as { isDeleting: (id: string) => boolean }
+        ).isDeleting = (id) => id === 'xtream';
+        viewState.setType('m3u');
+        fixture.detectChanges();
+        expect(ids()).toEqual(['m3u', 'xtream', 'file']);
+    });
+
     it('applies the type and status filters together', () => {
         viewState.setType('m3u');
         expect(ids()).toEqual(['m3u', 'file']);
