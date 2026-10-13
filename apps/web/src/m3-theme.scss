@@ -309,8 +309,9 @@ html {
 
 // ─── Global refined outlined inputs ──────────────────────────────────────────
 // Applied app-wide AFTER mat.all-component-themes so these overrides win the
-// cascade. Pairs with MAT_FORM_FIELD_DEFAULT_OPTIONS (outline + dynamic) set
-// in app.config.ts.
+// cascade. Pairs with the outline + dynamic MAT_FORM_FIELD_DEFAULT_OPTIONS
+// that provideFormFieldDefaults() (@iptvnator/ui/components) sets on each
+// component rendering a form field.
 $app-refined-input-density: mat.define-theme((
     density: (scale: -2),
 ));

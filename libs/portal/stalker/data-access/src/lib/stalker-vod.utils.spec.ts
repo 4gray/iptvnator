@@ -253,44 +253,71 @@ describe('stalker-vod.utils regressions', () => {
     });
 
     it('preserves TMDB enrichment fields through info re-normalization', () => {
-        const tmdbCast = [{ name: 'Karl Urban', profileUrl: null }];
+        // Detail views re-normalize the selected item on every render, so
+        // every field `mergeStalkerInfoWithTmdb` can set has to survive here
+        const tmdbCast = [{ name: 'Rowan Quill', profileUrl: null }];
         const tmdbRecommendations = [
-            { tmdbId: 1, title: 'Invincible', year: 2021, posterUrl: null },
+            { tmdbId: 1, title: 'Harbor Static', year: 2021, posterUrl: null },
         ];
+        const tmdbGenres = [{ id: 18, name: 'Drama' }];
+        const tmdbCountries = [{ code: 'NO', name: 'Norway' }];
 
         const info = createStalkerInfo({
             id: '7',
             info: {
-                name: 'The Boys s05',
+                name: 'Lantern Coast s05',
                 movie_image: 'http://portal/poster.jpg',
                 description: 'Plot',
-                actors: 'Karl Urban',
+                actors: 'Rowan Quill',
                 director: '',
-                releasedate: '2026',
-                genre: 'Action',
+                releasedate: '2026-03-01',
+                genre: 'Drama',
                 rating_imdb: '',
                 rating_kinopoisk: '8.1',
+                tmdb_id: 4242,
                 tmdb_cast: tmdbCast,
                 tmdb_directors: [
                     {
-                        name: 'Eric Kripke',
+                        name: 'Mara Tollen',
                         profileUrl: null,
                         tmdbPersonId: 1216630,
                     },
                 ],
-                tmdb_backdrop: 'https://image.tmdb.org/t/p/w1280/boys.jpg',
+                tmdb_status: 'returning',
+                tmdb_backdrop: 'https://image.tmdb.org/t/p/w1280/coast.jpg',
                 tmdb_trailer: 'abc123def',
                 tmdb_recommendations: tmdbRecommendations,
+                tmdb_genres: tmdbGenres,
+                tmdb_countries: tmdbCountries,
+                tmdb_media_type: 'tv',
+                tmdb_supplied_release_date: true,
             },
         });
 
+        expect(info.tmdb_id).toBe(4242);
         expect(info.tmdb_cast).toEqual(tmdbCast);
-        expect(info.tmdb_directors?.[0]?.name).toBe('Eric Kripke');
+        expect(info.tmdb_directors?.[0]?.name).toBe('Mara Tollen');
+        expect(info.tmdb_status).toBe('returning');
         expect(info.tmdb_backdrop).toBe(
-            'https://image.tmdb.org/t/p/w1280/boys.jpg'
+            'https://image.tmdb.org/t/p/w1280/coast.jpg'
         );
         expect(info.tmdb_trailer).toBe('abc123def');
         expect(info.tmdb_recommendations).toEqual(tmdbRecommendations);
+        expect(info.tmdb_genres).toEqual(tmdbGenres);
+        expect(info.tmdb_countries).toEqual(tmdbCountries);
+        expect(info.tmdb_media_type).toBe('tv');
+        expect(info.tmdb_supplied_release_date).toBe(true);
+    });
+
+    it('adds no TMDB fields to a row that was never enriched', () => {
+        const info = createStalkerInfo({
+            id: '8',
+            info: { name: 'Unenriched Title', releasedate: '2019' },
+        });
+
+        expect(
+            Object.keys(info).filter((key) => key.startsWith('tmdb_'))
+        ).toEqual([]);
     });
 
     describe('temporary-link flags survive normalization', () => {

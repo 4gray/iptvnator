@@ -188,18 +188,44 @@ export function createStalkerInfo(item: StalkerVodSource): StalkerVodInfo {
         genre: text(info.genre, item.genre, item.genres_str),
         rating_imdb: rating(info.rating_imdb, item.rating_imdb),
         rating_kinopoisk: rating(info.rating_kinopoisk, item.rating_kinopoisk),
-        // TMDB enrichment fields must survive re-normalization — detail
-        // views normalize the selected item on every render
-        ...(info.tmdb_id ? { tmdb_id: info.tmdb_id } : {}),
-        ...(info.tmdb_cast ? { tmdb_cast: info.tmdb_cast } : {}),
-        ...(info.tmdb_directors ? { tmdb_directors: info.tmdb_directors } : {}),
-        ...(info.tmdb_status ? { tmdb_status: info.tmdb_status } : {}),
-        ...(info.tmdb_backdrop ? { tmdb_backdrop: info.tmdb_backdrop } : {}),
-        ...(info.tmdb_trailer ? { tmdb_trailer: info.tmdb_trailer } : {}),
-        ...(info.tmdb_recommendations
-            ? { tmdb_recommendations: info.tmdb_recommendations }
-            : {}),
+        ...pickTmdbEnrichment(info),
     };
+}
+
+type TmdbEnrichmentKey = Extract<keyof StalkerVodInfo, `tmdb_${string}`>;
+
+/**
+ * Every TMDB enrichment field of {@link StalkerVodInfo}. A `Record` over the
+ * `tmdb_*` keys, so adding one to the interface fails to compile until it is
+ * listed here: detail views re-normalize the selected item on every render,
+ * and a field this list missed would vanish right after enrichment.
+ */
+const TMDB_ENRICHMENT_KEYS: Record<TmdbEnrichmentKey, true> = {
+    tmdb_id: true,
+    tmdb_cast: true,
+    tmdb_directors: true,
+    tmdb_status: true,
+    tmdb_backdrop: true,
+    tmdb_trailer: true,
+    tmdb_recommendations: true,
+    tmdb_genres: true,
+    tmdb_countries: true,
+    tmdb_media_type: true,
+    tmdb_supplied_release_date: true,
+};
+
+function pickTmdbEnrichment(
+    info: Partial<StalkerVodInfo>
+): Partial<Pick<StalkerVodInfo, TmdbEnrichmentKey>> {
+    const picked: Record<string, unknown> = {};
+    for (const key of Object.keys(
+        TMDB_ENRICHMENT_KEYS
+    ) as TmdbEnrichmentKey[]) {
+        if (info[key]) {
+            picked[key] = info[key];
+        }
+    }
+    return picked;
 }
 
 /**

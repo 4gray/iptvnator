@@ -3,11 +3,11 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 1595777,
+                "value": 1534604,
                 "unit": "bytes",
                 "slack": 4096,
-                "updatedAt": "2026-10-07",
-                "evidencePr": 1810,
+                "updatedAt": "2026-10-13",
+                "evidencePr": 1928,
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
             },
             "renderer.ipcCallsToFirstCard": {
