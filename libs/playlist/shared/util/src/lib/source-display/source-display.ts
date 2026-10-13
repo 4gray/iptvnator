@@ -27,7 +27,10 @@ export type SourceDisplayFields = Partial<
 
 /** The account name stays on screen by design; every other secret goes. */
 const SHOWN_ACCOUNT_KEYS = new Set(['username', 'login', 'user', 'usr']);
-/** Shorter values match ordinary words, not secrets. */
+/**
+ * Shorter secrets match ordinary words inside a text, so they count only
+ * as the whole text: a name that is just a two-letter password is hidden.
+ */
 const MIN_SECRET_LENGTH = 3;
 const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:\/\//i;
 
@@ -185,24 +188,14 @@ function sourceSecrets(playlist: SourceDisplayFields): string[] {
     if (url) {
         collectUrlSecrets(url, secrets, 0);
     }
-    const shown: string[] = [];
+    const forms: string[] = [];
     for (const secret of secrets) {
-        if (!secret) {
-            continue;
-        }
-        // A value encoded more than once reads as itself in a name. Each
-        // form must be long enough on its own: `%2542` decodes to `B`.
-        for (const form of [
-            secret,
-            encodeURIComponent(secret),
-            decodeFully(secret),
-        ]) {
-            if (form.length >= MIN_SECRET_LENGTH) {
-                shown.push(form);
-            }
+        if (secret) {
+            // A value encoded more than once reads as itself in a name.
+            forms.push(secret, encodeURIComponent(secret), decodeFully(secret));
         }
     }
-    return shown;
+    return forms;
 }
 
 /**
@@ -215,10 +208,18 @@ export function containsSourceSecret(
     text: string,
     playlist: SourceDisplayFields
 ): boolean {
-    const forms = [text, decodeFully(text)].map((form) => form.toLowerCase());
+    const forms = [text, decodeFully(text)].map((form) =>
+        form.trim().toLowerCase()
+    );
     return sourceSecrets(playlist).some((secret) => {
         const needle = secret.toLowerCase();
-        return forms.some((form) => form.includes(needle));
+        // Each form on its own: `%2542` decodes to `B`, which may only hide
+        // a text that is nothing but `b`.
+        return forms.some(
+            (form) =>
+                form === needle ||
+                (needle.length >= MIN_SECRET_LENGTH && form.includes(needle))
+        );
     });
 }
 

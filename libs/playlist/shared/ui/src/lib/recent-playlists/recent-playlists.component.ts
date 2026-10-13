@@ -217,7 +217,7 @@ export class RecentPlaylistsComponent {
         const next = replacementAfterRemoval(
             this.visiblePlaylists(),
             playlist._id,
-            (row) => this.removal.progress.isDeleting(row._id)
+            (row) => !this.removal.canTakeOver(row._id)
         );
         this.removal.remove(playlist, next);
     }

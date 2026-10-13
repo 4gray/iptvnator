@@ -233,6 +233,15 @@ describe('SourceRemovalService', () => {
         expect(toasts[0].message).toBe('WORKSPACE.SOURCES.REMOVED');
     });
 
+    it('does not hand over to a source a refresh or import holds', () => {
+        resolvedPlaylistId.set('a');
+        const release = TestBed.inject(SourceActivityService).begin(['b']);
+        service.remove(playlist('a'), playlist('b'));
+        expect(context.selectPlaylist).not.toHaveBeenCalled();
+        expect(toasts[0].message).toBe('WORKSPACE.SOURCES.REMOVED');
+        release();
+    });
+
     it('leaves a switch the user made after the delete alone on Undo', () => {
         resolvedPlaylistId.set('a');
         service.remove(playlist('a'), playlist('b'));

@@ -334,7 +334,7 @@ export class PlaylistSwitcherPanelComponent {
         const next = replacementAfterRemoval(
             this.groups().all.map((option) => option.playlist),
             playlist._id,
-            (row) => this.removal.progress.isDeleting(row._id)
+            (row) => !this.removal.canTakeOver(row._id)
         );
         this.close();
         // Closing put the focus back on the trigger.

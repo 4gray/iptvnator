@@ -133,6 +133,9 @@ describe('PlaylistSwitcherPanelComponent', () => {
                         progress: {
                             isDeleting: (id: string) => deleting().has(id),
                         },
+                        canTakeOver: (id: string) =>
+                            !deleting().has(id) &&
+                            !TestBed.inject(SourceActivityService).isBusy(id),
                     },
                 },
                 {
@@ -346,6 +349,16 @@ describe('PlaylistSwitcherPanelComponent', () => {
         fixture.detectChanges();
         component.select(ALPHA);
         expect(selectPlaylist).toHaveBeenCalledWith(ALPHA);
+    });
+
+    it('hands over past a source a refresh holds when removing the current one', () => {
+        // Bravo is current; Charlie would follow it but is refreshing.
+        const release = TestBed.inject(SourceActivityService).begin([
+            'charlie',
+        ]);
+        component.remove(BRAVO);
+        expect(remove).toHaveBeenCalledWith(BRAVO, ALPHA, expect.anything());
+        release();
     });
 
     it('leaves out a source whose delete is pending or running', () => {

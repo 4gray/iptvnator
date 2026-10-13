@@ -86,6 +86,19 @@ export class SourceRemovalService {
     }
 
     /**
+     * Whether a source can become active in place of a removed one: not
+     * leaving itself, and not held by a refresh, import or delete, since
+     * opening it would start an import against a catalog being rewritten.
+     */
+    canTakeOver(id: string): boolean {
+        return (
+            !this.isPending(id) &&
+            !this.progress.isDeleting(id) &&
+            !this.activity.isBusy(id)
+        );
+    }
+
+    /**
      * @param next The source to switch to when `playlist` is the active one:
      * the caller's next row, so the switch follows the list on screen.
      */
@@ -112,14 +125,8 @@ export class SourceRemovalService {
         const wasOnItsRoute =
             this.playlistContext.routePlaylistId() === playlist._id;
         const previousUrl = this.router.url;
-        // A source that is leaving too cannot take over.
         const replacement =
-            wasActive &&
-            next &&
-            !this.isPending(next._id) &&
-            !this.progress.isDeleting(next._id)
-                ? next
-                : null;
+            wasActive && next && this.canTakeOver(next._id) ? next : null;
         this.setPending(playlist._id, true);
 
         if (replacement) {

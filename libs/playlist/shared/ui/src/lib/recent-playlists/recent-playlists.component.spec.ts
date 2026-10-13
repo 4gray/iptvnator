@@ -63,6 +63,7 @@ describe('RecentPlaylistsComponent', () => {
         pendingIds: typeof pending;
         remove: jest.Mock;
         isPending: jest.Mock;
+        canTakeOver: jest.Mock;
         progress: object;
     };
     let viewState: SourcesViewStateService;
@@ -84,6 +85,15 @@ describe('RecentPlaylistsComponent', () => {
             pendingIds: pending,
             remove: jest.fn(),
             isPending: jest.fn((id: string) => pending().has(id)),
+            canTakeOver: jest.fn(
+                (id: string) =>
+                    !(
+                        removal.progress as {
+                            isDeleting: (id: string) => boolean;
+                        }
+                    ).isDeleting(id) &&
+                    !TestBed.inject(SourceActivityService).isBusy(id)
+            ),
             progress: {
                 isDeleting: () => false,
                 message: () => '',
@@ -225,6 +235,13 @@ describe('RecentPlaylistsComponent', () => {
         ).isDeleting = (id) => id === 'xtream';
         component.remove(M3U);
         expect(removal.remove).toHaveBeenCalledWith(M3U, FILE);
+    });
+
+    it('hands over past a source a refresh holds', () => {
+        const release = TestBed.inject(SourceActivityService).begin(['xtream']);
+        component.remove(M3U);
+        expect(removal.remove).toHaveBeenCalledWith(M3U, FILE);
+        release();
     });
 
     it('keeps a running delete on screen whatever the filters', () => {

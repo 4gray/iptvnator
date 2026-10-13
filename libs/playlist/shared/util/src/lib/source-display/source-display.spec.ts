@@ -139,6 +139,27 @@ describe('sourceDisplayName', () => {
         );
     });
 
+    it('drops a name that is nothing but a short password', () => {
+        const xtream = {
+            serverUrl: 'http://xtream.tv:8080',
+            username: 'joe',
+            password: 'pw',
+        };
+        expect(sourceDisplayName({ ...xtream, title: 'pw' })).toBe(
+            'xtream.tv:8080'
+        );
+        expect(sourceDisplayName({ ...xtream, title: ' PW ' })).toBe(
+            'xtream.tv:8080'
+        );
+        // Inside a longer name a short password is just letters.
+        expect(sourceDisplayName({ ...xtream, title: 'Pwnova' })).toBe(
+            'Pwnova'
+        );
+        expect(sourceDisplayUrl({ ...xtream, username: 'pw' })).toBe(
+            'http://xtream.tv:8080'
+        );
+    });
+
     it('keeps a name that only shares a letter with a decoded password', () => {
         // `%2542` is the password as written; decoded it is just `B`.
         const url = 'https://host.test/list?password=%2542';
