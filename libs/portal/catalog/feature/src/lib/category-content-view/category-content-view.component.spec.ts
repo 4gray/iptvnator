@@ -792,6 +792,54 @@ describe('CategoryContentViewComponent', () => {
             expect(catalog.saveScrollPosition).toHaveBeenCalledWith(333);
         });
 
+        it('saves the last scrolled offset on destroy, not the detached grid', () => {
+            const infiniteFixture = createInfiniteFixture();
+            infiniteFixture.detectChanges();
+            const grid = infiniteFixture.nativeElement.querySelector(
+                'app-grid-list'
+            ) as HTMLElement;
+            Object.defineProperty(grid, 'scrollTop', {
+                configurable: true,
+                value: 640,
+            });
+            grid.dispatchEvent(new Event('scroll'));
+            // Angular detaches a routed view before its destroy hooks run;
+            // a detached grid has no layout and reads 0.
+            Object.defineProperty(grid, 'scrollTop', {
+                configurable: true,
+                value: 0,
+            });
+
+            infiniteFixture.destroy();
+
+            expect(catalog.saveScrollPosition).toHaveBeenCalledWith(640);
+        });
+
+        it('saves the top on destroy for a grid recreated since the last scroll', () => {
+            const infiniteFixture = createInfiniteFixture();
+            infiniteFixture.detectChanges();
+            const scrolledGrid = infiniteFixture.nativeElement.querySelector(
+                'app-grid-list'
+            ) as HTMLElement;
+            Object.defineProperty(scrolledGrid, 'scrollTop', {
+                configurable: true,
+                value: 640,
+            });
+            scrolledGrid.dispatchEvent(new Event('scroll'));
+            // An inline detail replaces the grid; closing it renders a new one.
+            selectedItem.set({ xtream_id: 42 });
+            infiniteFixture.detectChanges();
+            selectedItem.set(null);
+            infiniteFixture.detectChanges();
+            expect(
+                infiniteFixture.nativeElement.querySelector('app-grid-list')
+            ).not.toBe(scrolledGrid);
+
+            infiniteFixture.destroy();
+
+            expect(catalog.saveScrollPosition).toHaveBeenLastCalledWith(0);
+        });
+
         it('consumes a saved scroll position once the list is rendered', () => {
             catalog.consumeSavedScrollPosition.mockReturnValue(500);
             const infiniteFixture = createInfiniteFixture();

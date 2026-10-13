@@ -444,6 +444,89 @@ describe('PlayerControlsComponent settings panel', () => {
             fixture.nativeElement.remove();
         });
 
+        async function openSheetByKeyboard(): Promise<{
+            sheet: HTMLElement;
+            tune: HTMLButtonElement;
+        }> {
+            const tune = query(
+                '[data-test-id="player-controls-settings-button"]'
+            ) as HTMLButtonElement;
+            document.body.appendChild(fixture.nativeElement);
+            tune.focus();
+            const matches = tune.matches.bind(tune);
+            Object.defineProperty(tune, 'matches', {
+                configurable: true,
+                value: (selector: string) =>
+                    selector === ':focus-visible' || matches(selector),
+            });
+            tune.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const sheet = query(
+                '[data-test-id="player-controls-settings-panel"]'
+            ) as HTMLElement;
+            expect(document.activeElement).toBe(sheet);
+            return { sheet, tune };
+        }
+
+        async function closeSheetWithEscape(): Promise<void> {
+            // Inside a task, as in the app: zone.js drains microtasks after
+            // a top-level listener, which would run them mid-removal.
+            await new Promise<void>((resolve) =>
+                setTimeout(() => {
+                    document.dispatchEvent(
+                        new KeyboardEvent('keydown', {
+                            key: 'Escape',
+                            bubbles: true,
+                        })
+                    );
+                    fixture.detectChanges();
+                    resolve();
+                })
+            );
+            await fixture.whenStable();
+            await Promise.resolve();
+            expect(
+                query('[data-test-id="player-controls-settings-panel"]')
+            ).toBeNull();
+        }
+
+        const blur = (target: HTMLElement) =>
+            target.dispatchEvent(
+                new FocusEvent('focusout', { bubbles: true, relatedTarget: null })
+            );
+
+        it('returns focus to tune when the removed sheet reports a focusout', async () => {
+            const { sheet, tune } = await openSheetByKeyboard();
+            // Chromium blurs a focused element synchronously while removing
+            // it, before the view's destroy hook; jsdom does not, so
+            // emulate it.
+            const remove = sheet.remove.bind(sheet);
+            sheet.remove = () => {
+                blur(sheet);
+                remove();
+            };
+
+            await closeSheetWithEscape();
+
+            expect(document.activeElement).toBe(tune);
+            fixture.nativeElement.remove();
+        });
+
+        it('leaves focus on the page after a pointer release blurred the sheet', async () => {
+            const { sheet, tune } = await openSheetByKeyboard();
+            // A pointer click releases focus in its own task, while the
+            // sheet stays attached.
+            blur(sheet);
+            sheet.blur();
+            await Promise.resolve();
+
+            await closeSheetWithEscape();
+
+            expect(document.activeElement).not.toBe(tune);
+            fixture.nativeElement.remove();
+        });
+
         it('leaves focus alone when a pointer opens the sheet', async () => {
             query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();

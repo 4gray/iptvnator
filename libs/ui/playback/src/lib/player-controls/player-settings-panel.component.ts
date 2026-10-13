@@ -122,7 +122,16 @@ export class PlayerSettingsPanelComponent implements OnDestroy {
 
     onFocusOut(event: FocusEvent): void {
         const next = event.relatedTarget;
-        this.focusInside = next instanceof Node && this.host.contains(next);
+        const inside = next instanceof Node && this.host.contains(next);
+        // Chromium blurs a focused element synchronously while removing it,
+        // before this view's destroy hook runs. Judge once the removal is
+        // done: a detached panel did not lose focus to anything, while a
+        // pointer release blurs a panel that stays attached.
+        queueMicrotask(() => {
+            if (this.host.isConnected) {
+                this.focusInside = inside;
+            }
+        });
     }
 
     /**

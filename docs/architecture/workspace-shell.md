@@ -234,6 +234,15 @@ records no shift. `app.config.spec.ts` keeps the animations renderer out, and
 `workspace-route-swap.e2e.ts` asserts that no mutation checkpoint holds both
 pages and that neither the dashboard nor the content pane shifts.
 
+Destroy hooks therefore run with the view's DOM already detached, where
+`scrollTop` reads 0 and focus has dropped to `body`. Chromium blurs a focused
+element synchronously while removing it, so its `focusout` (no
+`relatedTarget`) arrives before the hook. The deferred removal used to hide
+this. Record what a hook needs while the view is attached: the catalog keeps
+the offset of the grid that scrolled last, and the player settings panel
+judges a `focusout` a microtask later, when a removed panel is detached and a
+pointer-blurred one is not.
+
 Do not add `provideAnimations()` or `provideAnimationsAsync()` back; animate
 with CSS. A leave animation (`animate.leave` included) delays its element's
 removal in the same way, so a routed page must not carry one.

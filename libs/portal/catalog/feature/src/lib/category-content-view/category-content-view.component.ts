@@ -7,6 +7,7 @@ import {
     effect,
     ElementRef,
     inject,
+    NgZone,
     OnDestroy,
     OnInit,
     signal,
@@ -198,6 +199,9 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     });
     private previousGridResetKey: string | null = null;
     private hasAttemptedScrollRestore = false;
+    /** The offset of the grid that scrolled last (see ngOnDestroy). */
+    private lastGridScroll: { grid: Element; scrollTop: number } | null =
+        null;
     private readonly routeCategory = signal<{ id: string | null } | null>(null);
     private initializedRoute: {
         category: { id: string | null };
@@ -205,6 +209,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     } | null = null;
 
     constructor() {
+        this.trackGridScrollTop();
+
         effect(() => {
             const category = this.routeCategory();
             if (!category || this.catalog.routeReady?.() === false) {
@@ -306,11 +312,15 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         // Leaving the list without opening a detail (e.g. switching portal
         // tabs) still snapshots the spot; the facade validates the selection
         // before ever restoring it.
-        if (!this.selectedItem()) {
-            const grid = this.gridElement();
-            if (grid) {
-                this.catalog.saveScrollPosition?.(grid.scrollTop);
-            }
+        // Angular removes a view's DOM before its destroy hooks run, so the
+        // grid is detached here and its scrollTop reads 0. A grid that never
+        // scrolled (a new category's) is still at the top.
+        const grid = this.gridElement();
+        if (!this.selectedItem() && grid) {
+            const last = this.lastGridScroll;
+            this.catalog.saveScrollPosition?.(
+                last?.grid === grid ? last.scrollTop : 0
+            );
         }
     }
 
@@ -337,6 +347,28 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
                 queryParamsHandling: 'preserve',
             });
         }
+    }
+
+    /** Scroll events do not bubble; a passive capture listener sees them. */
+    private trackGridScrollTop(): void {
+        const host: HTMLElement = this.hostElement.nativeElement;
+        const onScroll = (event: Event) => {
+            if (event.target instanceof HTMLElement) {
+                if (event.target.tagName === 'APP-GRID-LIST') {
+                    this.lastGridScroll = {
+                        grid: event.target,
+                        scrollTop: event.target.scrollTop,
+                    };
+                }
+            }
+        };
+        const options = { capture: true, passive: true };
+        inject(NgZone).runOutsideAngular(() =>
+            host.addEventListener('scroll', onScroll, options)
+        );
+        this.destroyRef.onDestroy(() =>
+            host.removeEventListener('scroll', onScroll, options)
+        );
     }
 
     private gridElement(): HTMLElement | null {
