@@ -1,4 +1,3 @@
-import { isSensitiveKey } from '@iptvnator/shared/logging';
 import {
     PlaylistMeta,
     playlistDisplayLabel,
@@ -6,6 +5,7 @@ import {
     resolvePlaylistSourceKind,
 } from '@iptvnator/shared/interfaces';
 import {
+    isDisplaySensitiveKey,
     isXtreamAccountPath,
     stripUrlCredentials,
     unwrapNestedValue,
@@ -26,7 +26,7 @@ export type SourceDisplayFields = Partial<
 >;
 
 /** The account name stays on screen by design; every other secret goes. */
-const SHOWN_ACCOUNT_KEYS = new Set(['username', 'login']);
+const SHOWN_ACCOUNT_KEYS = new Set(['username', 'login', 'user', 'usr']);
 /** Shorter values match ordinary words, not secrets. */
 const MIN_SECRET_LENGTH = 3;
 const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:\/\//i;
@@ -110,7 +110,7 @@ function collectUrlSecrets(
     const visit = (params: URLSearchParams): void =>
         params.forEach((value, key) => {
             const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (isSensitiveKey(key)) {
+            if (isDisplaySensitiveKey(key)) {
                 if (depth > 0 || !SHOWN_ACCOUNT_KEYS.has(normalized)) {
                     secrets.push(value);
                 }

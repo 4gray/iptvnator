@@ -74,6 +74,24 @@ describe('sourceDisplayName', () => {
 
     it('keeps an account name in the name: it is shown by design', () => {
         expect(sourceDisplayName({ title: 'joe', url: M3U_URL })).toBe('joe');
+        expect(
+            sourceDisplayName({
+                title: 'joe',
+                url: 'https://host.test/list?usr=joe&pass=hunter2',
+            })
+        ).toBe('joe');
+    });
+
+    it('drops a name holding a password under a short account key', () => {
+        for (const key of ['pass', 'pas', 'PASS']) {
+            const url = `https://host.test/list?user=joe&${key}=hunter2`;
+            expect(sourceDisplayName({ title: 'hunter2', url })).toBe(
+                'host.test'
+            );
+            expect(sourceDisplayName({ title: 'Mine hunter2', url })).toBe(
+                'host.test'
+            );
+        }
     });
 
     it('shows the host for a name an import took from a URL fragment', () => {

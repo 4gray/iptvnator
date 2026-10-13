@@ -70,7 +70,12 @@ export function isXtreamAccountPath(
     );
 }
 
-function isDisplaySensitiveKey(key: string): boolean {
+/**
+ * A parameter whose value must not be on screen: every key the log redactor
+ * treats as sensitive, plus the short account keys (`pass`, `usr`, …).
+ * The name check uses the same predicate, so it hides what the URL hides.
+ */
+export function isDisplaySensitiveKey(key: string): boolean {
     return SHORT_ACCOUNT_KEYS.has(key.toLowerCase()) || isSensitiveKey(key);
 }
 
