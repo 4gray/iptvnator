@@ -209,6 +209,17 @@ describe('SourceRemovalService', () => {
         expect(context.activatePlaylist).toHaveBeenCalledWith('a');
     });
 
+    it('does not hand over to a source that is being deleted', () => {
+        resolvedPlaylistId.set('a');
+        service.progress.track('b', {
+            operation: 'delete-playlist',
+            status: 'started',
+        });
+        service.remove(playlist('a'), playlist('b'));
+        expect(context.selectPlaylist).not.toHaveBeenCalled();
+        expect(toasts[0].message).toBe('WORKSPACE.SOURCES.REMOVED');
+    });
+
     it('leaves a switch the user made after the delete alone on Undo', () => {
         resolvedPlaylistId.set('a');
         service.remove(playlist('a'), playlist('b'));

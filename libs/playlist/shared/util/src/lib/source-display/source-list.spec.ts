@@ -6,6 +6,7 @@ import {
     filterSources,
     matchesSourceQuery,
     orderFailingFirst,
+    replacementAfterRemoval,
     SourceBucketOf,
 } from './source-list';
 import {
@@ -95,6 +96,26 @@ describe('source list filters', () => {
             'file',
             'stalker',
         ]);
+    });
+});
+
+describe('replacementAfterRemoval', () => {
+    const rows = ['a', 'b', 'c', 'd'].map((id) => ({ _id: id }));
+    const none = () => false;
+
+    it('hands over to the next row, or the previous one at the end', () => {
+        expect(replacementAfterRemoval(rows, 'b', none)?._id).toBe('c');
+        expect(replacementAfterRemoval(rows, 'd', none)?._id).toBe('c');
+        expect(replacementAfterRemoval([{ _id: 'a' }], 'a', none)).toBeNull();
+    });
+
+    it('skips rows that are leaving too', () => {
+        const deleting = (row: { _id: string }) =>
+            row._id === 'c' || row._id === 'd';
+        expect(replacementAfterRemoval(rows, 'b', deleting)?._id).toBe('a');
+        expect(
+            replacementAfterRemoval(rows, 'a', (row) => row._id !== 'a')
+        ).toBeNull();
     });
 });
 

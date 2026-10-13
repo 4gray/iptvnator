@@ -105,7 +105,14 @@ export class SourceRemovalService {
         const wasOnItsRoute =
             this.playlistContext.routePlaylistId() === playlist._id;
         const previousUrl = this.router.url;
-        const replacement = wasActive ? next : null;
+        // A source that is leaving too cannot take over.
+        const replacement =
+            wasActive &&
+            next &&
+            !this.isPending(next._id) &&
+            !this.progress.isDeleting(next._id)
+                ? next
+                : null;
         this.setPending(playlist._id, true);
 
         if (replacement) {

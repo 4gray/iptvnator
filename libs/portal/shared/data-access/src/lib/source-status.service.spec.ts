@@ -232,6 +232,26 @@ describe('SourceStatusService', () => {
             });
         });
 
+        it("keeps an edited account's status from the old account's slow check", async () => {
+            let finishOld!: (status: string) => void;
+            portal.checkPortalStatus
+                .mockReturnValueOnce(new Promise((r) => (finishOld = r)))
+                .mockResolvedValueOnce('active');
+            const service = create(false);
+            service.recheck(xtream);
+
+            const edited = { ...xtream, password: 'changed' } as PlaylistMeta;
+            service.ensureChecked(edited, new AbortController().signal);
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(service.statusOf(edited)?.reachability).toBe('ok');
+
+            finishOld('inactive');
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(service.statusOf(edited)?.reachability).toBe('ok');
+        });
+
         it('drops a result that lands after the list closed', async () => {
             const service = create(false);
             const controller = new AbortController();

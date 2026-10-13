@@ -27,6 +27,7 @@ import {
     orderFailingFirst,
     PlaylistContextFacade,
     PlaylistRecentHistoryService,
+    replacementAfterRemoval,
     SourceBucketOf,
     sourceSortName,
     SourcesTypeFilter,
@@ -280,22 +281,21 @@ export class PlaylistSwitcherPanelComponent {
      * from Undo, which then takes the focus and returns it to the trigger.
      */
     remove(playlist: PlaylistMeta): void {
-        const all = this.groups().all.map((option) => option.playlist);
-        const index = all.findIndex((item) => item._id === playlist._id);
+        const next = replacementAfterRemoval(
+            this.groups().all.map((option) => option.playlist),
+            playlist._id,
+            (row) => this.removal.progress.isDeleting(row._id)
+        );
         this.close();
         // Closing put the focus back on the trigger.
         const returnFocusTo = this.document.activeElement;
-        this.removal.remove(
-            playlist,
-            all[index + 1] ?? all[index - 1] ?? null,
-            {
-                returnFocusTo:
-                    returnFocusTo instanceof HTMLElement &&
-                    returnFocusTo !== this.document.body
-                        ? returnFocusTo
-                        : null,
-            }
-        );
+        this.removal.remove(playlist, next, {
+            returnFocusTo:
+                returnFocusTo instanceof HTMLElement &&
+                returnFocusTo !== this.document.body
+                    ? returnFocusTo
+                    : null,
+        });
     }
 
     /** A row menu gives the focus back to the search, unless closing. */
@@ -337,7 +337,13 @@ export class PlaylistSwitcherPanelComponent {
     private scrollHighlightIntoView(): void {
         const id = this.activeOptionId();
         const list = this.list().nativeElement;
-        const option = id ? list.querySelector<HTMLElement>(`#${id}`) : null;
+        // By exact ID, not a selector: a restored playlist ID may hold "."
+        // or ":", which a selector would misread.
+        const option = id
+            ? this.rowElements()
+                  .map((row) => row.nativeElement as HTMLElement)
+                  .find((element) => element.id === id)
+            : undefined;
         if (!option) {
             return;
         }

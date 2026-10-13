@@ -122,3 +122,30 @@ export function orderFailingFirst(
     }
     return [...failing, ...rest];
 }
+
+/**
+ * The source that takes over when `removedId` leaves a list: the nearest
+ * row after it, else before it, skipping rows that are leaving too (a
+ * delete still running). Null when no other source can take over.
+ */
+export function replacementAfterRemoval<T extends { _id: string }>(
+    rows: readonly T[],
+    removedId: string,
+    leaving: (row: T) => boolean
+): T | null {
+    const index = rows.findIndex((row) => row._id === removedId);
+    if (index === -1) {
+        return null;
+    }
+    for (let next = index + 1; next < rows.length; next += 1) {
+        if (!leaving(rows[next])) {
+            return rows[next];
+        }
+    }
+    for (let previous = index - 1; previous >= 0; previous -= 1) {
+        if (!leaving(rows[previous])) {
+            return rows[previous];
+        }
+    }
+    return null;
+}

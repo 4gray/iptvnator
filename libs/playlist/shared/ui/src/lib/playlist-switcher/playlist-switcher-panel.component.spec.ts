@@ -194,6 +194,16 @@ describe('PlaylistSwitcherPanelComponent', () => {
         expect(closed).toHaveBeenCalled();
     });
 
+    it('moves through options whose IDs a selector would misread', () => {
+        const restored = { ...ALPHA, _id: 'odd:id.one', title: 'Aardvark' };
+        playlists.set([restored, BRAVO]);
+        fixture.detectChanges();
+        expect(() => press('ArrowDown')).not.toThrow();
+        expect(input().getAttribute('aria-activedescendant')).toBe(
+            'playlist-switcher-all-odd:id.one'
+        );
+    });
+
     it('filters by name or host as you type and highlights the first match', () => {
         type('charlie.example');
         expect(optionIds()).toEqual(['playlist-switcher-all-charlie']);

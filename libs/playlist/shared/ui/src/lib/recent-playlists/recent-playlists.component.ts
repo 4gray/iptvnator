@@ -31,6 +31,7 @@ import {
     filterSources,
     orderFailingFirst,
     PlaylistContextFacade,
+    replacementAfterRemoval,
     SourceBucketOf,
     sourceSortName,
     SourcesViewStateService,
@@ -201,9 +202,11 @@ export class RecentPlaylistsComponent {
         if (this.refresh.isRefreshing(playlist._id)) {
             return;
         }
-        const rows = this.visiblePlaylists();
-        const index = rows.findIndex((item) => item._id === playlist._id);
-        const next = rows[index + 1] ?? rows[index - 1] ?? null;
+        const next = replacementAfterRemoval(
+            this.visiblePlaylists(),
+            playlist._id,
+            (row) => this.removal.progress.isDeleting(row._id)
+        );
         this.removal.remove(playlist, next);
     }
 

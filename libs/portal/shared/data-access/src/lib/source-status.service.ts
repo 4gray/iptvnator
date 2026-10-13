@@ -57,6 +57,11 @@ export class SourceStatusService {
     private readonly injector = inject(Injector);
     private readonly history = inject(SourceHealthHistoryService);
     private readonly portalStatus = inject(PortalStatusService);
+    /**
+     * Browser-build portal statuses by playlist and connection
+     * (`portalKey`): a slow check of an account the user has since edited
+     * lands under the old key and cannot overwrite the new account's.
+     */
     private readonly portalStatuses = signal<ReadonlyMap<string, PortalStatus>>(
         new Map()
     );
@@ -77,7 +82,7 @@ export class SourceStatusService {
             return null;
         }
         if (!this.runtime.supportsSourceHealth) {
-            const status = this.portalStatuses().get(playlist._id);
+            const status = this.portalStatuses().get(portalKey(playlist));
             return status
                 ? {
                       reachability: sourceReachabilityFromPortalStatus(status),
@@ -147,16 +152,17 @@ export class SourceStatusService {
         fresh: boolean,
         signal?: AbortSignal
     ): Promise<void> {
-        const { _id, serverUrl, username, password } = playlist;
+        const { serverUrl, username, password } = playlist;
+        const key = portalKey(playlist);
         const cached = fresh
             ? null
             : this.portalStatus.getCachedStatus(serverUrl, username, password);
         if (cached) {
-            this.setPortalStatus(_id, cached);
+            this.setPortalStatus(key, cached);
             return;
         }
-        if (fresh || !this.portalStatuses().has(_id)) {
-            this.setPortalStatus(_id, 'checking');
+        if (fresh || !this.portalStatuses().has(key)) {
+            this.setPortalStatus(key, 'checking');
         }
         let status: PortalStatus;
         try {
@@ -172,23 +178,28 @@ export class SourceStatusService {
         if (signal?.aborted) {
             // A slow portal must not land after the list has closed; drop a
             // placeholder so the next opening checks again.
-            if (this.portalStatuses().get(_id) === 'checking') {
-                this.setPortalStatus(_id, null);
+            if (this.portalStatuses().get(key) === 'checking') {
+                this.setPortalStatus(key, null);
             }
             return;
         }
-        this.setPortalStatus(_id, status);
+        this.setPortalStatus(key, status);
     }
 
-    private setPortalStatus(id: string, status: PortalStatus | null): void {
+    private setPortalStatus(key: string, status: PortalStatus | null): void {
         this.portalStatuses.update((current) => {
             const next = new Map(current);
             if (status) {
-                next.set(id, status);
+                next.set(key, status);
             } else {
-                next.delete(id);
+                next.delete(key);
             }
             return next;
         });
     }
+}
+
+/** A playlist's portal status key: its ID and its connection. */
+function portalKey(playlist: PlaylistMeta): string {
+    return `${playlist._id}\u0000${sourceHealthFingerprint(playlist)}`;
 }
