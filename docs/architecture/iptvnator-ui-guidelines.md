@@ -88,6 +88,47 @@ tokens, so the retired `--mdc-*` names compile but do nothing;
 a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
 token directly and says why.
 
+### Material off the startup path
+
+`renderer.initialBytes` ([performance journeys](performance-journeys.md#rendererinitialbytes))
+counts every module an eager file imports, and the bundler keeps a module in
+one chunk, so one import of one export carries the whole module. Material
+therefore reaches the initial bundle only through the snack-bar, which root
+services inject (and with it `button`, the icon button and the CDK overlay).
+Everything else is lazy by these rules:
+
+- **Form-field defaults.** Import `AppFormFieldModule`
+  (`@iptvnator/ui/components/form-field`) instead of `MatFormFieldModule`
+  wherever a template renders `<mat-form-field>`: it exports Material's form
+  field with a directive that provides the app defaults (outlined, dynamic
+  subscript) on the element. The defaults are not a root provider, and a
+  route-level one would miss dialogs opened by root services.
+  `pnpm run styles:form-field-defaults:validate` (CI) rejects a component that
+  renders a form field without the module.
+- **Dialogs from services created with the app.** A root service that opens a
+  dialog resolves `MatDialog` through `LazyMatDialog`
+  (`@iptvnator/ui/components/lazy-dialog`) and imports the dialog component
+  on demand, as `DialogService`, the player service, the parental lock prompt
+  and the workspace shell actions do; `openConfirmDialog` returns a promise
+  that settles once the dialog is open. A component in a lazy chunk injects
+  `MatDialog` directly.
+- **Panels the shell mounts on every launch.** The EPG progress panel and the
+  update notification are an eager host with `@defer (when visible)` around
+  the view that imports Material; the startup status draws its spinner as
+  static markup copied from `mat-spinner`. A new always-mounted component
+  follows the same split.
+- **Theme scope.** `m3-theme.scss` themes only the components in its
+  `$material-components` list, through `meta.apply` for both the light theme
+  and the dark colours. Add an entry with a new `@angular/material/<entry>`
+  import and remove it with the last one;
+  `pnpm run styles:material-theme-scope:validate` (CI) checks both directions
+  (`core` always stays, `button` brings `icon-button` and `fab`).
+- **No animations module.** Nothing declares an Angular animation trigger and
+  Material 22 animates with CSS, deciding from `prefers-reduced-motion` itself,
+  so `app.config.ts` does not call `provideAnimations()`; the Electron
+  `material-motion.e2e.ts` checks that dialogs, selects, menus, snack-bars and
+  tooltips still animate in and out and stop under reduced motion.
+
 The app theme is the `.dark-theme` class that `SettingsService` puts on
 `<body>`; a "System" choice resolves the OS preference there and nowhere
 else. Component styles never use a `prefers-color-scheme` query, which
