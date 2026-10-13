@@ -14,14 +14,15 @@ import {
     MatDialogModule,
     MatDialogRef,
 } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { AppFormFieldModule } from '../../form-field/app-form-field.module';
 import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { debounceTime, from, Subject, switchMap } from 'rxjs';
+import { provideFormFieldDefaults } from '../../form-field-defaults/form-field-defaults';
 
 export interface EpgMappingDialogData {
     channelKey: string;
@@ -39,6 +40,7 @@ const SEARCH_MIN_CHARS = 2;
 
 @Component({
     selector: 'app-epg-mapping-dialog',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './epg-mapping-dialog.component.html',
     styleUrl: './epg-mapping-dialog.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,7 +48,7 @@ const SEARCH_MIN_CHARS = 2;
         FormsModule,
         MatButtonModule,
         MatDialogModule,
-        AppFormFieldModule,
+        MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         MatProgressSpinnerModule,

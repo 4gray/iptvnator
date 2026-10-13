@@ -16,10 +16,10 @@ import {
     MatDialogModule,
     MatDialogRef,
 } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
-import { AppFormFieldModule } from '../form-field/app-form-field.module';
 import {
     createParentalLockPinThrottle,
     isValidParentalLockPin,
@@ -27,6 +27,7 @@ import {
     PARENTAL_LOCK_PIN_MAX_LENGTH,
     PARENTAL_LOCK_PIN_MIN_LENGTH,
 } from '@iptvnator/shared/interfaces';
+import { provideFormFieldDefaults } from '../form-field-defaults/form-field-defaults';
 
 export type ParentalLockPinDialogMode = 'unlock' | 'set';
 
@@ -59,6 +60,7 @@ export interface ParentalLockPinDialogData {
  */
 @Component({
     selector: 'app-parental-lock-pin-dialog',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './parental-lock-pin-dialog.component.html',
     styleUrl: './parental-lock-pin-dialog.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -66,7 +68,7 @@ export interface ParentalLockPinDialogData {
         FormsModule,
         MatButtonModule,
         MatDialogModule,
-        AppFormFieldModule,
+        MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         TranslatePipe,

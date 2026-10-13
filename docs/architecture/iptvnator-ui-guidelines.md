@@ -97,14 +97,13 @@ therefore reaches the initial bundle only through the snack-bar, which root
 services inject (and with it `button`, the icon button and the CDK overlay).
 Everything else is lazy by these rules:
 
-- **Form-field defaults.** Import `AppFormFieldModule`
-  (`@iptvnator/ui/components/form-field`) instead of `MatFormFieldModule`
-  wherever a template renders `<mat-form-field>`: it exports Material's form
-  field with a directive that provides the app defaults (outlined, dynamic
-  subscript) on the element. The defaults are not a root provider, and a
-  route-level one would miss dialogs opened by root services.
-  `pnpm run styles:form-field-defaults:validate` (CI) rejects a component that
-  renders a form field without the module.
+- **Form-field defaults.** A component that renders `<mat-form-field>`
+  adds `providers: [provideFormFieldDefaults()]`
+  (`@iptvnator/ui/components/form-field-defaults`); the token is never
+  provided at the root, where its import alone put the 54 KB form-field
+  chunk on the initial path. `pnpm run ui:form-field-defaults:validate` (CI)
+  requires the provider on every such component and allows the token
+  nowhere else; see the Dialogs and forms notes below.
 - **Dialogs from services created with the app.** A root service that opens a
   dialog resolves `MatDialog` through `LazyMatDialog`
   (`@iptvnator/ui/components/lazy-dialog`) and imports the dialog component
@@ -1082,6 +1081,13 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   the single confirmation on M3U, Xtream and Stalker recently viewed pages.
 
 ## Forms
+
+Every `<mat-form-field>` is outlined with a dynamic subscript. A component
+that renders one adds `providers: [provideFormFieldDefaults()]`
+(`@iptvnator/ui/components/form-field-defaults`); the root injector does not
+provide the defaults, because the token import there would load Material's
+form field and `@angular/forms` on startup. `pnpm run
+ui:form-field-defaults:validate` (in CI) reports a missing provider.
 
 The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
 vocabulary, so a field reads the same wherever it appears:

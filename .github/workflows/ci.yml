@@ -430,11 +430,11 @@ jobs:
             - name: Validate icon-only button names
               run: pnpm run a11y:icon-buttons:validate
 
-            # The form-field defaults travel with AppFormFieldModule, not a
-            # root provider: a component that renders <mat-form-field>
-            # without it silently gets Material's filled look.
+            # Form-field defaults are provided per lazy component: the root
+            # token import would load Material form-field and @angular/forms
+            # on startup (tools/nx/check-form-field-defaults.mjs).
             - name: Validate form-field defaults
-              run: pnpm run styles:form-field-defaults:validate
+              run: pnpm run ui:form-field-defaults:validate
 
             # m3-theme.scss themes only the Material components the app
             # imports; a new import without a theme entry renders unthemed.

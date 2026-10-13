@@ -1,5 +1,6 @@
 import { Component, input, output, ViewEncapsulation } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import {
@@ -7,14 +8,15 @@ import {
     MatSlideToggleModule,
 } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
-import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import { ParentalLockRelockMinutes } from '@iptvnator/shared/interfaces';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-parental-lock-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         MatButtonModule,
-        AppFormFieldModule,
+        MatFormFieldModule,
         MatIconModule,
         MatSelectModule,
         MatSlideToggleModule,

@@ -7,20 +7,22 @@ import {
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
-import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-remote-control-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         MatButtonModule,
-        AppFormFieldModule,
+        MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         MatSlideToggleModule,

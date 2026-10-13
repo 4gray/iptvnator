@@ -7,11 +7,11 @@ import {
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
-import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import { CoverSize, Language, Theme } from '@iptvnator/shared/interfaces';
 import {
     CoverSizeOption,
@@ -20,12 +20,14 @@ import {
     ThemeOption,
 } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-general-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         CommonModule,
-        AppFormFieldModule,
+        MatFormFieldModule,
         MatIconModule,
         MatSelectModule,
         MatSlideToggleModule,

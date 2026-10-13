@@ -8,10 +8,10 @@ import {
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { TranslateModule } from '@ngx-translate/core';
-import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import {
     AppUpdateChannel,
     APP_UPDATE_CHANNELS,
@@ -20,6 +20,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { UpdateChannelOption } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 interface SettingsUpdateStatusChip {
     readonly labelKey: string;
@@ -28,9 +29,10 @@ interface SettingsUpdateStatusChip {
 
 @Component({
     selector: 'app-settings-about-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         MatButtonModule,
-        AppFormFieldModule,
+        MatFormFieldModule,
         MatIconModule,
         MatSelectModule,
         ReactiveFormsModule,

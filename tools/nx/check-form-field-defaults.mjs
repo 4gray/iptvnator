@@ -2,188 +2,148 @@ import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-import {
-    parseTemplate,
-    TmplAstRecursiveVisitor,
-    tmplAstVisitAll,
-} from '@angular/compiler';
 import ts from 'typescript';
 
-import { isScanned } from './check-theme-references.mjs';
-
 /**
- * The app-wide form-field defaults (outlined, dynamic subscript) are not a
- * root provider: that import put the whole form-field chunk on the initial
- * path. `AppFormFieldModule` carries them on the element instead, so a
- * component that renders `<mat-form-field>` without importing it silently
- * gets Material's filled look. This guard requires the import.
+ * The app's `<mat-form-field>` defaults (outline, dynamic subscript) are
+ * provided per component, not in the root injector: importing
+ * MAT_FORM_FIELD_DEFAULT_OPTIONS in app.config.ts loads
+ * `@angular/material/form-field` and, since Material 22.2, `@angular/forms`
+ * on startup, although every form field lives in a lazy chunk. A component
+ * that renders a form field without the provider silently falls back to the
+ * `fill` appearance, so this guard requires it on each such component, and
+ * allows the provider and the token nowhere else.
  */
+export const DEFAULTS_FILE =
+    'libs/ui/components/src/lib/form-field-defaults/form-field-defaults.ts';
+const TOKEN = 'MAT_FORM_FIELD_DEFAULT_OPTIONS';
+const PROVIDER = 'provideFormFieldDefaults';
 
-/** Angular renderer sources whose components can render a form field. */
-const SCANNED_PATHSPECS = [
-    'apps/web/*.ts',
-    'apps/remote-control-web/*.ts',
-    'libs/*.ts',
-];
+const SCANNED_PATHSPECS = ['apps/web/*.ts', 'libs/*.ts'];
 
-export const DEFAULTS_MODULE = 'AppFormFieldModule';
-export const DEFAULTS_ALIAS = '@iptvnator/ui/components/form-field';
-const DEFAULTS_SOURCE = /(^|\/)app-form-field\.module$/;
+function isScanned(file) {
+    return !/\.(spec|test)\.[cm]?[jt]s$/.test(file);
+}
 
-const FORM_FIELD_ELEMENT = 'mat-form-field';
-
-/** Identifiers listed in an `imports: [...]` array, nested arrays included. */
-function importIdentifiers(expression) {
-    if (ts.isArrayLiteralExpression(expression)) {
-        return expression.elements.flatMap(importIdentifiers);
+/** The object literal of an `@Component({...})` decorator, if `node` is one. */
+function componentMetadata(node) {
+    if (
+        !ts.isDecorator(node) ||
+        !ts.isCallExpression(node.expression) ||
+        !ts.isIdentifier(node.expression.expression) ||
+        node.expression.expression.text !== 'Component'
+    ) {
+        return undefined;
     }
-    return ts.isIdentifier(expression) ? [expression.text] : [];
-}
-
-function propertyNamed(object, name) {
-    return object.properties.find(
-        (property) =>
-            ts.isPropertyAssignment(property) &&
-            (ts.isIdentifier(property.name) ||
-                ts.isStringLiteral(property.name)) &&
-            property.name.text === name
-    );
-}
-
-function stringValue(property) {
-    const value = property?.initializer;
-    return value &&
-        (ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value))
-        ? value.text
+    const [metadata] = node.expression.arguments;
+    return metadata && ts.isObjectLiteralExpression(metadata)
+        ? metadata
         : undefined;
 }
 
+function property(metadata, name) {
+    return metadata.properties.find(
+        (entry) =>
+            ts.isPropertyAssignment(entry) &&
+            (ts.isIdentifier(entry.name) || ts.isStringLiteral(entry.name)) &&
+            entry.name.text === name
+    )?.initializer;
+}
+
+/** Literal text of a quoted, backticked or interpolated template. */
+function literalText(node) {
+    if (ts.isStringLiteralLike(node)) return node.text;
+    if (ts.isTemplateExpression(node)) {
+        return [
+            node.head.text,
+            ...node.templateSpans.map((span) => span.literal.text),
+        ].join('');
+    }
+    return undefined;
+}
+
+function isProviderCall(node) {
+    return (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === PROVIDER
+    );
+}
+
 /**
- * The `@Component({...})` declarations of a TypeScript source: class name,
- * the line its decorator starts on, inline `template` or `templateUrl`, and
- * the identifiers of its `imports` array. Whether the source binds `AppFormFieldModule` from its
- * module is reported alongside, since a same-named local class would not
- * carry the defaults.
+ * Findings for one TypeScript source. `readTemplate` resolves a
+ * `templateUrl` relative to the component and returns its text.
  */
-export function componentDeclarations(source, file) {
+export async function checkComponentSource(file, source, readTemplate) {
     const sourceFile = ts.createSourceFile(
         file,
         source,
         ts.ScriptTarget.Latest,
         true
     );
+    const lineOf = (node) =>
+        sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+            .line + 1;
+    const findings = [];
     const components = [];
-    let bindsDefaultsModule = false;
+    const componentProviderCalls = new Set();
 
     const visit = (node) => {
-        if (
-            ts.isImportDeclaration(node) &&
-            ts.isStringLiteral(node.moduleSpecifier) &&
-            (node.moduleSpecifier.text === DEFAULTS_ALIAS ||
-                DEFAULTS_SOURCE.test(node.moduleSpecifier.text)) &&
-            node.importClause?.namedBindings &&
-            ts.isNamedImports(node.importClause.namedBindings) &&
-            node.importClause.namedBindings.elements.some(
-                (element) => element.name.text === DEFAULTS_MODULE
-            )
-        ) {
-            bindsDefaultsModule = true;
+        const metadata = componentMetadata(node);
+        if (metadata) {
+            const providers = property(metadata, 'providers');
+            const calls =
+                providers && ts.isArrayLiteralExpression(providers)
+                    ? providers.elements.filter(isProviderCall)
+                    : [];
+            calls.forEach((call) => componentProviderCalls.add(call));
+            components.push({ node, metadata, provides: calls.length > 0 });
         }
-        if (
-            ts.isDecorator(node) &&
-            ts.isCallExpression(node.expression) &&
-            ts.isIdentifier(node.expression.expression) &&
-            node.expression.expression.text === 'Component' &&
-            ts.isClassDeclaration(node.parent)
-        ) {
-            const [metadata] = node.expression.arguments;
-            if (metadata && ts.isObjectLiteralExpression(metadata)) {
-                const importsProperty = propertyNamed(metadata, 'imports');
-                components.push({
-                    className: node.parent.name?.text ?? '(anonymous)',
-                    line:
-                        sourceFile.getLineAndCharacterOfPosition(
-                            node.parent.getStart(sourceFile)
-                        ).line + 1,
-                    template: stringValue(propertyNamed(metadata, 'template')),
-                    templateUrl: stringValue(
-                        propertyNamed(metadata, 'templateUrl')
-                    ),
-                    imports: importsProperty
-                        ? importIdentifiers(importsProperty.initializer)
-                        : [],
+        if (ts.isIdentifier(node) && node.text === TOKEN) {
+            if (file !== DEFAULTS_FILE) {
+                findings.push({
+                    file,
+                    line: lineOf(node),
+                    reason: `uses ${TOKEN}; provide the app defaults with ${PROVIDER}() from @iptvnator/ui/components/form-field-defaults`,
                 });
             }
         }
         ts.forEachChild(node, visit);
     };
     visit(sourceFile);
-    return { components, bindsDefaultsModule };
-}
 
-class FormFieldVisitor extends TmplAstRecursiveVisitor {
-    found = false;
-
-    visitElement(element) {
-        if (element.name === FORM_FIELD_ELEMENT) this.found = true;
-        super.visitElement(element);
-    }
-}
-
-/** Whether a template renders `<mat-form-field>` anywhere, control flow included. */
-export function templateRendersFormField(template, file) {
-    const parsed = parseTemplate(template, file, {
-        preserveWhitespaces: true,
-    });
-    if (parsed.errors?.length) {
-        throw new Error(
-            `${file}: cannot parse template: ${parsed.errors[0].msg}`
-        );
-    }
-    const visitor = new FormFieldVisitor();
-    tmplAstVisitAll(visitor, parsed.nodes);
-    return visitor.found;
-}
-
-/**
- * Components of one source that render a form field without importing the
- * defaults module. `readTemplate` resolves a `templateUrl` to its text.
- */
-export async function findFormFieldsWithoutDefaults(
-    file,
-    source,
-    readTemplate
-) {
-    const { components, bindsDefaultsModule } = componentDeclarations(
-        source,
-        file
-    );
-    const findings = [];
-    for (const component of components) {
-        const template =
-            component.template ??
-            (component.templateUrl
-                ? await readTemplate(component.templateUrl)
-                : undefined);
-        if (template === undefined) continue;
-        if (!templateRendersFormField(template, file)) continue;
-        if (
-            bindsDefaultsModule &&
-            component.imports.includes(DEFAULTS_MODULE)
-        ) {
-            continue;
+    const visitCalls = (node) => {
+        if (isProviderCall(node) && !componentProviderCalls.has(node)) {
+            findings.push({
+                file,
+                line: lineOf(node),
+                reason: `calls ${PROVIDER}() outside a component's providers; a root or route provider loads Material's form field on startup`,
+            });
         }
+        ts.forEachChild(node, visitCalls);
+    };
+    visitCalls(sourceFile);
+
+    for (const { node, metadata, provides } of components) {
+        const inline = property(metadata, 'template');
+        const url = property(metadata, 'templateUrl');
+        let template = inline ? literalText(inline) : undefined;
+        if (template === undefined && url && ts.isStringLiteralLike(url)) {
+            template = await readTemplate(
+                path.posix.join(path.posix.dirname(file), url.text)
+            );
+        }
+        if (provides || !/<mat-form-field\b/.test(template ?? '')) continue;
         findings.push({
             file,
-            line: component.line,
-            className: component.className,
+            line: lineOf(node),
+            reason: `renders <mat-form-field> without providers: [${PROVIDER}()]`,
         });
     }
-    return findings;
+    return findings.sort((a, b) => a.line - b.line);
 }
 
-/** Tracked renderer sources the guard reads, at any depth. */
+/** Tracked renderer TypeScript files the guard reads, at any depth. */
 export function listScannedFiles(rootDir) {
     // No shell: `cmd.exe` treats single quotes as literal characters, so a
     // POSIX-quoted pathspec reaches git intact on Windows and matches nothing.
@@ -206,34 +166,27 @@ const isMain =
 if (isMain) {
     const rootDir = process.cwd();
     const files = listScannedFiles(rootDir);
+    const readTemplate = (file) => readFile(path.join(rootDir, file), 'utf8');
 
     const findings = [];
     for (const file of files) {
         const source = await readFile(path.join(rootDir, file), 'utf8');
-        if (
-            !source.includes(FORM_FIELD_ELEMENT) &&
-            !source.includes('templateUrl')
-        ) {
-            continue;
-        }
         findings.push(
-            ...(await findFormFieldsWithoutDefaults(file, source, (url) =>
-                readFile(path.resolve(rootDir, path.dirname(file), url), 'utf8')
-            ))
+            ...(await checkComponentSource(file, source, readTemplate))
         );
     }
 
     if (findings.length > 0) {
         console.error(
-            `Components that render <mat-form-field> without ${DEFAULTS_MODULE} (from ${DEFAULTS_ALIAS}), so their fields lose the app defaults (outlined, dynamic subscript). Import it in place of MatFormFieldModule:`
+            'Form-field defaults must be provided per component, not in the root injector:'
         );
-        for (const { file, line, className } of findings) {
-            console.error(`- ${file}:${line} ${className}`);
+        for (const { file, line, reason } of findings) {
+            console.error(`- ${file}:${line} ${reason}`);
         }
         process.exitCode = 1;
     } else {
         console.log(
-            `Checked ${files.length} renderer sources; every component rendering <mat-form-field> imports ${DEFAULTS_MODULE}.`
+            `Checked ${files.length} renderer files; every <mat-form-field> component provides the app defaults.`
         );
     }
 }

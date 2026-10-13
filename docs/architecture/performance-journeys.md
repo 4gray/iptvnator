@@ -1163,7 +1163,7 @@ form-field chunk on the initial path, although every form field renders in a
 lazy route or dialog. Angular Material therefore stays off the startup path by
 construction, with the rules and guards in the
 [UI guidelines](iptvnator-ui-guidelines.md#material-off-the-startup-path):
-form-field defaults travel with `AppFormFieldModule`, services created with
+form-field defaults are provided per component (#1928), services created with
 the app resolve `MatDialog` through `LazyMatDialog`, the panels the shell
 mounts on every launch defer their Material views, the theme emits tokens only
 for imported components, and the app does not provide the animations module,

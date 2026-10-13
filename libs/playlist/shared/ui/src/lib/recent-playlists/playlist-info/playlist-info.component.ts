@@ -28,7 +28,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { firstValueFrom } from 'rxjs';
@@ -63,6 +62,7 @@ import {
     STALKER_PLAYLIST_CONNECTION_EDITOR,
     STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
 } from './stalker-playlist-connection-editor.token';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 type DesktopFileSaveBridge = Pick<
     typeof window.electron,
@@ -166,10 +166,9 @@ type DesktopFileSaveBridge = Pick<
             }
         `,
     ],
-    providers: [DatePipe],
+    providers: [provideFormFieldDefaults(), DatePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        AppFormFieldModule,
         ClipboardModule,
         MatButton,
         MatCheckboxModule,

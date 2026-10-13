@@ -1,218 +1,200 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import os from 'node:os';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
-    componentDeclarations,
-    findFormFieldsWithoutDefaults,
+    DEFAULTS_FILE,
+    checkComponentSource,
     listScannedFiles,
-    templateRendersFormField,
 } from './check-form-field-defaults.mjs';
 
-const lines = (...rows) => rows.join('\n');
-
-const component = ({
-    name = 'FieldComponent',
-    imports = ['AppFormFieldModule'],
-    template,
-    templateUrl,
-    importLine = "import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';",
-}) =>
-    lines(
-        "import { Component } from '@angular/core';",
-        importLine,
-        '',
-        '@Component({',
-        `    selector: 'app-field',`,
-        `    imports: [${imports.join(', ')}],`,
-        template !== undefined
-            ? `    template: \`${template}\`,`
-            : `    templateUrl: '${templateUrl}',`,
-        '})',
-        `export class ${name} {}`
-    );
-
-const noTemplates = () => {
-    throw new Error('no templateUrl expected');
+const repoRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../..'
+);
+const templates = {
+    'libs/a/field.component.html':
+        '<mat-form-field><input matInput /></mat-form-field>',
+    'libs/a/plain.component.html': '<button mat-button>Save</button>',
 };
-
-test('accepts a form field in a component that imports the defaults module', async () => {
-    const source = component({
-        template: '<mat-form-field><input matInput /></mat-form-field>',
-    });
-    assert.deepEqual(
-        await findFormFieldsWithoutDefaults(
-            'a.component.ts',
-            source,
-            noTemplates
-        ),
-        []
+const readTemplate = async (file) => templates[file];
+const check = async (file, source) =>
+    (await checkComponentSource(file, source, readTemplate)).map(
+        ({ line, reason }) => ({ line, reason })
     );
+
+test('accepts a templateUrl form field with the provider', async () => {
+    const source = [
+        '@Component({',
+        "    selector: 'app-field',",
+        '    providers: [provideFormFieldDefaults()],',
+        "    templateUrl: './field.component.html',",
+        '})',
+    ].join('\n');
+
+    assert.deepEqual(await check('libs/a/field.component.ts', source), []);
 });
 
-test('reports the line of the @Component decorator when the defaults module is missing', async () => {
-    const source = component({
-        imports: ['MatFormFieldModule'],
-        importLine:
-            "import { MatFormFieldModule } from '@angular/material/form-field';",
-        template: '<mat-form-field><input matInput /></mat-form-field>',
-    });
-    assert.deepEqual(
-        await findFormFieldsWithoutDefaults(
-            'a.component.ts',
-            source,
-            noTemplates
-        ),
-        [{ file: 'a.component.ts', line: 4, className: 'FieldComponent' }]
-    );
+test('accepts the provider next to other providers', async () => {
+    const source = [
+        '@Component({',
+        '    providers: [DatePipe, provideFormFieldDefaults()],',
+        "    templateUrl: './field.component.html',",
+        '})',
+    ].join('\n');
+
+    assert.deepEqual(await check('libs/a/field.component.ts', source), []);
 });
 
-test('a same-named class from elsewhere does not count as the defaults module', async () => {
-    const source = component({
-        importLine: "import { AppFormFieldModule } from './local-module';",
-        template: '<mat-form-field></mat-form-field>',
-    });
-    assert.equal(
-        (
-            await findFormFieldsWithoutDefaults(
-                'a.component.ts',
-                source,
-                noTemplates
-            )
-        ).length,
-        1
-    );
-});
+test('reports a templateUrl form field without the provider', async () => {
+    const source = [
+        '@Component({',
+        "    selector: 'app-field',",
+        "    templateUrl: './field.component.html',",
+        '})',
+    ].join('\n');
 
-test('a relative import of the module source counts inside its own library', async () => {
-    const source = component({
-        importLine:
-            "import { AppFormFieldModule } from '../../form-field/app-form-field.module';",
-        template: '<mat-form-field></mat-form-field>',
-    });
-    assert.deepEqual(
-        await findFormFieldsWithoutDefaults(
-            'a.component.ts',
-            source,
-            noTemplates
-        ),
-        []
-    );
-});
-
-test('reads templateUrl templates and sees form fields inside control flow', async () => {
-    const source = component({
-        imports: ['MatInputModule'],
-        importLine: "import { MatInputModule } from '@angular/material/input';",
-        templateUrl: './a.component.html',
-    });
-    const urls = [];
-    const findings = await findFormFieldsWithoutDefaults(
-        'dir/a.component.ts',
-        source,
-        async (url) => {
-            urls.push(url);
-            return lines(
-                '@if (editing()) {',
-                '    <mat-form-field appearance="fill">',
-                '        <input matInput />',
-                '    </mat-form-field>',
-                '}'
-            );
-        }
-    );
-    assert.deepEqual(urls, ['./a.component.html']);
-    assert.equal(findings.length, 1);
-});
-
-test('ignores components without a form field and classes without a template', async () => {
-    const source = lines(
-        component({
-            imports: ['MatButtonModule'],
-            importLine:
-                "import { MatButtonModule } from '@angular/material/button';",
-            template: '<button mat-button>Save</button>',
-        }),
-        '@Injectable({ providedIn: "root" })',
-        'export class PlainService {}'
-    );
-    assert.deepEqual(
-        await findFormFieldsWithoutDefaults('a.ts', source, noTemplates),
-        []
-    );
-});
-
-test('templateRendersFormField does not match a form field inside a comment', () => {
-    assert.equal(
-        templateRendersFormField(
-            '<!-- <mat-form-field></mat-form-field> -->',
-            'a.html'
-        ),
-        false
-    );
-    assert.equal(
-        templateRendersFormField(
-            '<div><ng-template><mat-form-field /></ng-template></div>',
-            'a.html'
-        ),
-        true
-    );
-});
-
-test('componentDeclarations flattens nested import arrays and keeps the template url', () => {
-    const { components, bindsDefaultsModule } = componentDeclarations(
-        lines(
-            "import { Component } from '@angular/core';",
-            "import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';",
-            'const SHARED = [AppFormFieldModule];',
-            '@Component({',
-            '    imports: [[MatInputModule, SHARED], AppFormFieldModule],',
-            "    templateUrl: './x.html',",
-            '})',
-            'export class XComponent {}'
-        ),
-        'x.ts'
-    );
-    assert.equal(bindsDefaultsModule, true);
-    assert.deepEqual(components, [
+    assert.deepEqual(await check('libs/a/field.component.ts', source), [
         {
-            className: 'XComponent',
-            line: 4,
-            template: undefined,
-            templateUrl: './x.html',
-            imports: ['MatInputModule', 'SHARED', 'AppFormFieldModule'],
+            line: 1,
+            reason: 'renders <mat-form-field> without providers: [provideFormFieldDefaults()]',
         },
     ]);
 });
 
-test('listScannedFiles returns tracked renderer sources and skips specs', async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), 'form-field-guard-'));
-    try {
-        await mkdir(path.join(root, 'libs/ui/src'), { recursive: true });
-        await mkdir(path.join(root, 'apps/web/src'), { recursive: true });
-        await writeFile(path.join(root, 'libs/ui/src/a.component.ts'), '');
-        await writeFile(path.join(root, 'libs/ui/src/a.component.spec.ts'), '');
-        await writeFile(path.join(root, 'apps/web/src/b.component.ts'), '');
-        await writeFile(path.join(root, 'apps/web/src/untracked.ts'), '');
-        execFileSync('git', ['init', '-q'], { cwd: root });
-        execFileSync(
-            'git',
-            [
-                'add',
-                'libs/ui/src/a.component.ts',
-                'libs/ui/src/a.component.spec.ts',
-                'apps/web/src/b.component.ts',
-            ],
-            { cwd: root }
-        );
-        assert.deepEqual(listScannedFiles(root).sort(), [
-            'apps/web/src/b.component.ts',
-            'libs/ui/src/a.component.ts',
-        ]);
-    } finally {
-        await rm(root, { recursive: true, force: true });
-    }
+test('reports an inline template form field without the provider', async () => {
+    const source = [
+        '@Component({',
+        '    template: `',
+        '        <mat-form-field appearance="outline"></mat-form-field>',
+        '    `,',
+        '})',
+    ].join('\n');
+
+    assert.equal((await check('libs/a/inline.component.ts', source)).length, 1);
+});
+
+test('reads quoted inline templates', async () => {
+    const source = [
+        '@Component({',
+        "    template: '<mat-form-field></mat-form-field>',",
+        '})',
+        'class Single {}',
+        '@Component({',
+        '    template: "<mat-form-field></mat-form-field>",',
+        '})',
+        'class Double {}',
+    ].join('\n');
+
+    assert.deepEqual(
+        (await check('libs/a/quoted.component.ts', source)).map(
+            ({ line }) => line
+        ),
+        [1, 5]
+    );
+});
+
+test('checks each component of a file on its own providers', async () => {
+    const source = [
+        '@Component({',
+        '    providers: [provideFormFieldDefaults()],',
+        "    templateUrl: './field.component.html',",
+        '})',
+        'class WithDefaults {}',
+        '@Component({',
+        "    templateUrl: './field.component.html',",
+        '})',
+        'class WithoutDefaults {}',
+    ].join('\n');
+
+    assert.deepEqual(await check('libs/a/field.component.ts', source), [
+        {
+            line: 6,
+            reason: 'renders <mat-form-field> without providers: [provideFormFieldDefaults()]',
+        },
+    ]);
+});
+
+test('finds the provider after an earlier array-valued provider', async () => {
+    const source = [
+        '@Component({',
+        '    providers: [',
+        '        { provide: LIST, useValue: [] },',
+        '        provideFormFieldDefaults(),',
+        '    ],',
+        "    templateUrl: './field.component.html',",
+        '})',
+    ].join('\n');
+
+    assert.deepEqual(await check('libs/a/field.component.ts', source), []);
+});
+
+test('reports the provider outside a component', async () => {
+    const appConfig = [
+        'export const appConfig = {',
+        '    providers: [provideRouter(routes), provideFormFieldDefaults()],',
+        '};',
+    ].join('\n');
+    const routes = [
+        'export const routes = [',
+        "    { path: 'settings', providers: [provideFormFieldDefaults()] },",
+        '];',
+    ].join('\n');
+
+    assert.deepEqual(await check('apps/web/src/app/app.config.ts', appConfig), [
+        {
+            line: 2,
+            reason: "calls provideFormFieldDefaults() outside a component's providers; a root or route provider loads Material's form field on startup",
+        },
+    ]);
+    assert.equal(
+        (await check('apps/web/src/app/app.routes.ts', routes)).length,
+        1
+    );
+});
+
+test('ignores templates without a form field', async () => {
+    const source = [
+        '@Component({',
+        "    templateUrl: './plain.component.html',",
+        '})',
+        '@Component({ template: `<mat-icon>add</mat-icon>` })',
+    ].join('\n');
+
+    assert.deepEqual(await check('libs/a/plain.component.ts', source), []);
+});
+
+test('reports the token outside the shared provider', async () => {
+    const source = [
+        "import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';",
+        'export const appConfig = {',
+        '    providers: [{ provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: {} }],',
+        '};',
+    ].join('\n');
+
+    assert.deepEqual(
+        (await check('apps/web/src/app/app.config.ts', source)).map(
+            ({ line }) => line
+        ),
+        [1, 3]
+    );
+    assert.deepEqual(await check(DEFAULTS_FILE, source), []);
+});
+
+test('the shared provider supplies the outline, dynamic defaults', async () => {
+    const source = await readFile(path.join(repoRoot, DEFAULTS_FILE), 'utf8');
+
+    assert.match(source, /appearance: 'outline'/);
+    assert.match(source, /subscriptSizing: 'dynamic'/);
+    assert.match(source, /provide: MAT_FORM_FIELD_DEFAULT_OPTIONS/);
+});
+
+test('scans renderer TypeScript and skips specs', () => {
+    const files = listScannedFiles(repoRoot);
+
+    assert.ok(files.includes(DEFAULTS_FILE));
+    assert.ok(files.includes('apps/web/src/app/app.config.ts'));
+    assert.ok(files.every((file) => !/\.spec\.ts$/.test(file)));
 });

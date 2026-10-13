@@ -16,11 +16,11 @@ import {
     Validators,
 } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { AppFormFieldModule } from '@iptvnator/ui/components/form-field';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { createXtreamConnectionTestState } from '@iptvnator/services';
 import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
@@ -30,6 +30,7 @@ import {
     normalizeXtreamServerUrl,
     Playlist,
 } from '@iptvnator/shared/interfaces';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 function xtreamServerUrlValidator(
     control: AbstractControl
@@ -50,7 +51,7 @@ function xtreamServerUrlValidator(
 @Component({
     imports: [
         FormsModule,
-        AppFormFieldModule,
+        MatFormFieldModule,
         MatIcon,
         MatIconButton,
         MatInputModule,
@@ -59,6 +60,7 @@ function xtreamServerUrlValidator(
         TranslatePipe,
     ],
     selector: 'app-xtream-code-import',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './xtream-code-import.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
