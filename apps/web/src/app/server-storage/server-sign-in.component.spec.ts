@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
-import { readServerAccessToken } from '@iptvnator/services';
+import {
+    readServerAccessToken,
+    writeServerAccessToken,
+} from '@iptvnator/services';
 import {
     SERVER_STORAGE_CONFIG,
     ServerApiError,
@@ -79,6 +82,20 @@ describe('ServerSignInComponent', () => {
         expect(component.feedback()).toBe('rejected');
         expect(feedbackText()).toBe('SERVER_STORAGE.SIGN_IN_REJECTED');
         expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+    });
+
+    it("keeps another tab's newer sign-in when this attempt fails", async () => {
+        session.fetchStatus.mockImplementation(async () => {
+            // Another tab signs in while this answer is on its way.
+            writeServerAccessToken('right', 'i-1');
+            throw new ServerApiError(401, 'unauthorized', 'refused');
+        });
+
+        component.edit('wrong');
+        await component.submit(new Event('submit'));
+
+        expect(component.feedback()).toBe('rejected');
+        expect(readServerAccessToken('i-1')).toBe('right');
     });
 
     it('tells an unreachable server apart and clears the message on edit', async () => {

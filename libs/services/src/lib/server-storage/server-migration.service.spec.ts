@@ -187,6 +187,37 @@ describe('ServerMigrationService', () => {
         ]);
     });
 
+    it("puts the browser's newer views ahead of the server's history", async () => {
+        session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
+            { ...browserPlaylists[1], _id: 'server-x' },
+        ]);
+        const view = (id: string, day: number) => ({
+            id,
+            viewedAt: `2026-10-0${day}T20:00:00.000Z`,
+        });
+        session.api.getJson.mockResolvedValue({
+            entries: {
+                'xtream-recent-items': {
+                    'server-x': [view('vod:9', 2), view('vod:8', 1)],
+                },
+            },
+        });
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({ x: [view('vod:1', 3)] })
+        );
+
+        await TestBed.inject(ServerMigrationService).moveBrowserData();
+
+        // The app cuts history from the end: the newest view leads.
+        expect(session.api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-recent-items/server-x',
+            { value: [view('vod:1', 3), view('vod:9', 2), view('vod:8', 1)] },
+            {}
+        );
+    });
+
     it('combines browser duplicates of one source in one write', async () => {
         TestBed.overrideProvider(NgxIndexedDBService, {
             useValue: {

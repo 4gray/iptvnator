@@ -136,6 +136,25 @@ export function retargetUserData(
     );
 }
 
+/**
+ * Recently viewed items newest first, as the app keeps them: it cuts the
+ * list at its limit from the end, so a browser view combined after the
+ * server's older ones would be dropped by the next one. Undated items
+ * keep their order, after the dated ones.
+ */
+export function newestViewsFirst(items: unknown): unknown {
+    if (!Array.isArray(items)) {
+        return items;
+    }
+    const viewedAt = (item: unknown) => {
+        const at = isPlainObject(item)
+            ? Date.parse(String(item['viewedAt']))
+            : NaN;
+        return Number.isNaN(at) ? 0 : at;
+    };
+    return [...items].sort((a, b) => viewedAt(b) - viewedAt(a));
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
     return !!value && typeof value === 'object' && !Array.isArray(value);
 }

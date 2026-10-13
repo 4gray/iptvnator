@@ -11,6 +11,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     combineUserData,
+    newestViewsFirst,
     remapChannelReferences,
     retargetUserData,
     unionItems,
@@ -257,9 +258,13 @@ export class ServerMigrationService {
             }
             const typed = [stored, ...browserCopies].map(typeLegacyXtreamRefs);
             for (const namespace of SERVER_USER_STATE_NAMESPACES) {
-                const value = combineUserData(
+                const combined = combineUserData(
                     typed.map((copy) => copy[namespace])
                 );
+                const value =
+                    namespace === 'xtream-recent-items'
+                        ? newestViewsFirst(combined)
+                        : combined;
                 if (
                     value === undefined ||
                     JSON.stringify(value) === JSON.stringify(stored[namespace])

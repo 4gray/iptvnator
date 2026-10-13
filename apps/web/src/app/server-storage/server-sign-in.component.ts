@@ -11,6 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     clearServerAccessToken,
+    readServerAccessToken,
     writeServerAccessToken,
 } from '@iptvnator/services';
 import {
@@ -73,7 +74,7 @@ export class ServerSignInComponent {
             !writeServerAccessToken(token, this.config.instance.instanceId) ||
             !rememberServer(this.config.baseUrl, this.config.instance)
         ) {
-            clearServerAccessToken();
+            forgetAttempt(token);
             this.feedback.set('storage');
             this.busy.set(false);
             return;
@@ -82,7 +83,7 @@ export class ServerSignInComponent {
             await this.session.fetchStatus();
             this.openWorkspace();
         } catch (error) {
-            clearServerAccessToken();
+            forgetAttempt(token);
             this.feedback.set(
                 error instanceof ServerApiError && error.status === 401
                     ? 'rejected'
@@ -96,5 +97,15 @@ export class ServerSignInComponent {
     /** Full reload so every service starts with the token. */
     openWorkspace(): void {
         window.location.assign(new URL('workspace', document.baseURI).href);
+    }
+}
+
+/**
+ * Forgets a token whose sign-in failed, unless another tab has signed in
+ * since: its token replaced this one and is not this attempt's to clear.
+ */
+function forgetAttempt(token: string): void {
+    if (readServerAccessToken() === token) {
+        clearServerAccessToken();
     }
 }

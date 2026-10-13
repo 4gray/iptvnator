@@ -350,7 +350,8 @@ settings and guards read them in every build.
   snapshots first (`typeLegacyXtreamRefs`; snapshots keep their bare key as
   an alias), then `combineUserData` unions
   lists (playback positions by content type and Xtream id, renamed to the
-  server playlist) and merges maps, the server's value winning on a
+  server playlist; recently viewed items newest first, since the app cuts
+  history from the end) and merges maps, the server's value winning on a
   conflict. Parental locks stay in the browser but move to the server
   playlist id with it; while the lock store or a browser user-data map
   cannot be read the move counts as failed. Browser data is never
