@@ -437,7 +437,11 @@ and sidecar state in localStorage:
 `PwaXtreamDataSource` and `PwaCollectionStorage` reach these keys through the
 `USER_DATA_STORAGE` token from `@iptvnator/services` (default:
 `localStorage`), never through `localStorage` directly, so server storage
-mode can substitute `ServerUserDataStorage`.
+mode can substitute `ServerUserDataStorage`. The key names are shared as
+`XTREAM_USER_DATA_KEYS` with the playlist backup, which exports and restores
+the favorites, recent items, positions and snapshots through the same token
+(`PwaXtreamBackupStateService`; see
+[backup/restore](./playlist-backup-restore.md#browser-runtime)).
 
 Entries should include a content snapshot when the item is added. Global
 collection routes and the dashboard can then restore titles, posters, content

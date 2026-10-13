@@ -200,7 +200,13 @@ services:
 5. `WorkspaceShellCommandPaletteService` owns command-palette dialog lifecycle
    and recent-command recording.
 6. `WorkspaceShellXtreamImportService` owns Xtream import/refresh overlay
-   state and labels.
+   state and labels. Remote import phases and refresh preparation of the
+   shown playlist (of any playlist on the dashboard) show the overlay at
+   once. A session that has only read the saved catalog (`loading-cached`,
+   `isImporting` still false) shows it only after
+   `XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS` (300 ms), so a warm open goes from
+   the skeleton to the page without flashing the overlay, while a slow or
+   stuck cache read still blocks and stays cancellable.
 
 When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer

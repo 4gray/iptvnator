@@ -1,6 +1,22 @@
 import { PortalRailSection } from '@iptvnator/portal/shared/util';
 
-export const SEARCH_INPUT_DEBOUNCE_MS = 350;
+/**
+ * The one debounce between a keystroke in the header search box and the
+ * applied term; pages that search on the applied term (global search
+ * included) run at once. 300 ms sits above the inter-key gap of steady
+ * typing, so a word typed in one go is applied once.
+ * See docs/architecture/performance-journeys.md (J4).
+ */
+export const SEARCH_INPUT_DEBOUNCE_MS = 300;
+
+/**
+ * How long a purely local Xtream load (reading the saved catalog from SQLite)
+ * may run before the full-screen import overlay appears. A warm catalog
+ * finishes in tens of milliseconds; showing the overlay for that only flashes
+ * it between the skeleton and the loaded page. Remote imports and refresh
+ * preparation are not delayed.
+ */
+export const XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS = 300;
 
 export const SEARCH_PLAYLIST_PLACEHOLDER =
     'WORKSPACE.SHELL.SEARCH_PLAYLIST_PLACEHOLDER';

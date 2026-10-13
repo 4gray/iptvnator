@@ -71,6 +71,116 @@ describe('normalized release year', () => {
     });
 });
 
+describe('provider placeholders in the details view model', () => {
+    const PLACEHOLDER_FREE_FIELDS = [
+        'description',
+        'posterUrl',
+        'backdropUrl',
+        'year',
+        'genre',
+        'duration',
+        'country',
+        'director',
+        'actors',
+        'ratingImdb',
+        'ratingKinopoisk',
+    ] as const;
+
+    it('renders none of the stand-ins a Stalker portal sends for empty fields', () => {
+        const meta = normalizeStalkerVod({
+            id: '1',
+            cmd: '',
+            info: {
+                name: 'Placeholder Film',
+                o_name: 'N/A',
+                movie_image: 'N/A',
+                description: 'N/A',
+                actors: 'n/a',
+                director: '-',
+                releasedate: 'N/A',
+                genre: ' N/A ',
+                rating_imdb: 'N/A',
+                rating_kinopoisk: '0',
+            },
+        });
+
+        // A placeholder original title must not shadow the real one
+        expect(meta.title).toBe('Placeholder Film');
+        for (const field of PLACEHOLDER_FREE_FIELDS) {
+            expect(meta[field]).toBeUndefined();
+        }
+    });
+
+    it('renders none of the stand-ins in an Xtream detail response', () => {
+        const meta = normalizeXtreamVod({
+            info: {
+                kinopoisk_url: '',
+                tmdb_id: 0,
+                name: 'N/A',
+                o_name: '',
+                cover_big: '-',
+                movie_image: 'N/A',
+                releasedate: 'N/A',
+                episode_run_time: 0,
+                youtube_trailer: '',
+                director: 'N/A',
+                actors: 'N/A',
+                cast: '-',
+                description: 'N/A',
+                plot: 'n/a',
+                age: '',
+                mpaa_rating: '',
+                rating_count_kinopoisk: 0,
+                country: 'N/A',
+                genre: '-',
+                backdrop_path: ['N/A'],
+                duration_secs: 0,
+                duration: 'N/A',
+                video: [],
+                audio: [],
+                bitrate: 0,
+                rating: 0,
+                rating_imdb: '0.0',
+                rating_kinopoisk: 'N/A',
+            },
+            movie_data: {
+                stream_id: 5,
+                name: 'Catalog Title',
+                added: '',
+                category_id: '1',
+                container_extension: 'mp4',
+                custom_sid: null,
+                direct_source: '',
+            },
+        });
+
+        expect(meta.title).toBe('Catalog Title');
+        for (const field of PLACEHOLDER_FREE_FIELDS) {
+            expect(meta[field]).toBeUndefined();
+        }
+    });
+
+    it('falls through a placeholder to the next usable Xtream field', () => {
+        const meta = normalizeXtreamVod({
+            info: {
+                name: 'Fallback Film',
+                description: 'N/A',
+                plot: 'A plot from the second field',
+                actors: '-',
+                cast: 'First Actor, Second Actor',
+                duration: 'N/A',
+                duration_secs: 5400,
+                rating_imdb: '7.2',
+            } as never,
+        });
+
+        expect(meta.description).toBe('A plot from the second field');
+        expect(meta.actors).toBe('First Actor, Second Actor');
+        expect(meta.duration).toBe('1h 30m');
+        expect(meta.ratingImdb).toBe('7.2');
+    });
+});
+
 describe('youtubeEmbedUrl', () => {
     it('builds an embed URL from a plain video id (TMDB format)', () => {
         expect(youtubeEmbedUrl('zAGVQLHvwOY')).toBe(

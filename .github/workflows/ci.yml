@@ -353,6 +353,8 @@ jobs:
                   --only open-source/renderer.layoutShiftScore
                   --only playback/renderer.httpRequestsToPlaying
                   --only playback/renderer.layoutShiftScore
+                  --only search/renderer.ipcCallsPerSearch
+                  --only search/renderer.sqlStatementsPerSearch
 
             - name: Upload journey summaries
               if: always()

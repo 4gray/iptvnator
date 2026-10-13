@@ -636,6 +636,13 @@ button disabled state at current-season boundaries.
 
 Autoplay is enabled by default for series playback in embedded MPV. On `ended`, Xtream and Stalker series detail views start the next episode only when the current episode has a next item in the same season. Playback stops on the last episode of the current season. Previous always switches to the previous episode in the current season; it does not implement a restart-threshold behavior.
 
+`ended` alone does not prove the episode is over: mpv reports a connection the
+server closed (and ffmpeg could not reopen) as EOF too, once its cache runs
+dry. `EmbeddedMpvPlayerComponent` therefore emits `playbackEnded` only for an
+`ended` session that carries no `reconnect`; while the main process reloads a
+VOD that ended well before its duration (see Network Auto-Reconnect), the
+episode continues instead of autoplay skipping its rest (issue #1902).
+
 ## Session Options (Extra libmpv Options)
 
 `Settings > Playback > Extra embedded MPV options` is a free-form textarea,
@@ -701,8 +708,9 @@ included.
 `EmbeddedMpvReconnectCoordinator`
 (`apps/electron-backend/src/app/services/embedded-mpv-reconnect.ts`) reloads
 the last user-requested playback when a session reports a stream loss: an
-`error` status, or `ended` while the playback is live (`isLive`, else "no
-`contentInfo`", the same rule the renderer uses). It is driven by
+`error` status, `ended` while the playback is live (`isLive`, else "no
+`contentInfo`", the same rule the renderer uses), or `ended` on VOD well
+before the known duration. It is driven by
 `refreshSession()` status transitions, so it covers every engine, and it is
 captured per session from `Settings.embeddedMpvAutoReconnect` (default on;
 mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
@@ -716,6 +724,16 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
   the IPC socket so a stream that ended reports `ended` rather than the
   `paused` that keep-open would otherwise look like, and an mpv process that
   exits abnormally reports `error`.
+- A VOD `ended` counts only when more than `max(10 s, 1 % of the duration)`
+  remained (`isEmbeddedMpvEarlyEof`): the margin absorbs container rounding
+  and the whole-second snapshot values, and with no known duration an EOF is
+  always the end. A reload the engine accepted records where it resumed; an
+  early EOF before playback gets 5 s past that point (and with no user seek
+  in between) ended where the file does (a duration mpv estimated from the
+  bitrate can overshoot) and is left as the end, so autoplay still continues
+  after one attempt instead of a reload loop. A refused reload records
+  nothing, so the original EOF keeps its backoff.
+  With the setting off, an early EOF stays a plain `ended`.
 - Backoff is 2 s, 4 s, 8 s, 16 s, 30 s, 30 s, at most six attempts per
   outage. The budget resets only after 30 s of uninterrupted `playing`, so a
   stream that flaps every few seconds runs out of attempts instead of being

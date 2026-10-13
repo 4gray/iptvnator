@@ -342,6 +342,82 @@ describe('stalker-vod.utils regressions', () => {
     });
 });
 
+describe('provider placeholders in Stalker VOD info', () => {
+    // The series view renders `info` directly and the shared VOD template
+    // renders it through the view-model adapter, so the stand-ins have to
+    // be gone from `info` itself — not just from one template's guards.
+    const PLACEHOLDER_ROW = {
+        id: '31',
+        cmd: '/media/file_31.mpg',
+        name: 'Placeholder Movie',
+        o_name: 'N/A',
+        screenshot_uri: 'N/A',
+        description: 'N/A',
+        actors: 'n/a',
+        director: '-',
+        year: 'N/A',
+        genres_str: ' N/A ',
+        rating_imdb: 'N/A',
+        rating_kinopoisk: '0',
+    };
+
+    it('maps every stand-in to the empty value the info shape uses for absent', () => {
+        const info = createStalkerInfo(PLACEHOLDER_ROW);
+
+        expect(info).toEqual({
+            name: 'Placeholder Movie',
+            o_name: undefined,
+            movie_image: '',
+            description: '',
+            actors: '',
+            director: '',
+            releasedate: '',
+            genre: '',
+            rating_imdb: '',
+            rating_kinopoisk: '',
+        });
+    });
+
+    it('keeps the series view free of stand-ins through re-normalization', () => {
+        const displayed = normalizeStalkerVodDetailsItem(
+            normalizeStalkerVodDetailsItem({
+                ...PLACEHOLDER_ROW,
+                is_series: 1,
+            })
+        );
+
+        expect(displayed.info.releasedate).toBe('');
+        expect(displayed.info.rating_imdb).toBe('');
+        expect(displayed.info.rating_kinopoisk).toBe('');
+        expect(displayed.info.description).toBe('');
+    });
+
+    it('falls through a placeholder to the usable value behind it', () => {
+        const info = createStalkerInfo({
+            id: '32',
+            year: '2011',
+            genres_str: 'Drama',
+            description: 'Plot from the catalog row',
+            rating_imdb: 7.1,
+            info: {
+                name: 'N/A',
+                o_name: 'Original Title',
+                releasedate: 'N/A',
+                genre: '-',
+                description: 'N/A',
+                rating_imdb: '0.0',
+            },
+        });
+
+        expect(info.name).toBe('Original Title');
+        expect(info.o_name).toBe('Original Title');
+        expect(info.releasedate).toBe('2011');
+        expect(info.genre).toBe('Drama');
+        expect(info.description).toBe('Plot from the catalog row');
+        expect(info.rating_imdb).toBe('7.1');
+    });
+});
+
 describe('firstNonBlankStalkerId', () => {
     it('skips a blank candidate instead of treating it as set', () => {
         expect(firstNonBlankStalkerId('', '  ', '77')).toBe('77');
