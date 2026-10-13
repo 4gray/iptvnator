@@ -72,7 +72,10 @@ unavailable closes its active detail and invalidates pending selection work,
 including a retained player during a channel switch. Unresolved records are not
 promoted to dashboard hero slides. Parental locks still gate display: an
 unresolved category cannot prove that it is unlocked, so those records remain
-stored but are withheld while locks apply.
+stored but are withheld while locks apply. For duplicate category copies, ordinary
+reads choose an unlocked compatible row before resolving the catalog link; a
+locked earlier copy cannot hide a later unlocked copy. Backup reads remain
+unfiltered.
 
 Legacy pending favorites are converted before destructive refresh, import
 requests and ordinary collection reads, even if portal-status preflight is

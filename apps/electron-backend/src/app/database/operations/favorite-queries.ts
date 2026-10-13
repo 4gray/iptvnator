@@ -52,7 +52,7 @@ export function selectFavoriteRows(
             .from(schema.favorites)
             .leftJoin(
                 schema.content,
-                eq(schema.content.id, resolvedFavoriteContentId())
+                eq(schema.content.id, resolvedFavoriteContentId(includeLocked))
             )
             .leftJoin(
                 schema.categories,

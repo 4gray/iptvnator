@@ -1,14 +1,16 @@
 import { and, eq, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
+import { isParentalLockActive } from '../parental-lock-state';
 
 /** A covering provider-id lookup per favorite, never a scan of the catalog. */
-export function resolvedFavoriteContentId() {
+export function resolvedFavoriteContentId(includeLocked: boolean) {
     return sql<number | null>`(SELECT candidate.id FROM content candidate
         INNER JOIN categories owner ON owner.id = candidate.category_id
         WHERE candidate.xtream_id = ${schema.favorites.xtreamId}
           AND candidate.type = ${schema.favorites.type}
           AND owner.playlist_id = ${schema.favorites.playlistId}
+          ${!includeLocked && isParentalLockActive() ? sql`AND owner.locked = 0` : sql``}
           AND (
             (${schema.favorites.tmdbId} IS NULL OR candidate.tmdb_id IS NULL
                 OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
@@ -76,7 +78,7 @@ export async function reconcileCompletedFavoriteCatalog(
     if (!match) return;
     db.transaction((tx) => {
         tx.update(schema.favorites)
-            .set({ contentId: resolvedFavoriteContentId() })
+            .set({ contentId: resolvedFavoriteContentId(true) })
             .where(
                 and(
                     eq(schema.favorites.playlistId, match[1]),
