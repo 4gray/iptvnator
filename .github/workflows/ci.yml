@@ -299,9 +299,10 @@ jobs:
         # (launch, open-source, playback, search) is six fresh Electron
         # processes plus one seeding run.
         timeout-minutes: 30
-        # Warn-only for the first two weeks of plan item B3: a failure is
-        # visible on the run but does not fail the workflow.
-        continue-on-error: true
+        # Blocking since 2026-10-13 (plan item B3): no master run of the
+        # preceding week failed the counter check, and no enforced counter
+        # varied between iterations (see Ratchet in
+        # docs/architecture/performance-journeys.md).
         env:
             NX_SKIP_NX_CACHE: true
 
