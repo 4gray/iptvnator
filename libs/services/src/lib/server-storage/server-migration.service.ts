@@ -16,7 +16,8 @@ import {
     unionItems,
 } from './server-migration-merge';
 import { planServerMigration } from './server-migration-plan';
-import { preconditionHeaders } from './server-user-data-entries';
+import { withoutDeleted } from './server-user-data-edit';
+import { idMap, preconditionHeaders } from './server-user-data-entries';
 import {
     typeLegacyXtreamRefs,
     type XtreamUserData,
@@ -205,10 +206,14 @@ export class ServerMigrationService {
         if (targets.size === 0) {
             return 0;
         }
-        const { entries, tags } =
+        // Maps keyed by playlist id without a prototype: an id such as
+        // `toString` is not mistaken for an entry.
+        const { entries, tags } = withoutDeleted(
             await this.session.api.getJson<ServerUserStateResponse>(
                 '/user-state'
-            );
+            ),
+            []
+        );
         // A map this browser has but cannot read fails the move, so it
         // stays on offer instead of being marked done without it.
         let unreadable = 0;
@@ -369,12 +374,12 @@ function readLegacyMap(key: string): Record<string, unknown> | null {
         return null;
     }
     if (value === null) {
-        return {};
+        return idMap();
     }
     try {
         const parsed: unknown = JSON.parse(value);
         return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-            ? (parsed as Record<string, unknown>)
+            ? idMap(parsed as Record<string, unknown>)
             : null;
     } catch {
         return null;

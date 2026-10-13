@@ -418,4 +418,34 @@ describe('ServerMigrationService', () => {
             expect.objectContaining({ _id: 's1', isFullStalkerPortal: true })
         );
     });
+
+    it("does not take an inherited name for a playlist id's data", async () => {
+        TestBed.overrideProvider(NgxIndexedDBService, {
+            useValue: {
+                getAll: () =>
+                    of([{ _id: 'toString', title: 'Odd id', url: 'http://x' }]),
+            },
+        });
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ toString: ['live:1'] })
+        );
+        // The server has the namespace, but no entry for that id.
+        session.api.getJson.mockResolvedValue({
+            entries: { 'xtream-favorites': {} },
+            tags: { 'xtream-favorites': {} },
+        });
+
+        const result = await TestBed.inject(
+            ServerMigrationService
+        ).moveBrowserData();
+
+        expect(result.failed).toBe(0);
+        expect(session.api.sendJson).toHaveBeenCalledWith(
+            'PUT',
+            '/user-state/xtream-favorites/toString',
+            { value: ['live:1'] },
+            { 'If-None-Match': '*' }
+        );
+    });
 });
