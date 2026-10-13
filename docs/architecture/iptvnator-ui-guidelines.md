@@ -1372,7 +1372,8 @@ in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
 - **No credentials on screen.** Names come from `sourceDisplayName`: a URL, a
   URL-derived name such as `get.php?username=…&password=…` or any name holding
   the source's password, MAC or URL secrets becomes the host. URLs come from
-  `sourceDisplayUrl`, built on `stripUrlCredentials` (shared logging): no
+  `sourceDisplayUrl`, built on `stripUrlCredentials` (beside it in
+  `source-display`, out of the eager logging barrel): no
   userinfo, sensitive query or fragment parameters, or Xtream path
   credentials; Xtream shows `scheme://host:port · username`. Copy URL copies
   the full address on request.

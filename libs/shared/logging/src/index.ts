@@ -1,7 +1,9 @@
 export {
     isSensitiveKey,
+    looksLikeSearchParams,
     REDACTED_VALUE,
     redactSensitiveData,
+    XTREAM_CREDENTIAL_PATH_SEGMENTS,
 } from './lib/redact-sensitive-data';
 export type { RedactionOptions } from './lib/redact-sensitive-data';
 export {
@@ -25,4 +27,3 @@ export type {
     RendererPerformancePhaseMetadata,
     RendererPerformancePhaseOutcome,
 } from './lib/renderer-performance-phase';
-export { stripUrlCredentials } from './lib/strip-url-credentials';

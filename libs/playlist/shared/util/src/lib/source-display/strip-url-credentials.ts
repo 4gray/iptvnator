@@ -2,7 +2,7 @@ import {
     isSensitiveKey,
     looksLikeSearchParams,
     XTREAM_CREDENTIAL_PATH_SEGMENTS,
-} from './redact-sensitive-data';
+} from '@iptvnator/shared/logging';
 
 /**
  * Short account keys some playlist URLs use. A log line keeps them for
@@ -131,7 +131,10 @@ function stripUrl(value: string, depth: number): string | null {
 }
 
 /**
- * A URL safe to show on screen. Where the log redactor replaces secrets with
+ * A URL safe to show on screen. It lives beside its only consumer
+ * (`source-display`): behind the shared logging barrel, which startup code
+ * imports, it rode into the initial bundle.
+ * Where the log redactor replaces secrets with
  * a marker, this drops them: the userinfo, every query or fragment parameter
  * the redactor treats as sensitive (`username`, `password`, `token`, `mac`,
  * …), and the two account segments after `/live/`, `/movie/`, `/series/` or

@@ -1,10 +1,11 @@
-import { isSensitiveKey, stripUrlCredentials } from '@iptvnator/shared/logging';
+import { isSensitiveKey } from '@iptvnator/shared/logging';
 import {
     PlaylistMeta,
     playlistDisplayLabel,
     playlistNameHasCredentials,
     resolvePlaylistSourceKind,
 } from '@iptvnator/shared/interfaces';
+import { stripUrlCredentials } from './strip-url-credentials';
 
 export type SourceDisplayFields = Partial<
     Pick<
