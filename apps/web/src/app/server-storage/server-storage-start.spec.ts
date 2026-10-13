@@ -45,6 +45,28 @@ describe('resolveServerStorageStart', () => {
         ).toBeNull();
     });
 
+    it('keeps the token only for the same server and database', () => {
+        const token = 'iptvnator-server:access-token';
+        resolveServerStorageStart({ kind: 'server', instance }, '/api');
+        localStorage.setItem(token, 'secret');
+
+        resolveServerStorageStart({ kind: 'server', instance }, '/api/');
+        expect(localStorage.getItem(token)).toBe('secret');
+
+        resolveServerStorageStart(
+            { kind: 'server', instance: { ...instance, instanceId: 'i-2' } },
+            '/api'
+        );
+        expect(localStorage.getItem(token)).toBeNull();
+
+        localStorage.setItem(token, 'secret');
+        resolveServerStorageStart(
+            { kind: 'server', instance: { ...instance, instanceId: 'i-2' } },
+            '/other'
+        );
+        expect(localStorage.getItem(token)).toBeNull();
+    });
+
     it('forgets the token of a server that no longer offers storage', () => {
         localStorage.setItem('iptvnator-server:access-token', 'old');
 

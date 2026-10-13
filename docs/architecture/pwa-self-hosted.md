@@ -272,9 +272,10 @@ settings and guards read them in every build.
   `localStorage` (`iptvnator-server:unconfirmed:<instanceId>:<page>`, one
   key per page load so tabs never overwrite each other's, renewed every
   30 s while it has unsent writes, stale after ten minutes) let a re-read
-  in one tab keep the cache values another tab is still sending; saved
-  writes without a fresh record, also when the record was lost, count as a
-  closed tab's (the storage adapter lists its keys for this). A value too big for `localStorage`, or any
+  in one tab keep the cache values another tab is still sending, and a
+  stale record marks a closed tab whose writes another tab adopts (the
+  storage adapter lists its keys for this). Saved writes without any record
+  are left to the tab's own reload: that tab may still run. A value too big for `localStorage`, or any
   value when the browser refuses storage access, stays readable from
   memory, so callers and the diff baseline agree. A re-read
   updates the cache; views already open show another device's changes on
@@ -298,8 +299,9 @@ settings and guards read them in every build.
   browser that refuses to store it is told so instead).
   `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
   backend, and `PwaService` adds it to its two raw `fetch` calls only while
-  server mode runs (a backend that answers without server storage also
-  makes the browser forget the token). Both turn
+  server mode runs. The browser forgets the token when the backend answers
+  without server storage, or as another server or database (backend URL or
+  instance id) than the one it remembers. Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
   so a token changed on the server sends an open page back to sign-in; a
   late 401 for a token replaced since (a new sign-in) changes nothing.

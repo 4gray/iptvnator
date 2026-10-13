@@ -120,8 +120,9 @@ export function swapPage(
 }
 
 /**
- * Page loads with saved writes or a record but no fresh record: closed
- * tabs nobody sends for (also when their record was lost).
+ * Page loads whose record went stale: closed tabs nobody sends for. Saved
+ * writes without any record are left alone: a tab that could save them but
+ * not its record may still run, and only its own reload takes them over.
  */
 export function orphanedPages(
     local: UserDataStorage,
@@ -129,20 +130,13 @@ export function orphanedPages(
     page: string,
     now = Date.now()
 ): string[] {
-    const registry = readRegistry(local, instanceId);
-    const pages = new Set<string>();
-    for (const prefix of PAGE_PREFIXES) {
-        for (const owner of pagesUnder(local, `${prefix}:${instanceId}:`)) {
-            pages.add(owner);
-        }
-    }
-    return [...pages].filter((owner) => {
-        const record = registry[owner];
-        return (
-            owner !== page &&
-            !(record && now - Number(record.at) < UNCONFIRMED_TTL_MS)
-        );
-    });
+    return Object.entries(readRegistry(local, instanceId))
+        .filter(
+            ([owner, record]) =>
+                owner !== page &&
+                !(now - Number(record.at) < UNCONFIRMED_TTL_MS)
+        )
+        .map(([owner]) => owner);
 }
 
 /** Forgets a page load's saved writes, early edits and record. */

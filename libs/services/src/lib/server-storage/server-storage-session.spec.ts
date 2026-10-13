@@ -91,6 +91,16 @@ describe('ServerStorageSession', () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it('marks the page closed on page hide also while sign-in is pending', async () => {
+        const { session } = setup('token');
+        const close = jest.spyOn(session.userData, 'close');
+
+        await session.start();
+        window.dispatchEvent(new Event('pagehide'));
+
+        expect(close).toHaveBeenCalled();
+    });
+
     it('starts with a stored token', async () => {
         localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 't');
         const { session, status } = setup('token');

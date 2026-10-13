@@ -1284,43 +1284,54 @@ describe('ServerUserDataStorage with other devices', () => {
         );
     });
 
-    it("sends a closed tab's saved writes whose record was lost", async () => {
+    it('leaves saved writes without a record to the tab that saved them', async () => {
         const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
         const shared = memoryStorage();
-        const closed = new ServerUserDataStorage(
-            {
-                ...server.api,
-                sendJson: jest
-                    .fn()
-                    .mockRejectedValue(
-                        new ServerApiError(0, 'network', 'offline')
-                    ),
-            } as never,
+        const tabStore = memoryStorage();
+        const offline = {
+            ...server.api,
+            sendJson: jest
+                .fn()
+                .mockRejectedValue(new ServerApiError(0, 'network', 'offline')),
+        };
+        const open = new ServerUserDataStorage(
+            offline as never,
             shared,
             jest.fn(),
             'default',
-            memoryStorage()
+            tabStore
         );
-        await closed.hydrate();
-        closed.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
-        await closed.flush();
-        // Another tab's save once replaced the shared record: now it is gone.
+        await open.hydrate();
+        open.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await open.flush();
+        // Storage refused the record but kept the saved writes.
         for (const key of [...shared.values.keys()]) {
             if (key.startsWith('iptvnator-server:unconfirmed:')) {
                 shared.removeItem(key);
             }
         }
 
-        const next = new ServerUserDataStorage(
+        const other = new ServerUserDataStorage(
             server.api as never,
             shared,
             jest.fn(),
             'default',
             memoryStorage()
         );
-        await next.hydrate();
-        await next.flush();
+        await other.hydrate();
+        await other.flush();
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S']);
 
+        // The tab's own reload takes them over.
+        const reloaded = new ServerUserDataStorage(
+            server.api as never,
+            shared,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        await reloaded.hydrate();
+        await reloaded.flush();
         expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
     });
 });

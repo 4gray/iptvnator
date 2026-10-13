@@ -32,9 +32,21 @@ export function resolveServerStorageStart(
     > | null = safeLocalStorage()
 ): ServerStorageStart | null {
     switch (probe.kind) {
-        case 'server':
+        case 'server': {
+            const remembered = read(storage);
+            // Another server, or another database behind this one: the
+            // stored token was not given for it.
+            if (
+                !remembered ||
+                backendIdentity(remembered.baseUrl) !==
+                    backendIdentity(baseUrl) ||
+                remembered.instance.instanceId !== probe.instance.instanceId
+            ) {
+                clearServerAccessToken();
+            }
             write(storage, { baseUrl, instance: probe.instance });
             return { instance: probe.instance, startedOffline: false };
+        }
         case 'none':
             remove(storage);
             // The token belonged to that server; another must not see it.

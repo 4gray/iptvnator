@@ -76,6 +76,9 @@ export class ServerStorageSession {
     async start(): Promise<void> {
         this.backend.useServerStore(this.documentStore);
         this.status.activate(this.config.instance, () => void this.refresh());
+        // Also while sign-in is pending: this page may already hold another
+        // page load's writes, so it must mark itself closed on page hide.
+        this.listen();
         if (this.config.instance.auth === 'token' && !readServerAccessToken()) {
             this.status.reportUnauthorized();
             return;
@@ -86,7 +89,6 @@ export class ServerStorageSession {
                 setTimeout(resolve, STARTUP_HYDRATE_WAIT_MS)
             ),
         ]);
-        this.listen();
     }
 
     /** Re-reads synced user data; also the offline retry. */
