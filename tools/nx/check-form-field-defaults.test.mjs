@@ -58,7 +58,7 @@ test('reports a templateUrl form field without the provider', async () => {
 
     assert.deepEqual(await check('libs/a/field.component.ts', source), [
         {
-            line: 3,
+            line: 1,
             reason: 'renders <mat-form-field> without providers: [provideFormFieldDefaults()]',
         },
     ]);
@@ -74,6 +74,85 @@ test('reports an inline template form field without the provider', async () => {
     ].join('\n');
 
     assert.equal((await check('libs/a/inline.component.ts', source)).length, 1);
+});
+
+test('reads quoted inline templates', async () => {
+    const source = [
+        '@Component({',
+        "    template: '<mat-form-field></mat-form-field>',",
+        '})',
+        'class Single {}',
+        '@Component({',
+        '    template: "<mat-form-field></mat-form-field>",',
+        '})',
+        'class Double {}',
+    ].join('\n');
+
+    assert.deepEqual(
+        (await check('libs/a/quoted.component.ts', source)).map(
+            ({ line }) => line
+        ),
+        [1, 5]
+    );
+});
+
+test('checks each component of a file on its own providers', async () => {
+    const source = [
+        '@Component({',
+        '    providers: [provideFormFieldDefaults()],',
+        "    templateUrl: './field.component.html',",
+        '})',
+        'class WithDefaults {}',
+        '@Component({',
+        "    templateUrl: './field.component.html',",
+        '})',
+        'class WithoutDefaults {}',
+    ].join('\n');
+
+    assert.deepEqual(await check('libs/a/field.component.ts', source), [
+        {
+            line: 6,
+            reason: 'renders <mat-form-field> without providers: [provideFormFieldDefaults()]',
+        },
+    ]);
+});
+
+test('finds the provider after an earlier array-valued provider', async () => {
+    const source = [
+        '@Component({',
+        '    providers: [',
+        '        { provide: LIST, useValue: [] },',
+        '        provideFormFieldDefaults(),',
+        '    ],',
+        "    templateUrl: './field.component.html',",
+        '})',
+    ].join('\n');
+
+    assert.deepEqual(await check('libs/a/field.component.ts', source), []);
+});
+
+test('reports the provider outside a component', async () => {
+    const appConfig = [
+        'export const appConfig = {',
+        '    providers: [provideRouter(routes), provideFormFieldDefaults()],',
+        '};',
+    ].join('\n');
+    const routes = [
+        'export const routes = [',
+        "    { path: 'settings', providers: [provideFormFieldDefaults()] },",
+        '];',
+    ].join('\n');
+
+    assert.deepEqual(await check('apps/web/src/app/app.config.ts', appConfig), [
+        {
+            line: 2,
+            reason: "calls provideFormFieldDefaults() outside a component's providers; a root or route provider loads Material's form field on startup",
+        },
+    ]);
+    assert.equal(
+        (await check('apps/web/src/app/app.routes.ts', routes)).length,
+        1
+    );
 });
 
 test('ignores templates without a form field', async () => {

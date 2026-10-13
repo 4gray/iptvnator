@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
 /**
  * The app's `<mat-form-field>` defaults (outline, dynamic subscript) are
@@ -10,12 +11,13 @@ import { fileURLToPath } from 'node:url';
  * `@angular/material/form-field` and, since Material 22.2, `@angular/forms`
  * on startup, although every form field lives in a lazy chunk. A component
  * that renders a form field without the provider silently falls back to the
- * `fill` appearance, so this guard requires it on each such component and
- * keeps the token itself inside the shared provider.
+ * `fill` appearance, so this guard requires it on each such component, and
+ * allows the provider and the token nowhere else.
  */
 export const DEFAULTS_FILE =
     'libs/ui/components/src/lib/form-field-defaults/form-field-defaults.ts';
 const TOKEN = 'MAT_FORM_FIELD_DEFAULT_OPTIONS';
+const PROVIDER = 'provideFormFieldDefaults';
 
 const SCANNED_PATHSPECS = ['apps/web/*.ts', 'libs/*.ts'];
 
@@ -23,59 +25,122 @@ function isScanned(file) {
     return !/\.(spec|test)\.[cm]?[jt]s$/.test(file);
 }
 
-function lineOf(source, index) {
-    return source.slice(0, index).split('\n').length;
+/** The object literal of an `@Component({...})` decorator, if `node` is one. */
+function componentMetadata(node) {
+    if (
+        !ts.isDecorator(node) ||
+        !ts.isCallExpression(node.expression) ||
+        !ts.isIdentifier(node.expression.expression) ||
+        node.expression.expression.text !== 'Component'
+    ) {
+        return undefined;
+    }
+    const [metadata] = node.expression.arguments;
+    return metadata && ts.isObjectLiteralExpression(metadata)
+        ? metadata
+        : undefined;
 }
 
-/** Inline template text, or the path of the `templateUrl` file. */
-export function componentTemplates(source) {
-    const inline = [...source.matchAll(/\btemplate:\s*`([\s\S]*?)`/g)].map(
-        (match) => ({ inline: match[1], index: match.index })
-    );
-    const urls = [...source.matchAll(/\btemplateUrl:\s*['"]([^'"]+)['"]/g)].map(
-        (match) => ({ url: match[1], index: match.index })
-    );
-    return [...inline, ...urls].sort((a, b) => a.index - b.index);
+function property(metadata, name) {
+    return metadata.properties.find(
+        (entry) =>
+            ts.isPropertyAssignment(entry) &&
+            (ts.isIdentifier(entry.name) || ts.isStringLiteral(entry.name)) &&
+            entry.name.text === name
+    )?.initializer;
 }
 
-function providesDefaults(source) {
-    return /\bproviders:\s*\[[^\]]*\bprovideFormFieldDefaults\(\)/.test(source);
+/** Literal text of a quoted, backticked or interpolated template. */
+function literalText(node) {
+    if (ts.isStringLiteralLike(node)) return node.text;
+    if (ts.isTemplateExpression(node)) {
+        return [
+            node.head.text,
+            ...node.templateSpans.map((span) => span.literal.text),
+        ].join('');
+    }
+    return undefined;
+}
+
+function isProviderCall(node) {
+    return (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === PROVIDER
+    );
 }
 
 /**
- * Findings for one component source. `readTemplate` resolves a
+ * Findings for one TypeScript source. `readTemplate` resolves a
  * `templateUrl` relative to the component and returns its text.
  */
 export async function checkComponentSource(file, source, readTemplate) {
+    const sourceFile = ts.createSourceFile(
+        file,
+        source,
+        ts.ScriptTarget.Latest,
+        true
+    );
+    const lineOf = (node) =>
+        sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+            .line + 1;
     const findings = [];
-    if (file !== DEFAULTS_FILE) {
-        for (const match of source.matchAll(
-            new RegExp(`\\b${TOKEN}\\b`, 'g')
-        )) {
+    const components = [];
+    const componentProviderCalls = new Set();
+
+    const visit = (node) => {
+        const metadata = componentMetadata(node);
+        if (metadata) {
+            const providers = property(metadata, 'providers');
+            const calls =
+                providers && ts.isArrayLiteralExpression(providers)
+                    ? providers.elements.filter(isProviderCall)
+                    : [];
+            calls.forEach((call) => componentProviderCalls.add(call));
+            components.push({ node, metadata, provides: calls.length > 0 });
+        }
+        if (ts.isIdentifier(node) && node.text === TOKEN) {
+            if (file !== DEFAULTS_FILE) {
+                findings.push({
+                    file,
+                    line: lineOf(node),
+                    reason: `uses ${TOKEN}; provide the app defaults with ${PROVIDER}() from @iptvnator/ui/components/form-field-defaults`,
+                });
+            }
+        }
+        ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+
+    const visitCalls = (node) => {
+        if (isProviderCall(node) && !componentProviderCalls.has(node)) {
             findings.push({
                 file,
-                line: lineOf(source, match.index),
-                reason: `uses ${TOKEN}; provide the app defaults with provideFormFieldDefaults() from @iptvnator/ui/components/form-field-defaults`,
+                line: lineOf(node),
+                reason: `calls ${PROVIDER}() outside a component's providers; a root or route provider loads Material's form field on startup`,
             });
         }
-    }
+        ts.forEachChild(node, visitCalls);
+    };
+    visitCalls(sourceFile);
 
-    for (const template of componentTemplates(source)) {
-        const text =
-            template.inline ??
-            (await readTemplate(
-                path.posix.join(path.posix.dirname(file), template.url)
-            ));
-        if (!/<mat-form-field\b/.test(text) || providesDefaults(source)) {
-            continue;
+    for (const { node, metadata, provides } of components) {
+        const inline = property(metadata, 'template');
+        const url = property(metadata, 'templateUrl');
+        let template = inline ? literalText(inline) : undefined;
+        if (template === undefined && url && ts.isStringLiteralLike(url)) {
+            template = await readTemplate(
+                path.posix.join(path.posix.dirname(file), url.text)
+            );
         }
+        if (provides || !/<mat-form-field\b/.test(template ?? '')) continue;
         findings.push({
             file,
-            line: lineOf(source, template.index),
-            reason: 'renders <mat-form-field> without providers: [provideFormFieldDefaults()]',
+            line: lineOf(node),
+            reason: `renders <mat-form-field> without providers: [${PROVIDER}()]`,
         });
     }
-    return findings;
+    return findings.sort((a, b) => a.line - b.line);
 }
 
 /** Tracked renderer TypeScript files the guard reads, at any depth. */
