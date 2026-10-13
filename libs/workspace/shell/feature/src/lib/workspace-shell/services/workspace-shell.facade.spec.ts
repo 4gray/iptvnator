@@ -330,6 +330,7 @@ describe('WorkspaceShellFacade', () => {
                 {
                     provide: MatDialog,
                     useValue: {
+                        openDialogs: [],
                         open: jest.fn().mockReturnValue({
                             afterClosed: () => of(undefined),
                         }),
@@ -1149,6 +1150,17 @@ describe('WorkspaceShellFacade', () => {
         const unregister = switcher.register();
         expect(press().defaultPrevented).toBe(true);
         expect(opened).toHaveBeenCalledTimes(1);
+
+        // An open dialog keeps the key and the focus.
+        const dialogs = (
+            TestBed.inject(MatDialog) as unknown as {
+                openDialogs: unknown[];
+            }
+        ).openDialogs;
+        dialogs.push({});
+        expect(press().defaultPrevented).toBe(false);
+        expect(opened).toHaveBeenCalledTimes(1);
+        dialogs.length = 0;
 
         unregister();
         subscription.unsubscribe();

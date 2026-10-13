@@ -3,6 +3,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     DatabaseService,
     DataService,
@@ -60,6 +61,7 @@ export class SourceListRefreshService {
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     private readonly xtreamRefreshFlow = inject(XtreamRefreshFlowService);
+    private readonly logger = createLogger('SourceListRefresh');
 
     private readonly refreshingIds = signal<ReadonlySet<string>>(new Set());
     private readonly operations = signal<ReadonlyMap<string, BusyOperation>>(
@@ -209,7 +211,8 @@ export class SourceListRefreshService {
             );
         } catch (error) {
             if (!isDbAbortError(error)) {
-                console.error('Error refreshing playlist:', error);
+                // Redacted: the error can carry the playlist URL.
+                this.logger.error('Error refreshing playlist:', error);
                 this.snackBar.open(
                     this.refreshErrorMessage(error, item),
                     this.translate.instant('CLOSE'),

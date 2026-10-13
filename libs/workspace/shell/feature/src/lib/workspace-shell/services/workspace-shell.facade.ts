@@ -1,4 +1,5 @@
 import { computed, DestroyRef, inject, Injectable } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
@@ -58,6 +59,7 @@ export class WorkspaceShellFacade {
         }
     );
     private readonly playlistSwitcher = inject(PlaylistSwitcherOpenService);
+    private readonly dialog = inject(MatDialog);
     private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
         if (!(event.ctrlKey || event.metaKey)) {
             return;
@@ -75,7 +77,10 @@ export class WorkspaceShellFacade {
             key === 'p' &&
             !event.shiftKey &&
             !event.altKey &&
-            this.playlistSwitcher.available
+            this.playlistSwitcher.available &&
+            // An open dialog keeps the focus: the switcher would take it out
+            // of the dialog, and give it back to the toolbar behind it.
+            this.dialog.openDialogs.length === 0
         ) {
             // ⌘K stays the command palette; ⌘P is the playlist switcher (and
             // no longer prints the page in the browser build).
