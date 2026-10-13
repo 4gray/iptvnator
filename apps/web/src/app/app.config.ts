@@ -104,12 +104,13 @@ export function DataFactory() {
 export const appConfig: ApplicationConfig = {
     providers: [
         ...changeDetectionProviders,
-        // No provideAnimations(): nothing uses @angular/animations triggers
-        // (Material animates with CSS), and its renderer defers every DOM
-        // removal to the end of the next change detection. The router
-        // inserts the new page at once, so the old page stayed beside it
-        // until that tick (see workspace-shell.md, "Route swaps").
         provideRouter(routes, withComponentInputBinding()),
+        // No provideAnimations(): nothing declares an Angular animation
+        // trigger, and Material 22 animates with CSS, reading
+        // prefers-reduced-motion itself. The provider only put the 66 KB
+        // animation engine on the initial path, and its renderer deferred
+        // every DOM removal, so a routed page stayed beside the next one
+        // until the following tick (workspace-shell.md, "Route swaps").
         // CDK overlays (menus, tooltips, dialogs) live in a container under
         // <body>, which the browser hides behind an element in DOM fullscreen.
         // This container follows the fullscreen element instead, so the

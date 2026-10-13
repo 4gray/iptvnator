@@ -7,7 +7,6 @@ import {
     effect,
     ElementRef,
     inject,
-    NgZone,
     OnDestroy,
     OnInit,
     signal,
@@ -199,9 +198,18 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     });
     private previousGridResetKey: string | null = null;
     private hasAttemptedScrollRestore = false;
-    /** The offset of the grid that scrolled last (see ngOnDestroy). */
-    private lastGridScroll: { grid: Element; scrollTop: number } | null =
-        null;
+    /**
+     * The grid's last reported offset. On destroy the view is already
+     * detached from the document, where `scrollTop` reads 0, so the hook
+     * saves this instead. Scroll events do not bubble but can be captured.
+     */
+    private lastGridScrollTop = 0;
+    private readonly trackGridScroll = (event: Event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.matches('app-grid-list')) {
+            this.lastGridScrollTop = target.scrollTop;
+        }
+    };
     private readonly routeCategory = signal<{ id: string | null } | null>(null);
     private initializedRoute: {
         category: { id: string | null };
@@ -209,8 +217,16 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     } | null = null;
 
     constructor() {
-        this.trackGridScrollTop();
-
+        const host = this.hostElement.nativeElement;
+        host.addEventListener('scroll', this.trackGridScroll, {
+            capture: true,
+            passive: true,
+        });
+        this.destroyRef.onDestroy(() =>
+            host.removeEventListener('scroll', this.trackGridScroll, {
+                capture: true,
+            })
+        );
         effect(() => {
             const category = this.routeCategory();
             if (!category || this.catalog.routeReady?.() === false) {
@@ -311,16 +327,16 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     ngOnDestroy(): void {
         // Leaving the list without opening a detail (e.g. switching portal
         // tabs) still snapshots the spot; the facade validates the selection
-        // before ever restoring it.
-        // Angular removes a view's DOM before its destroy hooks run, so the
-        // grid is detached here and its scrollTop reads 0. A grid that never
-        // scrolled (a new category's) is still at the top.
-        const grid = this.gridElement();
-        if (!this.selectedItem() && grid) {
-            const last = this.lastGridScroll;
-            this.catalog.saveScrollPosition?.(
-                last?.grid === grid ? last.scrollTop : 0
-            );
+        // before ever restoring it. Angular detaches the view's DOM before
+        // this hook runs, and a detached grid reports a scrollTop of 0, so
+        // the tracked offset stands in for it.
+        if (!this.selectedItem()) {
+            const grid = this.gridElement();
+            if (grid) {
+                this.catalog.saveScrollPosition?.(
+                    grid.isConnected ? grid.scrollTop : this.lastGridScrollTop
+                );
+            }
         }
     }
 
@@ -349,28 +365,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         }
     }
 
-    /** Scroll events do not bubble; a passive capture listener sees them. */
-    private trackGridScrollTop(): void {
-        const host: HTMLElement = this.hostElement.nativeElement;
-        const onScroll = (event: Event) => {
-            if (event.target instanceof HTMLElement) {
-                if (event.target.tagName === 'APP-GRID-LIST') {
-                    this.lastGridScroll = {
-                        grid: event.target,
-                        scrollTop: event.target.scrollTop,
-                    };
-                }
-            }
-        };
-        const options = { capture: true, passive: true };
-        inject(NgZone).runOutsideAngular(() =>
-            host.addEventListener('scroll', onScroll, options)
-        );
-        this.destroyRef.onDestroy(() =>
-            host.removeEventListener('scroll', onScroll, options)
-        );
-    }
-
     private gridElement(): HTMLElement | null {
         return this.hostElement.nativeElement.querySelector(
             'app-grid-list'
@@ -378,6 +372,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     }
 
     private scrollGridToTop(): void {
+        // A grid already at the top fires no scroll event for this call.
+        this.lastGridScrollTop = 0;
         this.gridElement()?.scrollTo?.({ top: 0 });
     }
 

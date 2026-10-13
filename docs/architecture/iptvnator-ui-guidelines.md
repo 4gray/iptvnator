@@ -88,6 +88,55 @@ tokens, so the retired `--mdc-*` names compile but do nothing;
 a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
 token directly and says why.
 
+### Material off the startup path
+
+`renderer.initialBytes` ([performance journeys](performance-journeys.md#rendererinitialbytes))
+counts every module an eager file imports, and the bundler keeps a module in
+one chunk, so one import of one export carries the whole module. Material
+therefore reaches the initial bundle only through the snack-bar, which root
+services inject (and with it `button`, the icon button and the CDK overlay).
+Everything else is lazy by these rules:
+
+- **Form-field defaults.** A component that renders `<mat-form-field>`
+  adds `providers: [provideFormFieldDefaults()]`
+  (`@iptvnator/ui/components/form-field-defaults`); the token is never
+  provided at the root, where its import alone put the 54 KB form-field
+  chunk on the initial path. `pnpm run ui:form-field-defaults:validate` (CI)
+  requires the provider on every such component and allows the token
+  nowhere else; see the Dialogs and forms notes below.
+- **Dialogs from services created with the app.** A root service that opens a
+  dialog resolves `MatDialog` through `LazyMatDialog`
+  (`@iptvnator/ui/components/lazy-dialog`) and imports the dialog component
+  on demand, as `DialogService`, the player service, the parental lock prompt
+  and the workspace shell actions do; `openConfirmDialog` returns a promise
+  that settles once the dialog is open. A component in a lazy chunk injects
+  `MatDialog` directly.
+- **Panels the shell mounts on every launch.** The EPG progress panel and the
+  update notification are an eager host with `@defer (when visible)` around
+  the view that imports Material; the startup status draws its spinner as
+  static markup copied from `mat-spinner`. A new always-mounted component
+  follows the same split.
+- **Theme scope.** `m3-theme.scss` themes only the components in its
+  `$material-components` list, through `meta.apply` for both the light theme
+  and the dark colours. Add an entry with a new `@angular/material/<entry>`
+  import and remove it with the last one;
+  `pnpm run styles:material-theme-scope:validate` (CI) checks both directions
+  (`core` always stays, `button` brings `icon-button` and `fab`).
+- **No animations module.** Nothing declares an Angular animation trigger and
+  Material 22 animates with CSS, deciding from `prefers-reduced-motion` itself,
+  so `app.config.ts` does not call `provideAnimations()`; the Electron
+  `material-motion.e2e.ts` checks that dialogs, selects, menus, snack-bars and
+  tooltips still animate in and out and stop under reduced motion. One side
+  effect of the module is gone with it: its renderer deferred every DOM
+  removal to the end of the change-detection tick, so a destroy hook still
+  saw its view attached. Without it Angular detaches the view first, where
+  `scrollTop` reads 0 and Chromium has already fired a `focusout` with no
+  related target for the focused control. A destroy hook therefore never
+  reads geometry or focus from its own view: the catalog list tracks the
+  grid offset from scroll events, and the player settings panel decides
+  "focus was inside" in a microtask after such a `focusout`, which the close
+  destroys the panel before. Both have specs that detach the view first.
+
 The app theme is the `.dark-theme` class that `SettingsService` puts on
 `<body>`; a "System" choice resolves the OS preference there and nowhere
 else. Component styles never use a `prefers-color-scheme` query, which
