@@ -130,6 +130,15 @@ describe('sourceDisplayName', () => {
         ).toBe('Mine');
     });
 
+    it('reads a bracketed key that only starts like JSON as parameters', () => {
+        const url = `https://proxy.test/list?config=${encodeURIComponent(
+            '[password]=hunter2'
+        )}`;
+        expect(sourceDisplayName({ title: 'Mine hunter2', url })).toBe(
+            'proxy.test'
+        );
+    });
+
     it('keeps a name that only shares a letter with a decoded password', () => {
         // `%2542` is the password as written; decoded it is just `B`.
         const url = 'https://host.test/list?password=%2542';

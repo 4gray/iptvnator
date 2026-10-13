@@ -108,8 +108,11 @@ function collectUrlSecrets(
         if (value === null) {
             return;
         }
-        if (/^\s*[{[]/.test(value)) {
-            visitJson(parseJson(value), 0);
+        // Only real JSON: `[password]=…` starts like it but is a parameter
+        // list, read below.
+        const json = /^\s*[{[]/.test(value) ? parseJson(value) : null;
+        if (json !== null && typeof json === 'object') {
+            visitJson(json, 0);
             return;
         }
         const nested = ABSOLUTE_URL.test(value.trim()) ? parseUrl(value) : null;
