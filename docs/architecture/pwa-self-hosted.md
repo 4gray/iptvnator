@@ -248,9 +248,9 @@ settings and guards read them in every build.
   tab's record has gone stale (at its next re-read, or its 30 s check when
   it has nothing to sync and never re-reads); the result replays the
   closed tab's edits first and this tab's newer ones last. An adopted edit
-  changes only what is still as its page saw it (`EditStep.yields`): an
-  item or key changed since, by this tab or another device, keeps its
-  newer value. Tabs never clear each other's.
+  changes only what is still as its page saw it (`EditStep.yields`), also
+  at every later conflict: an item or key changed since, by this tab or
+  another device, keeps its newer value. Tabs never clear each other's.
   Cache and saved writes belong to one server database
   (`iptvnator-server:cache-owner`); another one behind the same address
   starts clean. Startup waits for the first read only a few seconds;
@@ -357,8 +357,9 @@ settings and guards read them in every build.
   snapshots first (`typeLegacyXtreamRefs`; snapshots keep their bare key as
   an alias), then `combineUserData` unions
   lists (playback positions by content type and Xtream id, renamed to the
-  server playlist; recently viewed items newest first, since the app cuts
-  history from the end) and merges maps, the server's value winning on a
+  server playlist; recently viewed items newest first and one per item,
+  its newest view, since the app cuts history from the end) and merges
+  maps, the server's value winning on a
   conflict. Parental locks stay in the browser but move to the server
   playlist id with it; while the lock store or a browser user-data map
   cannot be read the move counts as failed. Browser data is never

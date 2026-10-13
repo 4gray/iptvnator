@@ -10,8 +10,8 @@ import {
     withExplicitStalkerPortalFlag,
 } from '@iptvnator/shared/interfaces';
 import {
+    combineRecentViews,
     combineUserData,
-    newestViewsFirst,
     remapChannelReferences,
     retargetUserData,
     unionItems,
@@ -258,13 +258,11 @@ export class ServerMigrationService {
             }
             const typed = [stored, ...browserCopies].map(typeLegacyXtreamRefs);
             for (const namespace of SERVER_USER_STATE_NAMESPACES) {
-                const combined = combineUserData(
-                    typed.map((copy) => copy[namespace])
-                );
-                const value =
+                const value = (
                     namespace === 'xtream-recent-items'
-                        ? newestViewsFirst(combined)
-                        : combined;
+                        ? combineRecentViews
+                        : combineUserData
+                )(typed.map((copy) => copy[namespace]));
                 if (
                     value === undefined ||
                     JSON.stringify(value) === JSON.stringify(stored[namespace])

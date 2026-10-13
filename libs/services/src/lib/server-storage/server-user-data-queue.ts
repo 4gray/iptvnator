@@ -458,11 +458,17 @@ export class UserDataWriteQueue {
         ) {
             return;
         }
+        // A closed tab's steps keep giving way to newer changes at the next
+        // conflict; this page's own become one edit on top of them.
+        const yielding = latest.steps.filter((step) => step.yields);
         this.pending.set(key, {
             ...latest,
             value: merged,
             tag: current.tag,
-            steps: [{ before: current.value, after: merged }],
+            steps: [
+                ...yielding,
+                { before: replaySteps(current.value, yielding), after: merged },
+            ],
         });
         this.scheduleFlush();
     }

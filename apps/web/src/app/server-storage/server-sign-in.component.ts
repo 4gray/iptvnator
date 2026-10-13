@@ -83,12 +83,14 @@ export class ServerSignInComponent {
             await this.session.fetchStatus();
             this.openWorkspace();
         } catch (error) {
-            forgetAttempt(token);
-            this.feedback.set(
-                error instanceof ServerApiError && error.status === 401
-                    ? 'rejected'
-                    : 'unreachable'
-            );
+            const rejected =
+                error instanceof ServerApiError && error.status === 401;
+            // A refused token is no one's. A network failure says nothing
+            // about it, and another tab may have stored the same one since.
+            if (rejected) {
+                forgetAttempt(token);
+            }
+            this.feedback.set(rejected ? 'rejected' : 'unreachable');
         } finally {
             this.busy.set(false);
         }

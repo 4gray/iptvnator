@@ -137,14 +137,14 @@ export function retargetUserData(
 }
 
 /**
- * Recently viewed items newest first, as the app keeps them: it cuts the
- * list at its limit from the end, so a browser view combined after the
- * server's older ones would be dropped by the next one. Undated items
- * keep their order, after the dated ones.
+ * Recently viewed items as the app keeps them: newest first, since it cuts
+ * the list at its limit from the end, and one per item, its newest view
+ * with that view's artwork. Undated items follow the dated ones in order.
  */
-export function newestViewsFirst(items: unknown): unknown {
-    if (!Array.isArray(items)) {
-        return items;
+export function combineRecentViews(values: readonly unknown[]): unknown {
+    const present = values.filter((value) => value !== undefined);
+    if (present.length === 0 || !present.every(Array.isArray)) {
+        return combineUserData(values);
     }
     const viewedAt = (item: unknown) => {
         const at = isPlainObject(item)
@@ -152,7 +152,8 @@ export function newestViewsFirst(items: unknown): unknown {
             : NaN;
         return Number.isNaN(at) ? 0 : at;
     };
-    return [...items].sort((a, b) => viewedAt(b) - viewedAt(a));
+    const views = ([] as unknown[]).concat(...(present as unknown[][]));
+    return unionItems(views.sort((a, b) => viewedAt(b) - viewedAt(a)));
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

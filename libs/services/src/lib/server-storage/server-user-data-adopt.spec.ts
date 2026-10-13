@@ -156,4 +156,57 @@ describe('ServerUserDataStorage taking over other page loads', () => {
         expect(adopted.resumed()).toBe(false);
         expect(kept.resumed()).toBe(true);
     });
+
+    it("keeps a closed tab's edit giving way through repeated conflicts", async () => {
+        const at = (id: number, seconds: number) => ({
+            contentType: 'vod',
+            contentXtreamId: id,
+            positionSeconds: seconds,
+        });
+        const server = fakeServer({
+            'xtream-playback-positions': { p1: [at(1, 10), at(2, 5)] },
+        });
+        const positions = () => server.state['xtream-playback-positions']['p1'];
+        const shared = memoryStorage();
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+        const closed = new ServerUserDataStorage(
+            {
+                ...server.api,
+                sendJson: jest.fn(() =>
+                    Promise.reject(new ServerApiError(0, 'network', 'offline'))
+                ),
+            } as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await closed.hydrate();
+        closed.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({ p1: [at(1, 20), at(2, 5)] })
+        );
+        await closed.flush();
+        closed.close();
+        clock.mockReturnValue(1_000 + UNCONFIRMED_TTL_MS + 1);
+        const tab = new ServerUserDataStorage(
+            server.api as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+
+        // Adopted; another device moves movie 2 before it is sent.
+        await tab.hydrate();
+        server.state['xtream-playback-positions']['p1'] = [at(1, 10), at(2, 6)];
+        await tab.flush();
+        // And movie 1 before the replayed write lands.
+        server.state['xtream-playback-positions']['p1'] = [at(1, 30), at(2, 6)];
+        await tab.flush();
+        await tab.flush();
+        clock.mockRestore();
+
+        expect(positions()).toEqual([at(1, 30), at(2, 6)]);
+    });
 });

@@ -98,6 +98,20 @@ describe('ServerSignInComponent', () => {
         expect(readServerAccessToken('i-1')).toBe('right');
     });
 
+    it('leaves a token another tab stored to it after a network failure', async () => {
+        session.fetchStatus.mockImplementation(async () => {
+            // Another tab signs in with the same token meanwhile.
+            writeServerAccessToken('right', 'i-1');
+            throw new ServerApiError(0, 'network', 'offline');
+        });
+
+        component.edit('right');
+        await component.submit(new Event('submit'));
+
+        expect(component.feedback()).toBe('unreachable');
+        expect(readServerAccessToken('i-1')).toBe('right');
+    });
+
     it('tells an unreachable server apart and clears the message on edit', async () => {
         session.fetchStatus.mockRejectedValue(
             new ServerApiError(0, undefined, 'offline')

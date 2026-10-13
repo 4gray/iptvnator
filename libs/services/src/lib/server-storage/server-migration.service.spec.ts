@@ -202,18 +202,21 @@ describe('ServerMigrationService', () => {
                 },
             },
         });
+        // vod:8 was watched again in this browser, with other artwork.
+        const again = { ...view('vod:8', 4), backdropUrl: 'b.jpg' };
         localStorage.setItem(
             'xtream-recent-items',
-            JSON.stringify({ x: [view('vod:1', 3)] })
+            JSON.stringify({ x: [again, view('vod:1', 3)] })
         );
 
         await TestBed.inject(ServerMigrationService).moveBrowserData();
 
-        // The app cuts history from the end: the newest view leads.
+        // The app cuts history from the end: the newest view leads, and an
+        // item keeps its newest view.
         expect(session.api.sendJson).toHaveBeenCalledWith(
             'PUT',
             '/user-state/xtream-recent-items/server-x',
-            { value: [view('vod:1', 3), view('vod:9', 2), view('vod:8', 1)] },
+            { value: [again, view('vod:1', 3), view('vod:9', 2)] },
             {}
         );
     });
