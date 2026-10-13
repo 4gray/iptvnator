@@ -20,6 +20,7 @@ import {
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { SourceRemovalService } from '../source-removal/source-removal.service';
+import { XtreamRefreshFlowService } from '../xtream-refresh-flow.service';
 import { PlaylistSwitcherPanelComponent } from './playlist-switcher-panel.component';
 
 const source = (id: string, fields: Partial<PlaylistMeta> = {}) =>
@@ -52,6 +53,7 @@ describe('PlaylistSwitcherPanelComponent', () => {
     let selectPlaylist: jest.Mock;
     let remove: jest.Mock;
     let navigate: jest.Mock;
+    let xtreamRefreshing: ReturnType<typeof signal<ReadonlySet<string>>>;
 
     const input = () =>
         (fixture.nativeElement as HTMLElement).querySelector(
@@ -83,6 +85,7 @@ describe('PlaylistSwitcherPanelComponent', () => {
         selectPlaylist = jest.fn();
         remove = jest.fn();
         navigate = jest.fn();
+        xtreamRefreshing = signal<ReadonlySet<string>>(new Set());
         TestBed.configureTestingModule({
             imports: [
                 PlaylistSwitcherPanelComponent,
@@ -137,6 +140,13 @@ describe('PlaylistSwitcherPanelComponent', () => {
                     useValue: {
                         canRefresh: () => true,
                         refresh: jest.fn(),
+                        isSourceBusy: () => false,
+                    },
+                },
+                {
+                    provide: XtreamRefreshFlowService,
+                    useValue: {
+                        isRunning: (id: string) => xtreamRefreshing().has(id),
                     },
                 },
                 { provide: MatDialog, useValue: { open: jest.fn() } },
@@ -318,6 +328,24 @@ describe('PlaylistSwitcherPanelComponent', () => {
             ?.click();
         expect(selectPlaylist).toHaveBeenCalled();
         release();
+    });
+
+    it('does not open a source while its refresh clears the catalog', () => {
+        xtreamRefreshing.set(new Set(['alpha']));
+        fixture.detectChanges();
+        const element = fixture.nativeElement as HTMLElement;
+        const alpha = element.querySelector('#playlist-switcher-all-alpha');
+        expect(alpha?.getAttribute('aria-disabled')).toBe('true');
+
+        alpha?.querySelector<HTMLElement>('.source-row')?.click();
+        // Enter on the highlighted option goes through the same method.
+        component.select(ALPHA);
+        expect(selectPlaylist).not.toHaveBeenCalled();
+
+        xtreamRefreshing.set(new Set());
+        fixture.detectChanges();
+        component.select(ALPHA);
+        expect(selectPlaylist).toHaveBeenCalledWith(ALPHA);
     });
 
     it('leaves out a source whose delete is pending or running', () => {

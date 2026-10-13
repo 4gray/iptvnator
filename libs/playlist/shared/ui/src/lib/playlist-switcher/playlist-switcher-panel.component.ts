@@ -46,6 +46,7 @@ import { PlaylistRefreshActionService } from '../playlist-refresh-action.service
 import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
 import { SourceRemovalService } from '../source-removal/source-removal.service';
 import { SourceRowComponent } from '../source-row/source-row.component';
+import { XtreamRefreshFlowService } from '../xtream-refresh-flow.service';
 import {
     buildSwitcherGroups,
     moveHighlight,
@@ -90,6 +91,7 @@ export class PlaylistSwitcherPanelComponent {
     private readonly router = inject(Router);
     private readonly sortService = inject(SortService);
     private readonly statusService = inject(SourceStatusService);
+    private readonly xtreamRefreshFlow = inject(XtreamRefreshFlowService);
     private readonly list = viewChild.required<ElementRef<HTMLElement>>('list');
     private readonly searchInput =
         viewChild.required<ElementRef<HTMLInputElement>>('searchInput');
@@ -279,6 +281,10 @@ export class PlaylistSwitcherPanelComponent {
     }
 
     select(playlist: PlaylistMeta): void {
+        // Pointer and Enter alike: opening it would race the refresh.
+        if (this.isRefreshing(playlist)) {
+            return;
+        }
         this.context.selectPlaylist(playlist);
         this.playlistSelected.emit(playlist._id);
         this.close();
@@ -286,6 +292,17 @@ export class PlaylistSwitcherPanelComponent {
 
     canRefresh(playlist: PlaylistMeta): boolean {
         return this.refreshAction.canRefresh(playlist);
+    }
+
+    /**
+     * A refresh is clearing and refilling the source: it cannot be opened
+     * until the refresh has parked the user data its import restores.
+     */
+    isRefreshing(playlist: PlaylistMeta): boolean {
+        return (
+            this.refreshAction.isSourceBusy(playlist._id) ||
+            this.xtreamRefreshFlow.isRunning(playlist._id)
+        );
     }
 
     /** A source cannot be removed while a refresh clears and refills it. */

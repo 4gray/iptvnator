@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -93,7 +93,30 @@ export class XtreamRefreshFlowService {
      * losing favorites, history, hidden categories and playback positions on
      * re-import. This service is the only place that sees both.
      */
-    private readonly activeRefreshPlaylistIds = new Set<string>();
+    private readonly activeRefreshPlaylistIds = signal<ReadonlySet<string>>(
+        new Set()
+    );
+
+    /**
+     * Whether a destructive run is in flight for the playlist. Opening the
+     * playlist meanwhile would start its import against a half-deleted
+     * catalog, before the user data to restore has been parked.
+     */
+    isRunning(playlistId: string): boolean {
+        return this.activeRefreshPlaylistIds().has(playlistId);
+    }
+
+    private setRunning(playlistId: string, running: boolean): void {
+        this.activeRefreshPlaylistIds.update((current) => {
+            const next = new Set(current);
+            if (running) {
+                next.add(playlistId);
+            } else {
+                next.delete(playlistId);
+            }
+            return next;
+        });
+    }
 
     /**
      * Asks for confirmation, then deletes and re-imports the playlist. Callers
@@ -124,7 +147,7 @@ export class XtreamRefreshFlowService {
         // The shared registry also holds deletes, the startup auto-refresh
         // and M3U refreshes from either entry point.
         if (
-            this.activeRefreshPlaylistIds.has(item._id) ||
+            this.isRunning(item._id) ||
             this.activity.isBusy(item._id) ||
             reporter.isBusy(item._id)
         ) {
@@ -135,7 +158,7 @@ export class XtreamRefreshFlowService {
             this.databaseService.createOperationId('xtream-refresh');
         const run: XtreamRefreshRun = { playlistId: item._id, operationId };
         reporter.begin(run);
-        this.activeRefreshPlaylistIds.add(item._id);
+        this.setRunning(item._id, true);
         const release = this.activity.begin([item._id]);
 
         try {
@@ -210,7 +233,7 @@ export class XtreamRefreshFlowService {
                 );
             }
         } finally {
-            this.activeRefreshPlaylistIds.delete(item._id);
+            this.setRunning(item._id, false);
             release();
             reporter.end(run);
         }
