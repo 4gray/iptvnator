@@ -22,6 +22,53 @@ Use it when changing existing views or introducing new list-based UI in the work
 5. Scroll ownership must be explicit.
    Headers stay visible. Lists scroll. Do not let nested panes compete for scroll.
 
+## Angular Material's Role
+
+Decision of 2026-10-12. The repository has no ADR folder; decisions live in
+the subsystem's document.
+
+**Decision.**
+
+- Angular Material stays as the behaviour and accessibility layer: dialog,
+  menu, select (inside forms only), form field and input, snack-bar, tooltip,
+  slide-toggle, checkbox, progress and icon.
+- The look comes from the IPTVnator design kit, applied through
+  `mat.*-overrides()` on the `--app-*` tokens in one place: the shared
+  partials under `libs/ui/styles/` (the control mixins live in
+  `_app-controls.scss`), not per-component `::ng-deep`.
+- A kit component that Material lacks is built on CDK primitives (overlay,
+  a11y key managers), as the playlist switcher popover is.
+- A plain action button may become a native `<button>` with the kit mixins.
+- No wholesale replacement of Material. Re-evaluate Angular's headless
+  `@angular/aria` (developer preview as of v21; not installed) for menu,
+  listbox and combobox once it is stable.
+
+**Why** (production build, `renderer.initialBytes` 1,597,763 bytes):
+
+- Material's JavaScript is about 203 KB (12.7% of the initial bytes) and the
+  CDK's about 126 KB (7.9%). Any replacement keeps the CDK, and the CDK is
+  where the behaviour lives.
+- In the global CSS the `--mat-*` tokens are 96 KB raw but about 11 KB
+  gzipped, and Material's own rules are 9 KB. 23.6 KB of the tokens belong to
+  17 components the app never imports, because `mat.all-component-themes`
+  emits every component.
+- The startup cost comes from a few eager imports (the form-field defaults
+  token in `app.config.ts`, the startup, update and EPG-progress components,
+  the confirm-dialog service), not from Material itself. Those are moved off
+  the startup path separately.
+- Rewriting dialog focus trapping, menu keyboard handling, select listboxes
+  and snack-bar live regions would cost months and accessibility risk for no
+  visible gain.
+
+**Consequences.**
+
+- Material upgrades can change behaviour. Seen in v22: the menu panel has no
+  max-height; a submenu is offset by the parent's first direct
+  `mat-menu-item`, so a trigger that follows `role="group"` rows is wrapped
+  in `<div role="none">`; overlay panes are `position: static` inside the
+  bounding box.
+- Keep E2E coverage on menus and dialogs.
+
 ## Canonical References
 
 - Channel row:
