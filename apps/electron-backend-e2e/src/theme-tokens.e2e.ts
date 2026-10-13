@@ -150,7 +150,12 @@ test.describe('Theme tokens', () => {
                 ).toBeGreaterThanOrEqual(3);
 
                 // A floated label inherits the field's text size and renders
-                // at 75% of it; it must stay legible.
+                // at 75% of it; it must stay legible. The settings selects
+                // have no floating label any more (the row title names
+                // them): the recording folder field on Playback keeps one,
+                // and focusing it floats the label.
+                await openSettingsSection(page, 'playback');
+                await page.locator('#recordingFolder').focus();
                 const floated = page
                     .locator('mat-form-field .mdc-floating-label--float-above')
                     .first();

@@ -4,21 +4,19 @@
     aria-labelledby="settings-search-results-title"
 >
     <header class="settings-group__header">
-        <div class="settings-group__header-text">
-            <h3 id="settings-search-results-title">
-                {{ 'SETTINGS.SEARCH_RESULTS_TITLE' | translate }}
-            </h3>
-            <p aria-live="polite" data-test-id="settings-search-summary">
-                {{
-                    'SETTINGS.SEARCH_RESULTS_COUNT'
-                        | translate: { count: results().length, query: query() }
-                }}
-            </p>
-        </div>
+        <h2 id="settings-search-results-title">
+            {{ 'SETTINGS.SEARCH_RESULTS_TITLE' | translate }}
+        </h2>
+        <p aria-live="polite" data-test-id="settings-search-summary">
+            {{
+                'SETTINGS.SEARCH_RESULTS_COUNT'
+                    | translate: { count: results().length, query: query() }
+            }}
+        </p>
     </header>
 
     @if (results().length > 0) {
-        <ul class="settings-search-results__list">
+        <ul class="settings-search-results__list settings-card">
             @for (result of results(); track result.entry.id) {
                 <li>
                     <button

@@ -1,8 +1,14 @@
+import type { Page } from '@playwright/test';
 import {
+    addXtreamPortal,
+    clickFirstGridListCard,
     closeElectronApp,
     expect,
     launchElectronApp,
+    LaunchedElectronApp,
+    resetMockServers,
     test,
+    waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
 
 // Custom window controls are only rendered on Windows/Linux; macOS keeps
@@ -188,6 +194,93 @@ test.describe('Custom window controls', () => {
     });
 });
 
+// The native buttons are 14pt circles. At 100 % zoom the first header
+// control starts 60pt right of their origin, where macOS 26 ends them
+// (earlier releases end them at 52pt).
+const lightsHeight = 14;
+const headerControlOffset = 60;
+
+/** Where macOS drew the native window buttons, in window points. */
+async function trafficLights(
+    app: LaunchedElectronApp
+): Promise<{ x: number; y: number }> {
+    const lights = await app.electronApp.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.getWindowButtonPosition()
+    );
+    expect(lights, 'native window button position').toBeTruthy();
+    return lights ?? { x: Number.NaN, y: Number.NaN };
+}
+
+/** Window pixels per CSS pixel. */
+function zoomFactor(page: Page): Promise<number> {
+    return page.evaluate(() => window.outerWidth / window.innerWidth);
+}
+
+/**
+ * Steps the app zoom to its minimum (−4, ≈48 %). App zoom scales CSS pixels
+ * but not the native buttons.
+ */
+async function zoomOutFully(page: Page): Promise<void> {
+    for (let step = 0; step < 8; step++) {
+        await page.evaluate(() => window.electron.adjustZoomLevel('out'));
+    }
+    await expect.poll(() => zoomFactor(page)).toBeLessThan(0.6);
+}
+
+async function resetZoom(page: Page): Promise<void> {
+    await page.evaluate(() => window.electron.adjustZoomLevel('reset'));
+    await expect.poll(() => zoomFactor(page)).toBeCloseTo(1, 2);
+}
+
+/**
+ * The header's first rendered control and the top of the content area, in
+ * window pixels (CSS pixels times the zoom factor).
+ */
+function headerLayout(
+    page: Page
+): Promise<{ control?: string; left: number; contentTop: number }> {
+    return page.locator('.workspace-header').evaluate((header) => {
+        const zoom = window.outerWidth / window.innerWidth;
+        const first = [...header.children].find(
+            (child) => child.getBoundingClientRect().width > 0
+        );
+        const body = document.querySelector('.workspace-body');
+        return {
+            control:
+                first?.getAttribute('data-test-id') ??
+                first?.tagName.toLowerCase(),
+            left: (first?.getBoundingClientRect().left ?? 0) * zoom,
+            contentTop: (body?.getBoundingClientRect().top ?? 0) * zoom,
+        };
+    });
+}
+
+/**
+ * The first header control starts right of the lights and the content area
+ * below them. Polled: the layout follows a zoom change after its resize.
+ */
+async function expectHeaderClearOfLights(
+    page: Page,
+    lights: { x: number; y: number },
+    control: string,
+    label: string
+): Promise<void> {
+    const layout = () => headerLayout(page);
+    await expect
+        .poll(async () => (await layout()).control, { message: label })
+        .toBe(control);
+    await expect
+        .poll(async () => (await layout()).left, {
+            message: `${label}: first control`,
+        })
+        .toBeGreaterThanOrEqual(lights.x + headerControlOffset);
+    await expect
+        .poll(async () => (await layout()).contentTop, {
+            message: `${label}: content top`,
+        })
+        .toBeGreaterThanOrEqual(lights.y + lightsHeight);
+}
+
 test.describe('macOS traffic lights', () => {
     test.skip(
         process.platform !== 'darwin',
@@ -205,49 +298,88 @@ test.describe('macOS traffic lights', () => {
             const firstLink = page.locator('.app-rail a').first();
             await expect(firstLink).toBeVisible();
 
-            const [linkBox, contentBox] = await Promise.all([
-                firstLink.boundingBox(),
-                page.locator('.workspace-content').boundingBox(),
-            ]);
             // Aligned with the content area, where the dashboard hero starts.
-            expect(
-                Math.abs((linkBox?.y ?? 0) - (contentBox?.y ?? -100))
-            ).toBeLessThanOrEqual(1);
+            const linkOffsetFromContent = async (): Promise<number> => {
+                const [linkBox, contentBox] = await Promise.all([
+                    firstLink.boundingBox(),
+                    page.locator('.workspace-content').boundingBox(),
+                ]);
+                return Math.abs(
+                    (linkBox?.y ?? 0) - (contentBox?.y ?? Number.NaN)
+                );
+            };
+            expect(await linkOffsetFromContent()).toBeLessThanOrEqual(1);
 
-            const lights = await app.electronApp.evaluate(({ BrowserWindow }) =>
-                BrowserWindow.getAllWindows()[0]?.getWindowButtonPosition()
-            );
-            expect(lights, 'native window button position').toBeTruthy();
-            const lightsY = lights?.y ?? Number.NaN;
-            // The buttons are about 14pt tall; keep a visible gap below them,
-            // measured in window pixels (CSS pixels times the zoom factor).
+            const lights = await trafficLights(app);
+            // Keep a visible gap below the buttons, measured in window pixels
+            // (CSS pixels times the zoom factor).
             const linkTopInWindowPixels = async (): Promise<number> => {
                 const [box, zoom] = await Promise.all([
                     firstLink.boundingBox(),
-                    page.evaluate(() => window.outerWidth / window.innerWidth),
+                    zoomFactor(page),
                 ]);
                 return (box?.y ?? Number.NaN) * zoom;
             };
             expect(await linkTopInWindowPixels()).toBeGreaterThanOrEqual(
-                lightsY + 14 + 16
+                lights.y + lightsHeight + 16
             );
 
-            // App zoom scales CSS pixels but not the native buttons: at the
-            // smallest zoom the inset must still clear them.
-            for (let step = 0; step < 8; step++) {
-                await page.evaluate(() =>
-                    window.electron.adjustZoomLevel('out')
-                );
-            }
-            await expect
-                .poll(() =>
-                    page.evaluate(() => window.outerWidth / window.innerWidth)
-                )
-                .toBeLessThan(0.6);
+            // At the smallest zoom the inset must still clear the buttons,
+            // and the link still starts with the content area.
+            await zoomOutFully(page);
             await expect
                 .poll(linkTopInWindowPixels)
-                .toBeGreaterThanOrEqual(lightsY + 14 + 8);
-            await page.evaluate(() => window.electron.adjustZoomLevel('reset'));
+                .toBeGreaterThanOrEqual(lights.y + lightsHeight + 8);
+            await expect.poll(linkOffsetFromContent).toBeLessThanOrEqual(1);
+            await resetZoom(page);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@xtream @electron the first header control clears the lights at default and minimum zoom', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            const page = app.mainWindow;
+            const lights = await trafficLights(app);
+            const switcher = 'app-playlist-switcher';
+            const back = 'workspace-header-back';
+
+            // The first page has no history to go back to: the switcher leads.
+            await expectHeaderClearOfLights(page, lights, switcher, 'start');
+            await zoomOutFully(page);
+            await expectHeaderClearOfLights(
+                page,
+                lights,
+                switcher,
+                'start at min zoom'
+            );
+            await resetZoom(page);
+
+            // A detail page puts its Back first, pulled 8px toward the edge.
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await page
+                .getByRole('link', { name: 'Series', exact: true })
+                .click();
+            await clickFirstGridListCard(page);
+            await expect(page.getByTestId(back)).toBeVisible({
+                timeout: 20_000,
+            });
+            await expectHeaderClearOfLights(page, lights, back, 'detail');
+            await zoomOutFully(page);
+            await expectHeaderClearOfLights(
+                page,
+                lights,
+                back,
+                'detail at min zoom'
+            );
+            await resetZoom(page);
         } finally {
             await closeElectronApp(app);
         }

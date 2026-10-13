@@ -2,18 +2,14 @@
     [searchTerm]="searchTerm()"
     [resultsCount]="xtreamStore.searchResults().length"
     [isLoading]="xtreamStore.isSearching()"
-    [showCloseButton]="false"
     [backAvailable]="backAvailable"
     [showResultsCount]="!isGlobalSearch || !groupByPlaylist()"
-    [showSearchInput]="showInlineSearchInput"
     [minSearchLength]="minSearchLength"
     [initialDescriptionKey]="initialDescriptionKey"
     [nearEndHasMore]="hasMoreSearchResults()"
     [nearEndAppending]="isAppendingSearchResults()"
     [nearEndRenderedCount]="renderedSearchResultsCount()"
     [nearEndResetKey]="searchResetIdentity()"
-    (searchTermChange)="updateSearchTerm($event)"
-    (closeClick)="onCloseDialog()"
     (backClick)="goBack()"
     (nearEnd)="onResultsNearEnd()"
 >
@@ -39,11 +35,6 @@
             >
                 {{ 'PORTALS.SEARCH_VIEW.VISIBLE_CATEGORIES_ONLY' | translate }}
             </mat-checkbox>
-        }
-        @if (showGlobalCloseButton) {
-            <button mat-icon-button (click)="onCloseDialog()">
-                <mat-icon>close</mat-icon>
-            </button>
         }
     </ng-container>
 
@@ -105,8 +96,15 @@
                 <!-- Grouped by playlist -->
                 <div class="playlist-section">
                     <h2 class="section-title">
-                        Found {{ xtreamStore.searchResults().length }} items
-                        across {{ groupedResults().length }} playlists
+                        {{
+                            'XTREAM.GLOBAL_SEARCH_SUMMARY'
+                                | translate
+                                    : {
+                                          count: xtreamStore.searchResults()
+                                              .length,
+                                          playlists: groupedResults().length,
+                                      }
+                        }}
                     </h2>
                     @for (group of groupedResults(); track group.playlistId) {
                         <div class="playlist-group">
@@ -114,7 +112,14 @@
                                 <mat-icon>playlist_play</mat-icon>
                                 {{ group.playlistName }}
                                 <span class="item-count"
-                                    >({{ group.items.length }} items)</span
+                                    >({{
+                                        (group.items.length === 1
+                                            ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
+                                            : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER'
+                                        )
+                                            | translate
+                                                : { count: group.items.length }
+                                    }})</span
                                 >
                             </h3>
                             <div class="results-grid">

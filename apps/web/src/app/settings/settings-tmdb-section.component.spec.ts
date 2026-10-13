@@ -93,7 +93,9 @@ describe('SettingsTmdbSectionComponent', () => {
         const checkbox = queryByTestId('tmdb-m3u-vod-details');
         expect(checkbox).not.toBeNull();
 
-        (checkbox?.querySelector('input') as HTMLInputElement).click();
+        (
+            checkbox?.querySelector('button[role="switch"]') as HTMLButtonElement
+        ).click();
         fixture.detectChanges();
 
         expect(fixture.componentInstance.m3uVodDetailsControl?.value).toBe(

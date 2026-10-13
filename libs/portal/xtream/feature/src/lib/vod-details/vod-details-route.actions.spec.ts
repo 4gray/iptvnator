@@ -790,7 +790,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             '[data-testid="vod-primary-action"]'
         );
         expect(primary?.disabled).toBe(true);
-        expect(primary?.textContent).toContain('Opening in MPV...');
+        expect(primary?.textContent).toContain('EXTERNAL_PLAYER.OPENING_IN');
         expect(
             Array.from(host.querySelectorAll('button')).some((button) =>
                 button.textContent?.includes('XTREAM.RESTART')

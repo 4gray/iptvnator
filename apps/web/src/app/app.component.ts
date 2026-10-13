@@ -1,7 +1,6 @@
 import {
     Component,
     effect,
-    HostBinding,
     inject,
     OnInit,
     signal,
@@ -55,8 +54,7 @@ const debugAppComponent = createDevLogger('AppComponent');
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         AppStartupStatusComponent,
         AppUpdateNotificationPanelComponent,
@@ -67,9 +65,6 @@ const debugAppComponent = createDevLogger('AppComponent');
 })
 export class AppComponent implements OnInit {
     readonly routeReady = signal(false);
-    @HostBinding('class.macos-platform') get isMacOS() {
-        return this.runtime.isMacOS;
-    }
     get usesCustomWindowControls() {
         return this.runtime.usesCustomWindowControls;
     }

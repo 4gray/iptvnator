@@ -1,5 +1,8 @@
 import { signal } from '@angular/core';
-import type { SeriesResumeTarget } from '@iptvnator/portal/shared/util';
+import {
+    stampPlaybackPositionNow,
+    type SeriesResumeTarget,
+} from '@iptvnator/portal/shared/util';
 import type {
     ExternalPlayerSession,
     PlaybackPositionData,
@@ -113,7 +116,10 @@ export class SerialDetailsPlaybackPositionState {
 
     update(position: PlaybackPositionData): void {
         const updated = new Map(this.positions());
-        updated.set(position.contentXtreamId, position);
+        updated.set(
+            position.contentXtreamId,
+            stampPlaybackPositionNow(position)
+        );
         this.positions.set(updated);
     }
 
@@ -123,7 +129,10 @@ export class SerialDetailsPlaybackPositionState {
         }
         const updated = new Map(this.positions());
         for (const position of positions) {
-            updated.set(position.contentXtreamId, position);
+            updated.set(
+                position.contentXtreamId,
+                stampPlaybackPositionNow(position)
+            );
         }
         this.positions.set(updated);
     }

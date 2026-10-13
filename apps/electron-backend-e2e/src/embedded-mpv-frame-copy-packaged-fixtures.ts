@@ -28,6 +28,23 @@ export type LocalMediaServer = {
 };
 
 /**
+ * `current`, now also closing `server`. Register each server this way the
+ * moment it starts: one created later can throw, and the cleanup must
+ * still reach every server already listening.
+ */
+export function alsoClosing(
+    current: LocalMediaServer,
+    server: LocalMediaServer
+): LocalMediaServer {
+    return {
+        url: current.url,
+        close: async () => {
+            await Promise.all([current.close(), server.close()]);
+        },
+    };
+}
+
+/**
  * Length of the generated Y4M clip. Long enough for the relative-seek burst
  * in the packaged smoke (three +2 s steps land at 6 s) plus the playing
  * section that follows it without hitting EOF; at 64x36 / 10 fps this is

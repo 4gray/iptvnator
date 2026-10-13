@@ -5,13 +5,10 @@
 >
     @if (showIllustration()) {
         @if (viewType() === 'ERROR') {
-            <img
-                alt="Something went wrong"
-                src="./assets/images/broken-tv.svg"
-            />
+            <img alt="" src="./assets/images/broken-tv.svg" />
         } @else if (viewType() === 'EMPTY_CATEGORY') {
             <img
-                alt="empty category"
+                alt=""
                 class="error-view__illustration"
                 src="./assets/images/empty-category.svg"
             />

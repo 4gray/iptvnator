@@ -20,14 +20,17 @@ import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ChannelListSkeletonComponent } from '@iptvnator/ui/components';
+import {
+    ChannelListSkeletonComponent,
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
 import {
     clearNavigationStateKeys,
     CollectionContentType,
     CollectionScope,
     FavoritesChannelSortMode,
     getOpenLiveCollectionItemState,
-    isWorkspaceLayoutRoute,
     isTypingInInput,
     LiveLayoutSidebarStateService,
     OPEN_LIVE_COLLECTION_ITEM_STATE_KEY,
@@ -81,6 +84,8 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
         MatMenuModule,
         MatProgressBar,
         MatTooltip,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         TranslatePipe,
         UnifiedGridTabComponent,
         UnifiedLiveTabComponent,
@@ -104,11 +109,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         LiveLayoutSidebarStateService
     );
     readonly detailTemplate = contentChild(UnifiedCollectionDetailDirective);
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
-    private readonly routeSearchTerm = queryParamSignal(
-        this.route,
-        'q',
-        (value) => (value ?? '').trim()
+    readonly workspaceSearchTerm = queryParamSignal(this.route, 'q', (value) =>
+        (value ?? '').trim()
     );
     private readonly routePlaylistId = routeParamSignal<string | undefined>(
         this.route,
@@ -117,9 +119,6 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     );
     readonly playlistId = computed(
         () => this.playlistIdInput() ?? this.routePlaylistId()
-    );
-    readonly workspaceSearchTerm = computed(() =>
-        this.isWorkspaceLayout ? this.routeSearchTerm() : ''
     );
     private readonly viewStateHistory = new CollectionViewStateHistory();
 
@@ -241,7 +240,6 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
 
     constructor() {
         setupClearCollectionViewCommand({
-            isWorkspaceLayout: this.isWorkspaceLayout,
             mode: this.mode,
             selectedContentType: this.selectedContentType,
             currentTypeItems: this.currentTypeItems,

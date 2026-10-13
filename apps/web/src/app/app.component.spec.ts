@@ -94,7 +94,6 @@ describe('AppComponent', () => {
     beforeEach(waitForAsync(() => {
         runtimeCapabilities = {
             isElectron: true,
-            isMacOS: false,
         };
         epgBridge = {
             checkFreshness: jest.fn().mockResolvedValue({

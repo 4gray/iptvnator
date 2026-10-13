@@ -14,6 +14,7 @@ export * from './legacy-player-shortcuts';
 export * from './controls-surface';
 export * from './pointer-focus-release';
 export * from './catchup-timeline-segments';
+export * from './chapter-timeline-segments';
 export * from './controls-timeline';
 export * from './controls-view-model';
 export * from './controls-visibility';

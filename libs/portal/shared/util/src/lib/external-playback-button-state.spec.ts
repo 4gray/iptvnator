@@ -49,7 +49,10 @@ describe('createExternalPlaybackButtonState', () => {
         expect(api.matchedSession()).not.toBeNull();
         expect(api.buttonState()).toBe('stop');
         expect(api.primaryIcon()).toBe('stop_circle');
-        expect(api.primaryLabel()).toBe('Stop MPV');
+        expect(api.primaryLabel()).toEqual({
+            key: 'EXTERNAL_PLAYER.STOP',
+            params: { player: 'MPV' },
+        });
         expect(api.isStopAction()).toBe(true);
     });
 
@@ -119,7 +122,10 @@ describe('createExternalPlaybackButtonState', () => {
 
         expect(api.matchedSession()).not.toBeNull();
         expect(api.buttonState()).toBe('stop');
-        expect(api.primaryLabel()).toBe('Stop MPV');
+        expect(api.primaryLabel()).toEqual({
+            key: 'EXTERNAL_PLAYER.STOP',
+            params: { player: 'MPV' },
+        });
         expect(api.isStopAction()).toBe(true);
     });
 
@@ -128,7 +134,10 @@ describe('createExternalPlaybackButtonState', () => {
 
         expect(api.buttonState()).toBe('launching');
         expect(api.primaryIcon()).toBe('hourglass_top');
-        expect(api.primaryLabel()).toBe('Opening in MPV...');
+        expect(api.primaryLabel()).toEqual({
+            key: 'EXTERNAL_PLAYER.OPENING_IN',
+            params: { player: 'MPV' },
+        });
         expect(api.isLaunchPending()).toBe(true);
         expect(api.isStopAction()).toBe(false);
     });

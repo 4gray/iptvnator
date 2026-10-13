@@ -11,6 +11,7 @@ import {
     waitForXtreamCatalog,
     xtreamMockServer,
 } from './electron-test-fixtures';
+import { pressScrollKey } from './keyboard-scroll';
 import { applyTheme } from './theme-contrast';
 
 const stressPortalName = 'Stress Xtream Portal';
@@ -377,19 +378,16 @@ test('keeps Live TV scrolling, row actions and resizing independently accessible
         await expect(viewport).toBeFocused();
         await viewport.locator('.channel-name').first().click();
         await expect(viewport).toBeFocused();
-        await page.keyboard.press('PageDown');
-        await expect
-            .poll(() => viewport.evaluate((el) => el.scrollTop))
-            .toBeGreaterThan(100);
+        // Each key's scroll ends before the next input; see pressScrollKey.
+        await pressScrollKey(page, viewport, 'PageDown');
         const position = await viewport.evaluate((el) => el.scrollTop);
-        await page.keyboard.press('PageDown');
-        await expect
-            .poll(() => viewport.evaluate((el) => el.scrollTop))
-            .toBeGreaterThan(position);
-        await page.keyboard.press('Home');
-        await expect
-            .poll(() => viewport.evaluate((el) => el.scrollTop))
-            .toBe(0);
+        expect(position).toBeGreaterThan(100);
+        await pressScrollKey(page, viewport, 'PageDown');
+        expect(await viewport.evaluate((el) => el.scrollTop)).toBeGreaterThan(
+            position
+        );
+        await pressScrollKey(page, viewport, 'Home');
+        expect(await viewport.evaluate((el) => el.scrollTop)).toBe(0);
         const before = (await viewport.boundingBox())!;
         const handle = page.locator(
             'app-live-stream-layout .sidebar > .resize-handle'

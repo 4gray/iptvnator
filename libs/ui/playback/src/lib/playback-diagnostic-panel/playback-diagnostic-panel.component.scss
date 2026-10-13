@@ -1,14 +1,20 @@
+/* The host covers the player and is the panel's size container, so spacing
+ * and the short-player rules follow the player box rather than the window:
+ * the M3U inline player above its EPG panel is about 400px tall in a 720px
+ * window, and a sidebar can leave it barely wider than the 760px breakpoint. */
 :host {
-    display: contents;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    container: playback-diagnostic / size;
 }
 
 .web-player-diagnostic {
     position: absolute;
     inset: 0;
-    z-index: 5;
     display: flex;
-    align-items: center;
-    padding: clamp(24px, 9vh, 92px) clamp(20px, 18vw, 216px);
+    align-items: flex-start;
+    padding: clamp(24px, 9cqb, 92px) clamp(20px, 18cqi, 216px);
     overflow: auto;
     background:
         radial-gradient(
@@ -28,6 +34,10 @@
 .web-player-diagnostic__content {
     width: min(100%, 720px);
     min-width: 0;
+    /* Centres the content while it fits. Unlike align-items: center, the auto
+     * margins never go negative, so content taller than the player starts at
+     * the top and the rest stays reachable by scrolling. */
+    margin-block: auto;
 }
 
 .web-player-diagnostic__badge {
@@ -82,7 +92,7 @@
 .web-player-diagnostic__meta {
     margin-top: 9px;
     color: rgb(255 255 255 / 48%);
-    font-family: var(--app-monospace-font, monospace);
+    font-family: monospace;
     font-size: 0.82rem;
     line-height: 1.35;
     overflow-wrap: anywhere;
@@ -105,7 +115,7 @@
 
 .web-player-diagnostic__recommendations {
     display: grid;
-    grid-template-columns: repeat(2, minmax(168px, 192px));
+    grid-template-columns: repeat(2, minmax(168px, 240px));
     gap: 12px;
     margin-top: 28px;
 }
@@ -149,7 +159,7 @@
     border-radius: 12px;
     background: var(--playback-diagnostic-source-surface);
     text-align: left;
-    max-height: min(46vh, 320px);
+    max-height: min(46cqb, 320px);
     overflow-y: auto;
 }
 
@@ -264,13 +274,15 @@
     gap: 2px;
 }
 
+/* Translated actions such as "Паспрабаваць MPV яшчэ раз" are wider than any
+ * card column, so the label wraps instead of ellipsizing the action. */
 .web-player-diagnostic__player-label {
-    overflow: hidden;
+    min-width: 0;
     font-size: 0.95rem;
     font-weight: 700;
-    line-height: 1.05;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
 }
 
 .web-player-diagnostic__player-hint {
@@ -396,10 +408,13 @@
     overflow-wrap: anywhere;
 }
 
-@container (max-width: 760px) {
+@container playback-diagnostic (max-width: 760px) {
     .web-player-diagnostic {
-        align-items: flex-start;
         padding: 22px 16px;
+    }
+
+    .web-player-diagnostic__content {
+        margin-block: 0;
     }
 
     .web-player-diagnostic__badge,
@@ -431,9 +446,53 @@
     }
 }
 
-@container (max-width: 520px) {
+/* Short players, such as the inline player above the M3U EPG panel: tighter
+ * spacing and type keep the cards with their hint and status lines and the
+ * utilities on screen. Shorter players scroll from the top. */
+@container playback-diagnostic (max-height: 560px) {
+    /* The side padding grows from the narrow players' 16px at the 760px
+     * breakpoint, so a short player keeps its width for fewer lines. */
     .web-player-diagnostic {
-        align-items: flex-start;
+        padding: clamp(14px, 5cqb, 28px) clamp(16px, 18cqi - 120px, 216px);
+    }
+
+    .web-player-diagnostic__headline {
+        margin-top: 14px;
+        font-size: 1.35rem;
+        line-height: 1.08;
+    }
+
+    .web-player-diagnostic__description {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        line-height: 1.38;
+    }
+
+    .web-player-diagnostic__meta {
+        margin-top: 6px;
+    }
+
+    .web-player-diagnostic__codec-hint {
+        margin-top: 8px;
+    }
+
+    .web-player-diagnostic__recommendations {
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .web-player-diagnostic__player-card {
+        min-height: 52px;
+        padding: 10px 12px;
+    }
+
+    .web-player-diagnostic__utilities {
+        margin-top: 14px;
+    }
+}
+
+@container playback-diagnostic (max-width: 520px) {
+    .web-player-diagnostic {
         padding: clamp(14px, 5cqi, 22px);
     }
 
@@ -489,12 +548,6 @@
         padding: 10px 12px;
     }
 
-    .web-player-diagnostic__player-label {
-        overflow-wrap: anywhere;
-        text-overflow: clip;
-        white-space: normal;
-    }
-
     .web-player-diagnostic__utilities {
         display: grid;
         gap: 7px;
@@ -536,7 +589,7 @@
     }
 }
 
-@container (max-width: 340px) {
+@container playback-diagnostic (max-width: 340px) {
     .web-player-diagnostic {
         padding: 12px;
     }

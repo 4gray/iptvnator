@@ -1,5 +1,10 @@
 import { signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+    ComponentFixture,
+    TestBed,
+    fakeAsync,
+    flushMicrotasks,
+} from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { VIEW_IN_PORTAL_HANDOFF } from '@iptvnator/ui/components';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
@@ -9,7 +14,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
-import { firstValueFrom, of } from 'rxjs';
+import { Subject, firstValueFrom, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details/serial-details-resume-target.token';
 import { XtreamCollectionDetailComponent } from './xtream-collection-detail.component';
@@ -17,9 +22,7 @@ import { XtreamCollectionDetailComponent } from './xtream-collection-detail.comp
 describe('XtreamCollectionDetailComponent', () => {
     let fixture: ComponentFixture<XtreamCollectionDetailComponent>;
     let playlistId: ReturnType<typeof signal<string>>;
-    let currentPlaylist: ReturnType<
-        typeof signal<XtreamPlaylistData | null>
-    >;
+    let currentPlaylist: ReturnType<typeof signal<XtreamPlaylistData | null>>;
     let selectedContentType: ReturnType<
         typeof signal<'live' | 'vod' | 'series'>
     >;
@@ -30,9 +33,34 @@ describe('XtreamCollectionDetailComponent', () => {
     let cancelDetailsRequest: jest.Mock;
     let routerNavigate: jest.Mock;
 
+    const seriesItem: UnifiedCollectionItem = {
+        uid: 'xtream::xtream-1::series:103',
+        name: 'Series One',
+        contentType: 'series',
+        sourceType: 'xtream',
+        playlistId: 'xtream-1',
+        playlistName: 'Xtream Portal',
+        xtreamId: 103,
+        categoryId: 3,
+    };
+    const detailPlaylist = {
+        _id: 'xtream-1',
+        title: 'Xtream Portal',
+        serverUrl: 'http://xtream.example',
+        username: 'user',
+        password: 'pass',
+    } as Playlist;
+
     beforeEach(async () => {
-        playlistId = signal('');
-        currentPlaylist = signal<XtreamPlaylistData | null>(null);
+        playlistId = signal('original-playlist');
+        currentPlaylist = signal<XtreamPlaylistData | null>({
+            id: 'original-playlist',
+            name: 'Original Portal',
+            type: 'xtream',
+            serverUrl: 'http://original.example',
+            username: 'original-user',
+            password: 'original-pass',
+        });
         selectedContentType = signal<'live' | 'vod' | 'series'>('vod');
         selectedCategoryId = signal<number | null>(null);
         selectedItem = signal<unknown>(null);
@@ -66,9 +94,8 @@ describe('XtreamCollectionDetailComponent', () => {
                             (value: 'live' | 'vod' | 'series') =>
                                 selectedContentType.set(value)
                         ),
-                        setSelectedCategory: jest.fn(
-                            (value: number | null) =>
-                                selectedCategoryId.set(value)
+                        setSelectedCategory: jest.fn((value: number | null) =>
+                            selectedCategoryId.set(value)
                         ),
                         setSelectedItem: jest.fn((value: unknown) =>
                             selectedItem.set(value)
@@ -91,15 +118,7 @@ describe('XtreamCollectionDetailComponent', () => {
                 {
                     provide: PlaylistsService,
                     useValue: {
-                        getPlaylistById: jest.fn(() =>
-                            of({
-                                _id: 'xtream-1',
-                                title: 'Xtream Portal',
-                                serverUrl: 'http://xtream.example',
-                                username: 'user',
-                                password: 'pass',
-                            } as Playlist)
-                        ),
+                        getPlaylistById: jest.fn(() => of(detailPlaylist)),
                     },
                 },
             ],
@@ -125,16 +144,7 @@ describe('XtreamCollectionDetailComponent', () => {
             seasonNumber: 2,
             episodeNumber: 1,
         };
-        fixture.componentRef.setInput('item', {
-            uid: 'xtream::xtream-1::series:103',
-            name: 'Series One',
-            contentType: 'series',
-            sourceType: 'xtream',
-            playlistId: 'xtream-1',
-            playlistName: 'Xtream Portal',
-            xtreamId: 103,
-            categoryId: 3,
-        } satisfies UnifiedCollectionItem);
+        fixture.componentRef.setInput('item', seriesItem);
         fixture.componentRef.setInput('seriesResume', seriesResume);
 
         fixture.detectChanges();
@@ -172,11 +182,89 @@ describe('XtreamCollectionDetailComponent', () => {
         ).toEqual(seriesResume);
     });
 
+    it('keeps the newer selection when an earlier playlist resolves last', fakeAsync(() => {
+        const pendingPlaylist = new Subject<Playlist>();
+        jest.spyOn(TestBed.inject(PlaylistsService), 'getPlaylistById')
+            .mockReturnValueOnce(pendingPlaylist)
+            .mockReturnValueOnce(of({ ...detailPlaylist, _id: 'xtream-2' }));
+        fixture.componentRef.setInput('item', seriesItem);
+        fixture.detectChanges();
+        fixture.componentRef.setInput('item', {
+            ...seriesItem,
+            uid: 'xtream::xtream-2::series:203',
+            playlistId: 'xtream-2',
+            xtreamId: 203,
+            categoryId: 6,
+        } satisfies UnifiedCollectionItem);
+        fixture.detectChanges();
+        flushMicrotasks();
+        const detailInjector = fixture.componentInstance.detailInjector();
+
+        pendingPlaylist.next(detailPlaylist);
+        flushMicrotasks();
+
+        expect(playlistId()).toBe('xtream-2');
+        expect(currentPlaylist()?.id).toBe('xtream-2');
+        expect(selectedCategoryId()).toBe(6);
+        expect(fixture.componentInstance.detailInjector()).toBe(detailInjector);
+        expect(detailInjector?.get(ActivatedRoute).snapshot.params).toEqual({
+            categoryId: '6',
+            serialId: '203',
+        });
+    }));
+
     it('invalidates detail loading before restoring the underlying store', () => {
         fixture.componentInstance.ngOnDestroy();
 
         expect(cancelDetailsRequest).toHaveBeenCalledTimes(1);
     });
+
+    it('ignores a pending playlist load after the collection detail is destroyed', fakeAsync(() => {
+        const pendingPlaylist = new Subject<Playlist>();
+        jest.spyOn(
+            TestBed.inject(PlaylistsService),
+            'getPlaylistById'
+        ).mockReturnValue(pendingPlaylist);
+        fixture.componentRef.setInput('item', {
+            uid: 'xtream::xtream-1::movie:99',
+            name: 'Movie One',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream Portal',
+            xtreamId: 99,
+            categoryId: 42,
+        } satisfies UnifiedCollectionItem);
+        fixture.detectChanges();
+
+        fixture.destroy();
+        const nextPlaylist: XtreamPlaylistData = {
+            id: 'xtream-2',
+            name: 'Next Portal',
+            serverUrl: 'http://next.example',
+            username: 'next-user',
+            password: 'next-pass',
+            type: 'xtream',
+        };
+        playlistId.set(nextPlaylist.id);
+        currentPlaylist.set(nextPlaylist);
+        selectedContentType.set('live');
+
+        pendingPlaylist.next({
+            _id: 'xtream-1',
+            title: 'Xtream Portal',
+            serverUrl: 'http://xtream.example',
+            username: 'user',
+            password: 'pass',
+        } as Playlist);
+        flushMicrotasks();
+
+        expect(playlistId()).toBe('xtream-2');
+        expect(currentPlaylist()).toBe(nextPlaylist);
+        expect(selectedContentType()).toBe('live');
+        expect(fixture.componentInstance.detailComponent()).toBeNull();
+        expect(fixture.componentInstance.detailInjector()).toBeNull();
+    }));
 
     it('provides itself as the view-in-portal handoff to the inline detail', async () => {
         fixture.componentRef.setInput('item', {

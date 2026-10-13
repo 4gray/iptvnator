@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 :host {
     display: block;
     min-width: 0;
@@ -7,15 +9,18 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 
+    // Season pills and the dropdown share the section header's 30px pill.
     &__pill {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 8px 16px;
-        border: none;
+        height: 30px;
+        padding: 0 12px;
+        border: 1px solid transparent;
         border-radius: 999px;
+        box-sizing: border-box;
         background: transparent;
         color: var(--text-secondary, rgba(255, 255, 255, 0.7));
         font-size: 13px;
@@ -30,61 +35,48 @@
         }
 
         &--active {
-            background: var(--tag-bg, rgba(255, 255, 255, 0.1));
+            border-color: color-mix(
+                in srgb,
+                var(--app-on-surface) 14%,
+                transparent
+            );
+            background: var(--app-widget-bg);
             color: var(--text-primary, #fff);
-            font-weight: 600;
-            outline: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+            font-weight: 500;
         }
     }
 
     &__dropdown {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 8px 10px 8px 16px;
-        border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+        gap: 6px;
+        height: 30px;
+        padding: 0 10px 0 12px;
+        border: 1px solid
+            color-mix(in srgb, var(--app-on-surface) 14%, transparent);
         border-radius: 999px;
-        background: transparent;
+        box-sizing: border-box;
+        background: var(--app-widget-bg);
         color: var(--text-primary, #fff);
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 500;
         font-family: inherit;
         cursor: pointer;
 
-        // The trigger hugs its thumbnail: less inset on the picture side and
-        // vertically, so the pill grows only as much as the 42px poster needs.
-        &--with-thumb {
-            gap: 8px;
-            padding: 4px 10px 4px 4px;
+        > mat-icon {
+            width: 16px;
+            height: 16px;
+            font-size: 16px;
+            line-height: 16px;
+            color: var(--text-secondary, rgba(255, 255, 255, 0.7));
         }
-    }
-
-    // Season thumbnail in the dropdown (trigger + menu rows). Poster ratio at
-    // 28×42 — small enough to keep the 48px menu row height Material sets.
-    &__thumb {
-        flex: none;
-        width: 28px;
-        height: 42px;
-        object-fit: cover;
-        border-radius: 3px;
-        background: var(--tag-bg, rgba(255, 255, 255, 0.08));
-
-        &--menu {
-            margin-right: 12px;
-        }
-    }
-
-    &__menu-count {
-        margin-left: 12px;
-        color: var(--text-muted, rgba(255, 255, 255, 0.5));
-        font-size: 12px;
     }
 
     &__done {
         font-size: 15px;
         width: 15px;
         height: 15px;
-        color: var(--accent-success, #4ade80);
+        color: var(--app-success-color, #4ade80);
     }
 
     &__back-to-playing {
@@ -112,8 +104,71 @@
             height: 16px;
         }
     }
+}
 
-    &__menu-item--selected {
-        font-weight: 700;
+// The season menu: two columns per row, the season name and its
+// "N episodes · M watched" count; the selected season gets a selection tint.
+// The panel lives in the overlay container, outside this host.
+::ng-deep .season-tabs-menu.mat-mdc-menu-panel {
+    @include mat.menu-overrides(
+        (
+            container-color: var(--mat-sys-surface-container-high),
+        )
+    );
+    min-width: 280px;
+    max-width: min(360px, calc(100vw - 24px));
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    border-radius: 10px;
+
+    .mat-mdc-menu-content {
+        padding: 6px;
     }
+}
+
+.season-tabs__menu-item {
+    min-height: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+
+    // Material wraps the projected text in a span that must take the row.
+    ::ng-deep .mat-mdc-menu-item-text {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    &--selected {
+        background: color-mix(
+            in srgb,
+            var(--app-selection-color) 10%,
+            transparent
+        );
+
+        .season-tabs__menu-count {
+            color: var(--app-selection-color);
+        }
+    }
+}
+
+.season-tabs__menu-row {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    width: 100%;
+}
+
+.season-tabs__menu-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--app-heading-color);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.season-tabs__menu-count {
+    flex: none;
+    color: var(--app-muted-color);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
 }

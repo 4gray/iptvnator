@@ -51,7 +51,7 @@ Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
     ],
     providers: [WebVideoControlsAdapter],
     templateUrl: './art-player.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./art-player.component.scss'],
 })
 export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {

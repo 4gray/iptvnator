@@ -19,7 +19,6 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     DownloadsService,
-    PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -31,6 +30,7 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { RecentCommandsService } from '../../recent-commands';
 import { WorkspacePlayerCommandsContributor } from '../../workspace-player-commands';
+import { XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS } from './helpers/workspace-shell-constants';
 import { WorkspaceShellFacade } from './workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
@@ -59,6 +59,7 @@ class MockXtreamStore {
         category_name?: string;
         name?: string;
     } | null>(null);
+    readonly selectedCategoryId = signal<number | null>(null);
     readonly vodStreams = signal<unknown[]>([{ id: 1 }]);
     readonly liveStreams = signal<unknown[]>([{ id: 2 }]);
     readonly serialStreams = signal<unknown[]>([{ id: 3 }]);
@@ -72,7 +73,10 @@ class MockXtreamStore {
 
 class MockStalkerStore {
     readonly searchPhrase = signal('');
-    readonly getSelectedCategoryName = signal('All Items');
+    readonly getSelectedCategoryLabel = signal({
+        name: 'All Items',
+        labelKey: null,
+    });
     readonly itvFullListActive = signal(false);
 
     setSearchPhrase = jest.fn((term: string) => this.searchPhrase.set(term));
@@ -137,10 +141,6 @@ describe('WorkspaceShellFacade', () => {
         createUrlTree: jest.Mock;
         isActive: jest.Mock;
         lastSuccessfulNavigation: () => { trigger: string };
-    };
-    let playlistsService: {
-        clearPortalRecentlyViewed: jest.Mock;
-        clearM3uRecentlyViewed: jest.Mock;
     };
     let workspaceActions: {
         openAddPlaylistDialog: jest.Mock;
@@ -224,14 +224,6 @@ describe('WorkspaceShellFacade', () => {
             createUrlTree: jest.fn(),
             isActive: jest.fn(),
             lastSuccessfulNavigation: () => ({ trigger: navigationTrigger }),
-        };
-        playlistsService = {
-            clearPortalRecentlyViewed: jest
-                .fn()
-                .mockReturnValue(of({ recentlyViewed: [] })),
-            clearM3uRecentlyViewed: jest
-                .fn()
-                .mockReturnValue(of({ recentlyViewed: [] })),
         };
         workspaceActions = {
             openAddPlaylistDialog: jest.fn(),
@@ -327,10 +319,6 @@ describe('WorkspaceShellFacade', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtime,
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: playlistsService,
                 },
                 {
                     provide: DownloadsService,
@@ -516,16 +504,31 @@ describe('WorkspaceShellFacade', () => {
         expect(facade.showXtreamImportOverlay()).toBe(true);
     });
 
-    it('keeps a cache-only Xtream import session blocking and cancellable', () => {
-        const xtreamStore = TestBed.inject(
-            XtreamStore
-        ) as unknown as MockXtreamStore;
-        const xtreamImport = TestBed.inject(WorkspaceShellXtreamImportService);
-        xtreamStore.activeImportSessionId.set('xtream-import-session');
+    it('keeps a slow cache-only Xtream import session blocking and cancellable', () => {
+        jest.useFakeTimers();
+        try {
+            const xtreamStore = TestBed.inject(
+                XtreamStore
+            ) as unknown as MockXtreamStore;
+            const xtreamImport = TestBed.inject(
+                WorkspaceShellXtreamImportService
+            );
+            xtreamStore.activeImportSessionId.set('xtream-import-session');
+            TestBed.tick();
 
-        expect(xtreamStore.isImporting()).toBe(false);
-        expect(facade.showXtreamImportOverlay()).toBe(true);
-        expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+            // A saved-catalog read waits out the show delay so a quick one
+            // never flashes the overlay, but stays cancellable meanwhile.
+            expect(xtreamStore.isImporting()).toBe(false);
+            expect(facade.showXtreamImportOverlay()).toBe(false);
+            expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+
+            jest.advanceTimersByTime(XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS);
+
+            expect(facade.showXtreamImportOverlay()).toBe(true);
+            expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('shows the Xtream overlay during refresh preparation on the dashboard', () => {
@@ -647,26 +650,6 @@ describe('WorkspaceShellFacade', () => {
         ]);
     });
 
-    it('clears stalker recent items and refreshes the route', async () => {
-        facade.currentUrl.set('/workspace/stalker/pl-1/recent');
-        router.navigateByUrl.mockClear();
-
-        await facade.runHeaderBulkAction();
-
-        expect(playlistsService.clearPortalRecentlyViewed).toHaveBeenCalledWith(
-            'pl-1'
-        );
-        expect(storeDispatch).toHaveBeenCalled();
-        expect(router.navigateByUrl).toHaveBeenCalledWith(
-            expect.stringMatching(
-                /^\/workspace\/stalker\/pl-1\/recent\?refresh=/
-            ),
-            {
-                replaceUrl: true,
-            }
-        );
-    });
-
     it('exposes loaded-only status for stalker itv searches', () => {
         facade.currentUrl.set('/workspace/stalker/pl-1/itv?q=cnn');
         searchSync.syncSearchFromRoute();
@@ -703,6 +686,27 @@ describe('WorkspaceShellFacade', () => {
         // stations — surface the same "loaded only" hint as degraded ITV.
         expect(facade.searchStatusLabel()).toBe(
             'WORKSPACE.SHELL.SEARCH_STATUS_LOADED_ONLY'
+        );
+    });
+
+    it('scopes Xtream search to the translated every-item label without a category', () => {
+        const xtreamStore = TestBed.inject(
+            XtreamStore
+        ) as unknown as MockXtreamStore;
+
+        facade.currentUrl.set('/workspace/xtreams/pl-1/vod?q=neo');
+        searchSync.syncSearchFromRoute();
+        TestBed.flushEffects();
+
+        expect(facade.searchScopeLabel()).toBe(
+            'WORKSPACE.SHELL.RAIL_MOVIES / PORTALS.ALL_ITEMS'
+        );
+
+        xtreamStore.selectedCategoryId.set(7);
+        xtreamStore.getSelectedCategory.set({ name: 'Drama' });
+
+        expect(facade.searchScopeLabel()).toBe(
+            'WORKSPACE.SHELL.RAIL_MOVIES / Drama'
         );
     });
 

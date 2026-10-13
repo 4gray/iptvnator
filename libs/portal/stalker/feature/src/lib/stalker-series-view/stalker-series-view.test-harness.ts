@@ -154,6 +154,7 @@ export function createStalkerSeriesViewHarness<
                             vodSeriesSeasonsResource(),
                         isVodSeriesSeasonsLoading: signal(false),
                         isSerialSeasonsLoading,
+                        selectedItemTmdbPending: signal(false),
                         fetchVodSeriesEpisodes,
                         resolveVodPlayback,
                         fetchLinkToPlay,

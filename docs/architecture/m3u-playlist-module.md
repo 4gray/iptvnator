@@ -605,6 +605,9 @@ channel-list-container/
   `setFavorites` action: doing so reads and rewrites the complete M3U payload
   again just to store favorites that already came from SQLite.
 - `ChannelListContainerComponent` now renders a dedicated skeleton state while `channelsLoading` is true.
+  Its headers and first row share the views' boxes
+  (`libs/ui/components/src/lib/styles/_channel-list-layout.scss`), so the list
+  does not move when the channels land.
 - `ChannelListContainerComponent` no longer clears `channels` on destroy; route/session code is the single owner of shared list lifecycle during navigation.
 - The dedicated `/workspace/playlists/:id/favorites` and `/workspace/playlists/:id/recent` collection routes do not drive the shared sidebar channel list; they default to the `playlist` scope so rail links always open the current playlist view, not the last persisted global scope.
 - M3U favorites and recent collection rows preserve their full `Channel` payload on unified live items so the shared live list can open the read-only channel details context menu without reconstructing partial channel data.
@@ -630,6 +633,19 @@ channel-list-container/
 - `PlaylistsService.updatePlaylistMeta()` persists `hiddenGroupTitles` into the
   stored playlist payload, and M3U refresh/update flows preserve the existing
   value when refreshed playlist data omits the field.
+- Electron loads the playlist store from `DB_GET_APP_PLAYLIST_METAS`, which
+  reads columns only, so `hiddenGroupTitles` is absent from the store after a
+  restart. `M3uWorkspaceRouteSession` copies it from the full playlist read into
+  the store (`updatePlaylistMeta` with `persist: false`) before publishing the
+  channels, unless the store value changed while that read was queued (#1894).
+  A restored or deep-linked route can finish that read before the startup
+  inventory, which waits for settings and EPG reconciliation, publishes the
+  playlist; the hydration then waits for the entity, since `updateOne` drops an
+  update for a missing one. The startup screen keeps the router outlet hidden
+  until that inventory is published, and the hydration runs in the same store
+  update, so the rail never renders a hidden group. A save's meta write joins
+  the per-playlist queue that `getPlaylist()` reads through, so a reopened
+  route reads the saved value.
 - The groups route keeps the manage action reachable even when every group is
   hidden by separating "playlist has no groups" from "no visible/search-matching
   groups" empty states.
@@ -1513,7 +1529,7 @@ does not change the saved player preference. Clear DASH needs this routing too.
   engine: lazy `import('shaka-player')` on first use (the module is a separate
   lazy chunk, ~217 KB transfer), `drm.clearKeys` configuration, an operation
   queue + generation guard against channel-switch races. The DOM-free Shaka
-  `5.2.4` public-error boundary lives in `libs/playback/util`; it version-locks
+  `5.2.12` public-error boundary lives in `libs/playback/util`; it version-locks
   its allowlisted
   severity/category/code values, emits only structured sanitized
   `PlaybackDiagnosticSource.Shaka` evidence, ignores recoverable error events,

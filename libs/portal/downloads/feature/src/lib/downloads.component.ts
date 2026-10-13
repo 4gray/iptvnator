@@ -20,6 +20,7 @@ import {
     PlaylistsService,
     type RecordingItem,
     RecordingsService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import {
@@ -136,10 +137,7 @@ export class DownloadsComponent {
         this.playlistsService.getAllPlaylists().pipe(startWith(null)),
         { initialValue: null as Playlist[] | null }
     );
-    readonly languageChange = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    readonly languageChange = injectTranslationTick();
     readonly playlistItems = computed(() => this.playlists() ?? []);
     readonly playlistsLoaded = computed(() => this.playlists() !== null);
     readonly hasNoPlaylists = computed(

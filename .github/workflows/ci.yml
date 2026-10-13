@@ -98,7 +98,7 @@ jobs:
                   fetch-depth: 0
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -140,7 +140,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -296,8 +296,8 @@ jobs:
         if: needs.performance-journeys-scope.outputs.run == 'true'
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
-        # (launch, open-source, playback) is six fresh Electron processes plus
-        # one seeding run.
+        # (launch, open-source, playback, search) is six fresh Electron
+        # processes plus one seeding run.
         timeout-minutes: 30
         # Warn-only for the first two weeks of plan item B3: a failure is
         # visible on the run but does not fail the workflow.
@@ -310,7 +310,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -324,7 +324,37 @@ jobs:
             # Electron dependency check, the xvfb run, the summary lookup and
             # the job-summary report; shared with performance-ratchet.yml.
             - name: Run the performance journeys
+              id: journeys
               uses: ./.github/actions/performance-journeys
+
+            # Only the counters identical in every measured iteration of
+            # recent master runs; their entries say whether a counter is
+            # validated against wall-clock or a guard only (see Ratchet in
+            # docs/architecture/performance-journeys.md). Here and not in the
+            # composite action, so the weekly tightening still measures a run
+            # that would fail it. tools/performance tests keep this list equal
+            # to the journey entries of journey-baselines.json. It also runs
+            # when a later step of the action (the job-summary report) failed
+            # after the summary was written, so the counters are still checked.
+            - name: Check the journey counters against the baselines
+              if: ${{ !cancelled() && steps.journeys.outputs.summary != '' }}
+              env:
+                  SUMMARY: ${{ steps.journeys.outputs.summary }}
+              run: >-
+                  node tools/performance/check-journey-ratchet.mjs
+                  --summary "$SUMMARY"
+                  --only launch/renderer.ipcCallsToFirstCard
+                  --only launch/renderer.domMutationsToFirstCard
+                  --only launch/main.modulesRegisteredBeforeWindow
+                  --only launch/renderer.layoutShiftScore
+                  --only launch/renderer.layoutShiftScoreSettled
+                  --only open-source/main.mockHttpRequestsToSettled
+                  --only open-source/renderer.ipcCallsToFirstPage
+                  --only open-source/renderer.layoutShiftScore
+                  --only playback/renderer.httpRequestsToPlaying
+                  --only playback/renderer.layoutShiftScore
+                  --only search/renderer.ipcCallsPerSearch
+                  --only search/renderer.sqlStatementsPerSearch
 
             - name: Upload journey summaries
               if: always()
@@ -349,7 +379,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -381,6 +411,25 @@ jobs:
             - name: Validate Angular Material token overrides
               run: pnpm run styles:material-tokens:validate
 
+            # The global :focus-visible fallback, and one ring colour for
+            # every component (tools/nx/check-focus-ring-colour.mjs).
+            - name: Validate the keyboard focus ring
+              run: pnpm run styles:focus-visible:validate
+
+            # The icon font renders an unknown ligature name as plain text.
+            - name: Validate Material icon names
+              run: pnpm run styles:icon-ligatures:validate
+
+            # A var() read nothing declares always falls back, and a
+            # prefers-color-scheme query follows the OS, not the app theme.
+            - name: Validate theme references
+              run: pnpm run styles:theme-references:validate
+
+            # A tooltip is not an accessible name: an icon-only <button> needs
+            # aria-label, an aria-label binding or aria-labelledby.
+            - name: Validate icon-only button names
+              run: pnpm run a11y:icon-buttons:validate
+
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is
             # unset, so this checks both the local and the CI inference.
@@ -393,10 +442,11 @@ jobs:
             - name: Typecheck Jest spec programs
               run: pnpm run typecheck:spec:test && pnpm run typecheck:spec
 
-            # Fails on missing or extra keys and on values identical to
-            # English that tools/i18n/identical-en-baseline.json does not list.
-            # The baseline only changes through a reviewed
-            # `pnpm run i18n:baseline:update`; CI never rewrites it.
+            # Fails on missing or extra keys, on values identical to English
+            # that tools/i18n/identical-en-baseline.json does not list, and on
+            # keys the renderer uses but en.json lacks. The baseline only
+            # changes through a reviewed `pnpm run i18n:baseline:update`; CI
+            # never rewrites it.
             - name: Check i18n drift and untranslated values
               run: pnpm run i18n:validate
 

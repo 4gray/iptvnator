@@ -6,6 +6,8 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    // Shared with unified-live-tab, which renders inside this page.
+    --collection-reload-dim-opacity: 0.6;
 }
 
 .skeleton-list {

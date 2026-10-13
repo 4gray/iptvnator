@@ -3,7 +3,7 @@ import { SettingsSearchEntry } from './settings-search.types';
 const MPV = ['mpv', 'external player'];
 const VLC = ['vlc', 'external player'];
 
-/** Playback section rows, in page order. */
+/** Playback section rows, in page order: Player, Watching, Xtream, Desktop. */
 export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
     [
         {
@@ -22,13 +22,6 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             ],
         },
         {
-            id: 'stream-format',
-            section: 'playback',
-            labelKey: 'SETTINGS.STREAM_FORMAT',
-            descriptionKey: 'SETTINGS.STREAM_FORMAT_DESCRIPTION',
-            keywords: ['hls', 'm3u8', 'mpeg-ts', 'ts', 'format'],
-        },
-        {
             id: 'web-player-shared-controls',
             section: 'playback',
             labelKey: 'SETTINGS.WEB_PLAYER_SHARED_CONTROLS',
@@ -45,47 +38,6 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             fallbackId: 'video-player',
         },
         {
-            id: 'detail-trailer-backdrop',
-            section: 'playback',
-            labelKey: 'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND',
-            descriptionKey: 'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION',
-            keywords: ['trailer', 'youtube', 'backdrop', 'details'],
-            fallbackId: 'video-player',
-        },
-        {
-            id: 'player-up-next-rail',
-            section: 'playback',
-            labelKey: 'SETTINGS.PLAYER_UP_NEXT_RAIL',
-            descriptionKey: 'SETTINGS.PLAYER_UP_NEXT_RAIL_DESCRIPTION',
-            keywords: ['up next', 'next episode', 'autoplay'],
-            fallbackId: 'video-player',
-        },
-        {
-            id: 'player-up-next-card',
-            section: 'playback',
-            labelKey: 'SETTINGS.PLAYER_UP_NEXT_CARD',
-            descriptionKey: 'SETTINGS.PLAYER_UP_NEXT_CARD_DESCRIPTION',
-            keywords: ['up next', 'next episode', 'popup'],
-            fallbackId: 'video-player',
-        },
-        {
-            id: 'fullscreen-channel-panel',
-            section: 'playback',
-            labelKey: 'SETTINGS.FULLSCREEN_CHANNEL_PANEL',
-            descriptionKey: 'SETTINGS.FULLSCREEN_CHANNEL_PANEL_DESCRIPTION',
-            keywords: ['fullscreen', 'channel list', 'zapping'],
-            fallbackId: 'video-player',
-        },
-        {
-            id: 'vod-auto-failover',
-            section: 'playback',
-            labelKey: 'SETTINGS.VOD_AUTO_FAILOVER',
-            descriptionKey: 'SETTINGS.VOD_AUTO_FAILOVER_DESCRIPTION',
-            keywords: ['failover', 'fallback', 'mirror', 'retry', 'movie'],
-            requires: ['vod-multi-source'],
-            fallbackId: 'video-player',
-        },
-        {
             id: 'external-player-double-click',
             section: 'playback',
             labelKey: 'SETTINGS.OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK',
@@ -94,14 +46,6 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             keywords: ['double click', ...MPV, ...VLC],
             requires: ['managed-external-players'],
             fallbackId: 'video-player',
-        },
-        {
-            id: 'show-external-playback-bar',
-            section: 'playback',
-            labelKey: 'SETTINGS.SHOW_EXTERNAL_PLAYBACK_BAR',
-            descriptionKey: 'SETTINGS.SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION',
-            keywords: ['playback bar', 'footer', ...MPV, ...VLC],
-            requires: ['desktop'],
         },
         {
             id: 'embedded-mpv-frame-copy',
@@ -128,14 +72,6 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             keywords: ['mpv', 'reconnect', 'retry', 'buffering'],
             requires: ['embedded-mpv'],
             fallbackId: 'video-player',
-        },
-        {
-            id: 'recording-folder',
-            section: 'playback',
-            labelKey: 'SETTINGS.RECORDING_FOLDER_LABEL',
-            descriptionKey: 'SETTINGS.RECORDING_FOLDER_DESCRIPTION',
-            keywords: ['recording', 'record', 'dvr', 'folder', 'directory'],
-            requires: ['desktop'],
         },
         {
             id: 'mpv-player-path',
@@ -190,5 +126,76 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             keywords: [...VLC, 'single window', 'instance'],
             requires: ['external-player-paths'],
             fallbackId: 'video-player',
+        },
+        {
+            id: 'show-captions',
+            section: 'playback',
+            labelKey: 'SETTINGS.SHOW_CAPTIONS',
+            descriptionKey: 'SETTINGS.SHOW_CAPTIONS_DESCRIPTION',
+            keywords: ['subtitles', 'captions', 'cc'],
+        },
+        {
+            id: 'detail-trailer-backdrop',
+            section: 'playback',
+            labelKey: 'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND',
+            descriptionKey: 'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION',
+            keywords: ['trailer', 'youtube', 'backdrop', 'details'],
+            fallbackId: 'video-player',
+        },
+        {
+            id: 'player-up-next-rail',
+            section: 'playback',
+            labelKey: 'SETTINGS.PLAYER_UP_NEXT_RAIL',
+            descriptionKey: 'SETTINGS.PLAYER_UP_NEXT_RAIL_DESCRIPTION',
+            keywords: ['up next', 'next episode', 'autoplay'],
+            fallbackId: 'video-player',
+        },
+        {
+            id: 'player-up-next-card',
+            section: 'playback',
+            labelKey: 'SETTINGS.PLAYER_UP_NEXT_CARD',
+            descriptionKey: 'SETTINGS.PLAYER_UP_NEXT_CARD_DESCRIPTION',
+            keywords: ['up next', 'next episode', 'popup'],
+            fallbackId: 'video-player',
+        },
+        {
+            id: 'fullscreen-channel-panel',
+            section: 'playback',
+            labelKey: 'SETTINGS.FULLSCREEN_CHANNEL_PANEL',
+            descriptionKey: 'SETTINGS.FULLSCREEN_CHANNEL_PANEL_DESCRIPTION',
+            keywords: ['fullscreen', 'channel list', 'zapping'],
+            fallbackId: 'video-player',
+        },
+        {
+            id: 'vod-auto-failover',
+            section: 'playback',
+            labelKey: 'SETTINGS.VOD_AUTO_FAILOVER',
+            descriptionKey: 'SETTINGS.VOD_AUTO_FAILOVER_DESCRIPTION',
+            keywords: ['failover', 'fallback', 'mirror', 'retry', 'movie'],
+            requires: ['vod-multi-source'],
+            fallbackId: 'video-player',
+        },
+        {
+            id: 'stream-format',
+            section: 'playback',
+            labelKey: 'SETTINGS.STREAM_FORMAT',
+            descriptionKey: 'SETTINGS.STREAM_FORMAT_DESCRIPTION',
+            keywords: ['hls', 'm3u8', 'mpeg-ts', 'ts', 'format', 'xtream'],
+        },
+        {
+            id: 'show-external-playback-bar',
+            section: 'playback',
+            labelKey: 'SETTINGS.SHOW_EXTERNAL_PLAYBACK_BAR',
+            descriptionKey: 'SETTINGS.SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION',
+            keywords: ['playback bar', 'footer', ...MPV, ...VLC],
+            requires: ['desktop'],
+        },
+        {
+            id: 'recording-folder',
+            section: 'playback',
+            labelKey: 'SETTINGS.RECORDING_FOLDER_LABEL',
+            descriptionKey: 'SETTINGS.RECORDING_FOLDER_DESCRIPTION',
+            keywords: ['recording', 'record', 'dvr', 'folder', 'directory'],
+            requires: ['desktop'],
         },
     ];

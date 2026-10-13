@@ -7,6 +7,7 @@ import {
     output,
 } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { injectTranslationTick } from '@iptvnator/services';
 import type { TmdbEnrichedCastMember } from '@iptvnator/shared/interfaces';
 import { buildCastCrewEntries, type CastCrewEntry } from './cast-crew.util';
 import { DetailRailComponent } from './detail-rail.component';
@@ -41,14 +42,17 @@ export class CastCrewRowComponent {
     readonly personSelected = output<TmdbEnrichedCastMember>();
 
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = injectTranslationTick();
 
-    readonly entries = computed<CastCrewEntry[]>(() =>
-        buildCastCrewEntries(
+    /** The "Director" role is worded per language: the tick re-runs this. */
+    readonly entries = computed<CastCrewEntry[]>(() => {
+        this.languageTick();
+        return buildCastCrewEntries(
             this.cast(),
             this.directors(),
             this.translate.instant('XTREAM.DIRECTOR')
-        )
-    );
+        );
+    });
 
     isClickable(entry: CastCrewEntry): boolean {
         return this.interactive() && !!entry.member.tmdbPersonId;

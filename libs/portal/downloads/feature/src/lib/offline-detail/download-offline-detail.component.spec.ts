@@ -283,7 +283,7 @@ describe('DownloadOfflineDetailComponent', () => {
         expect(downloads.loadDownloads).toHaveBeenCalledTimes(1);
         expect(
             (fixture.nativeElement as HTMLElement).querySelector(
-                'ngx-skeleton-loader'
+                '[data-test-id="hero-skeleton"]'
             )
         ).toBeTruthy();
         expect(text()).not.toContain('Download not found');

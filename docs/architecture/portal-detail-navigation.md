@@ -270,6 +270,22 @@ handler as the header Back.
 - Do not force both portals into the same browse/detail behavior unless the full
   portal detail architecture is being changed.
 
+### Arrival and asynchronous ownership
+
+The shared catalog view initializes the category and consumes its Stalker
+handoff together, after the facade's optional `routeReady` signal allows it.
+Stalker exposes the route session's readiness, withheld from NavigationStart
+until the destination playlist and section are installed. Cancelled navigation
+reconciles the current route. Reused category routes also reinitialize when
+their playlist changes; readiness changes alone must not close an open detail
+on query-only navigation.
+
+Collection detail wrappers invalidate pending playlist loads before restoring
+their store snapshot on destruction. Route sessions must compare the actual
+store owner with the route, rather than trusting only their last initialized
+playlist id. Xtream playlist reads likewise discard completions superseded by
+a selection, metadata update, reset or newer read.
+
 ## Xtream
 
 Xtream category and search details are represented by canonical routes.
@@ -288,7 +304,7 @@ Implication:
 
 Current code paths:
 
-- `libs/portal/xtream/feature/src/lib/xtream-collection-detail.component.ts` (favorites + recent, with shared UI from `libs/portal/shared/ui/src/lib/components/favorites-layout/`)
+- `libs/portal/xtream/feature/src/lib/xtream-collection-detail.component.ts` (favorites + recent)
 - `libs/portal/xtream/feature/src/lib/search-results/search-results.component.ts`
 - `libs/portal/catalog/feature/src/lib/category-content-view/category-content-view.component.ts`
 

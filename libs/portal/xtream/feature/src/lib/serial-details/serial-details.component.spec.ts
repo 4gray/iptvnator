@@ -2,7 +2,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ContentHeroComponent } from '@iptvnator/ui/components';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
-import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    XtreamSerieEpisode,
+} from '@iptvnator/shared/interfaces';
 import { SerialDetailsComponent } from './serial-details.component';
 import { SerialDetailsMenuService } from './serial-details-menu.service';
 import { SerialDetailsPlaybackService } from './serial-details-playback.service';
@@ -330,6 +333,40 @@ describe('SerialDetailsComponent', () => {
         expect(openResolvedPlayback).toHaveBeenCalledWith(
             expect.objectContaining({
                 startTime: 42,
+                contentInfo: expect.objectContaining({
+                    contentXtreamId: 1001,
+                }),
+            }),
+            true
+        );
+    });
+
+    it('plays an episode from the beginning despite a stored position', async () => {
+        getSeriesPlaybackPositions.mockResolvedValue([
+            {
+                contentXtreamId: 1001,
+                contentType: 'episode',
+                seriesXtreamId: 103,
+                seasonNumber: 1,
+                episodeNumber: 1,
+                positionSeconds: 42,
+                durationSeconds: 120,
+                playlistId: 'xtream-1',
+                updatedAt: '2026-05-10T12:00:00.000Z',
+            },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const episode = fixture.componentInstance.selectedItem()?.episodes?.[
+            '1'
+        ]?.[0] as XtreamSerieEpisode;
+        fixture.componentInstance.playEpisodeFromStart(episode);
+
+        expect(openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                startTime: 0,
                 contentInfo: expect.objectContaining({
                     contentXtreamId: 1001,
                 }),

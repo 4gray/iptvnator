@@ -17,14 +17,13 @@ import {
     WorkspaceHeaderAction,
 } from '@iptvnator/portal/shared/util';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import {
-    WorkspaceHeaderBulkAction,
-    WorkspaceHeaderSidebarToggle,
-} from '../../services/helpers/workspace-shell-constants';
+import { WorkspaceHeaderSidebarToggle } from '../../services/helpers/workspace-shell-constants';
+import { LayoutSlideDirective } from '../../layout-slide.directive';
 
 @Component({
     selector: 'app-workspace-shell-header',
     imports: [
+        LayoutSlideDirective,
         MatIcon,
         MatIconButton,
         MatTooltip,
@@ -61,7 +60,6 @@ export class WorkspaceShellHeaderComponent {
     readonly searchScopeLabel = input('');
     readonly searchStatusLabel = input('');
     readonly headerShortcut = input<WorkspaceHeaderAction | null>(null);
-    readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = input<WorkspaceHeaderSidebarToggle | null>(
         null
     );
@@ -76,7 +74,7 @@ export class WorkspaceShellHeaderComponent {
     );
     /**
      * When true the playlist switcher + the "+ Add source" / refresh /
-     * bulk-action buttons are hidden — those controls scope to a
+     * shortcut buttons are hidden — those controls scope to a
      * playlist, but Settings is a global page, so leaving them visible
      * implies (falsely) that switching the playlist changes which
      * settings you're editing. Driven from the shell facade's existing
@@ -123,6 +121,19 @@ export class WorkspaceShellHeaderComponent {
     readonly backYieldsToDrawerToggle = computed(
         () => this.showDrawerToggle() && this.backPhoneSlot() === 'yield'
     );
+    /**
+     * The leading navigation: when Back or the drawer toggle appears or
+     * leaves, the controls after it slide instead of jumping.
+     */
+    readonly leadingNavigationKey = computed(
+        () =>
+            `${this.backTarget() !== null}|${this.showDrawerToggle()}|${this.backYieldsToDrawerToggle()}`
+    );
+    /** Everything else that moves the controls; recorded, not slid. */
+    readonly controlsLayoutKey = computed(
+        () =>
+            `${this.isSettingsRoute()}|${this.hasNoPlaylists()}|${this.isElectron()}|${this.parentalLockState()}|${this.headerSidebarToggle() !== null}|${this.headerShortcut() !== null}`
+    );
 
     readonly backRequested = output<void>();
     readonly searchChanged = output<string>();
@@ -131,7 +142,6 @@ export class WorkspaceShellHeaderComponent {
     readonly shortcutsRequested = output<void>();
     readonly addPlaylistRequested = output<void>();
     readonly headerShortcutRequested = output<void>();
-    readonly headerBulkActionRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
     readonly refreshPlaylistRequested = output<void>();
@@ -215,10 +225,6 @@ export class WorkspaceShellHeaderComponent {
 
     onHeaderShortcutRequested(): void {
         this.headerShortcutRequested.emit();
-    }
-
-    onHeaderBulkActionRequested(): void {
-        this.headerBulkActionRequested.emit();
     }
 
     onHeaderSidebarToggleRequested(): void {

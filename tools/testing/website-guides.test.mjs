@@ -16,6 +16,14 @@ const SITE = 'https://4gray.github.io/iptvnator';
 
 const GUIDES = [
   {
+    slug: 'player-controls-guide',
+    screenshots: ['blog/feature-guides/screenshots/guide-player-subtitles-dark.png'],
+  },
+  {
+    slug: 'library-organization-guide',
+    screenshots: ['blog/feature-guides/screenshots/guide-library-watched-dark.png'],
+  },
+  {
     slug: 'stable-nightly-updates-guide',
     screenshots: ['blog/feature-guides/screenshots/guide-update-channel-dark.png'],
   },

@@ -171,7 +171,6 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
                         params: routeParams$.asObservable(),
                         queryParams: of({}),
                         snapshot: {
-                            data: { layout: 'workspace' },
                             queryParams: {},
                         },
                     },

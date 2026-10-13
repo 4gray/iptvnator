@@ -37,6 +37,62 @@ function seed(sqlite: Database.Database) {
     if (columns.some(({ name }) => name === 'epg_channel_id')) {
         sqlite.exec("UPDATE content SET epg_channel_id = 'retained-epg-id'");
     }
+    // An M3U source with a channel payload and every playlist column the
+    // schema has: the payload-last rebuild of `playlists` must carry them all
+    // across unchanged.
+    const playlistColumns = new Set(
+        (sqlite.pragma('table_info(playlists)') as { name: string }[]).map(
+            ({ name }) => name
+        )
+    );
+    if (playlistColumns.has('payload')) {
+        const values: Record<string, string | number> = {
+            id: 'm3u',
+            name: 'Saved list',
+            type: 'm3u-url',
+            url: 'https://list.invalid/a.m3u',
+            payload: '{"channels":[{"name":"One"}]}',
+            epg_urls: '["https://epg.invalid/a.xml"]',
+            detected_epg_urls: '["https://epg.invalid/b.xml"]',
+            favorites: '["one"]',
+            recently_viewed: '["one"]',
+            last_usage: '2026-01-01T00:00:00.000Z',
+            count: 1,
+        };
+        const present = Object.keys(values).filter((name) =>
+            playlistColumns.has(name)
+        );
+        sqlite
+            .prepare(
+                `INSERT INTO playlists (${present.join(', ')})
+                 VALUES (${present.map(() => '?').join(', ')})`
+            )
+            .run(...present.map((name) => values[name]));
+    }
+}
+
+const titleIndexRebuilds: string[] = [];
+
+/**
+ * Every full rebuild of the title FTS index goes through `prepare`. A profile
+ * needs one; another on a later launch re-indexes the whole catalog on the
+ * main thread before the app can read anything.
+ */
+function countTitleIndexRebuilds(connection: Database.Database): void {
+    const prepare = connection.prepare;
+    connection.prepare = function countingPrepare(
+        this: Database.Database,
+        sql: string
+    ) {
+        if (
+            /content_title_fts\(content_title_fts\)\s+VALUES\s+\('rebuild'\)/.test(
+                sql
+            )
+        ) {
+            titleIndexRebuilds.push(sql);
+        }
+        return prepare.call(this, sql);
+    } as typeof connection.prepare;
 }
 
 /**
@@ -49,6 +105,7 @@ function seed(sqlite: Database.Database) {
 function requireSingleStatementExec(): string[] {
     const batches: string[] = [];
     setDatabaseConnectionObserver((connection) => {
+        countTitleIndexRebuilds(connection);
         const exec = connection.exec;
         connection.exec = function singleStatementExec(sql: string) {
             try {
@@ -145,6 +202,15 @@ async function main() {
             const sqlite = new Database(databasePath, { readonly: true });
             try {
                 verifyCurrentSchema(sqlite);
+                assert.equal(
+                    (
+                        sqlite.pragma('table_info(playlists)') as {
+                            name: string;
+                        }[]
+                    ).at(-1)?.name,
+                    'payload',
+                    'payload must be the last playlists column'
+                );
                 for (const { query, rows } of before) {
                     assert.deepEqual(sqlite.prepare(query).all(), rows, query);
                 }
@@ -188,6 +254,11 @@ async function main() {
         execBatches,
         [],
         'Initialization must pass one SQL statement per exec call'
+    );
+    assert.equal(
+        titleIndexRebuilds.length,
+        1,
+        'The title index must be rebuilt once per profile, not on every launch'
     );
     process.stdout.write('upgrade verified');
 }

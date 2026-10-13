@@ -258,6 +258,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     }
 
     ngOnDestroy(): void {
+        ++this.initRequestId;
         restoreStalkerCollectionStoreState(
             this.stalkerStore,
             this.originalState

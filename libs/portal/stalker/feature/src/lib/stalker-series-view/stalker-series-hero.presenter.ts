@@ -8,6 +8,7 @@ import {
 import {
     SettingsStore,
     type CrossPortalSimilarItem,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { youtubeEmbedUrl } from '@iptvnator/shared/interfaces';
 import {
@@ -30,6 +31,7 @@ interface StalkerSeriesHeroBindings {
 @Injectable()
 export class StalkerSeriesHeroPresenter {
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = injectTranslationTick();
     private readonly stalkerStore = inject(StalkerStore);
     private readonly trailerDialog = inject(TrailerDialogService);
     private readonly settingsStore = inject(SettingsStore);
@@ -84,6 +86,7 @@ export class StalkerSeriesHeroPresenter {
         director: computed(() => this.info()?.director),
         quickStart: this.quickStart,
         translate: this.translate,
+        language: this.languageTick,
     });
 
     readonly similarRailItems = computed<SimilarRailItem[]>(() =>

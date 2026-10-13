@@ -83,7 +83,9 @@
             @if (searchQuery()) {
                 <button
                     mat-icon-button
+                    type="button"
                     class="clear-btn"
+                    [attr.aria-label]="'CLEAR_SEARCH' | translate"
                     (click)="setSearchQuery('')"
                 >
                     <mat-icon>close</mat-icon>
@@ -192,7 +194,9 @@
                     [matMenuTriggerFor]="itemMenu"
                     [matMenuTriggerData]="{ playlist: playlist }"
                     (click)="$event.stopPropagation()"
-                    aria-label="Playlist actions"
+                    [attr.aria-label]="
+                        'HOME.PLAYLISTS.PLAYLIST_ACTIONS' | translate
+                    "
                 >
                     <mat-icon>more_vert</mat-icon>
                 </button>

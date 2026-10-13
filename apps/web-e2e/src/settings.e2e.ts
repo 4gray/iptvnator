@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { join } from 'path';
+import { setSwitch } from './e2e-helpers';
 import { expect, test } from './fixtures';
 
 async function openSettings(page: Page) {
@@ -49,6 +50,24 @@ test.describe('Settings', () => {
         await page.waitForURL(/\/workspace\/dashboard$/);
     });
 
+    test('@settings @web settings opening the session lead to the dashboard', async ({
+        page,
+    }) => {
+        // The only entry of a new tab's history, as in Electron after a
+        // deep link: browser Back has nowhere to go.
+        const firstEntryPage = await page.context().newPage();
+        await firstEntryPage.goto('/workspace/settings/general');
+        // A cold start in a new tab passes the startup splash first.
+        await expect(firstEntryPage.locator('.settings-container')).toBeVisible(
+            { timeout: 15_000 }
+        );
+
+        await settingsBack(firstEntryPage).click();
+        await firstEntryPage.waitForURL(/\/workspace\/dashboard$/);
+        // The dashboard replaced the settings entry: no Back leads to it.
+        await expect(settingsBack(firstEntryPage)).toHaveCount(0);
+    });
+
     test('@settings @web Change video player', async ({ page }) => {
         await openSettings(page);
         await openSettingsSection(page, 'playback');
@@ -78,12 +97,12 @@ test.describe('Settings', () => {
         const setting = page.locator(
             '[data-test-id="web-player-shared-controls-setting"]'
         );
-        const checkbox = setting.locator('input[type="checkbox"]');
+        const checkbox = setting.getByRole('switch');
 
         await expect(setting).toBeVisible();
-        // Shared controls default ON; the checkbox is the opt-out.
+        // Shared controls default ON; the switch is the opt-out.
         await expect(checkbox).toBeChecked();
-        await checkbox.uncheck();
+        await setSwitch(checkbox, false);
         await saveSettings(page);
         await page.reload();
         await openSettings(page);
@@ -157,18 +176,144 @@ test.describe('Settings', () => {
             .click();
         await expect(unsavedBar).toBeVisible();
 
+        // The bar counts the staged change and the sidebar marks its page.
+        await expect(
+            unsavedBar.locator('[data-test-id="settings-unsaved-message"]')
+        ).toHaveText('1 unsaved change');
+        await expect(
+            page.locator('[data-test-id="settings-section-dirty-general"]')
+        ).toBeVisible();
+
         // The staged edit belongs to the page, not the section — moving to
         // another section page must keep the bar (and the pending change).
         await openSettingsSection(page, 'playback');
         await expect(unsavedBar).toBeVisible();
+        await expect(
+            page.locator('[data-test-id="settings-section-dirty-general"]')
+        ).toBeVisible();
+        await expect(
+            page.locator('[data-test-id="settings-section-dirty-playback"]')
+        ).toHaveCount(0);
 
         await page.locator('[data-test-id="discard-settings"]').click();
         await expect(unsavedBar).toBeHidden();
+        await expect(
+            page.locator('[data-test-id="settings-section-dirty-general"]')
+        ).toHaveCount(0);
 
         await openSettingsSection(page, 'general');
         await expect(
             themeGroup.getByRole('radio', { name: 'System', exact: true })
         ).toHaveAttribute('aria-checked', 'true');
+    });
+
+    test('@settings @web Ctrl+S saves the staged edits', async ({ page }) => {
+        await openSettings(page);
+        await page
+            .locator('[data-test-id="select-theme"] [data-test-id="DARK_THEME"]')
+            .click();
+        const unsavedBar = page.locator(
+            '[data-test-id="settings-unsaved-bar"]'
+        );
+        await expect(unsavedBar).toBeVisible();
+
+        await page.keyboard.press('Control+s');
+
+        await expect(unsavedBar).toBeHidden();
+        await page.reload();
+        await openSettings(page);
+        await expect(
+            page
+                .locator('[data-test-id="select-theme"]')
+                .getByRole('radio', { name: 'Dark', exact: true })
+        ).toHaveAttribute('aria-checked', 'true');
+    });
+
+    test('@settings @web About keeps its label and clears the window bottom', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        const about = page.locator(
+            '.settings-nav__footer [data-test-id="settings-section-about"]'
+        );
+        const version = about.locator('[data-test-id="settings-nav-version"]');
+        await expect(version).toBeVisible();
+        // A nightly build string is far wider than the default panel.
+        await version.evaluate((node) => {
+            node.textContent = '0.25.0-nightly.20261010.3937';
+        });
+
+        const layout = await about.evaluate((link) => {
+            const label = link.querySelector('.nav-item-label') as HTMLElement;
+            const tag = link.querySelector(
+                '[data-test-id="settings-nav-version"]'
+            ) as HTMLElement;
+            const panel = link.closest('.context-panel') as HTMLElement;
+            const linkBox = link.getBoundingClientRect();
+            return {
+                labelClipped: label.scrollWidth > label.clientWidth,
+                versionClipped: tag.scrollWidth > tag.clientWidth,
+                linkOverflows: link.scrollWidth > link.clientWidth,
+                linkBottom: linkBox.bottom,
+                panelBottom: panel.getBoundingClientRect().bottom,
+                viewportHeight: window.innerHeight,
+            };
+        });
+
+        expect(layout.labelClipped).toBe(false);
+        expect(layout.versionClipped).toBe(true);
+        expect(layout.linkOverflows).toBe(false);
+        // The panel ends at the window edge, and its bottom padding keeps the
+        // footer item off it.
+        expect(layout.panelBottom).toBeLessThanOrEqual(layout.viewportHeight);
+        expect(
+            layout.viewportHeight - layout.linkBottom
+        ).toBeGreaterThanOrEqual(12);
+    });
+
+    test('@settings @web The installed version shows while GitHub is unreachable', async ({
+        page,
+    }) => {
+        // Offline, or rate-limited by api.github.com: the release check never
+        // answers, yet the installed version is known locally.
+        await page.route('**/repos/4gray/iptvnator/releases*', (route) =>
+            route.abort()
+        );
+        await openSettings(page);
+
+        const version = /\d+\.\d+\.\d+/;
+        await expect(
+            page.locator(
+                '[data-test-id="settings-section-about"] [data-test-id="settings-nav-version"]'
+            )
+        ).toHaveText(version);
+
+        await openSettingsSection(page, 'about');
+        await expect(page.locator('[data-test-id="app-version"]')).toHaveText(
+            version
+        );
+    });
+
+    test('@settings @web Esc leaves settings like the header Back', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        // The sidebar groups the pages and pins About to the footer.
+        await expect(
+            page.locator('.settings-nav__group[data-group="app"]')
+        ).toContainText('General');
+        await expect(
+            page.locator('.settings-nav__footer [data-test-id="settings-section-about"]')
+        ).toBeVisible();
+
+        // The rail link's tooltip is still up after the click that opened
+        // settings, and a visible tooltip consumes Escape: move on and wait
+        // for it to finish closing first.
+        await page.locator('.settings-group__header h2').click();
+        await expect(page.locator('.mat-mdc-tooltip')).toHaveCount(0);
+        await page.keyboard.press('Escape');
+
+        await page.waitForURL(/\/workspace\/dashboard$/);
     });
 
     test('@settings @web Leaving with unsaved edits asks for confirmation', async ({
@@ -185,7 +330,7 @@ test.describe('Settings', () => {
 
         // Trying to leave the settings area surfaces the dialog.
         await page
-            .getByRole('navigation')
+            .locator('app-workspace-shell-rail')
             .getByRole('link', { name: 'Dashboard', exact: true })
             .click();
         const dialog = page.getByRole('dialog');
@@ -201,7 +346,7 @@ test.describe('Settings', () => {
 
         // Leave without saving: the staged edit is discarded.
         await page
-            .getByRole('navigation')
+            .locator('app-workspace-shell-rail')
             .getByRole('link', { name: 'Dashboard', exact: true })
             .click();
         await page
@@ -229,7 +374,7 @@ test.describe('Settings', () => {
             .click();
 
         await page
-            .getByRole('navigation')
+            .locator('app-workspace-shell-rail')
             .getByRole('link', { name: 'Dashboard', exact: true })
             .click();
         await page
@@ -331,7 +476,8 @@ test.describe('Settings', () => {
         );
         await expect(search).toBeEnabled();
 
-        // "subtitles" is a keyword of the "Show captions" row.
+        // "subtitles" is a keyword of the "Show subtitles" row, which lives
+        // on the Playback page: the result leads there from General.
         await search.fill('subtitles');
         await expect(page).toHaveURL(/\/workspace\/settings\/general\?q=subtitles$/);
         await expect(
@@ -339,14 +485,17 @@ test.describe('Settings', () => {
         ).toBeVisible();
         await expect(page.locator('app-settings-general-section')).toHaveCount(0);
         await expect(
-            page.locator('[data-test-id="settings-section-matches-general"]')
+            page.locator('[data-test-id="settings-section-matches-playback"]')
         ).toHaveText('1');
+        await expect(
+            page.locator('[data-test-id="settings-section-matches-general"]')
+        ).toHaveText('0');
 
         await page
             .locator('[data-test-id="settings-search-result-show-captions"]')
             .click();
 
-        await expect(page).toHaveURL(/\/workspace\/settings\/general$/);
+        await expect(page).toHaveURL(/\/workspace\/settings\/playback$/);
         await expect(search).toHaveValue('');
         const row = page.locator('[data-setting-id="show-captions"]');
         await expect(row).toBeFocused();

@@ -28,14 +28,20 @@ import {
     readPayloadServerTimezone,
     serverTimezoneInvalidation,
 } from './playlist-server-timezone.operations';
+import {
+    buildPlaylistRow,
+    getPlaylistItemCount,
+    parseAppPlaylist,
+    parseJsonValue,
+    PLAYLIST_TYPES,
+    type AppPlaylistType,
+} from '@iptvnator/shared/database/app-playlist';
 
-const PLAYLIST_TYPES = {
-    XTREAM: 'xtream',
-    STALKER: 'stalker',
-    M3U_FILE: 'm3u-file',
-    M3U_TEXT: 'm3u-text',
-    M3U_URL: 'm3u-url',
-} as const;
+// Kept for existing importers (specs, playlist-migration.operations.ts).
+export {
+    buildPlaylistRow,
+    parseAppPlaylist,
+} from '@iptvnator/shared/database/app-playlist';
 
 export interface AppPlaylistUpsertPhaseCapture {
     captureAsync: <TResult>(
@@ -61,56 +67,6 @@ export interface AppPlaylistGetPhaseCapture {
         execute: () => TResult,
         metadata?: (result: TResult) => PerformancePhaseMetadata
     ) => TResult;
-}
-
-type PlaylistType = (typeof PLAYLIST_TYPES)[keyof typeof PLAYLIST_TYPES];
-const PLAYLIST_TYPE_VALUES = new Set<PlaylistType>(
-    Object.values(PLAYLIST_TYPES)
-);
-
-function getStringValue(value: unknown): string | undefined {
-    if (typeof value !== 'string') {
-        return undefined;
-    }
-
-    const normalized = value.trim();
-    return normalized.length > 0 ? normalized : undefined;
-}
-
-function getNumericValue(value: unknown): number | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value;
-    }
-
-    if (typeof value === 'string' && value.trim() !== '') {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : undefined;
-    }
-
-    return undefined;
-}
-
-function parseJsonValue<T>(value: string | null | undefined, fallback: T): T {
-    if (!value) {
-        return fallback;
-    }
-
-    try {
-        return JSON.parse(value) as T;
-    } catch (error) {
-        console.warn('Failed to parse JSON value from DB:', error);
-        return fallback;
-    }
-}
-
-function getStringArrayValue(value: unknown): string[] {
-    if (!Array.isArray(value)) {
-        return [];
-    }
-
-    return value
-        .map((item) => (typeof item === 'string' ? item.trim() : ''))
-        .filter((item) => item.length > 0);
 }
 
 function getFavoriteChannelMatch(
@@ -143,191 +99,6 @@ function getFavoriteChannelMatch(
     return null;
 }
 
-function inferPlaylistType(playlist: Record<string, unknown>): PlaylistType {
-    const explicitType = getStringValue(playlist.type);
-    if (
-        explicitType &&
-        PLAYLIST_TYPE_VALUES.has(explicitType as PlaylistType)
-    ) {
-        return explicitType as PlaylistType;
-    }
-
-    if (getStringValue(playlist.serverUrl)) {
-        return PLAYLIST_TYPES.XTREAM;
-    }
-
-    if (getStringValue(playlist.macAddress)) {
-        return PLAYLIST_TYPES.STALKER;
-    }
-
-    if (getStringValue(playlist.filePath)) {
-        return PLAYLIST_TYPES.M3U_FILE;
-    }
-
-    if (getStringValue(playlist.url)) {
-        return PLAYLIST_TYPES.M3U_URL;
-    }
-
-    return PLAYLIST_TYPES.M3U_TEXT;
-}
-
-export function buildPlaylistRow(
-    playlist: Record<string, unknown>
-): schema.NewPlaylist | null {
-    const id = getStringValue(playlist._id) ?? getStringValue(playlist.id);
-    if (!id) {
-        return null;
-    }
-
-    const type = inferPlaylistType(playlist);
-    const portalUrl = getStringValue(playlist.portalUrl);
-    const url = getStringValue(playlist.url);
-    const nowIso = new Date().toISOString();
-    const updateDate = getNumericValue(playlist.updateDate);
-
-    return {
-        id,
-        name:
-            getStringValue(playlist.title) ??
-            getStringValue(playlist.name) ??
-            id,
-        serverUrl: getStringValue(playlist.serverUrl),
-        username: getStringValue(playlist.username),
-        password: getStringValue(playlist.password),
-        lastUpdated:
-            typeof updateDate === 'number'
-                ? new Date(updateDate).toISOString()
-                : getStringValue(playlist.lastUpdated),
-        type,
-        userAgent: getStringValue(playlist.userAgent),
-        origin: getStringValue(playlist.origin),
-        referrer: getStringValue(playlist.referrer),
-        filePath: getStringValue(playlist.filePath),
-        epgUrls:
-            playlist.epgUrls !== undefined
-                ? JSON.stringify(getStringArrayValue(playlist.epgUrls))
-                : undefined,
-        detectedEpgUrls:
-            playlist.detectedEpgUrls !== undefined
-                ? JSON.stringify(getStringArrayValue(playlist.detectedEpgUrls))
-                : undefined,
-        manualEpgUrls:
-            playlist.manualEpgUrls !== undefined
-                ? JSON.stringify(getStringArrayValue(playlist.manualEpgUrls))
-                : undefined,
-        disabledEpgUrls:
-            playlist.disabledEpgUrls !== undefined
-                ? JSON.stringify(getStringArrayValue(playlist.disabledEpgUrls))
-                : undefined,
-        autoRefresh: Boolean(playlist.autoRefresh),
-        macAddress: getStringValue(playlist.macAddress),
-        url: type === PLAYLIST_TYPES.STALKER ? (portalUrl ?? url) : url,
-        portalUrl,
-        count: getNumericValue(playlist.count),
-        importDate: getStringValue(playlist.importDate),
-        updateDate,
-        position: getNumericValue(playlist.position),
-        favorites:
-            playlist.favorites !== undefined
-                ? JSON.stringify(playlist.favorites)
-                : undefined,
-        recentlyViewed:
-            playlist.recentlyViewed !== undefined
-                ? JSON.stringify(playlist.recentlyViewed)
-                : undefined,
-        payload: JSON.stringify(playlist),
-        lastUsage: getStringValue(playlist.lastUsage) ?? nowIso,
-    };
-}
-
-function getPlaylistItemCount(
-    playlist: Record<string, unknown>
-): number | undefined {
-    try {
-        const value = playlist.playlist;
-        if (typeof value !== 'object' || value === null) {
-            return undefined;
-        }
-        const items = Reflect.get(value, 'items');
-        return Array.isArray(items) ? items.length : undefined;
-    } catch {
-        return undefined;
-    }
-}
-
-export function parseAppPlaylist(
-    row: schema.Playlist
-): Record<string, unknown> {
-    const payload = parseJsonValue<Record<string, unknown> | null>(
-        row.payload,
-        null
-    );
-    const base = payload && typeof payload === 'object' ? payload : {};
-    const favorites = parseJsonValue<unknown[]>(row.favorites, []);
-    const recentlyViewed = parseJsonValue<unknown[]>(row.recentlyViewed, []);
-    const epgUrls = getStringArrayValue(
-        row.epgUrls ? parseJsonValue<unknown[]>(row.epgUrls, []) : base.epgUrls
-    );
-    const detectedEpgUrls = getStringArrayValue(
-        row.detectedEpgUrls
-            ? parseJsonValue<unknown[]>(row.detectedEpgUrls, [])
-            : (base.detectedEpgUrls ?? epgUrls)
-    );
-    const manualEpgUrls = getStringArrayValue(
-        row.manualEpgUrls
-            ? parseJsonValue<unknown[]>(row.manualEpgUrls, [])
-            : base.manualEpgUrls
-    );
-    const disabledEpgUrls = getStringArrayValue(
-        row.disabledEpgUrls
-            ? parseJsonValue<unknown[]>(row.disabledEpgUrls, [])
-            : base.disabledEpgUrls
-    );
-    const importDate =
-        row.importDate ?? row.dateCreated ?? new Date().toISOString();
-    const portalUrl =
-        row.portalUrl ?? (row.type === PLAYLIST_TYPES.STALKER ? row.url : null);
-    const updateDate =
-        row.updateDate ??
-        (row.lastUpdated ? new Date(row.lastUpdated).getTime() : undefined);
-
-    return {
-        ...base,
-        _id: row.id,
-        title:
-            getStringValue(base.title) ?? getStringValue(base.name) ?? row.name,
-        count: row.count ?? getNumericValue(base.count) ?? 0,
-        importDate: getStringValue(base.importDate) ?? importDate,
-        lastUsage:
-            row.lastUsage ??
-            getStringValue(base.lastUsage) ??
-            getStringValue(base.importDate) ??
-            importDate,
-        favorites,
-        recentlyViewed,
-        autoRefresh: row.autoRefresh ?? Boolean(base.autoRefresh),
-        url:
-            row.type === PLAYLIST_TYPES.M3U_URL
-                ? (row.url ?? getStringValue(base.url))
-                : getStringValue(base.url),
-        filePath: row.filePath ?? getStringValue(base.filePath),
-        epgUrls,
-        detectedEpgUrls,
-        manualEpgUrls,
-        disabledEpgUrls,
-        userAgent: row.userAgent ?? getStringValue(base.userAgent),
-        referrer: row.referrer ?? getStringValue(base.referrer),
-        origin: row.origin ?? getStringValue(base.origin),
-        updateDate,
-        position: row.position ?? getNumericValue(base.position),
-        serverUrl: row.serverUrl ?? getStringValue(base.serverUrl),
-        username: row.username ?? getStringValue(base.username),
-        password: row.password ?? getStringValue(base.password),
-        macAddress: row.macAddress ?? getStringValue(base.macAddress),
-        portalUrl: portalUrl ?? getStringValue(base.portalUrl),
-    };
-}
-
 export async function createPlaylist(
     db: AppDatabase,
     playlist: {
@@ -351,7 +122,7 @@ export async function createPlaylist(
         url: playlist.url,
         portalUrl:
             playlist.type === PLAYLIST_TYPES.STALKER ? playlist.url : undefined,
-        type: playlist.type as PlaylistType,
+        type: playlist.type as AppPlaylistType,
     });
 
     return { success: true };

@@ -65,12 +65,36 @@ review every added entry in the diff:
 pnpm run i18n:baseline:update
 ```
 
-The checker's own tests run with `pnpm run i18n:test`; CI runs both through
+`pnpm run i18n:check` also runs `check-usage.mjs`, which fails on a key the
+renderer uses but `en.json` lacks (ngx-translate would show the raw key). It
+scans production `.ts` and `.html` files under `apps/web/src`,
+`apps/remote-control-web/src` and `libs` for piped keys (including the
+branches of a parenthesised operand), translate calls and
+dotted literals in an `en.json` namespace; run it alone with
+`pnpm run i18n:usage`. Keys built entirely at runtime are not checked.
+
+The checkers' own tests run with `pnpm run i18n:test`; CI runs both through
 `pnpm run i18n:validate`. For a full audit that ignores the baseline, run:
 
 ```bash
 node tools/i18n/check-drift.mjs --fail-on-identical
 ```
+
+`pnpm run i18n:duplicates` lists English strings that `en.json` defines under
+several keys while a locale translates those keys differently, such as one
+"Close" button saying "Afsluiten" and another "Sluiten". Add `--verbose` for
+each locale's variants and keys, or `--max <n>` to fail above n groups. It is
+a report, not a CI gate: a group can be legitimate when context needs another
+grammatical form. When aligning, change the drifted values rather than
+removing keys.
+
+## Changing existing translations
+
+`fill-missing.mjs` never overwrites, so rewording an existing value or paying
+down baseline debt means editing the value in the locale file directly (keep
+the key order, 4-space indent and trailing newline), then running
+`pnpm run i18n:baseline:update` and checking that the baseline diff only
+removes entries.
 
 ## Translation rules
 

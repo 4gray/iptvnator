@@ -1,6 +1,7 @@
 import { PictureInPictureTestEnvironment } from '../player-controls/picture-in-picture.spec-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule } from '@ngx-translate/core';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import type { ArtPlayerComponent as ArtPlayerComponentInstance } from './art-player.component';
@@ -52,7 +53,7 @@ describe('ArtPlayerComponent', () => {
         localStorage.clear();
 
         TestBed.configureTestingModule({
-            imports: [ArtPlayerComponent],
+            imports: [ArtPlayerComponent, TranslateModule.forRoot()],
             providers: [
                 { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: false },
             ],

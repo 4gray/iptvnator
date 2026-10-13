@@ -4,6 +4,7 @@ import {
     input,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { PORTAL_WATCHED_PROGRESS_PERCENT } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-progress-capsule',
@@ -53,5 +54,7 @@ import {
 })
 export class ProgressCapsuleComponent {
     readonly progress = input.required<number>();
-    readonly isWatched = computed(() => this.progress() >= 90);
+    readonly isWatched = computed(
+        () => this.progress() >= PORTAL_WATCHED_PROGRESS_PERCENT
+    );
 }

@@ -65,19 +65,19 @@ Compatibility redirect:
 
 Provider route integration:
 
-1. `apps/web/src/app/app.routes.ts` marks the `/workspace` root route with
-   `data.layout = 'workspace'`.
-2. `isWorkspaceLayoutRoute(...)` treats that layout marker as inherited route
-   state for all descendants.
-3. Xtream and Stalker parent routes attach route-scoped session providers that
+1. Every routed view renders inside the workspace shell (the only top-level
+   paths outside `/workspace` are redirects), so views keep no standalone
+   layout branches: the shell header owns search, Back and the playlist
+   switcher.
+2. Xtream and Stalker parent routes attach route-scoped session providers that
    bootstrap the active playlist, sync provider section state, and clean up
    provider-local state when the route is destroyed.
-4. Xtream route bootstrap is DB-first for already imported Electron playlists:
+3. Xtream route bootstrap is DB-first for already imported Electron playlists:
    if the requested section has persisted categories and content, the route
    hydrates from SQLite even when the portal status probe reports unavailable,
    expired, or inactive. Fresh/no-cache Xtream routes still use the status probe
    to block remote imports before the loading overlay starts.
-5. Workspace routes no longer rely on nested provider shell components for
+4. Workspace routes no longer rely on nested provider shell components for
    hidden local chrome.
 
 ## Shell Structure
@@ -107,6 +107,77 @@ The shell is intentionally split into four persistent regions:
 4. Optional footer:
     1. External playback session bar when a docked session is visible.
 
+### Content surface corner
+
+`main.workspace-content` (the scroller) sits in `.workspace-content-frame`.
+The frame carries the surface's 16px top-left radius and its shadow and never
+clips; the scroller clips to a rectangle and is a stacking context; a 16px
+corner piece on the frame paints the notch in the body colour. The radius used
+to sit on the scroller, which made Blink clip every composited effect inside it
+(the rail chevrons' and hero controls' `backdrop-filter`, running transform
+animations, isolated groups) through a mask layer synthesized per effect: its
+shader path for rounded clips needs four equal radii on macOS and a
+translation-only transform between the clip and the effect, and the fallback
+mask is the size of the whole clipped area, about 24 MB of tile memory at 2x
+on a 16" display. A dozen of them took the dashboard past Chromium's 512 MB
+tile budget (`tile memory limits exceeded`, blank tiles while scrolling).
+`apps/electron-backend-e2e/src/compositing.e2e.ts` guards it: no
+drawing layer without an owner node and without a compositing reason (a
+synthesized mask, unlike any content layer) may span half the content area,
+and the backdrop-filtered controls must really be composited, so the check
+cannot pass on a page with nothing to clip.
+
+### Layout slides
+
+When a route change adds or removes the context panel, the content frame
+moves by the panel's width (323 px on desktop), and when Back or the phone
+drawer toggle appears or leaves, the header controls after it move by the
+slot's width (44 px). Both happen in the frame that swaps the page, so they
+used to be one jump: a layout shift of 0.233 in the open-source journey,
+0.222 of it the content frame (see
+[performance journeys](./performance-journeys.md#j2-open-source-open-a-source-to-a-browsable-list)).
+
+`LayoutSlideDirective` (`workspace-shell/layout-slide.directive.ts`) turns
+these jumps into a 180 ms slide, the duration of the context panel's own
+width transition. The new layout applies at once; each target starts
+translated back to the position it had and animates its transform to none
+(FLIP), so nothing waits for the animation and Chromium records no layout
+shift for a transform. The shell's `.workspace-body` slides
+`.workspace-content-frame` when `showContextPanel` changes; the header slides
+the drawer toggle, switcher, search and action groups when its leading
+navigation (Back, drawer toggle) changes.
+
+1. **Previous positions.** `offsetLeft` values, which ignore transforms, are
+   recorded after every render in which the slide key or the record key
+   changed (the header's record key covers the other inputs that move its
+   controls: settings route, no playlists, parental lock, shortcuts) and
+   when the host or a target resizes (window resize, a context panel folding
+   or being dragged wider). A slide therefore starts where the target was
+   last laid out, and a target that has no recorded position or did not move
+   is left alone.
+2. **The uncovered strip.** The frame is narrower beside the panel than
+   without it, so the side it moves away from would show the body colour
+   during the slide. While a slide runs the target carries
+   `layout-slide-active` and the uncovered widths as `--layout-slide-start`
+   and `--layout-slide-end`; the frame's stylesheet extends the content
+   surface over that strip with an `::after` below the scroller.
+3. **Back fades in** over the same 180 ms, so the switcher still sliding away
+   from its slot does not draw over the arrow.
+4. **Reduced motion.** Under `prefers-reduced-motion` there is no animation:
+   the jump (and its layout shift) remains.
+5. **Compositing.** While it runs, each slid target is its own composited
+   layer (`ActiveTransformAnimation`): the frame at its width plus the
+   covered strip (1220×664 CSS pixels at 1280×720), the header controls a
+   few small ones. No synthesized clip mask appears, because no ancestor of
+   the frame clips with a radius ([content surface
+   corner](#content-surface-corner)), and the layers go away when the slide
+   ends: `perf:compositing` reads the same layer and mask counts on every
+   route as before the slides (#1895).
+6. **Not covered.** A slide does not change what the route renders. Going
+   back from a portal to the dashboard still shows one frame with the new
+   dashboard below the old page before the old page leaves; that jump is a
+   routing issue, not a layout slide.
+
 `WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
 kept as a thin template-facing API and delegates ownership to component-scoped
 services:
@@ -119,11 +190,18 @@ services:
 3. `WorkspaceShellSearchSyncService` owns the search query signals, debounced
    application, provider-store synchronization, and query-param sync.
 4. `WorkspaceShellHeaderService` owns playlist title/subtitle, account/info
-   actions, refresh action state, and recent-items bulk cleanup.
+   actions, and refresh action state. It has no clear action: clearing
+   recently viewed or favorites belongs to the collection page.
 5. `WorkspaceShellCommandPaletteService` owns command-palette dialog lifecycle
    and recent-command recording.
 6. `WorkspaceShellXtreamImportService` owns Xtream import/refresh overlay
-   state and labels.
+   state and labels. Remote import phases and refresh preparation of the
+   shown playlist (of any playlist on the dashboard) show the overlay at
+   once. A session that has only read the saved catalog (`loading-cached`,
+   `isImporting` still false) shows it only after
+   `XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS` (300 ms), so a warm open goes from
+   the skeleton to the page without flashing the overlay, while a slow or
+   stuck cache read still blocks and stays cancellable.
 
 When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
@@ -146,9 +224,9 @@ label (else the translated "Back"), whether Escape on the page runs it, and
 | Page | Registered by | Back runs | ≤640 px |
 | --- | --- | --- | --- |
 | Portal, collection, offline and recording details | `PortalDetailShellComponent` while `backAvailable()` | the host's `backClicked` | replaces the drawer toggle |
-| Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's `Location.back()` | (no drawer) |
-| In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | `Location.back()` | (no drawer) |
-| Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | `Location.back()` | beside the drawer toggle |
+| Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's history Back; parent: the catalog section Discover lists (`vod` for movies, `series` for TV), the portal's default section for actor | (no drawer) |
+| In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | history Back; parent: the portal's default section | (no drawer) |
+| Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | history Back; parent: the first workspace view (`WorkspaceStartupPreferencesService.resolveDashboardPath()`: the dashboard, or sources when it is hidden) | beside the drawer toggle |
 
 Detail-page semantics (Escape, browse and watch) are in
 [Portal Detail Navigation](./portal-detail-navigation.md#detail-scroll-and-focus).
@@ -167,11 +245,37 @@ advertises no Escape, because no page handles one for it. Pages that set
 `backAvailable=false`, such as M3U details, therefore show it too when they
 were reached by navigation.
 
+**Parent fallback.** "Parent" in the table above: a registered page whose
+Back is history Back calls `WorkspaceBackNavigationService.back(resolveParent)`
+instead of `Location.back()`. It runs `Location.back()` while the previous
+entry is an in-app one, by the same Navigation API test as the history
+fallback. Without the API (older Safari and Firefox) the router's history
+depth decides (`trackRouterHistoryDepth`): the document's first navigation is
+depth 0, a push adds one, a replacement keeps it and a traversal restores the
+depth recorded for its entry. The lazy workspace shell creates the service
+after the first navigation began, so the tracker adopts the router's current
+or last navigation: a first one is depth 0, a later one leaves the depth
+unknown. A traversal to an entry from before a reload
+leaves the depth unknown and keeps `Location.back()`, which then has a
+previous entry. Otherwise the page opened
+the session (a deep link, a reload or a restored view), where
+`Location.back()` does nothing in Electron and leaves the app in a browser.
+The service then navigates to the page's parent with `replaceUrl`, so history
+Back cannot return to the page just left; with nothing in-app before it, the
+parent shows no history fallback. The resolver returns a URL or router commands, may be asynchronous, and
+returns null when the page knows no parent, which keeps `Location.back()`.
+Portal pages build their parent with `workspacePortalCommands()`
+(`@iptvnator/portal/shared/util`) from the route's `:id`; without a section,
+the portal route's `redirectTo` picks the default section within the same
+navigation, so the replacement still applies. Detail pages keep their own
+return logic (`backClicked`).
+
 When there is nowhere to go, the slot is empty rather than a disabled arrow.
 Sessions often start on a page that never navigates (an M3U playlist or live
-TV), where a disabled arrow would stay for the whole session. The cost is one
-shift of the switcher and search when Back first appears or leaves, which
-happens only at the start of the history and together with a route change.
+TV), where a disabled arrow would stay for the whole session. When Back first
+appears or leaves, which happens only at the start of the history and together
+with a route change, the switcher and search slide by the slot's width instead
+of jumping (see [Layout slides](#layout-slides)).
 There is no Forward button: Stalker inline details are store state, not
 history entries, so Forward would skip them.
 
@@ -217,7 +321,10 @@ Xtream and Stalker category panels preserve provider/server category order by
 default. The panel header exposes a sort menu next to category search with
 `Server sorting`, `A-Z`, and `Z-A`; when alphabetical sorting is active,
 synthetic "all categories" entries stay pinned before sorted provider
-categories.
+categories. Search and sort render disabled while the categories load (beside
+the disabled Manage categories button), so the header row has its final width
+under the skeleton instead of growing by two buttons when the list arrives;
+they are hidden only once a load ended with no categories.
 
 On live sections the category panel can be folded away independently of the
 channels list; the folded panel is reachable as a popover from the channels
@@ -390,15 +497,32 @@ The Electron window hides the native title bar on all desktop platforms
 (`titleBarStyle: 'hidden'` in `apps/electron-backend/src/app/app.ts`):
 
 1. macOS keeps the native traffic lights (`titleBarOverlay: true`,
-   `trafficLightPosition`); the renderer draws no window buttons. The lights
-   sit in the 56 px header band above the rail, so the macOS rail
-   (`.app-rail.is-macos`) starts its first link at 56 px: level with the
-   content area and the dashboard hero, with its hover surface clear of the
-   lights. App zoom scales CSS pixels but not the lights, so the rail
-   publishes the page zoom factor (`outerWidth / innerWidth`, refreshed on
-   `resize`) as `--rail-zoom-factor` and keeps at least 48 window pixels when
-   zoomed out. `window-controls.e2e.ts` checks the alignment and the gap at
-   default and minimum zoom on macOS.
+   `trafficLightPosition` from `MACOS_TRAFFIC_LIGHTS_POSITION` in
+   `@iptvnator/shared/interfaces`); the renderer draws no window buttons.
+   The lights sit in the header band (`--workspace-header-band`, 56 px) over
+   the rail and the header's leading padding. The macOS rail
+   (`.app-rail.is-macos`) starts its first link below the band: level with
+   the content area and the dashboard hero, with its hover surface clear of
+   the lights. The header's content starts 84 window pixels from the
+   window's left edge (60 px rail plus 24 px padding). macOS 26 ends the
+   lights at 76 (earlier releases at 68), which is where Back's left edge
+   sits at 100 % because of its 8 px pull-in.
+
+   App zoom (see "Zoom level") scales CSS pixels but not the lights. On
+   macOS, `TrafficLightsClearanceDirective` on `.workspace-shell` reads the
+   page zoom factor (`outerWidth / innerWidth`, refreshed on `resize`) and
+   publishes the clearance in CSS pixels as `--traffic-lights-clear-x` (84
+   window pixels) and `--traffic-lights-clear-y` (48: the lights' bottom
+   plus a gap). Zoomed out, the band grows to the vertical clearance, so the
+   lights never overlap the content area. The header's leading padding grows
+   to the horizontal clearance, less the rail column
+   (`--workspace-header-lights-inset`). At 100 % both match the default
+   layout. Off macOS nothing is published and the defaults apply. The phone
+   layout, which puts the rail in a row above the header, ignores the
+   inset. `window-controls.e2e.ts` ("macOS traffic lights") checks the rail
+   alignment, the first header control (the switcher on the first page,
+   which has no history fallback yet, then a detail page's Back) and the
+   content top at default and minimum zoom.
 2. Windows and Linux use renderer-drawn window controls
    (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
    `frame` is intentionally left untouched so native resize borders and
@@ -510,15 +634,24 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
 3. `fullscreen` is the `BrowserWindow` constructor option: on Windows/Linux
    the window is created hidden and enters fullscreen before its first
    paint. macOS ignores the option while the window is hidden (an NSWindow
-   only toggles fullscreen once it is on screen), so `ready-to-show` repeats
+   only toggles fullscreen once it is on screen), so the first show repeats
    the request with `setFullScreen(true)` right after `show()` wherever
    `isFullScreen()` is still false — never unconditionally, or the
    platforms that honoured the option would animate a second toggle. The
    saved bounds stay spread into the options — they are the normal bounds
    the window returns to, and the close handler keeps persisting
-   `getNormalBounds()`. `maximized` calls `maximize()` inside
-   `ready-to-show` right before `show()`, never earlier: `maximize()` on a
-   hidden window shows it, and a blank window would flash.
+   `getNormalBounds()`. `maximized` calls `maximize()` right before the
+   first `show()`, never earlier: `maximize()` on a hidden window shows it,
+   and a blank window would flash. That first show happens at
+   `ready-to-show` or the main frame's `did-finish-load`, whichever comes
+   first (`services/main-window-first-show.ts`): on Linux a hidden window
+   whose startup scripts ran before its first frame gets the next one about
+   a second later, so `ready-to-show` alone left the window off screen and
+   the splash's animation frame waiting. At `did-finish-load` the inline
+   splash is parsed, and the window's `backgroundColor` is the splash colour
+   (`MAIN_WINDOW_BACKGROUND_COLOR`, keep it in sync with `#initial-splash`
+   in `apps/web/src/index.html`), so showing before the first paint does
+   not flash.
 4. `iptvnator --fullscreen` (read via `app.commandLine.hasSwitch`, so it can
    sit anywhere in argv; the playlist-path extractor already skips every
    `-`-prefixed argument) forces `fullscreen` for that launch only and is

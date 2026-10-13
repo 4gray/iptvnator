@@ -47,6 +47,7 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
     TmdbEnrichmentService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { VOD_DETAILS_MENU_ACTION } from './vod-details-presentation';
 import { createVodDetailsHeroState } from './vod-details-hero.state';
@@ -82,7 +83,7 @@ import { createVodSimilarInPortals } from './vod-similar-in-portals.state';
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
     styleUrls: ['../styles/detail-view.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CastCrewRowComponent,
         DetailActionButtonComponent,
@@ -204,6 +205,7 @@ export class VodDetailsComponent {
     private readonly router = inject(Router);
     private readonly settingsStore = inject(SettingsStore);
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = injectTranslationTick();
     private readonly trailerDialog = inject(TrailerDialogService);
 
     // ============ Computed State ============
@@ -296,6 +298,7 @@ export class VodDetailsComponent {
         similarInPortals: this.similarInPortals,
         configuredPlayer: this.settingsStore.player,
         translate: this.translate,
+        language: this.languageTick,
     });
 
     runMenuAction(actionId: string): void {

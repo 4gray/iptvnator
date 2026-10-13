@@ -652,25 +652,17 @@ export class RecentPlaylistsComponent {
     private translatePlaylistRefreshPhase(phase?: string): string {
         switch (phase) {
             case 'fetching':
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.REFRESH_FETCHING',
-                    'Fetching playlist...'
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REFRESH_FETCHING'
                 );
             case 'reading-file':
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.REFRESH_READING_FILE',
-                    'Reading playlist file...'
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REFRESH_READING_FILE'
                 );
             case 'parsing':
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.REFRESH_PARSING',
-                    'Parsing playlist...'
-                );
+                return this.translate.instant('HOME.PLAYLISTS.REFRESH_PARSING');
             case 'saving':
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.REFRESH_SAVING',
-                    'Saving playlist...'
-                );
+                return this.translate.instant('HOME.PLAYLISTS.REFRESH_SAVING');
             default:
                 return this.translate.instant('HOME.PLAYLISTS.REFRESH');
         }
@@ -686,25 +678,18 @@ export class RecentPlaylistsComponent {
             );
 
             if (/(ENOENT|no such file or directory|not found)/i.test(message)) {
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND',
-                    'Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.'
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND'
                 );
             }
 
             if (/(EACCES|EPERM|permission denied)/i.test(message)) {
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR',
-                    'Playlist refresh failed. The app can no longer access the local file.'
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR'
                 );
             }
         }
 
         return this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR');
-    }
-
-    private translateWithFallback(key: string, fallback: string): string {
-        const translated = this.translate.instant(key);
-        return translated === key ? fallback : translated;
     }
 }

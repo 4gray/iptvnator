@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures';
-import { pressTab, waitForScrollIdle } from './e2e-helpers';
+import { pressTab, waitForScrollIdle, setSwitch } from './e2e-helpers';
 
 /**
  * The M3U movie-recognition workflow end to end: a playlist entry whose URL
@@ -100,12 +100,15 @@ async function selectPlayer(
 
 async function enableTmdb(page: Page): Promise<void> {
     await page.goto('/workspace/settings/tmdb');
-    await page.locator('[data-test-id="tmdb-enabled"] input').check();
+    await setSwitch(
+        page.locator('[data-test-id="tmdb-enabled"] [role="switch"]'),
+        true
+    );
     await page.locator('[data-test-id="tmdb-api-key"]').fill('e2e-key');
     // The M3U recognition toggle only appears once TMDB itself is on, and it
     // ships enabled — assert rather than click, so a changed default fails.
     await expect(
-        page.locator('[data-test-id="tmdb-m3u-vod-details"] input')
+        page.locator('[data-test-id="tmdb-m3u-vod-details"] [role="switch"]')
     ).toBeChecked();
     await saveSettings(page);
 }
@@ -222,9 +225,10 @@ async function configureMetadata(
     if (mode === 'disabled') return;
     await enableTmdb(page);
     if (mode === 'details-disabled') {
-        await page
-            .locator('[data-test-id="tmdb-m3u-vod-details"] input')
-            .uncheck();
+        await setSwitch(
+            page.locator('[data-test-id="tmdb-m3u-vod-details"] [role="switch"]'),
+            false
+        );
         await saveSettings(page);
     }
 }

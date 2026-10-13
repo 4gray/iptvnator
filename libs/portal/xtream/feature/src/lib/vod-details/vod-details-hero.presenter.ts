@@ -5,6 +5,7 @@ import {
     formatRemainingLabel,
     parseDurationSeconds,
     playbackProgressPercent,
+    type ExternalPlaybackButtonLabel,
     shortCountryList,
     shortCountryName,
     type RemainingTimeLabel,
@@ -18,7 +19,7 @@ import {
     type TmdbGenreFacet,
     type XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
 import type { CrossPortalSimilarItem } from '@iptvnator/services';
 import {
     castMembersFromNames,
@@ -51,7 +52,7 @@ interface VodDetailsHeroBindings {
     readonly position: Signal<PlaybackPositionData | null>;
     readonly hasPlaybackPosition: Signal<boolean>;
     readonly isOfflinePrimary: Signal<boolean>;
-    readonly externalLabel: Signal<string | null>;
+    readonly externalLabel: Signal<ExternalPlaybackButtonLabel | null>;
     readonly externalIcon: Signal<string>;
     readonly externalState: Signal<DetailActionButtonState>;
     readonly formatPosition: () => string;
@@ -69,6 +70,11 @@ interface VodDetailsHeroBindings {
 @Injectable()
 export class VodDetailsHeroPresenter {
     private readonly translate = inject(TranslateService);
+    /**
+     * Read by every computed that words a label, so a UI language switch
+     * (or translations landing after the first render) re-words the hero.
+     */
+    private readonly languageTick = injectTranslationTick();
     private readonly xtreamStore = inject(XtreamStore);
     private readonly settingsStore = inject(SettingsStore);
     private readonly trailerDialog = inject(TrailerDialogService);
@@ -81,6 +87,7 @@ export class VodDetailsHeroPresenter {
     private readonly info = computed(() => this.bindings()?.info() ?? null);
 
     readonly kindLabel = computed(() => {
+        this.languageTick();
         const kind = this.translate.instant('WORKSPACE.DASHBOARD.TYPE_MOVIE');
         const source = this.xtreamStore.currentPlaylist()?.name?.trim();
         return source ? `${kind} · ${source}` : kind;
@@ -91,9 +98,10 @@ export class VodDetailsHeroPresenter {
         return info?.duration_secs || parseDurationSeconds(info?.duration);
     });
 
-    readonly durationLabel = computed(() =>
-        this.label(formatDurationLabel(this.durationSeconds()))
-    );
+    readonly durationLabel = computed(() => {
+        this.languageTick();
+        return this.label(formatDurationLabel(this.durationSeconds()));
+    });
 
     /** One chip per TMDB genre facet, else the provider's list split up. */
     readonly genreChips = computed<VodHeroGenreChip[]>(() => {
@@ -133,6 +141,7 @@ export class VodDetailsHeroPresenter {
     });
 
     readonly primaryAction = computed<VodHeroPrimaryAction>(() => {
+        this.languageTick();
         const bindings = this.bindings();
         const state = bindings?.externalState() ?? 'idle';
         const icon = bindings?.isOfflinePrimary()
@@ -140,7 +149,15 @@ export class VodDetailsHeroPresenter {
             : (bindings?.externalIcon() ?? 'play_arrow');
         const externalLabel = bindings?.externalLabel();
         if (externalLabel) {
-            return { label: externalLabel, meta: null, icon, state };
+            return {
+                label: this.translate.instant(
+                    externalLabel.key,
+                    externalLabel.params
+                ),
+                meta: null,
+                icon,
+                state,
+            };
         }
         if (bindings?.isOfflinePrimary()) {
             return {

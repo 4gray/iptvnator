@@ -178,25 +178,62 @@ describe('XtreamEvents session cancellation', () => {
         }
     );
 
-    it.each([500, 502, 503])('preserves rejected Axios HTTP %s in the health-probe error', async (status) => {
-        const error = { message: 'Request failed', response: { status } };
-        axiosMock.mockRejectedValueOnce(error);
-        axiosMock.isAxiosError.mockImplementation((value) => value === error);
-        await expect(registeredHandlers.get('XTREAM_REQUEST')?.(
-            { sender: { id: 7 } },
-            { url: 'https://example.com', params: {}, suppressErrorLog: true,
-              probe: { requestId: 'status', deadlineAt: Date.now() + 5000 } }
-        )).rejects.toThrow(`HTTP Error ${status}`);
-    });
+    it.each([500, 502, 503])(
+        'preserves rejected Axios HTTP %s in the health-probe error',
+        async (status) => {
+            const error = { message: 'Request failed', response: { status } };
+            axiosMock.mockRejectedValueOnce(error);
+            axiosMock.isAxiosError.mockImplementation(
+                (value) => value === error
+            );
+            await expect(
+                registeredHandlers.get('XTREAM_REQUEST')?.(
+                    { sender: { id: 7 } },
+                    {
+                        url: 'https://example.com',
+                        params: {},
+                        suppressErrorLog: true,
+                        probe: {
+                            requestId: 'status',
+                            deadlineAt: Date.now() + 5000,
+                        },
+                    }
+                )
+            ).rejects.toThrow(`HTTP Error ${status}`);
+        }
+    );
 
-    it.each([401, 403])('preserves HTTP %s in the serialized health-probe error', async (status) => {
-        axiosMock.mockResolvedValueOnce({ status, statusText: 'refused', headers: {}, data: '' });
-        await expect(registeredHandlers.get('XTREAM_REQUEST')?.(
-            { sender: { id: 7 } },
-            { url: 'https://example.com', params: {}, suppressErrorLog: true,
-              probe: { requestId: 'status', deadlineAt: Date.now() + 5000 } }
-        )).rejects.toThrow(`HTTP Error ${status}`);
-    });
+    it.each([401, 403])(
+        'resolves a health-probe HTTP %s as a structured failure carrying the status',
+        async (status) => {
+            axiosMock.mockResolvedValueOnce({
+                status,
+                statusText: 'refused',
+                headers: {},
+                data: '',
+            });
+            await expect(
+                registeredHandlers.get('XTREAM_REQUEST')?.(
+                    { sender: { id: 7 } },
+                    {
+                        url: 'https://example.com',
+                        params: {},
+                        suppressErrorLog: true,
+                        probe: {
+                            requestId: 'status',
+                            deadlineAt: Date.now() + 5000,
+                        },
+                    }
+                )
+            ).resolves.toEqual({
+                portalRequestFailure: {
+                    kind: 'http',
+                    status,
+                    statusText: 'refused',
+                },
+            });
+        }
+    );
 
     it('returns the provider HTTP error without enabling fallback', async () => {
         axiosMock.mockResolvedValueOnce({
@@ -338,9 +375,11 @@ describe('XtreamEvents session cancellation', () => {
 
         pendingRequest.reject(cancelError);
 
-        await expect(requestPromise).rejects.toMatchObject({
-            name: 'AbortError',
-            status: 499,
+        // Resolved, not rejected: Electron logs every rejected handler as an
+        // error, and a cancellation is the renderer's own doing. The envelope
+        // is still not an answer — the renderer rethrows it as an AbortError.
+        await expect(requestPromise).resolves.toEqual({
+            portalRequestFailure: { kind: 'cancelled' },
         });
     });
 
@@ -420,13 +459,220 @@ describe('XtreamEvents session cancellation', () => {
         firstRequest.reject(cancelError);
         secondRequest.reject(cancelError);
 
-        await expect(firstPromise).rejects.toMatchObject({
-            name: 'AbortError',
+        await expect(firstPromise).resolves.toEqual({
+            portalRequestFailure: { kind: 'cancelled' },
         });
-        await expect(secondPromise).rejects.toMatchObject({
-            name: 'AbortError',
+        await expect(secondPromise).resolves.toEqual({
+            portalRequestFailure: { kind: 'cancelled' },
         });
     });
+});
+
+describe('XtreamEvents expected outcomes', () => {
+    const TRACE_IPC_ENV = 'IPTVNATOR_TRACE_IPC';
+    const originalTraceIpc = process.env[TRACE_IPC_ENV];
+    let consoleErrorSpy: jest.SpyInstance;
+    let consoleWarnSpy: jest.SpyInstance;
+    let consoleLogSpy: jest.SpyInstance;
+    let requestHandler: (...args: unknown[]) => unknown;
+
+    /** axios' rejection once the request's abort signal fired. */
+    const cancelled = () =>
+        Object.assign(new Error('canceled'), {
+            code: 'ERR_CANCELED',
+            name: 'CanceledError',
+        });
+
+    const request = (overrides: Record<string, unknown> = {}) =>
+        requestHandler(
+            { sender: { id: 7 } },
+            {
+                url: 'http://panel.example.com:8080',
+                params: {
+                    action: 'get_live_streams',
+                    password: 'secret-password',
+                    username: 'secret-user',
+                },
+                ...overrides,
+            }
+        ) as Promise<unknown>;
+
+    const allOutput = () =>
+        JSON.stringify([
+            ...consoleLogSpy.mock.calls,
+            ...consoleWarnSpy.mock.calls,
+            ...consoleErrorSpy.mock.calls,
+        ]);
+
+    beforeEach(async () => {
+        jest.resetModules();
+        delete process.env[PERF_CAPTURE_ENV];
+        delete process.env[TRACE_IPC_ENV];
+        registeredHandlers.clear();
+        axiosMock.mockReset();
+        axiosMock.isAxiosError.mockReset();
+        axiosMock.isAxiosError.mockImplementation(
+            (value: unknown) =>
+                !!value && typeof value === 'object' && 'code' in value
+        );
+        consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+        consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+        await import('./xtream.events');
+        requestHandler = registeredHandlers.get('XTREAM_REQUEST') as (
+            ...args: unknown[]
+        ) => unknown;
+        expect(requestHandler).toBeDefined();
+    });
+
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+        consoleLogSpy.mockRestore();
+        if (originalTraceIpc === undefined) {
+            delete process.env[TRACE_IPC_ENV];
+        } else {
+            process.env[TRACE_IPC_ENV] = originalTraceIpc;
+        }
+    });
+
+    it('resolves a probe whose deadline already passed as cancelled, silently', async () => {
+        // The real probe control aborts the signal before axios is reached.
+        axiosMock.mockImplementation((config: { signal?: AbortSignal }) => {
+            expect(config.signal?.aborted).toBe(true);
+            return Promise.reject(cancelled());
+        });
+
+        const result = await request({
+            probe: { requestId: 'health', deadlineAt: Date.now() - 1 },
+        });
+
+        expect(result).toEqual({ portalRequestFailure: { kind: 'cancelled' } });
+        expect(result).not.toHaveProperty('payload');
+        expect(allOutput()).toBe('[]');
+    });
+
+    it('traces a cancellation only under the IPC trace flag, without credentials', async () => {
+        process.env[TRACE_IPC_ENV] = '1';
+        axiosMock.mockRejectedValue(cancelled());
+
+        await request({ sessionId: 'session-9' });
+
+        expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+        const line = String(consoleLogSpy.mock.calls[0][0]);
+        expect(line).toContain('[XTREAM_REQUEST] cancelled');
+        expect(line).toContain('panel.example.com:8080');
+        expect(line).not.toContain('secret-');
+        expect(line).not.toContain('?');
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [401, 'Unauthorized'],
+        [403, 'Forbidden'],
+    ])(
+        'resolves HTTP %s as a structured failure with one credential-free warning',
+        async (status, statusText) => {
+            axiosMock.mockResolvedValue({
+                status,
+                statusText,
+                data: '',
+                headers: {},
+            });
+
+            await expect(request()).resolves.toEqual({
+                portalRequestFailure: { kind: 'http', status, statusText },
+            });
+
+            expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
+            expect(consoleWarnSpy.mock.calls[0][0]).toBe(
+                '[XTREAM_REQUEST] Refused'
+            );
+            expect(consoleWarnSpy.mock.calls[0][1]).toMatchObject({
+                action: 'get_live_streams',
+                host: 'panel.example.com:8080',
+                pathname: '/player_api.php',
+                status,
+            });
+            const output = allOutput();
+            expect(output).not.toContain('secret-');
+            expect(output).not.toContain('player_api.php?');
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
+        }
+    );
+
+    it('honours suppressErrorLog for the refusal warning too', async () => {
+        axiosMock.mockResolvedValue({
+            status: 401,
+            statusText: 'Unauthorized',
+            data: '',
+            headers: {},
+        });
+
+        await expect(request({ suppressErrorLog: true })).resolves.toEqual({
+            portalRequestFailure: {
+                kind: 'http',
+                status: 401,
+                statusText: 'Unauthorized',
+            },
+        });
+        expect(allOutput()).toBe('[]');
+    });
+
+    it('still rejects a 404 with its status and logs it as an error', async () => {
+        axiosMock.mockResolvedValue({
+            status: 404,
+            statusText: 'Not Found',
+            data: '',
+            headers: {},
+        });
+
+        await expect(request()).rejects.toMatchObject({ status: 404 });
+        expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+        expect(consoleErrorSpy.mock.calls[0][0]).toBe(
+            '[XTREAM_REQUEST] Failed'
+        );
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [
+            'a 5xx',
+            Object.assign(new Error('Request failed with status code 502'), {
+                code: 'ERR_BAD_RESPONSE',
+                response: { status: 502, statusText: 'Bad Gateway', data: {} },
+            }),
+            { status: 502 },
+        ],
+        [
+            'a connection failure',
+            Object.assign(new Error('connect ECONNREFUSED 10.0.0.1:8080'), {
+                code: 'ECONNREFUSED',
+            }),
+            { message: 'connect ECONNREFUSED 10.0.0.1:8080' },
+        ],
+        [
+            'a timeout',
+            Object.assign(new Error('timeout of 30000ms exceeded'), {
+                code: 'ECONNABORTED',
+            }),
+            { message: 'timeout of 30000ms exceeded' },
+        ],
+    ])(
+        'still rejects %s and logs it as an error',
+        async (_label, error, shape) => {
+            axiosMock.mockRejectedValue(error);
+
+            await expect(request()).rejects.toMatchObject(shape);
+            expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+            expect(consoleErrorSpy.mock.calls[0][0]).toBe(
+                '[XTREAM_REQUEST] Failed'
+            );
+            expect(consoleWarnSpy).not.toHaveBeenCalled();
+        }
+    );
 });
 
 describe('XtreamEvents host connectivity guard', () => {
@@ -709,9 +955,12 @@ describe('XtreamEvents host connectivity guard', () => {
         });
         axiosMock.mockRejectedValue(cancelled);
 
-        await expect(request()).rejects.toMatchObject({ status: 499 });
-        await expect(request()).rejects.toMatchObject({ status: 499 });
-        await expect(request()).rejects.toMatchObject({ status: 499 });
+        const cancelledEnvelope = {
+            portalRequestFailure: { kind: 'cancelled' },
+        };
+        await expect(request()).resolves.toEqual(cancelledEnvelope);
+        await expect(request()).resolves.toEqual(cancelledEnvelope);
+        await expect(request()).resolves.toEqual(cancelledEnvelope);
 
         expect(axiosMock).toHaveBeenCalledTimes(3);
     });

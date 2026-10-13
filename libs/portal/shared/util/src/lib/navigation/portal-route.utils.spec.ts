@@ -17,56 +17,14 @@ import { BehaviorSubject } from 'rxjs';
 import {
     extractPortalPlaylistId,
     extractPortalSection,
-    isWorkspaceLayoutRoute,
     queryParamSignal,
     routeParamSignal,
     resolveCurrentPortalPlaylistId,
     resolveCurrentPortalSection,
+    workspacePortalCommands,
 } from './portal-route.utils';
 
 describe('portal-route.utils', () => {
-    it('detects workspace layout from route data', () => {
-        const route = {
-            snapshot: {
-                data: {
-                    layout: 'workspace',
-                },
-            },
-        } as unknown as ActivatedRoute;
-
-        expect(isWorkspaceLayoutRoute(route)).toBe(true);
-    });
-
-    it('detects workspace layout from ancestor route data', () => {
-        const parentRoute = {
-            snapshot: {
-                data: {
-                    layout: 'workspace',
-                },
-            },
-        } as unknown as ActivatedRoute;
-        const childRoute = {
-            snapshot: {
-                data: {},
-            },
-            pathFromRoot: [
-                {
-                    snapshot: {
-                        data: {},
-                    },
-                },
-                parentRoute,
-                {
-                    snapshot: {
-                        data: {},
-                    },
-                },
-            ],
-        } as unknown as ActivatedRoute;
-
-        expect(isWorkspaceLayoutRoute(childRoute)).toBe(true);
-    });
-
     it('extracts Xtream sections from workspace and local URLs', () => {
         expect(extractPortalSection('/xtreams/123/search', 'xtreams')).toBe(
             'search'
@@ -187,6 +145,41 @@ describe('portal-route.utils', () => {
                 'stalker'
             )
         ).toBe('playlist-2');
+    });
+
+    it('builds commands for the portal a nested route belongs to', () => {
+        const actorRoute = {
+            pathFromRoot: [
+                { snapshot: { params: {}, paramMap: convertToParamMap({}) } },
+                {
+                    snapshot: {
+                        params: { id: 'playlist-1' },
+                        paramMap: convertToParamMap({ id: 'playlist-1' }),
+                    },
+                },
+                {
+                    snapshot: {
+                        params: { personId: '287' },
+                        paramMap: convertToParamMap({ personId: '287' }),
+                    },
+                },
+            ],
+        } as unknown as ActivatedRoute;
+        const outsidePortal = {
+            pathFromRoot: [
+                { snapshot: { params: {}, paramMap: convertToParamMap({}) } },
+            ],
+        } as unknown as ActivatedRoute;
+
+        expect(workspacePortalCommands(actorRoute, 'xtreams')).toEqual([
+            '/workspace',
+            'xtreams',
+            'playlist-1',
+        ]);
+        expect(
+            workspacePortalCommands(actorRoute, 'stalker', 'series')
+        ).toEqual(['/workspace', 'stalker', 'playlist-1', 'series']);
+        expect(workspacePortalCommands(outsidePortal, 'xtreams')).toBeNull();
     });
 
     it('creates normalized query-param signals', () => {

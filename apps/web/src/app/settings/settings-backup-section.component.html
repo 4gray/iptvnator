@@ -1,73 +1,173 @@
 <section class="settings-group" id="backup">
     <header class="settings-group__header">
-        <div class="settings-group__header-icon">
-            <mat-icon>backup</mat-icon>
-        </div>
-        <div class="settings-group__header-text">
-            <h3>{{ 'SETTINGS.BACKUP' | translate }}</h3>
-            <p>{{ 'SETTINGS.BACKUP_DESCRIPTION' | translate }}</p>
-        </div>
+        <h2>{{ 'SETTINGS.NAV_BACKUP' | translate }}</h2>
+        <p>{{ 'SETTINGS.BACKUP_DESCRIPTION' | translate }}</p>
     </header>
 
-    <div class="setting-item" data-setting-id="import-export-data">
-        <div class="setting-item__meta">
-            <h4>{{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}</h4>
-            <p>
-                {{ 'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION' | translate }}
-            </p>
+    <section class="settings-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.BACKUP' | translate }}</h3>
         </div>
-        <div class="setting-item__control inline-actions">
-            <button
-                mat-button
-                class="inline-actions__button"
-                [disabled]="isRemovingAllPlaylists() || isExportingData()"
-                (click)="
-                    $event.preventDefault();
-                    $event.stopPropagation();
-                    importData.emit()
-                "
-            >
-                {{ 'SETTINGS.IMPORT_DATA' | translate }}
-            </button>
-            <button
-                mat-button
-                class="inline-actions__button"
-                [class.inline-actions__button--busy]="isExportingData()"
-                [disabled]="isRemovingAllPlaylists() || isExportingData()"
-                [attr.aria-busy]="isExportingData()"
-                (click)="
-                    $event.preventDefault();
-                    $event.stopPropagation();
-                    exportData.emit()
-                "
-            >
-                @if (isExportingData()) {
-                    <mat-progress-spinner
-                        class="button-spinner"
-                        diameter="16"
-                        mode="indeterminate"
-                    />
-                    <span class="inline-actions__label">{{
-                        'SETTINGS.EXPORTING_DATA' | translate
-                    }}</span>
-                } @else {
-                    <span class="inline-actions__label">{{
-                        'SETTINGS.EXPORT_DATA' | translate
-                    }}</span>
-                }
-            </button>
-        </div>
-    </div>
+        <div class="settings-card">
+            <div class="setting-item" data-setting-id="import-export-data">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}</h4>
+                    <p>
+                        {{ 'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control inline-actions">
+                    <button
+                        mat-stroked-button
+                        class="inline-actions__button"
+                        [disabled]="isRemovingAllPlaylists() || isExportingData()"
+                        (click)="
+                            $event.preventDefault();
+                            $event.stopPropagation();
+                            importData.emit()
+                        "
+                    >
+                        {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                    </button>
+                    <button
+                        mat-stroked-button
+                        class="inline-actions__button"
+                        [class.inline-actions__button--busy]="isExportingData()"
+                        [disabled]="isRemovingAllPlaylists() || isExportingData()"
+                        [attr.aria-busy]="isExportingData()"
+                        (click)="
+                            $event.preventDefault();
+                            $event.stopPropagation();
+                            exportData.emit()
+                        "
+                    >
+                        @if (isExportingData()) {
+                            <mat-progress-spinner
+                                class="button-spinner"
+                                diameter="16"
+                                mode="indeterminate"
+                            />
+                            <span class="inline-actions__label">{{
+                                'SETTINGS.EXPORTING_DATA' | translate
+                            }}</span>
+                        } @else {
+                            <span class="inline-actions__label">{{
+                                'SETTINGS.EXPORT_DATA' | translate
+                            }}</span>
+                        }
+                    </button>
+                </div>
+            </div>
 
-    @if (isPwa()) {
-        <div class="settings-note">
-            {{ 'SETTINGS.EPG_NOTE' | translate }}
-            &nbsp;<a
-                href="https://github.com/4gray/iptvnator/releases"
-                target="_blank"
-                rel="noreferrer"
-                >{{ 'SETTINGS.EPG_NOTE_URL_TEXT' | translate }}</a
-            >
+            @if (isPwa()) {
+                <div class="setting-item__sub">
+                    <div class="settings-callout settings-callout--info">
+                        <mat-icon>info</mat-icon>
+                        <div>
+                            {{ 'SETTINGS.EPG_NOTE' | translate }}
+                            <a
+                                href="https://github.com/4gray/iptvnator/releases"
+                                target="_blank"
+                                rel="noreferrer"
+                                >{{ 'SETTINGS.EPG_NOTE_URL_TEXT' | translate }}</a
+                            >
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
-    }
+    </section>
+
+    <!-- The former Reset page: one destructive action, so it is this
+         page's last card rather than a page of its own. -->
+    <section class="settings-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.RESET' | translate }}</h3>
+        </div>
+        <p class="settings-section__desc">
+            {{ 'SETTINGS.RESET_DESCRIPTION' | translate }}
+        </p>
+        <div class="settings-card settings-card--danger">
+            <div
+                class="setting-item danger-zone"
+                data-setting-id="remove-all-playlists"
+            >
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.REMOVE_ALL' | translate }}</h4>
+                    <p>{{ 'SETTINGS.REMOVE_ALL_DESCRIPTION' | translate }}</p>
+                    <div class="danger-zone__summary" aria-live="polite">
+                        <span class="danger-zone__summary-pill">
+                            <mat-icon class="danger-zone__summary-icon">{{
+                                sourceIcons.m3u
+                            }}</mat-icon>
+                            <span class="danger-zone__summary-label">{{
+                                'HOME.PLAYLIST_TYPES.M3U' | translate
+                            }}</span>
+                            <span class="danger-zone__summary-count">{{
+                                playlistDeleteSummary().m3u
+                            }}</span>
+                        </span>
+                        <span class="danger-zone__summary-pill">
+                            <mat-icon class="danger-zone__summary-icon">{{
+                                sourceIcons.xtream
+                            }}</mat-icon>
+                            <span class="danger-zone__summary-label">{{
+                                'HOME.PLAYLIST_TYPES.XTREAM' | translate
+                            }}</span>
+                            <span class="danger-zone__summary-count">{{
+                                playlistDeleteSummary().xtream
+                            }}</span>
+                        </span>
+                        <span class="danger-zone__summary-pill">
+                            <mat-icon class="danger-zone__summary-icon">{{
+                                sourceIcons.stalker
+                            }}</mat-icon>
+                            <span class="danger-zone__summary-label">{{
+                                'HOME.PLAYLIST_TYPES.STALKER' | translate
+                            }}</span>
+                            <span class="danger-zone__summary-count">{{
+                                playlistDeleteSummary().stalker
+                            }}</span>
+                        </span>
+                    </div>
+                    @if (removeAllProgressLabel(); as progressLabel) {
+                        <p class="danger-zone__progress">
+                            {{ progressLabel }}
+                        </p>
+                    }
+                </div>
+                <div class="setting-item__control">
+                    <button
+                        mat-stroked-button
+                        class="danger-zone__button app-destructive-button"
+                        [class.danger-zone__button--busy]="
+                            isRemovingAllPlaylists()
+                        "
+                        [disabled]="!canRemoveAllPlaylists()"
+                        [attr.aria-busy]="isRemovingAllPlaylists()"
+                        (click)="
+                            $event.preventDefault();
+                            $event.stopPropagation();
+                            removeAll.emit()
+                        "
+                    >
+                        @if (isRemovingAllPlaylists()) {
+                            <mat-progress-spinner
+                                class="button-spinner"
+                                diameter="16"
+                                mode="indeterminate"
+                            />
+                            <span class="inline-actions__label">{{
+                                'SETTINGS.REMOVE_ALL_IN_PROGRESS' | translate
+                            }}</span>
+                        } @else {
+                            <span class="inline-actions__label">{{
+                                'SETTINGS.REMOVE_ALL_BUTTON' | translate
+                            }}</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
 </section>

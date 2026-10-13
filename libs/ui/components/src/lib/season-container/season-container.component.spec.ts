@@ -267,10 +267,10 @@ describe('SeasonContainerComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector(
-                '.loading-container mat-spinner'
-            )
-        ).not.toBeNull();
+            fixture.nativeElement.querySelectorAll(
+                '[data-testid="episode-skeleton"]'
+            ).length
+        ).toBeGreaterThan(0);
         expect(
             fixture.nativeElement.querySelector('.empty-state-panel')
         ).toBeNull();
@@ -286,7 +286,7 @@ describe('SeasonContainerComponent', () => {
         expect(component.selectedSeason()).toBe('1');
         expect(emittedSeasons).toEqual(['1']);
         expect(
-            fixture.nativeElement.querySelectorAll('.episode-card').length
+            fixture.nativeElement.querySelectorAll('.episode-item').length
         ).toBe(1);
         expect(
             fixture.nativeElement.querySelectorAll('.season-tabs__pill').length
@@ -301,7 +301,7 @@ describe('SeasonContainerComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelectorAll('.episode-card').length
+            fixture.nativeElement.querySelectorAll('.episode-item').length
         ).toBe(1);
         expect(
             fixture.nativeElement.querySelectorAll(
@@ -414,9 +414,9 @@ describe('SeasonContainerComponent', () => {
         expect(emittedSeasons).toEqual(['1', '2']);
     });
 
-    it('uses a dropdown selector when there are more than six seasons', () => {
+    it('uses a dropdown selector from five seasons on', () => {
         const seasons: Record<string, XtreamSerieEpisode[]> = {};
-        for (let index = 1; index <= 7; index++) {
+        for (let index = 1; index <= 5; index++) {
             seasons[String(index)] = [
                 createEpisode({ id: String(100 + index), season: index }),
             ];
@@ -460,14 +460,16 @@ describe('SeasonContainerComponent', () => {
         ).not.toBeNull();
     });
 
-    it('marks the inline-playing episode card', () => {
+    it('marks the inline-playing episode as playing and current', () => {
         fixture.componentRef.setInput('playingEpisodeId', 101);
         setRequiredInputs({ '1': [createEpisode()] });
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector('.episode-card--playing')
-        ).not.toBeNull();
+        const item = fixture.nativeElement.querySelector(
+            '.episode-item'
+        ) as HTMLElement;
+        expect(item.classList).toContain('episode-item--playing');
+        expect(item.classList).toContain('episode-item--current');
     });
 
     it('opens the episode info dialog and plays on the dialog play action', () => {
@@ -479,7 +481,13 @@ describe('SeasonContainerComponent', () => {
         component.episodeClicked.subscribe((episode) => played.push(episode));
         fixture.detectChanges();
 
-        const infoButton = fixture.nativeElement.querySelector(
+        (
+            fixture.nativeElement.querySelector(
+                '[data-testid="episode-more-button"]'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+        const infoButton = document.querySelector(
             '[data-testid="episode-info-button"]'
         ) as HTMLButtonElement;
         expect(infoButton).toBeTruthy();
@@ -492,47 +500,43 @@ describe('SeasonContainerComponent', () => {
         expect(played.length).toBe(1);
     });
 
-    it('hides the episode info button when the episode has no plot', () => {
-        setRequiredInputs({
-            '1': [createEpisode({ info: { duration: '45 min' } as never })],
-        });
-        fixture.detectChanges();
-
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-testid="episode-info-button"]'
-            )
-        ).toBeNull();
-    });
-
-    it('shows list thumbnails only for distinct episode images', () => {
+    it('dims the thumbnails unless the episodes have distinct stills', () => {
         const withImages = (a: string, b: string) => ({
             '1': [
-                createEpisode({ info: { movie_image: a } as never }),
+                createEpisode({
+                    info: { movie_image: a, plot: 'One.' } as never,
+                }),
                 createEpisode({
                     id: '102',
                     episode_num: 2,
-                    info: { movie_image: b } as never,
+                    info: { movie_image: b, plot: 'Two.' } as never,
                 }),
             ],
         });
         const query = (selector: string) =>
             fixture.nativeElement.querySelectorAll(selector).length;
 
-        // Distinct stills → thumbnails replace the number square
+        // Distinct stills → bright thumbnails beside the number column
         setRequiredInputs(withImages('still-1.jpg', 'still-2.jpg'));
-        component.setViewMode('list');
         fixture.detectChanges();
-        expect(component.listThumbnailsEnabled()).toBe(true);
-        expect(query('.episode-list-item__thumb')).toBe(2);
-        expect(query('.episode-list-item__number')).toBe(0);
+        expect(component.distinctStills()).toBe(true);
+        expect(query('.episode-item__thumb')).toBe(2);
+        expect(query('.episode-item__thumb--fallback')).toBe(0);
+        expect(query('.episode-item__number')).toBe(2);
 
-        // Same poster on every episode → number squares stay
+        // One episode's own still, the other without any → the lone still
+        // is kept; only a repeated image counts as none
+        setRequiredInputs(withImages('still-1.jpg', ''));
+        fixture.detectChanges();
+        expect(component.distinctStills()).toBe(true);
+        expect(query('.episode-item__thumb--fallback')).toBe(1);
+
+        // Same poster on every episode → dimmed fallback tiles (the plots
+        // keep the rows full; without them the season would render bare)
         setRequiredInputs(withImages('poster.jpg', 'poster.jpg'));
         fixture.detectChanges();
-        expect(component.listThumbnailsEnabled()).toBe(false);
-        expect(query('.episode-list-item__thumb')).toBe(0);
-        expect(query('.episode-list-item__number')).toBe(2);
+        expect(component.distinctStills()).toBe(false);
+        expect(query('.episode-item__thumb--fallback')).toBe(2);
     });
 
     it('renders the season description for the selected season', () => {

@@ -17,6 +17,7 @@ import {
     ResolvedPortalPlayback,
     watchEmbeddedMpvSupport,
 } from '@iptvnator/shared/interfaces';
+import { TranslateService } from '@ngx-translate/core';
 import { EmbeddedMpvCommandRunner } from './embedded-mpv-command-runner';
 import { measureBounds } from './embedded-mpv-format.utils';
 import {
@@ -80,6 +81,7 @@ export class EmbeddedMpvSessionController {
 
     private readonly destroyRef = inject(DestroyRef);
     private readonly zone = inject(NgZone);
+    private readonly translate = inject(TranslateService);
     private readonly unsubscribeSessionUpdate?: () => void;
 
     private boundsProvider: EmbeddedMpvBoundsProvider = (host) =>
@@ -100,10 +102,10 @@ export class EmbeddedMpvSessionController {
         if (typeof window.electron?.getEmbeddedMpvSupport === 'function') {
             stopSupportWatch = this.watchSupport();
         } else {
+            // No reason: the player shows its translated "not available".
             this.support.set({
                 supported: false,
                 platform: typeof window === 'undefined' ? 'web' : 'unknown',
-                reason: 'Embedded MPV requires the Electron desktop build.',
             });
         }
 
@@ -247,9 +249,7 @@ export class EmbeddedMpvSessionController {
 
             const electron = this.getElectronBridge();
             if (!electron) {
-                throw new Error(
-                    'Embedded MPV requires the Electron desktop build.'
-                );
+                throw new Error(this.notAvailableMessage());
             }
 
             const prepared = await electron.prepareEmbeddedMpv?.();
@@ -257,10 +257,7 @@ export class EmbeddedMpvSessionController {
                 return;
             }
             if (prepared && !prepared.supported) {
-                throw new Error(
-                    prepared.reason ??
-                        'Embedded MPV is not available in this environment.'
-                );
+                throw new Error(prepared.reason || this.notAvailableMessage());
             }
 
             const created = await electron.createEmbeddedMpvSession(
@@ -298,7 +295,9 @@ export class EmbeddedMpvSessionController {
                         .disposeEmbeddedMpvSession(created.id)
                         .catch(() => undefined);
                     throw new Error(
-                        'The embedded MPV frame view failed to initialize.'
+                        this.translate.instant(
+                            'EMBEDDED_MPV.PLAYER.FRAME_VIEW_FAILED'
+                        )
                     );
                 }
             }
@@ -394,9 +393,10 @@ export class EmbeddedMpvSessionController {
             () => {
                 const electron = this.getElectronBridge();
                 if (!electron?.getEmbeddedMpvSupport) {
-                    throw new Error(
-                        'Embedded MPV requires the Electron desktop build.'
-                    );
+                    return Promise.resolve({
+                        supported: false,
+                        platform: electron?.platform ?? 'unknown',
+                    });
                 }
                 return electron.getEmbeddedMpvSupport();
             },
@@ -413,5 +413,9 @@ export class EmbeddedMpvSessionController {
 
     private getElectronBridge(): ElectronBridge | undefined {
         return window.electron;
+    }
+
+    private notAvailableMessage(): string {
+        return this.translate.instant('EMBEDDED_MPV.PLAYER.NOT_AVAILABLE');
     }
 }

@@ -9,12 +9,12 @@ import {
 
 export interface XtreamRecentItemRequest {
     readonly xtreamId: number | string;
-    readonly contentType: 'movie' | 'series';
+    readonly contentType: 'live' | 'movie' | 'series';
     readonly backdropUrl?: string;
 }
 
 /**
- * Records a movie or series as recently viewed once `streamUrl` has really
+ * Records Xtream content as recently viewed once `streamUrl` has really
  * played — inline for a couple of seconds, or launched in MPV/VLC — so a
  * source that fails straight away never reaches history or the dashboard
  * hero. The playlist is captured when playback starts, so navigating to
@@ -29,15 +29,16 @@ export interface XtreamRecentItemRequest {
  */
 export function injectXtreamRecentHistory(): (
     streamUrl: string,
-    request: XtreamRecentItemRequest
+    request: XtreamRecentItemRequest,
+    sessionKey?: string
 ) => void {
     const gate = inject(PlaybackHistoryGate);
     const store = inject(XtreamStore);
     const injector = inject(Injector);
 
-    return (streamUrl, request) => {
+    return (streamUrl, request, sessionKey) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
-        gate.defer({ streamUrls: [streamUrl] }, () => {
+        gate.defer({ sessionKey, streamUrls: [streamUrl] }, () => {
             const playlistId = playlist()?.id;
             if (store.currentPlaylist()?.id === playlistId) {
                 store.addRecentItem({ ...request, playlist });
@@ -80,6 +81,10 @@ async function saveWithoutListRefresh(
     );
     const contentId = content?.id ?? (keysByXtreamId ? id : null);
     if (contentId != null) {
-        await dataSource.addRecentItem(contentId, playlistId, backdropUrl);
+        await dataSource.addRecentItem(
+            { id: contentId, type: contentType },
+            playlistId,
+            backdropUrl
+        );
     }
 }

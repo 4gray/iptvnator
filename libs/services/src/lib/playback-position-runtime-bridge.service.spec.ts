@@ -60,6 +60,95 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
         jest.restoreAllMocks();
     });
 
+    describe('strict backup storage', () => {
+        it('checks atomic replacement support without reading or writing storage', () => {
+            expect(() => service.assertSupportsAtomicReplacement()).toThrow(
+                'unavailable'
+            );
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            window.electron = {} as typeof window.electron;
+            expect(() => service.assertSupportsAtomicReplacement()).toThrow(
+                'unavailable'
+            );
+            const replace = jest.fn();
+            const read = jest.fn();
+            window.electron = {
+                dbReplaceAllPlaybackPositions: replace,
+                dbGetAllPlaybackPositions: read,
+            } as unknown as typeof window.electron;
+            expect(() =>
+                service.assertSupportsAtomicReplacement()
+            ).not.toThrow();
+            expect(replace).not.toHaveBeenCalled();
+            expect(read).not.toHaveBeenCalled();
+        });
+
+        it('rejects reads and replacements when storage is unavailable', async () => {
+            await expect(
+                service.getAllPlaybackPositionsOrThrow('playlist-1')
+            ).rejects.toThrow('unavailable');
+            await expect(
+                service.replaceAllPlaybackPositions('playlist-1', [])
+            ).rejects.toThrow('unavailable');
+        });
+
+        it('rejects a missing bridge method instead of exporting or restoring empty data', async () => {
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            window.electron = {} as typeof window.electron;
+            await expect(
+                service.getAllPlaybackPositionsOrThrow('playlist-1')
+            ).rejects.toThrow('unavailable');
+            await expect(
+                service.replaceAllPlaybackPositions('playlist-1', [])
+            ).rejects.toThrow('unavailable');
+        });
+
+        it('propagates read failures and rejects malformed read responses', async () => {
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            const read = jest.fn().mockRejectedValue(new Error('SQLITE_BUSY'));
+            window.electron = {
+                dbGetAllPlaybackPositions: read,
+            } as unknown as typeof window.electron;
+            await expect(
+                service.getAllPlaybackPositionsOrThrow('playlist-1')
+            ).rejects.toThrow('SQLITE_BUSY');
+            read.mockResolvedValue(undefined);
+            await expect(
+                service.getAllPlaybackPositionsOrThrow('playlist-1')
+            ).rejects.toThrow('did not succeed');
+            read.mockResolvedValue([]);
+            await expect(
+                service.getAllPlaybackPositionsOrThrow('playlist-1')
+            ).resolves.toEqual([]);
+        });
+
+        it('requires an acknowledged atomic replacement, including authoritative empty lists', async () => {
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            const replace = jest.fn().mockResolvedValue({ success: false });
+            window.electron = {
+                dbReplaceAllPlaybackPositions: replace,
+            } as unknown as typeof window.electron;
+            await expect(
+                service.replaceAllPlaybackPositions(
+                    'playlist-1',
+                    batchSaveItems
+                )
+            ).rejects.toThrow('did not succeed');
+            replace.mockRejectedValue(new Error('SQLITE_BUSY'));
+            await expect(
+                service.replaceAllPlaybackPositions(
+                    'playlist-1',
+                    batchSaveItems
+                )
+            ).rejects.toThrow('SQLITE_BUSY');
+            replace.mockResolvedValue({ success: true });
+            await expect(
+                service.replaceAllPlaybackPositions('playlist-1', [])
+            ).resolves.toBeUndefined();
+            expect(replace).toHaveBeenLastCalledWith('playlist-1', []);
+        });
+    });
+
     it('does not call Electron playback-position methods when storage support is unavailable', async () => {
         const dbSavePlaybackPosition = jest.fn().mockResolvedValue({
             success: true,
@@ -226,12 +315,9 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
                     dbSavePlaybackPosition: implementation,
                 } as unknown as typeof window.electron;
             },
-            invokeLenient: (
-                target: PlaybackPositionRuntimeBridgeService
-            ) => target.savePlaybackPosition('playlist-1', createPosition()),
-            invokeStrict: (
-                target: PlaybackPositionRuntimeBridgeService
-            ) =>
+            invokeLenient: (target: PlaybackPositionRuntimeBridgeService) =>
+                target.savePlaybackPosition('playlist-1', createPosition()),
+            invokeStrict: (target: PlaybackPositionRuntimeBridgeService) =>
                 target.savePlaybackPositionOrThrow(
                     'playlist-1',
                     createPosition()
@@ -245,22 +331,10 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
                     dbClearPlaybackPosition: implementation,
                 } as unknown as typeof window.electron;
             },
-            invokeLenient: (
-                target: PlaybackPositionRuntimeBridgeService
-            ) =>
-                target.clearPlaybackPosition(
-                    'playlist-1',
-                    100,
-                    'vod'
-                ),
-            invokeStrict: (
-                target: PlaybackPositionRuntimeBridgeService
-            ) =>
-                target.clearPlaybackPositionOrThrow(
-                    'playlist-1',
-                    100,
-                    'vod'
-                ),
+            invokeLenient: (target: PlaybackPositionRuntimeBridgeService) =>
+                target.clearPlaybackPosition('playlist-1', 100, 'vod'),
+            invokeStrict: (target: PlaybackPositionRuntimeBridgeService) =>
+                target.clearPlaybackPositionOrThrow('playlist-1', 100, 'vod'),
         },
     ])('$name persistence', (operation) => {
         it('accepts only an explicit success result', async () => {
@@ -269,7 +343,9 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
                 jest.fn().mockResolvedValue({ success: true })
             );
 
-            await expect(operation.invokeStrict(service)).resolves.toBeUndefined();
+            await expect(
+                operation.invokeStrict(service)
+            ).resolves.toBeUndefined();
         });
 
         it('propagates rejected IPC', async () => {
@@ -293,9 +369,7 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
         );
 
         it('rejects when the storage capability is unavailable', async () => {
-            const bridgeMethod = jest
-                .fn()
-                .mockResolvedValue({ success: true });
+            const bridgeMethod = jest.fn().mockResolvedValue({ success: true });
             operation.installBridge(bridgeMethod);
 
             await expect(operation.invokeStrict(service)).rejects.toThrow(
@@ -352,10 +426,7 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
                 } as unknown as typeof window.electron;
             },
             invoke: (target: PlaybackPositionRuntimeBridgeService) =>
-                target.savePlaybackPositionsBatch(
-                    'playlist-1',
-                    batchSaveItems
-                ),
+                target.savePlaybackPositionsBatch('playlist-1', batchSaveItems),
             invokeEmpty: (target: PlaybackPositionRuntimeBridgeService) =>
                 target.savePlaybackPositionsBatch('playlist-1', []),
         },
@@ -378,9 +449,7 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
         },
     ])('$name persistence', (operation) => {
         it('silently no-ops when the storage capability is unavailable', async () => {
-            const bridgeMethod = jest
-                .fn()
-                .mockResolvedValue({ success: true });
+            const bridgeMethod = jest.fn().mockResolvedValue({ success: true });
             operation.installBridge(bridgeMethod);
 
             await expect(operation.invoke(service)).resolves.toBeUndefined();
@@ -389,9 +458,7 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
 
         it('silently no-ops on an empty item list', async () => {
             runtimeCapabilities.supportsPlaybackPositionStorage = true;
-            const bridgeMethod = jest
-                .fn()
-                .mockResolvedValue({ success: true });
+            const bridgeMethod = jest.fn().mockResolvedValue({ success: true });
             operation.installBridge(bridgeMethod);
 
             await expect(
@@ -402,9 +469,7 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
 
         it('invokes the batch bridge method with the playlist and items', async () => {
             runtimeCapabilities.supportsPlaybackPositionStorage = true;
-            const bridgeMethod = jest
-                .fn()
-                .mockResolvedValue({ success: true });
+            const bridgeMethod = jest.fn().mockResolvedValue({ success: true });
             operation.installBridge(bridgeMethod);
 
             await expect(operation.invoke(service)).resolves.toBeUndefined();

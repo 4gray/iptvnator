@@ -1,5 +1,8 @@
 import { Signal, computed, effect, signal } from '@angular/core';
-import { getPortalPlaybackProgressPercent } from '@iptvnator/portal/shared/util';
+import {
+    getPortalPlaybackProgressPercent,
+    PORTAL_WATCHED_PROGRESS_PERCENT,
+} from '@iptvnator/portal/shared/util';
 import type {
     PlaybackPositionData,
     VodSourceDescriptor,
@@ -60,7 +63,7 @@ export function isResumablePosition(
     position: PlaybackPositionData | null
 ): boolean {
     const progress = getPortalPlaybackProgressPercent(position);
-    return progress > 0 && progress < 90;
+    return progress > 0 && progress < PORTAL_WATCHED_PROGRESS_PERCENT;
 }
 
 export function createPrimaryActionPosition(

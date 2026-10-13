@@ -166,7 +166,7 @@ type DesktopFileSaveBridge = Pick<
         `,
     ],
     providers: [DatePipe],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         ClipboardModule,
         MatButton,
@@ -300,8 +300,20 @@ export class PlaylistInfoComponent {
         ) as UntypedFormArray;
     }
 
-    /** Playlist object */
-    playlist: Playlist & { id: string };
+    /**
+     * Playlist object. Signal-backed because it is replaced after awaited
+     * hydration and EPG source edits, which no template event marks for an
+     * OnPush check.
+     */
+    private readonly playlistState = signal<Playlist & { id: string }>(
+        this.playlistData
+    );
+    get playlist(): Playlist & { id: string } {
+        return this.playlistState();
+    }
+    set playlist(value: Playlist & { id: string }) {
+        this.playlistState.set(value);
+    }
 
     /** Form group with playlist details */
     playlistDetails!: UntypedFormGroup;
@@ -311,7 +323,6 @@ export class PlaylistInfoComponent {
         this.dialogRef?.beforeClosed().subscribe(() => {
             this.dialogClosing = true;
         });
-        this.playlist = this.playlistData;
         this.createForm();
         this.connectionTest = createXtreamConnectionTestState(
             this.playlistDetails
@@ -809,7 +820,9 @@ export class PlaylistInfoComponent {
                     `${this.playlist.title || 'exported'}.m3u8`,
                     [
                         {
-                            name: 'Playlist',
+                            name: this.translate.instant(
+                                'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE'
+                            ),
                             extensions: ['m3u8', 'm3u'],
                         },
                     ]

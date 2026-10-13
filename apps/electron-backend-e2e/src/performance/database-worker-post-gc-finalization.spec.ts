@@ -57,7 +57,7 @@ async function restoreSerializableApi(): Promise<FinalizationApi> {
     const module = await finalizationModulePromise;
     assert.ok(module, 'database worker post-GC finalization module must exist');
     const factory = module.createDatabaseWorkerPostGcFinalizationApi;
-    assert.equal(typeof factory, 'function');
+    assert.ok(typeof factory === 'function');
 
     const source = factory.toString();
     assert.doesNotMatch(source, /__name/);

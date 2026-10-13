@@ -3,64 +3,58 @@
         <button
             class="season-tabs__dropdown"
             data-testid="season-dropdown"
-            [class.season-tabs__dropdown--with-thumb]="selectedPosterUrl()"
             [matMenuTriggerFor]="seasonMenu"
             type="button"
         >
-            @if (selectedPosterUrl(); as posterUrl) {
-                <img
-                    class="season-tabs__thumb"
-                    data-testid="season-dropdown-thumb"
-                    [src]="posterUrl"
-                    alt=""
-                    aria-hidden="true"
-                    loading="lazy"
-                    (error)="onPosterError(posterUrl)"
-                />
-            }
             <span>
                 {{
                     'PORTALS.SEASON_TAB'
                         | translate: { number: selectedSeason() ?? '—' }
                 }}
             </span>
-            <mat-icon>arrow_drop_down</mat-icon>
+            <mat-icon>expand_more</mat-icon>
         </button>
-        <mat-menu #seasonMenu="matMenu">
+        <mat-menu #seasonMenu="matMenu" class="season-tabs-menu">
             @for (seasonKey of seasonKeys(); track seasonKey) {
+                @let episodeCount = episodeCounts()[seasonKey] ?? 0;
+                @let watchedCount = watchedCounts()[seasonKey] ?? 0;
                 <button
                     mat-menu-item
+                    class="season-tabs__menu-item"
+                    data-testid="season-menu-item"
                     [class.season-tabs__menu-item--selected]="
                         seasonKey === selectedSeason()
                     "
                     (click)="selectSeason(seasonKey)"
                 >
-                    <!-- Projected into the item's leading slot so the row
-                         stays a flex line: thumbnail, name, count, check. -->
-                    @if (posterUrlOf(seasonKey); as posterUrl) {
-                        <img
-                            matMenuItemIcon
-                            class="season-tabs__thumb season-tabs__thumb--menu"
-                            data-testid="season-menu-thumb"
-                            [src]="posterUrl"
-                            alt=""
-                            aria-hidden="true"
-                            loading="lazy"
-                            (error)="onPosterError(posterUrl)"
-                        />
-                    }
-                    <span>
-                        {{
-                            'PORTALS.SEASON_TAB'
-                                | translate: { number: seasonKey }
-                        }}
+                    <span class="season-tabs__menu-row">
+                        <span class="season-tabs__menu-name">
+                            {{
+                                'PORTALS.SEASON_TAB'
+                                    | translate: { number: seasonKey }
+                            }}
+                        </span>
+                        @if (isCountKnown(seasonKey)) {
+                            <small
+                                class="season-tabs__menu-count"
+                                data-testid="season-menu-count"
+                            >
+                                {{
+                                    (episodeCount === 1
+                                        ? 'PORTALS.EPISODE_COUNT_ONE'
+                                        : 'PORTALS.EPISODE_COUNT_OTHER'
+                                    ) | translate: { count: episodeCount }
+                                }}
+                                @if (watchedCount) {
+                                    ·
+                                    {{
+                                        'PORTALS.EPISODES_WATCHED_COUNT'
+                                            | translate: { count: watchedCount }
+                                    }}
+                                }
+                            </small>
+                        }
                     </span>
-                    <span class="season-tabs__menu-count">
-                        {{ episodeCounts()[seasonKey] }}
-                    </span>
-                    @if (isSeasonCompleted(seasonKey)) {
-                        <mat-icon class="season-tabs__done">check</mat-icon>
-                    }
                 </button>
             }
         </mat-menu>

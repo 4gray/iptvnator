@@ -414,8 +414,8 @@ describe('PlaylistRefreshActionService', () => {
         await Promise.resolve();
 
         expect(snackBar.open).toHaveBeenCalledWith(
-            'Certificate for this playlist host is invalid.',
-            'Trust host',
+            'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+            'HOME.URL_UPLOAD.TRUST_TLS_HOST',
             { duration: 10000 }
         );
         expect(store.dispatch).toHaveBeenCalledWith(

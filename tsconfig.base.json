@@ -146,6 +146,9 @@
             "@iptvnator/shared/database/schema": [
                 "libs/shared/database/src/lib/schema.ts"
             ],
+            "@iptvnator/shared/database/app-playlist": [
+                "libs/shared/database/src/lib/app-playlist.ts"
+            ],
             "@iptvnator/shared/database/path-utils": [
                 "libs/shared/database/src/lib/path-utils.ts"
             ],

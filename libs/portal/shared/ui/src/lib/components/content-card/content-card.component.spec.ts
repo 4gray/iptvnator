@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { SettingsStore } from '@iptvnator/services';
 import { ContentCardComponent } from './content-card.component';
 
@@ -20,6 +20,8 @@ describe('ContentCardComponent', () => {
                     provide: TranslateService,
                     useValue: {
                         onLangChange: of(),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                         currentLang: 'en',
                         defaultLang: 'en',
                     },

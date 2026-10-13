@@ -11,14 +11,14 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { TranslateService } from '@ngx-translate/core';
+import { injectTranslationTick } from '@iptvnator/services';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import {
     SettingsRevealRequest,
     SettingsSearchEntry,
     SettingsSearchService,
 } from '@iptvnator/workspace/shell/util/settings-search';
-import { map, startWith } from 'rxjs';
+import { map } from 'rxjs';
 
 /** How long a revealed row keeps its highlight. */
 export const SETTINGS_REVEAL_HIGHLIGHT_MS = 2400;
@@ -43,15 +43,11 @@ export class SettingsSearchFacade {
     private readonly route = inject(ActivatedRoute);
     private readonly settingsSearch = inject(SettingsSearchService);
     private readonly settingsCtx = inject(SettingsContextService);
-    private readonly translate = inject(TranslateService);
     private readonly host = inject(ElementRef<HTMLElement>);
     private readonly injector = inject(Injector);
     private highlightTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly query = toSignal(
         this.route.queryParamMap.pipe(

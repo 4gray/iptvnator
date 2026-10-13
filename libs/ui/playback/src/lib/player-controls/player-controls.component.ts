@@ -25,7 +25,7 @@ import { ControlsShortcuts } from './controls-shortcuts';
 import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
 import { ControlsTimeline } from './controls-timeline';
-import { ControlsTimelineHover } from './controls-timeline-hover';
+import { ControlsTimelineLabel } from './controls-timeline-label';
 import { ControlsUpNext } from './controls-up-next';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
@@ -165,12 +165,14 @@ export class PlayerControlsComponent implements OnDestroy {
     private readonly controllerVolume = computed(() => this.state().volume);
     readonly timeline = new ControlsTimeline(this.state, this.timelineSegments);
     readonly scrubPosition = this.timeline.scrubPosition;
-    readonly timelineHover = new ControlsTimelineHover({
+    readonly timelineLabel = new ControlsTimelineLabel({
         duration: this.timeline.duration,
         interactive: computed(
             () => this.capabilities().seek && this.state().canSeek
         ),
         segments: this.timeline.segments,
+        value: this.timeline.value,
+        scrubbing: computed(() => this.scrubPosition() !== null),
     });
     /** `−7:03` while a finite duration is known; the dock prefers it to the total. */
     readonly remainingTimeText = computed(() =>

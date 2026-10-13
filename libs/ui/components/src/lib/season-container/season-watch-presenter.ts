@@ -42,9 +42,7 @@ export interface SeasonWatchPresenterSources {
 @Injectable()
 export class SeasonWatchPresenter {
     private readonly logger = createLogger('SeasonWatchPresenter');
-    private readonly sources = signal<SeasonWatchPresenterSources | null>(
-        null
-    );
+    private readonly sources = signal<SeasonWatchPresenterSources | null>(null);
 
     connect(sources: SeasonWatchPresenterSources): void {
         this.sources.set(sources);
@@ -199,9 +197,7 @@ export class SeasonWatchPresenter {
         ) {
             return false;
         }
-        return (
-            this.loadedEpisodes().length > 0 || sources.hasUnloadedSeasons()
-        );
+        return this.loadedEpisodes().length > 0 || sources.hasUnloadedSeasons();
     });
 
     readonly seriesActionDisabled = computed(() => {

@@ -1,5 +1,8 @@
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
-import { getPortalPlaybackProgressPercent } from './portal-playback-positions';
+import {
+    getPortalPlaybackProgressPercent,
+    PORTAL_WATCHED_PROGRESS_PERCENT,
+} from './portal-playback-positions';
 
 /**
  * One watch state for every catalog card, movie or series, on every portal.
@@ -12,9 +15,6 @@ import { getPortalPlaybackProgressPercent } from './portal-playback-positions';
  * - `unwatched`: no row at all.
  */
 export type PortalWatchState = 'unwatched' | 'in-progress' | 'watched';
-
-/** Progress at or above which a movie or episode counts as watched. */
-export const PORTAL_WATCHED_PROGRESS_PERCENT = 90;
 
 export function watchStateFromProgressPercent(
     percent: number

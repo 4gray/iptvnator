@@ -12,9 +12,16 @@ import { fileURLToPath } from 'node:url';
 const workspaceRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const checklistPath = 'docs/architecture/zoneless-migration.md';
 const sourceRoots = ['apps', 'libs'];
-const skippedDirectories = new Set(['node_modules', 'dist', 'coverage']);
-const testOnlyFile =
-    /(\.spec|\.spec-stubs|\.spec-data|\.test-helpers|test-setup)\.ts$/;
+const skippedDirectories = new Set([
+    'node_modules',
+    'dist',
+    'coverage',
+    'test-stubs',
+]);
+// Test-only files follow the repository's `.spec` / `.test` naming, with an
+// optional suffix of one or more segments (`.spec-stubs.ts`,
+// `.test-helpers.ts`, `.test-data-stubs.ts`).
+const testOnlyFile = /(\.(spec|test)(-\w+)*|^test-setup)\.ts$/;
 
 function listProductionSources(directory: string): string[] {
     const files: string[] = [];
@@ -63,9 +70,21 @@ function readEagerChecklist(): { open: string[]; done: string[] } {
 
 const sources = readSources();
 
+// Component metadata only: a comment or string that names the strategy is
+// not an Eager component.
+const eagerMetadata = /changeDetection\s*:\s*ChangeDetectionStrategy\.Eager\b/;
+
+function withoutComments(text: string): string {
+    return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
+function isEagerComponent(text: string): boolean {
+    return eagerMetadata.test(withoutComments(text));
+}
+
 test('the zoneless checklist lists exactly the components that are still Eager', () => {
     const eager = [...sources]
-        .filter(([, text]) => text.includes('ChangeDetectionStrategy.Eager'))
+        .filter(([, text]) => isEagerComponent(text))
         .map(([file]) => file)
         .sort();
     const { open } = readEagerChecklist();
@@ -75,6 +94,44 @@ test('the zoneless checklist lists exactly the components that are still Eager',
         open,
         `Production files with ChangeDetectionStrategy.Eager must match the unticked entries in ${checklistPath}. ` +
             'Do not add Eager components; tick an entry when its component is converted.'
+    );
+});
+
+test('the guard skips test-only file names and keeps production ones', () => {
+    for (const name of [
+        'player.component.spec.ts',
+        'serial-details.test-stubs.ts',
+        'dashboard.spec-stubs.ts',
+        'rail.test-data-stubs.ts',
+        'test-setup.ts',
+    ]) {
+        assert.ok(testOnlyFile.test(name), `${name} is test-only`);
+    }
+    for (const name of [
+        'player.component.ts',
+        'spec-utils.ts',
+        'contest.ts',
+        'latest-setup.ts',
+        'testing.service.ts',
+    ]) {
+        assert.ok(!testOnlyFile.test(name), `${name} ships`);
+    }
+});
+
+test('a comment that names the Eager strategy is not an Eager component', () => {
+    assert.equal(
+        isEagerComponent(
+            '// was ChangeDetectionStrategy.Eager before C6\n' +
+                '/* changeDetection: ChangeDetectionStrategy.Eager */\n' +
+                '@Component({ changeDetection: ChangeDetectionStrategy.OnPush })'
+        ),
+        false
+    );
+    assert.equal(
+        isEagerComponent(
+            '@Component({\n    changeDetection: ChangeDetectionStrategy.Eager,\n})'
+        ),
+        true
     );
 });
 

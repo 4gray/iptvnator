@@ -1,4 +1,7 @@
-import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
+import {
+    ExternalPlayerSession,
+    tagExternalPlayerError,
+} from '@iptvnator/shared/interfaces';
 import { ExternalPlayerSessionRegistry } from './external-player-session-registry';
 
 describe('ExternalPlayerSessionRegistry', () => {
@@ -25,6 +28,26 @@ describe('ExternalPlayerSessionRegistry', () => {
         const opened = registry.markOpened(session.id);
         expect(opened?.status).toBe('opened');
         expect(updates.at(-1)?.status).toBe('opened');
+    });
+
+    it('numbers sessions in the order they began', () => {
+        const first = registry.beginSession({
+            player: 'mpv',
+            title: 'First',
+            streamUrl: 'https://example.com/one.m3u8',
+        });
+        const second = registry.beginSession({
+            player: 'mpv',
+            title: 'Second',
+            streamUrl: 'https://example.com/two.m3u8',
+        });
+
+        expect(first.launchOrder).toEqual(expect.any(Number));
+        expect(second.launchOrder).toBeGreaterThan(first.launchOrder ?? 0);
+        // Later updates keep the order the session began with.
+        expect(registry.markOpened(first.id)?.launchOrder).toBe(
+            first.launchOrder
+        );
     });
 
     it('keeps close capability and closes the session explicitly', async () => {
@@ -101,6 +124,28 @@ describe('ExternalPlayerSessionRegistry', () => {
         expect(registry.getActiveSessionId()).toBe(session.id);
     });
 
+    it('stores a tagged launch failure as its code and plain detail', () => {
+        const session = registry.beginSession({
+            player: 'vlc',
+            title: 'Example',
+            streamUrl: 'https://example.com/video.m3u8',
+        });
+
+        const errored = registry.markError(
+            session.id,
+            tagExternalPlayerError(
+                'start-failed',
+                'Failed to start VLC player: spawn vlc ENOENT'
+            ),
+            { code: 'start-failed' }
+        );
+
+        expect(errored?.errorCode).toBe('start-failed');
+        expect(errored?.error).toBe(
+            'Failed to start VLC player: spawn vlc ENOENT'
+        );
+    });
+
     it('does not overwrite terminal status with late lifecycle updates', () => {
         const failed = registry.beginSession({
             player: 'mpv',
@@ -119,9 +164,9 @@ describe('ExternalPlayerSessionRegistry', () => {
         registry.markClosed(closed.id);
 
         expect(registry.markPlaying(closed.id)?.status).toBe('closed');
-        expect(
-            registry.markError(closed.id, 'Late process exit')?.status
-        ).toBe('closed');
+        expect(registry.markError(closed.id, 'Late process exit')?.status).toBe(
+            'closed'
+        );
         expect(updates.at(-1)).toMatchObject({
             id: closed.id,
             status: 'closed',

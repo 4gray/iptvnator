@@ -60,7 +60,7 @@ function xtreamServerUrlValidator(
     ],
     selector: 'app-xtream-code-import',
     templateUrl: './xtream-code-import.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {

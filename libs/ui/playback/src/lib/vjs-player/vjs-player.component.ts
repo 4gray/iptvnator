@@ -66,7 +66,7 @@ const debugVjsPlayer = createDevLogger('VjsPlayer');
         SeriesPlaybackNavigationControlsComponent,
     ],
     providers: [WebVideoControlsAdapter],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     standalone: true,
 })
 export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {

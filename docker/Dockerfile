@@ -28,6 +28,22 @@ RUN node tools/build/inject-build-commit.mjs
 RUN pnpm nx build web --configuration=pwa
 RUN pnpm nx build web-backend
 
+# better-sqlite3 is a native addon. This stage is NOT pinned to
+# $BUILDPLATFORM, so multi-arch builds produce it for each target platform.
+# prebuild-install downloads a musl binary when one exists and otherwise
+# compiles with the toolchain below.
+FROM node:24-alpine AS native
+
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /opt/native
+
+COPY package.json ./root-package.json
+
+RUN BETTER_SQLITE3_VERSION="$(node -p 'require("./root-package.json").dependencies["better-sqlite3"]')" \
+    && npm init -y >/dev/null \
+    && npm install --omit=dev --no-audit --no-fund "better-sqlite3@${BETTER_SQLITE3_VERSION}"
+
 FROM node:24-alpine
 
 RUN apk add --no-cache gettext nginx
@@ -37,13 +53,18 @@ WORKDIR /opt/iptvnator
 ENV PORT=3000
 ENV BACKEND_URL=/api
 ENV CLIENT_URL=http://localhost:4333
+ENV IPTVNATOR_STORAGE=server
+ENV IPTVNATOR_DATA_DIR=/data
 
 COPY --from=build /usr/src/app/dist/apps/web /usr/share/nginx/html
 COPY --from=build /usr/src/app/dist/apps/web-backend ./web-backend
+COPY --from=native /opt/native/node_modules ./web-backend/node_modules
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf.template
 COPY docker/docker-entrypoint.sh /usr/local/bin/iptvnator-entrypoint
 
-RUN chmod +x /usr/local/bin/iptvnator-entrypoint
+RUN chmod +x /usr/local/bin/iptvnator-entrypoint && mkdir -p /data
+
+VOLUME ["/data"]
 
 EXPOSE 80
 

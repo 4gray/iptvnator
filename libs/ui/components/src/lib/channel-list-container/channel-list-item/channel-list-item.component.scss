@@ -1,3 +1,5 @@
+@use '../../../../../styles/focus-ring';
+
 :host {
     display: block;
     width: 100%;
@@ -71,8 +73,7 @@
     app-region: no-drag;
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
         border-radius: 4px;
     }
 

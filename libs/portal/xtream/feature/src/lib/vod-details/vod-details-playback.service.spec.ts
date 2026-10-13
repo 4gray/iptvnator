@@ -277,7 +277,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             'movie'
         );
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-            77,
+            { id: 77, type: 'movie' },
             ROUTE_PLAYLIST,
             undefined
         );
@@ -311,7 +311,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             expect(xtreamDataSource.addRecentItem).toHaveBeenCalledTimes(saves);
             if (saves) {
                 expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-                    ROUTE_VOD_ID,
+                    { id: ROUTE_VOD_ID, type: 'movie' },
                     ROUTE_PLAYLIST,
                     undefined
                 );

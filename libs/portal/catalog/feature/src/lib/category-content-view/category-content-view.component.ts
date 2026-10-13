@@ -10,6 +10,7 @@ import {
     OnDestroy,
     OnInit,
     signal,
+    untracked,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
@@ -18,12 +19,16 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     GridListComponent,
     InfiniteScrollDirective,
     PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
 import {
     clearNavigationStateKeys,
     consumeStalkerReturnMarker,
@@ -38,6 +43,10 @@ import {
     PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
     PortalCatalogSortMode,
 } from '@iptvnator/portal/shared/util';
+import {
+    CATALOG_SORT_OPTIONS,
+    catalogSortLabels,
+} from './catalog-sort-options';
 
 interface CategoryContentItem {
     id?: number | string;
@@ -62,6 +71,8 @@ interface CategoryContentItem {
         MatIcon,
         MatMenuModule,
         MatTooltip,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         NgComponentOutlet,
         PlaylistErrorViewComponent,
         TranslatePipe,
@@ -72,7 +83,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly router = inject(Router);
-    private readonly translate = inject(TranslateService);
     private readonly providerOnlyStalkerItemId = signal<string | null>(null);
     private readonly catalog = inject(
         PORTAL_CATALOG_FACADE
@@ -99,15 +109,20 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.catalog.provider === 'xtream' &&
             this.isPaginatedContentLoading()
     );
+    /** Key and params; the template pipe re-renders once translations load. */
     readonly categoryItemSubtitle = computed(() => {
         if (this.isXtreamLoadingSubtitle()) {
-            return this.translate.instant(
-                'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
-            );
+            return { key: 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING', params: {} };
         }
 
-        const itemCount = this.categoryItemCount();
-        return `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
+        const count = this.categoryItemCount();
+        return {
+            key:
+                count === 1
+                    ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
+                    : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER',
+            params: { count },
+        };
     });
     readonly canSortContent = computed(() => this.contentSortMode() !== null);
     readonly supportsRatingSort = computed(
@@ -128,24 +143,14 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly activeRefinementCount = computed(() =>
         this.minRating() !== null ? 1 : 0
     );
-    readonly activeSortLabelKey = computed(() => {
-        switch (this.contentSortMode()) {
-            case 'date-desc':
-                return 'WORKSPACE.SORT_DATE_DESC';
-            case 'date-asc':
-                return 'WORKSPACE.SORT_DATE_ASC';
-            case 'name-asc':
-                return 'WORKSPACE.SORT_NAME_ASC';
-            case 'name-desc':
-                return 'WORKSPACE.SORT_NAME_DESC';
-            case 'rating-desc':
-                return 'WORKSPACE.SORT_TOP_RATED';
-            case 'rating-asc':
-                return 'WORKSPACE.SORT_LOWEST_RATED';
-            default:
-                return 'WORKSPACE.SORT_CUSTOM';
-        }
-    });
+    readonly sortOptions = computed(() =>
+        CATALOG_SORT_OPTIONS.filter(
+            (option) => !option.byRating || this.supportsRatingSort()
+        )
+    );
+    readonly activeSortLabels = computed(() =>
+        catalogSortLabels(this.contentSortMode())
+    );
     readonly searchTerm = toSignal(
         this.activatedRoute.queryParamMap.pipe(map((p) => p.get('q') ?? '')),
         { initialValue: '' }
@@ -193,8 +198,36 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     });
     private previousGridResetKey: string | null = null;
     private hasAttemptedScrollRestore = false;
+    private readonly routeCategory = signal<{ id: string | null } | null>(null);
+    private initializedRoute: {
+        category: { id: string | null };
+        playlistId: string | null;
+    } | null = null;
 
     constructor() {
+        effect(() => {
+            const category = this.routeCategory();
+            if (!category || this.catalog.routeReady?.() === false) {
+                return;
+            }
+            const playlistId = this.catalog.playlist()?.id ?? null;
+            // Query-only navigation toggles readiness too; only a new
+            // category arrival or playlist should reset the open detail.
+            if (
+                this.initializedRoute?.category === category &&
+                this.initializedRoute.playlistId === playlistId
+            ) {
+                return;
+            }
+            this.initializedRoute = { category, playlistId };
+            untracked(() => {
+                this.providerOnlyStalkerItemId.set(null);
+                this.catalog.initialize(category.id);
+                this.catalog.setSearchQuery?.(this.searchTerm());
+                this.openStalkerItemFromNavigationState();
+            });
+        });
+
         effect(() => {
             const resetKey = this.gridResetKey();
             if (
@@ -253,9 +286,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         this.activatedRoute.paramMap
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((params) => {
-                this.providerOnlyStalkerItemId.set(null);
-                this.catalog.initialize(params.get('categoryId'));
-                this.openStalkerItemFromNavigationState();
+                this.routeCategory.set({ id: params.get('categoryId') });
             });
 
         this.activatedRoute.queryParamMap

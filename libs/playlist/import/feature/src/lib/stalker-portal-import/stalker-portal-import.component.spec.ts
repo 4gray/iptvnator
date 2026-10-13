@@ -449,6 +449,56 @@ describe('StalkerPortalImportComponent identity handling', () => {
         );
     });
 
+    // Portals encode an unlimited account as -1, "0" or a zero date, and
+    // the wire value is often a string despite the API's number type.
+    it.each([-1, '0', '-1', '0000-00-00'])(
+        'announces no expiry for the unlimited sentinel %p',
+        async (expireDate) => {
+            portalDiscovery.discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl:
+                    'https://portal.example.com/stalker_portal/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'token-1',
+                accountInfo: { login: 'demo', expire_date: expireDate },
+            });
+            component.form.patchValue({
+                title: 'Unlimited Portal',
+                macAddress: '00:1A:79:AA:BB:CC',
+                portalUrl: 'https://portal.example.com/stalker_portal/c',
+            });
+
+            await component.addPlaylist();
+
+            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(store.dispatch).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('announces a date-string expiry as that calendar day', async () => {
+        const translate = TestBed.inject(TranslateService);
+        portalDiscovery.discover.mockResolvedValue({
+            status: 'resolved',
+            portalUrl:
+                'https://portal.example.com/stalker_portal/server/load.php',
+            isFullStalkerPortal: true,
+            token: 'token-1',
+            accountInfo: { login: 'demo', expire_date: '2030-01-15' },
+        });
+        component.form.patchValue({
+            title: 'Dated Portal',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'https://portal.example.com/stalker_portal/c',
+        });
+
+        await component.addPlaylist();
+
+        expect(translate.instant).toHaveBeenCalledWith(
+            'HOME.STALKER_PORTAL.VALIDATED_EXPIRES',
+            { date: new Date(2030, 0, 15).toLocaleDateString() }
+        );
+    });
+
     it('drops a refusal once the user edits the form or retries', async () => {
         portalDiscovery.discover.mockResolvedValue({
             status: 'auth-rejected',

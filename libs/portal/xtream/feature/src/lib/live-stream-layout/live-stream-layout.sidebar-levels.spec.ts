@@ -159,9 +159,6 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
                             queryParamMap: convertToParamMap({}),
                         },
                         queryParamMap: of(convertToParamMap({})),
-                        pathFromRoot: [
-                            { snapshot: { data: { layout: 'workspace' } } },
-                        ],
                     },
                 },
                 {
@@ -328,7 +325,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
     it('leaves focus alone when a control still owns it', async () => {
         fixture.detectChanges();
         const sort = query<HTMLButtonElement>(
-            '.sidebar-header [aria-label="Sort channels"]'
+            '.sidebar-header [aria-label="CHANNELS.SORT_CHANNELS"]'
         );
         sort?.focus();
 

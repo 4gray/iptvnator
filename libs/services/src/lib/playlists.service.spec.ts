@@ -22,6 +22,23 @@ describe('PlaylistsService', () => {
         jest.restoreAllMocks();
     });
 
+    function hasSqliteBridge(): boolean {
+        const electron = testWindow.electron as
+            Record<string, unknown> | undefined;
+        return (
+            !!electron &&
+            typeof electron['dbGetAppPlaylists'] === 'function' &&
+            typeof electron['dbUpsertAppPlaylist'] === 'function' &&
+            typeof electron['dbGetAppState'] === 'function' &&
+            typeof electron['dbSetAppState'] === 'function'
+        );
+    }
+
+    const testStorageBackend = {
+        kind: () => (hasSqliteBridge() ? 'electron' : 'indexeddb'),
+        documentStore: () => (hasSqliteBridge() ? testWindow.electron : null),
+    };
+
     function createService(overrides: Record<string, unknown> = {}) {
         const service = Object.create(
             PlaylistsService.prototype
@@ -45,19 +62,7 @@ describe('PlaylistsService', () => {
             translateService: {
                 instant: jest.fn((key: string) => key),
             },
-            runtime: {
-                get supportsSqlite() {
-                    const electron = testWindow.electron as
-                        Record<string, unknown> | undefined;
-                    return (
-                        !!electron &&
-                        typeof electron['dbGetAppPlaylists'] === 'function' &&
-                        typeof electron['dbUpsertAppPlaylist'] === 'function' &&
-                        typeof electron['dbGetAppState'] === 'function' &&
-                        typeof electron['dbSetAppState'] === 'function'
-                    );
-                },
-            },
+            storageBackend: testStorageBackend,
             electronMigrationPromise: null,
             indexedDbMigrationPromise: null,
             playlistWriteQueues: new Map(),
@@ -135,9 +140,11 @@ describe('PlaylistsService', () => {
                     finishCleanup = resolve;
                 })
         );
-        Object.defineProperties(service, {
-            isElectronStorageAvailable: { value: true },
-            electronApi: { value: { dbDeletePlaylist: jest.fn() } },
+        Object.assign(service, {
+            storageBackend: {
+                kind: () => 'electron',
+                documentStore: () => ({ dbDeletePlaylist: jest.fn() }),
+            },
         });
         Object.assign(service, {
             ensureElectronPlaylistMigrations: jest
@@ -1997,6 +2004,35 @@ describe('PlaylistsService', () => {
                 );
             }
         );
+
+        it('reads hidden groups saved by a meta update that is still being written', async () => {
+            const original = createBasePlaylist('catalog-hidden-groups');
+            const { store, electron } = createStatefulElectronStore(original);
+            testWindow.electron = electron;
+            let release!: () => void;
+            const gate = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            electron.dbUpsertAppPlaylist.mockImplementationOnce(
+                async (playlist) => {
+                    await gate;
+                    store.current = playlist;
+                }
+            );
+            const service = createService();
+            // The meta effect subscribes while the save is dispatched, so the
+            // write is queued before the M3U route reopens the playlist.
+            const write = firstValueFrom(
+                service.updatePlaylistMeta({
+                    _id: original._id,
+                    hiddenGroupTitles: ['Sports'],
+                } as PlaylistMeta)
+            );
+            const read = firstValueFrom(service.getPlaylist(original._id));
+            release();
+            await write;
+            expect((await read).hiddenGroupTitles).toEqual(['Sports']);
+        });
 
         it('orders a browser catalog read after a queued IndexedDB refresh', async () => {
             const original = createBasePlaylist('browser-catalog');
