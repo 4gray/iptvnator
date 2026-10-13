@@ -1371,13 +1371,20 @@ in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
   every list at once (`SourceRemovalService.pendingIds`) and the delete runs
   when the toast closes; its close button commits at once, and quitting
   within the four seconds keeps the source. Deleting the active source
-  switches to the next row. A desktop Xtream delete brings its row back as
-  "Removing…" with progress and Cancel. When the delete took the row and
-  with it the focus, the toast's Undo takes the focus. Bulk cleanup keeps
-  its confirmation dialog.
+  switches to the next row; Undo switches back only if no other source was
+  chosen since. A desktop Xtream delete brings its row back as "Removing…"
+  with progress and Cancel on the Sources page; the switcher leaves the
+  source out until the delete ends. When the delete took the row and with
+  it the focus, the toast's Undo takes the focus. A delete from the
+  switcher closes the popover first, since its focus trap would keep the
+  keyboard from Undo: Undo takes the focus and returns it to the trigger
+  (`SourceRemovalOptions.returnFocusTo`). Bulk cleanup keeps its
+  confirmation dialog.
 - **Side list.** Type and, on desktop, Status (Any / Responding / Not
   responding) combine and persist (`SourcesViewStateService`); each group
-  counts within the other's choice.
+  counts within the other's choice. The page checks every source, not only
+  the rows a filter shows (`keepSourcesChecked`): a saved status filter
+  would otherwise hide the unchecked sources it is waiting for.
 - **Switcher.** The trigger is a 40px secondary button; ⌘P / Ctrl+P opens it
   (⌘K stays the command palette). The popover is a CDK connected overlay, so
   row menus open above it, not inside its scrolling list. Focus stays in the
@@ -1400,8 +1407,10 @@ files have no dot. On desktop the live `SourceHealthService` result wins; the
 last conclusive result per source is kept across restarts
 (`SourceHealthHistoryService`, no URL or credential stored), so a source that
 failed yesterday shows as failing before it is checked again, with "Not
-responding · 3 days". The dot's tooltip and accessible name give the reason
-and check time; M3U checks describe the source URL only. Retry and Check
+responding · 3 days". The dot's tooltip and accessible name give the
+check's cause (`SourceStatus.reason`: access denied, account disabled,
+timeout…, kept with the history) and check time; M3U checks say they
+cover the playlist URL, not its channels. Retry and Check
 again rerun the check; they are not a playlist refresh. The browser build
 keeps the Xtream portal status only.
 

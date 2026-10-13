@@ -7,6 +7,7 @@ import {
 import {
     isConclusiveReachability,
     PlaylistMeta,
+    SourceHealthReason,
     sourceHealthType,
     sourceReachabilityFromHealth,
     sourceReachabilityFromPortalStatus,
@@ -37,6 +38,18 @@ function isXtreamAccount(playlist: PlaylistMeta): playlist is XtreamAccount {
  *
  * Local files have no status (`null`).
  */
+/** What the browser build's portal status says about its cause. */
+const PORTAL_STATUS_REASON: Record<
+    PortalStatus,
+    SourceHealthReason | undefined
+> = {
+    active: 'available',
+    inactive: 'disabled',
+    expired: 'expired',
+    unavailable: 'network',
+    checking: undefined,
+};
+
 @Injectable({ providedIn: 'root' })
 export class SourceStatusService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -64,11 +77,12 @@ export class SourceStatusService {
         }
         if (!this.runtime.supportsSourceHealth) {
             const status = this.portalStatuses().get(playlist._id);
-            return {
-                reachability: status
-                    ? sourceReachabilityFromPortalStatus(status)
-                    : 'unknown',
-            };
+            return status
+                ? {
+                      reachability: sourceReachabilityFromPortalStatus(status),
+                      reason: PORTAL_STATUS_REASON[status],
+                  }
+                : { reachability: 'unknown' };
         }
         const live = this.health.get(playlist);
         const reachability = sourceReachabilityFromHealth(live);
@@ -78,6 +92,7 @@ export class SourceStatusService {
                 reachability,
                 failingSince: kept?.failingSince,
                 checkedAt: live?.checkedAt,
+                reason: live?.reason,
             };
         }
         if (kept) {
@@ -86,6 +101,7 @@ export class SourceStatusService {
                 failingSince: kept.failingSince,
                 checkedAt: kept.checkedAt,
                 pending: reachability === 'checking',
+                reason: kept.reason,
             };
         }
         return { reachability };

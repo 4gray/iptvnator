@@ -72,6 +72,14 @@ describe('nextSourceHealthHistory', () => {
         });
     });
 
+    it('keeps the cause of a failure, never of a success', () => {
+        const failed = nextSourceHealthHistory(undefined, 'bad', 100, 'auth');
+        expect(failed?.reason).toBe('auth');
+        expect(nextSourceHealthHistory(failed, 'ok', 200, 'available')).toEqual(
+            { state: 'ok', checkedAt: 200, lastSuccessAt: 200 }
+        );
+    });
+
     it('ends the run when the source answers again', () => {
         expect(
             nextSourceHealthHistory(

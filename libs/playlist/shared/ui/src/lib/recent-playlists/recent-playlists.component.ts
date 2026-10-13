@@ -23,7 +23,10 @@ import {
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { SourceStatusService } from '@iptvnator/portal/shared/data-access';
+import {
+    keepSourcesChecked,
+    SourceStatusService,
+} from '@iptvnator/portal/shared/data-access';
 import {
     filterSources,
     orderFailingFirst,
@@ -130,6 +133,12 @@ export class RecentPlaylistsComponent {
             ? orderFailingFirst(sorted, bucketOf)
             : sorted;
     });
+
+    constructor() {
+        // A status filter hides the sources it has no result for, so the
+        // checks follow the library rather than the rows on screen.
+        keepSourcesChecked(() => this.playlists());
+    }
 
     resetFilters(): void {
         this.viewState.reset();

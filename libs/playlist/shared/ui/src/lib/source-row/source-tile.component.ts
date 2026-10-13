@@ -13,11 +13,15 @@ import { injectTranslationTick } from '@iptvnator/services';
 import {
     getPlaylistSourceIcon,
     PlaylistMeta,
+    resolvePlaylistSourceKind,
     SourceReachability,
     SourceStatus,
 } from '@iptvnator/shared/interfaces';
 
-/** The health reason shown for each reachability when no detail is kept. */
+/**
+ * The health reason shown for each reachability when the check left no
+ * cause, as in a browser build's "checking" status.
+ */
 const REACHABILITY_REASON: Record<SourceReachability, string> = {
     ok: 'available',
     bad: 'network',
@@ -83,8 +87,13 @@ export class SourceTileComponent {
         }
         const reason = status.pending
             ? 'checking'
-            : REACHABILITY_REASON[status.reachability];
+            : (status.reason ?? REACHABILITY_REASON[status.reachability]);
         const label = this.translate.instant(`SOURCE_HEALTH.REASON.${reason}`);
+        // An M3U check reaches the playlist URL, not its channels.
+        const scope =
+            resolvePlaylistSourceKind(this.playlist()) === 'm3u'
+                ? this.translate.instant('SOURCE_HEALTH.M3U_SCOPE')
+                : '';
         const time = status.checkedAt
             ? new Date(status.checkedAt).toLocaleString(
                   normalizeDateLocale(this.translate.currentLang || 'en'),
@@ -97,6 +106,6 @@ export class SourceTileComponent {
                   }
               )
             : '';
-        return [label, time].filter(Boolean).join(' · ');
+        return [label, scope, time].filter(Boolean).join(' · ');
     });
 }

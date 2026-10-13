@@ -167,6 +167,29 @@ describe('RecentPlaylistsComponent', () => {
         ).toBe(3);
     });
 
+    it('checks the sources a saved status filter hides', () => {
+        fixture.destroy();
+        viewState.setStatus('ok');
+        statuses.set('xtream', { reachability: 'unknown' });
+        const ensureChecked = TestBed.inject(SourceStatusService)
+            .ensureChecked as jest.Mock;
+        ensureChecked.mockClear();
+
+        const restarted = TestBed.createComponent(RecentPlaylistsComponent);
+        restarted.detectChanges();
+        TestBed.tick();
+
+        expect(
+            restarted.componentInstance.visiblePlaylists().map((p) => p._id)
+        ).toEqual(['m3u']);
+        // No row is on screen for it, yet its check runs, so it can join
+        // the list once it answers.
+        expect(ensureChecked.mock.calls.map(([p]) => p._id)).toContain(
+            'xtream'
+        );
+        restarted.destroy();
+    });
+
     it('applies the type and status filters together', () => {
         viewState.setType('m3u');
         expect(ids()).toEqual(['m3u', 'file']);

@@ -6,6 +6,7 @@ export * from './lib/live-channel-playback-queue';
 export * from './lib/source-health.service';
 export * from './lib/source-health-history.service';
 export * from './lib/source-status.service';
+export * from './lib/source-status-checks';
 
 export * from './lib/source-cleanup.service';
 

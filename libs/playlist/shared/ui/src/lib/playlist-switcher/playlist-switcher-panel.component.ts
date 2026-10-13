@@ -1,5 +1,5 @@
 import { A11yModule } from '@angular/cdk/a11y';
-import { NgTemplateOutlet } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
     afterNextRender,
     ChangeDetectionStrategy,
@@ -75,6 +75,7 @@ const KINDS: readonly PlaylistSourceKind[] = ['m3u', 'xtream', 'stalker'];
 })
 export class PlaylistSwitcherPanelComponent {
     private readonly context = inject(PlaylistContextFacade);
+    private readonly document = inject(DOCUMENT);
     private readonly dialog = inject(MatDialog);
     private readonly recentHistory = inject(PlaylistRecentHistoryService);
     private readonly refreshAction = inject(PlaylistRefreshActionService);
@@ -91,6 +92,7 @@ export class PlaylistSwitcherPanelComponent {
     });
 
     readonly closeRequested = output<void>();
+    private closing = false;
     readonly playlistSelected = output<string>();
     readonly addPlaylistRequested = output<void>();
     readonly accountInfoRequested = output<PlaylistMeta>();
@@ -110,11 +112,20 @@ export class PlaylistSwitcherPanelComponent {
         return status ? sourceStatusBucket(status.reachability) : null;
     };
 
+    /**
+     * Every source except one whose delete is pending or running: a running
+     * delete shows its progress and Cancel on the Sources page, and its
+     * source cannot be opened or removed again from here.
+     */
     readonly playlists = computed(() => {
         const pending = this.removal.pendingIds();
         return this.context
             .playlists()
-            .filter((playlist) => !pending.has(playlist._id));
+            .filter(
+                (playlist) =>
+                    !pending.has(playlist._id) &&
+                    !this.removal.progress.isDeleting(playlist._id)
+            );
     });
     readonly typeCounts = computed(() =>
         countSourcesByType(this.playlists(), 'all', this.bucketOf)
@@ -145,13 +156,38 @@ export class PlaylistSwitcherPanelComponent {
         ...this.groups().recent,
         ...this.groups().all,
     ]);
-    /** A search highlights its first match, so Enter opens it. */
+    /**
+     * A search highlights its first match, so Enter opens it. When the list
+     * changes under the same search (a source added or removed), the
+     * highlight stays on its option, or on the same place, clamped.
+     */
     readonly highlight = linkedSignal<
-        readonly [string, SourcesTypeFilter],
+        {
+            query: string;
+            type: SourcesTypeFilter;
+            ids: readonly string[];
+        },
         number
     >({
-        source: () => [this.query(), this.type()] as const,
-        computation: ([query]) => (query.trim() ? 0 : -1),
+        source: () => ({
+            query: this.query(),
+            type: this.type(),
+            ids: this.options().map((option) => option.id),
+        }),
+        computation: (source, previous) => {
+            const sameSearch =
+                previous &&
+                previous.source.query === source.query &&
+                previous.source.type === source.type;
+            if (!sameSearch) {
+                return source.query.trim() ? 0 : -1;
+            }
+            const id = previous.source.ids[previous.value];
+            const kept = id === undefined ? -1 : source.ids.indexOf(id);
+            return kept !== -1
+                ? kept
+                : Math.min(previous.value, source.ids.length - 1);
+        },
     });
     readonly activeOptionId = computed(
         () => this.options()[this.highlight()]?.id ?? null
@@ -199,7 +235,7 @@ export class PlaylistSwitcherPanelComponent {
             case 'Escape':
                 event.preventDefault();
                 event.stopPropagation();
-                this.closeRequested.emit();
+                this.close();
                 break;
             case 'ContextMenu':
             case 'F10':
@@ -214,7 +250,7 @@ export class PlaylistSwitcherPanelComponent {
     select(playlist: PlaylistMeta): void {
         this.context.selectPlaylist(playlist);
         this.playlistSelected.emit(playlist._id);
-        this.closeRequested.emit();
+        this.close();
     }
 
     canRefresh(playlist: PlaylistMeta): boolean {
@@ -222,34 +258,67 @@ export class PlaylistSwitcherPanelComponent {
     }
 
     refresh(playlist: PlaylistMeta): void {
-        this.closeRequested.emit();
+        this.close();
         this.refreshAction.refresh(playlist);
     }
 
     openInfo(playlist: PlaylistMeta): void {
-        this.closeRequested.emit();
+        this.close();
         this.dialog.open(PlaylistInfoComponent, { data: playlist });
     }
 
     openAccountInfo(playlist: PlaylistMeta): void {
-        this.closeRequested.emit();
+        this.close();
         this.accountInfoRequested.emit(playlist);
     }
 
-    /** Deletes with Undo; the active source hands over to its neighbour. */
+    /**
+     * Deletes with Undo; the active source hands over to its neighbour. The
+     * popover closes first: its focus trap would keep the keyboard away
+     * from Undo, which then takes the focus and returns it to the trigger.
+     */
     remove(playlist: PlaylistMeta): void {
         const all = this.groups().all.map((option) => option.playlist);
         const index = all.findIndex((item) => item._id === playlist._id);
-        this.removal.remove(playlist, all[index + 1] ?? all[index - 1] ?? null);
+        this.close();
+        // Closing put the focus back on the trigger.
+        const returnFocusTo = this.document.activeElement;
+        this.removal.remove(
+            playlist,
+            all[index + 1] ?? all[index - 1] ?? null,
+            {
+                returnFocusTo:
+                    returnFocusTo instanceof HTMLElement &&
+                    returnFocusTo !== this.document.body
+                        ? returnFocusTo
+                        : null,
+            }
+        );
+    }
+
+    /** A row menu gives the focus back to the search, unless closing. */
+    onMenuClosed(): void {
+        if (!this.closing) {
+            this.searchInput().nativeElement.focus();
+        }
+    }
+
+    /**
+     * Every action that leaves the popover closes it through here, so a row
+     * menu closing after its action does not pull the focus back into it.
+     */
+    private close(): void {
+        this.closing = true;
+        this.closeRequested.emit();
     }
 
     addPlaylist(): void {
-        this.closeRequested.emit();
+        this.close();
         this.addPlaylistRequested.emit();
     }
 
     openAllSources(): void {
-        this.closeRequested.emit();
+        this.close();
         void this.router.navigate(['/workspace', 'sources']);
     }
 

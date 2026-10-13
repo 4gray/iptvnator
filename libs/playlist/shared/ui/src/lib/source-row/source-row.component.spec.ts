@@ -106,6 +106,32 @@ describe('SourceRowComponent', () => {
         ).toBe('bad');
     });
 
+    it("names the check's cause on the dot, and an M3U check's scope", () => {
+        const dotLabel = (element: HTMLElement) =>
+            element
+                .querySelector('.source-tile__dot')
+                ?.getAttribute('aria-label');
+        statuses.set('m3u', { reachability: 'bad', reason: 'auth' });
+        expect(dotLabel(render(M3U))).toBe(
+            'SOURCE_HEALTH.REASON.auth · SOURCE_HEALTH.M3U_SCOPE'
+        );
+
+        // Without a kept cause the dot falls back to its colour's wording.
+        statuses.set('xtream', { reachability: 'bad' });
+        expect(
+            dotLabel(
+                render({
+                    ...M3U,
+                    _id: 'xtream',
+                    url: undefined,
+                    serverUrl: 'http://portal.test',
+                    username: 'joe',
+                    password: 'hunter2',
+                })
+            )
+        ).toBe('SOURCE_HEALTH.REASON.network');
+    });
+
     it('opens on click and on Enter, but not while busy', () => {
         const element = render(M3U);
         const opened = jest.fn();

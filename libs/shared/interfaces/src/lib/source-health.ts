@@ -16,6 +16,27 @@ export type SourceHealthReason =
     | 'invalid'
     | 'unknown'
     | 'cancelled';
+const SOURCE_HEALTH_REASONS: ReadonlySet<string> = new Set<SourceHealthReason>([
+    'available',
+    'disabled',
+    'expired',
+    'auth',
+    'http',
+    'timeout',
+    'network',
+    'paused',
+    'invalid',
+    'unknown',
+    'cancelled',
+]);
+
+/** Whether stored data names a reason this build can describe. */
+export function isSourceHealthReason(
+    value: unknown
+): value is SourceHealthReason {
+    return typeof value === 'string' && SOURCE_HEALTH_REASONS.has(value);
+}
+
 export interface SourceHealthResult {
     state: SourceHealthState;
     reason: SourceHealthReason;

@@ -47,6 +47,7 @@ describe('PlaylistSwitcherPanelComponent', () => {
     let component: PlaylistSwitcherPanelComponent;
     let playlists: ReturnType<typeof signal<PlaylistMeta[]>>;
     let pending: ReturnType<typeof signal<ReadonlySet<string>>>;
+    let deleting: ReturnType<typeof signal<ReadonlySet<string>>>;
     let selectPlaylist: jest.Mock;
     let remove: jest.Mock;
     let navigate: jest.Mock;
@@ -77,6 +78,7 @@ describe('PlaylistSwitcherPanelComponent', () => {
         localStorage.clear();
         playlists = signal([ALPHA, BRAVO, CHARLIE]);
         pending = signal<ReadonlySet<string>>(new Set());
+        deleting = signal<ReadonlySet<string>>(new Set());
         selectPlaylist = jest.fn();
         remove = jest.fn();
         navigate = jest.fn();
@@ -121,7 +123,13 @@ describe('PlaylistSwitcherPanelComponent', () => {
                 },
                 {
                     provide: SourceRemovalService,
-                    useValue: { pendingIds: pending, remove },
+                    useValue: {
+                        pendingIds: pending,
+                        remove,
+                        progress: {
+                            isDeleting: (id: string) => deleting().has(id),
+                        },
+                    },
                 },
                 {
                     provide: PlaylistRefreshActionService,
@@ -218,13 +226,52 @@ describe('PlaylistSwitcherPanelComponent', () => {
         expect(closed).toHaveBeenCalled();
     });
 
-    it('leaves out a source whose delete is pending and hands over on delete', () => {
-        component.remove(BRAVO);
-        expect(remove).toHaveBeenCalledWith(BRAVO, CHARLIE);
+    it('closes before a delete, so Undo can take the focus and give it back to the trigger', () => {
+        const trigger = document.createElement('button');
+        document.body.appendChild(trigger);
+        // The host closes the popover and focuses its trigger.
+        component.closeRequested.subscribe(() => trigger.focus());
 
+        component.remove(BRAVO);
+        expect(remove).toHaveBeenCalledWith(BRAVO, CHARLIE, {
+            returnFocusTo: trigger,
+        });
+        trigger.remove();
+    });
+
+    it('leaves out a source whose delete is pending or running', () => {
         pending.set(new Set(['bravo']));
         fixture.detectChanges();
         expect(optionIds()).not.toContain('playlist-switcher-all-bravo');
+
+        pending.set(new Set());
+        deleting.set(new Set(['alpha']));
+        fixture.detectChanges();
+        expect(optionIds()).toEqual([
+            'playlist-switcher-all-bravo',
+            'playlist-switcher-all-charlie',
+        ]);
+    });
+
+    it('keeps the highlight on its option, or in range, when the list changes', () => {
+        press('ArrowUp');
+        expect(input().getAttribute('aria-activedescendant')).toBe(
+            'playlist-switcher-all-charlie'
+        );
+        // An earlier option leaves: the highlight follows charlie.
+        playlists.set([BRAVO, CHARLIE]);
+        fixture.detectChanges();
+        expect(input().getAttribute('aria-activedescendant')).toBe(
+            'playlist-switcher-all-charlie'
+        );
+        // The highlighted last option leaves: Enter opens the new last one.
+        playlists.set([BRAVO]);
+        fixture.detectChanges();
+        expect(input().getAttribute('aria-activedescendant')).toBe(
+            'playlist-switcher-all-bravo'
+        );
+        press('Enter');
+        expect(selectPlaylist).toHaveBeenCalledWith(BRAVO);
     });
 
     it('goes to the Sources page from the footer', () => {

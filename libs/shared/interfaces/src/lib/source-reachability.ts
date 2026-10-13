@@ -1,4 +1,4 @@
-import type { SourceHealthSnapshot } from './source-health';
+import type { SourceHealthReason, SourceHealthSnapshot } from './source-health';
 
 /**
  * What a source list shows about one network source, folded from the six
@@ -26,6 +26,11 @@ export interface SourceStatus {
     checkedAt?: number;
     /** A check is running; `reachability` is the last known result. */
     pending?: boolean;
+    /**
+     * Why the check concluded what it did (`auth`, `disabled`, `timeout`…),
+     * when known; a list otherwise describes the reachability alone.
+     */
+    reason?: SourceHealthReason;
 }
 
 /**
@@ -99,6 +104,8 @@ export interface SourceHealthHistoryEntry {
     /** When the current run of failed checks began; absent while `ok`. */
     failingSince?: number;
     lastSuccessAt?: number;
+    /** The cause of the last failed check; absent while `ok`. */
+    reason?: SourceHealthReason;
 }
 
 /**
@@ -110,7 +117,8 @@ export interface SourceHealthHistoryEntry {
 export function nextSourceHealthHistory(
     previous: SourceHealthHistoryEntry | undefined,
     reachability: SourceReachability,
-    checkedAt: number
+    checkedAt: number,
+    reason?: SourceHealthReason
 ): SourceHealthHistoryEntry | undefined {
     if (!isConclusiveReachability(reachability)) {
         return previous;
@@ -128,5 +136,6 @@ export function nextSourceHealthHistory(
         ...(previous?.lastSuccessAt !== undefined
             ? { lastSuccessAt: previous.lastSuccessAt }
             : {}),
+        ...(reason ? { reason } : {}),
     };
 }

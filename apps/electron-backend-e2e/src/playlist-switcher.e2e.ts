@@ -565,6 +565,27 @@ test.describe('Electron Playlist Switcher', () => {
             await expect(panel).toHaveCount(0);
             if (viewport) await page.setViewportSize(viewport);
 
+            // A delete from the keyboard: the popover closes, since its
+            // focus trap would keep Tab from Undo; Undo takes the focus and
+            // gives it back to the trigger.
+            await page.keyboard.press('ControlOrMeta+p');
+            await expect(search).toBeFocused();
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('Shift+F10');
+            const rowMenu = page.locator('.mat-mdc-menu-panel');
+            await expect(rowMenu).toBeVisible();
+            await page.keyboard.press('End');
+            await expect(
+                rowMenu.getByRole('menuitem', { name: /Remove/ })
+            ).toBeFocused();
+            await page.keyboard.press('Enter');
+            await expect(panel).toHaveCount(0);
+            const undo = page.locator('.source-removal-toast__undo');
+            await expect(undo).toBeFocused();
+            await page.keyboard.press('Enter');
+            await expect(undo).toHaveCount(0);
+            await expect(trigger).toBeFocused();
+
             await openSources(page);
             await expect(
                 page.locator('app-workspace-sources app-source-row')

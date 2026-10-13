@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { SourceHealthEvidenceService } from '@iptvnator/services';
 import {
+    isSourceHealthReason,
     nextSourceHealthHistory,
     SourceHealthHistoryEntry,
     SourceHealthSnapshot,
@@ -16,15 +17,24 @@ function readHistory(): Map<string, SourceHealthHistoryEntry> {
         if (!parsed || typeof parsed !== 'object') {
             return new Map();
         }
-        return new Map(
-            Object.entries(
-                parsed as Record<string, SourceHealthHistoryEntry>
-            ).filter(
-                ([, entry]) =>
-                    typeof entry?.checkedAt === 'number' &&
-                    ['ok', 'bad', 'expired'].includes(entry.state)
-            )
-        );
+        const entries = new Map<string, SourceHealthHistoryEntry>();
+        for (const [id, entry] of Object.entries(
+            parsed as Record<string, SourceHealthHistoryEntry>
+        )) {
+            if (
+                typeof entry?.checkedAt !== 'number' ||
+                !['ok', 'bad', 'expired'].includes(entry.state)
+            ) {
+                continue;
+            }
+            // A reason this build cannot describe would show as a raw key.
+            const { reason, ...rest } = entry;
+            entries.set(
+                id,
+                isSourceHealthReason(reason) ? { ...rest, reason } : rest
+            );
+        }
+        return entries;
     } catch {
         return new Map();
     }
@@ -42,7 +52,7 @@ function toRecord(
  * The last conclusive health result of each source, by playlist ID, kept
  * across restarts. Live checks stay in memory (`SourceHealthService`); this
  * keeps only what a list needs before they run again: the state, when it
- * was checked and since when a source has failed. No URL or credential is
+ * was checked, since when a source has failed and why. No URL or credential is
  * stored, so the entries need no redaction.
  */
 @Injectable({ providedIn: 'root' })
@@ -72,7 +82,8 @@ export class SourceHealthHistoryService {
             const entry = nextSourceHealthHistory(
                 previous,
                 reachability,
-                snapshot.checkedAt
+                snapshot.checkedAt,
+                snapshot.reason
             );
             if (entry && entry !== previous) {
                 next.set(id, entry);

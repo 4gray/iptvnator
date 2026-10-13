@@ -176,6 +176,29 @@ describe('SourceRemovalService', () => {
         expect(context.activatePlaylist).not.toHaveBeenCalled();
     });
 
+    it('leaves a later switch alone on Undo when nothing replaced the source', () => {
+        // The source was the only row a filter showed: no replacement.
+        resolvedPlaylistId.set('a');
+        routePlaylistId.set('a');
+        router.url = '/workspace/xtreams/a/vod';
+        service.remove(playlist('a'));
+        resolvedPlaylistId.set('c');
+
+        toasts[0].action.next();
+        expect(router.navigateByUrl).not.toHaveBeenCalled();
+        expect(context.activatePlaylist).not.toHaveBeenCalled();
+    });
+
+    it('passes the focus target of a closing surface to the toast', () => {
+        const trigger = document.createElement('button');
+        service.remove(playlist('a'), null, { returnFocusTo: trigger });
+        const openFromComponent = TestBed.inject(MatSnackBar)
+            .openFromComponent as jest.Mock;
+        expect(openFromComponent.mock.calls[0][1].data.returnFocusTo).toBe(
+            trigger
+        );
+    });
+
     it('leaves the deleted source’s own page and returns on Undo', () => {
         resolvedPlaylistId.set('a');
         routePlaylistId.set('a');

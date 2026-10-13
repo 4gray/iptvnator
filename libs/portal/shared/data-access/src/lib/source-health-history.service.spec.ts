@@ -36,14 +36,28 @@ describe('SourceHealthHistoryService', () => {
             state: 'bad',
             checkedAt: 900,
             failingSince: 100,
+            reason: 'network',
         });
     });
 
     it('stores no URL or credential', () => {
         create().record(['a'], failed(100));
         expect(localStorage.getItem(SOURCE_HEALTH_HISTORY_STORAGE_KEY)).toBe(
-            '{"a":{"state":"bad","checkedAt":100,"failingSince":100}}'
+            '{"a":{"state":"bad","checkedAt":100,"failingSince":100,"reason":"network"}}'
         );
+    });
+
+    it('drops a stored cause this build cannot describe', () => {
+        localStorage.setItem(
+            SOURCE_HEALTH_HISTORY_STORAGE_KEY,
+            '{"a":{"state":"bad","checkedAt":1,"reason":"<script>"},"b":{"state":"bad","checkedAt":1,"reason":"auth"}}'
+        );
+        const history = create();
+        expect(history.entries().get('a')).toEqual({
+            state: 'bad',
+            checkedAt: 1,
+        });
+        expect(history.entries().get('b')?.reason).toBe('auth');
     });
 
     it('ignores inconclusive checks', () => {

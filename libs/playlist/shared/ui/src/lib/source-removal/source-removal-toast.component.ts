@@ -20,13 +20,17 @@ export interface SourceRemovalToastData {
     message: string;
     undoLabel: string;
     closeLabel: string;
+    /** Undo takes the focus, which returns here when the toast closes. */
+    returnFocusTo?: HTMLElement | null;
 }
 
 /**
  * "Removed …" with Undo, and a close button that commits the delete at
  * once instead of waiting out the toast. A delete from a row's menu takes
  * the row, and with it the focus, off the page: Undo then takes the focus,
- * so the keyboard can reach it.
+ * so the keyboard can reach it. A caller that closes on delete (the
+ * switcher) passes `returnFocusTo`: Undo takes the focus regardless, and
+ * the focus goes back there when the toast closes.
  */
 @Component({
     selector: 'app-source-removal-toast',
@@ -75,10 +79,21 @@ export class SourceRemovalToastComponent {
         const document = inject(DOCUMENT);
         // After the opening animation: by then a closing menu has tried, and
         // failed, to give focus back to the removed row's ⋯ button.
+        const returnFocusTo = this.data.returnFocusTo ?? null;
         this.ref.afterOpened().subscribe(() => {
             const active = document.activeElement;
-            if (!active || active === document.body) {
+            if (returnFocusTo || !active || active === document.body) {
                 (this.undo().nativeElement as HTMLElement).focus();
+            }
+        });
+        // The toast is gone by now; focus that left with it lands on body.
+        this.ref.afterDismissed().subscribe(() => {
+            const active = document.activeElement;
+            if (
+                returnFocusTo?.isConnected &&
+                (!active || active === document.body)
+            ) {
+                returnFocusTo.focus();
             }
         });
     }

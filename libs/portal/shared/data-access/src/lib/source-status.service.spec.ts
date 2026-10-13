@@ -100,7 +100,25 @@ describe('SourceStatusService', () => {
                 reachability: 'bad',
                 failingSince: 100,
                 checkedAt: 900,
+                reason: 'network',
             });
+        });
+
+        it("keeps a failed check's cause across a restart", () => {
+            history.set(
+                new Map([
+                    [
+                        'm',
+                        {
+                            state: 'bad',
+                            checkedAt: 50,
+                            failingSince: 10,
+                            reason: 'auth',
+                        },
+                    ],
+                ])
+            );
+            expect(create(true).statusOf(m3u)?.reason).toBe('auth');
         });
 
         it('shows the kept result before and while the source is checked', () => {
@@ -173,7 +191,10 @@ describe('SourceStatusService', () => {
             const service = create(false);
             service.ensureChecked(xtream, new AbortController().signal);
             expect(portal.checkPortalStatus).not.toHaveBeenCalled();
-            expect(service.statusOf(xtream)?.reachability).toBe('bad');
+            expect(service.statusOf(xtream)).toEqual({
+                reachability: 'bad',
+                reason: 'disabled',
+            });
         });
 
         it('drops a result that lands after the list closed', async () => {

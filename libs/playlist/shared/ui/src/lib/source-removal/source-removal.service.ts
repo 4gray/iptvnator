@@ -23,6 +23,15 @@ import {
 /** How long Undo stays available before the delete is committed. */
 export const SOURCE_REMOVAL_UNDO_MS = 4000;
 
+export interface SourceRemovalOptions {
+    /**
+     * For a surface that closes on delete, such as the switcher popover,
+     * whose focus trap the toast sits outside: Undo takes the focus at once,
+     * and it comes back here when the toast closes.
+     */
+    returnFocusTo?: HTMLElement | null;
+}
+
 interface PendingRemoval {
     playlist: PlaylistMeta;
     snackBar: MatSnackBarRef<SourceRemovalToastComponent>;
@@ -71,7 +80,11 @@ export class SourceRemovalService {
      * @param next The source to switch to when `playlist` is the active one:
      * the caller's next row, so the switch follows the list on screen.
      */
-    remove(playlist: PlaylistMeta, next: PlaylistMeta | null = null): void {
+    remove(
+        playlist: PlaylistMeta,
+        next: PlaylistMeta | null = null,
+        options: SourceRemovalOptions = {}
+    ): void {
         if (this.isPending(playlist._id)) {
             return;
         }
@@ -108,6 +121,7 @@ export class SourceRemovalService {
                         'PORTALS.MULTI_SOURCE.UNDO'
                     ),
                     closeLabel: this.translate.instant('CLOSE'),
+                    returnFocusTo: options.returnFocusTo ?? null,
                 },
                 duration: SOURCE_REMOVAL_UNDO_MS,
                 panelClass: 'app-toast',
@@ -142,11 +156,15 @@ export class SourceRemovalService {
             return;
         }
         // Only take the user back if they are still where the delete left
-        // them; a switch they made since then wins.
-        const stillReplaced =
-            this.playlistContext.resolvedPlaylistId() ===
-            (removal.next?._id ?? null);
-        if (!stillReplaced && removal.next) {
+        // them: on its replacement, or with no other source chosen. A switch
+        // they made since then wins, also when nothing replaced the source
+        // (it was the only row a filter showed).
+        const current = this.playlistContext.resolvedPlaylistId();
+        const untouched =
+            current === null ||
+            current === removal.playlist._id ||
+            current === removal.next?._id;
+        if (!untouched) {
             return;
         }
         if (removal.wasOnItsRoute) {
