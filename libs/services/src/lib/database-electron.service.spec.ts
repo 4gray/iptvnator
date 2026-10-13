@@ -86,6 +86,64 @@ describe('DatabaseService browser guards', () => {
         );
     });
 
+    it.each([
+        'getGlobalFavorites',
+        'getAllGlobalFavorites',
+        'getFavorites',
+    ] as const)(
+        '%s still reads healthy favorites when a pending conversion fails',
+        async (method) => {
+            const pending = JSON.stringify({
+                favorites: [{ contentType: 'movie', xtreamId: 7.5 }],
+            });
+            localStorage.setItem('xtream-restore-broken', pending);
+            localStorage.setItem(
+                'xtream-restore-healthy',
+                JSON.stringify({
+                    favorites: [{ contentType: 'movie', xtreamId: 9 }],
+                })
+            );
+            const rows = [{ favorite_id: 1, title: 'Saved favorite' }];
+            const read = jest.fn().mockResolvedValue(rows);
+            const restore = jest.fn(async (id: string) => {
+                if (id === 'broken')
+                    throw new Error('Invalid favorite identity');
+                return { success: true };
+            });
+            Object.defineProperty(window, 'electron', {
+                configurable: true,
+                value: {
+                    dbGetPlaylist: jest
+                        .fn()
+                        .mockResolvedValue({ type: 'xtream' }),
+                    dbRestoreXtreamFavorites: restore,
+                    dbGetGlobalFavorites: read,
+                    dbGetAllGlobalFavorites: read,
+                    dbGetFavorites: read,
+                    dbGetFavoritesForBackup: jest.fn(),
+                },
+            });
+            await expect(service[method]('broken')).resolves.toEqual(rows);
+            expect(read).toHaveBeenCalledTimes(1);
+            if (method !== 'getFavorites') {
+                expect(restore).toHaveBeenCalledWith(
+                    'healthy',
+                    [{ contentType: 'movie', xtreamId: 9 }],
+                    undefined
+                );
+            }
+            expect(localStorage.getItem('xtream-restore-broken')).toBe(pending);
+            restore.mockResolvedValueOnce({ success: false });
+            await expect(service.getFavorites('broken')).resolves.toEqual(rows);
+            await expect(service.getFavoritesOrThrow('broken')).rejects.toThrow(
+                'Invalid favorite identity'
+            );
+            expect(
+                window.electron.dbGetFavoritesForBackup
+            ).not.toHaveBeenCalled();
+        }
+    );
+
     it('ignores orphan legacy state but never treats failed conversion as an empty backup', async () => {
         localStorage.setItem(
             'xtream-restore-orphan',

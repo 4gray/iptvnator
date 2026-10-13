@@ -55,16 +55,6 @@ test('@critical @persistence @xtream @electron rejects a reused favorite identit
                     'movie'
                 );
                 if (!row) throw new Error('Expected imported content');
-                const metadata =
-                    await window.electron.dbSetContentMetadataIfMissing(
-                        row.id,
-                        {
-                            tmdbId: 12345,
-                            releaseYear: 2000,
-                        }
-                    );
-                if (!metadata.success)
-                    throw new Error('Could not set current movie identity');
                 const restored = await window.electron.dbRestoreXtreamFavorites(
                     playlistId,
                     [
@@ -82,6 +72,28 @@ test('@critical @persistence @xtream @electron rejects a reused favorite identit
                 );
                 if (!restored.success)
                     throw new Error('Could not seed the older favorite');
+                const completed = await window.electron.dbSetAppState(
+                    `xtream-import-status:${playlistId}:movie`,
+                    'completed'
+                );
+                if (!completed.success)
+                    throw new Error('Could not complete the catalog');
+                const [saved] =
+                    await window.electron.dbGetFavoritesForBackup(playlistId);
+                if (saved?.title !== oldTitle)
+                    throw new Error(
+                        'Unconfirmed catalog identity replaced the saved title'
+                    );
+                const metadata =
+                    await window.electron.dbSetContentMetadataIfMissing(
+                        row.id,
+                        {
+                            tmdbId: 12345,
+                            releaseYear: 2000,
+                        }
+                    );
+                if (!metadata.success)
+                    throw new Error('Could not set current movie identity');
             },
             { playlistId, xtreamId: Number(item.stream_id), oldTitle }
         );

@@ -17,6 +17,12 @@ export function resolvedFavoriteContentId() {
         ORDER BY candidate.id LIMIT 1)`;
 }
 
+/** Missing candidate metadata cannot authorize replacing an already known snapshot. */
+export function favoriteSnapshotMatchesContent() {
+    return sql`(${schema.favorites.tmdbId} IS NULL OR ${schema.favorites.tmdbId} = ${schema.content.tmdbId})
+        AND (${schema.favorites.releaseYear} IS NULL OR ${schema.favorites.releaseYear} = ${schema.content.releaseYear})`;
+}
+
 export function favoriteCatalogStatus() {
     return sql<'present' | 'missing' | 'unknown'>`CASE
         WHEN ${schema.appState.value} IN ('importing', 'failed', 'cancelled') THEN 'unknown'
@@ -92,6 +98,7 @@ export async function reconcileCompletedFavoriteCatalog(
             })
             .where(
                 and(
+                    sql`EXISTS (SELECT 1 FROM content WHERE id = favorites.content_id AND ${favoriteSnapshotMatchesContent()})`,
                     eq(schema.favorites.playlistId, match[1]),
                     eq(
                         schema.favorites.type,

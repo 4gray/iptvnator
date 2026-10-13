@@ -10,7 +10,8 @@ export async function materializePendingXtreamFavorites(
         ElectronBridgeApi,
         'dbGetPlaylist' | 'dbRestoreXtreamFavorites'
     >,
-    playlistId?: string
+    playlistId?: string,
+    failureMode: 'throw' | 'continue' = 'throw'
 ): Promise<void> {
     const prefix = getXtreamPendingRestoreStorageKey('');
     const ids = playlistId
@@ -35,14 +36,20 @@ export async function materializePendingXtreamFavorites(
         if (!state.favorites.length) continue;
         // Old localStorage can outlive deletion of its owning SQLite playlist.
         // Never recreate a playlist or let an orphan block other saved entries.
-        const playlist = await bridge.dbGetPlaylist(id);
-        if (!playlist || playlist.type !== 'xtream') continue;
-        const result = await bridge.dbRestoreXtreamFavorites(
-            id,
-            state.favorites,
-            state.favoritesRestoreId
-        );
-        if (!result.success)
-            throw new Error('Recovering saved favorites failed.');
+        try {
+            const playlist = await bridge.dbGetPlaylist(id);
+            if (!playlist || playlist.type !== 'xtream') continue;
+            const result = await bridge.dbRestoreXtreamFavorites(
+                id,
+                state.favorites,
+                state.favoritesRestoreId
+            );
+            if (!result.success)
+                throw new Error('Recovering saved favorites failed.');
+        } catch (error) {
+            if (failureMode === 'throw') throw error;
+            // Keep pending state for retry while ordinary reads show healthy data.
+            console.warn('A pending favorites conversion could not complete.');
+        }
     }
 }

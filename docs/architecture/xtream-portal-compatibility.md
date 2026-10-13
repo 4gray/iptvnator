@@ -50,8 +50,10 @@ Favorite rows retain a durable `favorite_id`, saved title/artwork, added date
 and order. Their `id`/`category_id` may be null; consumers must not invent a
 catalog ID. Remove/reorder can use the stable favorite ID while detail toggles
 resolve any category row through the same typed provider identity. Completed
-imports reconnect valid identities and refresh display snapshots. Metadata
-learned in detail views is copied into the saved snapshot before catalog loss.
+imports reconnect valid identities. Display snapshots are replaced only after
+the returning row confirms every saved TMDB ID/year; incomplete identity keeps
+the saved title/artwork in collections and backups. Metadata learned in detail
+views is copied into the saved snapshot before catalog loss.
 Conflicting known TMDB IDs or release years prevent automatic reconnection;
 changed provider IDs never reconnect by title.
 Adding a conflicting replacement returns an explicit failure and retains the
@@ -72,8 +74,10 @@ stored but are withheld while locks apply.
 
 Legacy pending favorites are converted before destructive refresh, import
 requests and ordinary collection reads, even if portal-status preflight is
-offline. Backup merges convert any older pending favorites before parking the
-incoming archive. Favorite inserts and a replay receipt commit together;
+offline. Ordinary collection reads isolate failed conversions per playlist and
+still read healthy database favorites, retaining pending state for retry. Backup
+reads remain strict and fail if conversion fails. Backup merges convert any
+older pending favorites before parking the incoming archive. Favorite inserts and a replay receipt commit together;
 retries cannot resurrect a subsequently removed favorite. Deliberate backup import creates a
 fresh receipt ID, which stays internal and is never exported. Identity-only old
 backups use a labelled saved-item fallback until catalog metadata returns.

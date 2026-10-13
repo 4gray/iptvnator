@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verifyFavoriteSnapshot } from './favorites-snapshot';
 import { createFavoriteTestCatalog } from './favorites-test-catalog';
 import { eq, sql } from 'drizzle-orm';
 import { closeDatabase, initDatabase } from '@iptvnator/shared/database';
@@ -269,6 +270,8 @@ async function main() {
         });
         await status('completed');
         assert.equal((await favorites())[0]?.id, 4);
+    } else if (scenario === 'snapshot') {
+        await verifyFavoriteSnapshot(db);
     } else if (scenario === 'scope') {
         await catalog(2, 7, 'Other', 'movie', 'other');
         await addFavorite(db, 2, 'other');

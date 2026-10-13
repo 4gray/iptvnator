@@ -741,7 +741,11 @@ export class DatabaseService {
         }
 
         try {
-            await materializePendingXtreamFavorites(window.electron);
+            await materializePendingXtreamFavorites(
+                window.electron,
+                undefined,
+                'continue'
+            );
             const items = await window.electron.dbGetGlobalFavorites();
             return items || [];
         } catch (error) {
@@ -759,7 +763,11 @@ export class DatabaseService {
         }
 
         try {
-            await materializePendingXtreamFavorites(window.electron);
+            await materializePendingXtreamFavorites(
+                window.electron,
+                undefined,
+                'continue'
+            );
             const items = await window.electron.dbGetAllGlobalFavorites();
             return items || [];
         } catch (error) {
@@ -901,7 +909,8 @@ export class DatabaseService {
         try {
             await materializePendingXtreamFavorites(
                 window.electron,
-                playlistId
+                playlistId,
+                'continue'
             );
             return await window.electron.dbGetFavorites(playlistId);
         } catch (error) {

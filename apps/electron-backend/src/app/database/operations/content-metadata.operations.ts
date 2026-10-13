@@ -5,7 +5,10 @@ import {
     ContentMetadataPatch,
     normalizeContentMetadataPatch,
 } from '@iptvnator/shared/interfaces';
-import { favoriteMatchesContentId } from './favorite-catalog';
+import {
+    favoriteMatchesContentId,
+    favoriteSnapshotMatchesContent,
+} from './favorite-catalog';
 import type { AppDatabase } from '../database.types';
 
 /**
@@ -118,7 +121,12 @@ export async function persistContentMetadataIfMissing(
                 ])
             )
         )
-        .where(favoriteMatchesContentId(contentId));
+        .where(
+            and(
+                favoriteMatchesContentId(contentId),
+                sql`EXISTS (SELECT 1 FROM content WHERE id = ${contentId} AND ${favoriteSnapshotMatchesContent()})`
+            )
+        );
 }
 
 export async function setContentMetadataIfMissing(

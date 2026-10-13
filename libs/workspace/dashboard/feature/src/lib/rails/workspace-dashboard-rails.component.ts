@@ -155,12 +155,13 @@ export class WorkspaceDashboardRailsComponent {
         this.continueWatchingBaseCards()
     );
 
-    readonly liveFavoriteCards = computed<DashboardRailCard[]>(() =>
-        this.data
+    readonly liveFavoriteCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.data
             .globalFavoriteLiveItems()
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toFavoriteCard(item))
-    );
+            .map((item) => this.toFavoriteCard(item));
+    });
 
     readonly recentLiveCards = computed<DashboardRailCard[]>(() =>
         this.data
@@ -218,13 +219,14 @@ export class WorkspaceDashboardRailsComponent {
         this.liveEpg.enrich(this.recentLiveCards())
     );
 
-    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() =>
-        this.data
+    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.data
             .globalFavoriteItems()
             .filter((item) => item.type === 'movie' || item.type === 'series')
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toFavoriteCard(item))
-    );
+            .map((item) => this.toFavoriteCard(item));
+    });
 
     readonly continueWatchingSeeAllState = computed(() =>
         buildDashboardRailSeeAllState(this.continueWatchingBaseCards())

@@ -4,6 +4,7 @@ import type { AppDatabase } from '../database.types';
 import { unlockedCategoryCondition } from '../parental-lock-state';
 import {
     favoriteCatalogStatus,
+    favoriteSnapshotMatchesContent,
     favoriteImportStateKey,
     resolvedFavoriteContentId,
 } from './favorite-catalog';
@@ -20,24 +21,24 @@ export function selectFavoriteRows(
                 favorite_id: schema.favorites.id,
                 id: schema.content.id,
                 category_id: schema.content.categoryId,
-                title: sql<string>`COALESCE(NULLIF(TRIM(${schema.content.title}), ''), ${schema.favorites.title})`,
+                title: sql<string>`CASE WHEN ${favoriteSnapshotMatchesContent()} THEN COALESCE(NULLIF(TRIM(${schema.content.title}), ''), ${schema.favorites.title}) ELSE ${schema.favorites.title} END`,
                 rating: schema.content.rating,
                 added: schema.content.added,
                 poster_url: sql<
                     string | null
-                >`COALESCE(NULLIF(TRIM(${schema.content.posterUrl}), ''), ${schema.favorites.posterUrl})`,
+                >`CASE WHEN ${favoriteSnapshotMatchesContent()} THEN COALESCE(NULLIF(TRIM(${schema.content.posterUrl}), ''), ${schema.favorites.posterUrl}) ELSE ${schema.favorites.posterUrl} END`,
                 backdrop_url: sql<
                     string | null
-                >`COALESCE(NULLIF(TRIM(${schema.content.backdropUrl}), ''), ${schema.favorites.backdropUrl})`,
+                >`CASE WHEN ${favoriteSnapshotMatchesContent()} THEN COALESCE(NULLIF(TRIM(${schema.content.backdropUrl}), ''), ${schema.favorites.backdropUrl}) ELSE ${schema.favorites.backdropUrl} END`,
                 tmdb_id: sql<
                     number | null
-                >`COALESCE(${schema.content.tmdbId}, ${schema.favorites.tmdbId})`,
+                >`CASE WHEN ${favoriteSnapshotMatchesContent()} THEN COALESCE(${schema.content.tmdbId}, ${schema.favorites.tmdbId}) ELSE ${schema.favorites.tmdbId} END`,
                 release_year: sql<
                     number | null
-                >`COALESCE(${schema.content.releaseYear}, ${schema.favorites.releaseYear})`,
+                >`CASE WHEN ${favoriteSnapshotMatchesContent()} THEN COALESCE(${schema.content.releaseYear}, ${schema.favorites.releaseYear}) ELSE ${schema.favorites.releaseYear} END`,
                 original_title: sql<
                     string | null
-                >`COALESCE(NULLIF(TRIM(${schema.content.originalTitle}), ''), ${schema.favorites.originalTitle})`,
+                >`CASE WHEN ${favoriteSnapshotMatchesContent()} THEN COALESCE(NULLIF(TRIM(${schema.content.originalTitle}), ''), ${schema.favorites.originalTitle}) ELSE ${schema.favorites.originalTitle} END`,
                 xtream_id: schema.favorites.xtreamId,
                 type: schema.favorites.type,
                 tv_archive: schema.content.tvArchive,
