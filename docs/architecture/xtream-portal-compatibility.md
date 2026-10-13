@@ -344,6 +344,12 @@ resolves. An unresolved source exposes no actions. Playback and download
 descriptors also fall back to the catalog title and poster after `info` and
 `movie_data`.
 
+Provider stand-ins in `get_vod_info` / `get_series_info` (`N/A`, `-`, an
+unrated `0` score) are emptied before the response becomes the store
+selection (`stores/xtream-detail-metadata.ts`), since both detail routes bind
+`info` fields directly. A `get_vod_info` response made only of stand-ins
+therefore counts as sparse and gets the fallback page above.
+
 ## Catch-Up Playback URLs
 
 Xtream-compatible portals differ on archive playback URL shape. IPTVnator

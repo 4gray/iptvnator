@@ -14,6 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { readProviderRating } from '@iptvnator/shared/interfaces';
 import {
     PortalWatchState,
     getXtreamCatchupDays,
@@ -49,22 +50,19 @@ interface GridListItem {
     [key: string]: unknown;
 }
 
+/**
+ * Card rating badge text. Provider stand-ins (`"N/A"`, `"-"`) and an unrated
+ * zero read as no rating — see `readProviderRating` — so the badge is hidden
+ * and {@link resolveGridRating} can reach the generic `rating` behind them.
+ */
 export function formatGridRating(value: unknown): string | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value.toFixed(1);
-    }
-
-    if (typeof value !== 'string') {
+    const text = readProviderRating(value);
+    if (text === undefined) {
         return undefined;
     }
 
-    const trimmed = value.trim();
-    if (!trimmed) {
-        return undefined;
-    }
-
-    const numericRating = Number.parseFloat(trimmed);
-    return Number.isFinite(numericRating) ? numericRating.toFixed(1) : trimmed;
+    const numericRating = Number.parseFloat(text);
+    return Number.isFinite(numericRating) ? numericRating.toFixed(1) : text;
 }
 
 export function resolveGridRating(

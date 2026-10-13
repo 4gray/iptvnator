@@ -103,6 +103,7 @@ export * from './lib/stalker-serial-details.interface';
 export * from './lib/stalker-vod-details.interface';
 
 // Unified VOD details (discriminated union + adapters)
+export * from './lib/provider-metadata.util';
 export * from './lib/vod-details-adapters';
 export * from './lib/vod-details-item.interface';
 
