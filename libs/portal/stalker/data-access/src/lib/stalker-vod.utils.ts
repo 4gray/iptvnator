@@ -4,8 +4,10 @@ import { Observable } from 'rxjs';
 import { PlaylistsService } from '@iptvnator/services';
 import {
     createStalkerVodItem,
+    firstProviderText,
     isStalkerSeriesFlag,
     isStalkerSeriesItem,
+    readProviderRating,
     StalkerVodDetails,
     StalkerVodInfo,
     VodDetailsItem,
@@ -146,36 +148,46 @@ function toStringOrFallback(value: unknown, fallback = ''): string {
     return String(value);
 }
 
-function toOptionalString(value: unknown): string | undefined {
-    if (value === null || value === undefined || value === '') {
-        return undefined;
-    }
-    return String(value);
-}
-
+/**
+ * Maps a raw portal row (or an already-built selection, on re-normalization)
+ * to the `info` both Stalker detail templates render.
+ *
+ * Portals send `"N/A"`, `"-"` or an unrated `"0"` score where they have
+ * nothing, so every field reads the first USABLE candidate and falls back to
+ * `''`, which is how this shape spells "absent". The series view binds
+ * `info` directly, and TMDB enrichment keeps any non-empty provider rating
+ * and release date, so a stand-in surviving this point would be rendered
+ * AND would block the TMDB value that should have replaced it.
+ */
 export function createStalkerInfo(item: StalkerVodSource): StalkerVodInfo {
     const info = item.info ?? {};
+    const text = (...values: unknown[]) => firstProviderText(...values) ?? '';
+    const rating = (primary: unknown, fallback: unknown) =>
+        readProviderRating(primary) ?? readProviderRating(fallback) ?? '';
 
     return {
-        name: toStringOrFallback(
-            info.name ?? info.o_name ?? item.o_name ?? item.name ?? item.title,
-            'Unknown'
+        name:
+            firstProviderText(
+                info.name,
+                info.o_name,
+                item.o_name,
+                item.name,
+                item.title
+            ) ?? 'Unknown',
+        o_name: firstProviderText(info.o_name, item.o_name),
+        movie_image: text(
+            info.movie_image,
+            item.cover,
+            item.screenshot_uri,
+            item.logo
         ),
-        o_name: toOptionalString(info.o_name ?? item.o_name),
-        movie_image: toStringOrFallback(
-            info.movie_image ?? item.cover ?? item.screenshot_uri ?? item.logo
-        ),
-        description: toStringOrFallback(info.description ?? item.description),
-        actors: toStringOrFallback(info.actors ?? item.actors),
-        director: toStringOrFallback(info.director ?? item.director),
-        releasedate: toStringOrFallback(
-            info.releasedate ?? item.releasedate ?? item.year
-        ),
-        genre: toStringOrFallback(info.genre ?? item.genre ?? item.genres_str),
-        rating_imdb: toStringOrFallback(info.rating_imdb ?? item.rating_imdb),
-        rating_kinopoisk: toStringOrFallback(
-            info.rating_kinopoisk ?? item.rating_kinopoisk
-        ),
+        description: text(info.description, item.description),
+        actors: text(info.actors, item.actors),
+        director: text(info.director, item.director),
+        releasedate: text(info.releasedate, item.releasedate, item.year),
+        genre: text(info.genre, item.genre, item.genres_str),
+        rating_imdb: rating(info.rating_imdb, item.rating_imdb),
+        rating_kinopoisk: rating(info.rating_kinopoisk, item.rating_kinopoisk),
         // TMDB enrichment fields must survive re-normalization — detail
         // views normalize the selected item on every render
         ...(info.tmdb_id ? { tmdb_id: info.tmdb_id } : {}),
