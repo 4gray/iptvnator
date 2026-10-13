@@ -27,7 +27,12 @@ export async function createFavoritesCatalogProxy(): Promise<FavoritesCatalogPro
     const responses = new Map<string, number>();
     const pending = new Set<AbortController>();
     const server = createServer((request, response) => {
-        const url = new URL(request.url ?? '/', xtreamMockServer);
+        const incoming = new URL(request.url ?? '/', xtreamMockServer);
+        // Only path/query may vary: an absolute request target must never select
+        // a different upstream host for this local test proxy.
+        const url = new URL(xtreamMockServer);
+        url.pathname = incoming.pathname;
+        url.search = incoming.search;
         const action = url.searchParams.get('action') ?? 'get_account_info';
         const requestMode = mode;
         response.once('finish', () => {

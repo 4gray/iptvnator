@@ -159,8 +159,20 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(xtreamEntry(manifest).userState).toEqual({
                 hiddenCategories: [],
                 favorites: [
-                    { contentType: 'movie', xtreamId: 501 },
-                    { contentType: 'series', xtreamId: 77 },
+                    {
+                        contentType: 'movie',
+                        xtreamId: 501,
+                        snapshot: {
+                            title: heat.title,
+                            posterUrl: heat.poster_url,
+                            backdropUrl: heat.backdrop_url,
+                        },
+                    },
+                    {
+                        contentType: 'series',
+                        xtreamId: 77,
+                        snapshot: { title: legacyShow.title },
+                    },
                 ],
                 // One row per title, its newest view.
                 recentlyViewed: [
@@ -272,6 +284,60 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
     });
 
     describe('import', () => {
+        it('preserves desktop favorite snapshots offline and includes them in browser re-exports', async () => {
+            const manifest = await exportSeeded();
+            const entry = xtreamEntry(manifest);
+            const favorites = [
+                {
+                    contentType: 'movie' as const,
+                    xtreamId: 501,
+                    addedAt: '2026-01-02',
+                    position: 3,
+                    snapshot: {
+                        title: 'Offline desktop movie',
+                        posterUrl: 'https://img.example.com/saved.jpg',
+                        backdropUrl: 'https://img.example.com/saved-wide.jpg',
+                        tmdbId: 949,
+                        releaseYear: 1995,
+                        originalTitle: 'Original movie title',
+                    },
+                },
+            ];
+            entry.userState = {
+                hiddenCategories: [],
+                favorites,
+                recentlyViewed: [],
+                playbackPositions: [],
+            };
+            localStorage.clear();
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+            });
+            expect(
+                await service.importBackup(xtreamOnly(manifest))
+            ).toMatchObject({ merged: 1, failed: 0 });
+            expect(
+                read(KEYS.collectionItems)?.['xtream-1']?.['movie:501']
+            ).toMatchObject({
+                id: 501,
+                xtream_id: 501,
+                type: 'movie',
+                title: favorites[0].snapshot.title,
+                poster_url: favorites[0].snapshot.posterUrl,
+                backdrop_url: favorites[0].snapshot.backdropUrl,
+                tmdb_id: 949,
+                release_year: 1995,
+                original_title: 'Original movie title',
+            });
+            const { manifest: reexport } = await service.exportBackup();
+            expect(xtreamEntry(reexport).userState.favorites).toEqual(
+                favorites
+            );
+            expect(
+                xtreamEntry(reexport).userState.collectionItems
+            ).toHaveLength(1);
+        });
+
         it('restores every list under the id the playlist is imported as', async () => {
             const manifest = await exportSeeded();
             localStorage.clear();
@@ -361,6 +427,9 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
         it('leaves snapshots alone for an archive without any, and skips damaged ones', async () => {
             const manifest = await exportSeeded();
             const entry = xtreamEntry(manifest);
+            entry.userState.favorites = entry.userState.favorites.map(
+                ({ contentType, xtreamId }) => ({ contentType, xtreamId })
+            );
             const before = read(KEYS.collectionItems);
             const service = createPlaylistBackupService({
                 playlistsService: playlistsService([existingXtreamPlaylist]),

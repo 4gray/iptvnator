@@ -145,6 +145,7 @@ describe('UnifiedCollectionPageComponent', () => {
     const playlistsLoaded = signal(false);
     const playlists = signal<PlaylistMeta[]>([]);
     const favoritesData = {
+        isXtreamFavorite: jest.fn().mockResolvedValue(true),
         addFavorite: jest.fn().mockResolvedValue(undefined),
         getFavorites: jest.fn().mockResolvedValue([]),
         clearFavorites: jest.fn().mockResolvedValue(undefined),

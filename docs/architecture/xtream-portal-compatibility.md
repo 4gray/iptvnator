@@ -63,6 +63,9 @@ Adding a conflicting replacement returns an explicit failure and retains the
 older favorite. Detail and recent-collection toggles stay inactive and explain
 that the older entry must be removed from Favorites before the replacement can
 be saved. Collection hearts change only after the storage write succeeds.
+Recent collections also check the current catalog row's favorite status through
+the data source when loading: a retained favorite's matching provider key alone
+cannot mark an incompatible replacement as saved.
 
 `catalog_status` is `present`, `missing`, or `unknown`. Only a completed import
 of the relevant type can prove absence. Failed, cancelled and in-progress
@@ -94,6 +97,10 @@ unfiltered read; a failed favorites read fails export rather than producing an
 empty collection. New backup imports materialize favorites before waiting for
 an online catalog. Existing history, hidden-category and playback-position
 restore contracts remain separate.
+Browser imports convert desktop favorite snapshots into typed collection-cache
+rows so saved titles and artwork remain visible offline. Browser exports include
+the normalized nested favorite snapshots as well as their optional collection
+cache, preserving metadata when the archive returns to Electron.
 
 Both Xtream data-source and portal-activity capabilities require the pending
 favorite conversion bridge; activity reads also require playlist lookup. The

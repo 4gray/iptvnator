@@ -36,11 +36,13 @@ describe('UnifiedFavoritesDataService', () => {
         dbRemoveRecentItemsBatch: jest.Mock;
     };
     let databaseService: {
+        isFavorite: jest.Mock;
         getAllGlobalFavorites: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getFavorites: jest.Mock;
     };
     let xtreamDataSource: {
+        isFavorite: jest.Mock;
         addFavorite: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getFavorites: jest.Mock;
@@ -166,11 +168,13 @@ describe('UnifiedFavoritesDataService', () => {
             ),
         };
         databaseService = {
+            isFavorite: jest.fn().mockResolvedValue(true),
             getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getFavorites: jest.fn().mockResolvedValue([]),
         };
         xtreamDataSource = {
+            isFavorite: jest.fn().mockResolvedValue(true),
             addFavorite: jest.fn().mockResolvedValue(undefined),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getFavorites: jest.fn().mockResolvedValue([]),
@@ -205,7 +209,10 @@ describe('UnifiedFavoritesDataService', () => {
             providers: [
                 UnifiedFavoritesDataService,
                 UnifiedCollectionDataService,
-                { provide: UnifiedRecentDataService, useValue: {} },
+                {
+                    provide: UnifiedRecentDataService,
+                    useValue: { getRecentItems: jest.fn() },
+                },
                 {
                     provide: Store,
                     useValue: store,
@@ -709,6 +716,56 @@ describe('UnifiedFavoritesDataService', () => {
         await collection.toggleFavorite(item);
         expect(collection.favoriteUidSet().has(item.uid)).toBe(true);
     });
+
+    it.each([undefined, 99])(
+        'checks the recent row identity against a saved favorite resolved to %s before setting its heart',
+        async (savedContentId) => {
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::xtream-1::movie:101',
+                name: 'Replacement movie',
+                contentType: 'movie',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream One',
+                xtreamId: 101,
+                contentId: 42,
+            };
+            jest.spyOn(service, 'getFavorites').mockResolvedValue([
+                {
+                    ...item,
+                    name: 'Older favorite',
+                    contentId: savedContentId,
+                    favoriteId: 5,
+                },
+            ]);
+            jest.spyOn(
+                TestBed.inject(UnifiedRecentDataService),
+                'getRecentItems'
+            ).mockResolvedValue([item]);
+            databaseService.isFavorite.mockResolvedValue(false);
+            electronApi.dbAddFavorite.mockResolvedValue({
+                success: false,
+                error: 'XTREAM_FAVORITE_IDENTITY_CONFLICT',
+            });
+            const collection = TestBed.inject(UnifiedCollectionDataService);
+            const request = { mode: 'recent', scope: 'all' } as const;
+            await collection.load(request);
+            expect(collection.favoriteUidSet().has(item.uid)).toBe(false);
+            expect(databaseService.isFavorite).toHaveBeenCalledWith(
+                42,
+                'xtream-1'
+            );
+            await expect(collection.toggleFavorite(item)).rejects.toThrow(
+                'XTREAM_FAVORITE_IDENTITY_CONFLICT'
+            );
+            expect(electronApi.dbRemoveFavorite).not.toHaveBeenCalled();
+            await collection.load(request);
+            expect(collection.favoriteUidSet().has(item.uid)).toBe(false);
+            databaseService.isFavorite.mockResolvedValue(true);
+            await collection.load(request);
+            expect(collection.favoriteUidSet().has(item.uid)).toBe(true);
+        }
+    );
 
     it('uses the Xtream id as the favorite key in PWA when cached content is cold', async () => {
         Object.defineProperty(window, 'electron', {

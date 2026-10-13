@@ -1,3 +1,4 @@
+import { createServer, get as httpGet } from 'node:http';
 import {
     addXtreamPortal,
     clickCategoryByNameExact,
@@ -16,7 +17,57 @@ import {
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
 import { fetchXtreamVodFixture, getXtreamTitle } from './portal-mock-fixtures';
-import { readSavedFavorites } from './support/xtream-favorites-catalog';
+import {
+    createFavoritesCatalogProxy,
+    readSavedFavorites,
+} from './support/xtream-favorites-catalog';
+
+test('@xtream catalog proxy keeps absolute request targets on the mock upstream', async () => {
+    let redirectedRequests = 0;
+    const trap = createServer((_request, response) => {
+        redirectedRequests++;
+        response.end('{"unexpected":"upstream"}');
+    });
+    await new Promise<void>((resolve) => trap.listen(0, '127.0.0.1', resolve));
+    const address = trap.address();
+    if (!address || typeof address === 'string')
+        throw new Error('Expected TCP address');
+    const proxy = await createFavoritesCatalogProxy();
+    try {
+        const target = new URL(proxy.origin);
+        const response = await new Promise<{ status: number; body: string }>(
+            (resolve, reject) => {
+                const request = httpGet(
+                    {
+                        hostname: target.hostname,
+                        port: target.port,
+                        path: `http://127.0.0.1:${address.port}/player_api.php?username=minimal&password=minimal`,
+                    },
+                    (incoming) => {
+                        let body = '';
+                        incoming.setEncoding('utf8');
+                        incoming.on('data', (chunk) => {
+                            body += chunk;
+                        });
+                        incoming.on('end', () =>
+                            resolve({ status: incoming.statusCode ?? 0, body })
+                        );
+                        incoming.on('error', reject);
+                    }
+                );
+                request.on('error', reject);
+            }
+        );
+        expect(response.status).toBe(200);
+        expect(redirectedRequests).toBe(0);
+        expect(JSON.parse(response.body)).toHaveProperty('user_info');
+    } finally {
+        await proxy.close();
+        await new Promise<void>((resolve, reject) =>
+            trap.close((error) => (error ? reject(error) : resolve()))
+        );
+    }
+});
 
 test('@critical @persistence @xtream @electron rejects a reused favorite identity until the older saved entry is explicitly removed', async ({
     dataDir,

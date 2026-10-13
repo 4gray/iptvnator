@@ -80,6 +80,20 @@ export class UnifiedFavoritesDataService {
         }
     }
 
+    /** A reused provider ID alone cannot determine a recent row's favorite status. */
+    async isXtreamFavorite(item: UnifiedCollectionItem): Promise<boolean> {
+        const contentId =
+            item.contentId ?? (await this.resolveXtreamContentId(item));
+        if (contentId == null) return false;
+        if (this.electronActivityBridge) {
+            return this.dbService.isFavorite(contentId, item.playlistId);
+        }
+        return this.xtreamDataSource.isFavorite(
+            { id: contentId, type: item.contentType },
+            item.playlistId
+        );
+    }
+
     async removeFavorite(item: UnifiedCollectionItem): Promise<void> {
         switch (item.sourceType) {
             case 'm3u': {

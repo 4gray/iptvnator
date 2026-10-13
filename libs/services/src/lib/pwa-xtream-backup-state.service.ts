@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import {
     PlaybackPositionData,
+    normalizeXtreamPendingRestoreState,
     XtreamBackupCollectionItem,
     XtreamBackupContentType,
     XtreamBackupFavoriteItem,
@@ -42,11 +43,16 @@ export class PwaXtreamBackupStateService {
         const playlistId = entry.exportedId;
         const stored = this.readMap('collectionItems')[playlistId];
         const snapshots = isRecord(stored) ? stored : {};
+        const byKey = snapshotsByKey(Object.values(snapshots));
 
         const favorites = new Map<string, XtreamBackupFavoriteItem>();
         for (const key of this.listFor('favorites', playlistId)) {
             const ref = resolveKey(key, snapshots);
-            if (ref) favorites.set(ref.key, ref.item);
+            if (ref)
+                favorites.set(
+                    ref.key,
+                    favoriteWithSnapshot(ref, byKey[ref.key])
+                );
         }
 
         // Newest view wins, artwork included, as in the data source.
@@ -66,7 +72,6 @@ export class PwaXtreamBackupStateService {
             }
         }
 
-        const byKey = snapshotsByKey(Object.values(snapshots));
         const collectionItems = [
             ...new Set([...favorites.keys(), ...recent.keys()]),
         ]
@@ -94,9 +99,10 @@ export class PwaXtreamBackupStateService {
      *
      * Lists first, so the optional cache never takes space they need. A
      * failed write throws with earlier ones applied, and the caller keeps the
-     * pending snapshot for the Xtream store to replay on the next open. The
-     * replay carries no titles (they come from `entry`, not `state`), so they
-     * are still merged then, unless storage is full and they would crowd it.
+     * pending snapshot for the Xtream store to replay on the next open.
+     * Browser-only cache rows come from `entry`; desktop favorite snapshots
+     * also travel in `state`. Merge both unless a full store would crowd out
+     * the lists that still need to be restored.
      */
     async restore(
         playlistId: string,
@@ -108,6 +114,39 @@ export class PwaXtreamBackupStateService {
         const snapshots = snapshotsByKey(
             Array.isArray(archived) ? archived : []
         );
+        for (const favorite of state.favorites) {
+            const saved = favorite.snapshot;
+            const key = typedKey(favorite.contentType, favorite.xtreamId);
+            if (!saved || key === null) continue;
+            snapshots[key] = {
+                ...snapshots[key],
+                id: favorite.xtreamId,
+                xtream_id: favorite.xtreamId,
+                type: favorite.contentType,
+                title: saved.title,
+                ...(saved.posterUrl !== undefined
+                    ? { poster_url: saved.posterUrl }
+                    : {}),
+                ...(saved.backdropUrl !== undefined
+                    ? { backdrop_url: saved.backdropUrl }
+                    : {}),
+                ...(saved.tmdbId !== undefined
+                    ? { tmdb_id: saved.tmdbId }
+                    : {}),
+                ...(saved.releaseYear !== undefined
+                    ? { release_year: saved.releaseYear }
+                    : {}),
+                ...(saved.originalTitle !== undefined
+                    ? { original_title: saved.originalTitle }
+                    : {}),
+                ...(favorite.addedAt !== undefined
+                    ? { added_at: favorite.addedAt }
+                    : {}),
+                ...(favorite.position !== undefined
+                    ? { position: favorite.position }
+                    : {}),
+            };
+        }
         try {
             this.replaceLists(playlistId, state);
         } catch (error) {
@@ -220,6 +259,31 @@ export class PwaXtreamBackupStateService {
     private writeMap(name: UserDataMap, map: StoredMap): void {
         this.storage.setItem(XTREAM_USER_DATA_KEYS[name], JSON.stringify(map));
     }
+}
+
+/** Share desktop's allowlisted snapshot fields while retaining browser cache rows. */
+function favoriteWithSnapshot(
+    ref: ResolvedKey,
+    saved?: XtreamBackupCollectionItem
+): XtreamBackupFavoriteItem {
+    if (!saved) return ref.item;
+    return normalizeXtreamPendingRestoreState({
+        favorites: [
+            {
+                ...ref.item,
+                addedAt: saved['added_at'],
+                position: saved['position'],
+                snapshot: {
+                    title: saved['title'],
+                    posterUrl: saved['poster_url'],
+                    backdropUrl: saved['backdrop_url'],
+                    tmdbId: saved['tmdb_id'],
+                    releaseYear: saved['release_year'],
+                    originalTitle: saved['original_title'],
+                },
+            },
+        ],
+    }).favorites[0];
 }
 
 /**
