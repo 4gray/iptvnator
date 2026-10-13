@@ -1389,9 +1389,14 @@ between commits: 731, 732, 733, 734 or 736 since #1817, and 748 in an
 iteration where a fifth bridge call (`updateRemoteControlStatus`) lands
 before `playing`. `slack` 16 covers that band; the regression it guards, the
 timeline rendering the whole schedule again, is about 5,000 mutations above
-it. `evidenceRun` 38311314484 (f60d79701) read 733 in every iteration. Lower
-`value` (keeping the slack) when the counter drops; remove the slack once
-the fifth call's race is gone and `master` runs agree.
+it. `evidenceRun` 38311314484 (f60d79701) read 733 in every iteration.
+
+The entry carries `"autoTighten": false`, so the weekly tightening leaves it
+alone: three runs that all read 731 would lower `value` to 731 and the limit
+to 747, below the 748 of a normal fifth-call iteration. Lower it by hand, and
+only with runs showing the top of the band fell too (a fifth-call iteration
+at or below the new `value` + `slack`). Remove the slack and the flag once the
+fifth call's race is gone and `master` runs agree.
 
 The two J4 entries, `search/renderer.ipcCallsPerSearch` 1 and
 `search/renderer.sqlStatementsPerSearch` 2 (#1899, `evidenceRun`
@@ -1463,6 +1468,9 @@ its job; its entries are then unmeasured in that run. A final job runs
   P50 for a `.p50` entry);
 - a counter marked `counterStability.<name>.stable: false` in any run is
   kept, and the report says which run and which iterations disagreed;
+- an entry with `"autoTighten": false` is kept: its slack covers a band of
+  normal values, and the largest of three runs can be the bottom of that band
+  (see `playback/renderer.domMutationsToPlaying` above);
 - `value` never goes up, `slack` and `toleranceRatio` never change, and no
   entry is added or removed: the result must pass
   `check-baseline-direction.mjs` without `--allow-increase`, which both the

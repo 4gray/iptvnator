@@ -90,6 +90,14 @@ export function validateBaselines(baselines) {
                 throw new Error(`Baseline ${label} has a non-string "note".`);
             }
             if (
+                entry.autoTighten !== undefined &&
+                typeof entry.autoTighten !== 'boolean'
+            ) {
+                throw new Error(
+                    `Baseline ${label} has a non-boolean "autoTighten".`
+                );
+            }
+            if (
                 entry.slack !== undefined &&
                 entry.toleranceRatio !== undefined
             ) {

@@ -368,6 +368,13 @@ test('rejects malformed baseline files', () => {
             }),
         /non-string "note"/
     );
+    assert.throws(
+        () =>
+            validateBaselines({
+                journeys: { launch: { x: { value: 1, autoTighten: 'no' } } },
+            }),
+        /non-boolean "autoTighten"/
+    );
 });
 
 test('a failing entry prints its note; a fractional score is exact', () => {

@@ -96,6 +96,7 @@
                 "value": 733,
                 "unit": "mutations",
                 "slack": 16,
+                "autoTighten": false,
                 "updatedAt": "2026-10-13",
                 "evidencePr": 1817,
                 "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38311314484",
