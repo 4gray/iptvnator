@@ -43,6 +43,11 @@ export class ServerStorageStatusService {
         this.stateSignal.set('online');
     }
 
+    /** The instance at the address turned out to be the remembered one. */
+    markVerified(): void {
+        this.verified = true;
+    }
+
     /**
      * The stored token, only while server mode runs on an instance this
      * start verified: a token must never reach a server it was not given

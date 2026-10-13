@@ -304,7 +304,9 @@ settings and guards read them in every build.
   when the backend answers without server storage, or as another server or
   database (backend URL or instance id) than the one it remembers; sign-in
   therefore remembers the server along with the token, or reports storage
-  trouble. Both turn
+  trouble. A page started from memory first checks that the instance at the
+  address is the remembered one (`ensureVerified`), and reloads if not,
+  before sign-in sends the token. Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
   so a token changed on the server sends an open page back to sign-in; a
   late 401 for a token replaced since (a new sign-in) changes nothing.

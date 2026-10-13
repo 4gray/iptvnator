@@ -126,6 +126,24 @@ export class ServerStorageSession {
         }
     }
 
+    /**
+     * Before a token goes out from a page started from memory: the instance
+     * answering at the address must be the remembered one. Another one
+     * reloads the page, which starts against it.
+     */
+    async ensureVerified(): Promise<void> {
+        if (!this.config.startedOffline) {
+            return;
+        }
+        const { instanceId } =
+            await this.api.getJson<ServerInstanceInfo>('/instance');
+        if (instanceId !== this.config.instance.instanceId) {
+            this.reloadPage();
+            throw new Error('Another server answers at this address.');
+        }
+        this.status.markVerified();
+    }
+
     fetchStatus(): Promise<ServerStorageStatusResponse> {
         return this.api.getJson<ServerStorageStatusResponse>(
             '/instance/status'

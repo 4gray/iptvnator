@@ -13,7 +13,7 @@ const TOKEN_KEY = 'iptvnator-server:access-token';
 describe('ServerSignInComponent', () => {
     let fixture: ComponentFixture<ServerSignInComponent>;
     let component: ServerSignInComponent;
-    const session = { fetchStatus: jest.fn() };
+    const session = { fetchStatus: jest.fn(), ensureVerified: jest.fn() };
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -151,5 +151,17 @@ describe('ServerSignInComponent', () => {
         expect(session.fetchStatus).not.toHaveBeenCalled();
         expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
         expect(feedbackText()).toBe('SERVER_STORAGE.SIGN_IN_STORAGE');
+    });
+
+    it('sends the token only after the server proved to be the remembered one', async () => {
+        session.ensureVerified.mockRejectedValue(new Error('another server'));
+
+        component.edit('right');
+        await component.submit(new Event('submit'));
+        fixture.detectChanges();
+
+        expect(session.fetchStatus).not.toHaveBeenCalled();
+        expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+        expect(feedbackText()).toBe('SERVER_STORAGE.SIGN_IN_UNREACHABLE');
     });
 });

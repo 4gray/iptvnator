@@ -204,6 +204,38 @@ describe('ServerStorageSession', () => {
             expect(session.userData.hasUnsentWrites()).toBe(true);
         });
 
+        it('checks the instance before a token may go out', async () => {
+            const { session, status } = setup('token', true);
+            const reload = jest
+                .spyOn(
+                    session as unknown as { reloadPage(): void },
+                    'reloadPage'
+                )
+                .mockImplementation(() => undefined);
+            await session.start();
+            localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 't');
+            expect(status.accessToken()).toBeNull();
+
+            fetchMock.mockResolvedValue({
+                status: 200,
+                ok: true,
+                headers: new Headers(),
+                json: async () => ({ instanceId: 'other' }),
+            });
+            await expect(session.ensureVerified()).rejects.toThrow();
+            expect(reload).toHaveBeenCalled();
+            expect(status.accessToken()).toBeNull();
+
+            fetchMock.mockResolvedValue({
+                status: 200,
+                ok: true,
+                headers: new Headers(),
+                json: async () => ({ instanceId: 'i-1' }),
+            });
+            await session.ensureVerified();
+            expect(status.accessToken()).toBe('t');
+        });
+
         it('never reloads after a normal start', async () => {
             const { session } = setup('none');
             const reload = jest

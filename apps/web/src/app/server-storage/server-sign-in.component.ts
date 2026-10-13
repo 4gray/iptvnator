@@ -56,6 +56,17 @@ export class ServerSignInComponent {
         if (!token || this.busy()) {
             return;
         }
+        this.busy.set(true);
+        this.feedback.set(null);
+        try {
+            // A page started from memory checks the server first: the token
+            // must reach only the one it is meant for.
+            await this.session.ensureVerified();
+        } catch {
+            this.feedback.set('unreachable');
+            this.busy.set(false);
+            return;
+        }
         // Every request and the reload read the token from storage, and the
         // next start keeps it only for the server it remembers.
         if (
@@ -64,10 +75,9 @@ export class ServerSignInComponent {
         ) {
             clearServerAccessToken();
             this.feedback.set('storage');
+            this.busy.set(false);
             return;
         }
-        this.busy.set(true);
-        this.feedback.set(null);
         try {
             await this.session.fetchStatus();
             this.openWorkspace();
