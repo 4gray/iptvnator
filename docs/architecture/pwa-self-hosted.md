@@ -186,8 +186,9 @@ instance under `iptvnator-server:instance`. When the probe gets no answer
 restarts, or a refusal other than 404, such as a proxy's 429), a browser that remembers this backend still starts in server
 mode, offline, and reloads once the server answers; it never falls back to
 an empty browser library. Until that reload it sends no writes
-(`holdWrites`): the address may lead to another database by then, which
-the reload's probe finds out. An answer without server storage, or a 404 from
+(`holdWrites`) and no token anywhere (`ServerStorageStatusService.accessToken()`
+is null for an unverified instance): the address may lead to another
+server or database by then, which the reload's probe finds out. An answer without server storage, or a 404 from
 an older backend, forgets it (`server-storage-start.ts`). Everything else of the
 client lives behind the `@iptvnator/services/server-storage` sub-entry, so
 other builds never load it; `ServerStorageStatusService` and the token
@@ -299,9 +300,11 @@ settings and guards read them in every build.
   browser that refuses to store it is told so instead).
   `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
   backend, and `PwaService` adds it to its two raw `fetch` calls only while
-  server mode runs. The browser forgets the token when the backend answers
-  without server storage, or as another server or database (backend URL or
-  instance id) than the one it remembers. Both turn
+  server mode runs on a verified instance. The browser forgets the token
+  when the backend answers without server storage, or as another server or
+  database (backend URL or instance id) than the one it remembers; sign-in
+  therefore remembers the server along with the token, or reports storage
+  trouble. Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
   so a token changed on the server sends an open page back to sign-in; a
   late 401 for a token replaced since (a new sign-in) changes nothing.

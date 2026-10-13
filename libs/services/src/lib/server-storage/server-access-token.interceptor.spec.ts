@@ -39,7 +39,21 @@ describe('ServerAccessTokenInterceptor', () => {
 
     afterEach(() => localStorage.clear());
 
+    const activate = (verified = true) =>
+        TestBed.inject(ServerStorageStatusService).activate(
+            {
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: 'i',
+                storage: 'server',
+                auth: 'token',
+            },
+            () => undefined,
+            verified
+        );
+
     it('adds the token to backend calls only', () => {
+        activate();
         const http = TestBed.inject(HttpClient);
         const controller = TestBed.inject(HttpTestingController);
 
@@ -56,6 +70,21 @@ describe('ServerAccessTokenInterceptor', () => {
                 .expectOne('https://provider.example/list.m3u')
                 .request.headers.has('Authorization')
         ).toBe(false);
+    });
+
+    it('withholds the token from an instance not checked yet', () => {
+        activate(false);
+        const http = TestBed.inject(HttpClient);
+        const controller = TestBed.inject(HttpTestingController);
+
+        http.get('/api/v1/instance').subscribe();
+
+        expect(
+            controller
+                .expectOne('/api/v1/instance')
+                .request.headers.has('Authorization')
+        ).toBe(false);
+        controller.verify();
     });
 
     it('asks for a new token when the backend refuses the stored one', () => {

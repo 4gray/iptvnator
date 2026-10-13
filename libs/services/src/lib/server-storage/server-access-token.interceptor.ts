@@ -7,10 +7,7 @@ import {
 } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, tap } from 'rxjs';
-import {
-    isServerAccessChallenge,
-    readServerAccessToken,
-} from '../server-access-token';
+import { isServerAccessChallenge } from '../server-access-token';
 import { ServerStorageStatusService } from '../server-storage-status.service';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 
@@ -31,7 +28,7 @@ export class ServerAccessTokenInterceptor implements HttpInterceptor {
         if (!isBackendUrl(request.url, this.baseUrl)) {
             return next.handle(request);
         }
-        const token = readServerAccessToken();
+        const token = this.status.accessToken();
         const sent = token
             ? request.clone({
                   setHeaders: { Authorization: `Bearer ${token}` },

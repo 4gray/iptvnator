@@ -95,14 +95,28 @@ function read(
     }
 }
 
+/**
+ * Remembers the server a token was accepted for; false when storage
+ * refused it (the next start would take the token for another server's).
+ */
+export function rememberServer(
+    baseUrl: string,
+    instance: ServerInstanceInfo,
+    storage: Pick<Storage, 'setItem'> | null = safeLocalStorage()
+): boolean {
+    return write(storage, { baseUrl, instance });
+}
+
 function write(
     storage: Pick<Storage, 'setItem'> | null,
     value: RememberedServer
-): void {
+): boolean {
     try {
         storage?.setItem(REMEMBERED_SERVER_KEY, JSON.stringify(value));
+        return !!storage;
     } catch {
         // Without storage an offline start falls back to browser mode.
+        return false;
     }
 }
 

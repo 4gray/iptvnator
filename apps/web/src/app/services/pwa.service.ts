@@ -16,7 +16,6 @@ import {
 import {
     DataService,
     isServerAccessChallenge,
-    readServerAccessToken,
     ServerStorageStatusService,
 } from '@iptvnator/services';
 import {
@@ -810,7 +809,7 @@ export class PwaService extends DataService {
      * backend: a token kept from another backend must not reach this one.
      */
     private serverAccessToken(): string | null {
-        return this.serverStatus.isActive() ? readServerAccessToken() : null;
+        return this.serverStatus.accessToken();
     }
 
     /** A token changed on the server shows up on any backend call. */

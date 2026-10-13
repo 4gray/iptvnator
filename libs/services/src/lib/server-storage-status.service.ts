@@ -21,16 +21,37 @@ export class ServerStorageStatusService {
     private readonly instanceSignal = signal<ServerInstanceInfo | null>(null);
     private readonly lastSuccessSignal = signal<Date | null>(null);
     private retryHandler: (() => void) | null = null;
+    private verified = true;
 
     readonly state = this.stateSignal.asReadonly();
     readonly instance = this.instanceSignal.asReadonly();
     readonly lastSuccessAt = this.lastSuccessSignal.asReadonly();
     readonly isActive = computed(() => this.stateSignal() !== 'inactive');
 
-    activate(instance: ServerInstanceInfo, retry: () => void): void {
+    /**
+     * `verified` is false for a start from a remembered instance that did
+     * not answer: the address may lead to another server by now.
+     */
+    activate(
+        instance: ServerInstanceInfo,
+        retry: () => void,
+        verified = true
+    ): void {
         this.instanceSignal.set(instance);
         this.retryHandler = retry;
+        this.verified = verified;
         this.stateSignal.set('online');
+    }
+
+    /**
+     * The stored token, only while server mode runs on an instance this
+     * start verified: a token must never reach a server it was not given
+     * for.
+     */
+    accessToken(): string | null {
+        return this.isActive() && this.verified
+            ? readServerAccessToken()
+            : null;
     }
 
     reportSuccess(): void {

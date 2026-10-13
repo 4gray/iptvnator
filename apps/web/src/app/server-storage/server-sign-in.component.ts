@@ -14,9 +14,11 @@ import {
     writeServerAccessToken,
 } from '@iptvnator/services';
 import {
+    SERVER_STORAGE_CONFIG,
     ServerApiError,
     ServerStorageSession,
 } from '@iptvnator/services/server-storage';
+import { rememberServer } from './server-storage-start';
 import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 
 export type ServerSignInFeedback = 'rejected' | 'unreachable' | 'storage';
@@ -37,6 +39,7 @@ export type ServerSignInFeedback = 'rejected' | 'unreachable' | 'storage';
 })
 export class ServerSignInComponent {
     private readonly session = inject(ServerStorageSession);
+    private readonly config = inject(SERVER_STORAGE_CONFIG);
 
     readonly token = signal('');
     readonly busy = signal(false);
@@ -53,8 +56,13 @@ export class ServerSignInComponent {
         if (!token || this.busy()) {
             return;
         }
-        // Every request and the reload read the token from storage.
-        if (!writeServerAccessToken(token)) {
+        // Every request and the reload read the token from storage, and the
+        // next start keeps it only for the server it remembers.
+        if (
+            !writeServerAccessToken(token) ||
+            !rememberServer(this.config.baseUrl, this.config.instance)
+        ) {
+            clearServerAccessToken();
             this.feedback.set('storage');
             return;
         }

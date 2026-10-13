@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import {
+    SERVER_STORAGE_CONFIG,
     ServerApiError,
     ServerStorageSession,
 } from '@iptvnator/services/server-storage';
+import { REMEMBERED_SERVER_KEY } from './server-storage-start';
 import { ServerSignInComponent } from './server-sign-in.component';
 
 const TOKEN_KEY = 'iptvnator-server:access-token';
@@ -16,7 +18,22 @@ describe('ServerSignInComponent', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [ServerSignInComponent, TranslateModule.forRoot()],
-            providers: [{ provide: ServerStorageSession, useValue: session }],
+            providers: [
+                { provide: ServerStorageSession, useValue: session },
+                {
+                    provide: SERVER_STORAGE_CONFIG,
+                    useValue: {
+                        baseUrl: '/api',
+                        instance: {
+                            service: 'iptvnator',
+                            apiVersion: 1,
+                            instanceId: 'i-1',
+                            storage: 'server',
+                            auth: 'token',
+                        },
+                    },
+                },
+            ],
         }).compileComponents();
         fixture = TestBed.createComponent(ServerSignInComponent);
         component = fixture.componentInstance;
@@ -98,6 +115,41 @@ describe('ServerSignInComponent', () => {
         }
 
         expect(session.fetchStatus).not.toHaveBeenCalled();
+        expect(feedbackText()).toBe('SERVER_STORAGE.SIGN_IN_STORAGE');
+    });
+
+    it('remembers the server the token was accepted for', async () => {
+        session.fetchStatus.mockResolvedValue({ playlists: 0 });
+        jest.spyOn(component, 'openWorkspace').mockImplementation(
+            () => undefined
+        );
+
+        component.edit('right');
+        await component.submit(new Event('submit'));
+
+        expect(
+            JSON.parse(localStorage.getItem(REMEMBERED_SERVER_KEY) ?? '{}')
+        ).toMatchObject({ baseUrl: '/api', instance: { instanceId: 'i-1' } });
+    });
+
+    it('signs in only when the server can be remembered too', async () => {
+        const refuse = jest
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation((key: string) => {
+                if (key === REMEMBERED_SERVER_KEY) {
+                    throw new DOMException('full', 'QuotaExceededError');
+                }
+            });
+        try {
+            component.edit('right');
+            await component.submit(new Event('submit'));
+            fixture.detectChanges();
+        } finally {
+            refuse.mockRestore();
+        }
+
+        expect(session.fetchStatus).not.toHaveBeenCalled();
+        expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
         expect(feedbackText()).toBe('SERVER_STORAGE.SIGN_IN_STORAGE');
     });
 });

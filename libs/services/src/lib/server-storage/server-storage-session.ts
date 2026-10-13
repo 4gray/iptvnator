@@ -45,8 +45,10 @@ export class ServerStorageSession {
         status: this.status,
         onWriteFailure: (error) => this.announceWriteFailure(error),
         // A remembered instance may answer as another database: writes
-        // wait for the reload that checks which one it is.
+        // wait for the reload that checks which one it is, and the token
+        // goes out only once it is checked.
         holdWrites: this.config.startedOffline,
+        accessToken: () => this.status.accessToken(),
     });
     readonly documentStore = new ServerPlaylistDocumentStore(
         this.api,
@@ -75,7 +77,11 @@ export class ServerStorageSession {
     /** App initializer: must run before the first playlist read. */
     async start(): Promise<void> {
         this.backend.useServerStore(this.documentStore);
-        this.status.activate(this.config.instance, () => void this.refresh());
+        this.status.activate(
+            this.config.instance,
+            () => void this.refresh(),
+            !this.config.startedOffline
+        );
         // Also while sign-in is pending: this page may already hold another
         // page load's writes, so it must mark itself closed on page hide.
         this.listen();

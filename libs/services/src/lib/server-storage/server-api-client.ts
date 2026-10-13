@@ -6,7 +6,6 @@ import type {
 import {
     clearServerAccessToken,
     readServerAccessToken,
-    serverAuthorizationHeaders,
 } from '../server-access-token';
 import type { ServerStorageStatusService } from '../server-storage-status.service';
 
@@ -54,6 +53,8 @@ export interface ServerApiClientOptions {
      * the time it does.
      */
     readonly holdWrites?: boolean;
+    /** The token to send; the stored one by default. */
+    readonly accessToken?: () => string | null;
 }
 
 /** `fetch` for `/v1`: token, timeout, error mapping, connection state. */
@@ -64,13 +65,17 @@ export class ServerApiClient {
         this.root = `${options.baseUrl.replace(/\/+$/, '')}/v1`;
     }
 
+    private token(): string | null {
+        return (this.options.accessToken ?? readServerAccessToken)();
+    }
+
     url(path: string): string {
         return `${this.root}${path}`;
     }
 
     async request(path: string, init: RequestInit = {}): Promise<Response> {
         const isWrite = (init.method ?? 'GET') !== 'GET';
-        const token = readServerAccessToken();
+        const token = this.token();
         let response: Response;
         try {
             if (isWrite && this.options.holdWrites) {
@@ -80,7 +85,7 @@ export class ServerApiClient {
                 ...init,
                 cache: 'no-store',
                 headers: {
-                    ...serverAuthorizationHeaders(),
+                    ...bearer(token),
                     ...(init.headers as Record<string, string> | undefined),
                 },
                 signal: init.signal ?? this.timeoutSignal(),
@@ -192,7 +197,7 @@ export class ServerApiClient {
                 method,
                 keepalive: true,
                 headers: {
-                    ...serverAuthorizationHeaders(),
+                    ...bearer(this.token()),
                     ...headers,
                     ...(body === undefined
                         ? {}
@@ -247,4 +252,8 @@ async function readErrorBody(
     } catch {
         return { message: response.statusText };
     }
+}
+
+function bearer(token: string | null): Record<string, string> {
+    return token ? { Authorization: `Bearer ${token}` } : {};
 }

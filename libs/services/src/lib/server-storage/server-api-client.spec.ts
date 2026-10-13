@@ -204,6 +204,31 @@ describe('ServerApiClient', () => {
         expect(status.reportUnauthorized).not.toHaveBeenCalled();
     });
 
+    it('sends no token to an instance not checked yet and keeps it on a 401', async () => {
+        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'kept');
+        const fetchFn = jest
+            .fn()
+            .mockResolvedValue(response(401, { code: 'unauthorized' }));
+        const unchecked = new ServerApiClient({
+            baseUrl: '/api',
+            status,
+            fetchFn: fetchFn as unknown as typeof fetch,
+            accessToken: () => null,
+        });
+
+        await expect(unchecked.getJson('/instance')).rejects.toBeInstanceOf(
+            ServerApiError
+        );
+
+        expect(fetchFn.mock.calls[0][1].headers).not.toHaveProperty(
+            'Authorization'
+        );
+        expect(localStorage.getItem(SERVER_ACCESS_TOKEN_STORAGE_KEY)).toBe(
+            'kept'
+        );
+        expect(status.reportUnauthorized).not.toHaveBeenCalled();
+    });
+
     it('passes 304 through and maps error bodies', async () => {
         const fetchFn = jest
             .fn()
