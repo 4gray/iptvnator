@@ -671,6 +671,8 @@ function buildDashboardCollectionDetailItem(
             posterUrl: item.poster_url ?? null,
             xtreamId: toOptionalNumber(item.xtream_id),
             contentId: toOptionalNumber(item.id),
+            favoriteId: item.favorite_id,
+            catalogStatus: item.catalogStatus,
             categoryId: item.category_id,
             addedAt: 'added_at' in item ? item.added_at : undefined,
             viewedAt: 'viewed_at' in item ? item.viewed_at : undefined,
@@ -840,6 +842,13 @@ function normalizeCollectionDetailItem(
         logo: toOptionalPathSegment(record['logo']) ?? null,
         xtreamId: toOptionalNumber(record['xtreamId']),
         contentId: toOptionalNumber(record['contentId']),
+        favoriteId: toOptionalNumber(record['favoriteId']),
+        catalogStatus:
+            record['catalogStatus'] === 'missing' ||
+            record['catalogStatus'] === 'unknown' ||
+            record['catalogStatus'] === 'present'
+                ? record['catalogStatus']
+                : undefined,
         stalkerId: toOptionalPathSegment(record['stalkerId']),
         stalkerCmd: toOptionalPathSegment(record['stalkerCmd']),
         stalkerPortalUrl: toOptionalPathSegment(record['stalkerPortalUrl']),

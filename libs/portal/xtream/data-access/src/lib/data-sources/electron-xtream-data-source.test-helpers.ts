@@ -39,7 +39,8 @@ export function createDbServiceMock() {
         saveXtreamContent: jest.fn().mockResolvedValue(0),
         searchXtreamContent: jest.fn().mockResolvedValue([]),
         getFavorites: jest.fn().mockResolvedValue([]),
-        addToFavorites: jest.fn().mockResolvedValue(undefined),
+        addToFavorites: jest.fn().mockResolvedValue(true),
+        addToFavoritesOrThrow: jest.fn().mockResolvedValue(undefined),
         removeFromFavorites: jest.fn().mockResolvedValue(undefined),
         isFavorite: jest.fn().mockResolvedValue(false),
         getRecentItems: jest.fn().mockResolvedValue([]),
@@ -54,6 +55,7 @@ export function createDbServiceMock() {
             favorites: [],
             recentlyViewed: [],
         }),
+        restoreXtreamFavoriteSnapshots: jest.fn().mockResolvedValue(undefined),
         restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
     };
 }

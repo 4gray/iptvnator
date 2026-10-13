@@ -513,6 +513,15 @@ export class WorkspaceDashboardRailsComponent {
     private toFavoriteCard(item: DashboardFavoriteItem): DashboardRailCard {
         return {
             id: `fav-${item.id}-${item.playlist_id}-${item.added_at}`,
+            catalogStatus: item.catalogStatus,
+            subtitle:
+                item.catalogStatus && item.catalogStatus !== 'present'
+                    ? this.translate.instant(
+                          item.catalogStatus === 'missing'
+                              ? 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
+                              : 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_UNKNOWN'
+                      )
+                    : undefined,
             title: item.title,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),

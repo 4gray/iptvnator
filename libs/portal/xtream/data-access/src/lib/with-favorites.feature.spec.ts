@@ -1,4 +1,6 @@
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore } from '@ngrx/signals';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
@@ -20,6 +22,8 @@ const TestFavoritesStore = signalStore(
 
 describe('withFavorites', () => {
     const originalElectron = window.electron;
+    const snackBar = { open: jest.fn() };
+    const translate = { instant: jest.fn((key: string) => key) };
     const runtime = { supportsXtreamSqliteDataSource: false };
     let store: InstanceType<typeof TestFavoritesStore>;
     let dataSource: {
@@ -30,6 +34,7 @@ describe('withFavorites', () => {
     };
 
     beforeEach(() => {
+        snackBar.open.mockClear();
         runtime.supportsXtreamSqliteDataSource = false;
         dataSource = {
             addFavorite: jest.fn().mockResolvedValue(undefined),
@@ -41,6 +46,8 @@ describe('withFavorites', () => {
         TestBed.configureTestingModule({
             providers: [
                 TestFavoritesStore,
+                { provide: MatSnackBar, useValue: snackBar },
+                { provide: TranslateService, useValue: translate },
                 { provide: RuntimeCapabilitiesService, useValue: runtime },
                 {
                     provide: XTREAM_DATA_SOURCE,
@@ -59,6 +66,27 @@ describe('withFavorites', () => {
             value: originalElectron,
         });
     });
+
+    it.each([
+        [
+            'XTREAM_FAVORITE_IDENTITY_CONFLICT',
+            'PORTALS.FAVORITE_IDENTITY_CONFLICT',
+        ],
+        ['write failed', 'PORTALS.FAVORITE_SAVE_FAILED'],
+    ])(
+        'keeps the heart inactive and explains rejected saves: %s',
+        async (message, key) => {
+            dataSource.getContentByXtreamId.mockResolvedValue({ id: 42 });
+            dataSource.addFavorite.mockRejectedValue(new Error(message));
+            await expect(
+                store.toggleFavorite(7, 'playlist-1', 'movie')
+            ).resolves.toBe(false);
+            expect(store.isFavorite()).toBe(false);
+            expect(snackBar.open).toHaveBeenCalledWith(key, undefined, {
+                duration: 6000,
+            });
+        }
+    );
 
     it.each([false, true])(
         'toggles the typed target using its persisted status %s rather than the previous detail state',

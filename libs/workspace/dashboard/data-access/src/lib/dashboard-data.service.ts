@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     Injectable,
     NgZone,
@@ -699,17 +700,19 @@ export class DashboardDataService {
     }
 
     private mapPwaXtreamFavoriteItem(
-        item: XtreamContentItem,
+        item: import('@iptvnator/portal/xtream/data-access').XtreamFavoriteItem,
         playlist: PlaylistMeta
     ): DashboardFavoriteItem {
         return {
-            id: item.id,
+            id: item.id ?? `favorite:${item.favorite_id}`,
+            favorite_id: item.favorite_id,
+            catalogStatus: item.catalog_status,
             title: item.title,
             type: this.normalizeXtreamActivityType(item.type),
             playlist_id: playlist._id,
             playlist_name: playlist.title || 'Xtream',
             added_at: item.added_at || item.added || new Date(0).toISOString(),
-            category_id: item.category_id,
+            category_id: item.category_id ?? '',
             xtream_id: item.xtream_id,
             poster_url: item.poster_url,
             backdrop_url: item.backdrop_url ?? undefined,
@@ -996,12 +999,14 @@ export class DashboardDataService {
     }
 
     getGlobalFavoriteLink(item: DashboardFavoriteItem): string[] {
+        if (isCatalogUnavailable(item)) return ['/workspace/global-favorites'];
         return getGlobalFavoriteLinkUtil(item);
     }
 
     getGlobalFavoriteNavigationState(
         item: DashboardFavoriteItem
     ): WorkspaceNavigationTarget['state'] {
+        if (isCatalogUnavailable(item)) return undefined;
         return getGlobalFavoriteNavigationStateUtil(item);
     }
 
@@ -1019,7 +1024,9 @@ export class DashboardDataService {
         if (item.source === 'xtream') {
             if (this.hasPortalActivityStorage) {
                 await this.dbService.removeFromFavorites(
-                    item.id as number,
+                    item.favorite_id != null
+                        ? { favoriteId: item.favorite_id }
+                        : (item.id as number),
                     item.playlist_id
                 );
             } else {

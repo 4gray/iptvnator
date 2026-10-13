@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     computed,
     DestroyRef,
@@ -128,7 +129,9 @@ export class DashboardHeroSlidesPresenter {
             favorites: this.data
                 .globalFavoriteItems()
                 .filter(
-                    (item) => item.type === 'movie' || item.type === 'series'
+                    (item) =>
+                        !isCatalogUnavailable(item) &&
+                        (item.type === 'movie' || item.type === 'series')
                 ),
             recentlyAdded: this.data.xtreamRecentlyAddedItems(),
             // Until the resume candidates are known the newest row may be one

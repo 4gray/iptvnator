@@ -43,11 +43,9 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                     playlistId,
                     { backdropUrl: 'backdrop.jpg' }
                 );
-                expect(harness.dbService.addToFavorites).toHaveBeenCalledWith(
-                    202,
-                    playlistId,
-                    'backdrop.jpg'
-                );
+                expect(
+                    harness.dbService.addToFavoritesOrThrow
+                ).toHaveBeenCalledWith(202, playlistId, 'backdrop.jpg');
                 expect(
                     harness.dbService.removeFromFavorites
                 ).toHaveBeenCalledWith(202, playlistId);
@@ -70,6 +68,15 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             }
         );
 
+        it('propagates a failed favorite write instead of acknowledging it', async () => {
+            harness.dbService.addToFavoritesOrThrow.mockRejectedValue(
+                new Error('XTREAM_FAVORITE_IDENTITY_CONFLICT')
+            );
+            await expect(
+                harness.dataSource.addFavorite(202, playlistId)
+            ).rejects.toThrow();
+        });
+
         it('delegates favorites operations to the DB', async () => {
             harness.dbService.isFavorite.mockResolvedValue(true);
 
@@ -78,7 +85,9 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 playlistId,
                 'https://example.com/backdrop.png'
             );
-            expect(harness.dbService.addToFavorites).toHaveBeenCalledWith(
+            expect(
+                harness.dbService.addToFavoritesOrThrow
+            ).toHaveBeenCalledWith(
                 202,
                 playlistId,
                 'https://example.com/backdrop.png'
@@ -442,7 +451,7 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 harness.dbService.restoreXtreamUserData
             ).toHaveBeenCalledWith(
                 playlistId,
-                [{ xtreamId: 202, type: 'movie' }],
+                [],
                 [{ xtreamId: 101, type: 'live' }],
                 options
             );

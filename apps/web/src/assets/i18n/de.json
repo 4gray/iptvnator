@@ -1271,6 +1271,8 @@
         "REMOVED_FROM_FAVORITES": "Aus Favoriten entfernt",
         "ADDED_TO_FAVORITES": "Zu den Favoriten hinzugefügt",
         "FAVORITES": "Favoriten",
+        "FAVORITE_IDENTITY_CONFLICT": "Diese Quelle hat einen gespeicherten Eintrag ersetzt. Entferne den alten Eintrag aus den Favoriten, bevor du diesen hinzufügst.",
+        "FAVORITE_SAVE_FAILED": "Der Favorit konnte nicht gespeichert werden. Bitte versuche es erneut.",
         "RECENTLY_VIEWED": "Zuletzt angesehen",
         "THIS_PLAYLIST": "Diese Playlist",
         "ALL_PLAYLISTS": "Alle Playlists",
@@ -1977,6 +1979,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Nicht im aktuellen Katalog",
+            "CATALOG_UNKNOWN": "Katalogstatus unbekannt",
             "TITLE": "Globale Favoriten",
             "SUBTITLE": "Live-TV aus allen Playlists",
             "SEARCH_PLACEHOLDER": "Favoriten durchsuchen...",

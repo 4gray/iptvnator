@@ -632,6 +632,44 @@ describe('DashboardDataService', () => {
         ).toHaveLength(1);
     });
 
+    it('keeps an unresolved favorite readable and removable without opening its details', async () => {
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: null,
+                category_id: null,
+                favorite_id: 71,
+                catalog_status: 'missing',
+                title: 'Saved ABC',
+                xtream_id: 501,
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+                added_at: '2026-02-02T10:00:00.000Z',
+                poster_url: 'https://example.test/abc.jpg',
+            },
+        ]);
+        await service.reloadGlobalFavorites();
+        const item = service
+            .globalFavoriteItems()
+            .find((row) => row.source === 'xtream');
+        if (!item) throw new Error('Expected the saved Xtream favorite');
+        expect(item).toMatchObject({
+            id: 'favorite:71',
+            title: 'Saved ABC',
+            catalogStatus: 'missing',
+            favorite_id: 71,
+        });
+        expect(service.getGlobalFavoriteLink(item)).toEqual([
+            '/workspace/global-favorites',
+        ]);
+        expect(service.getGlobalFavoriteNavigationState(item)).toBeUndefined();
+        await service.removeGlobalFavorite(item);
+        expect(dbServiceMock.removeFromFavorites).toHaveBeenCalledWith(
+            { favoriteId: 71 },
+            'xtream-1'
+        );
+    });
+
     it('includes PWA Xtream favorites from the active data source', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,
@@ -1139,7 +1177,10 @@ describe('DashboardDataService', () => {
         // Hold every answer: asked one after another, the second playlist
         // would not be asked until the first had answered, and a DB worker
         // busy with a long request would delay the set once per playlist.
-        const pending = new Map<string, (rows: PlaybackPositionData[]) => void>();
+        const pending = new Map<
+            string,
+            (rows: PlaybackPositionData[]) => void
+        >();
         playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
             (playlistId: string) =>
                 new Promise<PlaybackPositionData[]>((resolve) => {

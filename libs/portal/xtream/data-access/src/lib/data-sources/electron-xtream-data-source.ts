@@ -468,7 +468,9 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     // Favorites Operations
     // =========================================================================
 
-    async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
+    async getFavorites(
+        playlistId: string
+    ): Promise<import('./xtream-data-source.interface').XtreamFavoriteItem[]> {
         return this.dbService.getFavorites(playlistId);
     }
 
@@ -477,7 +479,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         backdropUrl?: string
     ): Promise<void> {
-        await this.dbService.addToFavorites(
+        await this.dbService.addToFavoritesOrThrow(
             xtreamCollectionId(contentId),
             playlistId,
             backdropUrl
@@ -683,6 +685,17 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         };
     }
 
+    async restoreFavoriteSnapshots(
+        playlistId: string,
+        state: XtreamPendingRestoreState
+    ): Promise<void> {
+        await this.dbService.restoreXtreamFavoriteSnapshots(
+            playlistId,
+            state.favorites,
+            state.favoritesRestoreId
+        );
+    }
+
     async restoreUserData(
         playlistId: string,
         restoreState: XtreamPendingRestoreState,
@@ -731,9 +744,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             }
         }
 
+        await this.restoreFavoriteSnapshots(playlistId, restoreState);
         await this.dbService.restoreXtreamUserData(
             playlistId,
-            restoreState.favorites,
+            [],
             restoreState.recentlyViewed,
             options
         );

@@ -260,6 +260,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         forwardsEvents: true,
     },
     {
+        operation: 'DB_RESTORE_XTREAM_FAVORITES',
+        args: [playlistId, favorites, 'restore-1'],
+        payload: { playlistId, favorites, restoreId: 'restore-1' },
+    },
+    {
         operation: 'DB_ADD_FAVORITE',
         args: [12, playlistId, 'https://image.example/backdrop.jpg'],
         payload: {
@@ -277,6 +282,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_IS_FAVORITE',
         args: [12, playlistId],
         payload: { contentId: 12, playlistId },
+    },
+    {
+        operation: 'DB_GET_FAVORITES_FOR_BACKUP',
+        args: [playlistId],
+        payload: { playlistId },
     },
     {
         operation: 'DB_GET_FAVORITES',

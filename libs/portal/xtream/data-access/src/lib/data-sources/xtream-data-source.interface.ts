@@ -1,3 +1,4 @@
+import type { XtreamFavoriteCatalogStatus } from '@iptvnator/shared/interfaces';
 import { InjectionToken } from '@angular/core';
 import {
     ContentMetadataPatch,
@@ -90,6 +91,16 @@ export interface XtreamContentItem {
     description?: string;
     playlist_id?: string;
     playlist_name?: string;
+}
+
+export interface XtreamFavoriteItem extends Omit<
+    XtreamContentItem,
+    'id' | 'category_id'
+> {
+    id: number | null;
+    category_id: number | string | null;
+    favorite_id?: number;
+    catalog_status?: XtreamFavoriteCatalogStatus;
 }
 
 /**
@@ -332,7 +343,7 @@ export interface IXtreamDataSource {
     /**
      * Get all favorites for a playlist
      */
-    getFavorites(playlistId: string): Promise<XtreamContentItem[]>;
+    getFavorites(playlistId: string): Promise<XtreamFavoriteItem[]>;
 
     /**
      * Add content to favorites.
@@ -512,6 +523,11 @@ export interface IXtreamDataSource {
     /**
      * Restore user data after refresh
      */
+    restoreFavoriteSnapshots?(
+        playlistId: string,
+        restoreState: XtreamPendingRestoreState
+    ): Promise<void>;
+
     restoreUserData(
         playlistId: string,
         restoreState: XtreamPendingRestoreState,

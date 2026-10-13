@@ -5,6 +5,7 @@ import {
     XtreamBackupRecentlyViewedItem,
     XtreamBackupSourcePin,
 } from './playlist-backup.interface';
+import { XtreamFavoriteSnapshot } from './xtream-favorite.interface';
 import { PlaybackPositionData } from './playback-position.interface';
 
 export interface XtreamPendingRestoreState {
@@ -18,6 +19,8 @@ export interface XtreamPendingRestoreState {
      * can distinguish "no opinion" from an authoritative empty collection.
      */
     sourcePins?: XtreamBackupSourcePin[];
+    /** Internal replay receipt; never exported in an archive. */
+    favoritesRestoreId?: string;
 }
 
 export function getXtreamPendingRestoreStorageKey(playlistId: string): string {
@@ -36,6 +39,7 @@ interface RestoreStateCandidate {
     recentlyViewed?: unknown;
     playbackPositions?: unknown;
     sourcePins?: unknown;
+    favoritesRestoreId?: unknown;
 }
 
 interface RestoreEntryCandidate {
@@ -135,9 +139,12 @@ export function normalizeXtreamPendingRestoreState(
 
     return {
         hiddenCategories,
-        favorites: withNumericXtreamId<XtreamBackupFavoriteItem>(
-            toArray(candidate.favorites)
-        ),
+        favorites: normalizeFavorites(candidate.favorites),
+        ...(typeof candidate.favoritesRestoreId === 'string' &&
+        candidate.favoritesRestoreId.length > 0 &&
+        candidate.favoritesRestoreId.length <= 200
+            ? { favoritesRestoreId: candidate.favoritesRestoreId }
+            : {}),
         recentlyViewed: withNumericXtreamId<XtreamBackupRecentlyViewedItem>(
             toArray(candidate.recentlyViewed)
         ),
@@ -183,4 +190,52 @@ function normalizeSourcePins(value: unknown): XtreamBackupSourcePin[] {
     }
 
     return pins;
+}
+
+/** Snapshot fields are display metadata, never a raw provider response. */
+function normalizeFavorites(value: unknown): XtreamBackupFavoriteItem[] {
+    return withNumericXtreamId<XtreamBackupFavoriteItem>(toArray(value))
+        .filter((item) =>
+            ['live', 'movie', 'series'].includes(item.contentType)
+        )
+        .map((item) => {
+            const snapshot = normalizeFavoriteSnapshot(item.snapshot);
+            return {
+                contentType: item.contentType,
+                xtreamId: item.xtreamId,
+                ...(typeof item.addedAt === 'string'
+                    ? { addedAt: item.addedAt }
+                    : {}),
+                ...(item.position === null ||
+                (typeof item.position === 'number' &&
+                    Number.isFinite(item.position))
+                    ? { position: item.position }
+                    : {}),
+                ...(snapshot ? { snapshot } : {}),
+            };
+        });
+}
+
+function normalizeFavoriteSnapshot(
+    value: unknown
+): XtreamFavoriteSnapshot | undefined {
+    if (
+        !isRecord(value) ||
+        typeof value['title'] !== 'string' ||
+        !value['title'].trim()
+    )
+        return undefined;
+    const snapshot: XtreamFavoriteSnapshot = { title: value['title'].trim() };
+    for (const key of ['posterUrl', 'backdropUrl', 'originalTitle'] as const) {
+        const field = value[key];
+        if (typeof field === 'string') snapshot[key] = field;
+        else if (field === null) snapshot[key] = null;
+    }
+    for (const key of ['tmdbId', 'releaseYear'] as const) {
+        const field = value[key];
+        if (typeof field === 'number' && Number.isInteger(field) && field > 0)
+            snapshot[key] = field;
+        else if (field === null) snapshot[key] = null;
+    }
+    return snapshot;
 }

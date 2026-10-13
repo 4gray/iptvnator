@@ -1271,6 +1271,8 @@
         "REMOVED_FROM_FAVORITES": "Removed from favorites",
         "ADDED_TO_FAVORITES": "Added to favorites",
         "FAVORITES": "Favorites",
+        "FAVORITE_IDENTITY_CONFLICT": "This source replaced an item you saved. Remove the older entry from Favorites before adding this one.",
+        "FAVORITE_SAVE_FAILED": "Could not save this favorite. Please try again.",
         "RECENTLY_VIEWED": "Recently viewed",
         "THIS_PLAYLIST": "This playlist",
         "ALL_PLAYLISTS": "All playlists",
@@ -1977,6 +1979,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Not in the current catalog",
+            "CATALOG_UNKNOWN": "Catalog status unknown",
             "TITLE": "Global Favorites",
             "SUBTITLE": "Live TV from all playlists",
             "SEARCH_PLACEHOLDER": "Search favorites...",

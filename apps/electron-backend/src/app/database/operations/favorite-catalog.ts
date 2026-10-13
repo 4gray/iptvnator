@@ -1,0 +1,118 @@
+import { and, eq, sql } from 'drizzle-orm';
+import * as schema from '@iptvnator/shared/database/schema';
+import type { AppDatabase } from '../database.types';
+
+/** A covering provider-id lookup per favorite, never a scan of the catalog. */
+export function resolvedFavoriteContentId() {
+    return sql<number | null>`(SELECT candidate.id FROM content candidate
+        INNER JOIN categories owner ON owner.id = candidate.category_id
+        WHERE candidate.xtream_id = ${schema.favorites.xtreamId}
+          AND candidate.type = ${schema.favorites.type}
+          AND owner.playlist_id = ${schema.favorites.playlistId}
+          AND (
+            (${schema.favorites.tmdbId} IS NULL OR candidate.tmdb_id IS NULL
+                OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
+            AND (${schema.favorites.releaseYear} IS NULL OR candidate.release_year IS NULL
+                OR ${schema.favorites.releaseYear} = candidate.release_year))
+        ORDER BY candidate.id LIMIT 1)`;
+}
+
+export function favoriteCatalogStatus() {
+    return sql<'present' | 'missing' | 'unknown'>`CASE
+        WHEN ${schema.appState.value} IN ('importing', 'failed', 'cancelled') THEN 'unknown'
+        WHEN ${schema.content.id} IS NOT NULL THEN 'present'
+        WHEN ${schema.appState.value} = 'completed' THEN 'missing'
+        ELSE 'unknown' END`;
+}
+
+export function favoriteImportStateKey() {
+    return sql`'xtream-import-status:' || ${schema.favorites.playlistId} || ':' || ${schema.favorites.type}`;
+}
+
+export async function findFavoriteContent(
+    db: AppDatabase,
+    playlistId: string,
+    identity:
+        | { contentId: number }
+        | { xtreamId: number; type: 'live' | 'movie' | 'series' }
+) {
+    const rows = await db
+        .select({ content: schema.content })
+        .from(schema.content)
+        .innerJoin(
+            schema.categories,
+            eq(schema.content.categoryId, schema.categories.id)
+        )
+        .where(
+            and(
+                eq(schema.categories.playlistId, playlistId),
+                'contentId' in identity
+                    ? eq(schema.content.id, identity.contentId)
+                    : and(
+                          eq(schema.content.xtreamId, identity.xtreamId),
+                          eq(schema.content.type, identity.type)
+                      )
+            )
+        )
+        .orderBy(schema.content.id)
+        .limit(1);
+    return rows[0]?.content;
+}
+
+/** The import lifecycle already persists these keys; completion relinks cache pointers. */
+export async function reconcileCompletedFavoriteCatalog(
+    db: AppDatabase,
+    key: string,
+    value: string
+) {
+    if (value !== 'completed') return;
+    const match = /^xtream-import-status:(.+):(live|movie|series)$/.exec(key);
+    if (!match) return;
+    db.transaction((tx) => {
+        tx.update(schema.favorites)
+            .set({ contentId: resolvedFavoriteContentId() })
+            .where(
+                and(
+                    eq(schema.favorites.playlistId, match[1]),
+                    eq(
+                        schema.favorites.type,
+                        match[2] as 'live' | 'movie' | 'series'
+                    )
+                )
+            )
+            .run();
+        tx.update(schema.favorites)
+            .set({
+                title: sql`COALESCE((SELECT NULLIF(TRIM(title), '') FROM content WHERE id = favorites.content_id), favorites.title)`,
+                posterUrl: sql`COALESCE((SELECT NULLIF(TRIM(poster_url), '') FROM content WHERE id = favorites.content_id), favorites.poster_url)`,
+                backdropUrl: sql`COALESCE((SELECT NULLIF(TRIM(backdrop_url), '') FROM content WHERE id = favorites.content_id), favorites.backdrop_url)`,
+                tmdbId: sql`COALESCE((SELECT tmdb_id FROM content WHERE id = favorites.content_id), favorites.tmdb_id)`,
+                releaseYear: sql`COALESCE((SELECT release_year FROM content WHERE id = favorites.content_id), favorites.release_year)`,
+                originalTitle: sql`COALESCE((SELECT NULLIF(TRIM(original_title), '') FROM content WHERE id = favorites.content_id), favorites.original_title)`,
+            })
+            .where(
+                and(
+                    eq(schema.favorites.playlistId, match[1]),
+                    eq(
+                        schema.favorites.type,
+                        match[2] as 'live' | 'movie' | 'series'
+                    )
+                )
+            )
+            .run();
+    });
+}
+
+/** Every duplicate category row represents the same typed provider identity. */
+export function favoriteMatchesContentId(
+    contentId: number | ReturnType<typeof sql.placeholder>
+) {
+    return sql`EXISTS (SELECT 1 FROM content candidate
+        INNER JOIN categories owner ON owner.id = candidate.category_id
+        WHERE candidate.id = ${contentId}
+          AND owner.playlist_id = ${schema.favorites.playlistId}
+          AND candidate.type = ${schema.favorites.type}
+          AND candidate.xtream_id = ${schema.favorites.xtreamId}
+          AND (${schema.favorites.tmdbId} IS NULL OR candidate.tmdb_id IS NULL OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
+          AND (${schema.favorites.releaseYear} IS NULL OR candidate.release_year IS NULL OR ${schema.favorites.releaseYear} = candidate.release_year))`;
+}

@@ -226,6 +226,55 @@ describe('UnifiedFavoritesDataService', () => {
         service = TestBed.inject(UnifiedFavoritesDataService);
     });
 
+    it('keeps an unavailable Xtream favorite readable and removable without a catalog row', async () => {
+        databaseService.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: null,
+                category_id: null,
+                favorite_id: 77,
+                catalog_status: 'missing',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream One',
+                xtream_id: 101,
+                title: 'ABC',
+                type: 'movie',
+                poster_url: 'abc.png',
+                position: 3,
+            },
+        ]);
+
+        const [item] = await service.getFavorites('all');
+        expect(item).toEqual(
+            expect.objectContaining({
+                name: 'ABC',
+                favoriteId: 77,
+                catalogStatus: 'missing',
+                contentId: undefined,
+                posterUrl: 'abc.png',
+                position: 3,
+            })
+        );
+        await service.removeFavorite(item);
+        expect(electronApi.dbRemoveFavorite).toHaveBeenCalledWith(
+            { favoriteId: 77 },
+            'xtream-1'
+        );
+        await service.reorder([item], {
+            scope: 'playlist',
+            playlistId: 'xtream-1',
+            portalType: 'xtream',
+        });
+        expect(electronApi.dbReorderGlobalFavorites).toHaveBeenCalledWith([
+            { favorite_id: 77, playlist_id: 'xtream-1', position: 0 },
+        ]);
+        electronApi.dbRemoveFavorite.mockClear();
+        await service.clearFavorites([item]);
+        expect(electronApi.dbRemoveFavorite).toHaveBeenCalledWith(
+            { favoriteId: 77 },
+            'xtream-1'
+        );
+    });
+
     it('maps global Xtream favorites across live, movie, and series content types', async () => {
         databaseService.getAllGlobalFavorites.mockResolvedValue([
             {

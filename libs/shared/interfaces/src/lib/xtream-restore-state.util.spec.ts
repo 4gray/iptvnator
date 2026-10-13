@@ -1,6 +1,37 @@
 import { normalizeXtreamPendingRestoreState } from './xtream-restore-state.util';
 
 describe('normalizeXtreamPendingRestoreState', () => {
+    it('retains only display metadata in a durable favorite snapshot', () => {
+        const state = normalizeXtreamPendingRestoreState({
+            favorites: [
+                {
+                    contentType: 'movie',
+                    xtreamId: 7,
+                    position: 2,
+                    snapshot: {
+                        title: 'ABC',
+                        posterUrl: 'https://example.test/poster.jpg',
+                        tmdbId: 42,
+                        password: 'private',
+                        streamUrl: 'https://example.test/secret',
+                    },
+                },
+            ],
+        });
+        expect(state.favorites).toEqual([
+            {
+                contentType: 'movie',
+                xtreamId: 7,
+                position: 2,
+                snapshot: {
+                    title: 'ABC',
+                    posterUrl: 'https://example.test/poster.jpg',
+                    tmdbId: 42,
+                },
+            },
+        ]);
+    });
+
     // No `sourcePins`: absent has to stay absent, or an older archive would
     // read as "there are no pins" and restore would clear the user's.
     const emptyState = {

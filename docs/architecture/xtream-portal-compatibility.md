@@ -37,6 +37,60 @@ See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
 [Portal Detail Navigation](./portal-detail-navigation.md), and
 [VOD Multi-Source](./vod-multi-source.md).
 
+## Durable Electron Favorites
+
+SQLite favorites are user-owned records keyed by playlist, normalized content
+kind (`live`, `movie`, `series`), and provider ID. The nullable catalog link uses
+`ON DELETE SET NULL`; only explicit favorite removal/clear or playlist deletion
+removes a saved record. Refresh and import-cache cleanup never replay canonical
+favorites from a temporary snapshot. The two Refresh entry points continue to
+share `XtreamRefreshFlowService` and its per-playlist single-flight guard.
+
+Favorite rows retain a durable `favorite_id`, saved title/artwork, added date
+and order. Their `id`/`category_id` may be null; consumers must not invent a
+catalog ID. Remove/reorder can use the stable favorite ID while detail toggles
+resolve any category row through the same typed provider identity. Completed
+imports reconnect valid identities and refresh display snapshots. Metadata
+learned in detail views is copied into the saved snapshot before catalog loss.
+Conflicting known TMDB IDs or release years prevent automatic reconnection;
+changed provider IDs never reconnect by title.
+Adding a conflicting replacement returns an explicit failure and retains the
+older favorite. The detail toggle stays inactive and explains that the older
+entry must be removed from Favorites before the replacement can be saved.
+
+`catalog_status` is `present`, `missing`, or `unknown`. Only a completed import
+of the relevant type can prove absence. Failed, cancelled and in-progress
+imports remain unknown. Collections and dashboard rails retain unresolved rows
+with saved titles/status and removal/order controls; they suppress playback,
+details, downloads and EPG requests that depend on catalog resolution. History
+navigation rechecks current collection state. Removing a live row or making it
+unavailable closes its active detail and invalidates pending selection work,
+including a retained player during a channel switch. Unresolved records are not
+promoted to dashboard hero slides. Parental locks still gate display: an
+unresolved category cannot prove that it is unlocked, so those records remain
+stored but are withheld while locks apply.
+
+Legacy pending favorites are converted before destructive refresh, import
+requests and ordinary collection reads, even if portal-status preflight is
+offline. Backup merges convert any older pending favorites before parking the
+incoming archive. Favorite inserts and a replay receipt commit together;
+retries cannot resurrect a subsequently removed favorite. Deliberate backup import creates a
+fresh receipt ID, which stays internal and is never exported. Identity-only old
+backups use a labelled saved-item fallback until catalog metadata returns.
+Backups include unresolved snapshots and locked records through a dedicated
+unfiltered read; a failed favorites read fails export rather than producing an
+empty collection. New backup imports materialize favorites before waiting for
+an online catalog. Existing history, hidden-category and playback-position
+restore contracts remain separate.
+
+Both Xtream data-source and portal-activity capabilities require the pending
+favorite conversion bridge; activity reads also require playlist lookup.
+
+Records already deleted by an older build cannot be recovered without a
+surviving pending state or backup. Opening an Xtream section may initialize
+content when its cache is not ready; startup imports and explicit refresh use
+the same durable persistence invariant. This does not add a refresh scheduler.
+
 ## PWA Collection Persistence
 
 Collection operations carry `{ id, type }`: `id` remains the SQLite row ID

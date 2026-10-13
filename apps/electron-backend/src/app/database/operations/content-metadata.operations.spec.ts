@@ -63,7 +63,7 @@ describe('content-metadata.operations', () => {
         sqlMock.mockClear();
     });
 
-    it('writes the whole patch in one statement', async () => {
+    it('writes the whole content patch then preserves it in saved favorites', async () => {
         const { db, set, update } = createDbMock();
 
         await expect(
@@ -75,7 +75,8 @@ describe('content-metadata.operations', () => {
             })
         ).resolves.toEqual({ success: true });
 
-        expect(update).toHaveBeenCalledTimes(1);
+        expect(update).toHaveBeenCalledTimes(2);
+        expect(update).toHaveBeenNthCalledWith(2, schema.favorites);
         expect(update).toHaveBeenCalledWith(schema.content);
 
         const written = set.mock.calls[0][0];
@@ -138,9 +139,9 @@ describe('content-metadata.operations', () => {
 
         const guards = orMock.mock.calls[0].map(sqlText);
         expect(guards.some((guard) => guard.includes("= ''"))).toBe(true);
-        expect(
-            guards.filter((guard) => guard.includes("= ''"))
-        ).toHaveLength(1);
+        expect(guards.filter((guard) => guard.includes("= ''"))).toHaveLength(
+            1
+        );
     });
 
     it.each([
@@ -166,7 +167,8 @@ describe('content-metadata.operations', () => {
             backdropUrl: 'https://example.com/backdrop.jpg',
         });
 
-        expect(update).toHaveBeenCalledTimes(1);
+        expect(update).toHaveBeenCalledTimes(2);
+        expect(update).toHaveBeenNthCalledWith(2, schema.favorites);
         expect(update).toHaveBeenCalledWith(schema.content);
         expect(update).not.toHaveBeenCalledWith(
             schema.recentlyViewed as unknown as never

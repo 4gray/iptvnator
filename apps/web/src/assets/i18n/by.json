@@ -1271,6 +1271,8 @@
         "REMOVED_FROM_FAVORITES": "Выдалена з выбранага",
         "ADDED_TO_FAVORITES": "Дададзена ў выбранае",
         "FAVORITES": "Выбранае",
+        "FAVORITE_IDENTITY_CONFLICT": "Крыніца замяніла захаваны вамі элемент. Выдаліце стары запіс з абранага, перш чым дадаць новы.",
+        "FAVORITE_SAVE_FAILED": "Не ўдалося захаваць абранае. Паспрабуйце яшчэ раз.",
         "RECENTLY_VIEWED": "Нядаўна праглянутае",
         "THIS_PLAYLIST": "Гэты плэйліст",
         "ALL_PLAYLISTS": "Усе плэйлісты",
@@ -1977,6 +1979,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Няма ў бягучым каталогу",
+            "CATALOG_UNKNOWN": "Стан каталога невядомы",
             "TITLE": "Усе фаварыты",
             "SUBTITLE": "Прамы эфір з усіх плэйлістоў",
             "SEARCH_PLACEHOLDER": "Пошук у выбраным...",

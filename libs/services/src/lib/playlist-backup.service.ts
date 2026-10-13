@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistsService } from './playlists.service';
 import { SettingsStore } from './settings-store.service';
+import { toXtreamBackupFavorite } from './xtream-favorite-backup';
 import { DatabaseService } from './database-electron.service';
 import { VodSourcePinService } from './vod-source-pin.service';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
@@ -318,15 +319,30 @@ export class PlaylistBackupService {
         };
         const pending = this.pendingRestoreService.getOrThrow(playlist._id);
         if (pending) {
-            // A parked import is authoritative, including empty collections.
-            // Reading the incomplete catalog instead would silently lose it.
+            // Other parked user state is authoritative during an import. Favorites
+            // already have a durable owner: materialize old parked identities once,
+            // then export the current saved records (including explicit removals).
+            let favorites = pending.favorites;
+            if (this.runtime.supportsXtreamSqliteDataSource) {
+                await this.databaseService.restoreXtreamFavoriteSnapshots(
+                    playlist._id,
+                    pending.favorites,
+                    pending.favoritesRestoreId
+                );
+                favorites = (
+                    await this.databaseService.getFavoritesOrThrow(playlist._id)
+                ).map(toXtreamBackupFavorite);
+            }
             const sourcePins =
                 pending.sourcePins ??
                 (await this.readSourcePinsForExport(playlist._id));
             return {
                 ...entry,
                 userState: {
-                    ...pending,
+                    hiddenCategories: pending.hiddenCategories,
+                    favorites,
+                    recentlyViewed: pending.recentlyViewed,
+                    playbackPositions: pending.playbackPositions,
                     ...this.optionalLockedXtreamCategories(playlist._id),
                     ...(sourcePins ? { sourcePins } : {}),
                 },
@@ -349,7 +365,7 @@ export class PlaylistBackupService {
             this.databaseService.getAllXtreamCategories(playlist._id, 'live'),
             this.databaseService.getAllXtreamCategories(playlist._id, 'movies'),
             this.databaseService.getAllXtreamCategories(playlist._id, 'series'),
-            this.databaseService.getFavorites(playlist._id),
+            this.databaseService.getFavoritesOrThrow(playlist._id),
             this.databaseService.getRecentItems(playlist._id),
             this.playbackPositionService.getAllPlaybackPositionsOrThrow(
                 playlist._id
@@ -371,14 +387,7 @@ export class PlaylistBackupService {
                     ...this.mapHiddenCategories(seriesCategories, 'series'),
                 ],
                 ...this.optionalLockedXtreamCategories(playlist._id),
-                favorites: favorites.map((item) => ({
-                    xtreamId: item.xtream_id,
-                    contentType: item.type as XtreamBackupContentType,
-                    ...(item.added_at ? { addedAt: item.added_at } : {}),
-                    ...(item.position !== undefined
-                        ? { position: item.position }
-                        : {}),
-                })),
+                favorites: favorites.map(toXtreamBackupFavorite),
                 recentlyViewed: recent.map((item) => ({
                     xtreamId: item.xtream_id,
                     contentType: item.type as XtreamBackupContentType,
@@ -925,7 +934,20 @@ export class PlaylistBackupService {
         // arbitrary categories during restore.
         const restoreState: XtreamPendingRestoreState =
             normalizeXtreamPendingRestoreState(entry.userState);
+        // A deliberate re-import is a fresh user action. Do not accept an archive's
+        // internal receipt or confuse it with a retry of an older parked import.
+        restoreState.favoritesRestoreId = createRandomId();
 
+        // Preserve an older unfinished import before parking the incoming backup.
+        // Canonical favorites are additive; legacy-only ones need the same protection.
+        const previous = this.pendingRestoreService.getOrThrow(playlistId);
+        if (previous && this.runtime.supportsXtreamSqliteDataSource) {
+            await this.databaseService.restoreXtreamFavoriteSnapshots(
+                playlistId,
+                previous.favorites,
+                previous.favoritesRestoreId
+            );
+        }
         const restoreSnapshot = this.pendingRestoreService.set(
             playlistId,
             restoreState
@@ -939,6 +961,11 @@ export class PlaylistBackupService {
         // Browser storage has no catalog cache to wait for: apply at once.
         const sqlite = this.runtime.supportsXtreamSqliteDataSource;
         if (sqlite) {
+            await this.databaseService.restoreXtreamFavoriteSnapshots(
+                playlistId,
+                restoreState.favorites,
+                restoreState.favoritesRestoreId
+            );
             this.playbackPositionService.assertSupportsAtomicReplacement();
             if (!(await this.hasCompletedOfflineCache(playlistId))) return;
         }
@@ -1007,9 +1034,14 @@ export class PlaylistBackupService {
     ): Promise<void> {
         this.playbackPositionService.assertSupportsAtomicReplacement();
         await this.restoreXtreamCategoryVisibility(playlistId, state);
-        await this.databaseService.restoreXtreamUserData(
+        await this.databaseService.restoreXtreamFavoriteSnapshots(
             playlistId,
             state.favorites,
+            state.favoritesRestoreId
+        );
+        await this.databaseService.restoreXtreamUserData(
+            playlistId,
+            [],
             state.recentlyViewed
         );
 

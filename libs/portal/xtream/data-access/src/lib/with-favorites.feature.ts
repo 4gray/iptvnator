@@ -1,5 +1,8 @@
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { inject } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
+import { XTREAM_FAVORITE_IDENTITY_CONFLICT } from '@iptvnator/shared/interfaces';
 import {
     patchState,
     signalStoreFeature,
@@ -19,7 +22,9 @@ export const withFavorites = function () {
             (
                 store,
                 dataSource = inject(XTREAM_DATA_SOURCE),
-                runtime = inject(RuntimeCapabilitiesService)
+                runtime = inject(RuntimeCapabilitiesService),
+                snackBar = inject(MatSnackBar),
+                translate = inject(TranslateService)
             ) => ({
                 async toggleFavorite(
                     xtreamId: number | string,
@@ -70,11 +75,25 @@ export const withFavorites = function () {
                         return false;
                     } else {
                         // Add to favorites
-                        await dataSource.addFavorite(
-                            { id: contentId, type: contentType },
-                            playlistId,
-                            backdropUrl
-                        );
+                        try {
+                            await dataSource.addFavorite(
+                                { id: contentId, type: contentType },
+                                playlistId,
+                                backdropUrl
+                            );
+                        } catch (error) {
+                            patchState(store, { isFavorite: false });
+                            const key =
+                                error instanceof Error &&
+                                error.message ===
+                                    XTREAM_FAVORITE_IDENTITY_CONFLICT
+                                    ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
+                                    : 'PORTALS.FAVORITE_SAVE_FAILED';
+                            snackBar.open(translate.instant(key), undefined, {
+                                duration: 6000,
+                            });
+                            return false;
+                        }
                         patchState(store, { isFavorite: true });
                         return true;
                     }

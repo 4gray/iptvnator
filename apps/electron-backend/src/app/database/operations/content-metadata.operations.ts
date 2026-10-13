@@ -5,6 +5,7 @@ import {
     ContentMetadataPatch,
     normalizeContentMetadataPatch,
 } from '@iptvnator/shared/interfaces';
+import { favoriteMatchesContentId } from './favorite-catalog';
 import type { AppDatabase } from '../database.types';
 
 /**
@@ -104,6 +105,20 @@ export async function persistContentMetadataIfMissing(
             )
         )
         .where(and(eq(schema.content.id, contentId), anyAbsent));
+
+    // Favorites own their metadata beyond the lifetime of this catalog row.
+    // Capture enrichment when learned, before a later refresh can delete it.
+    await db
+        .update(schema.favorites)
+        .set(
+            Object.fromEntries(
+                columns.map(({ key, column }) => [
+                    key,
+                    sql`COALESCE(NULLIF(${schema.favorites[key]}, ''), (SELECT ${column} FROM content WHERE id = ${contentId}))`,
+                ])
+            )
+        )
+        .where(favoriteMatchesContentId(contentId));
 }
 
 export async function setContentMetadataIfMissing(

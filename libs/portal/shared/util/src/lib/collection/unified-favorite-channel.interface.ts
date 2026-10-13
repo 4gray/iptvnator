@@ -1,3 +1,4 @@
+import type { XtreamFavoriteCatalogStatus } from '@iptvnator/shared/interfaces';
 /**
  * Unified interface for displaying live TV favorites from any source
  * (M3U playlists, Xtream Codes portals, Stalker portals) in one list.
@@ -69,6 +70,8 @@ export interface UnifiedFavoriteChannel {
 
     /** Xtream DB content id — used for REORDER IPC call */
     contentId?: number;
+    favoriteId?: number;
+    catalogStatus?: XtreamFavoriteCatalogStatus;
 
     /** Stalker portal credentials needed to resolve the live stream */
     stalkerPortalUrl?: string;

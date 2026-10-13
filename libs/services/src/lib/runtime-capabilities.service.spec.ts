@@ -118,6 +118,7 @@ describe('RuntimeCapabilitiesService', () => {
             onPlaybackPositionUpdate: jest.fn(),
             dbDeleteXtreamContent: jest.fn(),
             dbRestoreXtreamUserData: jest.fn(),
+            dbRestoreXtreamFavorites: jest.fn(),
             dbReplaceAllPlaybackPositions: jest.fn(),
             downloadsStart: jest.fn(),
             downloadsCancel: jest.fn(),
@@ -196,6 +197,13 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpgDataManagement).toBe(true);
         expect(service.supportsEpgGuide).toBe(true);
         expect(service.supportsEpgProgramSearch).toBe(true);
+        for (const method of ['dbGetPlaylist', 'dbRestoreXtreamFavorites']) {
+            const implementation = testWindow.electron[method];
+            delete testWindow.electron[method];
+            expect(service.supportsPortalActivityStorage).toBe(false);
+            testWindow.electron[method] = implementation;
+            expect(service.supportsPortalActivityStorage).toBe(true);
+        }
     });
 
     it('keeps feature-specific capabilities false when an Electron bridge is partial', () => {
@@ -661,6 +669,7 @@ function createXtreamSqliteBridge(): Record<string, jest.Mock> {
         dbRemoveFavorite: jest.fn(),
         dbRemoveRecentItem: jest.fn(),
         dbRestoreXtreamUserData: jest.fn(),
+        dbRestoreXtreamFavorites: jest.fn(),
         dbReplaceAllPlaybackPositions: jest.fn(),
         dbSaveCategories: jest.fn(),
         dbSaveContent: jest.fn(),

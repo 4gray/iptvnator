@@ -231,6 +231,15 @@ describe('DashboardHeroSlidesPresenter', () => {
         jest.useRealTimers();
     });
 
+    it('leaves unavailable saved films in the collection rather than promoting them to a playable hero', () => {
+        favorites.set([{ ...favoriteFilm, catalogStatus: 'missing' }]);
+        expect(
+            create()
+                .slides()
+                .some((slide) => slide.kind === 'favorite')
+        ).toBe(false);
+    });
+
     it('builds the rotation from resume, live, favourite and import slides', () => {
         const slides = create().slides();
 

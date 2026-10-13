@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { NgTemplateOutlet } from '@angular/common';
 import {
     AfterContentInit,
@@ -228,6 +229,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             }),
     });
     private readonly detailState = createCollectionDetailState({
+        items: this.allItems,
+        isLoading: this.isLoading,
         mode: this.mode,
         portalType: this.portalType,
         detailTemplate: this.detailTemplate,
@@ -309,6 +312,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }
 
     onGridItemSelected(item: UnifiedCollectionItem): void {
+        if (isCatalogUnavailable(item)) return;
         this.viewStateSync.commitCurrent();
 
         if (this.detailState.canOpen(item)) {

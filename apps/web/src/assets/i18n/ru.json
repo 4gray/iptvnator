@@ -1271,6 +1271,8 @@
         "REMOVED_FROM_FAVORITES": "Удалено из избранного",
         "ADDED_TO_FAVORITES": "Добавлено в избранное",
         "FAVORITES": "Избранное",
+        "FAVORITE_IDENTITY_CONFLICT": "Источник заменил сохранённый вами элемент. Удалите старую запись из избранного, прежде чем добавить новую.",
+        "FAVORITE_SAVE_FAILED": "Не удалось сохранить избранное. Попробуйте ещё раз.",
         "RECENTLY_VIEWED": "Недавно просмотренные",
         "THIS_PLAYLIST": "Этот плейлист",
         "ALL_PLAYLISTS": "Все плейлисты",
@@ -1977,6 +1979,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Нет в текущем каталоге",
+            "CATALOG_UNKNOWN": "Статус каталога неизвестен",
             "TITLE": "Глобальные избранные",
             "SUBTITLE": "Live TV из всех плейлистов",
             "SEARCH_PLACEHOLDER": "Поиск в избранном...",
