@@ -52,10 +52,11 @@ the subsystem's document.
   gzipped, and Material's own rules are 9 KB. 23.6 KB of the tokens belong to
   17 components the app never imports, because `mat.all-component-themes`
   emits every component.
-- The startup cost comes from a few eager imports (the form-field defaults
+- The startup cost came from a few eager imports (the form-field defaults
   token in `app.config.ts`, the startup, update and EPG-progress components,
-  the confirm-dialog service), not from Material itself. Those are moved off
-  the startup path separately.
+  the confirm-dialog service), not from Material itself. Those are gone (see
+  Material off the startup path below): `renderer.initialBytes` went from
+  1,597,763 to 1,345,807 with Material still in place.
 - Rewriting dialog focus trapping, menu keyboard handling, select listboxes
   and snack-bar live regions would cost months and accessibility risk for no
   visible gain.
@@ -125,8 +126,9 @@ in `apps/web/src/m3-theme.scss`):
   active source's row on Sources and in the switcher (see Selection Pattern)
 - `--app-line-strong` — popover and menu borders, a step above
   `--app-widget-header-border`
-- `--app-danger-text` / `--app-danger-surface` — a failing source's tag and
-  destructive menu items; `--app-neutral-tag-surface` for a neutral tag
+- `--app-danger-text` / `--app-danger-surface` — a failing source's tag,
+  destructive menu items and `.app-destructive-button`;
+  `--app-neutral-tag-surface` for a neutral tag
 - `--app-font-mono` — URLs and keyboard hints (JetBrains Mono, 400/500)
 - `--app-popover-shadow` / `--app-popover-backdrop` — the switcher popover
 
@@ -286,6 +288,15 @@ outlined in light theme. Its text is the heading colour in light theme (the
 selection blue on its own tint is 3.3:1) and the selection colour in dark.
 
 ## Single-Choice Menus And Status Chips
+
+A `<mat-menu class="app-menu">` gets the kit panel from one global rule in
+`styles.scss` (`menu-panel` in `libs/ui/styles/_app-controls.scss`): a
+bordered 10px panel with 6px padding, 36px rows at 13px with 16px icons, the
+checked row on the list-selection tokens, a destructive row marked
+`app-menu-item--danger` after a divider, and a shortcut hint in a trailing
+`kbd.app-menu-item__kbd`. The panel renders in the overlay container, outside
+every component view, so a component never copies the mixin into its own
+stylesheet.
 
 A `mat-menu` that picks one value, such as a sort order or a rating
 threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
@@ -1141,14 +1152,17 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
 - **Destructive actions.** Material only emits `warn` button colors for M2
   themes, so the `color` input is a no-op here. A button that removes or
   discards user data uses the global `.app-destructive-button` class from
-  `m3-theme.scss` (error/on-error tokens per theme, for filled, text,
-  outlined and icon buttons), as the unsaved-changes dialog's Discard does.
+  `m3-theme.scss`, as the unsaved-changes dialog's Discard does. It is the
+  kit's red tint on the `--app-danger-*` tokens per theme (tinted fill and
+  red text for filled and outlined buttons, red text for text and icon
+  buttons), never a solid error fill; hover changes the fill only, and a
+  disabled button is the same button at 40% opacity.
   Confirmations go through `DialogService.openConfirmDialog` with a
   translated verb as the required `confirmLabel` ("Remove playlist",
   "Clear") and `tone: 'destructive'` when the action loses data; the dismiss
   defaults to "Cancel". Never confirm with "Yes"/"No". When the verb itself
   is "Cancel …", pass `cancelLabel` "Close" so the two buttons do not read
-  alike. `theme-tokens.e2e.ts` checks the label and the error fill in both
+  alike. `theme-tokens.e2e.ts` checks the label and the danger tint in both
   themes.
 - **One control per action.** A page offers one control for a destructive
   action. Clearing a favorites or recently viewed tab goes through
@@ -1166,6 +1180,12 @@ that renders one adds `providers: [provideFormFieldDefaults()]`
 provide the defaults, because the token import there would load Material's
 form field and `@angular/forms` on startup. `pnpm run
 ui:form-field-defaults:validate` (in CI) reports a missing provider.
+
+A `mat-select` belongs inside a form. Its option panel is styled once in
+`m3-theme.scss` to match the kit menu (a bordered 10px panel, 36px rows at
+13px, the chosen row on the list-selection tokens). A picker in a toolbar is
+not a select: it is a secondary button with a chevron that opens an
+`app-menu`.
 
 The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
 vocabulary, so a field reads the same wherever it appears:
