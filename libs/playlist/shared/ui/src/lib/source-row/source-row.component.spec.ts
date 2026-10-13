@@ -1,8 +1,10 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
 import { SourceStatusService } from '@iptvnator/portal/shared/data-access';
 import { PlaylistMeta, SourceStatus } from '@iptvnator/shared/interfaces';
+import { SourceClock } from './source-clock';
 import { SourceRowComponent } from './source-row.component';
 
 const M3U: PlaylistMeta = {
@@ -130,6 +132,24 @@ describe('SourceRowComponent', () => {
                 })
             )
         ).toBe('SOURCE_HEALTH.REASON.network');
+    });
+
+    it("keeps counting a failure's duration while the list stays open", () => {
+        const start = Date.UTC(2026, 9, 13, 12);
+        const now = signal(start);
+        TestBed.overrideProvider(SourceClock, { useValue: { now } });
+        statuses.set('m3u', {
+            reachability: 'bad',
+            failingSince: start - 10 * 60_000,
+        });
+        const element = render(M3U);
+        const tag = () =>
+            element.querySelector('.source-row__tag')?.textContent?.trim();
+        expect(tag()).toBe('WORKSPACE.SOURCES.ROW.UNREACHABLE');
+
+        now.set(start + 2 * 60 * 60_000);
+        fixture.detectChanges();
+        expect(tag()).toBe('WORKSPACE.SOURCES.ROW.UNREACHABLE_FOR');
     });
 
     it('opens on click and on Enter, but not while busy', () => {

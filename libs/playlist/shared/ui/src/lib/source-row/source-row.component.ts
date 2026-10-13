@@ -35,6 +35,7 @@ import {
     sourceMetaParts,
     sourceStatusTag,
 } from '@iptvnator/playlist/shared/util';
+import { SourceClock } from './source-clock';
 import { SourceTileComponent } from './source-tile.component';
 
 /**
@@ -68,6 +69,7 @@ import { SourceTileComponent } from './source-tile.component';
 })
 export class SourceRowComponent {
     private readonly statusService = inject(SourceStatusService);
+    private readonly clock = inject(SourceClock);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
     private readonly clipboard = inject(Clipboard);
@@ -137,8 +139,13 @@ export class SourceRowComponent {
     readonly meta = computed(() =>
         sourceMetaParts(this.playlist(), this.formatContext(), this.compact())
     );
+    /** Reads the shared clock, so a failure's duration keeps counting. */
     readonly tag = computed(() =>
-        sourceStatusTag(this.status(), this.formatContext(), this.compact())
+        sourceStatusTag(
+            this.status(),
+            { ...this.formatContext(), now: this.clock.now() },
+            this.compact()
+        )
     );
 
     constructor() {
