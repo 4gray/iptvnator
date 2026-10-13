@@ -60,6 +60,42 @@ describe('applyEdit', () => {
     });
 });
 
+describe('applyEdit of a gone page (yields)', () => {
+    it('changes only what is still as that page saw it', () => {
+        // Map keys: `a` changed since, `b` did not.
+        expect(
+            applyEdit({ a: 3, b: 1 }, { a: 1, b: 1 }, { a: 2, b: 2 }, true)
+        ).toEqual({ a: 3, b: 2 });
+        // List items by key: a changed item keeps its newer state.
+        const item = (seconds: number) => ({
+            contentType: 'vod',
+            contentXtreamId: 1,
+            positionSeconds: seconds,
+        });
+        expect(applyEdit([item(30)], [item(10)], [item(20)], true)).toEqual([
+            item(30),
+        ]);
+        expect(applyEdit([item(10)], [item(10)], [item(20)], true)).toEqual([
+            item(20),
+        ]);
+        // Adds and removes still apply where nothing changed.
+        expect(applyEdit(['a', 'b'], ['a', 'b'], ['b', 'c'], true)).toEqual([
+            'b',
+            'c',
+        ]);
+    });
+
+    it('keeps a value or entry replaced since', () => {
+        expect(applyEdit('new', 'old', 'mine', true)).toBe('new');
+        expect(applyEdit('old', 'old', 'mine', true)).toBe('mine');
+        expect(applyEdit(['x', 'y'], ['x'], undefined, true)).toEqual([
+            'x',
+            'y',
+        ]);
+        expect(applyEdit(['x'], ['x'], undefined, true)).toBeUndefined();
+    });
+});
+
 describe('withoutDeleted', () => {
     it('drops deleted playlists and keeps every other id', () => {
         const read = withoutDeleted(

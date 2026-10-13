@@ -3,10 +3,6 @@ import type {
     ServerUserStateCurrent,
     ServerUserStateWriteResponse,
 } from '@iptvnator/shared/interfaces';
-import {
-    clearServerAccessToken,
-    readServerAccessToken,
-} from '../server-access-token';
 import type { ServerStorageStatusService } from '../server-storage-status.service';
 
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -41,7 +37,7 @@ export interface ServerApiClientOptions {
     readonly baseUrl: string;
     readonly status: Pick<
         ServerStorageStatusService,
-        'reportSuccess' | 'reportOffline' | 'reportUnauthorized'
+        'reportSuccess' | 'reportOffline' | 'reportAccessDenied'
     >;
     /** Failed writes the user should hear about: network, 413, 5xx. */
     readonly onWriteFailure?: (error: ServerApiError) => void;
@@ -53,8 +49,8 @@ export interface ServerApiClientOptions {
      * the time it does.
      */
     readonly holdWrites?: boolean;
-    /** The token to send; the stored one by default. */
-    readonly accessToken?: () => string | null;
+    /** The token to send (`ServerStorageStatusService.accessToken`). */
+    readonly accessToken: () => string | null;
 }
 
 /** `fetch` for `/v1`: token, timeout, error mapping, connection state. */
@@ -66,7 +62,7 @@ export class ServerApiClient {
     }
 
     private token(): string | null {
-        return (this.options.accessToken ?? readServerAccessToken)();
+        return this.options.accessToken();
     }
 
     url(path: string): string {
@@ -104,11 +100,7 @@ export class ServerApiClient {
         }
 
         if (response.status === 401) {
-            // A late answer to a token replaced since (a new sign-in) is moot.
-            if (readServerAccessToken() === token) {
-                clearServerAccessToken();
-                this.options.status.reportUnauthorized();
-            }
+            this.options.status.reportAccessDenied(token);
             throw new ServerApiError(
                 401,
                 'unauthorized',

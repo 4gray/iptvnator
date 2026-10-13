@@ -4,7 +4,7 @@ import { provideRouter } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistStorageBackend } from '../playlist-storage-backend';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
-import { SERVER_ACCESS_TOKEN_STORAGE_KEY } from '../server-access-token';
+import { writeServerAccessToken } from '../server-access-token';
 import { ServerStorageStatusService } from '../server-storage-status.service';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 import { ServerStorageSession } from './server-storage-session';
@@ -102,12 +102,21 @@ describe('ServerStorageSession', () => {
     });
 
     it('starts with a stored token', async () => {
-        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 't');
+        writeServerAccessToken('t', 'i-1');
         const { session, status } = setup('token');
 
         await session.start();
 
         expect(status.state()).toBe('online');
+    });
+
+    it("asks for a token when the stored one is another instance's", async () => {
+        writeServerAccessToken('t', 'i-2');
+        const { session, status } = setup('token');
+
+        await session.start();
+
+        expect(status.state()).toBe('unauthorized');
     });
 
     it('retries a write the server refused while it stays online', async () => {
@@ -213,7 +222,7 @@ describe('ServerStorageSession', () => {
                 )
                 .mockImplementation(() => undefined);
             await session.start();
-            localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 't');
+            writeServerAccessToken('t', 'i-1');
             expect(status.accessToken()).toBeNull();
 
             fetchMock.mockResolvedValue({

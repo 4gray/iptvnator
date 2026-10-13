@@ -2,16 +2,17 @@ import type { ServerUserStateNamespace } from '@iptvnator/shared/interfaces';
 import {
     behind,
     type EditStep,
-    uncertain,
     UNKNOWN_TAG,
+    yielding,
 } from './server-user-data-entries';
 import { replaySteps } from './server-user-data-edit';
 import type { UserDataWriteQueue } from './server-user-data-queue';
 
 /**
  * A closed tab's saved edits, ahead of this tab's own (which may have been
- * made on them): sent with them, replayed first on a conflict. Returns the
- * value to show.
+ * made on them): sent with them, replayed first on a conflict, and only
+ * where the entry is still as that tab saw it (`yields`): a change made
+ * since, here or elsewhere, is newer. Returns the value to show.
  */
 export function adoptEdits(
     writes: UserDataWriteQueue,
@@ -22,7 +23,7 @@ export function adoptEdits(
     foreign: boolean
 ): unknown {
     const key = `${namespace}|${playlistId}`;
-    const adopted = uncertain(steps);
+    const adopted = yielding(steps);
     const queued = writes.isQueued(key) ? writes.unsent(key) : undefined;
     // Without a server version this page read, the write must conflict and
     // be replayed on the server's value, never overwrite it blindly.
@@ -42,7 +43,7 @@ export function adoptEdits(
         });
         return value;
     }
-    const value = replaySteps(current, steps);
+    const value = replaySteps(current, adopted);
     writes.queue(namespace, playlistId, value, value, { foreign: unknown });
     const entry = writes.unsent(key);
     if (entry) {

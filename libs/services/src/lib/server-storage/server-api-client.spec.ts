@@ -1,4 +1,3 @@
-import { SERVER_ACCESS_TOKEN_STORAGE_KEY } from '../server-access-token';
 import { ServerApiClient, ServerApiError } from './server-api-client';
 
 // jsdom has Headers but no Response or fetch.
@@ -16,13 +15,14 @@ describe('ServerApiClient', () => {
     const status = {
         reportSuccess: jest.fn(),
         reportOffline: jest.fn(),
-        reportUnauthorized: jest.fn(),
+        reportAccessDenied: jest.fn(),
     };
+    let token: string | null = null;
     const onWriteFailure = jest.fn();
 
     afterEach(() => {
         jest.clearAllMocks();
-        localStorage.clear();
+        token = null;
     });
 
     function client(fetchFn: jest.Mock) {
@@ -31,11 +31,12 @@ describe('ServerApiClient', () => {
             status,
             onWriteFailure,
             fetchFn: fetchFn as unknown as typeof fetch,
+            accessToken: () => token,
         });
     }
 
     it('calls /v1 with the token and reports success', async () => {
-        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 't');
+        token = 't';
         const fetchFn = jest
             .fn()
             .mockResolvedValue(response(200, { ok: true }));
@@ -130,6 +131,7 @@ describe('ServerApiClient', () => {
             baseUrl: '/api',
             status,
             fetchFn: fetchFn as unknown as typeof fetch,
+            accessToken: () => null,
             holdWrites: true,
         });
 
@@ -172,8 +174,8 @@ describe('ServerApiClient', () => {
         expect(status.reportOffline).not.toHaveBeenCalled();
     });
 
-    it('clears the token and reports unauthorized on 401', async () => {
-        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'old');
+    it('reports the refused token on 401', async () => {
+        token = 'old';
         const fetchFn = jest
             .fn()
             .mockResolvedValue(response(401, { code: 'unauthorized' }));
@@ -181,52 +183,9 @@ describe('ServerApiClient', () => {
         await expect(
             client(fetchFn).getJson('/playlists')
         ).rejects.toBeInstanceOf(ServerApiError);
-        expect(
-            localStorage.getItem(SERVER_ACCESS_TOKEN_STORAGE_KEY)
-        ).toBeNull();
-        expect(status.reportUnauthorized).toHaveBeenCalled();
-    });
-
-    it('keeps a token stored while a request with the old one ran', async () => {
-        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'old');
-        const fetchFn = jest.fn(async () => {
-            // The user signs in again before the old request is answered.
-            localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'new');
-            return response(401, { code: 'unauthorized' });
-        });
-
-        await expect(
-            client(fetchFn).getJson('/playlists')
-        ).rejects.toBeInstanceOf(ServerApiError);
-        expect(localStorage.getItem(SERVER_ACCESS_TOKEN_STORAGE_KEY)).toBe(
-            'new'
-        );
-        expect(status.reportUnauthorized).not.toHaveBeenCalled();
-    });
-
-    it('sends no token to an instance not checked yet and keeps it on a 401', async () => {
-        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'kept');
-        const fetchFn = jest
-            .fn()
-            .mockResolvedValue(response(401, { code: 'unauthorized' }));
-        const unchecked = new ServerApiClient({
-            baseUrl: '/api',
-            status,
-            fetchFn: fetchFn as unknown as typeof fetch,
-            accessToken: () => null,
-        });
-
-        await expect(unchecked.getJson('/instance')).rejects.toBeInstanceOf(
-            ServerApiError
-        );
-
-        expect(fetchFn.mock.calls[0][1].headers).not.toHaveProperty(
-            'Authorization'
-        );
-        expect(localStorage.getItem(SERVER_ACCESS_TOKEN_STORAGE_KEY)).toBe(
-            'kept'
-        );
-        expect(status.reportUnauthorized).not.toHaveBeenCalled();
+        // The status decides: it ignores a token replaced since.
+        expect(status.reportAccessDenied).toHaveBeenCalledWith('old');
+        expect(status.reportOffline).not.toHaveBeenCalled();
     });
 
     it('passes 304 through and maps error bodies', async () => {

@@ -85,7 +85,10 @@ export class ServerStorageSession {
         // Also while sign-in is pending: this page may already hold another
         // page load's writes, so it must mark itself closed on page hide.
         this.listen();
-        if (this.config.instance.auth === 'token' && !readServerAccessToken()) {
+        if (
+            this.config.instance.auth === 'token' &&
+            !readServerAccessToken(this.config.instance.instanceId)
+        ) {
             this.status.reportUnauthorized();
             return;
         }

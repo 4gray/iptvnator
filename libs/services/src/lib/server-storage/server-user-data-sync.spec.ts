@@ -1,118 +1,7 @@
 import { ServerApiError } from './server-api-client';
 import { UNCONFIRMED_TTL_MS } from './server-unsent-writes';
 import { ServerUserDataStorage } from './server-user-data-storage';
-
-function memoryStorage() {
-    const values = new Map<string, string>();
-    return {
-        values,
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => void values.set(key, value),
-        removeItem: (key: string) => void values.delete(key),
-        keys: () => [...values.keys()],
-    };
-}
-
-/** A server that keeps entries, tags them by content and refuses stale tags. */
-function fakeServer(initial: Record<string, Record<string, unknown>> = {}) {
-    const state: Record<string, Record<string, unknown>> = {
-        'xtream-favorites': {},
-        'xtream-recent-items': {},
-        'xtream-collection-items': {},
-        'xtream-playback-positions': {},
-        ...structuredClone(initial),
-    };
-    /** Playlists deleted on the server: their user state is refused. */
-    const deleted = new Set<string>();
-    const tagOf = (value: unknown) =>
-        value === undefined
-            ? null
-            : `t${JSON.stringify(value).replace(/"/g, "'")}`;
-    const answer = (body: unknown) =>
-        ({ json: async () => body }) as unknown as Response;
-    const write = (
-        path: string,
-        headers: Record<string, string>,
-        value?: unknown
-    ) => {
-        const [, , namespace, playlistId] = path.split('/');
-        if (value !== undefined && deleted.has(playlistId)) {
-            throw new ServerApiError(404, 'playlist_missing', 'gone');
-        }
-        const current = state[namespace][playlistId];
-        const expected =
-            headers['If-None-Match'] === '*'
-                ? null
-                : headers['If-Match']?.replace(/^"|"$/g, '');
-        if (expected !== undefined && expected !== tagOf(current)) {
-            throw new ServerApiError(412, 'conflict', 'changed', {
-                ...(current === undefined ? {} : { value: current }),
-                tag: tagOf(current),
-            });
-        }
-        if (value === undefined) {
-            delete state[namespace][playlistId];
-        } else {
-            state[namespace][playlistId] = value;
-        }
-        return answer({ tag: tagOf(value) });
-    };
-    const api = {
-        getJson: jest.fn(async () => {
-            const tags: Record<string, Record<string, string>> = {};
-            for (const [namespace, entries] of Object.entries(state)) {
-                tags[namespace] = Object.fromEntries(
-                    Object.entries(entries).map(([id, value]) => [
-                        id,
-                        tagOf(value) as string,
-                    ])
-                );
-            }
-            return { entries: structuredClone(state), tags };
-        }),
-        sendJson: jest.fn(
-            async (
-                _method: string,
-                path: string,
-                body: { value: unknown },
-                headers: Record<string, string> = {}
-            ) => write(path, headers, body.value)
-        ),
-        request: jest.fn(
-            async (path: string, init: { headers?: Record<string, string> }) =>
-                write(path, init.headers ?? {})
-        ),
-        readJson: jest.fn((response: Response) => response.json()),
-        sendKeepalive: jest.fn(
-            async (
-                _method: string,
-                path: string,
-                body?: { value: unknown },
-                headers: Record<string, string> = {}
-            ) => {
-                try {
-                    const response = write(path, headers, body?.value);
-                    const { tag } = await response.json();
-                    return { status: 'saved' as const, tag };
-                } catch (error) {
-                    if (
-                        error instanceof ServerApiError &&
-                        error.code === 'playlist_missing'
-                    ) {
-                        return { status: 'gone' as const };
-                    }
-                    return error instanceof ServerApiError && error.current
-                        ? {
-                              status: 'conflict' as const,
-                              current: error.current,
-                          }
-                        : { status: 'failed' as const };
-                }
-            }
-        ),
-    };
-    return { state, api, deleted };
-}
+import { fakeServer, memoryStorage } from './server-user-data.test-helpers';
 
 const favorites = (storage: ServerUserDataStorage) =>
     JSON.parse(storage.getItem('xtream-favorites') ?? '{}');
@@ -790,6 +679,69 @@ describe('ServerUserDataStorage with other devices', () => {
         clock.mockRestore();
 
         expect(server.state['xtream-playback-positions']['p1']).toEqual(at(30));
+    });
+
+    it("keeps progress this tab saved over a closed tab's older edit", async () => {
+        const at = (seconds: number) => [
+            {
+                contentType: 'vod',
+                contentXtreamId: 1,
+                positionSeconds: seconds,
+            },
+        ];
+        const server = fakeServer({
+            'xtream-playback-positions': { p1: at(10) },
+        });
+        const shared = memoryStorage();
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+        const closed = new ServerUserDataStorage(
+            {
+                ...server.api,
+                sendJson: jest.fn(() =>
+                    Promise.reject(new ServerApiError(0, 'network', 'offline'))
+                ),
+            } as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await closed.hydrate();
+        closed.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({ p1: at(20) })
+        );
+        await closed.flush();
+        closed.close();
+
+        // This tab saves newer progress before it adopts the closed one.
+        const tab = new ServerUserDataStorage(
+            server.api as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await tab.hydrate();
+        tab.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({ p1: at(30) })
+        );
+        // Sent on the server's value: the closed tab's write is unconfirmed.
+        await tab.flush();
+        await tab.flush();
+        expect(server.state['xtream-playback-positions']['p1']).toEqual(at(30));
+
+        clock.mockReturnValue(1_000 + UNCONFIRMED_TTL_MS + 1);
+        await tab.hydrate();
+        await tab.flush();
+        await tab.flush();
+        clock.mockRestore();
+
+        expect(server.state['xtream-playback-positions']['p1']).toEqual(at(30));
+        expect(
+            JSON.parse(tab.getItem('xtream-playback-positions') ?? '{}')['p1']
+        ).toEqual(at(30));
     });
 
     it("keeps the last page load's saved writes when storage refuses the copy", async () => {

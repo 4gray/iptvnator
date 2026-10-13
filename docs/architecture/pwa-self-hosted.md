@@ -240,7 +240,10 @@ settings and guards read them in every build.
   replay; the writes of a tab closed before it
   could send them are queued, ahead of its own, by the next re-read in
   another tab once that tab's record has gone stale; the result replays the
-  closed tab's edits first and this tab's newer ones last. Tabs never clear each other's.
+  closed tab's edits first and this tab's newer ones last. An adopted edit
+  changes only what is still as its page saw it (`EditStep.yields`): an
+  item or key changed since, by this tab or another device, keeps its
+  newer value. Tabs never clear each other's.
   Cache and saved writes belong to one server database
   (`iptvnator-server:cache-owner`); another one behind the same address
   starts clean. Also,
@@ -297,7 +300,10 @@ settings and guards read them in every build.
   `/server-sign-in` (the start-up screen lets it through although the
   playlists could not load), which checks the token against `/v1/instance/status`
   before it stores it under `iptvnator-server:access-token` and reloads (a
-  browser that refuses to store it is told so instead).
+  browser that refuses to store it is told so instead). The token is stored
+  with the instance id it was given for, and a page sends it only to that
+  instance: a tab still open on the old backend after `BACKEND_URL` changed
+  does not send the new server's token there, and goes to sign-in instead.
   `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
   backend, and `PwaService` adds it to its two raw `fetch` calls only while
   server mode runs on a verified instance. The browser forgets the token
@@ -308,8 +314,10 @@ settings and guards read them in every build.
   address is the remembered one (`ensureVerified`), and reloads if not,
   before sign-in sends the token. Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
-  so a token changed on the server sends an open page back to sign-in; a
-  late 401 for a token replaced since (a new sign-in) changes nothing.
+  as the storage API client does with any 401, so a token changed on the
+  server sends an open page back to sign-in; a late 401 for a token
+  replaced since (a new sign-in) changes nothing, nor does one for a page
+  that holds its token back until the instance is checked.
 - **Moving browser data.** `ServerMigrationService` offers, once per server
   instance (marker `iptvnator-server:migration:<instanceId>`), to move the
   playlists this browser kept in IndexedDB (`planServerMigration`), Stalker

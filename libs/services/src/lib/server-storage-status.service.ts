@@ -54,8 +54,9 @@ export class ServerStorageStatusService {
      * for.
      */
     accessToken(): string | null {
-        return this.isActive() && this.verified
-            ? readServerAccessToken()
+        const instance = this.instanceSignal();
+        return instance && this.isActive() && this.verified
+            ? readServerAccessToken(instance.instanceId)
             : null;
     }
 
@@ -83,15 +84,25 @@ export class ServerStorageStatusService {
     }
 
     /**
-     * The access guard refused a request outside the storage API (a
-     * provider proxy call): the stored token is stale, ask for a new one.
+     * The access guard refused a request sent with `sentToken`: the token
+     * stored for this instance is stale or missing, ask for a new one.
      */
     reportAccessDenied(sentToken: string | null): void {
-        // A late answer to a token replaced since (a new sign-in) is moot.
-        if (this.isActive() && readServerAccessToken() === sentToken) {
-            clearServerAccessToken();
-            this.stateSignal.set('unauthorized');
+        const instance = this.instanceSignal();
+        // A late answer to a token replaced since (a new sign-in) is moot,
+        // and so is one to a page that held its token back until the
+        // instance is checked.
+        if (
+            !instance ||
+            !this.isActive() ||
+            readServerAccessToken(instance.instanceId) !== sentToken
+        ) {
+            return;
         }
+        if (sentToken) {
+            clearServerAccessToken();
+        }
+        this.stateSignal.set('unauthorized');
     }
 
     retry(): void {

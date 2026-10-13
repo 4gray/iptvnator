@@ -33,6 +33,11 @@ export interface EditStep {
      * it may have landed, so a later edit never joins it.
      */
     readonly sent?: number;
+    /**
+     * Made on a page that is gone (a closed tab's saved edit): it changes
+     * only what is still as that page saw it, never a change made since.
+     */
+    readonly yields?: true;
 }
 
 /** A travelling write's steps, marked as carried by it. */
@@ -43,6 +48,11 @@ export function behind(entry: PendingEntry): EditStep[] {
 /** Steps whose write may or may not have landed. */
 export function uncertain(steps: readonly EditStep[]): EditStep[] {
     return steps.map((step) => ({ ...step, sent: 0 }));
+}
+
+/** A gone page's steps: uncertain, and giving way to later changes. */
+export function yielding(steps: readonly EditStep[]): EditStep[] {
+    return steps.map((step) => ({ ...step, sent: 0, yields: true }));
 }
 
 /**
@@ -58,6 +68,7 @@ export function addStep(
     if (
         last &&
         last.sent === undefined &&
+        !last.yields &&
         JSON.stringify(last.after) === JSON.stringify(before)
     ) {
         return [...steps.slice(0, -1), { before: last.before, after }];

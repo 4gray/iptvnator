@@ -9,7 +9,10 @@ import {
     provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { SERVER_ACCESS_TOKEN_STORAGE_KEY } from '../server-access-token';
+import {
+    SERVER_ACCESS_TOKEN_STORAGE_KEY,
+    writeServerAccessToken,
+} from '../server-access-token';
 import { ServerStorageStatusService } from '../server-storage-status.service';
 import {
     isBackendUrl,
@@ -19,7 +22,7 @@ import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 
 describe('ServerAccessTokenInterceptor', () => {
     beforeEach(() => {
-        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 't');
+        writeServerAccessToken('t', 'i');
         TestBed.configureTestingModule({
             providers: [
                 provideHttpClient(withInterceptorsFromDi()),

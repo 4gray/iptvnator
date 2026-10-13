@@ -70,7 +70,7 @@ export class ServerSignInComponent {
         // Every request and the reload read the token from storage, and the
         // next start keeps it only for the server it remembers.
         if (
-            !writeServerAccessToken(token) ||
+            !writeServerAccessToken(token, this.config.instance.instanceId) ||
             !rememberServer(this.config.baseUrl, this.config.instance)
         ) {
             clearServerAccessToken();

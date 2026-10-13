@@ -21,8 +21,9 @@ import {
     isStalkerProbeTimeout,
 } from '@iptvnator/portal/stalker/data-access';
 import {
-    SERVER_ACCESS_TOKEN_STORAGE_KEY,
+    clearServerAccessToken,
     ServerStorageStatusService,
+    writeServerAccessToken,
 } from '@iptvnator/services';
 import { PwaService } from './pwa.service';
 
@@ -284,7 +285,7 @@ describe('PwaService', () => {
     });
 
     it('sends a stored server token only while server mode runs', async () => {
-        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'kept-token');
+        writeServerAccessToken('kept-token', 'i');
         const originalFetch = globalThis.fetch;
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,
@@ -335,7 +336,7 @@ describe('PwaService', () => {
             });
         } finally {
             globalThis.fetch = originalFetch;
-            localStorage.removeItem(SERVER_ACCESS_TOKEN_STORAGE_KEY);
+            clearServerAccessToken();
         }
     });
 

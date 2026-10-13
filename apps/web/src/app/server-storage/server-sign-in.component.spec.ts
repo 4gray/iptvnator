@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
+import { readServerAccessToken } from '@iptvnator/services';
 import {
     SERVER_STORAGE_CONFIG,
     ServerApiError,
@@ -60,6 +61,9 @@ describe('ServerSignInComponent', () => {
         await component.submit(new Event('submit'));
 
         expect(localStorage.getItem(TOKEN_KEY)).toBe('right');
+        // Only for the instance it was given for.
+        expect(readServerAccessToken('i-1')).toBe('right');
+        expect(readServerAccessToken('i-2')).toBeNull();
         expect(open).toHaveBeenCalled();
     });
 

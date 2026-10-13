@@ -65,7 +65,11 @@ export function claimCache(local: UserDataStorage, instanceId: string): void {
 }
 
 /** Saved edits: JSON drops an undefined side, which reads back as such. */
-type Steps = readonly { readonly before: unknown; readonly after: unknown }[];
+type Steps = readonly {
+    readonly before: unknown;
+    readonly after: unknown;
+    readonly yields?: true;
+}[];
 
 export interface UnsentWrite {
     readonly namespace: ServerUserStateNamespace;
@@ -91,15 +95,24 @@ function readSteps(stored: unknown): Steps {
     return Array.isArray(stored)
         ? stored
               .filter((step) => step && typeof step === 'object')
-              .map((step: { before?: unknown; after?: unknown }) => ({
-                  before: step.before,
-                  after: step.after,
-              }))
+              .map(
+                  (step: {
+                      before?: unknown;
+                      after?: unknown;
+                      yields?: unknown;
+                  }) => ({
+                      before: step.before,
+                      after: step.after,
+                      ...(step.yields === true
+                          ? { yields: true as const }
+                          : {}),
+                  })
+              )
         : [];
 }
 
 const saveSteps = (steps: Steps) =>
-    steps.map(({ before, after }) => ({ before, after }));
+    steps.map(({ before, after, yields }) => ({ before, after, yields }));
 
 /**
  * Records `page` as the tab's current page load and returns the one

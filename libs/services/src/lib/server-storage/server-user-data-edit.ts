@@ -49,15 +49,18 @@ export function refreshedNamespace(
  * Applies one local edit (`before` → `after`, as the user made it against
  * an older or empty cache) to the server's current value: list items the
  * edit added or changed are set, items it removed are dropped, everything
- * else the server has stays. Maps work the same by key.
+ * else the server has stays. Maps work the same by key. A `yields` edit
+ * (a gone page's) changes only what is still as it was `before`.
  */
 export function applyEdit(
     server: unknown,
     before: unknown,
-    after: unknown
+    after: unknown,
+    yields = false
 ): unknown {
+    const free = (now: unknown, was: unknown) => !yields || same(now, was);
     if (after === undefined) {
-        return undefined;
+        return free(server, before) ? undefined : server;
     }
     if (
         Array.isArray(after) &&
@@ -70,14 +73,17 @@ export function applyEdit(
         const now = new Map(after.map((item) => [itemKey(item), item]));
         const result = (server ?? []).filter((item) => {
             const key = itemKey(item);
-            return !(was.has(key) && !now.has(key));
+            return !(was.has(key) && !now.has(key) && free(item, was.get(key)));
         });
         for (const [key, item] of now) {
-            if (JSON.stringify(was.get(key)) === JSON.stringify(item)) {
-                // Untouched by the edit: the server's state of it wins.
+            // Untouched by the edit: the server's state of it wins.
+            if (same(was.get(key), item)) {
                 continue;
             }
             const index = result.findIndex((entry) => itemKey(entry) === key);
+            if (!free(index < 0 ? undefined : result[index], was.get(key))) {
+                continue;
+            }
             if (index < 0) {
                 result.push(item);
             } else {
@@ -87,20 +93,25 @@ export function applyEdit(
         return result;
     }
     if (isMap(after) && isMapOrMissing(server) && isMapOrMissing(before)) {
+        const was = before ?? {};
         const result: Record<string, unknown> = { ...(server ?? {}) };
-        for (const key of Object.keys(before ?? {})) {
-            if (!(key in after)) {
+        for (const key of Object.keys(was)) {
+            if (!(key in after) && free(result[key], was[key])) {
                 delete result[key];
             }
         }
         for (const [key, value] of Object.entries(after)) {
-            if (JSON.stringify((before ?? {})[key]) !== JSON.stringify(value)) {
+            if (!same(was[key], value) && free(result[key], was[key])) {
                 result[key] = value;
             }
         }
         return result;
     }
-    return after;
+    return free(server, before) ? after : server;
+}
+
+function same(a: unknown, b: unknown): boolean {
+    return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function isMap(value: unknown): value is Record<string, unknown> {
@@ -120,11 +131,11 @@ function isListOrMissing(value: unknown): value is unknown[] | undefined {
 /** Edits replayed on `server` in order. */
 export function replaySteps(
     server: unknown,
-    steps: readonly { readonly before: unknown; readonly after: unknown }[]
+    steps: readonly EditStep[]
 ): unknown {
     let value = server;
     for (const step of steps) {
-        value = applyEdit(value, step.before, step.after);
+        value = applyEdit(value, step.before, step.after, step.yields);
     }
     return value;
 }
