@@ -127,7 +127,16 @@ Everything else is lazy by these rules:
   Material 22 animates with CSS, deciding from `prefers-reduced-motion` itself,
   so `app.config.ts` does not call `provideAnimations()`; the Electron
   `material-motion.e2e.ts` checks that dialogs, selects, menus, snack-bars and
-  tooltips still animate in and out and stop under reduced motion.
+  tooltips still animate in and out and stop under reduced motion. One side
+  effect of the module is gone with it: its renderer deferred every DOM
+  removal to the end of the change-detection tick, so a destroy hook still
+  saw its view attached. Without it Angular detaches the view first, where
+  `scrollTop` reads 0 and Chromium has already fired a `focusout` with no
+  related target for the focused control. A destroy hook therefore never
+  reads geometry or focus from its own view: the catalog list tracks the
+  grid offset from scroll events, and the player settings panel decides
+  "focus was inside" in a microtask after such a `focusout`, which the close
+  destroys the panel before. Both have specs that detach the view first.
 
 The app theme is the `.dark-theme` class that `SettingsService` puts on
 `<body>`; a "System" choice resolves the OS preference there and nowhere
