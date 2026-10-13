@@ -118,6 +118,31 @@ describe('stripUrlCredentials', () => {
         ).toBe('https://cdn.test/files%2Flive%2Flist.m3u');
     });
 
+    it('drops a JSON value and a quoted key that name a secret', () => {
+        for (const json of [
+            '{"password":"hunter2"}',
+            '{"pass\\u0077ord":"hunter2"}',
+            '[{"auth":{"token":"hunter2"}}]',
+        ]) {
+            expect(
+                stripUrlCredentials(
+                    `https://proxy.test/list?config=${encodeURIComponent(json)}&hd=1`
+                )
+            ).toBe('https://proxy.test/list?hd=1');
+        }
+        expect(
+            stripUrlCredentials(
+                `https://proxy.test/list?note=${encodeURIComponent(
+                    "see 'token': 'hunter2'"
+                )}&hd=1`
+            )
+        ).toBe('https://proxy.test/list?hd=1');
+        // Brackets that are not JSON stay: `[1080p]` is a folder name.
+        expect(stripUrlCredentials('https://cdn.test/[1080p]/list.m3u')).toBe(
+            'https://cdn.test/[1080p]/list.m3u'
+        );
+    });
+
     it('cleans a fragment that holds a URL rather than parameters', () => {
         expect(
             stripUrlCredentials(

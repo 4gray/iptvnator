@@ -73,6 +73,14 @@ export function sourceHost(
     return parseUrl(sourceEndpoint(playlist))?.host || null;
 }
 
+function parseJson(value: string): unknown {
+    try {
+        return JSON.parse(value);
+    } catch {
+        return null;
+    }
+}
+
 /** How deep URLs nested in the source URL are searched for secrets. */
 const MAX_SECRET_NESTING = 4;
 
@@ -100,11 +108,37 @@ function collectUrlSecrets(
         if (value === null) {
             return;
         }
+        if (/^\s*[{[]/.test(value)) {
+            visitJson(parseJson(value), 0);
+            return;
+        }
         const nested = ABSOLUTE_URL.test(value.trim()) ? parseUrl(value) : null;
         if (nested) {
             collectUrlSecrets(nested, secrets, depth + 1);
         } else if (value.includes('=')) {
             visit(new URLSearchParams(value));
+        }
+    };
+    // A JSON config in a parameter: values under sensitive keys are
+    // secrets, and any other string may be a URL or a parameter list.
+    const visitJson = (value: unknown, level: number): void => {
+        if (level >= MAX_SECRET_NESTING) {
+            return;
+        }
+        if (typeof value === 'string') {
+            visitNested(value);
+        } else if (Array.isArray(value)) {
+            value.forEach((item) => visitJson(item, level + 1));
+        } else if (value && typeof value === 'object') {
+            for (const [key, inner] of Object.entries(value)) {
+                const scalar =
+                    typeof inner === 'string' || typeof inner === 'number';
+                if (scalar && isDisplaySensitiveKey(key)) {
+                    secrets.push(String(inner));
+                } else {
+                    visitJson(inner, level + 1);
+                }
+            }
         }
     };
     const visit = (params: URLSearchParams): void =>

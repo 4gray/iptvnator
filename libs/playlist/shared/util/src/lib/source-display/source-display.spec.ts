@@ -111,6 +111,25 @@ describe('sourceDisplayName', () => {
         }
     });
 
+    it('drops a name holding a secret of a JSON config in the URL', () => {
+        for (const json of [
+            '{"password":"hunter2"}',
+            '{"pass\\u0077ord":"hunter2"}',
+            '{"proxy":{"upstream":"http://joe:hunter2@origin.test/a"}}',
+        ]) {
+            const url = `https://proxy.test/list?config=${encodeURIComponent(json)}`;
+            expect(sourceDisplayName({ title: 'Mine hunter2', url })).toBe(
+                'proxy.test'
+            );
+        }
+        expect(
+            sourceDisplayName({
+                title: 'Mine',
+                url: 'https://proxy.test/list?config=%7B%22hd%22%3A1%7D',
+            })
+        ).toBe('Mine');
+    });
+
     it('keeps a name that only shares a letter with a decoded password', () => {
         // `%2542` is the password as written; decoded it is just `B`.
         const url = 'https://host.test/list?password=%2542';

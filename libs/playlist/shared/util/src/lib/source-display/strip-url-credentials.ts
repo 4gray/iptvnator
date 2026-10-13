@@ -22,7 +22,10 @@ const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]{0,31}:\/\//iu;
 const EMBEDDED_URL = /(?<![a-z0-9+.-])[a-z][a-z0-9+.-]{0,31}:\/\/[^\s"'<>]+/giu;
 /** `joe:hunter2@origin.test`: an authority's userinfo without a scheme. */
 const BARE_USERINFO = /(?:^|[\s/])[^\s/:@]{1,256}:[^\s/@]{0,256}@[^\s/@]/u;
-const KEYED_PAIR = /(?<![a-z0-9_.-])([a-z][a-z0-9_.-]{0,63})\s{0,8}[=:]/giu;
+// A key may be quoted, as in JSON or code: `"token": …`.
+const KEYED_PAIR =
+    /(?<![a-z0-9_.-])([a-z][a-z0-9_.-]{0,63})["']?\s{0,8}[=:]/giu;
+const JSON_SHAPED = /^[{[]/;
 
 /**
  * A nested value as it must be classified: percent-decoded one round at a
@@ -53,6 +56,18 @@ export function unwrapNestedValue(value: string): string | null {
             return null;
         }
         current = next;
+    }
+}
+
+/** A JSON object or array, such as a config in a parameter; `[1080p]` is not. */
+function isJsonLiteral(value: string): boolean {
+    if (!JSON_SHAPED.test(value)) {
+        return false;
+    }
+    try {
+        return typeof JSON.parse(value) === 'object';
+    } catch {
+        return false;
     }
 }
 
@@ -96,7 +111,13 @@ function sanitizeNested(value: string, depth: number): string | null {
     if (looksLikeSearchParams(trimmed)) {
         return withoutSensitiveParams(new URLSearchParams(trimmed), depth + 1);
     }
-    if (BARE_USERINFO.test(decoded) || hasSensitivePair(decoded)) {
+    // JSON can spell a key so no pattern reads it (`"pass\u0077ord"`): a
+    // list has no need to show a config object, so it goes whole.
+    if (
+        isJsonLiteral(trimmed) ||
+        BARE_USERINFO.test(decoded) ||
+        hasSensitivePair(decoded)
+    ) {
         return null;
     }
     const cleaned = decoded.replace(
