@@ -161,7 +161,8 @@ export function withoutDeleted(
         return read;
     }
     const keep = <T>(map: Record<string, T> = {}): Record<string, T> => {
-        const kept: Record<string, T> = {};
+        // No prototype: a playlist id such as `__proto__` stays a key.
+        const kept: Record<string, T> = Object.create(null);
         for (const [id, value] of Object.entries(map)) {
             if (!deleted.some((gone) => gone === undefined || gone === id)) {
                 kept[id] = value;

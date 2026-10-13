@@ -1,4 +1,4 @@
-import { applyEdit } from './server-user-data-edit';
+import { applyEdit, withoutDeleted } from './server-user-data-edit';
 
 describe('applyEdit', () => {
     it('adds the new favorite to what the server already has', () => {
@@ -57,5 +57,38 @@ describe('applyEdit', () => {
             c: 3,
         });
         expect(applyEdit(['x'], ['x'], undefined)).toBeUndefined();
+    });
+});
+
+describe('withoutDeleted', () => {
+    it('drops deleted playlists and keeps every other id', () => {
+        const read = withoutDeleted(
+            {
+                entries: {
+                    'xtream-favorites': JSON.parse(
+                        '{"gone":["a"],"__proto__":["b"],"kept":["c"]}'
+                    ),
+                    'xtream-recent-items': {},
+                    'xtream-collection-items': {},
+                    'xtream-playback-positions': {},
+                },
+                tags: {
+                    'xtream-favorites': JSON.parse(
+                        '{"gone":"t1","__proto__":"t2","kept":"t3"}'
+                    ),
+                    'xtream-recent-items': {},
+                    'xtream-collection-items': {},
+                    'xtream-playback-positions': {},
+                },
+            },
+            ['gone']
+        );
+
+        expect(Object.keys(read.entries['xtream-favorites'])).toEqual([
+            '__proto__',
+            'kept',
+        ]);
+        expect(read.entries['xtream-favorites']['__proto__']).toEqual(['b']);
+        expect(read.tags?.['xtream-favorites']['__proto__']).toBe('t2');
     });
 });
