@@ -92,6 +92,15 @@
             }
         },
         "playback": {
+            "renderer.domMutationsToPlaying": {
+                "value": 733,
+                "unit": "mutations",
+                "slack": 16,
+                "updatedAt": "2026-10-13",
+                "evidencePr": 1817,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38311314484",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb); 731-736 across master commits since #1817, 748 with a fifth bridge call"
+            },
             "renderer.httpRequestsToPlaying": {
                 "value": 2,
                 "unit": "requests",

@@ -1380,6 +1380,19 @@ changes) and the wall-clock entries did not move. Under
 `prefers-reduced-motion` there is no slide, so a user with that preference
 still sees the jump that the journey no longer measures.
 
+`playback/renderer.domMutationsToPlaying` 733 is validated by #1817 and is
+the one runtime counter enforced with slack. #1817 windowed the EPG
+timeline: on the runner the counter fell from 6,182 to 731, `renderer.longTasks`
+from 1 to 0, and the click→`playing` P50 from 221-341 ms (four `master` runs)
+to 196-215 ms (three dispatched runs of the branch). It is not identical
+between commits: 731, 732, 733, 734 or 736 since #1817, and 748 in an
+iteration where a fifth bridge call (`updateRemoteControlStatus`) lands
+before `playing`. `slack` 16 covers that band; the regression it guards, the
+timeline rendering the whole schedule again, is about 5,000 mutations above
+it. `evidenceRun` 38311314484 (f60d79701) read 733 in every iteration. Lower
+`value` (keeping the slack) when the counter drops; remove the slack once
+the fifth call's race is gone and `master` runs agree.
+
 The two J4 entries, `search/renderer.ipcCallsPerSearch` 1 and
 `search/renderer.sqlStatementsPerSearch` 2 (#1899, `evidenceRun`
 38165392046), were identical in all 816 J4 iterations of the 136 CI journey
@@ -1393,8 +1406,8 @@ plan promotes a counter to a guardrail once a PR has shown that lowering it
 lowered the journey's wall-clock. None of these counters has that evidence
 yet: `main.modulesRegisteredBeforeWindow` waits for the deferred IPC
 registration (plan item C4), the layout-shift scores measure visual
-stability rather than time, and no PR has moved a J2 or J3 counter. Each
-entry therefore carries
+stability rather than time, and no PR has moved a J2 counter. Each
+of these entries therefore carries
 `"note": "guard only, not validated: …"`. A guard stops a regression of a
 deterministic number, and the checker prints the note with a failure; it
 says nothing about whether lowering that number makes the journey faster.
@@ -1417,9 +1430,8 @@ Not enforced, with the reason:
   them.
 - J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
   recent commits.
-- J3 `renderer.ipcCallsToPlaying` (4 or 5) and
-  `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199 before #1817;
-  731, 732 or 734 since, 748 with a fifth call): not identical.
+- J3 `renderer.ipcCallsToPlaying` (4 or 5): not identical. (J3
+  `renderer.domMutationsToPlaying` is enforced with slack, see above.)
 - J3 `renderer.ipcSerialDepthToPlaying` (4 on the runner, 3 on a Mac):
   added after these runs and measured in one runner run so far; a
   candidate once `master` runs agree.

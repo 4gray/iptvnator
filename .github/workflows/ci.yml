@@ -351,6 +351,7 @@ jobs:
                   --only open-source/main.mockHttpRequestsToSettled
                   --only open-source/renderer.ipcCallsToFirstPage
                   --only open-source/renderer.layoutShiftScore
+                  --only playback/renderer.domMutationsToPlaying
                   --only playback/renderer.httpRequestsToPlaying
                   --only playback/renderer.layoutShiftScore
                   --only search/renderer.ipcCallsPerSearch
