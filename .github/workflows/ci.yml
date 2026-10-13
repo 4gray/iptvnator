@@ -436,6 +436,11 @@ jobs:
             - name: Validate form-field defaults
               run: pnpm run styles:form-field-defaults:validate
 
+            # m3-theme.scss themes only the Material components the app
+            # imports; a new import without a theme entry renders unthemed.
+            - name: Validate the Material theme scope
+              run: pnpm run styles:material-theme-scope:validate
+
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is
             # unset, so this checks both the local and the CI inference.
