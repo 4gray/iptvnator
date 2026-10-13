@@ -102,6 +102,22 @@ describe('sourceDisplayName', () => {
         expect(sourceDisplayName({ title: 'Mine hunter2', url })).toBe(
             'host.tv'
         );
+        expect(
+            sourceDisplayName({
+                title: 'My hunter2',
+                url: 'https://host.test/live/joe/hunter2/list.m3u',
+            })
+        ).toBe('host.test');
+    });
+
+    it('drops a name holding a secret of a URL nested in a path segment', () => {
+        const url = `https://proxy.test/fetch/${encodeURIComponent(
+            'http://origin.test/live/joe/hunter2/1.ts'
+        )}/token=tk98765`;
+        for (const title of ['Mine hunter2', 'Mine joe', 'Mine tk98765']) {
+            expect(sourceDisplayName({ title, url })).toBe('proxy.test');
+        }
+        expect(sourceDisplayName({ title: 'Mine', url })).toBe('Mine');
     });
 
     it('returns null for a local file without a name', () => {

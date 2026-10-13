@@ -76,10 +76,11 @@ export function sourceHost(
 const MAX_SECRET_NESTING = 4;
 
 /**
- * The secrets a URL carries: its userinfo password, every sensitive query or
- * fragment parameter (the source's own account name excepted), and the same
- * again in any URL or parameter list nested in another parameter, whose
- * account names count as secrets too.
+ * The secrets a URL carries: its userinfo password, the password of an
+ * Xtream stream path, every sensitive query or fragment parameter (the
+ * source's own account name excepted), and the same again in any URL or
+ * parameter list nested in a parameter or path segment, whose account names
+ * count as secrets too.
  */
 function collectUrlSecrets(
     url: URL,
@@ -93,18 +94,14 @@ function collectUrlSecrets(
     if (depth > 0) {
         secrets.push(safeDecode(url.username));
     }
-    // An Xtream stream path carries the account: `/live/<user>/<password>/`.
-    const segments = url.pathname.split('/').map(safeDecode);
-    for (let index = 0; index + 2 < segments.length; index += 1) {
-        if (
-            XTREAM_CREDENTIAL_PATH_SEGMENTS.has(segments[index].toLowerCase())
-        ) {
-            secrets.push(segments[index + 2]);
-            if (depth > 0) {
-                secrets.push(segments[index + 1]);
-            }
+    const visitNested = (value: string): void => {
+        const nested = ABSOLUTE_URL.test(value.trim()) ? parseUrl(value) : null;
+        if (nested) {
+            collectUrlSecrets(nested, secrets, depth + 1);
+        } else if (value.includes('=')) {
+            visit(new URLSearchParams(value));
         }
-    }
+    };
     const visit = (params: URLSearchParams): void =>
         params.forEach((value, key) => {
             const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -114,15 +111,23 @@ function collectUrlSecrets(
                 }
                 return;
             }
-            const nested = ABSOLUTE_URL.test(value.trim())
-                ? parseUrl(value)
-                : null;
-            if (nested) {
-                collectUrlSecrets(nested, secrets, depth + 1);
-            } else if (value.includes('=')) {
-                visit(new URLSearchParams(value));
-            }
+            visitNested(value);
         });
+    // An Xtream stream path carries the account: `/live/<user>/<password>/`.
+    // A proxy may carry a whole URL in one segment.
+    const segments = url.pathname.split('/').map(safeDecode);
+    segments.forEach((segment, index) => {
+        if (
+            XTREAM_CREDENTIAL_PATH_SEGMENTS.has(segment.toLowerCase()) &&
+            index + 2 < segments.length
+        ) {
+            secrets.push(segments[index + 2]);
+            if (depth > 0) {
+                secrets.push(segments[index + 1]);
+            }
+        }
+        visitNested(segment);
+    });
     visit(url.searchParams);
     const fragment = url.hash.slice(1);
     if (fragment.includes('=')) {
