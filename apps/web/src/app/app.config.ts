@@ -14,7 +14,6 @@ import {
     importProvidersFrom,
     provideZonelessChangeDetection,
 } from '@angular/core';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { provideEffects } from '@ngrx/effects';
@@ -110,7 +109,10 @@ export const appConfig: ApplicationConfig = {
     providers: [
         provideZonelessChangeDetection(),
         provideRouter(routes, withComponentInputBinding()),
-        provideAnimations(),
+        // No provideAnimations(): nothing declares an Angular animation
+        // trigger, and Material 22 animates with CSS, reading
+        // prefers-reduced-motion itself. The provider only put the 66 KB
+        // animation engine on the initial path.
         // CDK overlays (menus, tooltips, dialogs) live in a container under
         // <body>, which the browser hides behind an element in DOM fullscreen.
         // This container follows the fullscreen element instead, so the
