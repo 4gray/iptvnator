@@ -212,6 +212,7 @@ export class RuntimeCapabilitiesService {
             'dbSetAppState',
             'dbSearchContent',
             'dbGetFavorites',
+            'dbGetFavoritesForBackup',
             'dbAddFavorite',
             'dbRemoveFavorite',
             'dbIsFavorite',

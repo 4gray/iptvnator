@@ -413,6 +413,10 @@ describe('PlaylistBackupService export → import round-trip', () => {
                 collaborators.databaseService,
                 'restoreXtreamUserData'
             );
+            const favorites = jest.spyOn(
+                collaborators.databaseService,
+                'restoreXtreamFavoriteSnapshots'
+            );
             const positions = jest.spyOn(
                 collaborators.playbackPositionService,
                 'replaceAllPlaybackPositions'
@@ -426,6 +430,7 @@ describe('PlaylistBackupService export → import round-trip', () => {
             expect(failed.failed).toBe(1);
             expect(visibility).not.toHaveBeenCalled();
             expect(collections).not.toHaveBeenCalled();
+            expect(favorites).not.toHaveBeenCalled();
             expect(positions).not.toHaveBeenCalled();
             expect(pins).not.toHaveBeenCalled();
             expect(
@@ -447,6 +452,37 @@ describe('PlaylistBackupService export → import round-trip', () => {
             ).toBeNull();
         }
     );
+
+    it('retains an older pending restore without writing favorites when atomic restore is unsupported', async () => {
+        const collaborators = createStatefulBackupCollaborators(seedState());
+        const service = createPlaylistBackupService(collaborators);
+        const archive = await service.exportBackup();
+        collaborators.pendingRestoreService.set('xtream-1', {
+            favorites: [{ contentType: 'movie', xtreamId: 9999 }],
+            hiddenCategories: [],
+            recentlyViewed: [],
+            playbackPositions: [],
+        });
+        const previous =
+            collaborators.pendingRestoreService.getOrThrow('xtream-1');
+        collaborators.playbackPositionService.assertSupportsAtomicReplacement.mockImplementation(
+            () => {
+                throw new Error(
+                    'Atomic playback position replacement unavailable'
+                );
+            }
+        );
+        const favorites = jest.spyOn(
+            collaborators.databaseService,
+            'restoreXtreamFavoriteSnapshots'
+        );
+        const result = await service.importBackup(archive.json);
+        expect(result.failed).toBe(1);
+        expect(favorites).not.toHaveBeenCalled();
+        expect(
+            collaborators.pendingRestoreService.getOrThrow('xtream-1')
+        ).toEqual(previous);
+    });
 
     it('retains failed position restores for retry and consumes only after success', async () => {
         const state = seedState();

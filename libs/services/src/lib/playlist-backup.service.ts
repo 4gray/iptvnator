@@ -940,8 +940,11 @@ export class PlaylistBackupService {
 
         // Preserve an older unfinished import before parking the incoming backup.
         // Canonical favorites are additive; legacy-only ones need the same protection.
+        const sqlite = this.runtime.supportsXtreamSqliteDataSource;
         const previous = this.pendingRestoreService.getOrThrow(playlistId);
-        if (previous && this.runtime.supportsXtreamSqliteDataSource) {
+        if (previous && sqlite) {
+            // An unsupported restore must leave the older pending state intact.
+            this.playbackPositionService.assertSupportsAtomicReplacement();
             await this.databaseService.restoreXtreamFavoriteSnapshots(
                 playlistId,
                 previous.favorites,
@@ -959,14 +962,16 @@ export class PlaylistBackupService {
         }
 
         // Browser storage has no catalog cache to wait for: apply at once.
-        const sqlite = this.runtime.supportsXtreamSqliteDataSource;
         if (sqlite) {
+            // With no older pending state, park the archive before failing preflight.
+            if (!previous) {
+                this.playbackPositionService.assertSupportsAtomicReplacement();
+            }
             await this.databaseService.restoreXtreamFavoriteSnapshots(
                 playlistId,
                 restoreState.favorites,
                 restoreState.favoritesRestoreId
             );
-            this.playbackPositionService.assertSupportsAtomicReplacement();
             if (!(await this.hasCompletedOfflineCache(playlistId))) return;
         }
 

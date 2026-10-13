@@ -90,7 +90,10 @@ an online catalog. Existing history, hidden-category and playback-position
 restore contracts remain separate.
 
 Both Xtream data-source and portal-activity capabilities require the pending
-favorite conversion bridge; activity reads also require playlist lookup.
+favorite conversion bridge; activity reads also require playlist lookup. The
+SQLite capability also requires the unfiltered favorite backup reader. An
+unsupported atomic restore performs no favorite writes: a fresh archive stays
+parked, while an older pending restore is retained without being overwritten.
 
 Records already deleted by an older build cannot be recovered without a
 surviving pending state or backup. Opening an Xtream section may initialize

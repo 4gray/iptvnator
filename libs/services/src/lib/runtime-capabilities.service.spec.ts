@@ -87,6 +87,7 @@ describe('RuntimeCapabilitiesService', () => {
             dbRemoveRecentItem: jest.fn(),
             dbRemoveFavorite: jest.fn(),
             dbGetFavorites: jest.fn(),
+            dbGetFavoritesForBackup: jest.fn(),
             dbReorderGlobalFavorites: jest.fn(),
             dbGetRecentItems: jest.fn(),
             dbAddRecentItem: jest.fn(),
@@ -603,6 +604,17 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSectionNavigation).toBe(true);
     });
 
+    it('requires the durable favorite backup reader in the Xtream SQLite contract', () => {
+        const bridge = createXtreamSqliteBridge();
+        testWindow.electron = bridge;
+        const service = new RuntimeCapabilitiesService();
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+        delete bridge['dbGetFavoritesForBackup'];
+        expect(service.supportsXtreamSqliteDataSource).toBe(false);
+        bridge['dbGetFavoritesForBackup'] = jest.fn();
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+    });
+
     it('keeps Xtream SQLite and ordinary position storage when atomic restore is unavailable', () => {
         const bridge = createXtreamSqliteBridge();
         testWindow.electron = bridge;
@@ -658,6 +670,7 @@ function createXtreamSqliteBridge(): Record<string, jest.Mock> {
         dbGetContent: jest.fn(),
         dbGetContentByXtreamId: jest.fn(),
         dbGetFavorites: jest.fn(),
+        dbGetFavoritesForBackup: jest.fn(),
         dbGetPlaylist: jest.fn(),
         dbGetPlaybackPosition: jest.fn(),
         dbGetRecentItems: jest.fn(),
