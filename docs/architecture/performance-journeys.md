@@ -1424,8 +1424,12 @@ Not enforced, with the reason:
 - Every `renderer.longTasks` (J1 2 or 1, J2 0 with one 1 earlier in the
   week, J3 1 or 2 until #1817 and 0 since): a long task is a task over
   50 ms, so the count follows runner speed, not work.
-- Every `cdTicks` counter: the zoneless migration (plan item C6) changes
-  them.
+- J3 `renderer.cdTicksToPlaying` (7 or 8) and J4
+  `renderer.cdTicksToResults` (10 or 11): not identical even zoneless; the
+  player's and the search debounce's events land in one or two ticks. J1
+  `renderer.cdTicksToFirstCard` (5), `renderer.cdTicksIdle30s` (3) and J2
+  `renderer.cdTicksToFirstPage` (9) are enforced since the zoneless flip
+  (#1929), identical in all 15 iterations of its three dispatched runs.
 - J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
   recent commits.
 - J3 `renderer.ipcCallsToPlaying` (4 or 5) and

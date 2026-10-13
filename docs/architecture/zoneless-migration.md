@@ -305,6 +305,24 @@ Build `electron-performance` and run the journeys as described in
 [performance journeys](performance-journeys.md), then paste
 `renderer.cdTicksToFirstCard`, `renderer.cdTicksIdle30s`,
 `renderer.cdTicksToFirstPage` and `renderer.cdTicksToPlaying` before and
-after. While zone.js is on, removing Eager does not change the number of
-ticks, only the work per tick; expect the counters to stay put until the flag
-PR and the template work (DOM mutations, profile time) to drop.
+after. Until the flip, while zone.js was on, removing Eager did not change
+the number of ticks, only the work per tick. Since the flip (#1929)
+`renderer.cdTicksToFirstCard` (5), `renderer.cdTicksIdle30s` (3) and
+`renderer.cdTicksToFirstPage` (9) are ratchet baselines: a change that adds a
+tick to launch, to the idle dashboard or to opening a source fails the
+journeys job.
+
+Canonical runner (`Performance ratchet` dispatched on #1929, three runs, five
+iterations each) against `master` the same day with zone.js:
+
+| Counter | `master` (zone.js) | #1929 (zoneless) |
+| --- | --- | --- |
+| `renderer.cdTicksToFirstCard` | 31 (2026-10-04) | 5 |
+| `renderer.cdTicksIdle30s` | 1 to 4 | 3 |
+| `renderer.cdTicksToFirstPage` | 22 | 9 |
+| `renderer.cdTicksToPlaying` | 15 to 17 | 7 or 8 |
+| `renderer.initialBytes` | 1,596,201 | 1,545,931 |
+| J3 `clickToPlayingMs` p50 | 151.6, 159.2, 185.7 | 128.0, 178.6, 189.5 |
+
+J3 wall clock is in the same range, so the local rise measured on the flag
+PR was machine load.
