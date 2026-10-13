@@ -52,7 +52,9 @@ catalog ID. Remove/reorder can use the stable favorite ID while detail toggles
 resolve any category row through the same typed provider identity. Completed
 imports reconnect valid identities. Display snapshots are replaced only after
 the returning row confirms every saved TMDB ID/year; incomplete identity keeps
-the saved title/artwork in collections and backups. Metadata learned in detail
+the saved title/artwork in collections and backups. Restore applies the same
+confirmation guard before filling gaps in saved metadata from catalog rows.
+Metadata learned in detail
 views is copied into the saved snapshot before catalog loss.
 Conflicting known TMDB IDs or release years prevent automatic reconnection;
 changed provider IDs never reconnect by title.

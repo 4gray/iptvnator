@@ -80,6 +80,15 @@ function favoriteValue(
                 candidate.releaseYear != null &&
                 metadata.releaseYear !== candidate.releaseYear));
     const content = conflicts ? undefined : candidate;
+    // Keep a compatible provider link, but do not mix a saved identity with
+    // metadata from a returning row that has not confirmed it yet.
+    const snapshotContent =
+        content &&
+        (metadata?.tmdbId == null || metadata.tmdbId === content.tmdbId) &&
+        (metadata?.releaseYear == null ||
+            metadata.releaseYear === content.releaseYear)
+            ? content
+            : undefined;
     return {
         playlistId,
         xtreamId: item.xtreamId,
@@ -87,13 +96,14 @@ function favoriteValue(
         contentId: content?.id ?? null,
         title:
             item.snapshot?.title?.trim() ||
-            content?.title ||
+            snapshotContent?.title ||
             `Saved ${item.contentType} #${item.xtreamId}`,
-        posterUrl: item.snapshot?.posterUrl ?? content?.posterUrl,
-        backdropUrl: metadata?.backdropUrl ?? content?.backdropUrl,
-        tmdbId: metadata?.tmdbId ?? content?.tmdbId,
-        releaseYear: metadata?.releaseYear ?? content?.releaseYear,
-        originalTitle: metadata?.originalTitle ?? content?.originalTitle,
+        posterUrl: item.snapshot?.posterUrl ?? snapshotContent?.posterUrl,
+        backdropUrl: metadata?.backdropUrl ?? snapshotContent?.backdropUrl,
+        tmdbId: metadata?.tmdbId ?? snapshotContent?.tmdbId,
+        releaseYear: metadata?.releaseYear ?? snapshotContent?.releaseYear,
+        originalTitle:
+            metadata?.originalTitle ?? snapshotContent?.originalTitle,
         addedAt: item.addedAt ?? new Date().toISOString(),
         position: item.position ?? index,
     };

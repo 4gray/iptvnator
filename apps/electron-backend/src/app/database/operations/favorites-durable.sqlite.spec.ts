@@ -12,6 +12,7 @@ describe('durable Xtream favorites against initialized SQLite', () => {
         'identity',
         'collision',
         'snapshot',
+        'restore-snapshot',
         'scope',
         'lock',
         'receipt',
