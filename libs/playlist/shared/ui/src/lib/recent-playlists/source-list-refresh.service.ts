@@ -99,12 +99,7 @@ export class SourceListRefreshService {
         ) {
             void this.refreshM3u(item);
         } else if (item.url) {
-            this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
-                id: item._id,
-                title: item.title,
-                url: item.url,
-                ...(item.userAgent ? { userAgent: item.userAgent } : {}),
-            });
+            void this.refreshViaBackend(item, item.url);
         }
     }
 
@@ -227,6 +222,29 @@ export class SourceListRefreshService {
             }
         } finally {
             this.clear(item._id);
+            this.setRefreshing(item._id, false);
+        }
+    }
+
+    /**
+     * The browser build refreshes through the backend; the row stays busy,
+     * and held in the shared registry, until the backend answers.
+     */
+    private async refreshViaBackend(
+        item: PlaylistMeta,
+        url: string
+    ): Promise<void> {
+        this.setRefreshing(item._id, true);
+        try {
+            await this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
+                id: item._id,
+                title: item.title,
+                url,
+                ...(item.userAgent ? { userAgent: item.userAgent } : {}),
+            });
+        } catch (error) {
+            this.logger.error('Error refreshing playlist:', error);
+        } finally {
             this.setRefreshing(item._id, false);
         }
     }

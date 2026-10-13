@@ -312,8 +312,15 @@ describe('PlaylistRefreshActionService', () => {
         ).toBe(true);
     });
 
-    it('uses the browser URL refresh path when the refresh bridge is unavailable', () => {
+    it('uses the browser URL refresh path when the refresh bridge is unavailable', async () => {
         runtime.supportsPlaylistRefresh = false;
+        let answer!: () => void;
+        dataService.sendIpcEvent.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+                answer = resolve;
+            })
+        );
+        const activity = TestBed.inject(SourceActivityService);
         const playlist = createPlaylistMeta({
             _id: 'playlist-url',
             title: 'URL playlist',
@@ -333,6 +340,15 @@ describe('PlaylistRefreshActionService', () => {
             userAgent: 'IPTVnator-Test/1.0',
         });
         expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
+        // Busy, and held for removal and other refreshes, until it answers.
+        expect(service.isSourceBusy('playlist-url')).toBe(true);
+        expect(activity.isBusy('playlist-url')).toBe(true);
+
+        answer();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(service.isSourceBusy('playlist-url')).toBe(false);
+        expect(activity.isBusy('playlist-url')).toBe(false);
     });
 
     it('tracks a header M3U refresh by source until the operation settles', async () => {

@@ -94,14 +94,32 @@ export class PlaylistRefreshActionService {
         ) {
             void this.refreshM3u(playlist);
         } else if (playlist.url) {
-            this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
-                id: playlist._id,
-                title: playlist.title,
-                url: playlist.url,
-                ...(playlist.userAgent
-                    ? { userAgent: playlist.userAgent }
-                    : {}),
+            void this.refreshViaBackend(playlist, playlist.url);
+        }
+    }
+
+    /**
+     * The browser build refreshes through the backend, which reports its own
+     * success or failure; the source stays busy until it has answered.
+     */
+    private async refreshViaBackend(
+        item: PlaylistMeta,
+        url: string
+    ): Promise<void> {
+        this.m3uRefreshId.set(item._id);
+        this.isRefreshing.set(true);
+        const release = this.activity.begin([item._id]);
+        try {
+            await this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
+                id: item._id,
+                title: item.title,
+                url,
+                ...(item.userAgent ? { userAgent: item.userAgent } : {}),
             });
+        } finally {
+            this.m3uRefreshId.set(null);
+            this.isRefreshing.set(false);
+            release();
         }
     }
 

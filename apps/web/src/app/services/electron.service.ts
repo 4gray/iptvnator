@@ -164,7 +164,8 @@ export class ElectronService extends DataService {
         }
 
         if (type === PLAYLIST_UPDATE) {
-            this.updateM3uPlaylistFromFile(
+            // Settles when the refresh does, so callers keep the source busy.
+            await this.updateM3uPlaylistFromFile(
                 payload as {
                     id: string;
                     filePath?: string;

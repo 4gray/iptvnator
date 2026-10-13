@@ -465,8 +465,15 @@ describe('SourceListRefreshService', () => {
         dateNowSpy.mockRestore();
     });
 
-    it('uses the legacy IPC refresh flow for non-Xtream playlists', () => {
+    it('uses the legacy IPC refresh flow for non-Xtream playlists', async () => {
         runtime.supportsPlaylistRefresh = false;
+        let answer!: () => void;
+        dataService.sendIpcEvent.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+                answer = resolve;
+            })
+        );
+        const activity = TestBed.inject(SourceActivityService);
         const item = createPlaylistMeta({
             _id: 'playlist-m3u-1',
             serverUrl: undefined,
@@ -485,6 +492,17 @@ describe('SourceListRefreshService', () => {
             url: item.url,
             userAgent: item.userAgent,
         });
+        // Busy, and held for removal and other refreshes, until it answers.
+        expect(component.isRefreshing(item._id)).toBe(true);
+        expect(activity.isBusy(item._id)).toBe(true);
+        component.refresh(item);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+
+        answer();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(component.isRefreshing(item._id)).toBe(false);
+        expect(activity.isBusy(item._id)).toBe(false);
     });
 
     it('does not use legacy IPC refresh for file-backed playlists without the refresh bridge', () => {
