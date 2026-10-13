@@ -38,6 +38,30 @@ test('usedEntryPoints lists each Material entry point with its first importer', 
     );
 });
 
+test('usedEntryPoints counts dynamic imports and ignores type-only ones and comments', () => {
+    const importers = usedEntryPoints([
+        {
+            file: 'lazy-mat-dialog.ts',
+            source: lines(
+                "import type { MatDialog } from '@angular/material/dialog';",
+                "type DialogModule = typeof import('@angular/material/dialog');",
+                'loadDialogModule = () =>',
+                "    import('@angular/material/dialog');"
+            ),
+        },
+        {
+            file: 'types-only.ts',
+            source: lines(
+                "import type { MatTooltip } from '@angular/material/tooltip';",
+                "// import { MatChipsModule } from '@angular/material/chips';",
+                "/* import { MatTabsModule } from '@angular/material/tabs'; */"
+            ),
+        },
+    ]);
+
+    assert.deepEqual([...importers], [['dialog', 'lazy-mat-dialog.ts']]);
+});
+
 test('requiredThemes always keeps core and expands the button entry point', () => {
     const required = requiredThemes(
         new Map([

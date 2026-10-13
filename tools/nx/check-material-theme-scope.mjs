@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { isScanned } from './check-theme-references.mjs';
+import { isScanned, stripComments } from './check-theme-references.mjs';
 
 /**
  * `apps/web/src/m3-theme.scss` themes only the Material components the app
@@ -20,7 +20,16 @@ const SCANNED_PATHSPECS = ['apps/web/*.ts', 'libs/*.ts'];
 
 export const THEME_FILE = 'apps/web/src/m3-theme.scss';
 
-const ENTRY_POINT_IMPORT = /from\s+['"]@angular\/material\/([a-z-]+)['"]/g;
+/**
+ * Runtime imports of a Material entry point: a static import that is not
+ * type-only (a `type` specifier list leaves nothing in the bundle) and a
+ * dynamic `import()` such as the one LazyMatDialog makes. A type-only
+ * import renders no component and so needs no theme.
+ */
+const STATIC_IMPORT =
+    /(?<![\w$.])import\s+(?!type\s)[^;]*?from\s+['"]@angular\/material\/([a-z-]+)['"]/g;
+const DYNAMIC_IMPORT =
+    /\bimport\(\s*['"]@angular\/material\/([a-z-]+)['"]\s*\)/g;
 
 /**
  * The theme mixins (`mat.<name>-theme`, `mat.<name>-color`) each Material
@@ -72,12 +81,18 @@ export const THEMES_BY_ENTRY_POINT = new Map([
  */
 export const ALWAYS_THEMED = ['core'];
 
-/** Material entry points the runtime sources import, with one importer each. */
+/**
+ * Material entry points the runtime sources import at runtime, statically or
+ * dynamically, with one importer each.
+ */
 export function usedEntryPoints(sources) {
     const importers = new Map();
     for (const { file, source } of sources) {
-        for (const match of source.matchAll(ENTRY_POINT_IMPORT)) {
-            if (!importers.has(match[1])) importers.set(match[1], file);
+        const code = stripComments(source);
+        for (const pattern of [STATIC_IMPORT, DYNAMIC_IMPORT]) {
+            for (const match of code.matchAll(pattern)) {
+                if (!importers.has(match[1])) importers.set(match[1], file);
+            }
         }
     }
     return importers;

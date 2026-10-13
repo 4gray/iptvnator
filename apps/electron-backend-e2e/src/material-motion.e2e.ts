@@ -25,6 +25,8 @@ import {
 interface MotionEvent {
     type: string;
     name: string;
+    /** The class attribute of the element the event fired on. */
+    target: string;
 }
 
 type MotionWindow = Window & { __motionEvents?: MotionEvent[] };
@@ -43,11 +45,16 @@ async function recordMotion(page: Page): Promise<void> {
             document.addEventListener(
                 type,
                 (event) => {
+                    const target = event.target;
                     events.push({
                         type,
                         name:
                             (event as AnimationEvent).animationName ??
                             (event as TransitionEvent).propertyName,
+                        target:
+                            target instanceof Element
+                                ? (target.getAttribute('class') ?? '')
+                                : '',
                     });
                 },
                 true
@@ -60,20 +67,35 @@ async function motionEvents(page: Page): Promise<MotionEvent[]> {
     return page.evaluate(() => (window as MotionWindow).__motionEvents ?? []);
 }
 
+/**
+ * Waits for an event of that type and name, on an element wearing
+ * `targetClass` when given, among the events recorded from `since` on.
+ */
 async function expectMotion(
     page: Page,
     type: string,
-    name: string
+    name: string,
+    { targetClass, since = 0 }: { targetClass?: string; since?: number } = {}
 ): Promise<void> {
     await expect
         .poll(
             async () =>
-                (await motionEvents(page)).some(
-                    (event) => event.type === type && event.name === name
-                ),
-            `${type} ${name}`
+                (await motionEvents(page))
+                    .slice(since)
+                    .some(
+                        (event) =>
+                            event.type === type &&
+                            event.name === name &&
+                            (targetClass === undefined ||
+                                event.target.split(/\s+/).includes(targetClass))
+                    ),
+            `${type} ${name}${targetClass ? ` on .${targetClass}` : ''}`
         )
         .toBe(true);
+}
+
+async function recordedCount(page: Page): Promise<number> {
+    return (await motionEvents(page)).length;
 }
 
 /** Opens the Clear EPG data confirmation from the EPG settings section. */
@@ -148,6 +170,7 @@ test.describe('Material motion without the animations module', () => {
             // Dialog: Material drives it with transitions whose duration it
             // writes on the container; the surface scales in. Confirming
             // closes it after the exit transition and shows a snack-bar.
+            const beforeDialog = await recordedCount(page);
             const dialog = await openClearEpgDialog(page);
             await expect(dialog).not.toHaveClass(/_mat-animation-noopable/);
             await expect(dialog).toHaveClass(/mdc-dialog--open/);
@@ -158,8 +181,20 @@ test.describe('Material motion without the animations module', () => {
                     )
                 )
             ).toMatch(/^[1-9]\d*ms$/);
-            await expectMotion(page, 'transitionend', 'transform');
+            // The surface scales in while opening.
+            await expectMotion(page, 'transitionend', 'transform', {
+                targetClass: 'mat-mdc-dialog-surface',
+                since: beforeDialog,
+            });
+            const beforeClose = await recordedCount(page);
             await dialog.getByTestId('confirm-dialog-confirm').click();
+            // Closing fades the inner container out. Material detaches the
+            // container on a timer of the same length, so the fade's end
+            // may never be observed; its start is, in the first frame.
+            await expectMotion(page, 'transitionrun', 'opacity', {
+                targetClass: 'mat-mdc-dialog-inner-container',
+                since: beforeClose,
+            });
             await expect(dialog).toHaveCount(0);
 
             const snackBar = page.locator('.mat-mdc-snack-bar-container');
