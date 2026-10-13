@@ -233,6 +233,25 @@ describe('PlaylistSwitcherPanelComponent', () => {
         ).toContain('WORKSPACE.SWITCHER.NO_MATCHES');
     });
 
+    it('falls back to All when the remembered type has no sources left', () => {
+        component.setType('xtream');
+        fixture.detectChanges();
+        expect(optionIds()).toEqual(['playlist-switcher-all-bravo']);
+
+        // The last Xtream source is removed; two other types remain.
+        playlists.set([ALPHA, CHARLIE]);
+        fixture.detectChanges();
+        expect(component.activeType()).toBe('all');
+        expect(optionIds()).toEqual([
+            'playlist-switcher-all-alpha',
+            'playlist-switcher-all-charlie',
+        ]);
+        // The choice is kept for when an Xtream source returns.
+        expect(localStorage.getItem('playlist-switcher:type:v2')).toBe(
+            'xtream'
+        );
+    });
+
     it('filters by type with one segment and remembers it', () => {
         component.setType('xtream');
         fixture.detectChanges();

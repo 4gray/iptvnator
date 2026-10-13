@@ -60,7 +60,7 @@
         <mat-button-toggle-group
             class="switcher__types"
             hideSingleSelectionIndicator
-            [value]="type()"
+            [value]="activeType()"
             (change)="setType($event.value)"
             [attr.aria-label]="'WORKSPACE.SOURCES.TYPE' | translate"
         >

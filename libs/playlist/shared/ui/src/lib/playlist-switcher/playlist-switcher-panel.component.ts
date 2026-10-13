@@ -135,6 +135,19 @@ export class PlaylistSwitcherPanelComponent {
     readonly showTypeFilter = computed(
         () => KINDS.filter((kind) => this.typeCounts()[kind] > 0).length > 1
     );
+    /**
+     * The type the list filters by: the remembered one while it has sources
+     * and its segment shows, else All. Removing the last source of the
+     * remembered type would otherwise leave an empty list with no segment
+     * selected. The remembered choice itself is kept for when it returns.
+     */
+    readonly activeType = computed<SourcesTypeFilter>(() => {
+        const type = this.type();
+        return this.showTypeFilter() &&
+            (type === 'all' || this.typeCounts()[type] > 0)
+            ? type
+            : 'all';
+    });
     /** The Sources page order, so both lists agree. */
     private readonly ordered = computed(() => {
         const options = this.sortOptions();
@@ -151,7 +164,7 @@ export class PlaylistSwitcherPanelComponent {
         buildSwitcherGroups(
             this.ordered(),
             this.recentHistory.ids(),
-            this.showTypeFilter() ? this.type() : 'all',
+            this.activeType(),
             this.query()
         )
     );
@@ -174,7 +187,7 @@ export class PlaylistSwitcherPanelComponent {
     >({
         source: () => ({
             query: this.query(),
-            type: this.type(),
+            type: this.activeType(),
             ids: this.options().map((option) => option.id),
         }),
         computation: (source, previous) => {
