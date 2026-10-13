@@ -307,7 +307,8 @@ Build `electron-performance` and run the journeys as described in
 `renderer.cdTicksToFirstPage` and `renderer.cdTicksToPlaying` before and
 after. Until the flip, while zone.js was on, removing Eager did not change
 the number of ticks, only the work per tick. Since the flip (#1929)
-`renderer.cdTicksToFirstCard` (5), `renderer.cdTicksIdle30s` (3) and
+`renderer.cdTicksToFirstCard` (5, with one tick of slack for the lazy
+Material chunk since #1931), `renderer.cdTicksIdle30s` (3) and
 `renderer.cdTicksToFirstPage` (9) are ratchet baselines: a change that adds a
 tick to launch, to the idle dashboard or to opening a source fails the
 journeys job.

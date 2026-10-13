@@ -1445,9 +1445,12 @@ Not enforced, with the reason:
 - J3 `renderer.cdTicksToPlaying` (7 or 8) and J4
   `renderer.cdTicksToResults` (10 or 11): not identical even zoneless; the
   player's and the search debounce's events land in one or two ticks. J1
-  `renderer.cdTicksToFirstCard` (5), `renderer.cdTicksIdle30s` (3) and J2
-  `renderer.cdTicksToFirstPage` (9) are enforced since the zoneless flip
-  (#1929), identical in all 15 iterations of its three dispatched runs.
+  `renderer.cdTicksIdle30s` (3) and J2 `renderer.cdTicksToFirstPage` (9) are
+  enforced exactly since the zoneless flip (#1929), identical in all 15
+  iterations of its three dispatched runs. J1 `renderer.cdTicksToFirstCard`
+  read 5 in those 15 too, but after #1931 moved Angular Material off the
+  startup path one iteration in six read 6: the lazy chunk resolves on either
+  side of a render. It is enforced at 5 with `slack: 1`.
 - J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
   recent commits.
 - J3 `renderer.ipcCallsToPlaying` (4 or 5) and

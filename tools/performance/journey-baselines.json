@@ -61,7 +61,8 @@
             "renderer.cdTicksToFirstCard": {
                 "value": 5,
                 "unit": "ticks",
-                "slack": 0,
+                "slack": 1,
+                "note": "one-tick race since #1931 moved Angular Material off the startup path: 5 in all 15 iterations of the three dispatched runs before it, 5, 5, 5, 5, 6 in #1929's journeys job after merging it (https://github.com/4gray/iptvnator/actions/runs/38476954719/job/115583649036)",
                 "updatedAt": "2026-10-13",
                 "evidencePr": 1929,
                 "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38359088033",
