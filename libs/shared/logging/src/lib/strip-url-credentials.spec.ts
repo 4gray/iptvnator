@@ -40,6 +40,62 @@ describe('stripUrlCredentials', () => {
         }
     });
 
+    it('cleans a credential-bearing URL nested in a kept parameter', () => {
+        const proxied = `https://proxy.test/list?url=${encodeURIComponent(
+            'http://joe:hunter2@origin.test/get.php?username=joe&password=hunter2&type=m3u'
+        )}&quality=hd`;
+        const shown = stripUrlCredentials(proxied);
+        expect(shown).not.toMatch(/hunter2|joe/);
+        expect(new URL(shown ?? '').searchParams.get('url')).toBe(
+            'http://origin.test/get.php?type=m3u'
+        );
+        expect(new URL(shown ?? '').searchParams.get('quality')).toBe('hd');
+    });
+
+    it('cleans nested parameter lists, fragments and path segments', () => {
+        expect(
+            stripUrlCredentials(
+                `https://proxy.test/list?next=${encodeURIComponent(
+                    'token=abc&page=2'
+                )}`
+            )
+        ).toBe('https://proxy.test/list?next=page%3D2');
+        expect(
+            stripUrlCredentials(
+                `https://proxy.test/list#src=${encodeURIComponent(
+                    'http://joe:hunter2@origin.test/a.m3u'
+                )}`
+            )
+        ).not.toMatch(/hunter2/);
+        const inPath = `https://proxy.test/fetch/${encodeURIComponent(
+            'http://joe:hunter2@origin.test/a.m3u'
+        )}`;
+        expect(stripUrlCredentials(inPath)).not.toMatch(/hunter2|joe/);
+    });
+
+    it('drops a kept part that still names a secret', () => {
+        expect(
+            stripUrlCredentials(
+                'https://proxy.test/list?via=joe:hunter2@origin.test&hd=1'
+            )
+        ).toBe('https://proxy.test/list?hd=1');
+        expect(
+            stripUrlCredentials(
+                `https://proxy.test/list?note=${encodeURIComponent(
+                    'token: abc'
+                )}&hd=1`
+            )
+        ).toBe('https://proxy.test/list?hd=1');
+    });
+
+    it('drops URLs nested deeper than it cleans', () => {
+        let url = 'http://joe:hunter2@origin.test/a.m3u';
+        for (let depth = 0; depth < 6; depth += 1) {
+            url = `https://hop${depth}.test/?u=${encodeURIComponent(url)}`;
+        }
+        expect(stripUrlCredentials(url)).not.toMatch(/hunter2/);
+    });
+
     it('returns null for text that is not an absolute URL', () => {
         expect(stripUrlCredentials('get.php?username=joe')).toBeNull();
         expect(stripUrlCredentials('')).toBeNull();
