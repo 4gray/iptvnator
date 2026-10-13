@@ -205,11 +205,21 @@ export class PlaylistSwitcherPanelComponent {
 
     setQuery(value: string): void {
         this.query.set(value);
+        this.scrollToTop();
     }
 
     setType(type: SourcesTypeFilter): void {
         this.type.set(type);
         writeSwitcherType(type);
+        this.scrollToTop();
+    }
+
+    /**
+     * A new search or type highlights the first match, at the top of the
+     * list: a list scrolled down for the previous one would hide it.
+     */
+    private scrollToTop(): void {
+        this.list().nativeElement.scrollTop = 0;
     }
 
     onSearchKeydown(event: KeyboardEvent): void {

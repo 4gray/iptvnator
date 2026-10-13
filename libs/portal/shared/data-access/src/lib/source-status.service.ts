@@ -116,7 +116,14 @@ export class SourceStatusService {
                 reason: kept.reason,
             };
         }
-        return { reachability };
+        // An inconclusive check still says why ("Connection checks paused").
+        return reachability === 'checking' || !live
+            ? { reachability }
+            : {
+                  reachability,
+                  reason: live.reason,
+                  checkedAt: live.checkedAt || undefined,
+              };
     }
 
     /** A passive check: cached results count; the signal cancels it. */

@@ -178,6 +178,20 @@ describe('SourceStatusService', () => {
             expect(service.statusOf(m3u)?.pending).toBe(true);
         });
 
+        it('says why an inconclusive check is inconclusive', () => {
+            snapshots.set('m', {
+                state: 'unavailable',
+                reason: 'paused',
+                confirmedInactive: false,
+                checkedAt: 700,
+            });
+            expect(create(true).statusOf(m3u)).toEqual({
+                reachability: 'unknown',
+                reason: 'paused',
+                checkedAt: 700,
+            });
+        });
+
         it('reports an unchecked source as unknown', () => {
             expect(create(true).statusOf(m3u)).toEqual({
                 reachability: 'unknown',

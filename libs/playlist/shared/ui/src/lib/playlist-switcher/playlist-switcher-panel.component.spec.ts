@@ -194,6 +194,19 @@ describe('PlaylistSwitcherPanelComponent', () => {
         expect(closed).toHaveBeenCalled();
     });
 
+    it('scrolls a new search back to its first match at the top', () => {
+        const list = (fixture.nativeElement as HTMLElement).querySelector(
+            '.switcher__list'
+        ) as HTMLElement;
+        list.scrollTop = 120;
+        type('a');
+        expect(list.scrollTop).toBe(0);
+
+        list.scrollTop = 120;
+        component.setType('xtream');
+        expect(list.scrollTop).toBe(0);
+    });
+
     it('moves through options whose IDs a selector would misread', () => {
         const restored = { ...ALPHA, _id: 'odd:id.one', title: 'Aardvark' };
         playlists.set([restored, BRAVO]);
