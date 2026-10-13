@@ -17,7 +17,6 @@ import {
     DataService,
     isServerAccessChallenge,
     readServerAccessToken,
-    serverAuthorizationHeaders,
     ServerStorageStatusService,
 } from '@iptvnator/services';
 import {
@@ -202,14 +201,14 @@ export class PwaService extends DataService {
         );
 
         try {
-            const token = readServerAccessToken();
+            const token = this.serverAccessToken();
             const response = await fetch(
                 `${this.corsProxyUrl}/connectivity-guard/reset`,
                 {
                     body: JSON.stringify({ url: payload.url }),
                     headers: {
                         'content-type': 'application/json',
-                        ...serverAuthorizationHeaders(),
+                        ...bearer(token),
                     },
                     method: 'POST',
                     signal: controller.signal,
@@ -649,9 +648,9 @@ export class PwaService extends DataService {
             logPortalDebugRequest(context);
 
             // Make the fetch request
-            const accessToken = readServerAccessToken();
+            const accessToken = this.serverAccessToken();
             const response = await fetch(requestUrl, {
-                headers: serverAuthorizationHeaders(),
+                headers: bearer(accessToken),
             });
             this.noteServerAccess(response, accessToken);
 
@@ -806,6 +805,14 @@ export class PwaService extends DataService {
         return 'pwa';
     }
 
+    /**
+     * The stored server token, only while server mode runs for this
+     * backend: a token kept from another backend must not reach this one.
+     */
+    private serverAccessToken(): string | null {
+        return this.serverStatus.isActive() ? readServerAccessToken() : null;
+    }
+
     /** A token changed on the server shows up on any backend call. */
     private noteServerAccess(response: Response, token: string | null): void {
         if (
@@ -818,4 +825,8 @@ export class PwaService extends DataService {
             this.serverStatus.reportAccessDenied(token);
         }
     }
+}
+
+function bearer(token: string | null): Record<string, string> {
+    return token ? { Authorization: `Bearer ${token}` } : {};
 }

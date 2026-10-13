@@ -1,3 +1,4 @@
+import { clearServerAccessToken } from '@iptvnator/services';
 import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
 import type { ServerInstanceProbe } from './server-instance-probe';
 
@@ -36,6 +37,8 @@ export function resolveServerStorageStart(
             return { instance: probe.instance, startedOffline: false };
         case 'none':
             remove(storage);
+            // The token belonged to that server; another must not see it.
+            clearServerAccessToken();
             return null;
         case 'unreachable': {
             const remembered = read(storage);

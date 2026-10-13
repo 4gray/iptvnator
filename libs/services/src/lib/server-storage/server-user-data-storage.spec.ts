@@ -8,6 +8,7 @@ function memoryStorage() {
         getItem: (key: string) => values.get(key) ?? null,
         setItem: (key: string, value: string) => void values.set(key, value),
         removeItem: (key: string) => void values.delete(key),
+        keys: () => [...values.keys()],
     };
 }
 
@@ -536,8 +537,8 @@ describe('ServerUserDataStorage', () => {
         local.setItem('iptvnator-server:cache-owner', 'old-db');
         local.setItem('iptvnator-server:xtream-favorites', '{"p1":["a"]}');
         local.setItem(
-            'iptvnator-server:unconfirmed:old-db',
-            JSON.stringify({ tab: { at: 0, keys: ['xtream-favorites|p1'] } })
+            'iptvnator-server:unconfirmed:old-db:tab',
+            JSON.stringify({ at: 0, keys: ['xtream-favorites|p1'] })
         );
         local.setItem(
             'iptvnator-server:unsent-writes:old-db:tab',
@@ -562,9 +563,9 @@ describe('ServerUserDataStorage', () => {
             false
         );
         expect(savedWrites(local, 'old-db')).toEqual([]);
-        expect(local.values.has('iptvnator-server:unconfirmed:old-db')).toBe(
-            false
-        );
+        expect(
+            local.values.has('iptvnator-server:unconfirmed:old-db:tab')
+        ).toBe(false);
         expect(local.values.get('iptvnator-server:cache-owner')).toBe('new-db');
     });
 

@@ -9,6 +9,7 @@ function memoryStorage() {
         getItem: (key: string) => values.get(key) ?? null,
         setItem: (key: string, value: string) => void values.set(key, value),
         removeItem: (key: string) => void values.delete(key),
+        keys: () => [...values.keys()],
     };
 }
 
@@ -523,12 +524,14 @@ describe('ServerUserDataStorage with other devices', () => {
         closed.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
         await closed.flush();
         // The tab is gone: its record stops being renewed.
-        const registry = 'iptvnator-server:unconfirmed:default';
-        const records = JSON.parse(shared.values.get(registry) ?? '{}');
-        for (const record of Object.values(records)) {
-            (record as { at: number }).at = 0;
+        for (const [key, value] of shared.values) {
+            if (key.startsWith('iptvnator-server:unconfirmed:default:')) {
+                shared.setItem(
+                    key,
+                    JSON.stringify({ ...JSON.parse(value), at: 0 })
+                );
+            }
         }
-        shared.setItem(registry, JSON.stringify(records));
 
         const next = new ServerUserDataStorage(
             server.api as never,
@@ -1279,5 +1282,45 @@ describe('ServerUserDataStorage with other devices', () => {
         expect(JSON.parse(JSON.stringify(favorites(phone)))).toEqual(
             JSON.parse('{"__proto__":["a","c"],"p2":["b"]}')
         );
+    });
+
+    it("sends a closed tab's saved writes whose record was lost", async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const shared = memoryStorage();
+        const closed = new ServerUserDataStorage(
+            {
+                ...server.api,
+                sendJson: jest
+                    .fn()
+                    .mockRejectedValue(
+                        new ServerApiError(0, 'network', 'offline')
+                    ),
+            } as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await closed.hydrate();
+        closed.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await closed.flush();
+        // Another tab's save once replaced the shared record: now it is gone.
+        for (const key of [...shared.values.keys()]) {
+            if (key.startsWith('iptvnator-server:unconfirmed:')) {
+                shared.removeItem(key);
+            }
+        }
+
+        const next = new ServerUserDataStorage(
+            server.api as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await next.hydrate();
+        await next.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
     });
 });

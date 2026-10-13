@@ -45,6 +45,16 @@ describe('resolveServerStorageStart', () => {
         ).toBeNull();
     });
 
+    it('forgets the token of a server that no longer offers storage', () => {
+        localStorage.setItem('iptvnator-server:access-token', 'old');
+
+        resolveServerStorageStart({ kind: 'none' }, '/api');
+
+        expect(
+            localStorage.getItem('iptvnator-server:access-token')
+        ).toBeNull();
+    });
+
     it('uses browser mode for an unknown or different server', () => {
         expect(
             resolveServerStorageStart({ kind: 'unreachable' }, '/api')

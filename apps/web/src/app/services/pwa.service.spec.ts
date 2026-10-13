@@ -20,7 +20,10 @@ import {
     getStalkerRequestErrorStatus,
     isStalkerProbeTimeout,
 } from '@iptvnator/portal/stalker/data-access';
-import { ServerStorageStatusService } from '@iptvnator/services';
+import {
+    SERVER_ACCESS_TOKEN_STORAGE_KEY,
+    ServerStorageStatusService,
+} from '@iptvnator/services';
 import { PwaService } from './pwa.service';
 
 describe('PwaService', () => {
@@ -278,6 +281,62 @@ describe('PwaService', () => {
         expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
 
         globalThis.fetch = originalFetch;
+    });
+
+    it('sends a stored server token only while server mode runs', async () => {
+        localStorage.setItem(SERVER_ACCESS_TOKEN_STORAGE_KEY, 'kept-token');
+        const originalFetch = globalThis.fetch;
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            headers: new Headers(),
+            json: async () => ({ js: [] }),
+        } as unknown as Response);
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const call = async () => {
+            const outcome = (
+                service.sendIpcEvent(STALKER_REQUEST, {
+                    url: 'http://portal.example/portal.php',
+                    macAddress: '00:1A:79:AA:BB:CC',
+                    params: { action: 'get_genres' },
+                    silent: true,
+                }) as Promise<unknown>
+            ).catch((error: unknown) => error);
+            await Promise.resolve();
+            for (const request of http.match((candidate) =>
+                candidate.url.endsWith('/provider-targets')
+            )) {
+                request.flush({ targetId: 'target-1' });
+            }
+            await outcome;
+        };
+
+        try {
+            // A token kept from another backend: server mode is not active.
+            await call();
+            expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty(
+                'Authorization'
+            );
+
+            TestBed.inject(ServerStorageStatusService).activate(
+                {
+                    service: 'iptvnator',
+                    apiVersion: 1,
+                    instanceId: 'i',
+                    storage: 'server',
+                    auth: 'token',
+                },
+                () => undefined
+            );
+            await call();
+            expect(fetchMock.mock.calls[1][1].headers).toMatchObject({
+                Authorization: 'Bearer kept-token',
+            });
+        } finally {
+            globalThis.fetch = originalFetch;
+            localStorage.removeItem(SERVER_ACCESS_TOKEN_STORAGE_KEY);
+        }
     });
 
     it('asks for a new server token when the access guard refuses a Stalker call', async () => {

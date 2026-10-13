@@ -268,11 +268,13 @@ settings and guards read them in every build.
   arrives (`applyEdit`): a new device or a stale cache adds its favorite
   instead of replacing the server's list. On this tab's recovered unsent
   write they are kept as their own steps after it. They are saved per page load too
-  (`iptvnator-server:deferred-edits:<instanceId>:<page>`). A shared
-  registry in `localStorage` (`iptvnator-server:unconfirmed:<instanceId>`,
-  one record per page load, renewed every 30 s while it has unsent writes,
-  stale after ten minutes) lets a re-read in one tab keep the cache values
-  another tab is still sending. A value too big for `localStorage`, or any
+  (`iptvnator-server:deferred-edits:<instanceId>:<page>`). Records in
+  `localStorage` (`iptvnator-server:unconfirmed:<instanceId>:<page>`, one
+  key per page load so tabs never overwrite each other's, renewed every
+  30 s while it has unsent writes, stale after ten minutes) let a re-read
+  in one tab keep the cache values another tab is still sending; saved
+  writes without a fresh record, also when the record was lost, count as a
+  closed tab's (the storage adapter lists its keys for this). A value too big for `localStorage`, or any
   value when the browser refuses storage access, stays readable from
   memory, so callers and the diff baseline agree. A re-read
   updates the cache; views already open show another device's changes on
@@ -295,7 +297,9 @@ settings and guards read them in every build.
   before it stores it under `iptvnator-server:access-token` and reloads (a
   browser that refuses to store it is told so instead).
   `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
-  backend, and `PwaService` adds it to its two raw `fetch` calls. Both turn
+  backend, and `PwaService` adds it to its two raw `fetch` calls only while
+  server mode runs (a backend that answers without server storage also
+  makes the browser forget the token). Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
   so a token changed on the server sends an open page back to sign-in; a
   late 401 for a token replaced since (a new sign-in) changes nothing.

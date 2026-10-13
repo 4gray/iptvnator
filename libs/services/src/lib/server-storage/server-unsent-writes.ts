@@ -22,14 +22,15 @@ const writesKey = (instanceId: string, page: string) =>
     `${UNSENT_WRITES_KEY}:${instanceId}:${page}`;
 /**
  * Which entries each page load has not had confirmed yet, so a re-read in
- * one tab keeps the cache values another tab is still sending. A live tab
- * renews its record; one older than `UNCONFIRMED_TTL_MS` belongs to a tab
- * that is gone. The records also list whose saved writes exist.
+ * one tab keeps the cache values another tab is still sending. Each page
+ * load writes only its own key, so tabs never overwrite each other's
+ * record. A live tab renews it; one older than `UNCONFIRMED_TTL_MS`
+ * belongs to a tab that is gone.
  */
 export const UNCONFIRMED_KEY = 'iptvnator-server:unconfirmed';
 export const UNCONFIRMED_TTL_MS = 10 * 60 * 1000;
-const unconfirmedKey = (instanceId: string) =>
-    `${UNCONFIRMED_KEY}:${instanceId}`;
+const recordKey = (instanceId: string, page: string) =>
+    `${UNCONFIRMED_KEY}:${instanceId}:${page}`;
 
 /** Edits made before the first read of a visit, kept as before → after. */
 export const DEFERRED_EDITS_KEY = 'iptvnator-server:deferred-edits';
@@ -51,11 +52,11 @@ export function claimCache(local: UserDataStorage, instanceId: string): void {
             local.removeItem(`iptvnator-server:${namespace}`);
         }
         if (owner) {
-            for (const page of Object.keys(readRegistry(local, owner))) {
-                local.removeItem(writesKey(owner, page));
-                local.removeItem(deferredKey(owner, page));
+            for (const prefix of PAGE_PREFIXES) {
+                for (const page of pagesUnder(local, `${prefix}:${owner}:`)) {
+                    local.removeItem(`${prefix}:${owner}:${page}`);
+                }
             }
-            local.removeItem(unconfirmedKey(owner));
         }
         local.setItem(CACHE_OWNER_KEY, instanceId);
     } catch {
@@ -118,20 +119,30 @@ export function swapPage(
     }
 }
 
-/** Page loads whose record went stale: closed tabs nobody sends for. */
+/**
+ * Page loads with saved writes or a record but no fresh record: closed
+ * tabs nobody sends for (also when their record was lost).
+ */
 export function orphanedPages(
     local: UserDataStorage,
     instanceId: string,
     page: string,
     now = Date.now()
 ): string[] {
-    return Object.entries(readRegistry(local, instanceId))
-        .filter(
-            ([owner, record]) =>
-                owner !== page &&
-                !(now - Number(record?.at) < UNCONFIRMED_TTL_MS)
-        )
-        .map(([owner]) => owner);
+    const registry = readRegistry(local, instanceId);
+    const pages = new Set<string>();
+    for (const prefix of PAGE_PREFIXES) {
+        for (const owner of pagesUnder(local, `${prefix}:${instanceId}:`)) {
+            pages.add(owner);
+        }
+    }
+    return [...pages].filter((owner) => {
+        const record = registry[owner];
+        return (
+            owner !== page &&
+            !(record && now - Number(record.at) < UNCONFIRMED_TTL_MS)
+        );
+    });
 }
 
 /** Forgets a page load's saved writes, early edits and record. */
@@ -293,10 +304,54 @@ export function saveDeferredEdits(
 }
 
 /** `closed`: the page unloaded (not into the back-forward cache). */
-type UnconfirmedRegistry = Record<
-    string,
-    { at: number; keys: string[]; closed?: boolean }
->;
+interface PageRecord {
+    readonly at: number;
+    readonly keys: string[];
+    readonly closed?: boolean;
+}
+
+/** Key prefixes of what a page load keeps, each followed by `:<instance>:<page>`. */
+const PAGE_PREFIXES = [UNCONFIRMED_KEY, UNSENT_WRITES_KEY, DEFERRED_EDITS_KEY];
+
+/** The page loads of keys that start with `prefix`. */
+function pagesUnder(local: UserDataStorage, prefix: string): string[] {
+    try {
+        return (local.keys?.() ?? [])
+            .filter((key) => key.startsWith(prefix))
+            .map((key) => key.slice(prefix.length));
+    } catch {
+        return [];
+    }
+}
+
+function readRecord(
+    local: UserDataStorage,
+    instanceId: string,
+    page: string
+): PageRecord | null {
+    try {
+        const parsed = JSON.parse(
+            local.getItem(recordKey(instanceId, page)) ?? 'null'
+        ) as PageRecord | null;
+        return parsed && Array.isArray(parsed.keys) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function readRegistry(
+    local: UserDataStorage,
+    instanceId: string
+): Record<string, PageRecord> {
+    const registry: Record<string, PageRecord> = Object.create(null);
+    for (const page of pagesUnder(local, `${UNCONFIRMED_KEY}:${instanceId}:`)) {
+        const record = readRecord(local, instanceId, page);
+        if (record) {
+            registry[page] = record;
+        }
+    }
+    return registry;
+}
 
 /** Marks a page load's record as unloaded: a reload may take it over. */
 export function markClosed(
@@ -304,13 +359,15 @@ export function markClosed(
     instanceId: string,
     page: string
 ): void {
-    const registry = readRegistry(local, instanceId);
-    if (!registry[page]) {
+    const record = readRecord(local, instanceId, page);
+    if (!record) {
         return;
     }
-    registry[page] = { ...registry[page], closed: true };
     try {
-        local.setItem(unconfirmedKey(instanceId), JSON.stringify(registry));
+        local.setItem(
+            recordKey(instanceId, page),
+            JSON.stringify({ ...record, closed: true })
+        );
     } catch {
         // Storage full: the record goes stale instead.
     }
@@ -327,7 +384,7 @@ export function pageIsLive(
     page: string,
     now = Date.now()
 ): boolean {
-    const record = readRegistry(local, instanceId)[page];
+    const record = readRecord(local, instanceId, page);
     return (
         !!record &&
         !record.closed &&
@@ -335,23 +392,7 @@ export function pageIsLive(
     );
 }
 
-function readRegistry(
-    local: UserDataStorage,
-    instanceId: string
-): UnconfirmedRegistry {
-    try {
-        const parsed: unknown = JSON.parse(
-            local.getItem(unconfirmedKey(instanceId)) ?? '{}'
-        );
-        return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-            ? (parsed as UnconfirmedRegistry)
-            : {};
-    } catch {
-        return {};
-    }
-}
-
-/** Replaces only this tab's record. */
+/** Writes only this page load's record (none without keys). */
 export function markUnconfirmed(
     local: UserDataStorage,
     instanceId: string,
@@ -359,17 +400,15 @@ export function markUnconfirmed(
     keys: readonly string[],
     now = Date.now()
 ): void {
-    const registry = readRegistry(local, instanceId);
-    if (keys.length === 0) {
-        if (!(tabId in registry)) {
-            return;
-        }
-        delete registry[tabId];
-    } else {
-        registry[tabId] = { at: now, keys: [...keys] };
-    }
     try {
-        local.setItem(unconfirmedKey(instanceId), JSON.stringify(registry));
+        if (keys.length === 0) {
+            local.removeItem(recordKey(instanceId, tabId));
+        } else {
+            local.setItem(
+                recordKey(instanceId, tabId),
+                JSON.stringify({ at: now, keys: [...keys] })
+            );
+        }
     } catch {
         // Storage full: re-reads in other tabs lose this protection only.
     }
@@ -386,11 +425,7 @@ export function othersUnconfirmed(
     for (const [owner, record] of Object.entries(
         readRegistry(local, instanceId)
     )) {
-        if (
-            owner !== tabId &&
-            Array.isArray(record?.keys) &&
-            now - Number(record.at) < UNCONFIRMED_TTL_MS
-        ) {
+        if (owner !== tabId && now - Number(record.at) < UNCONFIRMED_TTL_MS) {
             for (const key of record.keys) {
                 keys.add(String(key));
             }

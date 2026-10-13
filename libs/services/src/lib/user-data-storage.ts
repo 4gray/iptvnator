@@ -1,10 +1,13 @@
 import { InjectionToken } from '@angular/core';
 
-/** The slice of the Web Storage API that PWA user-data stores rely on. */
+/**
+ * The slice of the Web Storage API that PWA user-data stores rely on, plus
+ * the stored keys where the store can list them.
+ */
 export type UserDataStorage = Pick<
     Storage,
     'getItem' | 'setItem' | 'removeItem'
->;
+> & { keys?(): string[] };
 
 /**
  * `localStorage` behind an adapter that reads the global only inside each
@@ -17,6 +20,17 @@ export function createBrowserUserDataStorage(): UserDataStorage {
         getItem: (key) => globalThis.localStorage.getItem(key),
         setItem: (key, value) => globalThis.localStorage.setItem(key, value),
         removeItem: (key) => globalThis.localStorage.removeItem(key),
+        keys: () => {
+            const storage = globalThis.localStorage;
+            const keys: string[] = [];
+            for (let index = 0; index < storage.length; index += 1) {
+                const key = storage.key(index);
+                if (key !== null) {
+                    keys.push(key);
+                }
+            }
+            return keys;
+        },
     };
 }
 
