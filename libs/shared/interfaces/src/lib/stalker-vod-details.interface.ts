@@ -64,4 +64,6 @@ export interface StalkerVodInfo {
      * this to send Discover clicks to the right media type.
      */
     tmdb_media_type?: TmdbMediaType;
+    /** See `XtreamVodInfo.tmdb_supplied_release_date` — same contract */
+    tmdb_supplied_release_date?: boolean;
 }
