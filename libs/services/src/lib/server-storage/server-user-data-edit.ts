@@ -4,7 +4,7 @@ import {
     type ServerUserStateResponse,
 } from '@iptvnator/shared/interfaces';
 import { itemKey } from './server-migration-merge';
-import type { EditStep } from './server-user-data-entries';
+import { type EditStep, idMap } from './server-user-data-entries';
 
 /** Edits made before the first read, applied once the server's value is known. */
 export interface DeferredEdit {
@@ -26,7 +26,7 @@ export function refreshedNamespace(
     /** What an early edit was made on; the server's entry by default. */
     baseOf: (playlistId: string) => unknown = (playlistId) => server[playlistId]
 ): Record<string, unknown> {
-    const value: Record<string, unknown> = { ...server };
+    const value = idMap(server);
     for (const playlistId of keepCached) {
         if (playlistId in cached) {
             value[playlistId] = cached[playlistId];
@@ -135,7 +135,7 @@ export function mergeEdits(
     read: Record<string, unknown>,
     next: Record<string, unknown>
 ): Record<string, unknown> {
-    const merged = { ...current };
+    const merged = idMap(current);
     for (const id of new Set([...Object.keys(read), ...Object.keys(next)])) {
         if (JSON.stringify(read[id]) !== JSON.stringify(next[id])) {
             const value = applyEdit(current[id], read[id], next[id]);
@@ -151,18 +151,14 @@ export function mergeEdits(
 
 /**
  * A server read without the playlists deleted after it was sent (an id of
- * `undefined` stands for every playlist).
+ * `undefined` stands for every playlist), its maps as `idMap`s.
  */
 export function withoutDeleted(
     read: ServerUserStateResponse,
     deleted: readonly (string | undefined)[]
 ): ServerUserStateResponse {
-    if (deleted.length === 0) {
-        return read;
-    }
     const keep = <T>(map: Record<string, T> = {}): Record<string, T> => {
-        // No prototype: a playlist id such as `__proto__` stays a key.
-        const kept: Record<string, T> = Object.create(null);
+        const kept = idMap<T>();
         for (const [id, value] of Object.entries(map)) {
             if (!deleted.some((gone) => gone === undefined || gone === id)) {
                 kept[id] = value;

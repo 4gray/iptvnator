@@ -1249,4 +1249,35 @@ describe('ServerUserDataStorage with other devices', () => {
 
         expect(favorites(phone)).toEqual({ p2: ['b'] });
     });
+
+    it('keeps a playlist whose id is __proto__', async () => {
+        const server = fakeServer({
+            'xtream-favorites': JSON.parse('{"__proto__":["a"],"p2":["b"]}'),
+        });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+        expect(Object.keys(favorites(phone))).toEqual(['__proto__', 'p2']);
+
+        const map = favorites(phone);
+        Object.defineProperty(map, '__proto__', {
+            value: ['a', 'c'],
+            enumerable: true,
+        });
+        phone.setItem('xtream-favorites', JSON.stringify(map));
+        await phone.flush();
+
+        expect(
+            Object.getOwnPropertyDescriptor(
+                server.state['xtream-favorites'],
+                '__proto__'
+            )?.value
+        ).toEqual(['a', 'c']);
+        expect(JSON.parse(JSON.stringify(favorites(phone)))).toEqual(
+            JSON.parse('{"__proto__":["a","c"],"p2":["b"]}')
+        );
+    });
 });

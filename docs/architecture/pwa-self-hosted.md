@@ -210,8 +210,9 @@ settings and guards read them in every build.
   refuses a document without an id. "Remove all" first lets queued
   playlist writes land, and writes issued meanwhile wait until it is done.
   An M3U favorite
-  toggle goes through `transformPlaylistFavorites`, adding or removing that
-  one channel on the favorites read at write time. After a write the store
+  toggle or reorder goes through `transformPlaylistFavorites`: a toggle adds
+  or removes that one channel, a reorder applies its order, on the
+  favorites read at write time. After a write the store
   keeps its copy only when `X-Replaced-ETag` names the version its payload
   came from.
 - **Xtream user data.** `USER_DATA_STORAGE` becomes `ServerUserDataStorage`:

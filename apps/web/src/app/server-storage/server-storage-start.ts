@@ -39,12 +39,27 @@ export function resolveServerStorageStart(
             return null;
         case 'unreachable': {
             const remembered = read(storage);
-            return remembered?.baseUrl === baseUrl
+            return remembered &&
+                backendIdentity(remembered.baseUrl) === backendIdentity(baseUrl)
                 ? { instance: remembered.instance, startedOffline: true }
                 : null;
         }
         default:
             return null;
+    }
+}
+
+/**
+ * Origin and path of a backend URL, without trailing slashes: `/api` and
+ * `/api/` (or the same URL written absolute) name one server, as they do
+ * for the probe and the API client.
+ */
+function backendIdentity(url: string): string {
+    try {
+        const resolved = new URL(url.trim(), globalThis.location?.href);
+        return `${resolved.origin}${resolved.pathname.replace(/\/+$/, '')}`;
+    } catch {
+        return url.trim().replace(/\/+$/, '');
     }
 }
 

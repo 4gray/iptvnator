@@ -64,6 +64,7 @@ describe('PlaylistEffects updateFavorites$', () => {
             () => new PlaylistEffects()
         );
         effects.updateFavorites$.subscribe();
+        effects.setFavorites$.subscribe();
     }
 
     const channel = { url: 'http://a' } as Channel;
@@ -89,5 +90,19 @@ describe('PlaylistEffects updateFavorites$', () => {
         actions$.next(FavoritesActions.updateFavorites({ channel }));
 
         expect(storedFavorites).toEqual(['http://b']);
+    });
+
+    it('applies a reorder to the stored favorites', () => {
+        // Another device added 'http://new' and removed 'http://gone'.
+        storedFavorites = ['http://a', 'http://b', 'http://new'];
+        setup([]);
+
+        actions$.next(
+            FavoritesActions.setFavorites({
+                channelIds: ['http://b', 'http://gone', 'http://a'],
+            })
+        );
+
+        expect(storedFavorites).toEqual(['http://b', 'http://a', 'http://new']);
     });
 });

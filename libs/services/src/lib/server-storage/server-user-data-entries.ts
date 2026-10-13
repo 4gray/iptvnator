@@ -95,13 +95,25 @@ export function entryPath(entry: PendingEntry): string {
     return `/user-state/${entry.namespace}/${encodeURIComponent(entry.playlistId)}`;
 }
 
+/**
+ * A map keyed by playlist id, without a prototype: an id such as
+ * `__proto__` is an ordinary key, both to set and to read when absent.
+ */
+export function idMap<T>(
+    source: Readonly<Record<string, T>> = {}
+): Record<string, T> {
+    return Object.assign(Object.create(null) as Record<string, T>, source);
+}
+
 export function parseMap(value: string): Record<string, unknown> {
     try {
         const parsed: unknown = JSON.parse(value);
-        return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-            ? (parsed as Record<string, unknown>)
-            : {};
+        return idMap(
+            parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+                ? (parsed as Record<string, unknown>)
+                : {}
+        );
     } catch {
-        return {};
+        return idMap();
     }
 }

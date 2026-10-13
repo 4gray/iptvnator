@@ -122,10 +122,13 @@ export class PlaylistEffects {
                 ofType(FavoritesActions.setFavorites),
                 withLatestFrom(this.store.select(selectActivePlaylistId)),
                 filter(([, playlistId]) => !!playlistId),
-                switchMap(([action, playlistId]) =>
-                    this.playlistsService.setFavorites(
+                // The new order, applied to the favorites as stored at write
+                // time: another device's additions stay, its removals hold.
+                mergeMap(([action, playlistId]) =>
+                    this.playlistsService.transformPlaylistFavorites(
                         playlistId,
-                        action.channelIds
+                        (current) =>
+                            reorderFavorites(current, action.channelIds)
                     )
                 )
             );
@@ -593,4 +596,18 @@ export class PlaylistEffects {
     private getGlobalEpgUrls(): string[] {
         return normalizeEpgUrls(this.settingsStore.getSettings().epgUrl ?? []);
     }
+}
+
+/**
+ * `current` in the order of `order`: entries `order` no longer has stay out
+ * of its part, entries it never had (added elsewhere) follow it.
+ */
+export function reorderFavorites<T>(
+    current: readonly T[],
+    order: readonly T[]
+): T[] {
+    const present = new Set(current);
+    const ordered = order.filter((id) => present.has(id));
+    const placed = new Set(ordered);
+    return [...ordered, ...current.filter((id) => !placed.has(id))];
 }

@@ -8,6 +8,7 @@ import type { UserDataStorage } from '../user-data-storage';
 import type { ServerApiClient } from './server-api-client';
 import {
     addStep,
+    idMap,
     parseMap,
     splitEditKey,
     UNKNOWN_TAG,
@@ -376,7 +377,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             if (tags) {
                 // A kept value is not what the server's tag describes: its
                 // next write must conflict and be replayed on the server's.
-                const fresh = { ...tags[namespace] };
+                const fresh = idMap(tags[namespace]);
                 for (const playlistId of keepCached) {
                     fresh[playlistId] = UNKNOWN_TAG;
                 }

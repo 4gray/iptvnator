@@ -32,6 +32,19 @@ describe('resolveServerStorageStart', () => {
         ).toEqual({ instance, startedOffline: true });
     });
 
+    it('matches the remembered server however its URL is written', () => {
+        resolveServerStorageStart({ kind: 'server', instance }, '/api');
+
+        for (const spelling of ['/api/', ' /api', `${location.origin}/api//`]) {
+            expect(
+                resolveServerStorageStart({ kind: 'unreachable' }, spelling)
+            ).toEqual({ instance, startedOffline: true });
+        }
+        expect(
+            resolveServerStorageStart({ kind: 'unreachable' }, '/apis')
+        ).toBeNull();
+    });
+
     it('uses browser mode for an unknown or different server', () => {
         expect(
             resolveServerStorageStart({ kind: 'unreachable' }, '/api')

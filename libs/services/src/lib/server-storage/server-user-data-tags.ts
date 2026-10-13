@@ -1,4 +1,5 @@
 import type { ServerUserStateNamespace } from '@iptvnator/shared/interfaces';
+import { idMap } from './server-user-data-entries';
 
 /** The server version tag of each user-state entry, by namespace. */
 export class UserStateTags {
@@ -12,7 +13,7 @@ export class UserStateTags {
         namespace: ServerUserStateNamespace,
         tags: Readonly<Record<string, string>>
     ): void {
-        this.tags.set(namespace, { ...tags });
+        this.tags.set(namespace, idMap(tags));
     }
 
     /** `undefined` until the server's tags are known (or not offered). */
