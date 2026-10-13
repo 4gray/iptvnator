@@ -100,6 +100,20 @@ describe('sourceDisplayName', () => {
         );
     });
 
+    it('drops a name holding an account hidden behind encoded separators', () => {
+        const url = 'https://origin.test/live%2Fjoe%2Fhunter2%2F1.ts';
+        expect(sourceDisplayName({ title: 'Mine hunter2', url })).toBe(
+            'origin.test'
+        );
+    });
+
+    it('keeps a name that only shares a letter with a decoded password', () => {
+        // `%2542` is the password as written; decoded it is just `B`.
+        const url = 'https://host.test/list?password=%2542';
+        expect(sourceDisplayName({ title: 'Bay News', url })).toBe('Bay News');
+        expect(sourceDisplayName({ title: 'Mine %42', url })).toBe('host.test');
+    });
+
     it('drops a name holding a password under a short account key', () => {
         for (const key of ['pass', 'pas', 'PASS']) {
             const url = `https://host.test/list?user=joe&${key}=hunter2`;

@@ -4,10 +4,9 @@ import {
     playlistNameHasCredentials,
     resolvePlaylistSourceKind,
 } from '@iptvnator/shared/interfaces';
-import { decodeFully } from '@iptvnator/shared/logging';
+import { decodeFully, findXtreamAccount } from '@iptvnator/shared/logging';
 import {
     isDisplaySensitiveKey,
-    isXtreamAccountPath,
     stripUrlCredentials,
     unwrapNestedValue,
 } from './strip-url-credentials';
@@ -123,17 +122,16 @@ function collectUrlSecrets(
         });
     // An Xtream stream path carries the account:
     // `/live/<user>/<password>/<stream>`.
-    // A proxy may carry a whole URL in one segment.
-    const segments = url.pathname.split('/').map(safeDecode);
-    segments.forEach((segment, index) => {
-        if (isXtreamAccountPath(segments, index)) {
-            secrets.push(segments[index + 2]);
-            if (depth > 0) {
-                secrets.push(segments[index + 1]);
-            }
+    const segments = url.pathname.split('/');
+    const { accounts } = findXtreamAccount(segments, { streamFollows: true });
+    for (const [user, password] of accounts) {
+        secrets.push(password);
+        if (depth > 0) {
+            secrets.push(user);
         }
-        visitNested(segment);
-    });
+    }
+    // A proxy may carry a whole URL in one segment.
+    segments.map(safeDecode).forEach(visitNested);
     visit(url.searchParams);
     // A fragment may hold a parameter list or a whole URL.
     visitNested(url.hash.slice(1));
@@ -152,9 +150,19 @@ function sourceSecrets(playlist: SourceDisplayFields): string[] {
     }
     const shown: string[] = [];
     for (const secret of secrets) {
-        if (secret && secret.length >= MIN_SECRET_LENGTH) {
-            // A value encoded more than once reads as itself in a name.
-            shown.push(secret, encodeURIComponent(secret), decodeFully(secret));
+        if (!secret) {
+            continue;
+        }
+        // A value encoded more than once reads as itself in a name. Each
+        // form must be long enough on its own: `%2542` decodes to `B`.
+        for (const form of [
+            secret,
+            encodeURIComponent(secret),
+            decodeFully(secret),
+        ]) {
+            if (form.length >= MIN_SECRET_LENGTH) {
+                shown.push(form);
+            }
         }
     }
     return shown;

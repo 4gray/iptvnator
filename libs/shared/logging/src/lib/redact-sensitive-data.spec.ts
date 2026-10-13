@@ -1,9 +1,9 @@
 import {
-    decodeFully,
     isSensitiveKey,
     REDACTED_VALUE,
     redactSensitiveData,
 } from './redact-sensitive-data';
+import { decodeFully } from './url-credential-parts';
 
 const TEST_SECRETS = [
     'settings-api-key-secret',
@@ -328,6 +328,23 @@ describe('redactSensitiveData', () => {
         expect(output).not.toContain('layer-user-secret');
         expect(output).not.toContain('layer-pw-secret');
         expect(output).toContain('hd=1');
+    });
+
+    it('redacts an Xtream account hidden behind encoded separators', () => {
+        const output = serialized(
+            redactSensitiveData([
+                'https://example.com/live%2Fsep-user-secret%2Fsep-pass-secret%2F1.ts',
+                'https://example.com/live%252Fsep2-user-secret/sep2-pass-secret/1.ts',
+            ])
+        );
+        for (const secret of [
+            'sep-user-secret',
+            'sep-pass-secret',
+            'sep2-user-secret',
+            'sep2-pass-secret',
+        ]) {
+            expect(output).not.toContain(secret);
+        }
     });
 
     it('decodes within a bound and leaves a stray percent sign alone', () => {

@@ -101,6 +101,20 @@ describe('stripUrlCredentials', () => {
         ).not.toMatch(/hunter2|joe/);
     });
 
+    it('drops an Xtream account hidden behind encoded separators', () => {
+        for (const url of [
+            'https://origin.test/live%2Fjoe%2Fhunter2%2F1.ts',
+            'https://origin.test/live%2Fjoe/hunter2/1.ts',
+            'https://origin.test/live%252Fjoe%252Fhunter2%252F1.ts',
+        ]) {
+            expect(stripUrlCredentials(url)).not.toMatch(/hunter2|joe/);
+        }
+        // Separators alone are no account: the path stays as written.
+        expect(
+            stripUrlCredentials('https://cdn.test/files%2Flive%2Flist.m3u')
+        ).toBe('https://cdn.test/files%2Flive%2Flist.m3u');
+    });
+
     it('cleans a fragment that holds a URL rather than parameters', () => {
         expect(
             stripUrlCredentials(

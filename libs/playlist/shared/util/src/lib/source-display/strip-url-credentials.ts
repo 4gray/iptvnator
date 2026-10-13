@@ -1,7 +1,7 @@
 import {
     decodeFully,
+    findXtreamAccount,
     isSensitiveKey,
-    isXtreamCredentialMarker,
     looksLikeSearchParams,
 } from '@iptvnator/shared/logging';
 
@@ -54,20 +54,6 @@ export function unwrapNestedValue(value: string): string | null {
         }
         current = next;
     }
-}
-
-/**
- * The two segments after a `/live/`-style marker are an Xtream account only
- * when a stream follows them (`/live/<user>/<password>/<id>.ts`); a playlist
- * path such as `/live/news/list.m3u` names no account.
- */
-export function isXtreamAccountPath(
-    segments: readonly string[],
-    index: number
-): boolean {
-    return (
-        isXtreamCredentialMarker(segments[index]) && index + 3 < segments.length
-    );
 }
 
 /**
@@ -157,21 +143,21 @@ function stripUrl(value: string, depth: number): string | null {
     url.username = '';
     url.password = '';
 
+    // The account segments of an Xtream stream path go whole, however the
+    // marker is spelled and even when encoded separators join them into one.
     const segments = url.pathname.split('/');
-    const decodedSegments = segments.map(decodeSegment);
+    const account = findXtreamAccount(segments, { streamFollows: true });
     const kept: string[] = [];
-    for (let index = 0; index < segments.length; index += 1) {
-        const segment = segments[index];
-        const decoded = decodedSegments[index];
+    segments.forEach((segment, index) => {
+        if (account.segments.has(index)) {
+            return;
+        }
+        const decoded = decodeSegment(segment);
         const clean = sanitizeNested(decoded, depth);
         if (clean !== null) {
             kept.push(clean === decoded ? segment : encodeURIComponent(clean));
         }
-        // `/LIVE/…` and `/%6Cive/…` mark account segments as `/live/…` does.
-        if (isXtreamAccountPath(decodedSegments, index)) {
-            index += 2;
-        }
-    }
+    });
     url.pathname = kept.join('/');
 
     const search = withoutSensitiveParams(url.searchParams, depth);

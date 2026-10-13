@@ -1,3 +1,5 @@
+import { decodeFully, findXtreamAccount } from './url-credential-parts';
+
 export const REDACTED_VALUE = '[Redacted]';
 
 const CIRCULAR_VALUE = '[Circular]';
@@ -53,50 +55,6 @@ const SENSITIVE_KEY_SUFFIXES = [
     'token',
     'username',
 ];
-
-const XTREAM_CREDENTIAL_PATH_SEGMENTS: ReadonlySet<string> = new Set([
-    'live',
-    'movie',
-    'series',
-    'timeshift',
-]);
-/** Percent-decoding rounds before a name is compared. */
-const MAX_DECODE_ROUNDS = 4;
-
-/**
- * A name as it reads once every percent-encoding layer is undone, within a
- * bound: `%2570assword` is `password`, and `%256Cive` is `live`. Every
- * check that compares a key or marker by name must see this form, or one
- * more encoding layer slips a secret past it. A malformed escape (`100%`)
- * ends the decoding as written.
- */
-export function decodeFully(value: string): string {
-    let current = value;
-    for (
-        let round = 0;
-        round < MAX_DECODE_ROUNDS && current.includes('%');
-        round += 1
-    ) {
-        let next: string;
-        try {
-            next = decodeURIComponent(current);
-        } catch {
-            break;
-        }
-        if (next === current) {
-            break;
-        }
-        current = next;
-    }
-    return current;
-}
-
-/** A path segment that precedes Xtream account segments, in any spelling. */
-export function isXtreamCredentialMarker(segment: string): boolean {
-    return XTREAM_CREDENTIAL_PATH_SEGMENTS.has(
-        decodeFully(segment).toLowerCase()
-    );
-}
 
 export interface RedactionOptions {
     maxDepth?: number;
@@ -183,11 +141,8 @@ function redactUrl(
     }
 
     const pathSegments = redacted.pathname.split('/');
-    for (let index = 0; index < pathSegments.length - 2; index += 1) {
-        if (isXtreamCredentialMarker(pathSegments[index])) {
-            pathSegments[index + 1] = REDACTED_VALUE;
-            pathSegments[index + 2] = REDACTED_VALUE;
-        }
+    for (const index of findXtreamAccount(pathSegments).segments) {
+        pathSegments[index] = REDACTED_VALUE;
     }
     redacted.pathname = pathSegments.join('/');
 
