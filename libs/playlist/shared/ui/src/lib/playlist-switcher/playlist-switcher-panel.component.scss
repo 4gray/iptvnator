@@ -18,6 +18,19 @@
     color: var(--app-heading-color);
 }
 
+// Only the list shrinks and scrolls. A column flex container shrinks its
+// items in proportion to their size, so with a long list (hundreds of
+// sources) the fixed parts lost nearly all their height too: the type
+// filter, which clips its overflow, collapsed to 2px and the search field
+// to its text line.
+.switcher__header,
+.switcher__search,
+.switcher__types,
+.switcher__empty,
+.switcher__footer {
+    flex: none;
+}
+
 .switcher__header {
     display: flex;
     align-items: center;
@@ -46,32 +59,36 @@
     @include controls.ghost-icon-button(32px, 18px);
 }
 
-// The search field is one step darker than the popover. Its focus shows on
-// the field (token border and halo), not as an outline on the input.
+// The same search field as the header and the side panels: 36px, the
+// shared search tokens, focus on the field (token border and halo) rather
+// than as an outline on the input.
 .switcher__search {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 8px;
     height: 36px;
     margin: 0 14px 10px;
     padding: 0 10px;
     box-sizing: border-box;
-    border: 1px solid var(--app-line-strong);
-    border-radius: 9px;
-    background: var(--app-content-bg);
+    border: 1px solid var(--app-search-border, var(--app-line-strong));
+    border-radius: 10px;
+    background: var(--app-search-bg, var(--app-content-bg));
     color: var(--app-muted-color);
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
 
     &:focus-within {
         border-color: var(--app-focus-ring);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--app-focus-ring) 18%, transparent);
+            color-mix(in srgb, var(--app-focus-ring) 12%, transparent);
     }
 
     .mat-icon {
         flex: none;
-        width: 15px;
-        height: 15px;
-        font-size: 15px;
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
     }
 
     input {
@@ -82,7 +99,7 @@
         background: none;
         color: var(--app-heading-color);
         font: inherit;
-        font-size: 13px;
+        font-size: 0.84rem;
 
         &::placeholder {
             color: var(--app-muted-color);

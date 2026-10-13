@@ -530,6 +530,41 @@ test.describe('Electron Playlist Switcher', () => {
             await expect(panel).toHaveCount(0);
             await expect(trigger).toBeFocused();
 
+            // In a short window only the list shrinks and scrolls; the
+            // search field and the type filter keep their height.
+            const viewport = page.viewportSize();
+            await page.setViewportSize({
+                width: viewport?.width ?? 1280,
+                height: 320,
+            });
+            await page.keyboard.press('ControlOrMeta+p');
+            await expect(search).toBeFocused();
+            const chrome = await panel.evaluate((host) => {
+                const height = (element: Element | null) =>
+                    element?.getBoundingClientRect().height ?? 0;
+                const list = host.querySelector('.switcher__list');
+                return {
+                    search: height(host.querySelector('.switcher__search')),
+                    toggles: Array.from(
+                        host.querySelectorAll('.mat-button-toggle'),
+                        height
+                    ),
+                    listScrolls:
+                        !!list && list.scrollHeight > list.clientHeight,
+                };
+            });
+            expect(chrome.search, JSON.stringify(chrome)).toBeCloseTo(36, 0);
+            expect(chrome.toggles.length, JSON.stringify(chrome)).toBe(3);
+            for (const toggle of chrome.toggles) {
+                expect(toggle, JSON.stringify(chrome)).toBeGreaterThanOrEqual(
+                    30
+                );
+            }
+            expect(chrome.listScrolls, JSON.stringify(chrome)).toBe(true);
+            await page.keyboard.press('Escape');
+            await expect(panel).toHaveCount(0);
+            if (viewport) await page.setViewportSize(viewport);
+
             await openSources(page);
             await expect(
                 page.locator('app-workspace-sources app-source-row')

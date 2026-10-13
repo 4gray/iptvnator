@@ -1386,7 +1386,11 @@ in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
   the highlighted row's menu, Escape closes and returns focus to the
   trigger. The compact row's ⋯ is pointer-only (`aria-hidden`, not
   focusable), since an option may not contain a control. "Recent" lists the
-  three most recently opened sources once there are six or more.
+  three most recently opened sources once there are six or more. The search
+  field is the shared 36px search field (`--app-search-*`). The popover is a
+  height-capped column in which only the list shrinks and scrolls: every
+  other part is `flex: none`. Otherwise a long list (hundreds of sources)
+  squeezes them in proportion to its size, and the type filter collapses.
 
 ### Network source indicators (Electron)
 
