@@ -577,14 +577,20 @@ describe('ServerUserDataStorage', () => {
         expect(local.values.get('iptvnator-server:cache-owner')).toBe('new-db');
     });
 
-    it('is ready once it read the server, and not while it cannot', async () => {
+    it('tells, once a first read in flight settled, whether it read the server', async () => {
         const { api, storage } = setup();
         api.getJson.mockRejectedValueOnce(new Error('offline'));
 
-        await expect(storage.ready()).rejects.toThrow('offline');
-        await storage.ready();
-        await storage.ready();
+        const failed = storage.hydrate().catch(() => undefined);
+        await expect(storage.ready()).resolves.toBe(false);
+        await failed;
+        // It starts no read of its own: an offline page is not held up.
+        expect(api.getJson).toHaveBeenCalledTimes(1);
 
+        const read = storage.hydrate();
+        await expect(storage.ready()).resolves.toBe(true);
+        await read;
+        await expect(storage.ready()).resolves.toBe(true);
         expect(api.getJson).toHaveBeenCalledTimes(2);
     });
 

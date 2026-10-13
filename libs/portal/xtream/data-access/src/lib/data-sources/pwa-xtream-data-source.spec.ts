@@ -953,5 +953,60 @@ describe('PwaXtreamDataSource', () => {
             );
             expect(localStorage.getItem('xtream-favorites')).toBeNull();
         });
+
+        it('reads positions once the first server read settled', async () => {
+            const values = new Map<string, string>();
+            let firstRead = (): void => undefined;
+            const storage = {
+                getItem: (key: string) => values.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    values.set(key, value);
+                },
+                removeItem: (key: string) => {
+                    values.delete(key);
+                },
+                // Server mode: the server's data lands in the cache later.
+                ready: () =>
+                    new Promise<boolean>((resolve) => {
+                        firstRead = () => {
+                            values.set(
+                                'xtream-playback-positions',
+                                JSON.stringify({
+                                    p1: [
+                                        {
+                                            contentXtreamId: 501,
+                                            contentType: 'vod',
+                                            positionSeconds: 120,
+                                        },
+                                    ],
+                                })
+                            );
+                            resolve(true);
+                        };
+                    }),
+            };
+            TestBed.resetTestingModule();
+            TestBed.configureTestingModule({
+                providers: [
+                    PwaXtreamDataSource,
+                    { provide: USER_DATA_STORAGE, useValue: storage },
+                    { provide: ParentalLockService, useValue: parentalLock },
+                    { provide: XtreamApiService, useValue: apiService },
+                    { provide: PlaylistsService, useValue: playlistsService },
+                ],
+            });
+            const source = TestBed.inject(PwaXtreamDataSource);
+
+            const position = source.getPlaybackPosition('p1', 501, 'vod');
+            // The read is still running while other work goes on.
+            for (let turn = 0; turn < 5; turn += 1) {
+                await Promise.resolve();
+            }
+            firstRead();
+
+            await expect(position).resolves.toMatchObject({
+                positionSeconds: 120,
+            });
+        });
     });
 });

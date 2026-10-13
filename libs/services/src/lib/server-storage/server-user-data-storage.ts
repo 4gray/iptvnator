@@ -212,9 +212,13 @@ export class ServerUserDataStorage implements UserDataStorage {
         return !this.hydrated || this.hasUnsentWrites();
     }
 
-    /** Reads show the server's data: read once, or rejects. */
-    ready(): Promise<void> {
-        return this.hydrated ? Promise.resolve() : this.hydrate();
+    /**
+     * Once a first read in flight settled: whether reads show the server's
+     * data. Starts no read, so an offline page is not held up.
+     */
+    async ready(): Promise<boolean> {
+        await (this.hydrated ? undefined : this.hydration);
+        return this.hydrated;
     }
 
     /** Whether a write is queued, being retried, or still travelling. */

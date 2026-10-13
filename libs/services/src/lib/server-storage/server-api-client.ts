@@ -196,6 +196,9 @@ export class ServerApiClient {
                         : { 'Content-Type': 'application/json' }),
                 },
                 ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+                // A server that takes the request and never answers would
+                // hold every later write behind it.
+                signal: this.timeoutSignal(),
             });
             if (response.ok) {
                 const body = (await response

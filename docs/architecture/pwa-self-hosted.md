@@ -226,7 +226,9 @@ settings and guards read them in every build.
   the caller read: when the cache changed since (another tab, a re-read),
   only the entries the caller changed are applied to it. Batches go out one after another
   (the page-hide flush waits for a batch still travelling), a failed write,
-  including a refused `keepalive` one, stays queued for the next flush, and
+  including a refused `keepalive` one or one the server took and never
+  answered (it ends after the request timeout), stays queued for the next
+  flush, and
   every unconfirmed write (queued or travelling) is saved in `localStorage`
   per page load (`iptvnator-server:unsent-writes:<instanceId>:<page>`). The
   tab remembers its page load in `sessionStorage`, so a reload takes its
@@ -249,9 +251,15 @@ settings and guards read them in every build.
   newer value. Tabs never clear each other's.
   Cache and saved writes belong to one server database
   (`iptvnator-server:cache-owner`); another one behind the same address
-  starts clean. A backup export waits for the first read
-  (`UserDataStorage.ready`) and fails if it cannot happen: maps that never
-  read the server would export as empty lists. Also,
+  starts clean. Startup waits for the first read only a few seconds;
+  `UserDataStorage.ready()` waits for a first read in flight (it starts
+  none, so an offline page is not held up) and tells whether one
+  succeeded. The Xtream data source's favorites, history and position
+  reads wait for it, so a new device does not show empty lists or start
+  playback without its resume position. A backup export or restore fails
+  while no read succeeded: unread maps would export as empty lists, and a
+  restore's lists would merge into the server's instead of replacing them
+  (the restore stays parked). Also,
   re-reads run one at a time and keep entries edited while they were in
   flight or not yet saved. A response body cut off after its headers counts
   as offline. Each write is sent on the tag of the entry it was made

@@ -272,7 +272,10 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
 
         it('waits for server user data before it reads the lists', async () => {
             // Server mode: the maps hold the server's data once it was read.
-            const ready = jest.fn(async () => seed());
+            const ready = jest.fn(async () => {
+                seed();
+                return true;
+            });
             const service = createPlaylistBackupService({
                 playlistsService: playlistsService([existingXtreamPlaylist]),
                 pwaXtream: createPwaXtreamBackupState({
@@ -296,7 +299,7 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
                     getItem: () => null,
                     setItem: jest.fn(),
                     removeItem: jest.fn(),
-                    ready: () => Promise.reject(new Error('offline')),
+                    ready: async () => false,
                 }),
             });
 
@@ -505,6 +508,33 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(read(KEYS.collectionItems)).toEqual({
                 'xtream-1': { 'movie:501': heat, 'series:77': legacyShow },
             });
+        });
+
+        it('keeps the restore parked until server user data was read', async () => {
+            const manifest = await exportSeeded();
+            localStorage.clear();
+            localStorage.setItem(
+                KEYS.favorites,
+                JSON.stringify({ 'xtream-1': ['live:1'] })
+            );
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, value),
+                    removeItem: (key) => localStorage.removeItem(key),
+                    ready: async () => false,
+                }),
+            });
+
+            const summary = await service.importBackup(xtreamOnly(manifest));
+
+            expect(summary.failed).toBe(1);
+            // Nothing merged into lists the server may still replace.
+            expect(read(KEYS.favorites)).toEqual({ 'xtream-1': ['live:1'] });
+            expect(
+                pendingRestore(service).getOrThrow('xtream-1')
+            ).not.toBeNull();
         });
 
         it('replaces a damaged title cache but refuses an unreadable storage', async () => {

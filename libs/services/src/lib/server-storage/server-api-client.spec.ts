@@ -85,6 +85,29 @@ describe('ServerApiClient', () => {
         expect(status.reportOffline).not.toHaveBeenCalled();
     });
 
+    it('gives up on a keepalive write the server never answers', async () => {
+        const hanging = jest.fn(
+            (_url: string, init: RequestInit) =>
+                new Promise<Response>((_resolve, reject) => {
+                    init.signal?.addEventListener('abort', () =>
+                        reject(new DOMException('Timed out', 'TimeoutError'))
+                    );
+                })
+        );
+        const slow = new ServerApiClient({
+            baseUrl: '/api',
+            status,
+            fetchFn: hanging as unknown as typeof fetch,
+            accessToken: () => null,
+            timeoutMs: 10,
+        });
+
+        // Later writes queue behind it: it must end, as a failed one.
+        await expect(
+            slow.sendKeepalive('PUT', '/user-state/a/b', { value: 1 })
+        ).resolves.toEqual({ status: 'failed' });
+    });
+
     it('reports how a keepalive write ended', async () => {
         const ok = jest.fn().mockResolvedValue(response(200, { tag: 't2' }));
         await expect(

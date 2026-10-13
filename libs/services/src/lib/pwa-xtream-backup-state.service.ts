@@ -32,16 +32,15 @@ export class PwaXtreamBackupStateService {
     private readonly storage = inject(USER_DATA_STORAGE);
 
     /**
-     * Before an export: in server mode the maps show the server's data only
-     * after the first read, which may still run or have failed at start,
-     * and an unread map would be written as empty lists.
+     * Before an export or a restore: in server mode the maps show the
+     * server's data only after the first read, which may still run or have
+     * failed at start. An export would write unread lists as empty, and a
+     * restore's replacement lists would merge into the server's instead.
      */
     async ready(): Promise<void> {
-        try {
-            await this.storage.ready?.();
-        } catch {
+        if ((await this.storage.ready?.()) === false) {
             throw new Error(
-                "The server's user data could not be read; the backup would omit it."
+                "The server's user data could not be read yet; try again once the server answers."
             );
         }
     }
@@ -118,6 +117,7 @@ export class PwaXtreamBackupStateService {
         state: XtreamPendingRestoreState,
         entry: XtreamPlaylistBackupEntry
     ): Promise<void> {
+        await this.ready();
         // A user-supplied file: the field may be anything.
         const archived: unknown = entry.userState.collectionItems;
         const snapshots = snapshotsByKey(
