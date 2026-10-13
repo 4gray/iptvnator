@@ -207,7 +207,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                         @if (rating) {
                             <div
                                 class="rating"
-                                [matTooltip]="'XTREAM.IMDB_RATING' | translate"
+                                [matTooltip]="ratingLabelKey(i) | translate"
                             >
                                 <mat-icon>star</mat-icon>{{ rating }}
                             </div>
@@ -301,6 +301,10 @@ export class GridListComponent {
     readonly variant = input<'poster' | 'logo'>('poster');
     readonly type = input<'vod' | 'series' | 'live' | string>('');
     protected readonly resolveRating = resolveGridRating;
+    protected readonly ratingLabelKey = (item: GridListItem): string =>
+        formatGridRating(item.rating_imdb)
+            ? 'XTREAM.IMDB_RATING'
+            : 'XTREAM.RATING';
     protected readonly resolvePoster = (
         item: GridListItem
     ): string | undefined =>
