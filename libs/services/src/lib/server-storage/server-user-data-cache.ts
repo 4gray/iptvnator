@@ -6,7 +6,18 @@ import type { UserDataStorage } from '../user-data-storage';
 import { parseMap } from './server-user-data-entries';
 
 /** Server-mode cache keys; the legacy unprefixed keys are never touched. */
-export const SERVER_CACHE_PREFIX = 'iptvnator-server:';
+export const SERVER_CACHE_PREFIX = 'iptvnator-server:cache';
+
+/**
+ * One namespace's cache of one server instance: a tab still open on
+ * another server (a changed backend URL) never writes over it.
+ */
+export function cacheKey(
+    instanceId: string,
+    namespace: ServerUserStateNamespace
+): string {
+    return `${SERVER_CACHE_PREFIX}:${instanceId}:${namespace}`;
+}
 
 /**
  * The synced namespaces as this browser shows them: in browser storage,
@@ -16,7 +27,10 @@ export const SERVER_CACHE_PREFIX = 'iptvnator-server:';
 export class UserDataCache {
     private readonly overflow = new Map<ServerUserStateNamespace, string>();
 
-    constructor(private readonly local: UserDataStorage) {}
+    constructor(
+        private readonly local: UserDataStorage,
+        private readonly instanceId: string
+    ) {}
 
     read(namespace: ServerUserStateNamespace): string | null {
         const kept = this.overflow.get(namespace);
@@ -24,7 +38,7 @@ export class UserDataCache {
             return kept;
         }
         try {
-            return this.local.getItem(SERVER_CACHE_PREFIX + namespace);
+            return this.local.getItem(cacheKey(this.instanceId, namespace));
         } catch {
             return null;
         }
@@ -33,10 +47,11 @@ export class UserDataCache {
     /** `null` empties the namespace. */
     write(namespace: ServerUserStateNamespace, value: string | null): void {
         try {
+            const key = cacheKey(this.instanceId, namespace);
             if (value === null) {
-                this.local.removeItem(SERVER_CACHE_PREFIX + namespace);
+                this.local.removeItem(key);
             } else {
-                this.local.setItem(SERVER_CACHE_PREFIX + namespace, value);
+                this.local.setItem(key, value);
             }
             this.overflow.delete(namespace);
         } catch {

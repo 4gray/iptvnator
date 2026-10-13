@@ -217,8 +217,10 @@ settings and guards read them in every build.
   keeps its copy only when `X-Replaced-ETag` names the version its payload
   came from.
 - **Xtream user data.** `USER_DATA_STORAGE` becomes `ServerUserDataStorage`:
-  the four synced namespaces are cached under the `iptvnator-server:` key
-  prefix (the legacy unprefixed keys are never written in server mode) and
+  the four synced namespaces are cached per server instance, under
+  `iptvnator-server:cache:<instanceId>:<namespace>` (the legacy unprefixed
+  keys are never written in server mode; a tab still open on another
+  server never writes over this one's cache) and
   each change sends only the playlist entries that differ, debounced, with a
   `keepalive` flush when the page hides. A change is compared with the map
   the caller read: when the cache changed since (another tab, a re-read),
@@ -238,15 +240,18 @@ settings and guards read them in every build.
   tab's: its edits go ahead of this page's newer ones, and without a
   server version this page read they are sent so that they conflict and
   replay; the writes of a tab closed before it
-  could send them are queued, ahead of its own, by the next re-read in
-  another tab once that tab's record has gone stale; the result replays the
+  could send them are queued, ahead of its own, by another tab once that
+  tab's record has gone stale (at its next re-read, or its 30 s check when
+  it has nothing to sync and never re-reads); the result replays the
   closed tab's edits first and this tab's newer ones last. An adopted edit
   changes only what is still as its page saw it (`EditStep.yields`): an
   item or key changed since, by this tab or another device, keeps its
   newer value. Tabs never clear each other's.
   Cache and saved writes belong to one server database
   (`iptvnator-server:cache-owner`); another one behind the same address
-  starts clean. Also,
+  starts clean. A backup export waits for the first read
+  (`UserDataStorage.ready`) and fails if it cannot happen: maps that never
+  read the server would export as empty lists. Also,
   re-reads run one at a time and keep entries edited while they were in
   flight or not yet saved. A response body cut off after its headers counts
   as offline. Each write is sent on the tag of the entry it was made

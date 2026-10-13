@@ -25,7 +25,8 @@ import { newestWrites } from './server-unsent-writes';
 
 const FLUSH_DELAY_MS = 500;
 
-type ServerApi = Pick<
+/** What the queue needs of the API client. */
+export type ServerApi = Pick<
     ServerApiClient,
     'readJson' | 'sendJson' | 'request' | 'sendKeepalive'
 >;

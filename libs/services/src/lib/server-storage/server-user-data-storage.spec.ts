@@ -1,6 +1,8 @@
 import type { KeepaliveOutcome } from './server-api-client';
 import { ServerUserDataStorage } from './server-user-data-storage';
 
+const FAVORITES_CACHE = 'iptvnator-server:cache:default:xtream-favorites';
+
 function memoryStorage() {
     const values = new Map<string, string>();
     return {
@@ -66,9 +68,7 @@ describe('ServerUserDataStorage', () => {
         await storage.hydrate();
 
         expect(storage.getItem('xtream-favorites')).toBe('{"p1":["live:1"]}');
-        expect(local.values.get('iptvnator-server:xtream-favorites')).toBe(
-            '{"p1":["live:1"]}'
-        );
+        expect(local.values.get(FAVORITES_CACHE)).toBe('{"p1":["live:1"]}');
         expect(local.values.has('xtream-favorites')).toBe(false);
     });
 
@@ -351,7 +351,7 @@ describe('ServerUserDataStorage', () => {
         const { api, local, storage } = setup();
         // The cache from the last visit; no read from the server yet.
         local.setItem(
-            'iptvnator-server:xtream-favorites',
+            FAVORITES_CACHE,
             JSON.stringify({ p1: ['a'], p2: ['b'] })
         );
 
@@ -445,7 +445,7 @@ describe('ServerUserDataStorage', () => {
         });
         const setItem = local.setItem;
         local.setItem = (key: string, value: string) => {
-            if (key === 'iptvnator-server:xtream-favorites') {
+            if (key === FAVORITES_CACHE) {
                 throw new DOMException('full', 'QuotaExceededError');
             }
             setItem(key, value);
@@ -535,6 +535,11 @@ describe('ServerUserDataStorage', () => {
     it('drops cache and saved writes of another server database', () => {
         const local = memoryStorage();
         local.setItem('iptvnator-server:cache-owner', 'old-db');
+        local.setItem(
+            'iptvnator-server:cache:old-db:xtream-favorites',
+            '{"p1":["a"]}'
+        );
+        // An earlier build's unscoped key.
         local.setItem('iptvnator-server:xtream-favorites', '{"p1":["a"]}');
         local.setItem(
             'iptvnator-server:unconfirmed:old-db:tab',
@@ -562,11 +567,48 @@ describe('ServerUserDataStorage', () => {
         expect(local.values.has('iptvnator-server:xtream-favorites')).toBe(
             false
         );
+        expect(
+            local.values.has('iptvnator-server:cache:old-db:xtream-favorites')
+        ).toBe(false);
         expect(savedWrites(local, 'old-db')).toEqual([]);
         expect(
             local.values.has('iptvnator-server:unconfirmed:old-db:tab')
         ).toBe(false);
         expect(local.values.get('iptvnator-server:cache-owner')).toBe('new-db');
+    });
+
+    it('is ready once it read the server, and not while it cannot', async () => {
+        const { api, storage } = setup();
+        api.getJson.mockRejectedValueOnce(new Error('offline'));
+
+        await expect(storage.ready()).rejects.toThrow('offline');
+        await storage.ready();
+        await storage.ready();
+
+        expect(api.getJson).toHaveBeenCalledTimes(2);
+    });
+
+    it("never writes over another server instance's cache", async () => {
+        const local = memoryStorage();
+        const tab = (instanceId: string, favorites: unknown) =>
+            new ServerUserDataStorage(
+                {
+                    getJson: jest.fn().mockResolvedValue({
+                        entries: { 'xtream-favorites': favorites },
+                    }),
+                } as never,
+                local,
+                jest.fn(),
+                instanceId
+            );
+        // The tab of the old backend stays open after a new one started.
+        const old = tab('old-db', { p1: ['old'] });
+        const current = tab('new-db', { p1: ['new'] });
+        await current.hydrate();
+
+        await old.hydrate();
+
+        expect(current.getItem('xtream-favorites')).toBe('{"p1":["new"]}');
     });
 
     it('keeps a newer travelling write when an older one is answered', async () => {
@@ -688,14 +730,14 @@ describe('ServerUserDataStorage', () => {
 
     it('keeps server favorites through a cache-full first read and a later edit', async () => {
         const { api, local, storage } = setup();
-        local.setItem('iptvnator-server:xtream-favorites', '{"p1":["A"]}');
+        local.setItem(FAVORITES_CACHE, '{"p1":["A"]}');
         storage.setItem('xtream-favorites', '{"p1":["A","B"]}');
         api.getJson.mockResolvedValueOnce({
             entries: { 'xtream-favorites': { p1: ['S'] } },
         });
         const setItem = local.setItem;
         local.setItem = (key: string, value: string) => {
-            if (key === 'iptvnator-server:xtream-favorites') {
+            if (key === FAVORITES_CACHE) {
                 throw new DOMException('full', 'QuotaExceededError');
             }
             setItem(key, value);

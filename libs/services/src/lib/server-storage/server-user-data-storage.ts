@@ -21,7 +21,7 @@ import {
     refreshedNamespace,
     withoutDeleted,
 } from './server-user-data-edit';
-import { UserDataWriteQueue } from './server-user-data-queue';
+import { type ServerApi, UserDataWriteQueue } from './server-user-data-queue';
 import {
     claimCache,
     markClosed,
@@ -36,13 +36,6 @@ import {
     saveUnsentWrites,
     swapPage,
 } from './server-unsent-writes';
-
-export { SERVER_CACHE_PREFIX } from './server-user-data-cache';
-
-type ServerApi = Pick<
-    ServerApiClient,
-    'getJson' | 'readJson' | 'sendJson' | 'request' | 'sendKeepalive'
->;
 
 /**
  * Write-through `USER_DATA_STORAGE` for server mode. Synced namespaces are
@@ -86,7 +79,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     private hydration: Promise<void> = Promise.resolve();
 
     constructor(
-        private readonly api: ServerApi,
+        private readonly api: ServerApi & Pick<ServerApiClient, 'getJson'>,
         private readonly local: UserDataStorage,
         onWriteFailure: (error: unknown) => void,
         /** Scopes the cache and saved writes to one server database. */
@@ -97,7 +90,7 @@ export class ServerUserDataStorage implements UserDataStorage {
          */
         tabStore: UserDataStorage = local
     ) {
-        this.cache = new UserDataCache(local);
+        this.cache = new UserDataCache(local, instanceId);
         this.writes = new UserDataWriteQueue(api, {
             changed: () => this.saveUnsent(),
             show: (namespace, playlistId, value) =>
@@ -204,6 +197,11 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.awaited = null;
             this.adoptPage(page);
         }
+        // A tab with nothing to sync never re-reads, which is where closed
+        // tabs' saved writes are otherwise picked up.
+        if (this.hydrated) {
+            this.adoptClosedTabs();
+        }
         if (this.hasUnsentWrites()) {
             this.publishUnconfirmed();
         }
@@ -212,6 +210,11 @@ export class ServerUserDataStorage implements UserDataStorage {
     /** Not read yet, or holding writes the server has not taken. */
     needsSync(): boolean {
         return !this.hydrated || this.hasUnsentWrites();
+    }
+
+    /** Reads show the server's data: read once, or rejects. */
+    ready(): Promise<void> {
+        return this.hydrated ? Promise.resolve() : this.hydrate();
     }
 
     /** Whether a write is queued, being retried, or still travelling. */

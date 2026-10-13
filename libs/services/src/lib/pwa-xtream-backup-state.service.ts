@@ -32,6 +32,21 @@ export class PwaXtreamBackupStateService {
     private readonly storage = inject(USER_DATA_STORAGE);
 
     /**
+     * Before an export: in server mode the maps show the server's data only
+     * after the first read, which may still run or have failed at start,
+     * and an unread map would be written as empty lists.
+     */
+    async ready(): Promise<void> {
+        try {
+            await this.storage.ready?.();
+        } catch {
+            throw new Error(
+                "The server's user data could not be read; the backup would omit it."
+            );
+        }
+    }
+
+    /**
      * The entry with the playlist's stored lists and snapshots filled in;
      * hidden categories and pins, which the browser build does not track,
      * stay as `entry` has them. An unreadable store fails the export: restore

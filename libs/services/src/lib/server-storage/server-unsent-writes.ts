@@ -4,6 +4,7 @@ import {
     type ServerUserStateNamespace,
 } from '@iptvnator/shared/interfaces';
 import type { UserDataStorage } from '../user-data-storage';
+import { cacheKey } from './server-user-data-cache';
 
 /**
  * User-data writes the server has not confirmed, kept in `localStorage`
@@ -49,7 +50,11 @@ export function claimCache(local: UserDataStorage, instanceId: string): void {
             return;
         }
         for (const namespace of SERVER_USER_STATE_NAMESPACES) {
+            // Also the unscoped keys of earlier builds.
             local.removeItem(`iptvnator-server:${namespace}`);
+            if (owner) {
+                local.removeItem(cacheKey(owner, namespace));
+            }
         }
         if (owner) {
             for (const prefix of PAGE_PREFIXES) {

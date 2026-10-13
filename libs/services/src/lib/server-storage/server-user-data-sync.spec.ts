@@ -681,6 +681,46 @@ describe('ServerUserDataStorage with other devices', () => {
         expect(server.state['xtream-playback-positions']['p1']).toEqual(at(30));
     });
 
+    it("sends a closed tab's saved write from an idle tab", async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const shared = memoryStorage();
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+        // Read, and with nothing to sync it never reads again.
+        const idle = new ServerUserDataStorage(
+            server.api as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await idle.hydrate();
+        const closed = new ServerUserDataStorage(
+            {
+                ...server.api,
+                sendJson: jest.fn(() =>
+                    Promise.reject(new ServerApiError(0, 'network', 'offline'))
+                ),
+            } as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await closed.hydrate();
+        closed.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await closed.flush();
+        closed.close();
+
+        clock.mockReturnValue(1_000 + UNCONFIRMED_TTL_MS + 1);
+        expect(idle.needsSync()).toBe(false);
+        idle.touch();
+        await idle.flush();
+        await idle.flush();
+        clock.mockRestore();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+    });
+
     it("keeps progress this tab saved over a closed tab's older edit", async () => {
         const at = (seconds: number) => [
             {

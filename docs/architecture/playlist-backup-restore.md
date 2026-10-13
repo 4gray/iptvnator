@@ -252,6 +252,9 @@ self-hosted server storage is covered too.
   browser tracks neither.
 - An unreadable map (storage error, malformed JSON, a playlist entry that is
   not a list) fails the export instead of being written as an empty list.
+  So does server mode before its first read of the server's user data:
+  the export waits for that read (`UserDataStorage.ready`) and fails when
+  it does not succeed.
 - A pending restore snapshot still wins over the stored maps, as on desktop.
 - Import parks the restore state like the desktop does, then applies it at
   once through `XtreamPendingRestoreService.applyAndConsume`: the browser has

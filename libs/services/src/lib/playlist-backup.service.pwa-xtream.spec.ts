@@ -269,6 +269,41 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
 
             await expect(service.exportBackup()).rejects.toThrow('denied');
         });
+
+        it('waits for server user data before it reads the lists', async () => {
+            // Server mode: the maps hold the server's data once it was read.
+            const ready = jest.fn(async () => seed());
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, value),
+                    removeItem: (key) => localStorage.removeItem(key),
+                    ready,
+                }),
+            });
+
+            const { manifest } = await service.exportBackup();
+
+            expect(ready).toHaveBeenCalledTimes(1);
+            expect(xtreamEntry(manifest).userState.favorites).not.toEqual([]);
+        });
+
+        it('refuses to export server user data it could not read', async () => {
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: () => null,
+                    setItem: jest.fn(),
+                    removeItem: jest.fn(),
+                    ready: () => Promise.reject(new Error('offline')),
+                }),
+            });
+
+            await expect(service.exportBackup()).rejects.toThrow(
+                /user data could not be read/
+            );
+        });
     });
 
     describe('import', () => {

@@ -2,12 +2,14 @@ import { InjectionToken } from '@angular/core';
 
 /**
  * The slice of the Web Storage API that PWA user-data stores rely on, plus
- * the stored keys where the store can list them.
+ * the stored keys where the store can list them, and `ready` where reads
+ * show a source's data only once it was read (server mode): it rejects
+ * when that read fails.
  */
 export type UserDataStorage = Pick<
     Storage,
     'getItem' | 'setItem' | 'removeItem'
-> & { keys?(): string[] };
+> & { keys?(): string[]; ready?(): Promise<void> };
 
 /**
  * `localStorage` behind an adapter that reads the global only inside each
