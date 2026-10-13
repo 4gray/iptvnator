@@ -2005,6 +2005,35 @@ describe('PlaylistsService', () => {
             }
         );
 
+        it('reads hidden groups saved by a meta update that is still being written', async () => {
+            const original = createBasePlaylist('catalog-hidden-groups');
+            const { store, electron } = createStatefulElectronStore(original);
+            testWindow.electron = electron;
+            let release!: () => void;
+            const gate = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            electron.dbUpsertAppPlaylist.mockImplementationOnce(
+                async (playlist) => {
+                    await gate;
+                    store.current = playlist;
+                }
+            );
+            const service = createService();
+            // The meta effect subscribes while the save is dispatched, so the
+            // write is queued before the M3U route reopens the playlist.
+            const write = firstValueFrom(
+                service.updatePlaylistMeta({
+                    _id: original._id,
+                    hiddenGroupTitles: ['Sports'],
+                } as PlaylistMeta)
+            );
+            const read = firstValueFrom(service.getPlaylist(original._id));
+            release();
+            await write;
+            expect((await read).hiddenGroupTitles).toEqual(['Sports']);
+        });
+
         it('orders a browser catalog read after a queued IndexedDB refresh', async () => {
             const original = createBasePlaylist('browser-catalog');
             const state = { current: original };

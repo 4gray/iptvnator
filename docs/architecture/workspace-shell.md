@@ -195,7 +195,13 @@ services:
 5. `WorkspaceShellCommandPaletteService` owns command-palette dialog lifecycle
    and recent-command recording.
 6. `WorkspaceShellXtreamImportService` owns Xtream import/refresh overlay
-   state and labels.
+   state and labels. Remote import phases and refresh preparation of the
+   shown playlist (of any playlist on the dashboard) show the overlay at
+   once. A session that has only read the saved catalog (`loading-cached`,
+   `isImporting` still false) shows it only after
+   `XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS` (300 ms), so a warm open goes from
+   the skeleton to the page without flashing the overlay, while a slow or
+   stuck cache read still blocks and stays cancellable.
 
 When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
@@ -872,6 +878,9 @@ Toolchain notes for the Electron 43 baseline:
    Those dependencies require standalone PRs so their dedicated package,
    worker, playback, and diagnostic-contract validation cannot be hidden by an
    unrelated grouped update.
+   Electron majors are ignored: Electron 44 ships no `linux-armv7l` binary,
+   and the release still packages armv7l AppImage, DEB and Snap builds. Remove
+   the ignore together with those targets when 32-bit ARM support is dropped.
 4. Electron 42 and newer download their development binary on the first
    Electron command instead of during package `postinstall`, so `electron`
    must not remain in pnpm's `onlyBuiltDependencies` allowlist. The first local

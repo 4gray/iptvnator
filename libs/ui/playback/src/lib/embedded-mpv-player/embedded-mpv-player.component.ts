@@ -578,7 +578,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         effect(() => {
             const session = this.session();
-            if (!session || session.status !== 'ended') {
+            // An `ended` the main process is reloading is a dropped
+            // connection, not the end: autoplay would skip the rest of the
+            // episode (#1902).
+            if (!session || session.status !== 'ended' || session.reconnect) {
                 return;
             }
             if (this.lastEndedSessionId === session.id) {
