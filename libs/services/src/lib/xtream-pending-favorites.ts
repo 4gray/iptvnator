@@ -14,29 +14,39 @@ export async function materializePendingXtreamFavorites(
     failureMode: 'throw' | 'continue' = 'throw'
 ): Promise<void> {
     const prefix = getXtreamPendingRestoreStorageKey('');
-    const ids = playlistId
-        ? [playlistId]
-        : Array.from({ length: localStorage.length }, (_, index) =>
-              localStorage.key(index)
-          )
-              .filter(
-                  (key): key is string => key !== null && key.startsWith(prefix)
+    let ids: string[];
+    try {
+        ids = playlistId
+            ? [playlistId]
+            : Array.from({ length: localStorage.length }, (_, index) =>
+                  localStorage.key(index)
               )
-              .map((key) => key.slice(prefix.length));
+                  .filter(
+                      (key): key is string =>
+                          key !== null && key.startsWith(prefix)
+                  )
+                  .map((key) => key.slice(prefix.length));
+    } catch (error) {
+        if (failureMode === 'throw') throw error;
+        console.warn('Pending favorites storage could not be read.');
+        return;
+    }
     for (const id of ids) {
-        const raw = localStorage.getItem(getXtreamPendingRestoreStorageKey(id));
-        if (!raw) continue;
-        let parsed: unknown;
         try {
-            parsed = JSON.parse(raw);
-        } catch {
-            continue;
-        }
-        const state = normalizeXtreamPendingRestoreState(parsed);
-        if (!state.favorites.length) continue;
-        // Old localStorage can outlive deletion of its owning SQLite playlist.
-        // Never recreate a playlist or let an orphan block other saved entries.
-        try {
+            const raw = localStorage.getItem(
+                getXtreamPendingRestoreStorageKey(id)
+            );
+            if (!raw) continue;
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(raw);
+            } catch {
+                continue;
+            }
+            const state = normalizeXtreamPendingRestoreState(parsed);
+            if (!state.favorites.length) continue;
+            // Old localStorage can outlive deletion of its owning SQLite playlist.
+            // Never recreate a playlist or let an orphan block other saved entries.
             const playlist = await bridge.dbGetPlaylist(id);
             if (!playlist || playlist.type !== 'xtream') continue;
             const result = await bridge.dbRestoreXtreamFavorites(

@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, type SQL } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import { isParentalLockActive } from '../parental-lock-state';
@@ -23,6 +23,18 @@ export function resolvedFavoriteContentId(includeLocked: boolean) {
 export function favoriteSnapshotMatchesContent() {
     return sql`(${schema.favorites.tmdbId} IS NULL OR ${schema.favorites.tmdbId} = ${schema.content.tmdbId})
         AND (${schema.favorites.releaseYear} IS NULL OR ${schema.favorites.releaseYear} = ${schema.content.releaseYear})`;
+}
+
+/** Use only after confirming identity; empty catalog fields retain the saved value. */
+export function favoriteSnapshotFromContent(contentId: number | SQL) {
+    return {
+        title: sql`COALESCE((SELECT NULLIF(TRIM(title), '') FROM content WHERE id = ${contentId}), favorites.title)`,
+        posterUrl: sql`COALESCE((SELECT NULLIF(TRIM(poster_url), '') FROM content WHERE id = ${contentId}), favorites.poster_url)`,
+        backdropUrl: sql`COALESCE((SELECT NULLIF(TRIM(backdrop_url), '') FROM content WHERE id = ${contentId}), favorites.backdrop_url)`,
+        tmdbId: sql`COALESCE((SELECT tmdb_id FROM content WHERE id = ${contentId}), favorites.tmdb_id)`,
+        releaseYear: sql`COALESCE((SELECT release_year FROM content WHERE id = ${contentId}), favorites.release_year)`,
+        originalTitle: sql`COALESCE((SELECT NULLIF(TRIM(original_title), '') FROM content WHERE id = ${contentId}), favorites.original_title)`,
+    };
 }
 
 export function favoriteCatalogStatus() {
@@ -90,14 +102,7 @@ export async function reconcileCompletedFavoriteCatalog(
             )
             .run();
         tx.update(schema.favorites)
-            .set({
-                title: sql`COALESCE((SELECT NULLIF(TRIM(title), '') FROM content WHERE id = favorites.content_id), favorites.title)`,
-                posterUrl: sql`COALESCE((SELECT NULLIF(TRIM(poster_url), '') FROM content WHERE id = favorites.content_id), favorites.poster_url)`,
-                backdropUrl: sql`COALESCE((SELECT NULLIF(TRIM(backdrop_url), '') FROM content WHERE id = favorites.content_id), favorites.backdrop_url)`,
-                tmdbId: sql`COALESCE((SELECT tmdb_id FROM content WHERE id = favorites.content_id), favorites.tmdb_id)`,
-                releaseYear: sql`COALESCE((SELECT release_year FROM content WHERE id = favorites.content_id), favorites.release_year)`,
-                originalTitle: sql`COALESCE((SELECT NULLIF(TRIM(original_title), '') FROM content WHERE id = favorites.content_id), favorites.original_title)`,
-            })
+            .set(favoriteSnapshotFromContent(sql`favorites.content_id`))
             .where(
                 and(
                     sql`EXISTS (SELECT 1 FROM content WHERE id = favorites.content_id AND ${favoriteSnapshotMatchesContent()})`,

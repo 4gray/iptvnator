@@ -54,7 +54,12 @@ export async function verifyFavoriteSnapshot(db: AppDatabase) {
     assert.equal((await getFavorites(db, 'p'))[0].catalog_status, 'missing');
     assert.equal((await getFavorites(db, 'p'))[0].title, original.title);
     await deleteXtreamContent(db, 'p');
-    await catalog(3, 7, 'ABC renamed', 'movie', 'p', { tmdbId: 10 });
+    await catalog(3, 7, 'ABC renamed', 'movie', 'p', {
+        tmdbId: 10,
+        posterUrl: 'https://art.invalid/returned.jpg',
+        backdropUrl: 'https://art.invalid/returned-wide.jpg',
+        originalTitle: 'ABC original renamed',
+    });
     await setAppState(db, 'xtream-import-status:p:movie', 'completed');
     assert.deepEqual(
         snapshot((await db.select().from(schema.favorites))[0]),
@@ -62,11 +67,34 @@ export async function verifyFavoriteSnapshot(db: AppDatabase) {
         'partial identity is insufficient to replace the saved fields'
     );
     await persistContentMetadataIfMissing(db, 3, { releaseYear: 2000 });
-    await setAppState(db, 'xtream-import-status:p:movie', 'completed');
-    assert.equal(
-        (await db.select().from(schema.favorites))[0].title,
-        'ABC renamed',
-        'confirmed compatible identity may refresh the snapshot'
+    const confirmed = {
+        ...snapshot(original),
+        title: 'ABC renamed',
+        poster: 'https://art.invalid/returned.jpg',
+        backdrop: 'https://art.invalid/returned-wide.jpg',
+        original: 'ABC original renamed',
+    };
+    assert.deepEqual(
+        snapshot((await db.select().from(schema.favorites))[0]),
+        confirmed,
+        'detail enrichment must refresh the snapshot as soon as identity is confirmed'
+    );
+    await deleteXtreamContent(db, 'p');
+    const [missing] = await getFavoritesForBackup(db, 'p');
+    assert.equal(missing.title, confirmed.title);
+    assert.equal(missing.poster_url, confirmed.poster);
+    assert.equal(missing.backdrop_url, confirmed.backdrop);
+    await catalog(3, 7, '  ', 'movie', 'p', {
+        tmdbId: 10,
+        posterUrl: ' ',
+        backdropUrl: '',
+        originalTitle: '',
+    });
+    await persistContentMetadataIfMissing(db, 3, { releaseYear: 2000 });
+    assert.deepEqual(
+        snapshot((await db.select().from(schema.favorites))[0]),
+        confirmed,
+        'blank fields on a confirmed return must preserve the saved snapshot'
     );
     // A replacement's year/artwork must not fill gaps before its TMDB identity is known.
     await removeFavorite(db, 3, 'p');

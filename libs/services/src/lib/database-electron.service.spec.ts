@@ -1,4 +1,5 @@
 import { DatabaseService } from './database-electron.service';
+import { materializePendingXtreamFavorites } from './xtream-pending-favorites';
 
 describe('DatabaseService browser guards', () => {
     const originalElectron = window.electron;
@@ -20,6 +21,7 @@ describe('DatabaseService browser guards', () => {
     });
 
     afterEach(() => {
+        jest.restoreAllMocks();
         localStorage.clear();
         consoleErrorSpy.mockRestore();
         Object.defineProperty(window, 'electron', {
@@ -141,6 +143,91 @@ describe('DatabaseService browser guards', () => {
             expect(
                 window.electron.dbGetFavoritesForBackup
             ).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each(['storage', 'length', 'key', 'getItem'] as const)(
+        'reads SQLite despite a failing localStorage %s, but rejects strict conversion',
+        async (failure) => {
+            localStorage.setItem(
+                'xtream-restore-broken',
+                JSON.stringify({
+                    favorites: [{ contentType: 'movie', xtreamId: 7 }],
+                })
+            );
+            localStorage.setItem(
+                'xtream-restore-healthy',
+                JSON.stringify({
+                    favorites: [{ contentType: 'movie', xtreamId: 9 }],
+                })
+            );
+            const rows = [{ favorite_id: 1, title: 'Saved favorite' }];
+            const read = jest.fn().mockResolvedValue(rows);
+            const bridge = {
+                dbGetPlaylist: jest.fn().mockResolvedValue({ type: 'xtream' }),
+                dbRestoreXtreamFavorites: jest
+                    .fn()
+                    .mockResolvedValue({ success: true }),
+                dbGetFavorites: read,
+                dbGetGlobalFavorites: read,
+                dbGetAllGlobalFavorites: read,
+                dbGetFavoritesForBackup: jest.fn(),
+            };
+            Object.defineProperty(window, 'electron', {
+                configurable: true,
+                value: bridge,
+            });
+            const unavailable = () => {
+                throw new Error('Storage unavailable');
+            };
+            if (failure === 'storage') {
+                jest.spyOn(window, 'localStorage', 'get').mockImplementation(
+                    unavailable
+                );
+            } else if (failure === 'length') {
+                jest.spyOn(
+                    Storage.prototype,
+                    'length',
+                    'get'
+                ).mockImplementation(unavailable);
+            } else if (failure === 'key') {
+                jest.spyOn(Storage.prototype, 'key').mockImplementation(
+                    unavailable
+                );
+            } else {
+                const getItem = Storage.prototype.getItem;
+                jest.spyOn(Storage.prototype, 'getItem').mockImplementation(
+                    function (key) {
+                        if (key === 'xtream-restore-broken')
+                            return unavailable();
+                        return getItem.call(this, key);
+                    }
+                );
+            }
+            for (const method of [
+                'getGlobalFavorites',
+                'getAllGlobalFavorites',
+                'getFavorites',
+            ] as const) {
+                await expect(service[method]('broken')).resolves.toEqual(rows);
+            }
+            expect(read).toHaveBeenCalledTimes(3);
+            if (failure === 'getItem') {
+                expect(bridge.dbRestoreXtreamFavorites).toHaveBeenCalledWith(
+                    'healthy',
+                    [{ contentType: 'movie', xtreamId: 9 }],
+                    undefined
+                );
+            }
+            await expect(
+                materializePendingXtreamFavorites(bridge)
+            ).rejects.toThrow('Storage unavailable');
+            if (failure === 'storage' || failure === 'getItem') {
+                await expect(
+                    service.getFavoritesOrThrow('broken')
+                ).rejects.toThrow('Storage unavailable');
+                expect(bridge.dbGetFavoritesForBackup).not.toHaveBeenCalled();
+            }
         }
     );
 

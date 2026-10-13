@@ -54,8 +54,9 @@ imports reconnect valid identities. Display snapshots are replaced only after
 the returning row confirms every saved TMDB ID/year; incomplete identity keeps
 the saved title/artwork in collections and backups. Restore applies the same
 confirmation guard before filling gaps in saved metadata from catalog rows.
-Metadata learned in detail
-views is copied into the saved snapshot before catalog loss.
+When detail enrichment confirms the remaining identity fields, it immediately
+copies the returning title, artwork and metadata into the saved snapshot without
+waiting for another import. Blank catalog fields retain their saved values.
 Conflicting known TMDB IDs or release years prevent automatic reconnection;
 changed provider IDs never reconnect by title.
 Adding a conflicting replacement returns an explicit failure and retains the
@@ -80,8 +81,9 @@ unfiltered.
 Legacy pending favorites are converted before destructive refresh, import
 requests and ordinary collection reads, even if portal-status preflight is
 offline. Ordinary collection reads isolate failed conversions per playlist and
-still read healthy database favorites, retaining pending state for retry. Backup
-reads remain strict and fail if conversion fails. Backup merges convert any
+still read healthy database favorites, retaining pending state for retry. This
+also applies when localStorage access or key enumeration fails. Backup reads
+remain strict and fail if storage access or conversion fails. Backup merges convert any
 older pending favorites before parking the incoming archive. Favorite inserts and a replay receipt commit together;
 retries cannot resurrect a subsequently removed favorite. Deliberate backup import creates a
 fresh receipt ID, which stays internal and is never exported. Identity-only old
