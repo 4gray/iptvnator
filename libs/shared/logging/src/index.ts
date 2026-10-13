@@ -1,9 +1,10 @@
 export {
+    decodeFully,
     isSensitiveKey,
+    isXtreamCredentialMarker,
     looksLikeSearchParams,
     REDACTED_VALUE,
     redactSensitiveData,
-    XTREAM_CREDENTIAL_PATH_SEGMENTS,
 } from './lib/redact-sensitive-data';
 export type { RedactionOptions } from './lib/redact-sensitive-data';
 export {

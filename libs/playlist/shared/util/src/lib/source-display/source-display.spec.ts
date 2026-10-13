@@ -82,6 +82,24 @@ describe('sourceDisplayName', () => {
         ).toBe('joe');
     });
 
+    it('reads keys, markers and values through every encoding layer', () => {
+        for (const url of [
+            'https://proxy.test/list?%2570assword=hunter2',
+            'https://origin.test/%256Cive/joe/hunter2/1.ts',
+        ]) {
+            expect(sourceDisplayName({ title: 'Mine hunter2', url })).toBe(
+                new URL(url).host
+            );
+        }
+        // A password encoded twice still matches the name it appears in.
+        const url = `https://host.test/list?password=${encodeURIComponent(
+            encodeURIComponent('pw#9876')
+        )}`;
+        expect(sourceDisplayName({ title: 'Mine pw#9876', url })).toBe(
+            'host.test'
+        );
+    });
+
     it('drops a name holding a password under a short account key', () => {
         for (const key of ['pass', 'pas', 'PASS']) {
             const url = `https://host.test/list?user=joe&${key}=hunter2`;

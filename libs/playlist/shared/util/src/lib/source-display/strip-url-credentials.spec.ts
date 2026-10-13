@@ -83,6 +83,24 @@ describe('stripUrlCredentials', () => {
         expect(stripUrlCredentials(nested)).not.toMatch(/hunter2|joe/);
     });
 
+    it('reads parameter names and path markers through every encoding layer', () => {
+        expect(
+            stripUrlCredentials(
+                'https://proxy.test/list?%2570assword=hunter2&hd=1'
+            )
+        ).toBe('https://proxy.test/list?hd=1');
+        expect(
+            stripUrlCredentials('https://proxy.test/list?%2570ass=hunter2&hd=1')
+        ).toBe('https://proxy.test/list?hd=1');
+        const layered = 'https://origin.test/%256Cive/joe/hunter2/1.ts';
+        expect(stripUrlCredentials(layered)).not.toMatch(/hunter2|joe/);
+        expect(
+            stripUrlCredentials(
+                `https://proxy.test/list?url=${encodeURIComponent(layered)}`
+            )
+        ).not.toMatch(/hunter2|joe/);
+    });
+
     it('cleans a fragment that holds a URL rather than parameters', () => {
         expect(
             stripUrlCredentials(

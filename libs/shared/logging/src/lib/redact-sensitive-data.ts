@@ -54,21 +54,48 @@ const SENSITIVE_KEY_SUFFIXES = [
     'username',
 ];
 
-export const XTREAM_CREDENTIAL_PATH_SEGMENTS: ReadonlySet<string> = new Set([
+const XTREAM_CREDENTIAL_PATH_SEGMENTS: ReadonlySet<string> = new Set([
     'live',
     'movie',
     'series',
     'timeshift',
 ]);
-/** A path segment that precedes Xtream account segments, in any case. */
-function isXtreamCredentialMarker(segment: string): boolean {
-    let decoded = segment;
-    try {
-        decoded = decodeURIComponent(segment);
-    } catch {
-        // A malformed escape is compared as written.
+/** Percent-decoding rounds before a name is compared. */
+const MAX_DECODE_ROUNDS = 4;
+
+/**
+ * A name as it reads once every percent-encoding layer is undone, within a
+ * bound: `%2570assword` is `password`, and `%256Cive` is `live`. Every
+ * check that compares a key or marker by name must see this form, or one
+ * more encoding layer slips a secret past it. A malformed escape (`100%`)
+ * ends the decoding as written.
+ */
+export function decodeFully(value: string): string {
+    let current = value;
+    for (
+        let round = 0;
+        round < MAX_DECODE_ROUNDS && current.includes('%');
+        round += 1
+    ) {
+        let next: string;
+        try {
+            next = decodeURIComponent(current);
+        } catch {
+            break;
+        }
+        if (next === current) {
+            break;
+        }
+        current = next;
     }
-    return XTREAM_CREDENTIAL_PATH_SEGMENTS.has(decoded.toLowerCase());
+    return current;
+}
+
+/** A path segment that precedes Xtream account segments, in any spelling. */
+export function isXtreamCredentialMarker(segment: string): boolean {
+    return XTREAM_CREDENTIAL_PATH_SEGMENTS.has(
+        decodeFully(segment).toLowerCase()
+    );
 }
 
 export interface RedactionOptions {
@@ -86,7 +113,9 @@ interface ResolvedRedactionOptions {
 }
 
 function normalizeKey(key: string): string {
-    return key.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return decodeFully(key)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
 }
 
 export function isSensitiveKey(key: string): boolean {

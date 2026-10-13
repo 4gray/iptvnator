@@ -4,6 +4,7 @@ import {
     playlistNameHasCredentials,
     resolvePlaylistSourceKind,
 } from '@iptvnator/shared/interfaces';
+import { decodeFully } from '@iptvnator/shared/logging';
 import {
     isDisplaySensitiveKey,
     isXtreamAccountPath,
@@ -109,7 +110,9 @@ function collectUrlSecrets(
     };
     const visit = (params: URLSearchParams): void =>
         params.forEach((value, key) => {
-            const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normalized = decodeFully(key)
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '');
             if (isDisplaySensitiveKey(key)) {
                 if (depth > 0 || !SHOWN_ACCOUNT_KEYS.has(normalized)) {
                     secrets.push(value);
@@ -150,7 +153,8 @@ function sourceSecrets(playlist: SourceDisplayFields): string[] {
     const shown: string[] = [];
     for (const secret of secrets) {
         if (secret && secret.length >= MIN_SECRET_LENGTH) {
-            shown.push(secret, encodeURIComponent(secret));
+            // A value encoded more than once reads as itself in a name.
+            shown.push(secret, encodeURIComponent(secret), decodeFully(secret));
         }
     }
     return shown;

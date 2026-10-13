@@ -1,7 +1,8 @@
 import {
+    decodeFully,
     isSensitiveKey,
+    isXtreamCredentialMarker,
     looksLikeSearchParams,
-    XTREAM_CREDENTIAL_PATH_SEGMENTS,
 } from '@iptvnator/shared/logging';
 
 /**
@@ -65,8 +66,7 @@ export function isXtreamAccountPath(
     index: number
 ): boolean {
     return (
-        XTREAM_CREDENTIAL_PATH_SEGMENTS.has(segments[index].toLowerCase()) &&
-        index + 3 < segments.length
+        isXtreamCredentialMarker(segments[index]) && index + 3 < segments.length
     );
 }
 
@@ -76,7 +76,10 @@ export function isXtreamAccountPath(
  * The name check uses the same predicate, so it hides what the URL hides.
  */
 export function isDisplaySensitiveKey(key: string): boolean {
-    return SHORT_ACCOUNT_KEYS.has(key.toLowerCase()) || isSensitiveKey(key);
+    return (
+        SHORT_ACCOUNT_KEYS.has(decodeFully(key).toLowerCase()) ||
+        isSensitiveKey(key)
+    );
 }
 
 /** Free text that names a secret, such as `token=…` or `password: …`. */
