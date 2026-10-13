@@ -116,6 +116,7 @@ export class DashboardSourceExpiryService {
             serverUrl: string;
             username: string;
             password: string;
+            userAgent?: string | null;
         }
     ): Promise<SourceExpiryFacts | null> {
         try {
@@ -123,7 +124,8 @@ export class DashboardSourceExpiryService {
                 await this.portalStatusService.checkPortalStatusDetails(
                     playlist.serverUrl,
                     playlist.username,
-                    playlist.password
+                    playlist.password,
+                    { userAgent: playlist.userAgent }
                 );
             // An unreachable portal is unknown, not expired — no badge.
             if (details.status === 'unavailable') {

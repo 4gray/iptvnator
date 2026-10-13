@@ -75,6 +75,8 @@ describe('PwaService', () => {
         };
         const pending = service.sendIpcEvent(XTREAM_REQUEST, {
             url: 'https://provider.example',
+            userAgent:
+                ' Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ',
             params: { username: 'user', password: 'pass' },
             connectionTest: true,
         });
@@ -84,6 +86,9 @@ describe('PwaService', () => {
         await new Promise((resolve) => setTimeout(resolve));
         const request = http.expectOne((req) => req.url.endsWith('/xtream'));
         expect(request.request.params.get('connectionTest')).toBe('true');
+        expect(request.request.params.get('userAgent')).toBe(
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        );
         request.flush(failure);
         expect(await pending).toEqual(failure);
         expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();

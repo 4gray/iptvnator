@@ -966,6 +966,7 @@ export class LiveStreamLayoutComponent
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,
+                userAgent: playlist.userAgent?.trim() || undefined,
             },
             item.xtream_id,
             startTimestamp,
