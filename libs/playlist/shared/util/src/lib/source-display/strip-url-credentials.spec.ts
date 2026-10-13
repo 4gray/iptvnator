@@ -83,6 +83,55 @@ describe('stripUrlCredentials', () => {
         expect(stripUrlCredentials(nested)).not.toMatch(/hunter2|joe/);
     });
 
+    it('keeps a playlist path that only starts like an Xtream stream', () => {
+        // No stream follows `/news/list.m3u`: it names no account.
+        expect(stripUrlCredentials('https://cdn.test/live/news/list.m3u')).toBe(
+            'https://cdn.test/live/news/list.m3u'
+        );
+        expect(
+            stripUrlCredentials('https://cdn.test/live/joe/hunter2/list.m3u')
+        ).toBe('https://cdn.test/live/list.m3u');
+    });
+
+    it('cleans a nested URL encoded more than once', () => {
+        const origin = 'https://joe:hunter2@origin.test/a.m3u?token=tk98765';
+        for (const rounds of [1, 2, 3]) {
+            let value = origin;
+            for (let round = 0; round < rounds; round += 1) {
+                value = encodeURIComponent(value);
+            }
+            const shown = stripUrlCredentials(
+                `https://proxy.test/list?url=${value}&hd=1`
+            );
+            expect(shown).not.toMatch(/hunter2|joe|tk98765/);
+            expect(new URL(shown ?? '').searchParams.get('url')).toBe(
+                'https://origin.test/a.m3u'
+            );
+        }
+        // Still encoded after every round it decodes: not shown at all.
+        let deep = origin;
+        for (let round = 0; round < 8; round += 1) {
+            deep = encodeURIComponent(deep);
+        }
+        expect(
+            stripUrlCredentials(`https://proxy.test/list?url=${deep}&hd=1`)
+        ).toBe('https://proxy.test/list?hd=1');
+    });
+
+    it('keeps a nested URL’s own encoded parameters as written', () => {
+        const nested = `https://origin.test/a.m3u?q=${encodeURIComponent(
+            'a&b=c'
+        )}`;
+        const shown = stripUrlCredentials(
+            `https://proxy.test/list?url=${encodeURIComponent(nested)}`
+        );
+        expect(new URL(shown ?? '').searchParams.get('url')).toBe(nested);
+        // Plain text with a stray percent sign is not an escape.
+        expect(
+            stripUrlCredentials('https://proxy.test/list?note=100%25&hd=1')
+        ).toBe('https://proxy.test/list?note=100%25&hd=1');
+    });
+
     it('drops a kept part that still names a secret', () => {
         expect(
             stripUrlCredentials(

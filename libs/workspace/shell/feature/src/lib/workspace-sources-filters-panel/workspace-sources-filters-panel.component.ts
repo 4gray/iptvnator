@@ -137,6 +137,9 @@ export class WorkspaceSourcesFiltersPanelComponent {
     }
 
     addPlaylist(): void {
+        // On a phone the drawer is a focus-trapped modal of its own: it must
+        // not stay open under the dialog.
+        this.contextDrawer?.close();
         this.workspaceActions?.openAddPlaylistDialog();
     }
 }

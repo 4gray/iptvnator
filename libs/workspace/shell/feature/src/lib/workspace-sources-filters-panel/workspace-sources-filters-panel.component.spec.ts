@@ -7,7 +7,10 @@ import { SourceStatusService } from '@iptvnator/portal/shared/data-access';
 import { SourceRemovalService } from '@iptvnator/playlist/shared/ui';
 import { SourcesViewStateService } from '@iptvnator/playlist/shared/util';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
+import {
+    WORKSPACE_SHELL_ACTIONS,
+    WorkspaceShellContextDrawerService,
+} from '@iptvnator/workspace/shell/util';
 import { WorkspaceSourcesFiltersPanelComponent } from './workspace-sources-filters-panel.component';
 
 const PLAYLISTS = [
@@ -137,7 +140,13 @@ describe('WorkspaceSourcesFiltersPanelComponent', () => {
         expect(rows(element)).toHaveLength(4);
     });
 
-    it('adds a playlist from the header', () => {
+    it('adds a playlist from the header, closing the phone drawer first', () => {
+        const drawer = TestBed.inject(WorkspaceShellContextDrawerService);
+        drawer.open();
+        let drawerOpenAtDialog: boolean | null = null;
+        openAddPlaylistDialog.mockImplementation(() => {
+            drawerOpenAtDialog = drawer.isOpen();
+        });
         const element = render();
         element
             .querySelector<HTMLButtonElement>(
@@ -145,5 +154,7 @@ describe('WorkspaceSourcesFiltersPanelComponent', () => {
             )
             ?.click();
         expect(openAddPlaylistDialog).toHaveBeenCalled();
+        // Two focus-trapped modals must not stack.
+        expect(drawerOpenAtDialog).toBe(false);
     });
 });

@@ -110,6 +110,20 @@ describe('sourceDisplayName', () => {
         ).toBe('host.test');
     });
 
+    it('keeps a playlist file name from a path that names no account', () => {
+        const url = 'https://cdn.example/live/news/list.m3u';
+        expect(sourceDisplayName({ title: 'list.m3u', url })).toBe('list.m3u');
+    });
+
+    it('drops a name holding a secret of a nested URL encoded twice', () => {
+        const url = `https://proxy.test/list?url=${encodeURIComponent(
+            encodeURIComponent('http://joe:hunter2@origin.test/a.m3u')
+        )}`;
+        for (const title of ['Mine hunter2', 'Mine joe']) {
+            expect(sourceDisplayName({ title, url })).toBe('proxy.test');
+        }
+    });
+
     it('drops a name holding a secret of a URL nested in a path segment', () => {
         const url = `https://proxy.test/fetch/${encodeURIComponent(
             'http://origin.test/live/joe/hunter2/1.ts'

@@ -1,14 +1,15 @@
-import {
-    isSensitiveKey,
-    XTREAM_CREDENTIAL_PATH_SEGMENTS,
-} from '@iptvnator/shared/logging';
+import { isSensitiveKey } from '@iptvnator/shared/logging';
 import {
     PlaylistMeta,
     playlistDisplayLabel,
     playlistNameHasCredentials,
     resolvePlaylistSourceKind,
 } from '@iptvnator/shared/interfaces';
-import { stripUrlCredentials } from './strip-url-credentials';
+import {
+    isXtreamAccountPath,
+    stripUrlCredentials,
+    unwrapNestedValue,
+} from './strip-url-credentials';
 
 export type SourceDisplayFields = Partial<
     Pick<
@@ -94,7 +95,11 @@ function collectUrlSecrets(
     if (depth > 0) {
         secrets.push(safeDecode(url.username));
     }
-    const visitNested = (value: string): void => {
+    const visitNested = (raw: string): void => {
+        const value = unwrapNestedValue(raw);
+        if (value === null) {
+            return;
+        }
         const nested = ABSOLUTE_URL.test(value.trim()) ? parseUrl(value) : null;
         if (nested) {
             collectUrlSecrets(nested, secrets, depth + 1);
@@ -113,14 +118,12 @@ function collectUrlSecrets(
             }
             visitNested(value);
         });
-    // An Xtream stream path carries the account: `/live/<user>/<password>/`.
+    // An Xtream stream path carries the account:
+    // `/live/<user>/<password>/<stream>`.
     // A proxy may carry a whole URL in one segment.
     const segments = url.pathname.split('/').map(safeDecode);
     segments.forEach((segment, index) => {
-        if (
-            XTREAM_CREDENTIAL_PATH_SEGMENTS.has(segment.toLowerCase()) &&
-            index + 2 < segments.length
-        ) {
+        if (isXtreamAccountPath(segments, index)) {
             secrets.push(segments[index + 2]);
             if (depth > 0) {
                 secrets.push(segments[index + 1]);
