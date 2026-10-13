@@ -49,7 +49,12 @@
                     class="app-menu"
                     xPosition="before"
                 >
-                    <div role="group">
+                    <div
+                        role="group"
+                        [attr.aria-label]="
+                            'WORKSPACE.REFINE_SORT_SECTION' | translate
+                        "
+                    >
                         @for (option of sortOptions; track $index) {
                             <button
                                 mat-menu-item

@@ -293,6 +293,10 @@ describe('WorkspaceSourcesComponent', () => {
             ...Array(7).fill('menuitemradio'),
             'menuitemcheckbox',
         ]);
+        // The radio group is named by its section, as every menu group is.
+        expect(
+            rows[0].closest('[role="group"]')?.getAttribute('aria-label')
+        ).toBe('WORKSPACE.REFINE_SORT_SECTION');
         expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual([
             'true',
             ...Array(7).fill('false'),

@@ -116,6 +116,30 @@ describe('PlaylistSwitcherComponent', () => {
         expect(document.activeElement).toBe(trigger());
     });
 
+    it('refits the open popover when the window shrinks', () => {
+        const height = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+        const setHeight = (value: number) =>
+            Object.defineProperty(window, 'innerHeight', {
+                configurable: true,
+                value,
+            });
+        try {
+            setHeight(900);
+            trigger().click();
+            fixture.detectChanges();
+            const opened = fixture.componentInstance.maxHeight();
+
+            setHeight(600);
+            window.dispatchEvent(new Event('resize'));
+            expect(fixture.componentInstance.maxHeight()).not.toBe(opened);
+            expect(
+                parseInt(fixture.componentInstance.maxHeight() ?? '', 10)
+            ).toBeLessThanOrEqual(600);
+        } finally {
+            if (height) Object.defineProperty(window, 'innerHeight', height);
+        }
+    });
+
     it('opens on a ⌘P / Ctrl+P request while it is on screen', () => {
         const switcherOpen = TestBed.inject(PlaylistSwitcherOpenService);
         expect(switcherOpen.available).toBe(true);

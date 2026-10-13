@@ -68,6 +68,7 @@ const VIEWPORT_MARGIN = 12;
     templateUrl: './playlist-switcher.component.html',
     styleUrls: ['./playlist-switcher.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    host: { '(window:resize)': 'onWindowResize()' },
 })
 export class PlaylistSwitcherComponent {
     private readonly playlistContext = inject(PlaylistContextFacade);
@@ -148,12 +149,24 @@ export class PlaylistSwitcherComponent {
     }
 
     open(): void {
+        this.fitToViewport();
+        this.isOpen.set(true);
+    }
+
+    /** A window resized while the popover is open refits it. */
+    onWindowResize(): void {
+        if (this.isOpen()) {
+            this.fitToViewport();
+        }
+    }
+
+    /** Caps the popover to the room below the trigger; only its list scrolls. */
+    private fitToViewport(): void {
         const bottom =
             this.trigger().nativeElement.getBoundingClientRect().bottom;
         this.maxHeight.set(
             `${Math.max(240, window.innerHeight - bottom - 8 - VIEWPORT_MARGIN)}px`
         );
-        this.isOpen.set(true);
     }
 
     /** Closes the popover; focus goes back to the trigger. */
