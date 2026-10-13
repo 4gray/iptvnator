@@ -207,7 +207,11 @@ describe('Xtream Playwright scenario driver', () => {
             fake.asPage(),
             scenarioOptions(XTREAM_SCENARIO_ID.DELETE_LARGE)
         );
+        // Preparation stops at the open menu: Remove would start the Undo
+        // window, which commits on its own before a slow capture setup ends.
+        assert.equal(fake.clicksMatching('filter(Remove playlist)'), 0);
         await prepared.trigger();
+        assert.equal(fake.clicksMatching('filter(Remove playlist)'), 1);
         const armIndex = fake.log.indexOf('evaluate:install-operation');
         const clickIndex = fake.log.findIndex(
             (entry) =>

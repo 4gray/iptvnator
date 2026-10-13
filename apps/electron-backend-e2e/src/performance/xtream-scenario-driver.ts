@@ -19,6 +19,7 @@ import {
     prepareXtreamSourceActionTrigger,
     waitForXtreamCancellationTerminal,
     waitForXtreamCatalogTerminal,
+    removeXtreamSource,
     waitForXtreamSourceRowGone,
 } from './xtream-scenario-ui';
 import { assertXtreamMockOrigin } from './xtream-control-client';
@@ -202,8 +203,12 @@ function createPreparedScenario(state: PreparedState): PreparedXtreamScenario {
                     'delete-playlist'
                 );
             }
+            let commit = state.trigger;
+            if (state.options.scenarioId === XTREAM_SCENARIO_ID.DELETE_LARGE) {
+                commit = await removeXtreamSource(state.page, state.trigger);
+            }
             const triggerEpochMs = Date.now();
-            await state.trigger.click();
+            await commit.click();
             return {
                 scenarioId: state.options.scenarioId,
                 triggerEpochMs,

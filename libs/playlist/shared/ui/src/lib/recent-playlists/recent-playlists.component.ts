@@ -32,6 +32,7 @@ import {
     orderFailingFirst,
     PlaylistContextFacade,
     SourceBucketOf,
+    sourceSortName,
     SourcesViewStateService,
 } from '@iptvnator/playlist/shared/util';
 import {
@@ -128,7 +129,11 @@ export class RecentPlaylistsComponent {
             this.searchQueryInput(),
             bucketOf
         );
-        const sorted = this.sortService.sortPlaylists(filtered, options);
+        const sorted = this.sortService.sortPlaylists(
+            filtered,
+            options,
+            sourceSortName
+        );
         return options.failingFirst && options.by !== SortBy.CUSTOM
             ? orderFailingFirst(sorted, bucketOf)
             : sorted;
@@ -155,7 +160,8 @@ export class RecentPlaylistsComponent {
         const visibleIds = new Set(visible.map((item) => item._id));
         const ordered = this.sortService.sortPlaylists(
             this.allPlaylists(),
-            this.sortOptions()
+            this.sortOptions(),
+            sourceSortName
         );
         let shown = 0;
         const merged = ordered.map((item) =>

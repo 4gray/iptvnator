@@ -87,9 +87,9 @@ export async function prepareXtreamSourceActionTrigger(
         return confirmation;
     }
 
-    // Delete leaves the list at once and offers Undo; the toast's close
-    // button commits it without waiting out the Undo window, so the
-    // measurement starts when the delete does.
+    // Remove starts the Undo window, which commits on its own after four
+    // seconds: preparation stops at the open menu, and the trigger removes
+    // and commits at once (removeXtreamSource).
     const more = row.locator('.source-row__more');
     await assertTriggerReady(more, 'xtream-source-delete-menu');
     await more.click();
@@ -98,6 +98,18 @@ export async function prepareXtreamSourceActionTrigger(
         .filter({ hasText: 'Remove playlist' })
         .first();
     await assertTriggerReady(remove, 'xtream-source-delete');
+    return remove;
+}
+
+/**
+ * Clicks Remove and returns the Undo toast's close button, which commits the
+ * delete without waiting out the Undo window: the measured delete starts
+ * with that click.
+ */
+export async function removeXtreamSource(
+    page: Page,
+    remove: Locator
+): Promise<Locator> {
     await remove.click();
     const commit = page.locator(
         'mat-snack-bar-container.app-toast .source-removal-toast__close'

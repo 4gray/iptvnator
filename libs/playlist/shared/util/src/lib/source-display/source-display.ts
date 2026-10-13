@@ -135,6 +135,11 @@ export function sourceDisplayName(
     return containsSourceSecret(raw, playlist) ? host : raw;
 }
 
+/** The name a list shows and sorts a source by; empty when it has none. */
+export function sourceSortName(playlist: SourceDisplayFields): string {
+    return sourceDisplayName(playlist) ?? '';
+}
+
 /** `origin/…/last` once a path has more than two segments. */
 function compactPath(pathname: string): string {
     const segments = pathname.split('/').filter(Boolean);

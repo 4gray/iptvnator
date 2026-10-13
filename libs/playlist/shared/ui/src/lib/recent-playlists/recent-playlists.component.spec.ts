@@ -190,6 +190,22 @@ describe('RecentPlaylistsComponent', () => {
         restarted.destroy();
     });
 
+    it('sorts by the name it shows: the host for a URL-named source', () => {
+        store.overrideSelector(selectAllPlaylistsMeta, [
+            M3U,
+            XTREAM,
+            FILE,
+            source('url', {
+                title: 'get.php?username=a&password=b',
+                url: 'http://zzz.example/get.php?username=a&password=b',
+            }),
+        ]);
+        store.refreshState();
+        sort.next({ by: SortBy.NAME, order: SortOrder.ASC });
+        fixture.detectChanges();
+        expect(ids()).toEqual(['file', 'm3u', 'xtream', 'url']);
+    });
+
     it('applies the type and status filters together', () => {
         viewState.setType('m3u');
         expect(ids()).toEqual(['m3u', 'file']);

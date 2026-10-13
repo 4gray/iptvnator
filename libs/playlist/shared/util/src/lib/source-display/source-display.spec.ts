@@ -1,6 +1,7 @@
 import {
     sourceCopyUrl,
     sourceDisplayName,
+    sourceSortName,
     sourceDisplayUrl,
     sourceHost,
 } from './source-display';
@@ -80,6 +81,15 @@ describe('sourceDisplayName', () => {
         expect(sourceDisplayName({ title: '', filename: 'list.m3u' })).toBe(
             'list.m3u'
         );
+    });
+});
+
+describe('sourceSortName', () => {
+    it('sorts a source by the name it shows', () => {
+        expect(sourceSortName({ title: 'get.php?x=1', url: M3U_URL })).toBe(
+            sourceDisplayName({ title: 'get.php?x=1', url: M3U_URL })
+        );
+        expect(sourceSortName({ title: '' })).toBe('');
     });
 });
 

@@ -41,6 +41,31 @@ describe('SortService', () => {
         expect(ids).toEqual(['refreshed', 'new', 'old']);
     });
 
+    it('sorts by name as the list shows it, when told how', () => {
+        const sources = [
+            playlist('zed', { title: 'zed' }),
+            playlist('url', { title: 'get.php?username=zzz&password=x' }),
+            playlist('mid', { title: 'mid' }),
+        ];
+        const service = create();
+        const byTitle = service
+            .sortPlaylists(sources, { by: SortBy.NAME, order: SortOrder.ASC })
+            .map((item) => item._id);
+        expect(byTitle).toEqual(['url', 'mid', 'zed']);
+
+        // The URL-named source shows as its host, "abc.test".
+        const shown = (item: PlaylistMeta) =>
+            item._id === 'url' ? 'abc.test' : item.title;
+        const byShownName = service
+            .sortPlaylists(
+                sources,
+                { by: SortBy.NAME, order: SortOrder.DESC },
+                shown
+            )
+            .map((item) => item._id);
+        expect(byShownName).toEqual(['zed', 'mid', 'url']);
+    });
+
     it('sorts by channel count, with no count as zero', () => {
         const ids = create()
             .sortPlaylists(

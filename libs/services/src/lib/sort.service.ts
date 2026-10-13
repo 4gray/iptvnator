@@ -103,9 +103,16 @@ export class SortService {
         }
     }
 
+    /**
+     * @param nameOf The name a list shows for a source, for Name order: a
+     * list that shows a source by its host must sort it by its host, not by
+     * a stored title such as `get.php?username=…`.
+     */
     sortPlaylists(
         playlists: PlaylistMeta[],
-        options: SortOptions
+        options: SortOptions,
+        nameOf: (playlist: PlaylistMeta) => string = (playlist) =>
+            playlist.title
     ): PlaylistMeta[] {
         const { by, order } = options;
 
@@ -113,9 +120,9 @@ export class SortService {
             let comparison = 0;
 
             if (by === SortBy.NAME) {
-                comparison = a.title
+                comparison = nameOf(a)
                     .toLowerCase()
-                    .localeCompare(b.title.toLowerCase());
+                    .localeCompare(nameOf(b).toLowerCase());
             } else if (by === SortBy.DATE_ADDED) {
                 const dateA = new Date(a.importDate).getTime();
                 const dateB = new Date(b.importDate).getTime();

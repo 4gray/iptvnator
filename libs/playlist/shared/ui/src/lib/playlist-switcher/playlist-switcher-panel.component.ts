@@ -28,6 +28,7 @@ import {
     PlaylistContextFacade,
     PlaylistRecentHistoryService,
     SourceBucketOf,
+    sourceSortName,
     SourcesTypeFilter,
 } from '@iptvnator/playlist/shared/util';
 import { SortBy, SortService } from '@iptvnator/services';
@@ -138,7 +139,8 @@ export class PlaylistSwitcherPanelComponent {
         const options = this.sortOptions();
         const sorted = this.sortService.sortPlaylists(
             this.playlists(),
-            options
+            options,
+            sourceSortName
         );
         return options.failingFirst && options.by !== SortBy.CUSTOM
             ? orderFailingFirst(sorted, this.bucketOf)
