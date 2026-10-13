@@ -96,6 +96,17 @@ describe('stripUrlCredentials', () => {
         expect(stripUrlCredentials(url)).not.toMatch(/hunter2/);
     });
 
+    it('stays fast on long runs a backtracking pattern would retry', () => {
+        const run = 'a'.repeat(50_000);
+        const started = performance.now();
+        for (const value of [run, `${run}.`.repeat(2), 'a.'.repeat(25_000)]) {
+            stripUrlCredentials(
+                `https://host.test/list?note=${encodeURIComponent(value)}`
+            );
+        }
+        expect(performance.now() - started).toBeLessThan(1_000);
+    });
+
     it('returns null for text that is not an absolute URL', () => {
         expect(stripUrlCredentials('get.php?username=joe')).toBeNull();
         expect(stripUrlCredentials('')).toBeNull();

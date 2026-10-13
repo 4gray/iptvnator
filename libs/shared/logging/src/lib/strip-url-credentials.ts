@@ -12,11 +12,14 @@ const SHORT_ACCOUNT_KEYS = new Set(['user', 'usr', 'pass', 'pas']);
 
 /** How deep URLs nested in URLs are cleaned; anything deeper is dropped. */
 const MAX_NESTING = 4;
-const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:\/\//iu;
-const EMBEDDED_URL = /[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/giu;
+// Linear on any input: a match starts only where a name can start (the
+// lookbehinds), and every name part is bounded, so a long run of letters
+// cannot make a scan retry from each position.
+const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]{0,31}:\/\//iu;
+const EMBEDDED_URL = /(?<![a-z0-9+.-])[a-z][a-z0-9+.-]{0,31}:\/\/[^\s"'<>]+/giu;
 /** `joe:hunter2@origin.test`: an authority's userinfo without a scheme. */
-const BARE_USERINFO = /(?:^|[\s/])[^\s/:@]+:[^\s/@]*@[^\s/@]/u;
-const KEYED_PAIR = /\b([a-z][a-z0-9_.-]*)\s*[=:]/giu;
+const BARE_USERINFO = /(?:^|[\s/])[^\s/:@]{1,256}:[^\s/@]{0,256}@[^\s/@]/u;
+const KEYED_PAIR = /(?<![a-z0-9_.-])([a-z][a-z0-9_.-]{0,63})\s{0,8}[=:]/giu;
 
 function isDisplaySensitiveKey(key: string): boolean {
     return SHORT_ACCOUNT_KEYS.has(key.toLowerCase()) || isSensitiveKey(key);
