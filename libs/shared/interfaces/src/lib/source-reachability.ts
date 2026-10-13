@@ -106,6 +106,12 @@ export interface SourceHealthHistoryEntry {
     lastSuccessAt?: number;
     /** The cause of the last failed check; absent while `ok`. */
     reason?: SourceHealthReason;
+    /**
+     * Fingerprint of the connection that was checked
+     * (`sourceHealthFingerprint`): a result for an edited address or account
+     * is not this source's any more.
+     */
+    connection?: string;
 }
 
 /**
@@ -115,16 +121,23 @@ export interface SourceHealthHistoryEntry {
  * every later failed check.
  */
 export function nextSourceHealthHistory(
-    previous: SourceHealthHistoryEntry | undefined,
+    kept: SourceHealthHistoryEntry | undefined,
     reachability: SourceReachability,
     checkedAt: number,
-    reason?: SourceHealthReason
+    detail: { reason?: SourceHealthReason; connection?: string } = {}
 ): SourceHealthHistoryEntry | undefined {
+    const { reason, connection } = detail;
+    // A check of another connection starts the history over.
+    const previous =
+        kept?.connection && connection && kept.connection !== connection
+            ? undefined
+            : kept;
     if (!isConclusiveReachability(reachability)) {
         return previous;
     }
+    const checked = connection ? { connection } : {};
     if (reachability === 'ok') {
-        return { state: 'ok', checkedAt, lastSuccessAt: checkedAt };
+        return { state: 'ok', checkedAt, lastSuccessAt: checkedAt, ...checked };
     }
     const wasFailing = previous !== undefined && previous.state !== 'ok';
     return {
@@ -137,5 +150,6 @@ export function nextSourceHealthHistory(
             ? { lastSuccessAt: previous.lastSuccessAt }
             : {}),
         ...(reason ? { reason } : {}),
+        ...checked,
     };
 }

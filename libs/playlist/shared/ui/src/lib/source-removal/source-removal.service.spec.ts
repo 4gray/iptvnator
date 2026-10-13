@@ -17,7 +17,10 @@ import {
     RENDERER_PERFORMANCE_PHASE_HOOK_KEY,
     type RendererPerformancePhaseEvent,
 } from '@iptvnator/shared/logging';
-import { SourceRemovalService } from './source-removal.service';
+import {
+    SOURCE_REMOVAL_UNDO_MS,
+    SourceRemovalService,
+} from './source-removal.service';
 
 const playlist = (id: string): PlaylistMeta => ({
     _id: id,
@@ -30,6 +33,7 @@ const playlist = (id: string): PlaylistMeta => ({
 describe('SourceRemovalService', () => {
     let toasts: Array<{
         message: string;
+        data: { commitNow?: () => void };
         action: Subject<void>;
         dismissed: Subject<void>;
         dismiss: jest.Mock;
@@ -48,10 +52,11 @@ describe('SourceRemovalService', () => {
     let router: { url: string; navigate: jest.Mock; navigateByUrl: jest.Mock };
     let service: SourceRemovalService;
 
-    const toast = (message: string) => {
+    const toast = (message: string, data: { commitNow?: () => void } = {}) => {
         const dismissed = new Subject<void>();
         const entry: (typeof toasts)[number] = {
             message,
+            data,
             action: new Subject<void>(),
             dismissed,
             dismiss: jest.fn(() => dismissed.next()),
@@ -64,12 +69,16 @@ describe('SourceRemovalService', () => {
         };
     };
 
+    /** The Undo window ends: the service's own timer commits. */
+    const expireUndo = () => jest.advanceTimersByTime(SOURCE_REMOVAL_UNDO_MS);
+
     const flush = async () => {
         await Promise.resolve();
         await Promise.resolve();
     };
 
     beforeEach(() => {
+        jest.useFakeTimers();
         toasts = [];
         deletePlaylist = jest.fn().mockResolvedValue(true);
         cancelOperation = jest.fn().mockResolvedValue(true);
@@ -100,8 +109,13 @@ describe('SourceRemovalService', () => {
                         openFromComponent: jest.fn(
                             (
                                 _component: unknown,
-                                config: { data: { message: string } }
-                            ) => toast(config.data.message)
+                                config: {
+                                    data: {
+                                        message: string;
+                                        commitNow?: () => void;
+                                    };
+                                }
+                            ) => toast(config.data.message, config.data)
                         ),
                     },
                 },
@@ -121,15 +135,16 @@ describe('SourceRemovalService', () => {
         });
         service = TestBed.inject(SourceRemovalService);
     });
+    afterEach(() => jest.useRealTimers());
 
-    it('hides the source and deletes it only when the toast closes', async () => {
+    it('hides the source and deletes it only when the Undo window ends', async () => {
         const a = playlist('a');
         service.remove(a);
         expect(service.isPending('a')).toBe(true);
         expect(deletePlaylist).not.toHaveBeenCalled();
         expect(toasts[0].message).toBe('WORKSPACE.SOURCES.REMOVED');
 
-        toasts[0].dismissed.next();
+        expireUndo();
         await flush();
         expect(deletePlaylist).toHaveBeenCalledWith(a, {
             onEvent: expect.any(Function),
@@ -144,9 +159,35 @@ describe('SourceRemovalService', () => {
         service.remove(playlist('a'));
         toasts[0].action.next();
         toasts[0].dismissed.next();
+        expireUndo();
         await flush();
         expect(service.isPending('a')).toBe(false);
         expect(deletePlaylist).not.toHaveBeenCalled();
+    });
+
+    it('keeps the full Undo window when another message replaces the toast', async () => {
+        service.remove(playlist('a'));
+        // A refresh finishing elsewhere opens its own snack bar.
+        toasts[0].dismissed.next();
+        jest.advanceTimersByTime(SOURCE_REMOVAL_UNDO_MS - 1);
+        await flush();
+        expect(deletePlaylist).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(1);
+        await flush();
+        expect(deletePlaylist).toHaveBeenCalledTimes(1);
+    });
+
+    it('commits at once from the close button, and only once', async () => {
+        service.remove(playlist('a'));
+        toasts[0].data.commitNow?.();
+        await flush();
+        expect(deletePlaylist).toHaveBeenCalledTimes(1);
+        expect(toasts[0].dismiss).toHaveBeenCalled();
+
+        expireUndo();
+        await flush();
+        expect(deletePlaylist).toHaveBeenCalledTimes(1);
     });
 
     it('commits an earlier removal when a second one starts', async () => {
@@ -216,7 +257,7 @@ describe('SourceRemovalService', () => {
         deletePlaylist.mockReturnValue(new Promise(() => undefined));
         service.remove({ ...playlist('x'), serverUrl: 'http://x.test' });
         expect(service.isPending('x')).toBe(true);
-        toasts[0].dismissed.next();
+        expireUndo();
         await flush();
         expect(service.isPending('x')).toBe(false);
         expect(service.progress.isDeleting('x')).toBe(true);
@@ -233,7 +274,7 @@ describe('SourceRemovalService', () => {
             events.push(event);
         try {
             service.remove({ ...playlist('x'), serverUrl: 'http://x.test' });
-            toasts[0].dismissed.next();
+            expireUndo();
             await flush();
         } finally {
             delete target[hook];
@@ -263,7 +304,7 @@ describe('SourceRemovalService', () => {
             }
         );
         service.remove(playlist('x'));
-        toasts[0].dismissed.next();
+        expireUndo();
         await flush();
 
         // The row is back, in its busy state.
@@ -287,7 +328,7 @@ describe('SourceRemovalService', () => {
     it('brings the source back and says so when the delete fails', async () => {
         deletePlaylist.mockResolvedValue(false);
         service.remove(playlist('a'));
-        toasts[0].dismissed.next();
+        expireUndo();
         await flush();
         expect(dispatch).not.toHaveBeenCalled();
         expect(service.isPending('a')).toBe(false);

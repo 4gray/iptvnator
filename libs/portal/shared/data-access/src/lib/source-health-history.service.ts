@@ -28,11 +28,12 @@ function readHistory(): Map<string, SourceHealthHistoryEntry> {
                 continue;
             }
             // A reason this build cannot describe would show as a raw key.
-            const { reason, ...rest } = entry;
-            entries.set(
-                id,
-                isSourceHealthReason(reason) ? { ...rest, reason } : rest
-            );
+            const { reason, connection, ...rest } = entry;
+            entries.set(id, {
+                ...rest,
+                ...(isSourceHealthReason(reason) ? { reason } : {}),
+                ...(typeof connection === 'string' ? { connection } : {}),
+            });
         }
         return entries;
     } catch {
@@ -52,8 +53,9 @@ function toRecord(
  * The last conclusive health result of each source, by playlist ID, kept
  * across restarts. Live checks stay in memory (`SourceHealthService`); this
  * keeps only what a list needs before they run again: the state, when it
- * was checked, since when a source has failed and why. No URL or credential is
- * stored, so the entries need no redaction.
+ * was checked, since when a source has failed and why, and a fingerprint
+ * of the connection checked. No URL or credential is stored, so the
+ * entries need no redaction.
  */
 @Injectable({ providedIn: 'root' })
 export class SourceHealthHistoryService {
@@ -73,7 +75,16 @@ export class SourceHealthHistoryService {
         );
     }
 
-    record(ids: readonly string[], snapshot: SourceHealthSnapshot): void {
+    /**
+     * @param connection Fingerprint of the checked connection
+     * (`fingerprintSourceHealthKey`); a result for another connection than
+     * the kept one starts the history over.
+     */
+    record(
+        ids: readonly string[],
+        snapshot: SourceHealthSnapshot,
+        connection?: string
+    ): void {
         const reachability = sourceReachabilityFromHealth(snapshot);
         const next = new Map(this.state());
         let changed = false;
@@ -83,7 +94,7 @@ export class SourceHealthHistoryService {
                 previous,
                 reachability,
                 snapshot.checkedAt,
-                snapshot.reason
+                { reason: snapshot.reason, connection }
             );
             if (entry && entry !== previous) {
                 next.set(id, entry);

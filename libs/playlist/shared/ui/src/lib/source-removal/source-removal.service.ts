@@ -34,13 +34,18 @@ export interface SourceRemovalOptions {
 
 interface PendingRemoval {
     playlist: PlaylistMeta;
-    snackBar: MatSnackBarRef<SourceRemovalToastComponent>;
+    /** Its Undo toast, set once opened. */
+    snackBar?: MatSnackBarRef<SourceRemovalToastComponent>;
     /** The playlist was the active one; `next` replaced it, if any. */
     wasActive: boolean;
     wasOnItsRoute: boolean;
     previousUrl: string;
     next: PlaylistMeta | null;
     undone: boolean;
+    /** Undone or committed: nothing more happens to it. */
+    settled: boolean;
+    /** Commits when the Undo window ends, whatever happened to the toast. */
+    timer: ReturnType<typeof setTimeout> | undefined;
 }
 
 /**
@@ -50,7 +55,9 @@ interface PendingRemoval {
  * nothing is deleted while Undo is offered: the source only leaves the
  * lists (`pendingIds`), and the real delete runs when the toast closes
  * without Undo. Quitting the app inside those four seconds keeps the
- * source. One removal is pending at a time; a second delete commits the
+ * source. The window is the service's own timer, not the toast's: another
+ * message can replace the toast early without shortening it. One removal
+ * is pending at a time; a second delete commits the
  * first. A delete that reports progress (a large Xtream catalog) brings its
  * row back as "Removing…" with Cancel, which keeps the source. Bulk cleanup
  * keeps its confirmation dialog instead.
@@ -88,8 +95,10 @@ export class SourceRemovalService {
         if (this.isPending(playlist._id)) {
             return;
         }
-        // The toast for an earlier removal closes here and commits it.
-        this.pending?.snackBar.dismiss();
+        // A second delete commits the first at once.
+        if (this.pending) {
+            this.settle(this.pending);
+        }
 
         const wasActive =
             this.playlistContext.resolvedPlaylistId() === playlist._id;
@@ -112,6 +121,16 @@ export class SourceRemovalService {
                   next: this.nameOf(replacement),
               })
             : this.translate.instant('WORKSPACE.SOURCES.REMOVED', { name });
+        const removal: PendingRemoval = {
+            playlist,
+            wasActive,
+            wasOnItsRoute,
+            previousUrl,
+            next: replacement,
+            undone: false,
+            settled: false,
+            timer: undefined,
+        };
         const snackBar = this.snackBar.openFromComponent(
             SourceRemovalToastComponent,
             {
@@ -122,35 +141,43 @@ export class SourceRemovalService {
                     ),
                     closeLabel: this.translate.instant('CLOSE'),
                     returnFocusTo: options.returnFocusTo ?? null,
+                    commitNow: () => this.settle(removal),
                 },
                 duration: SOURCE_REMOVAL_UNDO_MS,
                 panelClass: 'app-toast',
             }
         );
-        const removal: PendingRemoval = {
-            playlist,
-            snackBar,
-            wasActive,
-            wasOnItsRoute,
-            previousUrl,
-            next: replacement,
-            undone: false,
-        };
+        removal.snackBar = snackBar;
+        removal.timer = setTimeout(
+            () => this.settle(removal),
+            SOURCE_REMOVAL_UNDO_MS
+        );
         this.pending = removal;
-
         snackBar.onAction().subscribe(() => this.undo(removal));
-        snackBar.afterDismissed().subscribe(() => {
-            if (this.pending === removal) {
-                this.pending = null;
-            }
-            if (!removal.undone) {
-                void this.commit(removal);
-            }
-        });
+    }
+
+    /** Ends the Undo window: commits the delete unless it was undone. */
+    private settle(removal: PendingRemoval): void {
+        if (removal.settled) {
+            return;
+        }
+        removal.settled = true;
+        clearTimeout(removal.timer);
+        if (this.pending === removal) {
+            this.pending = null;
+        }
+        removal.snackBar?.dismiss();
+        if (!removal.undone) {
+            void this.commit(removal);
+        }
     }
 
     private undo(removal: PendingRemoval): void {
+        if (removal.settled) {
+            return;
+        }
         removal.undone = true;
+        this.settle(removal);
         this.setPending(removal.playlist._id, false);
         if (!removal.wasActive) {
             return;

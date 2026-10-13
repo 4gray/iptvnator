@@ -22,6 +22,8 @@ export interface SourceRemovalToastData {
     closeLabel: string;
     /** Undo takes the focus, which returns here when the toast closes. */
     returnFocusTo?: HTMLElement | null;
+    /** The close button: commit the delete now rather than at the end. */
+    commitNow?: () => void;
 }
 
 /**
@@ -59,7 +61,7 @@ export interface SourceRemovalToastData {
                 mat-icon-button
                 type="button"
                 class="source-removal-toast__close"
-                (click)="ref.dismiss()"
+                (click)="close()"
                 [attr.aria-label]="data.closeLabel"
             >
                 <mat-icon>close</mat-icon>
@@ -96,5 +98,14 @@ export class SourceRemovalToastComponent {
                 returnFocusTo.focus();
             }
         });
+    }
+
+    /** Commits the delete at once; the toast closes with it. */
+    close(): void {
+        if (this.data.commitNow) {
+            this.data.commitNow();
+        } else {
+            this.ref.dismiss();
+        }
     }
 }

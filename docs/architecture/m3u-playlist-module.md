@@ -1858,9 +1858,13 @@ An M3U success describes the playlist URL, not every channel. Local files and
 text imports have no network indicator. PWA retains its existing Xtream path.
 Lists read one status per source through `SourceStatusService`, which falls
 back to the last conclusive result kept by `SourceHealthHistoryService`
-(localStorage, by playlist ID: state, check time and the start of a failing
-run; no URL or credential). Deleting a source or resetting the library clears
-its entry. See the [UI guidelines](iptvnator-ui-guidelines.md#network-source-indicators-electron).
+(localStorage, by playlist ID: state, check time, the start of a failing
+run, the check's cause and a 32-bit fingerprint of the checked connection;
+no URL or credential). A result kept for an edited address or account is
+ignored, and the next check starts the history over. Deleting a source or
+resetting the library clears its entry. The Sources page keeps every
+library source checked while it is open (`keepSourcesChecked`), so a status
+filter never hides the sources it is waiting for. See the [UI guidelines](iptvnator-ui-guidelines.md#network-source-indicators-electron).
 
 Checks are demand-driven, never a startup readiness barrier: four at a time,
 two per origin, shared between surfaces. Known results remain visible during

@@ -191,6 +191,50 @@ describe('Xtream Playwright scenario driver', () => {
         }
     });
 
+    it('arms the playlist delete before its commit click and ends on its completion', async () => {
+        const fake = new FakePage();
+        const completed = {
+            active: false,
+            operation: 'delete-playlist',
+            operationId: 'delete-playlist-1',
+            playlistId: 'playlist-1',
+            startedEpochMs: 100,
+            terminalEpochMs: 150,
+            terminalStatus: 'completed',
+        };
+        fake.operationSnapshot = completed;
+        const prepared = await prepareXtreamScenario(
+            fake.asPage(),
+            scenarioOptions(XTREAM_SCENARIO_ID.DELETE_LARGE)
+        );
+        await prepared.trigger();
+        const armIndex = fake.log.indexOf('evaluate:install-operation');
+        const clickIndex = fake.log.findIndex(
+            (entry) =>
+                entry.startsWith('click:') &&
+                entry.includes('.source-removal-toast__close')
+        );
+        assert.ok(armIndex >= 0, 'the delete window is armed');
+        assert.ok(armIndex < clickIndex, 'before the commit click');
+
+        await prepared.waitForTerminal();
+        assert.ok(
+            fake.log.indexOf('waitForFunction:operation-terminal') > clickIndex
+        );
+
+        const failed = new FakePage();
+        failed.operationSnapshot = { ...completed, terminalStatus: 'error' };
+        const failing = await prepareXtreamScenario(
+            failed.asPage(),
+            scenarioOptions(XTREAM_SCENARIO_ID.DELETE_LARGE)
+        );
+        await failing.trigger();
+        await assert.rejects(
+            () => failing.waitForTerminal(),
+            /xtream-delete-did-not-complete/
+        );
+    });
+
     it('arms cancellation after preparation and immediately before the final Add trigger', async () => {
         const fake = new FakePage();
         const prepared = await prepareXtreamScenario(

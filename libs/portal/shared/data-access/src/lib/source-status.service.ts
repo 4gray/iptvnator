@@ -8,6 +8,7 @@ import {
     isConclusiveReachability,
     PlaylistMeta,
     SourceHealthReason,
+    sourceHealthFingerprint,
     sourceHealthType,
     sourceReachabilityFromHealth,
     sourceReachabilityFromPortalStatus,
@@ -86,7 +87,13 @@ export class SourceStatusService {
         }
         const live = this.health.get(playlist);
         const reachability = sourceReachabilityFromHealth(live);
-        const kept = this.history.entries().get(playlist._id);
+        const entry = this.history.entries().get(playlist._id);
+        // A result kept for the source's old address or account is not its.
+        const kept =
+            entry?.connection &&
+            entry.connection !== sourceHealthFingerprint(playlist)
+                ? undefined
+                : entry;
         if (isConclusiveReachability(reachability)) {
             return {
                 reachability,

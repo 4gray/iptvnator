@@ -7,6 +7,7 @@ import {
 import {
     PlaylistMeta,
     SourceHealthHistoryEntry,
+    sourceHealthFingerprint,
     SourceHealthSnapshot,
 } from '@iptvnator/shared/interfaces';
 import { SourceHealthHistoryService } from './source-health-history.service';
@@ -102,6 +103,40 @@ describe('SourceStatusService', () => {
                 checkedAt: 900,
                 reason: 'network',
             });
+        });
+
+        it('ignores a result kept for the source before its address changed', () => {
+            history.set(
+                new Map([
+                    [
+                        'm',
+                        {
+                            state: 'bad',
+                            checkedAt: 50,
+                            failingSince: 10,
+                            connection: 'another-address',
+                        },
+                    ],
+                ])
+            );
+            const service = create(true);
+            expect(service.statusOf(m3u)).toEqual({
+                reachability: 'unknown',
+            });
+
+            history.set(
+                new Map([
+                    [
+                        'm',
+                        {
+                            state: 'bad',
+                            checkedAt: 50,
+                            connection: sourceHealthFingerprint(m3u),
+                        },
+                    ],
+                ])
+            );
+            expect(service.statusOf(m3u)?.reachability).toBe('bad');
         });
 
         it("keeps a failed check's cause across a restart", () => {

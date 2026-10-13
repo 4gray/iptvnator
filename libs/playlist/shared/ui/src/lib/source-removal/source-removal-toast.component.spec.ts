@@ -65,6 +65,16 @@ describe('SourceRemovalToastComponent', () => {
         ).toBe('Close');
     });
 
+    it('commits through the service from the close button when it can', () => {
+        const commitNow = jest.fn();
+        data['commitNow'] = commitNow;
+        render()
+            .querySelector<HTMLButtonElement>('.source-removal-toast__close')
+            ?.click();
+        expect(commitNow).toHaveBeenCalled();
+        expect(ref.dismiss).not.toHaveBeenCalled();
+    });
+
     it('takes the focus when the delete left it nowhere', () => {
         const element = render();
         (document.activeElement as HTMLElement | null)?.blur();

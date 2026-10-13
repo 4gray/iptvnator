@@ -4,6 +4,7 @@ import {
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
+    fingerprintSourceHealthKey,
     PlaylistMeta,
     SourceHealthSnapshot,
     SourceHealthResult,
@@ -307,6 +308,7 @@ export class SourceHealthService {
         const ids = [...this.identities]
             .filter(([, identity]) => identity === key)
             .map(([id]) => id);
-        if (ids.length) this.history.record(ids, snapshot);
+        if (ids.length)
+            this.history.record(ids, snapshot, fingerprintSourceHealthKey(key));
     }
 }

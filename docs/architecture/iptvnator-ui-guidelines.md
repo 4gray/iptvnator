@@ -1369,8 +1369,10 @@ in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
   the full address on request.
 - **Delete with Undo.** A single delete has no confirmation: the row leaves
   every list at once (`SourceRemovalService.pendingIds`) and the delete runs
-  when the toast closes; its close button commits at once, and quitting
-  within the four seconds keeps the source. Deleting the active source
+  when the four-second Undo window ends. The window is the service's own
+  timer, not the toast's: another message replacing the toast (a refresh
+  finishing elsewhere) does not shorten it. The toast's close button commits
+  at once, and quitting within the four seconds keeps the source. Deleting the active source
   switches to the next row; Undo switches back only if no other source was
   chosen since. A desktop Xtream delete brings its row back as "Removing…"
   with progress and Cancel on the Sources page; the switcher leaves the
@@ -1405,9 +1407,11 @@ The status dot on a source tile reads `SourceStatusService`: green answers,
 red does not, orange is an expired account, grey is not checked yet; local
 files have no dot. On desktop the live `SourceHealthService` result wins; the
 last conclusive result per source is kept across restarts
-(`SourceHealthHistoryService`, no URL or credential stored), so a source that
-failed yesterday shows as failing before it is checked again, with "Not
-responding · 3 days". The dot's tooltip and accessible name give the
+(`SourceHealthHistoryService`, no URL or credential stored, only a 32-bit
+fingerprint of the connection), so a source that failed yesterday shows as
+failing before it is checked again, with "Not responding · 3 days". An
+edited address or account is a new connection: its kept result no longer
+counts, and its history starts over. The dot's tooltip and accessible name give the
 check's cause (`SourceStatus.reason`: access denied, account disabled,
 timeout…, kept with the history) and check time; M3U checks say they
 cover the playlist URL, not its channels. Retry and Check

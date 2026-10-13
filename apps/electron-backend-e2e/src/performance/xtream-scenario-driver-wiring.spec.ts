@@ -68,6 +68,7 @@ describe('Xtream scenario driver source wiring', () => {
         );
         assert.ok(driver.includes('installXtreamCancellationObserver'));
         assert.ok(driver.includes('installXtreamOperationWindow'));
+        assert.ok(driver.includes("'delete-playlist'"));
         assert.ok(driver.includes('runBackgroundProbe'));
         assert.doesNotMatch(combined, /waitForTimeout\s*\(/);
         assert.doesNotMatch(combined, /setTimeout\s*\(/);

@@ -139,14 +139,15 @@ export async function waitForXtreamCancellationTerminal(
     );
 }
 
-export async function waitForXtreamDeleteTerminal(
+/**
+ * After the database reports the delete complete: the row, back as
+ * "Removing…" while it ran or never shown again for a fast delete, leaves.
+ */
+export async function waitForXtreamSourceRowGone(
     page: Page,
     sourceTitle: string
 ): Promise<void> {
-    const row = xtreamSourceRow(page, sourceTitle);
-    // The row returns as "Removing…" once the delete starts, then leaves.
-    await row.waitFor({ state: 'attached' });
-    await row.waitFor({ state: 'detached' });
+    await xtreamSourceRow(page, sourceTitle).waitFor({ state: 'detached' });
 }
 
 async function selectXtreamMethod(dialog: Locator): Promise<void> {

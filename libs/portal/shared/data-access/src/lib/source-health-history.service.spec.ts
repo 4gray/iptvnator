@@ -47,6 +47,19 @@ describe('SourceHealthHistoryService', () => {
         );
     });
 
+    it('keeps the fingerprint of the checked connection, and starts over for another', () => {
+        const history = create();
+        history.record(['a'], failed(100), 'aaaa1111');
+        history.record(['a'], failed(900), 'bbbb2222');
+        expect(history.entries().get('a')).toEqual({
+            state: 'bad',
+            checkedAt: 900,
+            failingSince: 900,
+            reason: 'network',
+            connection: 'bbbb2222',
+        });
+    });
+
     it('drops a stored cause this build cannot describe', () => {
         localStorage.setItem(
             SOURCE_HEALTH_HISTORY_STORAGE_KEY,

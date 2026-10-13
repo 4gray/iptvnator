@@ -73,11 +73,37 @@ describe('nextSourceHealthHistory', () => {
     });
 
     it('keeps the cause of a failure, never of a success', () => {
-        const failed = nextSourceHealthHistory(undefined, 'bad', 100, 'auth');
+        const failed = nextSourceHealthHistory(undefined, 'bad', 100, {
+            reason: 'auth',
+        });
         expect(failed?.reason).toBe('auth');
-        expect(nextSourceHealthHistory(failed, 'ok', 200, 'available')).toEqual(
-            { state: 'ok', checkedAt: 200, lastSuccessAt: 200 }
-        );
+        expect(
+            nextSourceHealthHistory(failed, 'ok', 200, { reason: 'available' })
+        ).toEqual({ state: 'ok', checkedAt: 200, lastSuccessAt: 200 });
+    });
+
+    it('starts over for an edited connection, keeps the run for the same one', () => {
+        const failed = nextSourceHealthHistory(undefined, 'bad', 100, {
+            connection: 'old',
+        });
+        expect(
+            nextSourceHealthHistory(failed, 'bad', 900, { connection: 'old' })
+                ?.failingSince
+        ).toBe(100);
+        expect(
+            nextSourceHealthHistory(failed, 'bad', 900, { connection: 'new' })
+        ).toEqual({
+            state: 'bad',
+            checkedAt: 900,
+            failingSince: 900,
+            connection: 'new',
+        });
+        // An inconclusive check of the new connection keeps nothing old.
+        expect(
+            nextSourceHealthHistory(failed, 'unknown', 900, {
+                connection: 'new',
+            })
+        ).toBeUndefined();
     });
 
     it('ends the run when the source answers again', () => {
