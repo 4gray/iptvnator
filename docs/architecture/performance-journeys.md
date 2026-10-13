@@ -250,8 +250,9 @@ swaps `apps/web/src/environments/environment.ts` for
 and calls `installChangeDetectionTickCounter()` from
 `change-detection-tick-counter.ts` while `main.js` is evaluated, before
 Angular bootstraps. The counter wraps the internal `ApplicationRef._tick`,
-the method every tick runs through: the zone scheduler's `onMicrotaskEmpty`,
-the zoneless scheduler, `afterNextRender` idle buckets and the public
+the method every tick runs through: the zoneless scheduler (and, before the
+zoneless flip, the zone scheduler's `onMicrotaskEmpty`), `afterNextRender`
+idle buckets and the public
 `ApplicationRef.tick()` all call it, and it is where Angular emits the
 profiler's `ChangeDetectionStart`. The count therefore equals the profiler's
 tick count and stays comparable across the zoneless migration. The running
@@ -295,6 +296,16 @@ two startup callbacks that land in one task on one launch and in two tasks
 on another differ by one tick without any different work. Treat a one-tick
 difference in J1 as that race, and confirm on the CI runner that the counter
 is deterministic before it becomes a baseline.
+
+Since the zoneless flip (plan item C6) the renderer has no zone.js: a tick
+runs only when a signal, a `markForCheck`, an Angular event or an
+`afterNextRender` hook schedules one, so the race above is gone. The first
+local measurement after the flip (macOS, 2026-10-13, five iterations each)
+read `renderer.cdTicksToFirstCard` 5, `renderer.cdTicksIdle30s` 3 and
+`renderer.cdTicksToFirstPage` 9 in every iteration, `renderer.cdTicksToPlaying`
+7 or 8 and J4 `renderer.cdTicksToResults` 11 or 12; the DOM mutation counts
+were identical across iterations. The history of the migration and the
+before/after tables are in [zoneless migration](zoneless-migration.md).
 
 #### Main-process counters
 
@@ -1150,8 +1161,8 @@ runtime flag: `if (!AppConfig.production)` keeps the imported module in
 `main.js` because the optimizer does not fold the property read. The NgRx
 store devtools therefore come from
 `apps/web/src/environments/store-devtools.providers.ts`, an empty list in
-every build, which only the `development`, `electron-e2e` and
-`electron-e2e-zoneless` configurations replace with
+every build, which only the `development` and `electron-e2e` configurations
+replace with
 `store-devtools.providers.dev.ts`; a build-config test in
 `performance-build-config.spec.ts` keeps it that way. Removing the static
 import lowered the counter by 12,565 bytes.
