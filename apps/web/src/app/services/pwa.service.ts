@@ -18,6 +18,7 @@ import {
     isServerAccessChallenge,
     ServerStorageStatusService,
 } from '@iptvnator/services';
+import { isBackendUrl } from '@iptvnator/services/server-storage';
 import {
     CONNECTIVITY_GUARD_RESET,
     ERROR,
@@ -100,8 +101,15 @@ export class PwaService extends DataService {
         XtreamCodeActions.GetSimpleDateTable,
     ]);
 
-    /** Proxy URL to avoid CORS issues */
-    corsProxyUrl = getRuntimeBackendUrl();
+    /** The backend's URL as configured: `/` for the page's own origin. */
+    private readonly backendUrl = getRuntimeBackendUrl();
+
+    /**
+     * Proxy URL to avoid CORS issues, without trailing slashes: paths are
+     * appended to it, and `BACKEND_URL=/` must give `/xtream`, never the
+     * protocol-relative `//xtream` (another host).
+     */
+    corsProxyUrl = this.backendUrl.replace(/\/+$/, '');
 
     constructor() {
         super();
@@ -200,19 +208,17 @@ export class PwaService extends DataService {
         );
 
         try {
-            const token = this.serverAccessToken();
-            const response = await fetch(
-                `${this.corsProxyUrl}/connectivity-guard/reset`,
-                {
-                    body: JSON.stringify({ url: payload.url }),
-                    headers: {
-                        'content-type': 'application/json',
-                        ...bearer(token),
-                    },
-                    method: 'POST',
-                    signal: controller.signal,
-                }
-            );
+            const url = `${this.corsProxyUrl}/connectivity-guard/reset`;
+            const token = this.serverAccessToken(url);
+            const response = await fetch(url, {
+                body: JSON.stringify({ url: payload.url }),
+                headers: {
+                    'content-type': 'application/json',
+                    ...bearer(token),
+                },
+                method: 'POST',
+                signal: controller.signal,
+            });
             this.noteServerAccess(response, token);
 
             if (!response.ok) {
@@ -647,7 +653,7 @@ export class PwaService extends DataService {
             logPortalDebugRequest(context);
 
             // Make the fetch request
-            const accessToken = this.serverAccessToken();
+            const accessToken = this.serverAccessToken(requestUrl);
             const response = await fetch(requestUrl, {
                 headers: bearer(accessToken),
             });
@@ -806,10 +812,13 @@ export class PwaService extends DataService {
 
     /**
      * The stored server token, only while server mode runs for this
-     * backend: a token kept from another backend must not reach this one.
+     * backend and only for a request that goes to it: a token kept from
+     * another backend must not reach this one, nor any other host.
      */
-    private serverAccessToken(): string | null {
-        return this.serverStatus.accessToken();
+    private serverAccessToken(url: string): string | null {
+        return isBackendUrl(url, this.backendUrl)
+            ? this.serverStatus.accessToken()
+            : null;
     }
 
     /** A token changed on the server shows up on any backend call. */

@@ -61,6 +61,26 @@ describe('Stalker items', () => {
             { id: 7, category_id: 'vod', name: 'Movie' },
         ]);
     });
+
+    it('keep a movie and a series of one provider category apart', () => {
+        expect(
+            unionItems<Record<string, unknown>>(
+                [{ id: 7, category_id: '12', name: 'Movie' }],
+                [
+                    { id: 7, category_id: '12', is_series: 1, name: 'Show' },
+                    {
+                        id: 7,
+                        category_id: '12',
+                        is_series: true,
+                        name: 'Again',
+                    },
+                ]
+            )
+        ).toEqual([
+            { id: 7, category_id: '12', name: 'Movie' },
+            { id: 7, category_id: '12', is_series: 1, name: 'Show' },
+        ]);
+    });
 });
 
 describe('playback positions', () => {

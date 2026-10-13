@@ -571,6 +571,55 @@ describe('PwaService', () => {
         }
     });
 
+    it('sends the server token to the backend only, also with BACKEND_URL=/', async () => {
+        writeServerAccessToken('kept-token', 'i');
+        TestBed.inject(ServerStorageStatusService).activate(
+            {
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: 'i',
+                storage: 'server',
+                auth: 'token',
+            },
+            () => undefined
+        );
+        window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: '/' };
+        const atRoot = TestBed.runInInjectionContext(() => new PwaService());
+        delete window.__IPTVNATOR_CONFIG__;
+        const originalFetch = globalThis.fetch;
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            json: async () => ({ reset: true }),
+        } as unknown as Response);
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const reset = () =>
+            atRoot.sendIpcEvent(CONNECTIVITY_GUARD_RESET, {
+                url: 'http://portal.example:8080/portal.php',
+            });
+
+        try {
+            await reset();
+            // Not `//connectivity-guard/reset`: that is another host.
+            expect(fetchMock.mock.calls[0][0]).toBe(
+                '/connectivity-guard/reset'
+            );
+            expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
+                Authorization: 'Bearer kept-token',
+            });
+
+            atRoot.corsProxyUrl = 'https://elsewhere.example';
+            await reset();
+            expect(fetchMock.mock.calls[1][1].headers).not.toHaveProperty(
+                'Authorization'
+            );
+        } finally {
+            globalThis.fetch = originalFetch;
+            clearServerAccessToken();
+        }
+    });
+
     it('asks the backend to forget a host when the connectivity guard is reset', async () => {
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,

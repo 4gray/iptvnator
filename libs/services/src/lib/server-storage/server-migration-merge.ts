@@ -1,3 +1,5 @@
+import { isStalkerSeriesFlag } from '@iptvnator/shared/interfaces';
+
 /**
  * How the move to the server combines user data that two places hold for
  * one playlist: the server's value comes first and wins, the browser only
@@ -56,12 +58,13 @@ export function itemKey(item: unknown): string {
     ) {
         return `position:${item['contentType']}:${item['contentXtreamId']}`;
     }
-    // Stalker ids repeat across content types; the category tells them apart.
+    // Stalker ids repeat across content types; the category tells them
+    // apart, and the series flag where a provider category holds both.
     const category = item['category_id'];
     const scope =
-        typeof category === 'string' || typeof category === 'number'
+        (typeof category === 'string' || typeof category === 'number'
             ? `|category:${category}`
-            : '';
+            : '') + (isStalkerSeriesFlag(item['is_series']) ? '|series' : '');
     for (const field of ['id', 'stream_id', 'series_id', 'movie_id', 'url']) {
         const value = item[field];
         if (typeof value === 'string' || typeof value === 'number') {

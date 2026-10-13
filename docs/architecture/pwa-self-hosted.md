@@ -311,7 +311,10 @@ settings and guards read them in every build.
   does not send the new server's token there, and goes to sign-in instead.
   `ServerAccessTokenInterceptor` adds the header to `HttpClient` calls to the
   backend, and `PwaService` adds it to its two raw `fetch` calls only while
-  server mode runs on a verified instance. The browser forgets the token
+  server mode runs on a verified instance and only when the URL resolves
+  to the backend (`isBackendUrl`); it joins paths to the backend URL
+  without its trailing slashes, so `BACKEND_URL=/` never yields a
+  protocol-relative `//…` URL that names another host. The browser forgets the token
   when the backend answers without server storage, or as another server or
   database (backend URL or instance id) than the one it remembers; sign-in
   therefore remembers the server along with the token, or reports storage
@@ -332,7 +335,9 @@ settings and guards read them in every build.
   others upload with their ids. A merged playlist gains the browser
   document's favorites and history (M3U favorites name channels by stream
   URL; older ones by a channel id that is random per import and is
-  translated through the URL; nothing is dropped), and the legacy Xtream maps follow under
+  translated through the URL; Stalker items by id, category and series
+  flag, since one provider category can hold a movie and a series of one
+  id; nothing is dropped), and the legacy Xtream maps follow under
   the server id; each copy's bare legacy Xtream ids are typed from its own
   snapshots first (`typeLegacyXtreamRefs`; snapshots keep their bare key as
   an alias), then `combineUserData` unions
