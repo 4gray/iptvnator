@@ -75,7 +75,7 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-success-color` — done/watched status (episode watched toggle)
 - `--app-list-selected-bg` / `--app-list-selected-fg` /
   `--app-list-selected-outline` — the chosen row of a side list and the
-  switcher's current row (see Selection Pattern)
+  active source's row on Sources and in the switcher (see Selection Pattern)
 - `--app-line-strong` — popover and menu borders, a step above
   `--app-widget-header-border`
 - `--app-danger-text` / `--app-danger-surface` — a failing source's tag and
@@ -183,7 +183,8 @@ Use this pattern for:
 Do not add extra badges, left rails, or second selection systems unless there is a strong reason.
 
 Side lists styled with `_side-list.scss` (the Sources filters) and the
-playlist switcher's current row use the Settings navigation's variant
+active source's row (Sources page and playlist switcher) use the Settings
+navigation's variant
 instead, through `--app-list-selected-*`: a soft tint with no lift or glow,
 outlined in light theme. Its text is the heading colour in light theme (the
 selection blue on its own tint is 3.3:1) and the selection colour in dark.
@@ -1354,8 +1355,9 @@ the source with Enter, and deletes and undoes a source keyboard-only.
 One `app-source-row` serves both lists: `size="regular"` on the Sources page
 (56px, 36px tile, hover actions Refresh, Edit and ⋯; a failing row keeps
 Retry in view; touch screens always show the actions) and `size="compact"`
-in the switcher (52px, 32px tile, ⋯ only; the current row is tinted with a
-check). The meta line is always type · channels · added · updated · URL, with
+in the switcher (52px, 32px tile, ⋯ only). In both the active source's row
+is tinted with the selected-row token; the switcher adds a check. The page
+header (title, Clean up, Sort) stays; only the list below it scrolls. The meta line is always type · channels · added · updated · URL, with
 empty parts left out; only M3U playlists store a channel count. The helpers
 in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
 `source-list`) own that text, the filters and the counts.

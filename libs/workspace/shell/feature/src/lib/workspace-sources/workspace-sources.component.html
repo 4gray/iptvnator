@@ -1,7 +1,4 @@
-<section
-    class="sources-page app-scrollbar"
-    [class.sources-page--empty]="!hasPlaylists()"
->
+<section class="sources-page" [class.sources-page--empty]="!hasPlaylists()">
     @if (hasPlaylists()) {
         <header class="sources-header">
             <div class="sources-header__title">
@@ -92,7 +89,7 @@
             </div>
         </header>
     }
-    <div class="sources-content">
+    <div class="sources-content app-scrollbar">
         <app-recent-playlists
             [searchQueryInput]="searchQuery()"
             (addPlaylistClicked)="onAddPlaylist($event)"

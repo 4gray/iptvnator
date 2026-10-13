@@ -241,10 +241,12 @@ describe('WorkspaceSourcesComponent', () => {
         expect(
             element.querySelector('.sources-count')?.textContent?.trim()
         ).toBe('2');
-        // The page scrolls as one; the header is not a separate bar.
-        expect(element.querySelector('.sources-page')?.classList).toContain(
-            'app-scrollbar'
-        );
+        // The header stays; the list below it scrolls.
+        const scroller = element.querySelector('.sources-content');
+        expect(scroller?.classList).toContain('app-scrollbar');
+        expect(
+            scroller?.contains(element.querySelector('.sources-header'))
+        ).toBe(false);
     });
 
     it('titles the page by the status filter and counts what it shows', async () => {
