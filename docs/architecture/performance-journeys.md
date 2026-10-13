@@ -927,11 +927,13 @@ put behind the request ledger: global search reads only the local database.
 
 **What typing does.** The header search box
 (`app-workspace-shell-header .search-field input[type="search"]`) applies
-its term after `SEARCH_INPUT_DEBOUNCE_MS` (350 ms,
+its term after `SEARCH_INPUT_DEBOUNCE_MS` (300 ms,
 `WorkspaceShellSearchSyncService`) and writes it to the URL as `q`. On
 `/workspace/search` (`app.routes.ts`, Electron only) `SearchResultsComponent`
-adopts `q` and runs `executeSearch` after its own 300 ms debounce, which
-calls the `dbGlobalSearch` bridge method once with a limit of 101.
+runs `executeSearch` as soon as the applied term reaches the store, with no
+debounce of its own, which calls the `dbGlobalSearch` bridge method once
+with a limit of 101. A newer term supersedes a query still in flight: its
+result is dropped by request version.
 
 **Start.** After J1 has ended, the test clicks the rail's **Global search**
 link and focuses the header search box (not measured), installs the IPC
@@ -941,7 +943,7 @@ been quiet for 1 s: no DOM mutation, no new or pending bridge call, and an
 unchanged `main.sqlStatements` total (30 s timeout, which fails the
 iteration). J1's capture is detached. The test then types the query with one
 `keyboard.type` call per character on a fixed schedule, 100 ms apart from
-the first key (well below the 350 ms debounce, as steady typing would be),
+the first key (well below the 300 ms debounce, as steady typing would be),
 and samples the main process just before each key. The probe's
 capture-phase `keydown` listener on `window` stamps every key in the search
 box before the app sees it; the first one starts the journey and sends
@@ -950,7 +952,7 @@ rejects an iteration whose DOM mutations, bridge calls or SQL statements
 moved between the quiet snapshot and the first key.
 
 **End.** "No DOM mutation for 200 ms after the last keystroke" alone would
-end inside the 650 ms of debounce, before any query ran: nothing in the DOM
+end inside the 300 ms of debounce, before any query ran: nothing in the DOM
 changes while the term waits. So after the sixth key the probe waits for
 the results of the final term to be shown (the path ends with
 `/workspace/search`, the URL `q` is the query, no `.loading-state` is
@@ -975,7 +977,7 @@ window closed until its results replace the old ones.
 `evidence.finalQuery` keeps its term, result length and duration. The
 record also rejects an iteration in which two keydowns were more than
 250 ms apart (`typing-cadence`; the gaps are `evidence.keyIntervalsMs`).
-At that point a late key on a busy machine could let the 350 ms debounce
+At that point a late key on a busy machine could let the 300 ms debounce
 apply an intermediate term, which steady typing does not.
 
 A settle that times out fails the iteration with what the probe and the
@@ -1017,9 +1019,10 @@ counter: global search does not touch the network.
 | `firstKeystrokeToFirstResultMs.p50/.p90` | First mutation batch with a visible result card (for any term) minus the first keydown.                                                  |
 | `lastKeystrokeToSettledMs.p50/.p90`      | Settled moment (the last mutation batch before the 200 ms quiet window) minus the last keydown. The quiet window itself is not included. |
 
-Both are taken in the renderer. With the current debounces both include
-the 650 ms the term waits (350 ms in the shell, then 300 ms in the results
-component); the first also includes the 500 ms of typing.
+Both are taken in the renderer. Both include the 300 ms the term waits in
+the shell; the first also includes the 500 ms of typing. Until the single
+debounce below, the wait was 650 ms (350 ms in the shell, then 300 ms in the
+results component).
 
 ### First measurement
 
@@ -1045,6 +1048,46 @@ debounces (350 ms in the shell, then 300 ms in the results component). The
 query itself, from the bridge call to the rendered first page, takes the
 remaining 30-40 ms.
 
+### One debounce
+
+The results component's own 300 ms timer is gone: the shell debounce is
+now the only one, and global search runs as soon as the shell applies the
+term. `SEARCH_INPUT_DEBOUNCE_MS` went from 350 to 300 ms. It has to stay
+above the gap between keys of steady typing, or a word typed in one go
+queries once per key; 300 ms covers an average typist (about 200-250 ms
+between keys) with some margin, while the query and first page take only
+30-40 ms of the remaining time. The route sync in the component reads the
+store term untracked, so a term the shell applied before it writes `q` is
+no longer pushed back to the previous `q` and queried again.
+
+Local, macOS, 2026-10-11, three J4 runs per build (five measured
+iterations each), the same machine, master `633fde3e0` against this
+change:
+
+| Measurement                          | Two debounces        | One debounce         |
+| ------------------------------------ | -------------------- | -------------------- |
+| `lastKeystrokeToSettledMs` P50 / P90 | 692-695 / 695-697 ms | 336-337 / 337-339 ms |
+| `firstKeystrokeToFirstResultMs` P50  | 1,190 ms             | 832-834 ms           |
+| `renderer.ipcCallsPerSearch`         | 1                    | 1                    |
+| `renderer.sqlStatementsPerSearch`    | 2                    | 2                    |
+| `renderer.domMutationsToResults`     | 402                  | 392                  |
+
+Per keystroke (query calls / SQL / DOM mutations / CD ticks) at 100 ms per
+key, keys 1-5 are unchanged at `0/0/0/1`; key 6 is `1/2/402/9` before and
+`1/2/392/7` after.
+
+Slower typing was measured with a scratch change to the journey (key
+interval and cadence guard raised, quiet window 1 s; not committed). At
+400 ms per key both builds run one query per key from the second
+character, five in all with 2 statements each: the shell debounce already
+expired between keys before this change, and the results timer only
+delayed each query. Before, the queries trail the keys by 650 ms (keys
+`y s t e m` read `0 1 1 1 2`); after, each follows its own key. At 325 ms
+per key the two builds differ: before, one query in 17 of 20 iterations
+(two or four when a gap stretched past 350 ms); after, five. Typing with
+gaps between 300 and 350 ms is the only range where this change adds
+queries; each is a 2-statement query whose stale result is dropped.
+
 About one launch in sixty showed the empty-results view: the single
 `dbGlobalSearch` call went out with the same arguments (`system`, all three
 types, hidden categories included, limit 101) and the main process answered
@@ -1069,8 +1112,8 @@ persisted status (`xtream-import-status:<id>:<type>`) reads `completed` and
 the type has rows, unless the portal has no categories of that type. Rows
 are required because a refresh deletes the catalog without resetting the
 status. `xtream-import-wait.e2e.ts` holds the account check past the overlay
-window and fails without it. No J4 baseline exists yet; J4 counters join the
-ratchet once three runner runs agree.
+window and fails without it. Two J4 counters are enforced since #1899
+(see [Enforced journey counters](#enforced-journey-counters)).
 
 ## `renderer.initialBytes`
 
@@ -1337,6 +1380,14 @@ changes) and the wall-clock entries did not move. Under
 `prefers-reduced-motion` there is no slide, so a user with that preference
 still sees the jump that the journey no longer measures.
 
+The two J4 entries, `search/renderer.ipcCallsPerSearch` 1 and
+`search/renderer.sqlStatementsPerSearch` 2 (#1899, `evidenceRun`
+38165392046), were identical in all 816 J4 iterations of the 136 CI journey
+jobs since #1816 and in all 18 iterations of three runs of #1899. They guard
+the debounce: a search that queried per keystroke, or ran a second query for
+the same term, raises them. Like the entries in the table they carry the
+guard-only note: #1899 halved the J4 wall clock without moving either.
+
 Being deterministic is not the same as being validated. Principle 3 of the
 plan promotes a counter to a guardrail once a PR has shown that lowering it
 lowered the journey's wall-clock. None of these counters has that evidence
@@ -1372,7 +1423,12 @@ Not enforced, with the reason:
 - J3 `renderer.ipcSerialDepthToPlaying` (4 on the runner, 3 on a Mac):
   added after these runs and measured in one runner run so far; a
   candidate once `master` runs agree.
-- J4: not measured yet.
+- J4 `renderer.domMutationsToResults` (402 on `master`, 392 since #1899),
+  `renderer.ipcSerialDepthToResults` (1) and `renderer.layoutShiftScore`
+  (0): identical in the three #1899 runs; candidates once `master` runs
+  agree.
+- J4 `renderer.cdTicksToResults` (11 to 13) and `renderer.longTasks`: see
+  the general reasons above.
 
 Runner counters differ from a Mac (the Linux-only `getWindowState` call, for
 one), so take every journey baseline value from the runner only.

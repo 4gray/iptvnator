@@ -1,6 +1,13 @@
 import { PortalRailSection } from '@iptvnator/portal/shared/util';
 
-export const SEARCH_INPUT_DEBOUNCE_MS = 350;
+/**
+ * The one debounce between a keystroke in the header search box and the
+ * applied term; pages that search on the applied term (global search
+ * included) run at once. 300 ms sits above the inter-key gap of steady
+ * typing, so a word typed in one go is applied once.
+ * See docs/architecture/performance-journeys.md (J4).
+ */
+export const SEARCH_INPUT_DEBOUNCE_MS = 300;
 
 /**
  * How long a purely local Xtream load (reading the saved catalog from SQLite)
