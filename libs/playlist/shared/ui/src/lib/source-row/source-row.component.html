@@ -246,6 +246,7 @@
             mat-menu-item
             type="button"
             class="app-menu-item--danger"
+            [disabled]="busy() || !removable()"
             (click)="removeRequested.emit()"
         >
             <mat-icon>delete</mat-icon>

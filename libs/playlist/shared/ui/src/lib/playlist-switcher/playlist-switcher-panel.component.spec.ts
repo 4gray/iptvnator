@@ -51,6 +51,7 @@ describe('PlaylistSwitcherPanelComponent', () => {
     let selectPlaylist: jest.Mock;
     let remove: jest.Mock;
     let navigate: jest.Mock;
+    let refreshing: ReturnType<typeof signal<string | null>>;
 
     const input = () =>
         (fixture.nativeElement as HTMLElement).querySelector(
@@ -82,6 +83,7 @@ describe('PlaylistSwitcherPanelComponent', () => {
         selectPlaylist = jest.fn();
         remove = jest.fn();
         navigate = jest.fn();
+        refreshing = signal<string | null>(null);
         TestBed.configureTestingModule({
             imports: [
                 PlaylistSwitcherPanelComponent,
@@ -133,7 +135,11 @@ describe('PlaylistSwitcherPanelComponent', () => {
                 },
                 {
                     provide: PlaylistRefreshActionService,
-                    useValue: { canRefresh: () => true, refresh: jest.fn() },
+                    useValue: {
+                        canRefresh: () => true,
+                        refresh: jest.fn(),
+                        isSourceBusy: (id: string) => refreshing() === id,
+                    },
                 },
                 { provide: MatDialog, useValue: { open: jest.fn() } },
                 { provide: Router, useValue: { navigate } },
@@ -279,6 +285,39 @@ describe('PlaylistSwitcherPanelComponent', () => {
             returnFocusTo: trigger,
         });
         trigger.remove();
+    });
+
+    it('offers no Remove while a refresh clears and refills the source', async () => {
+        refreshing.set('bravo');
+        fixture.detectChanges();
+        const menuRemove = async (id: string) => {
+            (fixture.nativeElement as HTMLElement)
+                .querySelector<HTMLElement>(
+                    `#playlist-switcher-all-${id} .source-row__more`
+                )
+                ?.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const items = Array.from(
+                document.querySelectorAll<HTMLButtonElement>(
+                    '.cdk-overlay-container [mat-menu-item]'
+                )
+            );
+            const item = items[items.length - 1];
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape' })
+            );
+            return item;
+        };
+        expect((await menuRemove('bravo')).disabled).toBe(true);
+        expect((await menuRemove('alpha')).disabled).toBe(false);
+        // Still a source you can switch to.
+        (fixture.nativeElement as HTMLElement)
+            .querySelector<HTMLElement>(
+                '#playlist-switcher-all-bravo .source-row'
+            )
+            ?.click();
+        expect(selectPlaylist).toHaveBeenCalled();
     });
 
     it('leaves out a source whose delete is pending or running', () => {

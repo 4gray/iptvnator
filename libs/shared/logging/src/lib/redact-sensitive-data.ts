@@ -60,6 +60,16 @@ export const XTREAM_CREDENTIAL_PATH_SEGMENTS: ReadonlySet<string> = new Set([
     'series',
     'timeshift',
 ]);
+/** A path segment that precedes Xtream account segments, in any case. */
+function isXtreamCredentialMarker(segment: string): boolean {
+    let decoded = segment;
+    try {
+        decoded = decodeURIComponent(segment);
+    } catch {
+        // A malformed escape is compared as written.
+    }
+    return XTREAM_CREDENTIAL_PATH_SEGMENTS.has(decoded.toLowerCase());
+}
 
 export interface RedactionOptions {
     maxDepth?: number;
@@ -145,7 +155,7 @@ function redactUrl(
 
     const pathSegments = redacted.pathname.split('/');
     for (let index = 0; index < pathSegments.length - 2; index += 1) {
-        if (XTREAM_CREDENTIAL_PATH_SEGMENTS.has(pathSegments[index])) {
+        if (isXtreamCredentialMarker(pathSegments[index])) {
             pathSegments[index + 1] = REDACTED_VALUE;
             pathSegments[index + 2] = REDACTED_VALUE;
         }

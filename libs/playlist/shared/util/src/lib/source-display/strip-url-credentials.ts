@@ -106,8 +106,9 @@ function stripUrl(value: string, depth: number): string | null {
         if (clean !== null) {
             kept.push(clean === decoded ? segment : encodeURIComponent(clean));
         }
+        // `/LIVE/…` and `/%6Cive/…` mark account segments as `/live/…` does.
         if (
-            XTREAM_CREDENTIAL_PATH_SEGMENTS.has(segment) &&
+            XTREAM_CREDENTIAL_PATH_SEGMENTS.has(decoded.toLowerCase()) &&
             index + 2 < segments.length
         ) {
             index += 2;

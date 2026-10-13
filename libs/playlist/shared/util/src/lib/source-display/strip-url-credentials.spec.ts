@@ -73,6 +73,16 @@ describe('stripUrlCredentials', () => {
         expect(stripUrlCredentials(inPath)).not.toMatch(/hunter2|joe/);
     });
 
+    it('knows Xtream account segments in any case, also nested', () => {
+        expect(
+            stripUrlCredentials('http://host.tv/LIVE/joe/hunter2/1.ts')
+        ).toBe('http://host.tv/LIVE/1.ts');
+        const nested = `https://proxy.test/list?url=${encodeURIComponent(
+            'https://origin.test/LIVE/joe/hunter2/1.ts'
+        )}`;
+        expect(stripUrlCredentials(nested)).not.toMatch(/hunter2|joe/);
+    });
+
     it('drops a kept part that still names a secret', () => {
         expect(
             stripUrlCredentials(

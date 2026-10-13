@@ -23,6 +23,7 @@ import {
     SortService,
 } from '@iptvnator/services';
 import { PlaylistMeta, SourceStatus } from '@iptvnator/shared/interfaces';
+import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { SourceRemovalService } from '../source-removal/source-removal.service';
 import { RecentPlaylistsComponent } from './recent-playlists.component';
 import { SourceListRefreshService } from './source-list-refresh.service';
@@ -62,6 +63,7 @@ describe('RecentPlaylistsComponent', () => {
         progress: object;
     };
     let viewState: SourcesViewStateService;
+    let switcherRefreshing: ReturnType<typeof signal<string | null>>;
 
     beforeEach(() => {
         localStorage.clear();
@@ -74,6 +76,7 @@ describe('RecentPlaylistsComponent', () => {
             ['xtream', { reachability: 'bad' }],
         ]);
         pending = signal<ReadonlySet<string>>(new Set());
+        switcherRefreshing = signal<string | null>(null);
         removal = {
             pendingIds: pending,
             remove: jest.fn(),
@@ -126,6 +129,13 @@ describe('RecentPlaylistsComponent', () => {
                         isElectron: true,
                         supportsPlaylistRefresh: true,
                         supportsXtreamSqliteDataSource: true,
+                    },
+                },
+                {
+                    provide: PlaylistRefreshActionService,
+                    useValue: {
+                        isSourceBusy: (id: string) =>
+                            switcherRefreshing() === id,
                     },
                 },
                 { provide: MatDialog, useValue: { open: jest.fn() } },
@@ -251,6 +261,28 @@ describe('RecentPlaylistsComponent', () => {
             failingFirst: true,
         });
         expect(ids()).toEqual(['xtream', 'file', 'm3u']);
+    });
+
+    it('keeps a source busy while the switcher refreshes it', () => {
+        switcherRefreshing.set('xtream');
+        fixture.detectChanges();
+        const rows = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll(
+                'app-source-row'
+            )
+        );
+        expect(
+            rows.map((row) =>
+                row
+                    .querySelector('.source-row')
+                    ?.classList.contains('source-row--busy')
+            )
+        ).toEqual([false, true, false]);
+        // Its menu, and Remove with it, waits for the refresh to settle.
+        expect(
+            rows[1].querySelector<HTMLButtonElement>('.source-row__more')
+                ?.disabled
+        ).toBe(true);
     });
 
     it('hides sources whose delete is pending', () => {

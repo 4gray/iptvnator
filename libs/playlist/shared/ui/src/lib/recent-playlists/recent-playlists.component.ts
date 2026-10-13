@@ -43,6 +43,7 @@ import {
 } from '@iptvnator/services';
 import { PlaylistMeta, sourceStatusBucket } from '@iptvnator/shared/interfaces';
 import type { PlaylistType } from '../add-playlist-menu/playlist-type';
+import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { SourceRemovalService } from '../source-removal/source-removal.service';
 import { SourceRowComponent } from '../source-row/source-row.component';
 import { EmptyStateComponent } from './empty-state/empty-state.component';
@@ -80,6 +81,7 @@ export class RecentPlaylistsComponent {
     private readonly viewState = inject(SourcesViewStateService);
     readonly removal = inject(SourceRemovalService);
     readonly refresh = inject(SourceListRefreshService);
+    private readonly refreshAction = inject(PlaylistRefreshActionService);
 
     readonly searchQueryInput = input<string>('');
     readonly playlistClicked = output<string>();
@@ -216,6 +218,14 @@ export class RecentPlaylistsComponent {
             (row) => this.removal.progress.isDeleting(row._id)
         );
         this.removal.remove(playlist, next);
+    }
+
+    /** Refreshing from this page, or from the playlist switcher. */
+    isRefreshing(item: PlaylistMeta): boolean {
+        return (
+            this.refresh.isRefreshing(item._id) ||
+            this.refreshAction.isSourceBusy(item._id)
+        );
     }
 
     busyMessage(item: PlaylistMeta): string {

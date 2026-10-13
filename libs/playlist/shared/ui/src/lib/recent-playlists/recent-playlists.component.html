@@ -36,7 +36,7 @@
                 [current]="activePlaylistId() === item._id"
                 [draggable]="isCustomSort()"
                 [canRefresh]="refresh.canRefresh(item)"
-                [refreshing]="refresh.isRefreshing(item._id)"
+                [refreshing]="isRefreshing(item)"
                 [deleting]="removal.progress.isDeleting(item._id)"
                 [busyMessage]="busyMessage(item)"
                 [busyProgress]="busyProgress(item)"

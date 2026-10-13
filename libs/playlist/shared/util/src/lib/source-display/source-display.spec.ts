@@ -97,6 +97,13 @@ describe('sourceDisplayName', () => {
         expect(sourceDisplayName({ title: 'Mine', url })).toBe('Mine');
     });
 
+    it('drops a name holding the password of an Xtream stream path', () => {
+        const url = 'http://host.tv/LIVE/joe/hunter2/1.ts';
+        expect(sourceDisplayName({ title: 'Mine hunter2', url })).toBe(
+            'host.tv'
+        );
+    });
+
     it('returns null for a local file without a name', () => {
         expect(sourceDisplayName({ title: '' })).toBeNull();
         expect(sourceDisplayName({ title: '', filename: 'list.m3u' })).toBe(

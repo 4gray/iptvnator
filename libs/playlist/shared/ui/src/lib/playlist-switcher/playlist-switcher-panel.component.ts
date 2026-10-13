@@ -283,6 +283,11 @@ export class PlaylistSwitcherPanelComponent {
         return this.refreshAction.canRefresh(playlist);
     }
 
+    /** A source cannot be removed while a refresh clears and refills it. */
+    isRefreshing(playlist: PlaylistMeta): boolean {
+        return this.refreshAction.isSourceBusy(playlist._id);
+    }
+
     refresh(playlist: PlaylistMeta): void {
         this.close();
         this.refreshAction.refresh(playlist);

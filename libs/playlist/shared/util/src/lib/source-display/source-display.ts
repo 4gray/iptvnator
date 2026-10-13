@@ -1,4 +1,7 @@
-import { isSensitiveKey } from '@iptvnator/shared/logging';
+import {
+    isSensitiveKey,
+    XTREAM_CREDENTIAL_PATH_SEGMENTS,
+} from '@iptvnator/shared/logging';
 import {
     PlaylistMeta,
     playlistDisplayLabel,
@@ -89,6 +92,18 @@ function collectUrlSecrets(
     secrets.push(safeDecode(url.password));
     if (depth > 0) {
         secrets.push(safeDecode(url.username));
+    }
+    // An Xtream stream path carries the account: `/live/<user>/<password>/`.
+    const segments = url.pathname.split('/').map(safeDecode);
+    for (let index = 0; index + 2 < segments.length; index += 1) {
+        if (
+            XTREAM_CREDENTIAL_PATH_SEGMENTS.has(segments[index].toLowerCase())
+        ) {
+            secrets.push(segments[index + 2]);
+            if (depth > 0) {
+                secrets.push(segments[index + 1]);
+            }
+        }
     }
     const visit = (params: URLSearchParams): void =>
         params.forEach((value, key) => {

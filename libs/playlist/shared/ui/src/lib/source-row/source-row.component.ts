@@ -91,6 +91,8 @@ export class SourceRowComponent {
     readonly busyMessage = input('');
     readonly busyProgress = input<number | null>(null);
     readonly canCancelBusy = input(false);
+    /** False while something else, such as a refresh, holds the source. */
+    readonly removable = input(true);
 
     readonly activated = output<void>();
     readonly refreshRequested = output<void>();

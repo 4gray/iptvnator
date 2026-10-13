@@ -300,6 +300,16 @@ describe('redactSensitiveData', () => {
         expect(output).not.toContain(password);
     });
 
+    it('redacts Xtream path credentials whatever the marker case', () => {
+        const output = serialized(
+            redactSensitiveData(
+                'https://example.com/LIVE/case-user-secret/case-pass-secret/1.ts'
+            )
+        );
+        expect(output).not.toContain('case-user-secret');
+        expect(output).not.toContain('case-pass-secret');
+    });
+
     it('does not mutate input and safely bounds cycles, depth, arrays, objects, and strings', () => {
         const input: Record<string, unknown> = {
             status: 'ok',
