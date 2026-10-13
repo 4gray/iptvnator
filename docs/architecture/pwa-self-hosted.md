@@ -262,7 +262,7 @@ settings and guards read them in every build.
   new tag or conflict like any other, and one behind a travelling write is
   taken from the queue only when that one is answered. While a playlist is
   being deleted its edits wait; the delete drops them only when it
-  succeeds. Edits made before the first successful read
+  succeeds, and a re-read sent before it skips the deleted playlist. Edits made before the first successful read
   are held as before → after and applied to the server's value once it
   arrives (`applyEdit`): a new device or a stale cache adds its favorite
   instead of replacing the server's list. On this tab's recovered unsent

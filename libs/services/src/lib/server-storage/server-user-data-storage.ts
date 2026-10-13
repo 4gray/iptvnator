@@ -18,6 +18,7 @@ import {
     type DeferredEdit,
     mergeEdits,
     refreshedNamespace,
+    withoutDeleted,
 } from './server-user-data-edit';
 import { UserDataWriteQueue } from './server-user-data-queue';
 import {
@@ -62,6 +63,8 @@ export class ServerUserDataStorage implements UserDataStorage {
     private hydrated = false;
     /** The previous page load in this tab, while it still looks live. */
     private awaited: string | null = null;
+    /** Playlists deleted here, in order: a read sent earlier skips them. */
+    private readonly deleted: (string | undefined)[] = [];
     /** Closed tabs' page loads this one took over (once each). */
     private readonly adopted = new Set<string>();
     /** Page loads taken over whose copy stays until this one saves. */
@@ -302,6 +305,7 @@ export class ServerUserDataStorage implements UserDataStorage {
         try {
             await this.writes.whenSent();
             await remove();
+            this.deleted.push(playlistId);
             for (const key of [...this.deferred.keys()].filter(matches)) {
                 this.deferred.delete(key);
             }
@@ -316,9 +320,12 @@ export class ServerUserDataStorage implements UserDataStorage {
     private async hydrateNow(): Promise<void> {
         // Edits from here on may miss the read: queued, or still travelling.
         const editsBefore = this.writes.lastEdit;
+        const deletesBefore = this.deleted.length;
         await this.writes.flush();
-        const { entries, tags } =
-            await this.api.getJson<ServerUserStateResponse>('/user-state');
+        const { entries, tags } = withoutDeleted(
+            await this.api.getJson<ServerUserStateResponse>('/user-state'),
+            this.deleted.slice(deletesBefore)
+        );
         const unsaved = this.writes.unsavedSince(editsBefore);
         // Another tab's unconfirmed writes are in the shared cache too.
         for (const key of othersUnconfirmed(

@@ -1,4 +1,8 @@
-import type { ServerUserStateNamespace } from '@iptvnator/shared/interfaces';
+import {
+    SERVER_USER_STATE_NAMESPACES,
+    type ServerUserStateNamespace,
+    type ServerUserStateResponse,
+} from '@iptvnator/shared/interfaces';
 import { itemKey } from './server-migration-merge';
 import type { EditStep } from './server-user-data-entries';
 
@@ -143,4 +147,39 @@ export function mergeEdits(
         }
     }
     return merged;
+}
+
+/**
+ * A server read without the playlists deleted after it was sent (an id of
+ * `undefined` stands for every playlist).
+ */
+export function withoutDeleted(
+    read: ServerUserStateResponse,
+    deleted: readonly (string | undefined)[]
+): ServerUserStateResponse {
+    if (deleted.length === 0) {
+        return read;
+    }
+    const keep = <T>(map: Record<string, T> = {}): Record<string, T> => {
+        const kept: Record<string, T> = {};
+        for (const [id, value] of Object.entries(map)) {
+            if (!deleted.some((gone) => gone === undefined || gone === id)) {
+                kept[id] = value;
+            }
+        }
+        return kept;
+    };
+    const entries = {} as Record<string, Record<string, unknown>>;
+    const tags = {} as Record<string, Record<string, string>>;
+    for (const namespace of SERVER_USER_STATE_NAMESPACES) {
+        entries[namespace] = keep(read.entries[namespace]);
+        tags[namespace] = keep(read.tags?.[namespace]) as Record<
+            string,
+            string
+        >;
+    }
+    return {
+        entries: entries as ServerUserStateResponse['entries'],
+        ...(read.tags ? { tags: tags as ServerUserStateResponse['tags'] } : {}),
+    };
 }

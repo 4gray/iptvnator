@@ -1217,4 +1217,36 @@ describe('ServerUserDataStorage with other devices', () => {
             ).toEqual(['S', 'X', 'Z']);
         });
     });
+
+    it('keeps a playlist deleted while a re-read was on its way out of the cache', async () => {
+        const server = fakeServer({
+            'xtream-favorites': { p1: ['a'], p2: ['b'] },
+        });
+        const phone = new ServerUserDataStorage(
+            server.api as never,
+            memoryStorage(),
+            jest.fn()
+        );
+        await phone.hydrate();
+        const get = server.api.getJson.getMockImplementation();
+        if (!get) {
+            throw new Error('The fake server answers getJson');
+        }
+        let answer: () => void = () => undefined;
+        server.api.getJson.mockImplementationOnce(async () => {
+            // The server answers with what it had when the read was sent.
+            const before = await get();
+            return new Promise((resolve) => (answer = () => resolve(before)));
+        });
+
+        const reading = phone.hydrate();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await phone.deleting('p1', async () => {
+            delete server.state['xtream-favorites']['p1'];
+        });
+        answer();
+        await reading;
+
+        expect(favorites(phone)).toEqual({ p2: ['b'] });
+    });
 });
