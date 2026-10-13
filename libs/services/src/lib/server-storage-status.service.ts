@@ -30,7 +30,8 @@ export class ServerStorageStatusService {
 
     /**
      * `verified` is false for a start from a remembered instance that did
-     * not answer: the address may lead to another server by now.
+     * not answer: the address may lead to another server by now. So it is
+     * after going offline, until the instance is checked again.
      */
     activate(
         instance: ServerInstanceInfo,
@@ -46,6 +47,11 @@ export class ServerStorageStatusService {
     /** The instance at the address turned out to be the remembered one. */
     markVerified(): void {
         this.verified = true;
+    }
+
+    /** Whether the token and writes may go out (see `activate`). */
+    isVerified(): boolean {
+        return this.verified;
     }
 
     /**
@@ -73,6 +79,9 @@ export class ServerStorageStatusService {
     reportOffline(): void {
         // A late failure after sign-out must not unlock the workspace.
         if (this.isActive() && this.stateSignal() !== 'unauthorized') {
+            // It may come back as another database (a replaced volume at
+            // the same address): no token, no writes until it is checked.
+            this.verified = false;
             this.stateSignal.set('offline');
         }
     }

@@ -404,25 +404,43 @@ export function pageIsLive(
     );
 }
 
-/** Writes only this page load's record (none without keys). */
+/**
+ * Writes only this page load's record (none without keys); true when one
+ * now stands for it.
+ */
 export function markUnconfirmed(
     local: UserDataStorage,
     instanceId: string,
     tabId: string,
     keys: readonly string[],
     now = Date.now()
-): void {
+): boolean {
     try {
         if (keys.length === 0) {
             local.removeItem(recordKey(instanceId, tabId));
-        } else {
-            local.setItem(
-                recordKey(instanceId, tabId),
-                JSON.stringify({ at: now, keys: [...keys] })
-            );
+            return false;
         }
+        local.setItem(
+            recordKey(instanceId, tabId),
+            JSON.stringify({ at: now, keys: [...keys] })
+        );
+        return true;
     } catch {
         // Storage full: re-reads in other tabs lose this protection only.
+        return false;
+    }
+}
+
+/** Whether a page load's record still stands (another tab may remove it). */
+export function hasRecord(
+    local: UserDataStorage,
+    instanceId: string,
+    page: string
+): boolean {
+    try {
+        return local.getItem(recordKey(instanceId, page)) !== null;
+    } catch {
+        return true;
     }
 }
 

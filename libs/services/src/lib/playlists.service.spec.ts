@@ -74,7 +74,10 @@ describe('PlaylistsService', () => {
     }
 
     it('announces a committed SQLite connection edit', async () => {
-        const playlist = { _id: 'source', url: 'https://old.test/list' } as Playlist;
+        const playlist = {
+            _id: 'source',
+            url: 'https://old.test/list',
+        } as Playlist;
         testWindow.electron = {
             dbGetAppState: jest.fn().mockResolvedValue('1'),
             dbSetAppState: jest.fn(),
@@ -85,8 +88,22 @@ describe('PlaylistsService', () => {
         const service = createService();
         const next = jest.fn();
         Object.assign(service, { healthEvidence: { connections: { next } } });
-        await firstValueFrom(service.updatePlaylistMeta({ ...playlist, title: 'Source', count: 0, importDate: '', autoRefresh: false, serverUrl: 'https://new.test' }));
-        expect(next).toHaveBeenCalledWith({ id: 'source', playlist: expect.objectContaining({ serverUrl: 'https://new.test' }) });
+        await firstValueFrom(
+            service.updatePlaylistMeta({
+                ...playlist,
+                title: 'Source',
+                count: 0,
+                importDate: '',
+                autoRefresh: false,
+                serverUrl: 'https://new.test',
+            })
+        );
+        expect(next).toHaveBeenCalledWith({
+            id: 'source',
+            playlist: expect.objectContaining({
+                serverUrl: 'https://new.test',
+            }),
+        });
     });
 
     it('announces committed deletion but does not retire health after a failed write', async () => {
@@ -96,9 +113,15 @@ describe('PlaylistsService', () => {
         await firstValueFrom(service.deletePlaylist('retired'));
         expect(next).toHaveBeenCalledWith({ id: 'retired' });
         next.mockClear();
-        const failed = createService({ delete: jest.fn(() => { throw new Error('write failed'); }) });
+        const failed = createService({
+            delete: jest.fn(() => {
+                throw new Error('write failed');
+            }),
+        });
         Object.assign(failed, { healthEvidence: { connections: { next } } });
-        await expect(firstValueFrom(failed.deletePlaylist('kept'))).rejects.toThrow();
+        await expect(
+            firstValueFrom(failed.deletePlaylist('kept'))
+        ).rejects.toThrow();
         expect(next).not.toHaveBeenCalled();
     });
 
@@ -553,6 +576,60 @@ describe('PlaylistsService', () => {
         expect(appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)).toBe(
             '1'
         );
+    });
+
+    it('migrates legacy Stalker portal flags on the server too', async () => {
+        // A desktop database copied to the server, from before the flag.
+        let storedPlaylists: Playlist[] = [
+            {
+                _id: 'stalker-1',
+                title: 'Copied Stalker',
+                count: 0,
+                importDate: new Date('2026-03-28T00:00:00.000Z').toISOString(),
+                lastUsage: new Date('2026-03-28T00:00:00.000Z').toISOString(),
+                autoRefresh: false,
+                macAddress: '00:1A:79:AA:BB:CC',
+                portalUrl: 'http://example.com/stalker_portal/c/',
+            } as Playlist,
+        ];
+        const appState = new Map<string, string>();
+        const server = {
+            dbGetAppPlaylists: jest.fn(async () => storedPlaylists),
+            dbGetAppState: jest.fn(
+                async (key: string) => appState.get(key) ?? null
+            ),
+            dbSetAppState: jest.fn(async (key: string, value: string) => {
+                appState.set(key, value);
+            }),
+            dbUpsertAppPlaylist: jest.fn(),
+            dbUpsertAppPlaylists: jest.fn(async (playlists: Playlist[]) => {
+                storedPlaylists = playlists;
+            }),
+            dbRecoverLegacyPlaylists: jest.fn(),
+        };
+        testWindow.electron = undefined;
+        const service = createService();
+        Object.assign(service as object, {
+            storageBackend: {
+                kind: () => 'server',
+                documentStore: () => server,
+            },
+        });
+
+        await expect(
+            firstValueFrom(service.getAllPlaylists())
+        ).resolves.toEqual([
+            expect.objectContaining({
+                _id: 'stalker-1',
+                isFullStalkerPortal: true,
+            }),
+        ]);
+
+        expect(appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)).toBe(
+            '1'
+        );
+        // The desktop-only steps stay with the desktop.
+        expect(server.dbRecoverLegacyPlaylists).not.toHaveBeenCalled();
     });
 
     it('does not rerun the SQLite Stalker metadata migration after the flag is set', async () => {
@@ -1110,7 +1187,9 @@ describe('PlaylistsService', () => {
         ] as Playlist[];
         const dbService = {
             getAll: jest.fn(() => of([])),
-            getByID: jest.fn((_store: string, id: string) => of(playlists.find((p) => p._id === id))),
+            getByID: jest.fn((_store: string, id: string) =>
+                of(playlists.find((p) => p._id === id))
+            ),
             update: jest.fn((_storeName: string, playlist: Playlist) =>
                 of(playlist)
             ),
@@ -1143,19 +1222,32 @@ describe('PlaylistsService', () => {
         );
     });
 
-    it.each([false, true])('does not resurrect a deleted source when startup refresh finishes (SQLite=%s)', async (sqlite) => {
-        const upsert = jest.fn();
-        testWindow.electron = sqlite ? {
-            dbGetAppState: jest.fn().mockResolvedValue('1'), dbSetAppState: jest.fn(),
-            dbGetAppPlaylists: jest.fn().mockResolvedValue([]), dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
-            dbUpsertAppPlaylist: upsert,
-        } : undefined;
-        const update = jest.fn(() => of(undefined));
-        const service = createService({ update });
-        expect(await firstValueFrom(service.updateManyPlaylists([{ _id: 'deleted', autoRefresh: true } as Playlist]))).toEqual([]);
-        expect(update).not.toHaveBeenCalled();
-        expect(upsert).not.toHaveBeenCalled();
-    });
+    it.each([false, true])(
+        'does not resurrect a deleted source when startup refresh finishes (SQLite=%s)',
+        async (sqlite) => {
+            const upsert = jest.fn();
+            testWindow.electron = sqlite
+                ? {
+                      dbGetAppState: jest.fn().mockResolvedValue('1'),
+                      dbSetAppState: jest.fn(),
+                      dbGetAppPlaylists: jest.fn().mockResolvedValue([]),
+                      dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
+                      dbUpsertAppPlaylist: upsert,
+                  }
+                : undefined;
+            const update = jest.fn(() => of(undefined));
+            const service = createService({ update });
+            expect(
+                await firstValueFrom(
+                    service.updateManyPlaylists([
+                        { _id: 'deleted', autoRefresh: true } as Playlist,
+                    ])
+                )
+            ).toEqual([]);
+            expect(update).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
+        }
+    );
 
     it('short-circuits updateManyPlaylists when no playlists are provided', async () => {
         const dbService = {
@@ -1905,19 +1997,30 @@ describe('PlaylistsService', () => {
         );
     });
 
-    it.each([false, true])('does not recreate a removed source on singular refresh (SQLite: %s)', async (sqlite) => {
-        const upsert = jest.fn();
-        testWindow.electron = sqlite ? {
-            dbGetAllPlaylists: jest.fn().mockResolvedValue([]),
-            dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
-            dbUpsertAppPlaylist: upsert,
-        } as unknown as typeof testWindow.electron : undefined;
-        const update = jest.fn(() => of(undefined));
-        const service = createService({ update });
-        await expect(firstValueFrom(service.updatePlaylist('deleted', { _id: 'deleted' } as Playlist))).rejects.toThrow('Playlist no longer exists');
-        expect(update).not.toHaveBeenCalled();
-        expect(upsert).not.toHaveBeenCalled();
-    });
+    it.each([false, true])(
+        'does not recreate a removed source on singular refresh (SQLite: %s)',
+        async (sqlite) => {
+            const upsert = jest.fn();
+            testWindow.electron = sqlite
+                ? ({
+                      dbGetAllPlaylists: jest.fn().mockResolvedValue([]),
+                      dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
+                      dbUpsertAppPlaylist: upsert,
+                  } as unknown as typeof testWindow.electron)
+                : undefined;
+            const update = jest.fn(() => of(undefined));
+            const service = createService({ update });
+            await expect(
+                firstValueFrom(
+                    service.updatePlaylist('deleted', {
+                        _id: 'deleted',
+                    } as Playlist)
+                )
+            ).rejects.toThrow('Playlist no longer exists');
+            expect(update).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
+        }
+    );
     it('keeps hiddenGroupTitles when refreshing a playlist payload', async () => {
         const existingPlaylist: Playlist = {
             _id: 'playlist-2',

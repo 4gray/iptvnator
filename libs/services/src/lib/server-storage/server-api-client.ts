@@ -44,11 +44,11 @@ export interface ServerApiClientOptions {
     readonly fetchFn?: typeof fetch;
     readonly timeoutMs?: number;
     /**
-     * Refuse writes as if offline: a start from a remembered instance that
-     * has not answered yet, whose address may lead to another database by
-     * the time it does.
+     * Refuse writes as if offline while true: an instance not checked yet
+     * (a start from memory, or one that went offline), whose address may
+     * lead to another database by the time it answers.
      */
-    readonly holdWrites?: boolean;
+    readonly holdWrites?: () => boolean;
     /** The token to send (`ServerStorageStatusService.accessToken`). */
     readonly accessToken: () => string | null;
 }
@@ -74,7 +74,7 @@ export class ServerApiClient {
         const token = this.token();
         let response: Response;
         try {
-            if (isWrite && this.options.holdWrites) {
+            if (isWrite && this.options.holdWrites?.()) {
                 throw new Error('Writes wait for the instance to answer.');
             }
             response = await this.fetchFn()(this.url(path), {
@@ -181,7 +181,7 @@ export class ServerApiClient {
         body?: unknown,
         headers: Record<string, string> = {}
     ): Promise<KeepaliveOutcome> {
-        if (this.options.holdWrites) {
+        if (this.options.holdWrites?.()) {
             return { status: 'failed' };
         }
         try {

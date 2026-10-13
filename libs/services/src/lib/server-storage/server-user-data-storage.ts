@@ -13,9 +13,14 @@ import {
     splitEditKey,
     UNKNOWN_TAG,
 } from './server-user-data-entries';
-import { adoptEdits, extendUnsent } from './server-user-data-adopt';
+import {
+    adoptEdits,
+    extendUnsent,
+    restorePage,
+} from './server-user-data-adopt';
 import { UserDataCache } from './server-user-data-cache';
 import {
+    changedEntries,
     type DeferredEdit,
     mergeEdits,
     refreshedNamespace,
@@ -24,6 +29,7 @@ import {
 import { type ServerApi, UserDataWriteQueue } from './server-user-data-queue';
 import {
     claimCache,
+    hasRecord,
     markClosed,
     markUnconfirmed,
     orphanedPages,
@@ -57,6 +63,8 @@ export class ServerUserDataStorage implements UserDataStorage {
     private hydrated = false;
     /** The previous page load in this tab, while it still looks live. */
     private awaited: string | null = null;
+    /** A record stands for this page: a stale one is adopted elsewhere. */
+    private recorded = false;
     /** Playlists deleted here, in order: a read sent earlier skips them. */
     private readonly deleted: (string | undefined)[] = [];
     /** Closed tabs' page loads this one took over (once each). */
@@ -119,26 +127,13 @@ export class ServerUserDataStorage implements UserDataStorage {
      * go out with the first flush, and the first read keeps them.
      */
     private takeOver(page: string): void {
-        for (const write of readUnsentWrites(
+        restorePage(
+            this.writes,
+            this.deferred,
             this.local,
             this.instanceId,
             page
-        )) {
-            this.writes.queue(
-                write.namespace,
-                write.playlistId,
-                write.value,
-                undefined,
-                { tag: write.tag, steps: write.steps }
-            );
-        }
-        for (const edit of readDeferredEdits(
-            this.local,
-            this.instanceId,
-            page
-        )) {
-            this.deferred.set(`${edit.namespace}|${edit.playlistId}`, edit);
-        }
+        );
         // Saved under this page load before the old one is forgotten; if
         // storage refuses the copy, the old one stays.
         const saved = [this.saveDeferred(), this.saveUnsent()].every(Boolean);
@@ -205,6 +200,22 @@ export class ServerUserDataStorage implements UserDataStorage {
         if (this.hasUnsentWrites()) {
             this.publishUnconfirmed();
         }
+    }
+
+    /**
+     * Back from the back-forward cache, where its record went stale: false
+     * when another tab took its writes over meanwhile, which this page
+     * must then not send again (it reloads instead).
+     */
+    resumed(): boolean {
+        if (
+            this.recorded &&
+            !hasRecord(this.local, this.instanceId, this.tabId)
+        ) {
+            return false;
+        }
+        this.publishUnconfirmed();
+        return true;
     }
 
     /** Not read yet, or holding writes the server has not taken. */
@@ -448,17 +459,8 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.saveDeferred();
             this.publishUnconfirmed();
         };
-        for (const [playlistId, value] of Object.entries(next)) {
-            if (
-                JSON.stringify(previous[playlistId]) !== JSON.stringify(value)
-            ) {
-                change(playlistId, value);
-            }
-        }
-        for (const playlistId of Object.keys(previous)) {
-            if (!(playlistId in next)) {
-                change(playlistId, undefined);
-            }
+        for (const [playlistId, value] of changedEntries(previous, next)) {
+            change(playlistId, value);
         }
         this.writes.scheduleFlush();
     }
@@ -505,9 +507,11 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     private publishUnconfirmed(): void {
-        markUnconfirmed(this.local, this.instanceId, this.tabId, [
-            ...this.writes.unconfirmedKeys(),
-            ...this.deferred.keys(),
-        ]);
+        this.recorded = markUnconfirmed(
+            this.local,
+            this.instanceId,
+            this.tabId,
+            [...this.writes.unconfirmedKeys(), ...this.deferred.keys()]
+        );
     }
 }

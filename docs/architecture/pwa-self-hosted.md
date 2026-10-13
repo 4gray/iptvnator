@@ -234,7 +234,9 @@ settings and guards read them in every build.
   tab remembers its page load in `sessionStorage`, so a reload takes its
   writes over and sends them first (the old copy goes only once the new one
   is saved, at the latest with this page's next saved copy). A page marks
-  its record closed on `pagehide` (not into the back-forward cache), and
+  its record closed on `pagehide` (not into the back-forward cache, where
+  its record goes stale; restored after another tab adopted it, the page
+  reloads rather than send those writes again), and
   only a closed, stale or missing record is taken over: a duplicated tab,
   which copies `sessionStorage`, leaves the running tab its writes. A page
   load that still looked live (or whose close flag storage refused) is
@@ -328,7 +330,10 @@ settings and guards read them in every build.
   therefore remembers the server along with the token, or reports storage
   trouble. A page started from memory first checks that the instance at the
   address is the remembered one (`ensureVerified`), and reloads if not,
-  before sign-in sends the token. Both turn
+  before sign-in sends the token. So does a page that went offline before
+  its next read: until then it sends neither the token nor writes (a
+  replaced volume at the same address is another database), and it checks
+  as soon as it goes offline, so a blip costs no retry interval. Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
   as the storage API client does with any 401, so a token changed on the
   server sends an open page back to sign-in; a late 401 for a token
@@ -337,7 +342,9 @@ settings and guards read them in every build.
 - **Moving browser data.** `ServerMigrationService` offers, once per server
   instance (marker `iptvnator-server:migration:<instanceId>`), to move the
   playlists this browser kept in IndexedDB (`planServerMigration`), Stalker
-  rows from before the portal-mode flag normalized first. A
+  rows from before the portal-mode flag normalized first (server rows get
+  the same Stalker metadata migration once per server, as a desktop
+  database copied there can predate it). A
   playlist the server already has, by id or by source (Xtream server and
   user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
   others upload with their ids. A merged playlist gains the browser

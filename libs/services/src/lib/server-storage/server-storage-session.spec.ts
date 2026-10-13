@@ -154,6 +154,92 @@ describe('ServerStorageSession', () => {
         expect(session.userData.hasUnsentWrites()).toBe(false);
     });
 
+    it('reloads a page back from the back-forward cache whose writes another tab took', async () => {
+        const { session } = setup('none');
+        const reload = jest
+            .spyOn(session as unknown as { reloadPage(): void }, 'reloadPage')
+            .mockImplementation(() => undefined);
+        await session.start();
+        const resumed = jest
+            .spyOn(session.userData, 'resumed')
+            .mockReturnValue(true);
+        const pageshow = (persisted: boolean) =>
+            window.dispatchEvent(
+                Object.assign(new Event('pageshow'), { persisted })
+            );
+
+        pageshow(false);
+        pageshow(true);
+        expect(resumed).toHaveBeenCalledTimes(1);
+        expect(reload).not.toHaveBeenCalled();
+
+        resumed.mockReturnValue(false);
+        pageshow(true);
+        expect(reload).toHaveBeenCalled();
+    });
+
+    describe('after losing the server', () => {
+        const answer = (body: unknown) => ({
+            status: 200,
+            ok: true,
+            headers: new Headers(),
+            json: async () => body,
+        });
+
+        it('checks the instance before the token and writes go out again', async () => {
+            writeServerAccessToken('t', 'i-1');
+            const { session, status } = setup('token');
+            await session.start();
+            expect(status.accessToken()).toBe('t');
+
+            status.reportOffline();
+
+            expect(status.accessToken()).toBeNull();
+            fetchMock.mockClear();
+            await expect(
+                session.api.sendJson('PUT', '/user-state/a/b', { value: 1 })
+            ).rejects.toThrow();
+            expect(fetchMock).not.toHaveBeenCalled();
+
+            fetchMock.mockResolvedValue(
+                answer({ instanceId: 'i-1', entries: {} })
+            );
+            await session.refresh();
+
+            expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/instance');
+            expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty(
+                'Authorization'
+            );
+            expect(status.accessToken()).toBe('t');
+            expect(fetchMock).toHaveBeenCalledWith(
+                '/api/v1/user-state',
+                expect.anything()
+            );
+        });
+
+        it('reloads when another instance answers at the address', async () => {
+            const { session, status } = setup('none');
+            const reload = jest
+                .spyOn(
+                    session as unknown as { reloadPage(): void },
+                    'reloadPage'
+                )
+                .mockImplementation(() => undefined);
+            await session.start();
+            status.reportOffline();
+            fetchMock.mockClear();
+            fetchMock.mockResolvedValue(answer({ instanceId: 'other' }));
+
+            await session.refresh();
+
+            expect(reload).toHaveBeenCalled();
+            expect(fetchMock).not.toHaveBeenCalledWith(
+                '/api/v1/user-state',
+                expect.anything()
+            );
+        });
+    });
+
     describe('after an offline start', () => {
         it('stays offline until the server answers, then reloads once', async () => {
             const { session, status } = setup('none', true);

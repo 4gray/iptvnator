@@ -84,7 +84,9 @@ export function resolvePlaylistParser(parserModule: PlaylistParserModule) {
     providedIn: 'root',
 })
 export class PlaylistsService {
-    private readonly healthEvidence = inject(SourceHealthEvidenceService, { optional: true });
+    private readonly healthEvidence = inject(SourceHealthEvidenceService, {
+        optional: true,
+    });
     private readonly dbService = inject(NgxIndexedDBService);
     private readonly databaseService = inject(DatabaseService);
     private readonly snackBar = inject(MatSnackBar);
@@ -131,14 +133,18 @@ export class PlaylistsService {
     }
 
     private async ensureElectronPlaylistMigrations(): Promise<void> {
-        if (!this.usesElectronStorage) {
+        if (!this.usesDocumentStore) {
             return;
         }
 
         if (!this.electronMigrationPromise) {
             this.electronMigrationPromise = (async () => {
-                await this.migrateIndexedDbPlaylistsToSqlite();
-                await this.documentStore?.dbRecoverLegacyPlaylists?.();
+                if (this.usesElectronStorage) {
+                    await this.migrateIndexedDbPlaylistsToSqlite();
+                    await this.documentStore?.dbRecoverLegacyPlaylists?.();
+                }
+                // Server rows too, once per server: a desktop database
+                // copied to the server can predate this migration.
                 await this.migrateStalkerPlaylistMetadataInSqlite();
             })().catch((error) => {
                 this.electronMigrationPromise = null;
@@ -375,7 +381,10 @@ export class PlaylistsService {
             } else {
                 await store.dbUpsertAppPlaylist(playlist, operationId);
             }
-            this.healthEvidence?.connections.next({ id: playlist._id, playlist });
+            this.healthEvidence?.connections.next({
+                id: playlist._id,
+                playlist,
+            });
             return playlist;
         });
     }
@@ -389,7 +398,12 @@ export class PlaylistsService {
 
             this.startupMetas = null;
             await store.dbUpsertAppPlaylists(playlists);
-            playlists.forEach((playlist) => this.healthEvidence?.connections.next({ id: playlist._id, playlist }));
+            playlists.forEach((playlist) =>
+                this.healthEvidence?.connections.next({
+                    id: playlist._id,
+                    playlist,
+                })
+            );
             return playlists;
         });
     }
@@ -565,7 +579,9 @@ export class PlaylistsService {
         );
 
         return delete$.pipe(
-            tap(() => this.healthEvidence?.connections.next({ id: playlistId })),
+            tap(() =>
+                this.healthEvidence?.connections.next({ id: playlistId })
+            ),
             switchMap(() => from(this.runPlaylistDeleteCleanups(playlistId))),
             map((cleanupWarnings) =>
                 cleanupWarnings
@@ -1032,7 +1048,9 @@ export class PlaylistsService {
                     return nextPlaylist;
                 })
             )
-        ).pipe(map((rows) => rows.filter((row): row is Playlist => row !== null)));
+        ).pipe(
+            map((rows) => rows.filter((row): row is Playlist => row !== null))
+        );
     }
 
     getFavoriteChannels(playlistId: string) {

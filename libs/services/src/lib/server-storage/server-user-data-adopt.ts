@@ -7,6 +7,9 @@ import {
 } from './server-user-data-entries';
 import { replaySteps } from './server-user-data-edit';
 import type { UserDataWriteQueue } from './server-user-data-queue';
+import type { UserDataStorage } from '../user-data-storage';
+import type { DeferredEdit } from './server-user-data-edit';
+import { readDeferredEdits, readUnsentWrites } from './server-unsent-writes';
 
 /**
  * A closed tab's saved edits, ahead of this tab's own (which may have been
@@ -71,5 +74,33 @@ export function extendUnsent(
                 ...steps,
             ],
         });
+    }
+}
+
+/**
+ * A reload of this tab: its last page load's saved writes are queued and
+ * its early edits kept, both as this page's own.
+ */
+export function restorePage(
+    writes: UserDataWriteQueue,
+    deferred: Map<string, DeferredEdit>,
+    local: UserDataStorage,
+    instanceId: string,
+    page: string
+): void {
+    for (const write of readUnsentWrites(local, instanceId, page)) {
+        writes.queue(
+            write.namespace,
+            write.playlistId,
+            write.value,
+            undefined,
+            {
+                tag: write.tag,
+                steps: write.steps,
+            }
+        );
+    }
+    for (const edit of readDeferredEdits(local, instanceId, page)) {
+        deferred.set(`${edit.namespace}|${edit.playlistId}`, edit);
     }
 }

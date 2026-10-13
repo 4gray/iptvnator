@@ -155,7 +155,7 @@ describe('ServerApiClient', () => {
             status,
             fetchFn: fetchFn as unknown as typeof fetch,
             accessToken: () => null,
-            holdWrites: true,
+            holdWrites: () => true,
         });
 
         await expect(

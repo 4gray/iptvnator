@@ -140,6 +140,25 @@ export function replaySteps(
     return value;
 }
 
+/** The playlist entries `next` changed against `previous`; removed ones as `undefined`. */
+export function changedEntries(
+    previous: Readonly<Record<string, unknown>>,
+    next: Readonly<Record<string, unknown>>
+): [string, unknown][] {
+    const changed: [string, unknown][] = [];
+    for (const [playlistId, value] of Object.entries(next)) {
+        if (JSON.stringify(previous[playlistId]) !== JSON.stringify(value)) {
+            changed.push([playlistId, value]);
+        }
+    }
+    for (const playlistId of Object.keys(previous)) {
+        if (!(playlistId in next)) {
+            changed.push([playlistId, undefined]);
+        }
+    }
+    return changed;
+}
+
 /** The entries `next` changed against `read`, applied to `current`. */
 export function mergeEdits(
     current: Record<string, unknown>,

@@ -1,4 +1,4 @@
-import { effect, inject, Injectable } from '@angular/core';
+import { effect, inject, Injectable, untracked } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
@@ -44,10 +44,9 @@ export class ServerStorageSession {
         baseUrl: this.config.baseUrl,
         status: this.status,
         onWriteFailure: (error) => this.announceWriteFailure(error),
-        // A remembered instance may answer as another database: writes
-        // wait for the reload that checks which one it is, and the token
-        // goes out only once it is checked.
-        holdWrites: this.config.startedOffline,
+        // A remembered instance, or one that went offline, may answer as
+        // another database: writes and the token wait until it is checked.
+        holdWrites: () => !this.status.isVerified(),
         accessToken: () => this.status.accessToken(),
     });
     readonly documentStore = new ServerPlaylistDocumentStore(
@@ -70,6 +69,13 @@ export class ServerStorageSession {
                 !this.router.url.startsWith(SERVER_SIGN_IN_PATH)
             ) {
                 void this.router.navigateByUrl(SERVER_SIGN_IN_PATH);
+            }
+        });
+        effect(() => {
+            // Gone offline, the token and writes wait for the instance
+            // check: after a blip it passes at once, not at the next retry.
+            if (this.status.state() === 'offline') {
+                untracked(() => void this.refresh());
             }
         });
     }
@@ -107,6 +113,8 @@ export class ServerStorageSession {
             return;
         }
         try {
+            // Back from offline: the instance first, as the read flushes.
+            await this.ensureVerified();
             await this.userData.hydrate();
         } catch {
             // The API client already reported offline or unauthorized.
@@ -130,12 +138,12 @@ export class ServerStorageSession {
     }
 
     /**
-     * Before a token goes out from a page started from memory: the instance
-     * answering at the address must be the remembered one. Another one
-     * reloads the page, which starts against it.
+     * Before a token or a write goes out from a page started from memory,
+     * or one that went offline: the instance answering at the address must
+     * be this page's. Another one reloads the page, which starts against it.
      */
     async ensureVerified(): Promise<void> {
-        if (!this.config.startedOffline) {
+        if (this.status.isVerified()) {
             return;
         }
         const { instanceId } =
@@ -164,6 +172,13 @@ export class ServerStorageSession {
                 this.userData.flushWithKeepalive();
             } else {
                 void this.refresh();
+            }
+        });
+        window.addEventListener('pageshow', (event) => {
+            // Back from the back-forward cache: another tab may have taken
+            // its writes over while it was frozen, so this page reloads.
+            if (event.persisted && !this.userData.resumed()) {
+                this.reloadPage();
             }
         });
         window.addEventListener('pagehide', (event) => {
