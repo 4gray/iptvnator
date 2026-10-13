@@ -106,8 +106,11 @@ describe('stripUrlCredentials', () => {
             'https://origin.test/live%2Fjoe%2Fhunter2%2F1.ts',
             'https://origin.test/live%2Fjoe/hunter2/1.ts',
             'https://origin.test/live%252Fjoe%252Fhunter2%252F1.ts',
+            // A slash encoded inside the user name, not between segments.
+            'https://origin.test/live/joe%2Fx/hunter2/1.ts',
+            'https://origin.test/live/joe/hun%2Fter2/1.ts',
         ]) {
-            expect(stripUrlCredentials(url)).not.toMatch(/hunter2|joe/);
+            expect(stripUrlCredentials(url)).not.toMatch(/hunter2|hun|joe/);
         }
         // Separators alone are no account: the path stays as written.
         expect(

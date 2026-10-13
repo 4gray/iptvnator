@@ -48,34 +48,49 @@ export interface XtreamAccountScan {
     readonly accounts: readonly (readonly [string, string])[];
 }
 
+/** A decoded path part and the raw segment it came from. */
+interface PathPart {
+    readonly text: string;
+    readonly owner: number;
+}
+
 /**
  * Finds the Xtream account in a URL path (`/live/<user>/<password>/…`,
- * markers in any case or encoding). The path is read decoded: separators
- * encoded into one segment (`live%2Fjoe%2Fhunter2%2F1.ts`) still separate
- * its parts, so an account cannot hide inside one segment. With
- * `streamFollows`, the two parts after a marker count only when another
- * part follows them, as a stream does; a log line redacts without it.
+ * markers in any case or encoding). The path is read two ways and both
+ * count: each raw segment decoded whole, so a slash encoded inside a user
+ * name stays part of it (`/live/joe%2Fx/hunter2/…`), and the decoded path
+ * split on every separator, so one segment cannot carry a whole account
+ * (`live%2Fjoe%2Fhunter2%2F1.ts`). With `streamFollows`, the two parts
+ * after a marker count only when another part follows them, as a stream
+ * does; a log line redacts without it.
  */
 export function findXtreamAccount(
     rawSegments: readonly string[],
     options: { streamFollows?: boolean } = {}
 ): XtreamAccountScan {
-    const parts: string[] = [];
-    const owners: number[] = [];
+    const whole: PathPart[] = [];
+    const split: PathPart[] = [];
     rawSegments.forEach((raw, owner) => {
-        for (const part of decodeFully(raw).split('/')) {
-            parts.push(part);
-            owners.push(owner);
+        const decoded = decodeFully(raw);
+        whole.push({ text: decoded, owner });
+        for (const text of decoded.split('/')) {
+            split.push({ text, owner });
         }
     });
     const segments = new Set<number>();
     const accounts: [string, string][] = [];
     const after = options.streamFollows ? 3 : 2;
-    for (let index = 0; index + after < parts.length; index += 1) {
-        if (XTREAM_CREDENTIAL_PATH_SEGMENTS.has(parts[index].toLowerCase())) {
-            segments.add(owners[index + 1]);
-            segments.add(owners[index + 2]);
-            accounts.push([parts[index + 1], parts[index + 2]]);
+    for (const parts of [whole, split]) {
+        for (let index = 0; index + after < parts.length; index += 1) {
+            if (
+                XTREAM_CREDENTIAL_PATH_SEGMENTS.has(
+                    parts[index].text.toLowerCase()
+                )
+            ) {
+                const [user, password] = [parts[index + 1], parts[index + 2]];
+                segments.add(user.owner).add(password.owner);
+                accounts.push([user.text, password.text]);
+            }
         }
     }
     return { segments, accounts };

@@ -335,6 +335,7 @@ describe('redactSensitiveData', () => {
             redactSensitiveData([
                 'https://example.com/live%2Fsep-user-secret%2Fsep-pass-secret%2F1.ts',
                 'https://example.com/live%252Fsep2-user-secret/sep2-pass-secret/1.ts',
+                'https://example.com/live/sep3-user-secret%2Fx/sep3-pass-secret/1.ts',
             ])
         );
         for (const secret of [
@@ -342,6 +343,8 @@ describe('redactSensitiveData', () => {
             'sep-pass-secret',
             'sep2-user-secret',
             'sep2-pass-secret',
+            'sep3-user-secret',
+            'sep3-pass-secret',
         ]) {
             expect(output).not.toContain(secret);
         }

@@ -101,10 +101,14 @@ describe('sourceDisplayName', () => {
     });
 
     it('drops a name holding an account hidden behind encoded separators', () => {
-        const url = 'https://origin.test/live%2Fjoe%2Fhunter2%2F1.ts';
-        expect(sourceDisplayName({ title: 'Mine hunter2', url })).toBe(
-            'origin.test'
-        );
+        for (const url of [
+            'https://origin.test/live%2Fjoe%2Fhunter2%2F1.ts',
+            'https://origin.test/live/joe%2Fx/hunter2/1.ts',
+        ]) {
+            expect(sourceDisplayName({ title: 'Mine hunter2', url })).toBe(
+                'origin.test'
+            );
+        }
     });
 
     it('keeps a name that only shares a letter with a decoded password', () => {
