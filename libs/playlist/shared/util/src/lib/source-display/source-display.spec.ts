@@ -76,6 +76,27 @@ describe('sourceDisplayName', () => {
         expect(sourceDisplayName({ title: 'joe', url: M3U_URL })).toBe('joe');
     });
 
+    it('shows the host for a name an import took from a URL fragment', () => {
+        const url = 'https://host.test/list.m3u#api_key=secret123';
+        expect(
+            sourceDisplayName({ title: 'list.m3u#api_key=secret123', url })
+        ).toBe('host.test');
+        // A typed name holding the fragment's secret collapses too.
+        expect(sourceDisplayName({ title: 'My secret123', url })).toBe(
+            'host.test'
+        );
+    });
+
+    it('drops a name holding a secret of a URL nested in the source URL', () => {
+        const url = `https://proxy.test/list?url=${encodeURIComponent(
+            'http://joe:hunter2@origin.test/get.php?password=pw4567&type=m3u'
+        )}`;
+        for (const title of ['Mine hunter2', 'Mine pw4567', 'Mine joe']) {
+            expect(sourceDisplayName({ title, url })).toBe('proxy.test');
+        }
+        expect(sourceDisplayName({ title: 'Mine', url })).toBe('Mine');
+    });
+
     it('returns null for a local file without a name', () => {
         expect(sourceDisplayName({ title: '' })).toBeNull();
         expect(sourceDisplayName({ title: '', filename: 'list.m3u' })).toBe(

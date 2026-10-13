@@ -24,6 +24,7 @@ export type SourceDisplayFields = Partial<
 const SHOWN_ACCOUNT_KEYS = new Set(['username', 'login']);
 /** Shorter values match ordinary words, not secrets. */
 const MIN_SECRET_LENGTH = 3;
+const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 function parseUrl(value: string | undefined): URL | null {
     if (!value) {
@@ -67,22 +68,62 @@ export function sourceHost(
     return parseUrl(sourceEndpoint(playlist))?.host || null;
 }
 
+/** How deep URLs nested in the source URL are searched for secrets. */
+const MAX_SECRET_NESTING = 4;
+
+/**
+ * The secrets a URL carries: its userinfo password, every sensitive query or
+ * fragment parameter (the source's own account name excepted), and the same
+ * again in any URL or parameter list nested in another parameter, whose
+ * account names count as secrets too.
+ */
+function collectUrlSecrets(
+    url: URL,
+    secrets: (string | undefined)[],
+    depth: number
+): void {
+    if (depth >= MAX_SECRET_NESTING) {
+        return;
+    }
+    secrets.push(safeDecode(url.password));
+    if (depth > 0) {
+        secrets.push(safeDecode(url.username));
+    }
+    const visit = (params: URLSearchParams): void =>
+        params.forEach((value, key) => {
+            const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (isSensitiveKey(key)) {
+                if (depth > 0 || !SHOWN_ACCOUNT_KEYS.has(normalized)) {
+                    secrets.push(value);
+                }
+                return;
+            }
+            const nested = ABSOLUTE_URL.test(value.trim())
+                ? parseUrl(value)
+                : null;
+            if (nested) {
+                collectUrlSecrets(nested, secrets, depth + 1);
+            } else if (value.includes('=')) {
+                visit(new URLSearchParams(value));
+            }
+        });
+    visit(url.searchParams);
+    const fragment = url.hash.slice(1);
+    if (fragment.includes('=')) {
+        visit(new URLSearchParams(fragment));
+    }
+}
+
 /**
  * Values that must never be on screen for this source: the password, the
- * MAC address, and every sensitive parameter of its URL except the account
- * name, in both decoded and encoded form.
+ * MAC address, and every secret its URL carries (`collectUrlSecrets`), in
+ * both decoded and encoded form.
  */
 function sourceSecrets(playlist: SourceDisplayFields): string[] {
     const secrets = [playlist.password, playlist.macAddress];
     const url = parseUrl(sourceEndpoint(playlist));
     if (url) {
-        secrets.push(safeDecode(url.password));
-        url.searchParams.forEach((value, key) => {
-            const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (isSensitiveKey(key) && !SHOWN_ACCOUNT_KEYS.has(normalized)) {
-                secrets.push(value);
-            }
-        });
+        collectUrlSecrets(url, secrets, 0);
     }
     const shown: string[] = [];
     for (const secret of secrets) {
@@ -102,14 +143,14 @@ export function containsSourceSecret(
 
 /**
  * A name an import made from the URL rather than one the user typed: the
- * URL itself, or the last path segment of a URL with a query, such as
- * `get.php?username=…&password=…`.
+ * URL itself, or the end of a URL with a query or fragment, such as
+ * `get.php?username=…&password=…` or `list.m3u#api_key=…`.
  */
 function isUrlDerivedName(name: string, url: string | undefined): boolean {
-    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(name)) {
+    if (ABSOLUTE_URL.test(name)) {
         return true;
     }
-    return !!url && name.includes('?') && url.trim().endsWith(name);
+    return !!url && /[?#]/.test(name) && url.trim().endsWith(name);
 }
 
 /**
