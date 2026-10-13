@@ -1170,7 +1170,7 @@ for imported components, and the app does not provide the animations module,
 which nothing used (Material 22 animates with CSS). Together these lowered the
 counter from 1,596,201 to 1,344,067 bytes (-252,134, 15.8%) on a local
 production build at the branch point (#1931); the baseline follows the
-measurement of the branch rebased onto `master`, 1,345,810. The snack-bar stays: root
+measurement of the branch merged with `master`, 1,345,807. The snack-bar stays: root
 services inject it, and with it Material's button, the icon button chunk and
 the CDK overlay (about 190 KB) remain initial.
 
