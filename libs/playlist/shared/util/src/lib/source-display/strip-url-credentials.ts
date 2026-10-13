@@ -169,13 +169,15 @@ function stripUrl(value: string, depth: number): string | null {
     const search = withoutSensitiveParams(url.searchParams, depth);
     url.search = search ? `?${search}` : '';
 
+    // Any fragment, not only a parameter list: `#https://joe:pw@…` is a URL.
     const fragment = url.hash.slice(1);
-    if (looksLikeSearchParams(fragment)) {
-        const hash = withoutSensitiveParams(
-            new URLSearchParams(fragment),
-            depth
-        );
-        url.hash = hash ? `#${hash}` : '';
+    if (fragment) {
+        const clean = sanitizeNested(fragment, depth);
+        if (!clean) {
+            url.hash = '';
+        } else if (clean !== fragment) {
+            url.hash = clean;
+        }
     }
 
     return url.toString();

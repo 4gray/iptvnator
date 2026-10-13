@@ -132,10 +132,8 @@ function collectUrlSecrets(
         visitNested(segment);
     });
     visit(url.searchParams);
-    const fragment = url.hash.slice(1);
-    if (fragment.includes('=')) {
-        visit(new URLSearchParams(fragment));
-    }
+    // A fragment may hold a parameter list or a whole URL.
+    visitNested(url.hash.slice(1));
 }
 
 /**

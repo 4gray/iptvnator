@@ -148,6 +148,8 @@ export class PlaylistRefreshActionService {
 
         this.m3uRefreshId.set(item._id);
         this.isRefreshing.set(true);
+        // Seen by the Sources page and the removal guard as well.
+        const release = this.activity.begin([item._id]);
         if (isActiveM3uRoute) {
             this.store.dispatch(
                 ChannelActions.setChannelsLoading({ loading: true })
@@ -214,6 +216,7 @@ export class PlaylistRefreshActionService {
             }
             this.m3uRefreshId.set(null);
             this.isRefreshing.set(false);
+            release();
         }
     }
 

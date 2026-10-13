@@ -1391,10 +1391,11 @@ in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
   switcher closes the popover first, since its focus trap would keep the
   keyboard from Undo: Undo takes the focus and returns it to the trigger
   (`SourceRemovalOptions.returnFocusTo`). A source cannot be removed while
-  a refresh clears and refills it: Remove is disabled in both lists and the
-  service ignores it (`PlaylistRefreshActionService.isSourceBusy`), and the
-  Sources page shows a switcher refresh as busy. Bulk cleanup keeps its
-  confirmation dialog.
+  a refresh clears and refills it: every refresh (a Sources row, the
+  switcher, the Xtream flow, the startup auto-refresh) and every delete
+  holds the source in the root `SourceActivityService`, which both lists,
+  the removal service and a second refresh consult. The Sources page shows
+  a switcher refresh as busy. Bulk cleanup keeps its confirmation dialog.
 - **Side list.** Type and, on desktop, Status (Any / Responding / Not
   responding) combine and persist (`SourcesViewStateService`); each group
   counts within the other's choice. The page checks every source, not only

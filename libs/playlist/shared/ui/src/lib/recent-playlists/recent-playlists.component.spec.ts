@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -21,10 +22,12 @@ import {
     SortOptions,
     SortOrder,
     SortService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { PlaylistMeta, SourceStatus } from '@iptvnator/shared/interfaces';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { SourceRemovalService } from '../source-removal/source-removal.service';
+import { SourceRowComponent } from '../source-row/source-row.component';
 import { RecentPlaylistsComponent } from './recent-playlists.component';
 import { SourceListRefreshService } from './source-list-refresh.service';
 
@@ -283,6 +286,21 @@ describe('RecentPlaylistsComponent', () => {
             rows[1].querySelector<HTMLButtonElement>('.source-row__more')
                 ?.disabled
         ).toBe(true);
+    });
+
+    it('offers no Remove while something else holds a source', () => {
+        const removable = () =>
+            fixture.debugElement
+                .queryAll(By.directive(SourceRowComponent))
+                .map((row) =>
+                    (row.componentInstance as SourceRowComponent).removable()
+                );
+        expect(removable()).toEqual([true, true, true]);
+        // The startup auto-refresh, or a refresh from the switcher.
+        const release = TestBed.inject(SourceActivityService).begin(['m3u']);
+        fixture.detectChanges();
+        expect(removable()).toEqual([false, true, true]);
+        release();
     });
 
     it('hides sources whose delete is pending', () => {

@@ -11,6 +11,7 @@ import {
     isDbAbortError,
     PlaybackPositionService,
     resetHostConnectivityGuard,
+    SourceActivityService,
     XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -79,6 +80,7 @@ export class XtreamRefreshFlowService {
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
+    private readonly activity = inject(SourceActivityService);
 
     /**
      * Playlists with a destructive run in flight, across every entry point.
@@ -119,8 +121,11 @@ export class XtreamRefreshFlowService {
         item: PlaylistMeta,
         reporter: XtreamRefreshProgressReporter
     ): Promise<void> {
+        // The shared registry also holds deletes, the startup auto-refresh
+        // and M3U refreshes from either entry point.
         if (
             this.activeRefreshPlaylistIds.has(item._id) ||
+            this.activity.isBusy(item._id) ||
             reporter.isBusy(item._id)
         ) {
             return;
@@ -131,6 +136,7 @@ export class XtreamRefreshFlowService {
         const run: XtreamRefreshRun = { playlistId: item._id, operationId };
         reporter.begin(run);
         this.activeRefreshPlaylistIds.add(item._id);
+        const release = this.activity.begin([item._id]);
 
         try {
             // Before anything destructive: this deletes the cached catalog and
@@ -205,6 +211,7 @@ export class XtreamRefreshFlowService {
             }
         } finally {
             this.activeRefreshPlaylistIds.delete(item._id);
+            release();
             reporter.end(run);
         }
     }

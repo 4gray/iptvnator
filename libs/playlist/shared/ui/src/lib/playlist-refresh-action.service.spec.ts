@@ -349,13 +349,17 @@ describe('PlaylistRefreshActionService', () => {
                 resolve = r;
             })
         );
+        const activity = TestBed.inject(SourceActivityService);
         service.refresh(playlist);
         expect(service.isSourceBusy('busy')).toBe(true);
         expect(service.isSourceBusy('other')).toBe(false);
+        // The Sources page and the removal guard see it too.
+        expect(activity.isBusy('busy')).toBe(true);
         resolve({ _id: 'busy', playlist: { items: [] } } as Playlist);
         await Promise.resolve();
         await Promise.resolve();
         expect(service.isSourceBusy('busy')).toBe(false);
+        expect(activity.isBusy('busy')).toBe(false);
     });
 
     it('passes trusted TLS hosts to URL-backed M3U refreshes', async () => {

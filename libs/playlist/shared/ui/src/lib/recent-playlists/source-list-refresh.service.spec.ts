@@ -24,6 +24,7 @@ import {
     SortBy,
     SortOrder,
     SortService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
@@ -500,6 +501,36 @@ describe('SourceListRefreshService', () => {
 
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
         expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('holds a row refresh in the shared registry, and leaves a held source alone', async () => {
+        const activity = TestBed.inject(SourceActivityService);
+        const item = createPlaylistMeta({
+            _id: 'playlist-m3u',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            url: 'https://source.test/list.m3u',
+        });
+        let resolve!: (value: unknown) => void;
+        playlistRefreshService.refreshPlaylist.mockReturnValueOnce(
+            new Promise((r) => {
+                resolve = r;
+            })
+        );
+        component.refresh(item);
+        // The switcher and the removal guard see the row's refresh.
+        expect(activity.isBusy(item._id)).toBe(true);
+        resolve({ id: item._id, items: [] });
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(activity.isBusy(item._id)).toBe(false);
+
+        // A refresh or delete started elsewhere holds it: no second run.
+        const release = activity.begin([item._id]);
+        component.refresh(item);
+        expect(playlistRefreshService.refreshPlaylist).toHaveBeenCalledTimes(1);
+        release();
     });
 
     it('re-evaluates refresh bridge availability when refreshing local M3U playlists', async () => {

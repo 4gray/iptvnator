@@ -110,6 +110,14 @@ describe('sourceDisplayName', () => {
         ).toBe('host.test');
     });
 
+    it('drops a name holding a secret of a URL in the fragment', () => {
+        const url = 'https://proxy.test/list#https://joe:hunter2@origin.test/a';
+        for (const title of ['Mine hunter2', 'Mine joe']) {
+            expect(sourceDisplayName({ title, url })).toBe('proxy.test');
+        }
+        expect(sourceDisplayName({ title: 'Mine', url })).toBe('Mine');
+    });
+
     it('keeps a playlist file name from a path that names no account', () => {
         const url = 'https://cdn.example/live/news/list.m3u';
         expect(sourceDisplayName({ title: 'list.m3u', url })).toBe('list.m3u');

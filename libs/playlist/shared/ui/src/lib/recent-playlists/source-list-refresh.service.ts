@@ -11,6 +11,7 @@ import {
     isDbAbortError,
     PlaylistRefreshService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import {
     PLAYLIST_UPDATE,
@@ -57,6 +58,10 @@ export class SourceListRefreshService {
     private readonly dataService = inject(DataService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    // Root registry: the switcher, the removal guard and cleanup consult it,
+    // so a row refresh must not be visible only to this page.
+    private readonly activity = inject(SourceActivityService);
+    private readonly releases = new Map<string, () => void>();
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
@@ -83,7 +88,7 @@ export class SourceListRefreshService {
     }
 
     refresh(item: PlaylistMeta): void {
-        if (this.isRefreshing(item._id)) {
+        if (this.isRefreshing(item._id) || this.activity.isBusy(item._id)) {
             return;
         }
         if (item.serverUrl && this.runtime.supportsXtreamSqliteDataSource) {
@@ -166,7 +171,8 @@ export class SourceListRefreshService {
 
     /** The shared Xtream re-import reports into this list's row state. */
     private readonly xtreamReporter: XtreamRefreshProgressReporter = {
-        isBusy: (playlistId) => this.isRefreshing(playlistId),
+        isBusy: (playlistId) =>
+            this.isRefreshing(playlistId) || this.activity.isBusy(playlistId),
         begin: ({ playlistId }) => this.setRefreshing(playlistId, true),
         report: ({ playlistId }, event) => this.track(playlistId, event),
         end: ({ playlistId }) => {
@@ -283,6 +289,12 @@ export class SourceListRefreshService {
     }
 
     private setRefreshing(id: string, refreshing: boolean): void {
+        if (refreshing && !this.releases.has(id)) {
+            this.releases.set(id, this.activity.begin([id]));
+        } else if (!refreshing) {
+            this.releases.get(id)?.();
+            this.releases.delete(id);
+        }
         this.refreshingIds.update((current) => {
             const next = new Set(current);
             if (refreshing) {

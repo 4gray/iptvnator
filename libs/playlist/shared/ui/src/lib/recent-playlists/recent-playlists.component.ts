@@ -40,6 +40,7 @@ import {
     RuntimeCapabilitiesService,
     SortBy,
     SortService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { PlaylistMeta, sourceStatusBucket } from '@iptvnator/shared/interfaces';
 import type { PlaylistType } from '../add-playlist-menu/playlist-type';
@@ -82,6 +83,7 @@ export class RecentPlaylistsComponent {
     readonly removal = inject(SourceRemovalService);
     readonly refresh = inject(SourceListRefreshService);
     private readonly refreshAction = inject(PlaylistRefreshActionService);
+    private readonly activity = inject(SourceActivityService);
 
     readonly searchQueryInput = input<string>('');
     readonly playlistClicked = output<string>();
@@ -226,6 +228,11 @@ export class RecentPlaylistsComponent {
             this.refresh.isRefreshing(item._id) ||
             this.refreshAction.isSourceBusy(item._id)
         );
+    }
+
+    /** Nothing else (a refresh, the startup auto-refresh) holds it. */
+    isRemovable(item: PlaylistMeta): boolean {
+        return !this.activity.isBusy(item._id);
     }
 
     busyMessage(item: PlaylistMeta): string {

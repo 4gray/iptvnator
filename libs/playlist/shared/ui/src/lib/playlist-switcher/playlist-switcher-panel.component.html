@@ -157,7 +157,7 @@
         [current]="option.playlist._id === currentId()"
         [highlighted]="index === highlight()"
         [canRefresh]="canRefresh(option.playlist)"
-        [removable]="!isRefreshing(option.playlist)"
+        [removable]="!isBusy(option.playlist)"
         (activated)="select(option.playlist)"
         (refreshRequested)="refresh(option.playlist)"
         (playlistInfoRequested)="openInfo(option.playlist)"

@@ -37,6 +37,7 @@
                 [draggable]="isCustomSort()"
                 [canRefresh]="refresh.canRefresh(item)"
                 [refreshing]="isRefreshing(item)"
+                [removable]="isRemovable(item)"
                 [deleting]="removal.progress.isDeleting(item._id)"
                 [busyMessage]="busyMessage(item)"
                 [busyProgress]="busyProgress(item)"

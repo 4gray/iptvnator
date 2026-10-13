@@ -83,6 +83,28 @@ describe('stripUrlCredentials', () => {
         expect(stripUrlCredentials(nested)).not.toMatch(/hunter2|joe/);
     });
 
+    it('cleans a fragment that holds a URL rather than parameters', () => {
+        expect(
+            stripUrlCredentials(
+                'https://proxy.test/list#https://joe:hunter2@origin.test/a.m3u'
+            )
+        ).toBe('https://proxy.test/list#https://origin.test/a.m3u');
+        expect(
+            stripUrlCredentials(
+                `https://proxy.test/list#${encodeURIComponent(
+                    'https://joe:hunter2@origin.test/a.m3u'
+                )}`
+            )
+        ).not.toMatch(/hunter2|joe/);
+        expect(
+            stripUrlCredentials('https://proxy.test/list#joe:hunter2@origin')
+        ).toBe('https://proxy.test/list');
+        // A plain anchor stays as written.
+        expect(stripUrlCredentials('https://host.test/list.m3u#part-2')).toBe(
+            'https://host.test/list.m3u#part-2'
+        );
+    });
+
     it('keeps a playlist path that only starts like an Xtream stream', () => {
         // No stream follows `/news/list.m3u`: it names no account.
         expect(stripUrlCredentials('https://cdn.test/live/news/list.m3u')).toBe(
@@ -163,7 +185,9 @@ describe('stripUrlCredentials', () => {
                 `https://host.test/list?note=${encodeURIComponent(value)}`
             );
         }
-        expect(performance.now() - started).toBeLessThan(1_000);
+        // About 0.25 s in total when idle; a backtracking pattern takes
+        // minutes. The margin absorbs a loaded CI runner.
+        expect(performance.now() - started).toBeLessThan(3_000);
     });
 
     it('returns null for text that is not an absolute URL', () => {

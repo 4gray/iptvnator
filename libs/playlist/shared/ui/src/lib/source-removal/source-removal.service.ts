@@ -11,9 +11,9 @@ import {
 import {
     PlaylistDeleteActionService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { SourceDeleteProgressService } from './source-delete-progress.service';
 import { SourceRemovalToastComponent } from './source-removal-toast.component';
 import {
@@ -67,7 +67,7 @@ interface PendingRemoval {
 export class SourceRemovalService {
     private readonly deleteAction = inject(PlaylistDeleteActionService);
     private readonly playlistContext = inject(PlaylistContextFacade);
-    private readonly refreshAction = inject(PlaylistRefreshActionService);
+    private readonly activity = inject(SourceActivityService);
     private readonly router = inject(Router);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly snackBar = inject(MatSnackBar);
@@ -94,11 +94,11 @@ export class SourceRemovalService {
         next: PlaylistMeta | null = null,
         options: SourceRemovalOptions = {}
     ): void {
-        // A refresh started from the switcher is destructive too (it clears
-        // the catalog, then re-imports it): the two must not overlap.
+        // A refresh from any entry point (or the startup auto-refresh) is
+        // destructive too: it clears the catalog, then re-imports it.
         if (
             this.isPending(playlist._id) ||
-            this.refreshAction.isSourceBusy(playlist._id)
+            this.activity.isBusy(playlist._id)
         ) {
             return;
         }

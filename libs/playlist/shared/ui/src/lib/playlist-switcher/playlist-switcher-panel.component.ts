@@ -32,7 +32,11 @@ import {
     sourceSortName,
     SourcesTypeFilter,
 } from '@iptvnator/playlist/shared/util';
-import { SortBy, SortService } from '@iptvnator/services';
+import {
+    SortBy,
+    SortService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import {
     PlaylistMeta,
     PlaylistSourceKind,
@@ -76,6 +80,7 @@ const KINDS: readonly PlaylistSourceKind[] = ['m3u', 'xtream', 'stalker'];
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlaylistSwitcherPanelComponent {
+    private readonly activity = inject(SourceActivityService);
     private readonly context = inject(PlaylistContextFacade);
     private readonly document = inject(DOCUMENT);
     private readonly dialog = inject(MatDialog);
@@ -284,8 +289,8 @@ export class PlaylistSwitcherPanelComponent {
     }
 
     /** A source cannot be removed while a refresh clears and refills it. */
-    isRefreshing(playlist: PlaylistMeta): boolean {
-        return this.refreshAction.isSourceBusy(playlist._id);
+    isBusy(playlist: PlaylistMeta): boolean {
+        return this.activity.isBusy(playlist._id);
     }
 
     refresh(playlist: PlaylistMeta): void {

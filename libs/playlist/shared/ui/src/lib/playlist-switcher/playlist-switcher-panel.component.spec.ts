@@ -15,6 +15,7 @@ import {
     SortOptions,
     SortOrder,
     SortService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
@@ -51,7 +52,6 @@ describe('PlaylistSwitcherPanelComponent', () => {
     let selectPlaylist: jest.Mock;
     let remove: jest.Mock;
     let navigate: jest.Mock;
-    let refreshing: ReturnType<typeof signal<string | null>>;
 
     const input = () =>
         (fixture.nativeElement as HTMLElement).querySelector(
@@ -83,7 +83,6 @@ describe('PlaylistSwitcherPanelComponent', () => {
         selectPlaylist = jest.fn();
         remove = jest.fn();
         navigate = jest.fn();
-        refreshing = signal<string | null>(null);
         TestBed.configureTestingModule({
             imports: [
                 PlaylistSwitcherPanelComponent,
@@ -138,7 +137,6 @@ describe('PlaylistSwitcherPanelComponent', () => {
                     useValue: {
                         canRefresh: () => true,
                         refresh: jest.fn(),
-                        isSourceBusy: (id: string) => refreshing() === id,
                     },
                 },
                 { provide: MatDialog, useValue: { open: jest.fn() } },
@@ -288,7 +286,8 @@ describe('PlaylistSwitcherPanelComponent', () => {
     });
 
     it('offers no Remove while a refresh clears and refills the source', async () => {
-        refreshing.set('bravo');
+        // Held by a refresh from any entry point, the Sources page included.
+        const release = TestBed.inject(SourceActivityService).begin(['bravo']);
         fixture.detectChanges();
         const menuRemove = async (id: string) => {
             (fixture.nativeElement as HTMLElement)
@@ -318,6 +317,7 @@ describe('PlaylistSwitcherPanelComponent', () => {
             )
             ?.click();
         expect(selectPlaylist).toHaveBeenCalled();
+        release();
     });
 
     it('leaves out a source whose delete is pending or running', () => {

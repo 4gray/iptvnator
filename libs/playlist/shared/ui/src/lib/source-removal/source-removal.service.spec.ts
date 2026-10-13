@@ -11,13 +11,13 @@ import {
     DatabaseService,
     PlaylistDeleteActionService,
     RuntimeCapabilitiesService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     RENDERER_PERFORMANCE_PHASE_HOOK_KEY,
     type RendererPerformancePhaseEvent,
 } from '@iptvnator/shared/logging';
-import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import {
     SOURCE_REMOVAL_UNDO_MS,
     SourceRemovalService,
@@ -52,7 +52,6 @@ describe('SourceRemovalService', () => {
     };
     let router: { url: string; navigate: jest.Mock; navigateByUrl: jest.Mock };
     let service: SourceRemovalService;
-    let refreshing: Set<string>;
 
     const toast = (message: string, data: { commitNow?: () => void } = {}) => {
         const dismissed = new Subject<void>();
@@ -85,7 +84,6 @@ describe('SourceRemovalService', () => {
         deletePlaylist = jest.fn().mockResolvedValue(true);
         cancelOperation = jest.fn().mockResolvedValue(true);
         dispatch = jest.fn();
-        refreshing = new Set();
         resolvedPlaylistId = signal<string | null>(null);
         routePlaylistId = signal<string | null>(null);
         context = {
@@ -134,12 +132,6 @@ describe('SourceRemovalService', () => {
                     provide: RuntimeCapabilitiesService,
                     useValue: { supportsXtreamSqliteDataSource: true },
                 },
-                {
-                    provide: PlaylistRefreshActionService,
-                    useValue: {
-                        isSourceBusy: (id: string) => refreshing.has(id),
-                    },
-                },
             ],
         });
         service = TestBed.inject(SourceRemovalService);
@@ -165,13 +157,15 @@ describe('SourceRemovalService', () => {
     });
 
     it('does not remove a source while a refresh clears and refills it', async () => {
-        refreshing.add('a');
+        // Any entry point's refresh, or the startup auto-refresh.
+        const release = TestBed.inject(SourceActivityService).begin(['a']);
         service.remove(playlist('a'));
         expireUndo();
         await flush();
         expect(service.isPending('a')).toBe(false);
         expect(toasts).toHaveLength(0);
         expect(deletePlaylist).not.toHaveBeenCalled();
+        release();
     });
 
     it('restores the source on Undo without deleting anything', async () => {
