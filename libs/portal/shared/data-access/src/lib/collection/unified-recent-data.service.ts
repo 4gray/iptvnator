@@ -491,6 +491,7 @@ export class UnifiedRecentDataService {
                 item.xtream_id
             ),
             name: item.title,
+            catalogStatus: item.catalog_status,
             contentType,
             sourceType: 'xtream',
             playlistId,

@@ -88,7 +88,13 @@ for (const identity of ['missing', 'conflicting'] as const) {
                     JSON.stringify({
                         hiddenCategories: [],
                         favorites: [favorite],
-                        recentlyViewed: [],
+                        recentlyViewed: [
+                            {
+                                contentType: favorite.contentType,
+                                xtreamId: favorite.xtreamId,
+                                viewedAt: '2026-01-02T12:00:00.000Z',
+                            },
+                        ],
                         playbackPositions: [],
                     })
                 ),
@@ -163,6 +169,17 @@ for (const identity of ['missing', 'conflicting'] as const) {
             ).userState.favorites
         ).toEqual([favorite]);
         if (identity === 'conflicting') {
+            await page.goto('/workspace/global-recent');
+            const recent = page.getByRole('button', {
+                name: favorite.snapshot.title,
+                exact: true,
+            });
+            await expect(recent).toHaveAttribute('aria-disabled', 'true');
+            await recent.dispatchEvent('click');
+            await recent.focus();
+            await page.keyboard.press('Enter');
+            await expect(page.locator('app-content-hero')).toHaveCount(0);
+            expect(detailRequests).toBe(0);
             await page.goto('/workspace/global-favorites');
             const card = page
                 .locator('app-content-card')

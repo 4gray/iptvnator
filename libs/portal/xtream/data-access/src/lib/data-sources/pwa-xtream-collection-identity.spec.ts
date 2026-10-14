@@ -725,59 +725,70 @@ describe('PWA Xtream collection identity', () => {
         ).toEqual(['movie']);
     });
 
-    it('keeps known conflicts unavailable through reload until the saved identity returns', async () => {
-        await source.restoreUserData('p1', {
-            favorites: [
-                {
-                    contentType: 'movie',
-                    xtreamId: 42,
-                    snapshot: {
-                        title: 'Original',
-                        tmdbId: 100,
-                        releaseYear: 1995,
+    it.each([false, true])(
+        'keeps conflicts unavailable through stored aliases until identity returns (legacy=%s)',
+        async (legacy) => {
+            await source.restoreUserData('p1', {
+                favorites: [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 42,
+                        snapshot: {
+                            title: 'Original',
+                            tmdbId: 100,
+                            releaseYear: 1995,
+                        },
                     },
-                },
-            ],
-            hiddenCategories: [],
-            recentlyViewed: [],
-            playbackPositions: [],
-        });
-        const returning = {
-            id: 42,
-            xtream_id: 42,
-            type: 'movie',
-            title: 'Returning',
-            tmdb_id: 200,
-            release_year: 1995,
-        } as XtreamContentItem;
-        await source.saveContent('p1', [returning], 'movie');
-        expect((await source.getFavorites('p1'))[0]).toMatchObject({
-            catalog_status: 'missing',
-            title: 'Original',
-        });
-        reload();
-        expect((await source.getFavorites('p1'))[0]).toMatchObject({
-            catalog_status: 'missing',
-        });
-        await source.saveContent(
-            'p1',
-            [{ ...returning, tmdb_id: undefined }],
-            'movie'
-        );
-        expect((await source.getFavorites('p1'))[0]).toMatchObject({
-            catalog_status: 'missing',
-            title: 'Original',
-        });
-        await source.saveContent(
-            'p1',
-            [{ ...returning, tmdb_id: 100 }],
-            'movie'
-        );
-        expect((await source.getFavorites('p1'))[0]).toMatchObject({
-            catalog_status: 'present',
-            title: 'Returning',
-        });
-    });
+                ],
+                hiddenCategories: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+            });
+            if (legacy) {
+                const snapshots = read('xtream-collection-items');
+                snapshots.p1[42] = snapshots.p1['movie:42'];
+                localStorage.setItem(
+                    'xtream-collection-items',
+                    JSON.stringify(snapshots)
+                );
+            }
+            const returning = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Returning',
+                tmdb_id: 200,
+                release_year: 1995,
+            } as XtreamContentItem;
+            await source.saveContent('p1', [returning], 'movie');
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                catalog_status: 'missing',
+                title: 'Original',
+            });
+            reload();
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                catalog_status: 'missing',
+            });
+            await source.saveContent(
+                'p1',
+                [{ ...returning, tmdb_id: undefined }],
+                'movie'
+            );
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                catalog_status: 'missing',
+                title: 'Original',
+            });
+            await source.saveContent(
+                'p1',
+                [{ ...returning, tmdb_id: 100 }],
+                'movie'
+            );
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                catalog_status: 'present',
+                title: 'Returning',
+            });
+        }
+    );
 
     it('keeps the artwork saved with each view through clear/restore', async () => {
         await source.restoreUserData('p1', {

@@ -106,7 +106,16 @@ export function findCollectionItems(
         ids.map((key) => typedCollectionRef(key)?.id ?? key)
     );
     const typedItems = new Map<CollectionKey, XtreamContentItem>();
-    for (const item of [...Object.values(snapshots), ...cached]) {
+    // Stored aliases are not fresh catalog evidence. Prefer the canonical typed
+    // snapshot, including any conflict retained since its legacy alias was copied.
+    for (const [storedKey, item] of Object.entries(snapshots)) {
+        if (!item || !wantedIds.has(item.xtream_id)) continue;
+        const key = itemCollectionKey(item);
+        if (key !== null && (storedKey === key || !typedItems.has(key))) {
+            typedItems.set(key, item);
+        }
+    }
+    for (const item of cached) {
         if (!item || !wantedIds.has(item.xtream_id)) continue;
         const key = itemCollectionKey(item);
         if (key !== null)

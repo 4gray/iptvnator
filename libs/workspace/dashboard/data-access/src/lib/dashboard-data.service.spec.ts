@@ -13,7 +13,10 @@ import {
     Playlist,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
-import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
+import {
+    PORTAL_PLAYBACK_POSITIONS,
+    getOpenCollectionDetailItemState,
+} from '@iptvnator/portal/shared/util';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DashboardDataService,
@@ -2558,44 +2561,60 @@ describe('DashboardDataService', () => {
         ).toEqual(['xtream-1', 'stalker-1', 'm3u-1']);
     });
 
-    it('includes PWA Xtream recent items from the active data source', async () => {
-        Object.defineProperty(window, 'electron', {
-            value: undefined,
-            configurable: true,
-        });
-        xtreamDataSourceMock.getRecentItems.mockResolvedValue([
-            {
-                id: 91,
-                category_id: 18,
-                title: 'Recent Movie',
-                rating: '7.8',
-                viewed_at: '2026-04-21T10:00:00.000Z',
-                poster_url: 'https://example.com/recent-movie.png',
-                xtream_id: 7001,
-                type: 'movie',
-            },
-        ]);
-
-        await service.reloadGlobalRecentItems();
-
-        expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
-            'xtream-1'
-        );
-        expect(dbServiceMock.getGlobalRecentlyViewed).not.toHaveBeenCalled();
-        expect(service.globalRecentItems()).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
+    it.each(['present', 'missing', 'unknown'] as const)(
+        'carries %s PWA Recent availability through the dashboard handoff',
+        async (catalogStatus) => {
+            Object.defineProperty(window, 'electron', {
+                value: undefined,
+                configurable: true,
+            });
+            xtreamDataSourceMock.getRecentItems.mockResolvedValue([
+                {
                     id: 91,
+                    catalog_status: catalogStatus,
+                    category_id: 18,
                     title: 'Recent Movie',
-                    type: 'movie',
-                    playlist_id: 'xtream-1',
-                    playlist_name: 'Xtream Playlist',
-                    source: 'xtream',
+                    rating: '7.8',
                     viewed_at: '2026-04-21T10:00:00.000Z',
-                }),
-            ])
-        );
-    });
+                    poster_url: 'https://example.com/recent-movie.png',
+                    xtream_id: 7001,
+                    type: 'movie',
+                },
+            ]);
+
+            await service.reloadGlobalRecentItems();
+
+            expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
+                'xtream-1'
+            );
+            expect(
+                dbServiceMock.getGlobalRecentlyViewed
+            ).not.toHaveBeenCalled();
+            expect(service.globalRecentItems()).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        id: 91,
+                        catalogStatus,
+                        title: 'Recent Movie',
+                        type: 'movie',
+                        playlist_id: 'xtream-1',
+                        playlist_name: 'Xtream Playlist',
+                        source: 'xtream',
+                        viewed_at: '2026-04-21T10:00:00.000Z',
+                    }),
+                ])
+            );
+            const item = service
+                .globalRecentItems()
+                .find((row) => row.id === 91);
+            if (!item) throw new Error('Missing recent item');
+            expect(
+                getOpenCollectionDetailItemState(
+                    service.getRecentItemDetailNavigationState(item)
+                )?.item.catalogStatus
+            ).toBe(catalogStatus);
+        }
+    );
 
     it('loads PWA Xtream recent items for multiple playlists in parallel', async () => {
         Object.defineProperty(window, 'electron', {

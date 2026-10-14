@@ -688,6 +688,7 @@ export class DashboardDataService {
         return {
             id: item.id,
             title: item.title,
+            catalogStatus: item.catalog_status,
             type: this.normalizeXtreamActivityType(item.type),
             playlist_id: playlist._id,
             playlist_name: playlist.title || 'Xtream',

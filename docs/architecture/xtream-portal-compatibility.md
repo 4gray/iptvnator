@@ -113,7 +113,10 @@ cannot replace an imported snapshot merely because a provider reused its ID.
 A known browser identity conflict marks the retained snapshot unavailable, so
 collection and dashboard detail actions cannot open the replacement under the
 saved title. This survives reload and clears only when the saved identity is
-confirmed again. Explicit removal remains available. After removal, deliberately
+confirmed again. Legacy numeric aliases are deduplicated separately, with the
+canonical typed snapshot taking precedence; stored copies never count as catalog
+confirmation. Recent collection and dashboard mappings carry the same conflict
+status into their detail guards. Explicit removal remains available. After removal, deliberately
 favoriting the current item may replace the old snapshot (including legacy key
 aliases); that replacement must persist before the new reference is saved, so
 storage failure cannot silently resurrect the old title. Ordinary optional
