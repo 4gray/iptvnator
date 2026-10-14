@@ -1152,8 +1152,10 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   tinted blurred backdrop) is global in `m3-theme.scss` and reaches every
   dialog; a dialog that draws its own surface strips it through its panel
   class, as the command palette and the programme dialog do.
-- **Dismiss.** The shell's header × and the footer "Cancel"/"Close" both
-  dismiss; a dialog never adds a second footer dismiss. The × is the last
+- **Dismiss.** The shell's header × (named "Close dialog", so a footer
+  "Close" stays the only button of that name) and the footer
+  "Cancel"/"Close" both dismiss; a dialog never adds a second footer
+  dismiss. The × is the last
   element in the DOM, so `first-tabbable` autofocus lands in the body and
   Tab reaches it after the footer. Escape and the backdrop still close.
 - **One row.** Action labels are short verbs ("Cancel", "Discard", "Save"),

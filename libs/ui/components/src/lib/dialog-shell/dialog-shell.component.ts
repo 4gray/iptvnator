@@ -31,7 +31,8 @@ export type DialogIconTone = 'default' | 'warn';
  *
  * The close button is the last element in the DOM and positioned into the
  * header, so Material's `first-tabbable` autofocus lands in the body and Tab
- * reaches the close button after the footer.
+ * reaches the close button after the footer. It is named "Close dialog", so a
+ * footer "Close" stays the only button of that name.
  */
 @Component({
     selector: 'app-dialog-shell',

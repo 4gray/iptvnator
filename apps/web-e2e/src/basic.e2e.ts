@@ -320,7 +320,10 @@ test('@web keyboard shortcuts header fits a phone width', async ({ page }) => {
         .poll(() => dialog.evaluate((el) => el.getBoundingClientRect().width))
         .toBeLessThanOrEqual(328);
     const chip = dialog.locator('.app-dialog__header-end');
-    const close = dialog.getByRole('button', { name: 'Close', exact: true });
+    const close = dialog.getByRole('button', {
+        name: 'Close dialog',
+        exact: true,
+    });
     await expect(close).toBeVisible();
 
     const bounds = await dialog.evaluate((el) => {

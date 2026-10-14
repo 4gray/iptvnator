@@ -124,7 +124,7 @@ describe('DialogShellComponent', () => {
         const buttons = Array.from(root.querySelectorAll('button'));
         const closeButton = buttons.at(-1) as HTMLButtonElement;
         expect(closeButton.classList).toContain('app-dialog__close');
-        expect(closeButton.getAttribute('aria-label')).toBe('CLOSE');
+        expect(closeButton.getAttribute('aria-label')).toBe('CLOSE_DIALOG');
         closeButton.click();
         expect(close).toHaveBeenCalledTimes(1);
     });
