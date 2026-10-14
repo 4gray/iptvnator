@@ -7,7 +7,7 @@ import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { EMPTY, Subject, config as rxjsConfig, of } from 'rxjs';
+import { config as rxjsConfig, Observable, of, Subject } from 'rxjs';
 import {
     buildHostConnectivityFastFailMessage,
     CONNECTIVITY_GUARD_RESET,
@@ -72,7 +72,9 @@ describe('PwaService', () => {
     });
 
     it('reloads the page from the update toast once the toast is open and its action is chosen', async () => {
-        let showToast!: (ref: { onAction: () => typeof EMPTY }) => void;
+        let showToast!: (ref: {
+            onAction: () => Observable<undefined>;
+        }) => void;
         const open = TestBed.inject(LazySnackBar).open as jest.Mock;
         open.mockImplementation(
             () => new Promise((resolve) => (showToast = resolve))

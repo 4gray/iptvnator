@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { EMPTY, of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { DialogService } from '@iptvnator/ui/components';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
@@ -508,7 +508,9 @@ describe('ElectronService', () => {
     });
 
     it('opens the trust-host confirmation from the toast action and retries after approval', async () => {
-        let showToast!: (ref: { onAction: () => typeof EMPTY }) => void;
+        let showToast!: (ref: {
+            onAction: () => Observable<undefined>;
+        }) => void;
         snackBar.open.mockImplementation(
             () => new Promise((resolve) => (showToast = resolve))
         );
