@@ -102,6 +102,9 @@ export class PwaService extends DataService {
         super();
     }
 
+    /** The page reload; a field so specs can substitute it. */
+    reloadWindow: () => void = () => window.location.reload();
+
     /** Uses service worker mechanism to check for available application updates */
     checkUpdates() {
         this.swUpdate.versionUpdates.subscribe(() => {
@@ -111,9 +114,7 @@ export class PwaService extends DataService {
                     this.translateService.instant('REFRESH')
                 )
                 .then((ref) =>
-                    ref?.onAction().subscribe(() => {
-                        window.location.reload();
-                    })
+                    ref?.onAction().subscribe(() => this.reloadWindow())
                 );
         });
     }
