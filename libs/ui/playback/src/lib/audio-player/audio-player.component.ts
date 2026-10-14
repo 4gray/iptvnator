@@ -86,8 +86,8 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
                     </button>
 
                     <button
+                        mat-icon-button
                         class="play-btn"
-                        mat-fab
                         [matTooltip]="
                             (playState() === 'play'
                                 ? 'AUDIO_PLAYER.PAUSE'

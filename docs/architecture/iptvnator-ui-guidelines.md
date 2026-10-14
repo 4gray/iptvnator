@@ -136,7 +136,10 @@ Everything else is lazy by these rules:
   and the dark colours. Add an entry with a new `@angular/material/<entry>`
   import and remove it with the last one;
   `pnpm run styles:material-theme-scope:validate` (CI) checks both directions
-  (`core` always stays, `button` brings `icon-button` and `fab`).
+  (`core` always stays, `button` brings `icon-button`; `fab` is listed only
+  while a runtime template renders `mat-fab` or `mat-mini-fab`, since the
+  button import carries the directives either way and the fab tokens alone
+  are about 6 KB).
 - **No animations module.** Nothing declares an Angular animation trigger and
   Material 22 animates with CSS, deciding from `prefers-reduced-motion` itself,
   so `app.config.ts` does not call `provideAnimations()`; the Electron
