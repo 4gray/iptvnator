@@ -13,12 +13,6 @@ import {
 } from '@iptvnator/services';
 import { XtreamContentItem } from './xtream-data-source.interface';
 
-const STORAGE_KEYS = {
-    COLLECTION_ITEMS: XTREAM_USER_DATA_KEYS.collectionItems,
-    FAVORITES: XTREAM_USER_DATA_KEYS.favorites,
-    RECENT_ITEMS: XTREAM_USER_DATA_KEYS.recentItems,
-};
-
 /** Synchronous persistence and migration using only snapshots and cached identity evidence. */
 export class PwaCollectionStorage {
     constructor(
@@ -57,7 +51,7 @@ export class PwaCollectionStorage {
 
     getFavoritesFromStorage(): Record<string, CollectionKey[]> {
         try {
-            const data = this.storage.getItem(STORAGE_KEYS.FAVORITES);
+            const data = this.storage.getItem(XTREAM_USER_DATA_KEYS.favorites);
             return normalizeFavoriteStorage(data ? JSON.parse(data) : {});
         } catch {
             return {};
@@ -65,7 +59,10 @@ export class PwaCollectionStorage {
     }
 
     saveFavoritesToStorage(favorites: Record<string, CollectionKey[]>): void {
-        this.storage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
+        this.storage.setItem(
+            XTREAM_USER_DATA_KEYS.favorites,
+            JSON.stringify(favorites)
+        );
     }
 
     clearFavoritesForPlaylist(playlistId: string): void {
@@ -131,7 +128,9 @@ export class PwaCollectionStorage {
 
     getRecentItemsFromStorage(): Record<string, StoredRecentItem[]> {
         try {
-            const data = this.storage.getItem(STORAGE_KEYS.RECENT_ITEMS);
+            const data = this.storage.getItem(
+                XTREAM_USER_DATA_KEYS.recentItems
+            );
             return normalizeRecentStorage(data ? JSON.parse(data) : {});
         } catch {
             return {};
@@ -142,7 +141,7 @@ export class PwaCollectionStorage {
         recentItems: Record<string, StoredRecentItem[]>
     ): void {
         this.storage.setItem(
-            STORAGE_KEYS.RECENT_ITEMS,
+            XTREAM_USER_DATA_KEYS.recentItems,
             JSON.stringify(recentItems)
         );
     }
@@ -158,7 +157,9 @@ export class PwaCollectionStorage {
         Record<string, XtreamContentItem>
     > {
         try {
-            const data = this.storage.getItem(STORAGE_KEYS.COLLECTION_ITEMS);
+            const data = this.storage.getItem(
+                XTREAM_USER_DATA_KEYS.collectionItems
+            );
             const parsed = data ? JSON.parse(data) : {};
             if (!parsed || typeof parsed !== 'object') {
                 return {};
@@ -169,11 +170,11 @@ export class PwaCollectionStorage {
         }
     }
 
-    private saveCollectionItemsToStorage(
+    saveCollectionItemsToStorage(
         items: Record<string, Record<string, XtreamContentItem>>
     ): void {
         this.storage.setItem(
-            STORAGE_KEYS.COLLECTION_ITEMS,
+            XTREAM_USER_DATA_KEYS.collectionItems,
             JSON.stringify(items)
         );
     }

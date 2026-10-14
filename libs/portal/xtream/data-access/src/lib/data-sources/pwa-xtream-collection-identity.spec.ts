@@ -10,6 +10,7 @@ import { XtreamPlaylistBackupEntry } from '@iptvnator/shared/interfaces';
 import { of } from 'rxjs';
 import { XtreamApiService } from '../services/xtream-api.service';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
+import { XtreamContentItem } from './xtream-data-source.interface';
 
 const credentials = {
     serverUrl: 'http://localhost:3211',
@@ -596,6 +597,11 @@ describe('PWA Xtream collection identity', () => {
                 );
             }
             await source.getRecentItems('p1');
+            if (identity.includes('conflict')) {
+                for (const item of await source.getFavorites('p1')) {
+                    expect(item).toMatchObject({ catalog_status: 'missing' });
+                }
+            }
             const expected = favorites.map((favorite) =>
                 identity === 'confirmed'
                     ? {
@@ -625,6 +631,153 @@ describe('PWA Xtream collection identity', () => {
             expect(exportFavorites()).toEqual(expected);
         }
     );
+
+    it.each([false, true])(
+        'replaces an explicitly removed favorite with current catalog data (legacy=%s)',
+        async (legacy) => {
+            await source.restoreUserData('p1', {
+                favorites: [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 42,
+                        snapshot: { title: 'Original', tmdbId: 100 },
+                    },
+                ],
+                hiddenCategories: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+            });
+            if (legacy) {
+                const snapshots = read('xtream-collection-items');
+                snapshots.p1[42] = snapshots.p1['movie:42'];
+                localStorage.setItem(
+                    'xtream-collection-items',
+                    JSON.stringify(snapshots)
+                );
+            }
+            const replacement = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Replacement',
+                tmdb_id: 200,
+                poster_url: 'new.jpg',
+            } as XtreamContentItem;
+            await source.saveContent('p1', [replacement], 'movie');
+            await source.getFavorites('p1');
+            // Re-adding while retained must not replace the original saved identity.
+            await source.addFavorite({ id: 42, type: 'movie' }, 'p1');
+            expect((await source.getFavorites('p1'))[0].title).toBe('Original');
+            await source.removeFavorite({ id: 42, type: 'movie' }, 'p1');
+            const setItem = Storage.prototype.setItem;
+            const quota = jest
+                .spyOn(Storage.prototype, 'setItem')
+                .mockImplementation(function (this: Storage, key, value) {
+                    if (key === 'xtream-collection-items')
+                        throw new DOMException('full', 'QuotaExceededError');
+                    setItem.call(this, key, value);
+                });
+            await expect(
+                source.addFavorite({ id: 42, type: 'movie' }, 'p1')
+            ).rejects.toMatchObject({ name: 'QuotaExceededError' });
+            expect(await source.getFavorites('p1')).toEqual([]);
+            quota.mockRestore();
+            await source.addFavorite({ id: 42, type: 'movie' }, 'p1');
+            reload();
+            expect(await source.getFavorites('p1')).toEqual([
+                expect.objectContaining({
+                    title: 'Replacement',
+                    tmdb_id: 200,
+                    poster_url: 'new.jpg',
+                }),
+            ]);
+        }
+    );
+
+    it('retains concurrent explicit additions after loading the favorite writer', async () => {
+        await loadAll();
+        await Promise.all(
+            types.map((type) => source.addFavorite({ id: 42, type }, 'p1'))
+        );
+        expect(
+            (await source.getFavorites('p1')).map((item) => item.type)
+        ).toEqual(types);
+    });
+
+    it('keeps a new favorite when a compatible Recent snapshot cannot be refreshed', async () => {
+        await loadAll();
+        await source.addRecentItem({ id: 42, type: 'movie' }, 'p1');
+        const setItem = Storage.prototype.setItem;
+        jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+            this: Storage,
+            key,
+            value
+        ) {
+            if (key === 'xtream-collection-items')
+                throw new DOMException('full', 'QuotaExceededError');
+            setItem.call(this, key, value);
+        });
+        await expect(
+            source.addFavorite({ id: 42, type: 'movie' }, 'p1')
+        ).resolves.toBeUndefined();
+        expect(
+            (await source.getFavorites('p1')).map((item) => item.type)
+        ).toEqual(['movie']);
+    });
+
+    it('keeps known conflicts unavailable through reload until the saved identity returns', async () => {
+        await source.restoreUserData('p1', {
+            favorites: [
+                {
+                    contentType: 'movie',
+                    xtreamId: 42,
+                    snapshot: {
+                        title: 'Original',
+                        tmdbId: 100,
+                        releaseYear: 1995,
+                    },
+                },
+            ],
+            hiddenCategories: [],
+            recentlyViewed: [],
+            playbackPositions: [],
+        });
+        const returning = {
+            id: 42,
+            xtream_id: 42,
+            type: 'movie',
+            title: 'Returning',
+            tmdb_id: 200,
+            release_year: 1995,
+        } as XtreamContentItem;
+        await source.saveContent('p1', [returning], 'movie');
+        expect((await source.getFavorites('p1'))[0]).toMatchObject({
+            catalog_status: 'missing',
+            title: 'Original',
+        });
+        reload();
+        expect((await source.getFavorites('p1'))[0]).toMatchObject({
+            catalog_status: 'missing',
+        });
+        await source.saveContent(
+            'p1',
+            [{ ...returning, tmdb_id: undefined }],
+            'movie'
+        );
+        expect((await source.getFavorites('p1'))[0]).toMatchObject({
+            catalog_status: 'missing',
+            title: 'Original',
+        });
+        await source.saveContent(
+            'p1',
+            [{ ...returning, tmdb_id: 100 }],
+            'movie'
+        );
+        expect((await source.getFavorites('p1'))[0]).toMatchObject({
+            catalog_status: 'present',
+            title: 'Returning',
+        });
+    });
 
     it('keeps the artwork saved with each view through clear/restore', async () => {
         await source.restoreUserData('p1', {

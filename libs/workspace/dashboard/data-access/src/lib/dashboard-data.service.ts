@@ -49,6 +49,7 @@ import {
     toTimestamp,
 } from './dashboard-mappers';
 import {
+    COLLECTION_VIEW_STATE_KEY,
     PORTAL_PLAYBACK_POSITIONS,
     WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
@@ -1006,7 +1007,14 @@ export class DashboardDataService {
     getGlobalFavoriteNavigationState(
         item: DashboardFavoriteItem
     ): WorkspaceNavigationTarget['state'] {
-        if (isCatalogUnavailable(item)) return undefined;
+        if (isCatalogUnavailable(item)) {
+            return {
+                [COLLECTION_VIEW_STATE_KEY]: {
+                    scope: 'all',
+                    selectedContentType: item.type,
+                },
+            };
+        }
         return getGlobalFavoriteNavigationStateUtil(item);
     }
 

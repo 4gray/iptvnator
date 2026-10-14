@@ -664,7 +664,9 @@ describe('DashboardDataService', () => {
         expect(service.getGlobalFavoriteLink(item)).toEqual([
             '/workspace/global-favorites',
         ]);
-        expect(service.getGlobalFavoriteNavigationState(item)).toBeUndefined();
+        expect(service.getGlobalFavoriteNavigationState(item)).toEqual({
+            collectionViewState: { scope: 'all', selectedContentType: 'movie' },
+        });
         await service.removeGlobalFavorite(item);
         expect(dbServiceMock.removeFromFavorites).toHaveBeenCalledWith(
             { favoriteId: 71 },

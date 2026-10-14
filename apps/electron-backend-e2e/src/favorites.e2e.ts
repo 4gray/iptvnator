@@ -720,6 +720,10 @@ test.describe('Electron Favorites', () => {
                 name: sourcePortalTitle,
             });
             await waitForXtreamWorkspaceReady(app.mainWindow);
+            const sourcePath = new URL(app.mainWindow.url()).pathname;
+            const sourceId = decodeURIComponent(
+                sourcePath.split('/xtreams/')[1].split('/')[0]
+            );
 
             await app.mainWindow
                 .getByRole('link', { name: 'Movies', exact: true })
@@ -807,6 +811,41 @@ test.describe('Electron Favorites', () => {
             );
             await switchUnifiedCollectionContent(app.mainWindow, 'Series');
             await expectVisibleContentCardTitle(app.mainWindow, seriesTitle);
+            // Missing favorites must remain visible even while Host is active.
+            await app.mainWindow.evaluate(async (playlistId) => {
+                for (const type of ['movie', 'series'] as const) {
+                    await window.electron.dbClearXtreamImportCache(
+                        playlistId,
+                        type
+                    );
+                    await window.electron.dbSetAppState(
+                        `xtream-import-status:${playlistId}:${type}`,
+                        'completed'
+                    );
+                }
+            }, sourceId);
+            for (const title of [movieTitle, seriesTitle]) {
+                await goToDashboard(app.mainWindow);
+                await app.mainWindow
+                    .getByTestId('dashboard-favorite-vod-rail-card')
+                    .filter({ hasText: title })
+                    .first()
+                    .click();
+                await expectPathname(
+                    app.mainWindow,
+                    /\/workspace\/global-favorites$/
+                );
+                await expectVisibleContentCardTitle(app.mainWindow, title);
+                await expect(
+                    app.mainWindow.locator('app-content-hero')
+                ).toHaveCount(0);
+                await expect(
+                    playlistSwitcherTitle(app.mainWindow)
+                ).toContainText(hostPortalTitle);
+                await expect(
+                    contentCardByTitle(app.mainWindow, title).first()
+                ).toContainText('Not in the current catalog');
+            }
         } finally {
             await closeElectronApp(app);
         }

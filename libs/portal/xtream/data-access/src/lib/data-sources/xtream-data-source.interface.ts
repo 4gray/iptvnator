@@ -77,6 +77,8 @@ export interface XtreamContentItem {
     added_at?: string;
     viewed_at?: string;
     position?: number | null;
+    /** Last confirmed availability of a persisted collection snapshot. */
+    catalog_status?: XtreamFavoriteCatalogStatus;
 
     // XtreamItem compatibility fields (optional for search/navigation)
     num?: number;
@@ -100,7 +102,6 @@ export interface XtreamFavoriteItem extends Omit<
     id: number | null;
     category_id: number | string | null;
     favorite_id?: number;
-    catalog_status?: XtreamFavoriteCatalogStatus;
 }
 
 /**

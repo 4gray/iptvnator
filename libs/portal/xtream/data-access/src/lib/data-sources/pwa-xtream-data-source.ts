@@ -716,23 +716,22 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
-        const allFavorites = this.collectionStorage.getFavoritesFromStorage();
-        if (!allFavorites[playlistId]) {
-            allFavorites[playlistId] = [];
-        }
-        const matchingKeys = this.getMatchingCollectionKeys(
-            playlistId,
-            allFavorites[playlistId],
-            normalizedContentId
-        );
-        if (!allFavorites[playlistId].some((id) => matchingKeys.has(id))) {
-            allFavorites[playlistId].push(normalizedContentId);
-        }
-        this.collectionStorage.saveFavoritesToStorage(allFavorites);
-        this.collectionStorage.getLocalFavorites(playlistId);
-        this.collectionStorage.saveCollectionItemSnapshot(
+        const { addPwaFavorite } = await import('./pwa-favorite-write');
+        addPwaFavorite(
+            this.collectionStorage,
             playlistId,
             normalizedContentId,
+            this.getCollectionItemsById(
+                playlistId,
+                [normalizedContentId],
+                true
+            ).get(normalizedContentId),
+            (ids) =>
+                this.getMatchingCollectionKeys(
+                    playlistId,
+                    ids,
+                    normalizedContentId
+                ),
             backdropUrl
         );
     }

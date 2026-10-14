@@ -145,12 +145,14 @@ export function findCollectionItems(
 /** Catalog evidence must confirm every saved identity field before replacing metadata. */
 export function collectionSnapshotMatchesContent(
     saved: XtreamContentItem,
-    current: XtreamContentItem | undefined
+    current: XtreamContentItem | undefined,
+    allowMissing = false
 ): boolean {
-    return (
-        (saved.tmdb_id == null || saved.tmdb_id === current?.tmdb_id) &&
-        (saved.release_year == null ||
-            saved.release_year === current?.release_year)
+    return (['tmdb_id', 'release_year'] as const).every(
+        (key) =>
+            saved[key] == null ||
+            saved[key] === current?.[key] ||
+            (allowMissing && current?.[key] == null)
     );
 }
 
@@ -160,10 +162,14 @@ function mergeCollectionItem(
     current: XtreamContentItem
 ): XtreamContentItem {
     if (!saved) return current;
+    if (!collectionSnapshotMatchesContent(saved, current, true)) {
+        return { ...saved, catalog_status: 'missing' };
+    }
     if (!collectionSnapshotMatchesContent(saved, current)) return saved;
     return {
         ...saved,
         ...current,
+        catalog_status: 'present',
         title: current.title || saved.title,
         poster_url: current.poster_url || saved.poster_url,
         backdrop_url: current.backdrop_url || saved.backdrop_url,

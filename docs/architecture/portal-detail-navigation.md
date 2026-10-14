@@ -94,7 +94,9 @@ handler as the header Back.
   so the correct detail host still opens without switching playlist context.
 - Dashboard `Global Favorites` and `Recently Watched` widgets hand off Xtream and
   Stalker movies/series into the matching global collection route with detail
-  pre-opened.
+  pre-opened. Unavailable favorites instead open the all-playlists collection
+  filtered to that content type, with no detail handoff, so an active different
+  playlist cannot hide the saved entry.
 - The dashboard hero CTA and the Continue Watching cards' explicit "Resume
   episode" ⋮ action for Xtream and Stalker series carry a one-shot
   season/episode resume target. The collection-owned detail consumes it after

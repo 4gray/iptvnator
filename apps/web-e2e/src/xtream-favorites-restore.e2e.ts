@@ -28,6 +28,14 @@ for (const identity of ['missing', 'conflicting'] as const) {
         });
         expect(response.ok()).toBeTruthy();
         const movie = (await response.json())[0];
+        let detailRequests = 0;
+        page.on('request', (request) => {
+            if (
+                new URL(request.url()).searchParams.get('action') ===
+                'get_vod_info'
+            )
+                detailRequests++;
+        });
         await page.route('**/localhost:3000/xtream**', async (route) => {
             const original = new URL(route.request().url());
             if (original.searchParams.get('action') !== 'get_vod_streams') {
@@ -130,6 +138,18 @@ for (const identity of ['missing', 'conflicting'] as const) {
             added_at: favorite.addedAt,
             position: 3,
         });
+        if (identity === 'conflicting') {
+            const card = page.getByRole('button', {
+                name: favorite.snapshot.title,
+                exact: true,
+            });
+            await expect(card).toHaveAttribute('aria-disabled', 'true');
+            await card.dispatchEvent('click');
+            await card.focus();
+            await page.keyboard.press('Enter');
+            await expect(page.locator('app-content-hero')).toHaveCount(0);
+            expect(detailRequests).toBe(0);
+        }
         await page.goto('/workspace/settings/backup');
         const downloadPromise = page.waitForEvent('download');
         await page.getByRole('button', { name: 'Export', exact: true }).click();
@@ -142,6 +162,28 @@ for (const identity of ['missing', 'conflicting'] as const) {
                     entry.exportedId === playlistId
             ).userState.favorites
         ).toEqual([favorite]);
+        if (identity === 'conflicting') {
+            await page.goto('/workspace/global-favorites');
+            const card = page
+                .locator('app-content-card')
+                .filter({ hasText: favorite.snapshot.title });
+            await card
+                .getByRole('button', {
+                    name: 'Remove from favorites',
+                    exact: true,
+                })
+                .click();
+            await expect(card).toHaveCount(0);
+            expect(
+                await page.evaluate(
+                    (id) =>
+                        JSON.parse(
+                            localStorage.getItem('xtream-favorites') ?? '{}'
+                        )[id],
+                    playlistId
+                )
+            ).toEqual([]);
+        }
     });
 }
 

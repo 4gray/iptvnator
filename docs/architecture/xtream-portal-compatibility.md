@@ -110,6 +110,16 @@ Favorites and Recent reads/writes share this resolution. Recent/detail backdrop
 writes check the actual catalog evidence, never the resolved collection row
 which already carries saved identity. Browsing, reload and re-export therefore
 cannot replace an imported snapshot merely because a provider reused its ID.
+A known browser identity conflict marks the retained snapshot unavailable, so
+collection and dashboard detail actions cannot open the replacement under the
+saved title. This survives reload and clears only when the saved identity is
+confirmed again. Explicit removal remains available. After removal, deliberately
+favoriting the current item may replace the old snapshot (including legacy key
+aliases); that replacement must persist before the new reference is saved, so
+storage failure cannot silently resurrect the old title. Ordinary optional
+snapshot-cache writes retain their existing quota behavior. The explicit browser
+favorite writer loads on demand; after loading, reference and snapshot writes
+run synchronously against fresh storage so concurrent additions are not lost.
 Initial browser imports and deferred retries share `PwaXtreamBackupStorage`;
 `PwaXtreamBackupStateService` supplies its injected storage for the importer.
 Both write the lists first and require the nested favorite snapshots to persist
