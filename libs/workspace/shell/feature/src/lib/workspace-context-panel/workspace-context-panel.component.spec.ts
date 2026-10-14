@@ -369,10 +369,13 @@ describe('WorkspaceContextPanelComponent', () => {
     });
 
     it.each([
-        { id: 7, name: 'Alpha', top: 520 },
+        // Alpha's row is already fully visible: clicking it must not move
+        // the rail at all.
+        { id: 7, name: 'Alpha', top: null },
+        // Zulu's row is below the fold: it is centred into view.
         { id: 8, name: 'Zulu', top: 2420 },
     ])(
-        'scrolls to the selected local category $name when provider IDs collide after sorting',
+        'reveals the selected local category $name when provider IDs collide after sorting',
         async ({ id, name, top }) => {
             fixture.componentRef.setInput('section', 'live');
             xtreamSelectedTypeContentState.set('ready');
@@ -414,10 +417,14 @@ describe('WorkspaceContextPanelComponent', () => {
             await fixture.whenStable();
 
             expect(selected.getAttribute('aria-current')).toBe('true');
-            expect(container.scrollTo).toHaveBeenCalledWith({
-                behavior: 'smooth',
-                top,
-            });
+            if (top === null) {
+                expect(container.scrollTo).not.toHaveBeenCalled();
+            } else {
+                expect(container.scrollTo).toHaveBeenCalledWith({
+                    behavior: 'smooth',
+                    top,
+                });
+            }
         }
     );
 
