@@ -348,9 +348,12 @@ jobs:
                   --only launch/main.modulesRegisteredBeforeWindow
                   --only launch/renderer.layoutShiftScore
                   --only launch/renderer.layoutShiftScoreSettled
+                  --only launch/renderer.cdTicksToFirstCard
+                  --only launch/renderer.cdTicksIdle30s
                   --only open-source/main.mockHttpRequestsToSettled
                   --only open-source/renderer.ipcCallsToFirstPage
                   --only open-source/renderer.layoutShiftScore
+                  --only open-source/renderer.cdTicksToFirstPage
                   --only playback/renderer.httpRequestsToPlaying
                   --only playback/renderer.layoutShiftScore
                   --only search/renderer.ipcCallsPerSearch
