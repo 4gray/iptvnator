@@ -6,6 +6,8 @@ import {
     DEFAULT_USERNAME,
     interceptXtreamRequests,
     MOCK_SERVER,
+    routeMovieClip,
+    selectWebPlayer,
 } from './xtream-series-playback.fixture';
 
 test.beforeEach(async ({ page, request }) => {
@@ -19,6 +21,11 @@ for (const identity of ['missing', 'conflicting'] as const) {
         page,
         request,
     }) => {
+        test.setTimeout(60_000);
+        if (identity === 'conflicting') {
+            await routeMovieClip(page);
+            await selectWebPlayer(page, 'HTML5 video player');
+        }
         const response = await request.get(`${MOCK_SERVER}/player_api.php`, {
             params: {
                 username: DEFAULT_USERNAME,
@@ -58,6 +65,8 @@ for (const identity of ['missing', 'conflicting'] as const) {
             const response = await route.fetch({ url: mockUrl.toString() });
             const body = await response.json();
             if (action === 'get_vod_info') {
+                // Give the local WebM bytes to Chromium's native media path.
+                body.payload.movie_data.container_extension = 'mp4';
                 Object.assign(body.payload.info, {
                     tmdb_id: 999,
                     releasedate: '2026-01-01',

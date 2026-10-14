@@ -122,8 +122,11 @@ favoriting the current item may replace the old snapshot (including legacy key
 aliases); that replacement must persist before the new reference is saved, so
 storage failure cannot silently resurrect the old title. Ordinary optional
 snapshot-cache writes retain their existing quota behavior. The explicit browser
-favorite writer loads on demand; after loading, reference and snapshot writes
-run synchronously against fresh storage so concurrent additions are not lost.
+favorite and Recent writers, playback-position operations and pending-state
+serialization load on demand.
+After loading, each operation reads fresh storage and completes its mutations
+synchronously so concurrent additions are not lost; Recent snapshots and viewing
+dates still share one atomic write.
 Browser collection actions carry the rendered row's saved TMDB/year identity,
 independent of whether the catalog has hydrated. Status, add and remove compare
 that identity with the retained favorite; removal rechecks storage so a stale

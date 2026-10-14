@@ -149,8 +149,14 @@ export async function refreshFavoriteCatalog(
     if (entry === 'sources') {
         await refreshSource(page, title, { confirm: true });
     } else {
+        await page.getByTestId('playlist-switcher-trigger').click();
         await page
-            .getByRole('button', { name: 'Refresh playlist', exact: true })
+            .locator(
+                'app-playlist-switcher-panel [role="option"][aria-current="true"] .source-row__more'
+            )
+            .click();
+        await page
+            .getByRole('menuitem', { name: 'Refresh playlist', exact: true })
             .click();
         const dialog = page.locator('mat-dialog-container');
         await dialog

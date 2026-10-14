@@ -650,6 +650,34 @@ describe('PwaXtreamDataSource', () => {
         ]);
     });
 
+    it('keeps concurrent Recent additions when the writer loads on demand', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 201, name: 'First movie', category_id: '20' },
+            { stream_id: 202, name: 'Second movie', category_id: '20' },
+        ]);
+        await dataSource.getContent('playlist-1', credentials, 'movie');
+
+        await Promise.all([
+            dataSource.addRecentItem({ id: 201, type: 'movie' }, 'playlist-1'),
+            dataSource.addRecentItem({ id: 202, type: 'movie' }, 'playlist-1'),
+        ]);
+
+        const recent = await dataSource.getRecentItems('playlist-1');
+        expect(recent).toHaveLength(2);
+        expect(recent).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    xtream_id: 201,
+                    title: 'First movie',
+                }),
+                expect.objectContaining({
+                    xtream_id: 202,
+                    title: 'Second movie',
+                }),
+            ])
+        );
+    });
+
     it('backfills PWA recent-item backdrop metadata without rewriting recency', async () => {
         apiService.getStreams.mockResolvedValue([
             {
@@ -789,6 +817,43 @@ describe('PwaXtreamDataSource', () => {
             durationSeconds: 5400,
             playlistId: 'playlist-1',
             ...overrides,
+        });
+
+        it('retains concurrent single and batch saves across playlists', async () => {
+            await Promise.all([
+                dataSource.savePlaybackPosition('playlist-1', position()),
+                dataSource.savePlaybackPositionsBatch('playlist-1', [
+                    position({
+                        contentXtreamId: 101,
+                        contentType: 'episode',
+                        seriesXtreamId: 9,
+                    }),
+                ]),
+                dataSource.savePlaybackPosition(
+                    'playlist-2',
+                    position({ playlistId: 'playlist-2' })
+                ),
+            ]);
+
+            expect(
+                await dataSource.getAllPlaybackPositions('playlist-1')
+            ).toHaveLength(2);
+            expect(
+                await dataSource.getAllPlaybackPositions('playlist-2')
+            ).toHaveLength(1);
+            expect(
+                await dataSource.getSeriesPlaybackPositions('playlist-1', 9)
+            ).toEqual([expect.objectContaining({ contentXtreamId: 101 })]);
+            await dataSource.clearPlaybackPosition('playlist-1', 100, 'vod');
+            expect(
+                await dataSource.getPlaybackPosition('playlist-1', 100, 'vod')
+            ).toBeNull();
+            expect(
+                await dataSource.getRecentPlaybackPositions('playlist-1', 1)
+            ).toEqual([expect.objectContaining({ contentXtreamId: 101 })]);
+            expect(
+                await dataSource.getPlaybackPosition('playlist-2', 100, 'vod')
+            ).not.toBeNull();
         });
 
         it('writes a playback-position batch save as one storage write with upsert semantics', async () => {
