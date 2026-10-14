@@ -669,6 +669,69 @@ describe('PwaService', () => {
         }
     });
 
+    it('reports a backend outage seen by its raw fetches', async () => {
+        const status = TestBed.inject(ServerStorageStatusService);
+        const activate = () =>
+            status.activate(
+                {
+                    service: 'iptvnator',
+                    apiVersion: 1,
+                    instanceId: 'i',
+                    storage: 'server',
+                    auth: 'none',
+                },
+                () => undefined
+            );
+        const originalFetch = globalThis.fetch;
+        const reset = () =>
+            (
+                service.sendIpcEvent(CONNECTIVITY_GUARD_RESET, {
+                    url: 'http://portal.example:8080/portal.php',
+                }) as Promise<unknown>
+            ).catch(() => undefined);
+        const answer = (code: number, contentType: string) =>
+            ({
+                ok: false,
+                status: code,
+                headers: new Headers({ 'content-type': contentType }),
+                json: async () => ({}),
+            }) as unknown as Response;
+
+        try {
+            activate();
+            // The backend's own JSON error: it answered.
+            globalThis.fetch = jest
+                .fn()
+                .mockResolvedValue(
+                    answer(502, 'application/json')
+                ) as unknown as typeof fetch;
+            await reset();
+            expect(status.state()).toBe('online');
+
+            // A gateway's page in front of a backend that is down.
+            globalThis.fetch = jest
+                .fn()
+                .mockResolvedValue(
+                    answer(502, 'text/html')
+                ) as unknown as typeof fetch;
+            await reset();
+            expect(status.state()).toBe('offline');
+            expect(status.isVerified()).toBe(false);
+
+            // No answer at all.
+            activate();
+            globalThis.fetch = jest
+                .fn()
+                .mockRejectedValue(
+                    new TypeError('Failed to fetch')
+                ) as unknown as typeof fetch;
+            await reset();
+            expect(status.state()).toBe('offline');
+        } finally {
+            globalThis.fetch = originalFetch;
+        }
+    });
+
     it('asks the backend to forget a host when the connectivity guard is reset', async () => {
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,

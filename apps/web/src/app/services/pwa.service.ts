@@ -15,6 +15,7 @@ import {
 } from 'rxjs';
 import {
     DataService,
+    isGatewayOutage,
     isServerAccessChallenge,
     ServerStorageStatusService,
 } from '@iptvnator/services';
@@ -210,18 +211,15 @@ export class PwaService extends DataService {
         );
 
         try {
-            const url = `${this.corsProxyUrl}/connectivity-guard/reset`;
-            const token = this.serverAccessToken(url);
-            const response = await fetch(url, {
-                body: JSON.stringify({ url: payload.url }),
-                headers: {
-                    'content-type': 'application/json',
-                    ...bearer(token),
-                },
-                method: 'POST',
-                signal: controller.signal,
-            });
-            this.noteServerAccess(response, token);
+            const response = await this.backendFetch(
+                `${this.corsProxyUrl}/connectivity-guard/reset`,
+                {
+                    body: JSON.stringify({ url: payload.url }),
+                    headers: { 'content-type': 'application/json' },
+                    method: 'POST',
+                    signal: controller.signal,
+                }
+            );
 
             if (!response.ok) {
                 return { reset: false };
@@ -663,11 +661,7 @@ export class PwaService extends DataService {
             logPortalDebugRequest(context);
 
             // Make the fetch request
-            const accessToken = this.serverAccessToken(requestUrl);
-            const response = await fetch(requestUrl, {
-                headers: bearer(accessToken),
-            });
-            this.noteServerAccess(response, accessToken);
+            const response = await this.backendFetch(requestUrl, {});
 
             if (!response.ok) {
                 throw new Error(
@@ -831,9 +825,43 @@ export class PwaService extends DataService {
             : null;
     }
 
-    /** A token changed on the server shows up on any backend call. */
-    private noteServerAccess(response: Response, token: string | null): void {
+    /**
+     * `fetch` to the backend with the server token, telling the server
+     * session what any backend call can show: a token changed on the
+     * server, or an outage (no answer, or a gateway's 502/503/504), after
+     * which the instance is checked before the token goes out again. A
+     * timeout of this page's own is no outage: the backend may be slow.
+     */
+    private async backendFetch(
+        url: string,
+        init: RequestInit
+    ): Promise<Response> {
+        const token = this.serverAccessToken(url);
+        let response: Response;
+        try {
+            response = await fetch(url, {
+                ...init,
+                headers: {
+                    ...(init.headers as Record<string, string> | undefined),
+                    ...bearer(token),
+                },
+            });
+        } catch (error) {
+            if (!(
+                error instanceof DOMException && error.name === 'AbortError'
+            )) {
+                this.serverStatus.reportOffline();
+            }
+            throw error;
+        }
         if (
+            isGatewayOutage(
+                response.status,
+                response.headers?.get('content-type')
+            )
+        ) {
+            this.serverStatus.reportOffline();
+        } else if (
             response.status === 401 &&
             isServerAccessChallenge(
                 response.status,
@@ -842,6 +870,7 @@ export class PwaService extends DataService {
         ) {
             this.serverStatus.reportAccessDenied(token);
         }
+        return response;
     }
 }
 

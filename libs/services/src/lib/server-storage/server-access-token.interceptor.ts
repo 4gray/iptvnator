@@ -7,14 +7,18 @@ import {
 } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, tap } from 'rxjs';
-import { isServerAccessChallenge } from '../server-access-token';
+import {
+    isGatewayOutage,
+    isServerAccessChallenge,
+} from '../server-access-token';
 import { ServerStorageStatusService } from '../server-storage-status.service';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 
 /**
- * Adds the server access token to `HttpClient` calls to the backend, and
- * sends the user to sign-in when the backend refuses it (a token changed
- * on the server while this page was open).
+ * Adds the server access token to `HttpClient` calls to the backend, sends
+ * the user to sign-in when the backend refuses it (a token changed on the
+ * server while this page was open), and reports a backend that does not
+ * answer as offline, like the storage API client does.
  */
 @Injectable()
 export class ServerAccessTokenInterceptor implements HttpInterceptor {
@@ -37,8 +41,20 @@ export class ServerAccessTokenInterceptor implements HttpInterceptor {
         return next.handle(sent).pipe(
             tap({
                 error: (error: unknown) => {
+                    if (!(error instanceof HttpErrorResponse)) {
+                        return;
+                    }
                     if (
-                        error instanceof HttpErrorResponse &&
+                        error.status === 0 ||
+                        isGatewayOutage(
+                            error.status,
+                            error.headers.get('Content-Type')
+                        )
+                    ) {
+                        // No answer: it may come back as another instance,
+                        // checked before the token goes out again.
+                        this.status.reportOffline();
+                    } else if (
                         isServerAccessChallenge(
                             error.status,
                             error.headers.get('WWW-Authenticate')

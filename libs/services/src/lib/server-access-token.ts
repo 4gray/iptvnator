@@ -2,6 +2,20 @@ import { SERVER_ACCESS_CHALLENGE } from '@iptvnator/shared/interfaces';
 
 export const SERVER_ACCESS_TOKEN_STORAGE_KEY = 'iptvnator-server:access-token';
 
+/**
+ * A gateway's answer for a backend that is down (nginx's 502/503/504 page),
+ * not the backend's own JSON error for a provider that failed.
+ */
+export function isGatewayOutage(
+    status: number,
+    contentType: string | null | undefined
+): boolean {
+    return (
+        [502, 503, 504].includes(status) &&
+        !contentType?.includes('application/json')
+    );
+}
+
 /** A 401 from the backend's access guard, not one a provider sent. */
 export function isServerAccessChallenge(
     status: number,

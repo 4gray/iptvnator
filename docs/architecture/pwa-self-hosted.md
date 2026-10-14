@@ -335,8 +335,11 @@ settings and guards read them in every build.
   therefore remembers the server along with the token, or reports storage
   trouble. A page started from memory first checks that the instance at the
   address is the remembered one (`ensureVerified`), and reloads if not,
-  before sign-in sends the token. So does a page that went offline before
-  its next read: until then it sends neither the token nor writes (a
+  before sign-in sends the token. So does a page that went offline (any
+  backend call can tell: the storage API, `HttpClient` calls through the
+  interceptor and `PwaService`'s raw fetches report no answer, or a
+  gateway's 502/503/504 that is not the backend's own JSON, as offline)
+  before its next read: until then it sends neither the token nor writes (a
   replaced volume at the same address is another database), and it checks
   the instance as soon as it goes offline, so a blip costs no retry
   interval (only the instance: a read that keeps failing waits for the

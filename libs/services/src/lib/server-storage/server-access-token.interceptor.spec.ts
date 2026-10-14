@@ -126,6 +126,34 @@ describe('ServerAccessTokenInterceptor', () => {
             localStorage.getItem(SERVER_ACCESS_TOKEN_STORAGE_KEY)
         ).toBeNull();
     });
+
+    it('reports a backend that does not answer as offline, not a provider failing', () => {
+        const status = TestBed.inject(ServerStorageStatusService);
+        activate();
+        const http = TestBed.inject(HttpClient);
+        const controller = TestBed.inject(HttpTestingController);
+
+        // The backend's own JSON error for a provider that failed.
+        http.get('/api/xtream').subscribe({ error: () => undefined });
+        controller.expectOne('/api/xtream').flush(
+            { message: 'provider down' },
+            {
+                status: 502,
+                statusText: 'Bad Gateway',
+                headers: { 'Content-Type': 'application/json' },
+            }
+        );
+        expect(status.state()).toBe('online');
+        expect(status.isVerified()).toBe(true);
+
+        // No answer at all: it may come back as another instance.
+        http.get('/api/parse').subscribe({ error: () => undefined });
+        controller
+            .expectOne('/api/parse')
+            .error(new ProgressEvent('error'), { status: 0 });
+        expect(status.state()).toBe('offline');
+        expect(status.accessToken()).toBeNull();
+    });
 });
 
 describe('isBackendUrl', () => {
