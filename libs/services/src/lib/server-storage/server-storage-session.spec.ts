@@ -294,6 +294,34 @@ describe('ServerStorageSession', () => {
             expect(fetchMock).toHaveBeenCalledTimes(1);
         });
 
+        it('keeps checking an unverified page a late answer set online', async () => {
+            writeServerAccessToken('t', 'i-1');
+            const { session, status } = setup('token');
+            await session.start();
+            fetchMock.mockRejectedValue(new TypeError('offline'));
+            status.reportOffline();
+            TestBed.tick();
+            for (let turn = 0; turn < 10; turn += 1) {
+                await Promise.resolve();
+            }
+            // A request sent before the outage is answered late.
+            status.reportSuccess();
+            expect(status.state()).toBe('online');
+            expect(status.isVerified()).toBe(false);
+            fetchMock.mockReset();
+            fetchMock.mockResolvedValue(
+                answer({ instanceId: 'i-1', entries: {} })
+            );
+
+            jest.advanceTimersByTime(30_000);
+            for (let turn = 0; turn < 10; turn += 1) {
+                await Promise.resolve();
+            }
+
+            expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/instance');
+            expect(status.isVerified()).toBe(true);
+        });
+
         it('reloads when another instance answers at the address', async () => {
             const { session, status } = setup('none');
             const reload = jest

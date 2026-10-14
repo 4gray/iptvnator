@@ -681,6 +681,75 @@ describe('ServerUserDataStorage with other devices', () => {
         expect(server.state['xtream-playback-positions']['p1']).toEqual(at(30));
     });
 
+    it('does not replay a saved edit whose answer was cut off', async () => {
+        const at = (id: number, seconds: number) => ({
+            contentType: 'vod',
+            contentXtreamId: id,
+            positionSeconds: seconds,
+        });
+        const server = fakeServer({
+            'xtream-playback-positions': { p1: [at(1, 10), at(2, 5)] },
+        });
+        const send = server.api.sendJson.getMockImplementation();
+        if (!send) {
+            throw new Error('The fake server answers sendJson');
+        }
+        let cutOff = true;
+        let answer = (): void => undefined;
+        const tab = new ServerUserDataStorage(
+            {
+                ...server.api,
+                // Saved, but the body with the new tag never arrives.
+                sendJson: jest.fn(async (...args: Parameters<typeof send>) => {
+                    if (!cutOff) {
+                        return send(...args);
+                    }
+                    cutOff = false;
+                    await new Promise<void>((resolve) => (answer = resolve));
+                    await send(...args);
+                    return {
+                        json: async () => {
+                            throw new TypeError('body cut off');
+                        },
+                    } as unknown as Response;
+                }),
+            } as never,
+            memoryStorage(),
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await tab.hydrate();
+        tab.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({ p1: [at(1, 20), at(2, 5)] })
+        );
+        const saving = tab.flush();
+        for (let turn = 0; turn < 10; turn += 1) {
+            await Promise.resolve();
+        }
+        // Movie 2 changes here while that write travels.
+        tab.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({ p1: [at(1, 20), at(2, 6)] })
+        );
+        answer();
+        await saving;
+        expect(server.state['xtream-playback-positions']['p1']).toEqual([
+            at(1, 20),
+            at(2, 5),
+        ]);
+        // Another device saves movie 1 at 30 s.
+        server.state['xtream-playback-positions']['p1'] = [at(1, 30), at(2, 5)];
+        await tab.flush();
+        await tab.flush();
+
+        expect(server.state['xtream-playback-positions']['p1']).toEqual([
+            at(1, 30),
+            at(2, 6),
+        ]);
+    });
+
     it("keeps the last page load's saved writes when storage refuses the copy", async () => {
         const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
         const local = memoryStorage();

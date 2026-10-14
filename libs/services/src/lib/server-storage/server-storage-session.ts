@@ -220,10 +220,13 @@ export class ServerStorageSession {
             this.userData.touch();
             // Also online: a write the server refused (a 5xx) or a first
             // read that failed is not retried by anything else.
+            // Online but unverified too: a late answer to a request sent
+            // before the outage may have set it online again.
             const state = this.status.state();
             if (
                 state === 'offline' ||
-                (state === 'online' && this.userData.needsSync())
+                (state === 'online' &&
+                    (this.userData.needsSync() || !this.status.isVerified()))
             ) {
                 void this.refresh();
             }

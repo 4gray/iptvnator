@@ -228,7 +228,8 @@ settings and guards read them in every build.
   (the page-hide flush waits for a batch still travelling), a failed write,
   including a refused `keepalive` one or one the server took and never
   answered (it ends after the request timeout), stays queued for the next
-  flush, and
+  flush (a write saved whose answer was cut off counts as saved on an
+  unknown version: only later edits replay on the next conflict), and
   every unconfirmed write (queued or travelling) is saved in `localStorage`
   per page load (`iptvnator-server:unsent-writes:<instanceId>:<page>`). The
   tab remembers its page load in `sessionStorage`, so a reload takes its
@@ -343,7 +344,8 @@ settings and guards read them in every build.
   replaced volume at the same address is another database), and it checks
   the instance as soon as it goes offline, so a blip costs no retry
   interval (only the instance, and once per retry interval: a read or a
-  check that keeps failing waits for the retry). Sign-out always navigates to sign-in, also when a guard kept the
+  check that keeps failing waits for the retry; the retry also runs while a
+  late answer set an unchecked page online). Sign-out always navigates to sign-in, also when a guard kept the
   page the first time. Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
   as the storage API client does with any 401, so a token changed on the

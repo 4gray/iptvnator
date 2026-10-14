@@ -357,10 +357,7 @@ export class UserDataWriteQueue {
               ));
         this.retireInFlight(entry);
         if (outcome.status === 'saved') {
-            // Without a tag a newer edit keeps this one's steps.
-            if (outcome.tag !== undefined) {
-                this.confirmed(entry, outcome.tag);
-            }
+            this.confirmed(entry, outcome.tag);
         } else if (outcome.status === 'conflict') {
             this.replayOnConflict(entry, outcome.current);
         } else if (outcome.status === 'gone') {
@@ -390,9 +387,7 @@ export class UserDataWriteQueue {
                 .readJson<Partial<ServerUserStateWriteResponse>>(response)
                 .catch(() => ({ tag: undefined }));
             this.retireInFlight(entry);
-            if (tag !== undefined) {
-                this.confirmed(entry, tag);
-            }
+            this.confirmed(entry, tag);
         } catch (error) {
             this.retireInFlight(entry);
             if (
@@ -424,8 +419,21 @@ export class UserDataWriteQueue {
     }
 
     /** The server took `entry`: the edit queued behind it builds on it. */
-    private confirmed(entry: PendingEntry, tag: string | null): void {
-        this.tags.update(entry.namespace, entry.playlistId, tag);
+    /**
+     * `entry` landed. Without a readable tag (a body cut off after its
+     * headers) a conditional write leaves the version unknown: a newer edit
+     * drops the landed steps all the same and conflicts, so only the edits
+     * made after it replay. An unconditional one stays unconditional.
+     */
+    private confirmed(
+        entry: PendingEntry,
+        read: string | null | undefined
+    ): void {
+        const tag =
+            read !== undefined || entry.tag === undefined ? read : UNKNOWN_TAG;
+        if (tag !== undefined) {
+            this.tags.update(entry.namespace, entry.playlistId, tag);
+        }
         const key = entryKey(entry);
         const next = this.pending.get(key);
         if (next?.steps.some((step) => step.sent === entry.edit)) {
@@ -433,7 +441,10 @@ export class UserDataWriteQueue {
             this.pending.set(key, {
                 ...next,
                 steps: next.steps.filter((step) => step.sent !== entry.edit),
-                tag: next.tag === UNKNOWN_TAG ? UNKNOWN_TAG : tag,
+                tag:
+                    next.tag === UNKNOWN_TAG || tag === undefined
+                        ? next.tag
+                        : tag,
             });
         }
     }
