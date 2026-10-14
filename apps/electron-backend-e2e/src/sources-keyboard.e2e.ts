@@ -9,6 +9,7 @@ import {
     waitForM3uCatalog,
     writeTemporaryM3uFile,
 } from './electron-test-fixtures';
+import { waitForMenuFocus } from './menu-keyboard';
 
 // ---------------------------------------------------------------------------
 // A source row opens from the keyboard. Each row has its own Tab stop: the
@@ -217,6 +218,7 @@ test.describe('Electron Sources keyboard', () => {
                 name: 'Remove playlist',
             });
             await expect(remove).toBeVisible();
+            await waitForMenuFocus(page);
             await page.keyboard.press('End');
             await expect(remove).toBeFocused();
             await page.keyboard.press('Enter');
