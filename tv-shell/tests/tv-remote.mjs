@@ -286,7 +286,8 @@ console.log('8. the stream handed to an external player is the source, never a f
         attach();
         get('https://storage.googleapis.com/bucket/live/index.m3u8');
         out.google = last();
-        // hls.js recovery as it really happens: detach (the MediaSource closes), attach, variant refresh.
+        // An engine that re-attaches only once its old source has closed: the
+        // session has ended, the variant refresh still matches the previous stream.
         let media = await open();
         xhr(provider + '/live/user/pass/11.m3u8');
         xhr(provider + '/hls/user/pass/11/index.m3u8');
@@ -295,6 +296,23 @@ console.log('8. the stream handed to an external player is the source, never a f
         await open();
         xhr(provider + '/hls/user/pass/11/index.m3u8');
         out.closedRecovery = last();
+        // hls.js recoverMediaError as it runs: revoke, drop the source and attach a
+        // new MediaSource to the same element in one go; the old sourceclose comes after.
+        media = await open();
+        xhr(provider + '/live/user/pass/14.m3u8');
+        xhr(provider + '/hls/user/pass/14/index.m3u8');
+        {
+            const closed = new Promise((resolve) => media.ms.addEventListener('sourceclose', resolve, { once: true }));
+            URL.revokeObjectURL(media.url);
+            media.video.removeAttribute('src');
+            media.video.load();
+            const ms = new MediaSource();
+            const opened = new Promise((resolve) => ms.addEventListener('sourceopen', resolve, { once: true }));
+            media.video.src = URL.createObjectURL(ms);
+            await Promise.all([closed, opened]);
+        }
+        xhr(provider + '/hls/user/pass/14/index.m3u8');
+        out.syncRecovery = last();
         // The player is torn down; "Copy stream URL" on an item that never played.
         media = await open();
         xhr(provider + '/live/user/pass/12.m3u8');
@@ -317,7 +335,8 @@ console.log('8. the stream handed to an external player is the source, never a f
     check(tracked.rtmp === 'rtmp://cam.test/live/key', 'an rtmp stream is the stream: ' + tracked.rtmp);
     check(tracked.udp === 'udp://@239.0.0.1:1234', 'a multicast udp stream keeps its @: ' + tracked.udp);
     check(tracked.google === 'https://storage.googleapis.com/bucket/live/index.m3u8', 'a stream on a Google host is the stream: ' + tracked.google);
-    expect('closedRecovery', '/live/user/pass/11.m3u8', 'recovery through detach and re-attach keeps the playlist');
+    expect('closedRecovery', '/live/user/pass/11.m3u8', 'recovery after the old source closed keeps the playlist');
+    expect('syncRecovery', '/live/user/pass/14.m3u8', 'hls.js recovery (re-attach before the old source closes) keeps the playlist');
     expect('copyAfterTeardown', '/movie/user/pass/13.mkv', 'once the player is gone, a copied URL is the stream');
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
