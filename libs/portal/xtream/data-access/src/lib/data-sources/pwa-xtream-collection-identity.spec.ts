@@ -1,5 +1,12 @@
 import { TestBed } from '@angular/core/testing';
-import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    PlaylistsService,
+    USER_DATA_STORAGE,
+    XtreamPendingRestoreService,
+} from '@iptvnator/services';
+import { PwaXtreamBackupStorage } from '@iptvnator/services/pwa-xtream-backup-storage';
+import { XtreamPlaylistBackupEntry } from '@iptvnator/shared/interfaces';
 import { of } from 'rxjs';
 import { XtreamApiService } from '../services/xtream-api.service';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
@@ -366,6 +373,101 @@ describe('PWA Xtream collection identity', () => {
             updatedAt: '2026-10-01T12:00:00.000Z',
         });
     });
+
+    it.each(['xtream-favorites', 'xtream-collection-items'])(
+        'retains saved metadata through %s quota failure, replay, offline reads and re-export',
+        async (failedKey) => {
+            const entry: XtreamPlaylistBackupEntry = {
+                portalType: 'xtream',
+                exportedId: 'p1',
+                title: 'Saved portal',
+                autoRefresh: false,
+                connection: credentials,
+                userState: {
+                    hiddenCategories: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                    favorites: types.map((contentType, position) => ({
+                        contentType,
+                        xtreamId: 42,
+                        position,
+                        addedAt: '2026-10-01T12:00:00.000Z',
+                        snapshot: {
+                            title: `Saved ${contentType}`,
+                            posterUrl: `https://img.example.com/${contentType}.jpg`,
+                            backdropUrl: `https://img.example.com/${contentType}-wide.jpg`,
+                            tmdbId: 100 + position,
+                            releaseYear: 1995 + position,
+                            originalTitle: `Original ${contentType}`,
+                        },
+                    })),
+                },
+            };
+            const pending = TestBed.inject(XtreamPendingRestoreService);
+            const parked = pending.set('p1', entry.userState);
+            if (!parked) throw new Error('Expected parked restore');
+            const backup = new PwaXtreamBackupStorage(
+                TestBed.inject(USER_DATA_STORAGE)
+            );
+            let blockedKey = failedKey;
+            const setItem = Storage.prototype.setItem;
+            jest.spyOn(Storage.prototype, 'setItem').mockImplementation(
+                function (this: Storage, key, value) {
+                    if (key === blockedKey)
+                        throw new DOMException('full', 'QuotaExceededError');
+                    setItem.call(this, key, value);
+                }
+            );
+            await expect(
+                pending.applyAndConsume('p1', parked, (state) =>
+                    backup.restore('p1', state, entry)
+                )
+            ).rejects.toMatchObject({ name: 'QuotaExceededError' });
+            expect(pending.getOrThrow('p1')?.favorites).toEqual(
+                entry.userState.favorites
+            );
+
+            // Lists fit now, but the sole saved metadata still must not be discarded.
+            blockedKey = 'xtream-collection-items';
+            await expect(
+                pending.applyAndConsume('p1', parked, (state) =>
+                    source.restoreUserData('p1', state)
+                )
+            ).rejects.toMatchObject({ name: 'QuotaExceededError' });
+            expect(pending.getOrThrow('p1')?.favorites).toEqual(
+                entry.userState.favorites
+            );
+
+            blockedKey = '';
+            await expect(
+                pending.applyAndConsume('p1', parked, (state) =>
+                    source.restoreUserData('p1', state)
+                )
+            ).resolves.toBe('consumed');
+            expect(pending.getOrThrow('p1')).toBeNull();
+            api.getStreams.mockResolvedValue([]);
+            reload();
+            const items = await source.getFavorites('p1');
+            expect(
+                items.map(({ title, type, xtream_id }) => ({
+                    title,
+                    type,
+                    xtream_id,
+                }))
+            ).toEqual(
+                types.map((type) => ({
+                    title: `Saved ${type}`,
+                    type,
+                    xtream_id: 42,
+                }))
+            );
+            expect(
+                new PwaXtreamBackupStorage(
+                    TestBed.inject(USER_DATA_STORAGE)
+                ).exportInto(entry).userState.favorites
+            ).toEqual(entry.userState.favorites);
+        }
+    );
 
     it('keeps the artwork saved with each view through clear/restore', async () => {
         await source.restoreUserData('p1', {

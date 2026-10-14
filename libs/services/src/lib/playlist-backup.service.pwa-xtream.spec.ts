@@ -535,7 +535,7 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(
                 pendingRestore(service).getOrThrow('xtream-1')
             ).not.toBeNull();
-            // That replay carries no titles, so they are merged regardless.
+            // Cache-only rows are not carried by pending state, so preserve them here too.
             expect(read(KEYS.collectionItems)).toEqual({
                 'xtream-1': { 'movie:501': heat, 'series:77': legacyShow },
             });
@@ -570,8 +570,44 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(summary.errors[0]).toContain('denied');
         });
 
-        it('still restores the lists when the snapshots exceed the quota', async () => {
+        it('keeps durable favorite snapshots parked when their write exceeds the quota', async () => {
             const manifest = await exportSeeded();
+            localStorage.clear();
+            const storage = createBrowserBackedStorage();
+            storage.setItem.mockImplementation((key: string, value: string) => {
+                if (key === KEYS.collectionItems)
+                    throw new DOMException('full', 'QuotaExceededError');
+                localStorage.setItem(key, value);
+            });
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState(storage),
+            });
+            const summary = await service.importBackup(xtreamOnly(manifest));
+            expect(summary.failed).toBe(1);
+            expect(
+                pendingRestore(service).getOrThrow('xtream-1')
+            ).toMatchObject({
+                favorites: xtreamEntry(manifest).userState.favorites,
+            });
+            const { manifest: reexport } = await service.exportBackup();
+            expect(xtreamEntry(reexport).userState.favorites).toEqual(
+                xtreamEntry(manifest).userState.favorites
+            );
+        });
+
+        it('still restores legacy lists when their optional cache exceeds the quota', async () => {
+            const manifest = await exportSeeded();
+            // Old browser archives carry only optional collectionItems, not durable snapshots.
+            for (const entry of manifest.playlists) {
+                if (entry.portalType === 'xtream')
+                    entry.userState.favorites = entry.userState.favorites.map(
+                        ({ contentType, xtreamId }) => ({
+                            contentType,
+                            xtreamId,
+                        })
+                    );
+            }
             localStorage.clear();
             const storage = createBrowserBackedStorage();
             storage.setItem.mockImplementation((key: string, value: string) => {
@@ -627,6 +663,10 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
 
         async function importInto(budget: number) {
             const manifest = await exportSeeded();
+            const entry = xtreamEntry(manifest);
+            entry.userState.favorites = entry.userState.favorites.map(
+                ({ contentType, xtreamId }) => ({ contentType, xtreamId })
+            );
             const quota = quotaStorage(budget);
             const service = createPlaylistBackupService({
                 playlistsService: playlistsService([existingXtreamPlaylist]),

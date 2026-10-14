@@ -200,7 +200,7 @@ describe('DatabaseService browser guards', () => {
             } else {
                 const getItem = Storage.prototype.getItem;
                 jest.spyOn(Storage.prototype, 'getItem').mockImplementation(
-                    function (key) {
+                    function (this: Storage, key) {
                         if (key === 'xtream-restore-broken')
                             return unavailable();
                         return getItem.call(this, key);

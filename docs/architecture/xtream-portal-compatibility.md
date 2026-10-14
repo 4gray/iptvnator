@@ -101,6 +101,14 @@ Browser imports convert desktop favorite snapshots into typed collection-cache
 rows so saved titles and artwork remain visible offline. Browser exports include
 the normalized nested favorite snapshots as well as their optional collection
 cache, preserving metadata when the archive returns to Electron.
+Initial browser imports and deferred retries share `PwaXtreamBackupStorage`;
+`PwaXtreamBackupStateService` supplies its injected storage for the importer.
+Both write the lists first and require the nested favorite snapshots to persist
+before consuming pending state. A quota or storage failure keeps the archive
+parked for another attempt, including when the provider returns an empty catalog.
+Legacy browser-only `collectionItems` remain an optional cache; their quota
+failure does not invalidate a restore with no durable nested favorite snapshots.
+The PWA retry loads that storage implementation on demand through a local module.
 
 Both Xtream data-source and portal-activity capabilities require the pending
 favorite conversion bridge; activity reads also require playlist lookup. The

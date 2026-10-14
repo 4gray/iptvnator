@@ -1,7 +1,3 @@
-import {
-    assertXtreamFavoriteRestoreSupported,
-    materializePendingXtreamFavorites,
-} from './xtream-pending-favorites';
 import type {
     ElectronBridgeXtreamFavorite,
     XtreamFavoriteRemovalRef,
@@ -306,6 +302,9 @@ export class DatabaseService {
         restoreId?: string
     ): Promise<void> {
         if (favorites.length === 0) return;
+        const { assertXtreamFavoriteRestoreSupported } = await import(
+            './xtream-pending-favorites'
+        );
         assertXtreamFavoriteRestoreSupported(window.electron);
         const result = await window.electron.dbRestoreXtreamFavorites(
             playlistId,
@@ -1073,4 +1072,14 @@ export class DatabaseService {
             return null;
         }
     }
+}
+
+/** Defer legacy conversion code until a favorites operation actually needs it. */
+async function materializePendingXtreamFavorites(
+    ...args: Parameters<
+        typeof import('./xtream-pending-favorites').materializePendingXtreamFavorites
+    >
+): Promise<void> {
+    const converter = await import('./xtream-pending-favorites');
+    return converter.materializePendingXtreamFavorites(...args);
 }

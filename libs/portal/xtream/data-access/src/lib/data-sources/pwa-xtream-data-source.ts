@@ -1388,44 +1388,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         options?: XtreamOperationOptions
     ): Promise<void> {
         void options;
-        // Restore favorites
-        const favorites = this.collectionStorage.getFavoritesFromStorage();
-        favorites[playlistId] = restoreState.favorites
-            .map((item) =>
-                collectionKey({ id: item.xtreamId, type: item.contentType })
-            )
-            .filter((key): key is CollectionKey => key !== null);
-        this.collectionStorage.saveFavoritesToStorage(favorites);
-
-        // Restore recent items
-        const recentItems = this.collectionStorage.getRecentItemsFromStorage();
-        recentItems[playlistId] = [];
-        for (const item of restoreState.recentlyViewed) {
-            const id = collectionKey({
-                id: item.xtreamId,
-                type: item.contentType,
-            });
-            if (id !== null)
-                recentItems[playlistId].push({
-                    id,
-                    viewedAt: item.viewedAt,
-                    ...normalizeStoredBackdrop(item),
-                });
-        }
-        this.collectionStorage.saveRecentItemsToStorage(recentItems);
-
-        // Restore playback positions under this playlist: an archive's carry
-        // the id they were exported with, and the player matches on it.
-        this.clearPlaybackPositionsForPlaylist(playlistId);
-        const playbackPositions = this.getPlaybackPositionsFromStorage();
-        playbackPositions[playlistId] = restoreState.playbackPositions.map(
-            (position) => ({
-                ...position,
-                playlistId,
-                updatedAt: position.updatedAt ?? new Date().toISOString(),
-            })
+        const { restorePwaXtreamUserData } = await import(
+            './pwa-xtream-restore'
         );
-        this.savePlaybackPositionsToStorage(playbackPositions);
+        await restorePwaXtreamUserData(
+            this.userDataStorage,
+            playlistId,
+            restoreState
+        );
     }
 
     // =========================================================================
