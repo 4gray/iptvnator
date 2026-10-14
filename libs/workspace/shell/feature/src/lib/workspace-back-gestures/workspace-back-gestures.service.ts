@@ -175,7 +175,8 @@ export class WorkspaceBackGesturesService {
     private isBlocked(): boolean {
         const doc = this.document;
         return (
-            doc.fullscreenElement !== null ||
+            // Undefined where the Fullscreen API is missing (iPhone Safari).
+            doc.fullscreenElement != null ||
             this.contextDrawer?.isOpen() === true ||
             hasOpenPopup(doc)
         );

@@ -30,7 +30,7 @@ describe('WorkspaceBackGesturesService', () => {
     let unsubscribeBridge: jest.Mock;
     let now: number;
 
-    function setFullscreenElement(element: Element | null): void {
+    function setFullscreenElement(element: Element | null | undefined): void {
         Object.defineProperty(document, 'fullscreenElement', {
             configurable: true,
             value: element,
@@ -210,6 +210,16 @@ describe('WorkspaceBackGesturesService', () => {
             setFullscreenElement(document.createElement('video'));
 
             expectIgnored(service);
+        });
+
+        it('not where the Fullscreen API is missing', () => {
+            // iPhone Safari has no unprefixed `document.fullscreenElement`.
+            const service = createService();
+            setFullscreenElement(undefined);
+
+            expect(service.peek()).toBe('back');
+            expect(service.goBack('keyboard')).toBe('back');
+            expect(backNavigation.goBack).toHaveBeenCalledTimes(1);
         });
 
         it('while the phone context drawer is open', () => {
