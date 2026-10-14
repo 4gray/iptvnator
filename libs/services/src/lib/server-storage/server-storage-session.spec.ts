@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { PlaylistStorageBackend } from '../playlist-storage-backend';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { writeServerAccessToken } from '../server-access-token';
+import { takeSlowStart } from '../server-slow-start';
 import { ServerStorageStatusService } from '../server-storage-status.service';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 import { ServerStorageSession } from './server-storage-session';
@@ -370,6 +371,8 @@ describe('ServerStorageSession', () => {
             await session.refresh();
 
             expect(reload).toHaveBeenCalledTimes(1);
+            // The reloaded page's probe waits as long as this request did.
+            expect(takeSlowStart()).toBe(true);
         });
 
         it('sends no write before the reload checks the instance', async () => {

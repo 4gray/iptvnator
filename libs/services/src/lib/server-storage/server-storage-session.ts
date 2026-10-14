@@ -19,6 +19,7 @@ import {
     createBrowserSessionStorage,
     createBrowserUserDataStorage,
 } from '../user-data-storage';
+import { markSlowStart } from '../server-slow-start';
 import { ServerApiClient, type ServerApiError } from './server-api-client';
 import { ServerPlaylistDocumentStore } from './server-playlist-document-store';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
@@ -150,6 +151,8 @@ export class ServerStorageSession {
         }
         if (!this.reloading) {
             this.reloading = true;
+            // It answers, maybe slower than the start probe waits.
+            markSlowStart();
             this.reloadPage();
         }
     }

@@ -347,7 +347,9 @@ settings and guards read them in every build.
   database (backend URL or instance id) than the one it remembers; sign-in
   therefore remembers the server along with the token, or reports storage
   trouble. A page started from memory first checks that the instance at the
-  address is the remembered one (`ensureVerified`), and reloads if not,
+  address is the remembered one (`ensureVerified`), and reloads if not
+  (a reload after a server answered late gives the next start probe as
+  long as requests take, once, so a slow server does not reload forever),
   before sign-in sends the token. So does a page that went offline (any
   backend call can tell: the storage API with its page-hide `keepalive`
   writes, `HttpClient` calls through the interceptor and `PwaService`'s raw
