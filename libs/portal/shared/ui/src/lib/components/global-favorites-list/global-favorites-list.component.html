@@ -73,13 +73,13 @@
 ></div>
 
 <mat-menu #channelContextMenu="matMenu">
-    @if (supportsEpgMapping) {
+    @if (supportsEpgMapping && !contextMenuUnavailable()) {
         <button mat-menu-item (click)="openEpgMapping()">
             <mat-icon>settings_remote</mat-icon>
             <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
         </button>
     }
-    @if (contextMenuChannel()?.m3uChannel) {
+    @if (contextMenuChannel()?.m3uChannel && !contextMenuUnavailable()) {
         <button mat-menu-item (click)="openChannelDetails()">
             <mat-icon>info</mat-icon>
             <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>

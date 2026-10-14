@@ -102,6 +102,10 @@ export class GlobalFavoritesListComponent {
     readonly epgMappingChanged = output<void>();
 
     readonly contextMenuChannel = signal<EnrichedUnifiedFavorite | null>(null);
+    readonly contextMenuUnavailable = computed(() => {
+        const channel = this.contextMenuChannel();
+        return !!channel && isCatalogUnavailable(channel);
+    });
     readonly contextMenuCanOpenInPlaylist = computed(() => {
         const channel = this.contextMenuChannel();
         return !!channel && this.canOpenInPlaylist(channel);
@@ -209,7 +213,7 @@ export class GlobalFavoritesListComponent {
     }
 
     hasChannelContextMenu(channel: UnifiedFavoriteChannel): boolean {
-        if (isCatalogUnavailable(channel)) return false;
+        if (isCatalogUnavailable(channel)) return this.mode() === 'recent';
         return (
             Boolean(channel.m3uChannel) ||
             this.mode() === 'recent' ||
@@ -298,8 +302,9 @@ export class GlobalFavoritesListComponent {
     }
 
     openChannelDetails(): void {
-        const channel = this.contextMenuChannel()?.m3uChannel;
-        if (!channel) {
+        const item = this.contextMenuChannel();
+        const channel = item?.m3uChannel;
+        if (!channel || (item && isCatalogUnavailable(item))) {
             return;
         }
 

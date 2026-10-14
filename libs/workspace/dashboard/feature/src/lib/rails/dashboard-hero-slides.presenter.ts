@@ -113,6 +113,7 @@ export class DashboardHeroSlidesPresenter {
     /** The first candidate channel with a programme on air right now. */
     private readonly liveSlide = computed(() => {
         for (const candidate of this.liveEpg.heroLiveCandidates()) {
+            if (isCatalogUnavailable(candidate.item)) continue;
             const details = this.liveEpg.heroDetailsFor(candidate.item);
             if (details?.nowPlayingTitle) {
                 return { candidate, details };
@@ -127,7 +128,9 @@ export class DashboardHeroSlidesPresenter {
                 .continueWatchingItems()
                 .filter((item) => !isCatalogUnavailable(item)),
             live: this.liveSlide()?.candidate ?? null,
-            reserveLive: this.liveEpg.heroLiveCandidates().length > 0,
+            reserveLive: this.liveEpg
+                .heroLiveCandidates()
+                .some(({ item }) => !isCatalogUnavailable(item)),
             favorites: this.data
                 .globalFavoriteItems()
                 .filter(

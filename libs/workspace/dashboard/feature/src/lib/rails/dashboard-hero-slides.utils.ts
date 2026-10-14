@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import type {
     PortalActivityItem,
     PortalAddedItem,
@@ -82,9 +83,11 @@ export function selectDashboardHeroLiveCandidates(
     };
 
     favoriteLive
+        .filter((item) => !isCatalogUnavailable(item))
         .slice(0, HERO_LIVE_FAVORITE_CANDIDATES)
         .forEach((item) => add({ origin: 'favorite', item }));
     recentLive
+        .filter((item) => !isCatalogUnavailable(item))
         .slice(0, HERO_LIVE_RECENT_CANDIDATES)
         .forEach((item) => add({ origin: 'recent', item }));
     return candidates;

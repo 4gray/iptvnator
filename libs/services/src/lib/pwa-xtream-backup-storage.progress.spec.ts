@@ -70,6 +70,80 @@ function fixture() {
 }
 
 describe('PWA restore list receipts', () => {
+    it.each([
+        [
+            { title: 'Archived', tmdbId: 100 },
+            { tmdb_id: 200, release_year: 2026 },
+        ],
+        [
+            { title: 'Archived', tmdbId: 100, releaseYear: 1995 },
+            { tmdb_id: 100 },
+        ],
+    ])(
+        'discards optional cache fields without full saved identity confirmation (%j)',
+        async (snapshot, cacheIdentity) => {
+            const { storage } = fixture();
+            const backup = new PwaXtreamBackupStorage(storage);
+            const pending = {
+                ...state,
+                favorites: [
+                    { contentType: 'movie' as const, xtreamId: 42, snapshot },
+                ],
+                recentlyViewed: [],
+                playbackPositions: [],
+            };
+            await backup.restore('p', pending, {
+                ...entry,
+                userState: {
+                    ...pending,
+                    collectionItems: [
+                        {
+                            id: 42,
+                            xtream_id: 42,
+                            type: 'movie',
+                            title: 'Replacement',
+                            poster_url: 'replacement.jpg',
+                            ...cacheIdentity,
+                        },
+                    ],
+                },
+            });
+            expect(
+                backup.exportInto(entry).userState.favorites[0].snapshot
+            ).toEqual(snapshot);
+        }
+    );
+
+    it('fills optional presentation only after confirming normalized saved identity', async () => {
+        const { storage } = fixture();
+        const backup = new PwaXtreamBackupStorage(storage);
+        await backup.restore('p', state, {
+            ...entry,
+            userState: {
+                ...state,
+                collectionItems: [
+                    {
+                        id: 42,
+                        xtream_id: 42,
+                        type: 'movie',
+                        title: 'Same film',
+                        tmdb_id: '100',
+                        release_year: '1995',
+                        poster_url: 'confirmed.jpg',
+                    },
+                ],
+            },
+        });
+        expect(
+            backup.exportInto(entry).userState.favorites[0].snapshot
+        ).toMatchObject({
+            title: 'Archived',
+            tmdbId: 100,
+            releaseYear: 1995,
+            posterUrl: 'confirmed.jpg',
+        });
+    });
+
     it.each([false, true])(
         'retries required favorite metadata without oversized optional cache rows or fields (legacy history: %s)',
         async (legacyHistory) => {

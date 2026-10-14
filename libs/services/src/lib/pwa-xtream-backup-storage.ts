@@ -137,6 +137,17 @@ export class PwaXtreamBackupStorage {
             const saved = favorite.snapshot;
             const key = typedKey(favorite.contentType, favorite.xtreamId);
             if (!saved || key === null) continue;
+            const cached = favoriteWithSnapshot(
+                { key, item: favorite },
+                snapshots[key]
+            ).snapshot;
+            if (
+                !(['tmdbId', 'releaseYear'] as const).every(
+                    (field) =>
+                        saved[field] == null || saved[field] === cached?.[field]
+                )
+            )
+                delete snapshots[key];
             required[key] = {
                 id: favorite.xtreamId,
                 xtream_id: favorite.xtreamId,

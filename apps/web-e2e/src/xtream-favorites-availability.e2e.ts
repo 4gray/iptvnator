@@ -3,6 +3,8 @@ import { expect, test } from './fixtures';
 import { configureLiveFormat } from './xtream-live-format.fixture';
 import {
     addXtreamPortal,
+    DEFAULT_USERNAME,
+    DEFAULT_PASSWORD,
     interceptXtreamRequests,
     MOCK_SERVER,
 } from './xtream-series-playback.fixture';
@@ -512,6 +514,67 @@ test('@xtream @collections cold shared live playback records the selected favori
             id
         )
     ).toBe(200);
+    await page.evaluate((id) => {
+        const snapshots = JSON.parse(
+            localStorage.getItem('xtream-collection-items') ?? '{}'
+        );
+        snapshots[id]['live:10000'].catalog_status = 'missing';
+        snapshots[id]['live:10000'].catalog_missing_reason = 'absent';
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify(snapshots)
+        );
+        const recent = JSON.parse(
+            localStorage.getItem('xtream-recent-items') ?? '{}'
+        );
+        recent[id][0].collectionItem.catalog_status = 'missing';
+        recent[id].push({
+            id: 'live:10001',
+            viewedAt: '2020-01-02',
+            collectionItem: {
+                id: 10001,
+                xtream_id: 10001,
+                type: 'live',
+                title: 'Another watched channel',
+                tmdb_id: 300,
+                catalog_status: 'present',
+            },
+        });
+        localStorage.setItem('xtream-recent-items', JSON.stringify(recent));
+    }, id);
+    await page.reload();
+    await expect(
+        row.getByRole('button', { name: 'Played favorite B', exact: true })
+    ).toHaveAttribute('aria-disabled', 'true');
+    await row.click({ button: 'right' });
+    await expect(page.getByRole('menuitem')).toHaveCount(1);
+    await page
+        .getByRole('menuitem', { name: 'Remove from history', exact: true })
+        .click();
+    await expect(row).toHaveCount(0);
+    await expect(
+        page.getByText('Another watched channel', { exact: true })
+    ).toBeVisible();
+    await page.reload();
+    await expect(row).toHaveCount(0);
+    expect(
+        await page.evaluate(
+            (id) =>
+                JSON.parse(localStorage.getItem('xtream-favorites') ?? '{}')[
+                    id
+                ],
+            id
+        )
+    ).toEqual(['live:10000']);
+    expect(
+        await page.evaluate(
+            (id) =>
+                JSON.parse(localStorage.getItem('xtream-recent-items') ?? '{}')[
+                    id
+                ].map((item: { id: string }) => item.id),
+            id
+        )
+    ).toEqual(['live:10001']);
 });
 
 test('@xtream @collections catalog hydration cannot replace pending backup identity or dates', async ({
@@ -670,4 +733,86 @@ test('@xtream @collections catalog hydration cannot replace pending backup ident
             id
         )
     ).toBe(100);
+});
+
+test('@xtream @collections importing partial favorite identity rejects conflicting optional cache fields', async ({
+    page,
+}) => {
+    const id = 'partial-import-source';
+    const favorite = {
+        contentType: 'movie',
+        xtreamId: 987655,
+        addedAt: '2020-01-02',
+        position: 4,
+        snapshot: { title: 'Partial saved original', tmdbId: 100 },
+    };
+    const manifest = {
+        kind: 'iptvnator-playlist-backup',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        includeSecrets: true,
+        playlists: [
+            {
+                portalType: 'xtream',
+                exportedId: id,
+                title: 'Partial Backup Portal',
+                autoRefresh: false,
+                connection: {
+                    serverUrl: MOCK_SERVER,
+                    username: DEFAULT_USERNAME,
+                    password: DEFAULT_PASSWORD,
+                },
+                userState: {
+                    hiddenCategories: [],
+                    favorites: [favorite],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                    collectionItems: [
+                        {
+                            id: 987655,
+                            xtream_id: 987655,
+                            type: 'movie',
+                            title: 'Cached replacement',
+                            tmdb_id: 200,
+                            release_year: 2026,
+                            poster_url: '/replacement.jpg',
+                        },
+                    ],
+                },
+            },
+        ],
+    };
+    await page.goto('/workspace/settings/backup');
+    const choosing = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Import', exact: true }).click();
+    await (
+        await choosing
+    ).setFiles({
+        name: 'partial-favorite.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(manifest)),
+    });
+    await expect(
+        page.getByText(/Backup import finished: .*0 failed/)
+    ).toBeVisible();
+    await page.goto('/workspace/global-favorites');
+    await expect(
+        page.getByRole('button', { name: favorite.snapshot.title, exact: true })
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+        page.getByRole('button', { name: favorite.snapshot.title, exact: true })
+    ).toBeVisible();
+    await page.goto('/workspace/settings/backup');
+    const downloading = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const path = await (await downloading).path();
+    if (!path) throw new Error('Missing exported backup');
+    const exported = JSON.parse(await readFile(path, 'utf8'));
+    const saved = exported.playlists.find(
+        (entry: { exportedId: string }) => entry.exportedId === id
+    ).userState.favorites[0];
+    expect(saved).toMatchObject(favorite);
+    expect(saved.snapshot.releaseYear).toBeUndefined();
+    expect(saved.snapshot.posterUrl).not.toBe('/replacement.jpg');
 });

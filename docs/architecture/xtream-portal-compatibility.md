@@ -75,7 +75,9 @@ details, downloads and EPG requests that depend on catalog resolution. History
 navigation rechecks current collection state. Removing a live row or making it
 unavailable closes its active detail and invalidates pending selection work,
 including a retained player during a channel switch. Unresolved records are not
-promoted to dashboard hero slides, including Continue Watching and the most-recent fallback. Parental locks still gate display: an
+promoted to dashboard hero slides, including Continue Watching and the most-recent fallback.
+Unavailable live candidates are excluded before EPG lookup, candidate limits and
+slot reservation; EPG cards retain availability and cannot borrow cached programmes. Parental locks still gate display: an
 unresolved category cannot prove that it is unlocked, so those records remain
 stored but are withheld while locks apply. For duplicate category copies, ordinary
 reads choose an unlocked compatible row before resolving the catalog link; a
@@ -224,11 +226,15 @@ Removing or replacing that favorite cannot erase the history’s only metadata.
 Legacy optional-cache-only imports keep their best-effort behavior. Saved
 unavailable evidence can pass to an independent Recent snapshot only when both
 snapshots confirm the same normalized identity in both directions. Only status
-is copied; a different played identity retains its own metadata and availability. A deliberate new
+is copied; a different played identity retains its own metadata and availability.
+Unavailable live Recent rows keep their individual history-removal menu action;
+catalog-dependent playlist navigation, EPG mapping and details remain gated. A deliberate new
 import gets a fresh ID and can intentionally apply the archive again.
 Legacy browser-only `collectionItems` remain an optional cache. If a combined
 write exceeds quota, restoration retries only the required favorite fields;
-optional rows or extra cache fields cannot block metadata that fits. The same
+optional rows or extra cache fields cannot block metadata that fits. Optional cache fields enrich a required snapshot only when every saved TMDB/year
+field is confirmed by the normalized cache identity; conflicting or partial
+identity evidence cannot supply artwork or new identity fields. The same
 fallback applies when copying a required favorite into legacy Recent. A failed
 required-only write still keeps pending state.
 The PWA retry loads that storage implementation on demand through a local module.

@@ -261,6 +261,25 @@ describe('DashboardHeroSlidesPresenter', () => {
         }
     );
 
+    it('does not look up or reserve a hero slot for an unavailable live candidate', () => {
+        candidates.set([
+            {
+                origin: 'favorite',
+                item: { ...channel, catalogStatus: 'missing' },
+            },
+        ]);
+        favorites.set([
+            favoriteFilm,
+            { ...favoriteFilm, id: 40, xtream_id: 400, title: 'Another film' },
+        ]);
+        const presenter = create();
+        expect(presenter.slides()).toHaveLength(4);
+        expect(presenter.slides().some((slide) => slide.kind === 'live')).toBe(
+            false
+        );
+        expect(liveDetails).not.toHaveBeenCalled();
+    });
+
     it('builds the rotation from resume, live, favourite and import slides', () => {
         const slides = create().slides();
 
