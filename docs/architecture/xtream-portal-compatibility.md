@@ -157,6 +157,10 @@ catalog row and reconciles each compatible saved snapshot separately. Identity-o
 patches also persist, so an initially sparse favorite gains protection before a
 later provider-ID reuse. A conflicting detail response cannot enrich another known
 identity; independent Recent snapshots never backfill a retained favorite.
+When a provider ID appears in multiple catalog categories, detail enrichment fills
+only compatible missing metadata in each original row. It preserves each row's
+category, title, poster, rating and other provider fields; conflicting rows are
+left untouched rather than replaced by one resolved catalog object.
 New playback keeps its own typed `collectionItem` on the Recent entry when the
 shared snapshot belongs to another identity. Its metadata and viewing date are
 saved atomically, independently of any retained favorite, and remain available

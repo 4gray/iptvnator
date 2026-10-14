@@ -28,21 +28,8 @@ export function enrichPwaContentMetadata(
         enrichColdRecent(storage, playlistId, key, normalized);
         return undefined;
     }
-    const identity = {
-        tmdb_id: normalized.tmdbId,
-        release_year: normalized.releaseYear,
-    };
-    // A stale/conflicting detail response must not enrich a different known movie.
-    if (!collectionSnapshotMatchesContent(current, identity, true))
-        return current;
-    const known = normalizeCollectionIdentity(current);
-    const enriched = {
-        ...current,
-        tmdb_id: known.tmdb_id ?? normalized.tmdbId,
-        release_year: known.release_year ?? normalized.releaseYear,
-        original_title: current.original_title || normalized.originalTitle,
-        backdrop_url: current.backdrop_url || normalized.backdropUrl,
-    };
+    const enriched = enrichPwaCatalogMetadata(current, normalized);
+    if (enriched === current) return current;
     const allSnapshots = storage.getCollectionItemsFromStorage();
     const snapshots = allSnapshots[playlistId] ?? {};
     const updated = { ...snapshots };
@@ -89,6 +76,34 @@ export function enrichPwaContentMetadata(
         });
     }
     return enriched;
+}
+
+/** Duplicate provider IDs can have distinct category rows; fill metadata in each row. */
+export function enrichPwaCatalogMetadata(
+    current: XtreamContentItem,
+    patch: ContentMetadataPatch
+): XtreamContentItem {
+    const normalized = normalizeContentMetadataPatch(patch);
+    if (
+        !normalized ||
+        !collectionSnapshotMatchesContent(
+            current,
+            {
+                tmdb_id: normalized.tmdbId,
+                release_year: normalized.releaseYear,
+            },
+            true
+        )
+    )
+        return current;
+    const known = normalizeCollectionIdentity(current);
+    return {
+        ...current,
+        tmdb_id: known.tmdb_id ?? normalized.tmdbId,
+        release_year: known.release_year ?? normalized.releaseYear,
+        original_title: current.original_title || normalized.originalTitle,
+        backdrop_url: current.backdrop_url || normalized.backdropUrl,
+    };
 }
 
 /** Cold detail evidence belongs to Recent, never to another retained favorite. */

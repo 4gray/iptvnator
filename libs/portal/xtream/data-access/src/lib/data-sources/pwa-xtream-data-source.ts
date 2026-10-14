@@ -1170,7 +1170,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     ): Promise<void> {
         const key = await this.resolveCollectionKey(playlistId, contentId);
         if (key == null) return;
-        const { enrichPwaContentMetadata } =
+        const { enrichPwaContentMetadata, enrichPwaCatalogMetadata } =
             await import('./pwa-content-metadata');
         const current = this.getCollectionItemsById(
             playlistId,
@@ -1196,7 +1196,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                             id: this.getItemIdentity(item, type),
                             type,
                         }) === key
-                            ? enriched
+                            ? enrichPwaCatalogMetadata(
+                                  item as XtreamContentItem,
+                                  patch
+                              )
                             : item
                     )
                 );

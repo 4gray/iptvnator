@@ -1000,3 +1000,79 @@ test('@xtream @collections favoriting an unwatched replacement preserves shared 
         collectionItem: { title: 'Watched original channel', tmdb_id: 100 },
     });
 });
+
+test('@xtream @collections detail enrichment retains both category listings of one provider ID', async ({
+    page,
+    request,
+}) => {
+    const params = { username: DEFAULT_USERNAME, password: DEFAULT_PASSWORD };
+    const movies = await request.get(`${MOCK_SERVER}/player_api.php`, {
+        params: { ...params, action: 'get_vod_streams' },
+    });
+    const movie = (await movies.json())[0];
+    const categories = await request.get(`${MOCK_SERVER}/player_api.php`, {
+        params: { ...params, action: 'get_vod_categories' },
+    });
+    const second = (await categories.json()).find(
+        (category: { category_id: string }) =>
+            String(category.category_id) !== String(movie.category_id)
+    );
+    if (!second) throw new Error('Missing second mock category');
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        const action = original.searchParams.get('action');
+        if (action !== 'get_vod_streams' && action !== 'get_vod_info')
+            return route.fallback();
+        const url = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') url.searchParams.set(key, value);
+        });
+        const response = await route.fetch({ url: url.toString() });
+        const body = await response.json();
+        if (action === 'get_vod_info') {
+            Object.assign(body.payload.info, {
+                tmdb_id: 949,
+                releasedate: '1995-12-15',
+            });
+        } else {
+            for (const item of body.payload)
+                if (item.stream_id === movie.stream_id) item.tmdb_id = 949;
+            const category = original.searchParams.get('category_id');
+            if (!category || category === String(second.category_id))
+                body.payload.push({
+                    ...movie,
+                    name: 'Duplicate category listing',
+                    category_id: second.category_id,
+                    tmdb_id: 949,
+                });
+        }
+        await route.fulfill({ response, json: body });
+    });
+    await addXtreamPortal(page, { name: 'Duplicate Categories Portal' });
+    await page
+        .locator(`[data-category-id="${movie.category_id}"]`)
+        .first()
+        .click();
+    await page.getByText(movie.name, { exact: true }).first().click();
+    await page
+        .getByRole('button', { name: 'Add to favorites', exact: true })
+        .click();
+    await expect(
+        page.getByRole('button', { name: 'Remove from favorites', exact: true })
+    ).toBeVisible();
+    await page.getByRole('link', { name: 'Movies', exact: true }).click();
+    await page
+        .locator(`[data-category-id="${movie.category_id}"]`)
+        .first()
+        .click();
+    await expect(
+        page.getByText(movie.name, { exact: true }).first()
+    ).toBeVisible();
+    await page
+        .locator(`[data-category-id="${second.category_id}"]`)
+        .first()
+        .click();
+    await expect(
+        page.getByText('Duplicate category listing', { exact: true })
+    ).toBeVisible();
+});

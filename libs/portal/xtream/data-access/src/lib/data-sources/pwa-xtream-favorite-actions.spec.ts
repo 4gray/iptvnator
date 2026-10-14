@@ -4,6 +4,7 @@ import { PwaXtreamBackupStorage } from '@iptvnator/services/pwa-xtream-backup-st
 import { of } from 'rxjs';
 import { XtreamApiService } from '../services/xtream-api.service';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
+import type { XtreamContentItem } from './xtream-data-source.interface';
 
 const credentials = {
     serverUrl: 'http://localhost:3211',
@@ -52,6 +53,87 @@ describe('PWA favorite action and detail identity', () => {
         jest.restoreAllMocks();
         localStorage.clear();
     });
+
+    it.each(['live', 'movie', 'series'] as const)(
+        'enriches duplicate %s IDs without replacing category-specific rows',
+        async (type) => {
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'First listing',
+                    category_id: '1',
+                    stream_icon: 'first.jpg',
+                    rating: '1',
+                    tmdb_id: 100,
+                    backdrop_url: 'first-backdrop.jpg',
+                },
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Second listing',
+                    category_id: '2',
+                    stream_icon: 'second.jpg',
+                    rating: '2',
+                    tmdb_id: 100,
+                },
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Conflicting listing',
+                    category_id: '3',
+                    stream_icon: 'third.jpg',
+                    rating: '3',
+                    tmdb_id: 999,
+                },
+            ]);
+            const before = (await source.getContent(
+                'p1',
+                credentials,
+                type
+            )) as XtreamContentItem[];
+            await source.setContentMetadataIfMissing({ id: 42, type }, 'p1', {
+                tmdbId: 100,
+                releaseYear: 1995,
+                backdropUrl: 'detail.jpg',
+                originalTitle: 'Detail title',
+            });
+            const after = (await source.getContent(
+                'p1',
+                credentials,
+                type
+            )) as XtreamContentItem[];
+            expect(
+                after.map(({ category_id, title, poster_url, rating }) => ({
+                    category_id,
+                    title,
+                    poster_url,
+                    rating,
+                }))
+            ).toEqual(
+                before.map(({ category_id, title, poster_url, rating }) => ({
+                    category_id,
+                    title,
+                    poster_url,
+                    rating,
+                }))
+            );
+            expect(after[0]).toMatchObject({
+                tmdb_id: 100,
+                release_year: 1995,
+                backdrop_url: 'first-backdrop.jpg',
+                original_title: 'Detail title',
+            });
+            expect(after[1]).toMatchObject({
+                tmdb_id: 100,
+                release_year: 1995,
+                backdrop_url: 'detail.jpg',
+                original_title: 'Detail title',
+            });
+            expect(after[2]).toEqual(before[2]);
+            expect(api.getStreams).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it.each(['live', 'movie', 'series'] as const)(
         'protects the %s favorite from a cold Recent heart and stale remove',
