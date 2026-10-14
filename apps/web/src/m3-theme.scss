@@ -65,6 +65,9 @@ $dark-theme: mat.define-theme(
 // `@angular/material/<entry>` import and remove it with the last one:
 // `pnpm run styles:material-theme-scope:validate` (CI) checks both
 // directions, and `core` (ripples, options, pseudo-checkboxes) always stays.
+// `fab` follows the templates instead: the button import carries its
+// directives either way, so it is listed only while a template renders
+// `mat-fab` or `mat-mini-fab` (its tokens alone were about 6 KB).
 $material-components: (
     core,
     card,
@@ -81,7 +84,6 @@ $material-components: (
     checkbox,
     button,
     icon-button,
-    fab,
     snack-bar,
     progress-spinner,
     button-toggle,

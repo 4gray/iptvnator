@@ -18,6 +18,7 @@ import {
 import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
 import { verifyStalkerOpenInPlaylist } from './stalker-open-in-playlist.fixture';
 import { playFirstItvChannel } from './stalker-itv-playback.fixture';
+import { verifyRadioPlayControl } from './stalker-radio-player.fixture';
 import {
     AUTH_REJECTED_MAC,
     BACKEND_PROXY,
@@ -296,6 +297,7 @@ test('@stalker ITV playback survives a category switch', async ({ page }) => {
 
 test('@stalker radio — stations use the inline audio player without EPG', async ({
     page,
+    browserName,
 }) => {
     await addStalkerPortal(page);
 
@@ -333,6 +335,7 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
     await expect(page.locator('app-audio-player')).toBeVisible({
         timeout: 20_000,
     });
+    await verifyRadioPlayControl(page, browserName);
 
     // Level 2: only the categories rail folds; the channels header turns
     // its title into a category dropdown that opens the same rail as a
