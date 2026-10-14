@@ -148,6 +148,69 @@ describe('PWA favorite action and detail identity', () => {
         }
     );
 
+    it.each(['live', 'movie', 'series'] as const)(
+        'keeps watched %s metadata when explicitly favoriting an unwatched replacement',
+        async (type) => {
+            const ref = { id: 42, type };
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Watched original',
+                    category_id: '1',
+                    tmdb_id: 100,
+                },
+            ]);
+            await source.getContent('p1', credentials, type);
+            await source.addFavorite(ref, 'p1');
+            await source.addRecentItem(ref, 'p1');
+            const recentBefore = read('xtream-recent-items').p1[0];
+            expect(recentBefore.collectionItem).toBeUndefined();
+            const saved = read('xtream-collection-items');
+            reload();
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Unwatched replacement',
+                    category_id: '2',
+                    tmdb_id: 200,
+                },
+            ]);
+            await source.getContent('p1', credentials, type);
+            await source.removeFavorite(
+                { ...ref, identity: { tmdbId: 100 } },
+                'p1'
+            );
+            const replacement = { ...ref, identity: { tmdbId: 200 } };
+            const setItem = Storage.prototype.setItem;
+            const blocked = jest
+                .spyOn(Storage.prototype, 'setItem')
+                .mockImplementation(function (this: Storage, key, value) {
+                    if (key === 'xtream-recent-items')
+                        throw new DOMException('Full', 'QuotaExceededError');
+                    setItem.call(this, key, value);
+                });
+            await expect(
+                source.addFavorite(replacement, 'p1')
+            ).rejects.toThrow();
+            expect(read('xtream-collection-items')).toEqual(saved);
+            expect(read('xtream-favorites').p1).toEqual([]);
+            blocked.mockRestore();
+            await source.addFavorite(replacement, 'p1');
+            reload();
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                title: 'Unwatched replacement',
+                tmdb_id: 200,
+            });
+            expect((await source.getRecentItems('p1'))[0]).toMatchObject({
+                title: 'Watched original',
+                tmdb_id: 100,
+                viewed_at: recentBefore.viewedAt,
+            });
+        }
+    );
+
     it.each(['movie', 'series'] as const)(
         're-adds a cold %s favorite with detail identity and no Recent entry',
         async (type) => {

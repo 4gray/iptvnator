@@ -93,6 +93,25 @@ function prepareReplacement(
         )
     )
         return;
+    // Recent may still share the old snapshot. Detach it before replacing that
+    // snapshot, or saving an unwatched replacement would rewrite viewing history.
+    const allRecent = storage.getRecentItemsFromStorage();
+    let detached = false;
+    const recent = (allRecent[playlistId] ?? []).map((entry) => {
+        const saved =
+            snapshots[String(entry.id)] ??
+            (entry.id === key ? snapshots[keys[0]] : undefined);
+        if (entry.collectionItem || !saved || itemCollectionKey(saved) !== key)
+            return entry;
+        detached = true;
+        return { ...entry, collectionItem: saved };
+    });
+    if (detached)
+        storage.saveRecentItemsToStorage({
+            ...allRecent,
+            [playlistId]: recent,
+        });
+
     for (const storedKey of new Set([...keys, String(key)])) {
         snapshots[storedKey] = {
             ...current,

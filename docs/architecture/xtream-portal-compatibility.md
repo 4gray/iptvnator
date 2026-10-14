@@ -147,6 +147,11 @@ favorite. It never confirms catalog availability or mutates the retained snapsho
 just by opening details. A changed stored snapshot invalidates the candidate;
 re-adding persists its enriched snapshot before the favorite reference, so quota
 failure leaves the item removed and retryable rather than restoring stale identity.
+When a replacement favorite needs the shared snapshot, any Recent entry still
+using the previous snapshot first receives its own copy, preserving the watched
+identity and date. Failure to save that copy aborts the replacement. Sparse catalog
+rows may refresh category routing even before confirming all saved identity fields;
+protected presentation stays unchanged, and known conflicts still block actions.
 Detail metadata fills missing identity and presentation fields in the current PWA
 catalog row and reconciles each compatible saved snapshot separately. Identity-only
 patches also persist, so an initially sparse favorite gains protection before a

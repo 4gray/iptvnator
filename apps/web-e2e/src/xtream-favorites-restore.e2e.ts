@@ -776,3 +776,227 @@ for (const collection of ['Recent', 'Favorites'] as const) {
         }
     });
 }
+
+test('@xtream @collections sparse favorite playback uses the current category while retaining saved metadata', async ({
+    page,
+    request,
+}) => {
+    await routeMovieClip(page);
+    await selectWebPlayer(page, 'HTML5 video player');
+    const response = await request.get(`${MOCK_SERVER}/player_api.php`, {
+        params: {
+            username: DEFAULT_USERNAME,
+            password: DEFAULT_PASSWORD,
+            action: 'get_vod_streams',
+        },
+    });
+    const movie = (await response.json())[0];
+    let detailOpened = false;
+    const recoveryCategories: string[] = [];
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        const action = original.searchParams.get('action');
+        if (action !== 'get_vod_streams' && action !== 'get_vod_info')
+            return route.fallback();
+        const url = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') url.searchParams.set(key, value);
+        });
+        const response = await route.fetch({ url: url.toString() });
+        const body = await response.json();
+        if (action === 'get_vod_info') {
+            detailOpened = true;
+            delete body.payload.movie_data.stream_id;
+            delete body.payload.movie_data.container_extension;
+            Object.assign(body.payload.info, {
+                tmdb_id: 949,
+                releasedate: '1995-12-15',
+            });
+        } else {
+            const category = original.searchParams.get('category_id');
+            if (detailOpened && category) recoveryCategories.push(category);
+            for (const item of body.payload) {
+                delete item.tmdb_id;
+                delete item.release_year;
+                if (detailOpened && category === String(movie.category_id))
+                    item.container_extension = 'mp4';
+                else delete item.container_extension;
+            }
+        }
+        await route.fulfill({ response, json: body });
+    });
+    await addXtreamPortal(page, { name: 'Sparse Category Portal' });
+    const rawId = new URL(page.url()).pathname
+        .replace(/\/vod.*$/, '')
+        .split('/')
+        .pop();
+    if (!rawId) throw new Error('Missing playlist ID');
+    const playlistId = decodeURIComponent(rawId);
+    await page
+        .locator(`[data-category-id="${movie.category_id}"]`)
+        .first()
+        .click();
+    await expect(
+        page.getByText(movie.name, { exact: true }).first()
+    ).toBeVisible();
+    await page.evaluate(
+        ({ id, movie }) => {
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ [id]: [`movie:${movie.stream_id}`] })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({
+                    [id]: {
+                        [`movie:${movie.stream_id}`]: {
+                            id: movie.stream_id,
+                            xtream_id: movie.stream_id,
+                            type: 'movie',
+                            title: 'Saved sparse favorite',
+                            poster_url: movie.stream_icon,
+                            category_id: '999999',
+                            tmdb_id: 949,
+                            release_year: 1995,
+                        },
+                    },
+                })
+            );
+        },
+        { id: playlistId, movie }
+    );
+    await page
+        .getByRole('link', { name: 'Global favorites', exact: true })
+        .click();
+    await page
+        .locator('app-content-card')
+        .filter({ hasText: 'Saved sparse favorite' })
+        .click();
+    await expect
+        .poll(() => recoveryCategories)
+        .toContain(String(movie.category_id));
+    await page
+        .getByRole('button', { name: /^Play / })
+        .first()
+        .click();
+    await expect
+        .poll(() =>
+            page
+                .locator('video')
+                .first()
+                .evaluate((video: HTMLVideoElement) => video.currentTime)
+        )
+        .toBeGreaterThan(0);
+});
+
+test('@xtream @collections favoriting an unwatched replacement preserves shared Recent metadata and backup', async ({
+    page,
+    request,
+}) => {
+    const response = await request.get(`${MOCK_SERVER}/player_api.php`, {
+        params: {
+            username: DEFAULT_USERNAME,
+            password: DEFAULT_PASSWORD,
+            action: 'get_live_streams',
+        },
+    });
+    const channel = (await response.json())[0];
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        if (original.searchParams.get('action') !== 'get_live_streams')
+            return route.fallback();
+        const url = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') url.searchParams.set(key, value);
+        });
+        const response = await route.fetch({ url: url.toString() });
+        const body = await response.json();
+        for (const item of body.payload)
+            if (item.stream_id === channel.stream_id) {
+                item.name = 'Unwatched replacement channel';
+                item.tmdb_id = 200;
+            }
+        await route.fulfill({ response, json: body });
+    });
+    await addXtreamPortal(page, { name: 'Unwatched Replacement Portal' });
+    const playlistPath = new URL(page.url()).pathname.replace(/\/vod.*$/, '');
+    const rawId = playlistPath.split('/').pop();
+    if (!rawId) throw new Error('Missing playlist ID');
+    const playlistId = decodeURIComponent(rawId);
+    await page.evaluate(
+        ({ id, channel }) => {
+            const key = `live:${channel.stream_id}`;
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ [id]: [key] })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({
+                    [id]: {
+                        [key]: {
+                            id: channel.stream_id,
+                            xtream_id: channel.stream_id,
+                            type: 'live',
+                            title: 'Watched original channel',
+                            poster_url: '',
+                            category_id: channel.category_id,
+                            tmdb_id: 100,
+                        },
+                    },
+                })
+            );
+            localStorage.setItem(
+                'xtream-recent-items',
+                JSON.stringify({
+                    [id]: [{ id: key, viewedAt: '2026-10-01T12:00:00.000Z' }],
+                })
+            );
+        },
+        { id: playlistId, channel }
+    );
+    await page.goto('/workspace/global-favorites');
+    const original = page
+        .locator('app-channel-list-item')
+        .filter({ hasText: 'Watched original channel' });
+    await expect(original).toBeVisible();
+    await original.hover();
+    await original.locator('.favorite-button').click();
+    await expect(original).toHaveCount(0);
+    await page.goto(`${playlistPath}/live`);
+    await page
+        .locator(`[data-category-id="${channel.category_id}"]`)
+        .first()
+        .click();
+    const replacement = page
+        .locator('app-channel-list-item')
+        .filter({ hasText: 'Unwatched replacement channel' });
+    await expect(replacement).toBeVisible();
+    await replacement.hover();
+    await replacement.locator('.favorite-button').click();
+    await expect(replacement.locator('.favorite-button')).toHaveAttribute(
+        'aria-pressed',
+        'true'
+    );
+    await page.goto('/workspace/global-recent');
+    await page.reload();
+    await expect(original).toBeVisible();
+    await expect(replacement).toHaveCount(0);
+    await page.goto('/workspace/settings/backup');
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const path = await (await download).path();
+    if (!path) throw new Error('Missing backup');
+    const backup = JSON.parse(await readFile(path, 'utf8'));
+    const state = backup.playlists.find(
+        (entry: { exportedId: string }) => entry.exportedId === playlistId
+    ).userState;
+    expect(state.favorites[0].snapshot).toMatchObject({
+        title: 'Unwatched replacement channel',
+        tmdbId: 200,
+    });
+    expect(state.recentlyViewed[0]).toMatchObject({
+        viewedAt: '2026-10-01T12:00:00.000Z',
+        collectionItem: { title: 'Watched original channel', tmdb_id: 100 },
+    });
+});

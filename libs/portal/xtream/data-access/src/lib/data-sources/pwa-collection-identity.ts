@@ -211,7 +211,12 @@ export function mergeCollectionItem(
     if (!collectionSnapshotMatchesContent(saved, current, true)) {
         return { ...saved, catalog_status: 'missing' };
     }
-    if (!collectionSnapshotMatchesContent(saved, current)) return saved;
+    if (!collectionSnapshotMatchesContent(saved, current))
+        return {
+            ...saved,
+            // Routing is current catalog evidence, not saved presentation/identity.
+            category_id: current.category_id || saved.category_id,
+        };
     return {
         ...saved,
         ...current,
