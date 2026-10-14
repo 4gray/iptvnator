@@ -47,16 +47,27 @@ async function outlineContrast(
     }, fillSelector);
 }
 
-/** Resolves a CSS color (including var() and color-mix()) to rgb()/rgba(). */
-async function resolveColor(page: Page, value: string): Promise<string> {
-    return page.evaluate((css) => {
-        const probe = document.createElement('div');
-        probe.style.color = css;
-        document.body.appendChild(probe);
-        const color = getComputedStyle(probe).color;
-        probe.remove();
-        return color;
-    }, value);
+/**
+ * Resolves a CSS color (including var() and color-mix()) the way the given
+ * property serializes it, so it compares with a computed `color` or
+ * `backgroundColor`.
+ */
+async function resolveColor(
+    page: Page,
+    value: string,
+    property: 'color' | 'backgroundColor' = 'color'
+): Promise<string> {
+    return page.evaluate(
+        ({ css, prop }) => {
+            const probe = document.createElement('div');
+            probe.style[prop] = css;
+            document.body.appendChild(probe);
+            const color = getComputedStyle(probe)[prop];
+            probe.remove();
+            return color;
+        },
+        { css: value, prop: property }
+    );
 }
 
 async function systemVariable(page: Page, name: string): Promise<string> {
@@ -200,7 +211,7 @@ test.describe('Theme tokens', () => {
         }
     });
 
-    test('@theme @electron destructive actions name the action and use the error color', async ({
+    test('@theme @electron destructive actions name the action and use the danger tint', async ({
         dataDir,
     }) => {
         const app = await launchElectronApp(dataDir);
@@ -211,18 +222,35 @@ test.describe('Theme tokens', () => {
 
             for (const theme of ['light', 'dark'] as const) {
                 await applyTheme(page, theme);
-                const error = await resolveColor(page, 'var(--mat-sys-error)');
+                const dangerText = await resolveColor(
+                    page,
+                    'var(--app-danger-text)'
+                );
+                const dangerSurface = await resolveColor(
+                    page,
+                    'var(--app-danger-surface)',
+                    'backgroundColor'
+                );
                 const trigger = page.getByRole('button', {
                     name: 'Clear EPG data',
                     exact: true,
                 });
                 // The `warn` color input was a no-op with M3: the trigger
-                // rendered in the primary color.
+                // rendered in the primary color. The kit draws a destructive
+                // button as a red tint, never a solid error fill, and the
+                // outlined trigger carries the same tint as a filled one.
                 await expect
                     .poll(() =>
                         trigger.evaluate((el) => getComputedStyle(el).color)
                     )
-                    .toBe(error);
+                    .toBe(dangerText);
+                await expect
+                    .poll(() =>
+                        trigger.evaluate(
+                            (el) => getComputedStyle(el).backgroundColor
+                        )
+                    )
+                    .toBe(dangerSurface);
                 await trigger.click();
 
                 const dialog = page.locator('mat-dialog-container');
@@ -239,7 +267,12 @@ test.describe('Theme tokens', () => {
                             (el) => getComputedStyle(el).backgroundColor
                         )
                     )
-                    .toBe(error);
+                    .toBe(dangerSurface);
+                await expect
+                    .poll(() =>
+                        confirm.evaluate((el) => getComputedStyle(el).color)
+                    )
+                    .toBe(dangerText);
 
                 await dialog
                     .getByRole('button', { name: 'Cancel', exact: true })

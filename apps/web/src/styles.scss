@@ -1,6 +1,7 @@
 @use '@angular/material' as mat;
 @use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
 @use '../../../libs/ui/styles/focus-ring';
+@use '../../../libs/ui/styles/app-controls' as controls;
 @use './settings-theme';
 @use './cover-size';
 
@@ -238,12 +239,18 @@ body.dark-theme {
     overflow-x: hidden !important;
 }
 
-.mat-drawer-inner-container {
-    overflow: hidden !important;
+// Modal overlays blur the page behind their backdrop. The CDK gives a dialog
+// the dark backdrop class by default; menus, selects and popovers open over
+// `cdk-overlay-transparent-backdrop`, which sits at opacity 0 and stays a
+// plain layer without a filter of its own.
+.cdk-overlay-dark-backdrop {
+    backdrop-filter: blur(4px);
 }
 
-.cdk-overlay-backdrop {
-    backdrop-filter: blur(4px);
+// UI-kit menu panel: `<mat-menu class="app-menu">`. The panel renders in the
+// overlay container, outside every component view, so the rule is global.
+.mat-mdc-menu-panel.app-menu {
+    @include controls.menu-panel;
 }
 
 // Command palette dialog — the palette-shell renders its own background, border,

@@ -22,9 +22,11 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { SettingsPlayerOption } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-playback-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         CommonModule,
         MatButtonModule,

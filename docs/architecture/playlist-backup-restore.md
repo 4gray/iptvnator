@@ -12,6 +12,8 @@ settings screen.
 - Manifest types: `libs/shared/interfaces/src/lib/playlist-backup.interface.ts`
 - Xtream pending restore storage:
   `libs/services/src/lib/xtream-pending-restore.service.ts`
+- Browser (PWA) Xtream user state:
+  `libs/services/src/lib/pwa-xtream-backup-state.service.ts`
 
 ## Manifest Contract
 
@@ -61,9 +63,12 @@ Xtream backups export only connection metadata plus portable user state.
 - User state:
     - hidden categories by `{ categoryType, xtreamId }`
     - favorites by `{ contentType, xtreamId, addedAt?, position? }`
-    - recently viewed by `{ contentType, xtreamId, viewedAt }`
+    - recently viewed by `{ contentType, xtreamId, viewedAt, backdropUrl? }`
+      (`backdropUrl` is written and read by the browser build only)
     - playback positions as `PlaybackPositionData[]`
     - optional VOD source pins by `{ matchKey, contentId, updatedAt? }`
+    - optional title snapshots `collectionItems` (browser build only; see
+      [Browser runtime](#browser-runtime))
 
 An imported Xtream archive can wait for its catalog to download. Export reads
 that pending snapshot before consulting the catalog: its hidden categories,
@@ -224,6 +229,47 @@ The whole restore is not one database transaction; already applied
 categories/favorites/history can
 remain after a later failure, but the snapshot remains available to retry the
 complete restore. It is consumed only after every restore step succeeds.
+
+### Browser Runtime
+
+Whenever `XTREAM_DATA_SOURCE` resolves to `PwaXtreamDataSource` — the
+browser, or a desktop bridge without the Xtream SQLite API
+(`RuntimeCapabilitiesService.supportsXtreamSqliteDataSource`) — Xtream
+favorites, recently viewed items, playback positions and title snapshots live
+in the `USER_DATA_STORAGE` maps owned by `PwaXtreamDataSource`
+(`XTREAM_USER_DATA_KEYS`; see
+[PWA portal user data](./pwa-self-hosted.md#pwa-portal-user-data)).
+`PwaXtreamBackupStateService` reads and writes them through that token, so the
+self-hosted server storage is covered too.
+
+- Export converts each playlist's entries to the archive shape. Typed keys
+  (`movie:42`) carry their identity; a legacy bare id resolves only through
+  the snapshot stored under it, and is left out when none identifies it.
+  Recently viewed keeps the newest view per title, with the artwork saved
+  for that view as `backdropUrl`. `collectionItems` carries
+  the snapshots of exported favorites and history, and is omitted when there
+  are none. Hidden categories stay `[]` and `sourcePins` stays absent: the
+  browser tracks neither.
+- An unreadable map (storage error, malformed JSON, a playlist entry that is
+  not a list) fails the export instead of being written as an empty list.
+- A pending restore snapshot still wins over the stored maps, as on desktop.
+- Import parks the restore state like the desktop does, then applies it at
+  once through `XtreamPendingRestoreService.applyAndConsume`: the browser has
+  no catalog cache to wait for. Favorites, history and positions of the
+  imported playlist id are replaced (positions get that id); other playlists'
+  entries are untouched. `collectionItems` merge into the playlist's
+  snapshots, keyed by typed identity; an archive without them leaves the
+  snapshots alone, malformed items are skipped, a damaged cache is replaced,
+  and a quota error on this cache does not fail the restore.
+- The lists are written before the optional title snapshots, so the cache
+  never takes storage space they need (as for additions; see the
+  [snapshot-storage contract](./xtream-portal-compatibility.md)). A failed
+  write fails the entry and keeps the snapshot parked, so the Xtream store
+  replays the complete state when the playlist next opens. That replay
+  carries no title snapshots, so they are still merged after a failed list
+  write, unless storage is full and they would take room the replay needs.
+
+Older builds ignore `collectionItems`; the manifest version stays `1`.
 
 ## Current UX
 

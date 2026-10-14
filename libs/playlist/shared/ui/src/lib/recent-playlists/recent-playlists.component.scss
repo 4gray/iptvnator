@@ -1,7 +1,8 @@
+@use '../../../../../../ui/styles/app-controls' as controls;
+
 :host {
     display: flex;
     flex-direction: column;
-    align-items: center;
     width: 100%;
     min-width: 0;
     min-height: 0;
@@ -15,35 +16,40 @@
     min-height: 0;
 }
 
-.playlists-list {
-    padding: 0 6px;
+.sources-list {
+    display: flex;
+    flex-direction: column;
     width: 100%;
-    overflow-x: hidden;
-    box-sizing: border-box;
 }
 
-#skeleton-container {
-    padding-top: 10px;
-    width: 100%;
-
-    .skeleton-item {
-        display: flex;
-        padding: 0 20px;
-        height: 72px;
-
-        .text {
-            flex: 1;
-            align-self: center;
-            padding-left: 6px;
-            flex-direction: column;
-            display: flex;
-        }
-    }
+// A 1px line between rows, hidden around the hovered row so its fill
+// reads as one shape.
+app-source-row + app-source-row {
+    border-top: 1px solid var(--app-widget-header-border);
 }
 
-@media only screen and (max-width: 480px) {
-    .favorites-icon {
-        padding-left: 0 !important;
-        display: none;
-    }
+app-source-row:hover,
+app-source-row:hover + app-source-row,
+app-source-row:focus-within,
+app-source-row:focus-within + app-source-row {
+    border-top-color: transparent;
+}
+
+.sources-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 64px 16px;
+    text-align: center;
+}
+
+.sources-empty__message {
+    margin: 0;
+    font-size: 13px;
+    color: var(--app-body-color);
+}
+
+.sources-empty__reset {
+    @include controls.ghost-button(sm);
 }

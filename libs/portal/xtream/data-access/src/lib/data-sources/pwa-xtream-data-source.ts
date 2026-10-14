@@ -22,6 +22,7 @@ import {
     ParentalLockService,
     PlaylistsService,
     USER_DATA_STORAGE,
+    XTREAM_USER_DATA_KEYS,
 } from '@iptvnator/services';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -42,6 +43,7 @@ import {
     typedCollectionRef,
     itemCollectionKey,
     findCollectionItems,
+    normalizeStoredBackdrop,
 } from './pwa-collection-identity';
 import { PwaCollectionStorage } from './pwa-collection-storage';
 
@@ -50,7 +52,7 @@ import { PwaCollectionStorage } from './pwa-collection-storage';
  */
 const STORAGE_KEYS = {
     PLAYLISTS: 'xtream-playlists',
-    PLAYBACK_POSITIONS: 'xtream-playback-positions',
+    PLAYBACK_POSITIONS: XTREAM_USER_DATA_KEYS.playbackPositions,
 };
 
 interface XtreamCachedContentItem {
@@ -1356,6 +1358,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 return {
                     ...identity,
                     viewedAt: item.viewedAt,
+                    ...normalizeStoredBackdrop(item),
                 };
             })
             .filter(
@@ -1403,16 +1406,22 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 type: item.contentType,
             });
             if (id !== null)
-                recentItems[playlistId].push({ id, viewedAt: item.viewedAt });
+                recentItems[playlistId].push({
+                    id,
+                    viewedAt: item.viewedAt,
+                    ...normalizeStoredBackdrop(item),
+                });
         }
         this.collectionStorage.saveRecentItemsToStorage(recentItems);
 
-        // Restore playback positions
+        // Restore playback positions under this playlist: an archive's carry
+        // the id they were exported with, and the player matches on it.
         this.clearPlaybackPositionsForPlaylist(playlistId);
         const playbackPositions = this.getPlaybackPositionsFromStorage();
         playbackPositions[playlistId] = restoreState.playbackPositions.map(
             (position) => ({
                 ...position,
+                playlistId,
                 updatedAt: position.updatedAt ?? new Date().toISOString(),
             })
         );

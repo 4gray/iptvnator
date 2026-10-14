@@ -62,6 +62,7 @@ import {
     STALKER_PLAYLIST_CONNECTION_EDITOR,
     STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
 } from './stalker-playlist-connection-editor.token';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 type DesktopFileSaveBridge = Pick<
     typeof window.electron,
@@ -165,7 +166,7 @@ type DesktopFileSaveBridge = Pick<
             }
         `,
     ],
-    providers: [DatePipe],
+    providers: [provideFormFieldDefaults(), DatePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         ClipboardModule,

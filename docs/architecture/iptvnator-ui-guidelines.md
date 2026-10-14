@@ -22,6 +22,54 @@ Use it when changing existing views or introducing new list-based UI in the work
 5. Scroll ownership must be explicit.
    Headers stay visible. Lists scroll. Do not let nested panes compete for scroll.
 
+## Angular Material's Role
+
+Decision of 2026-10-12. The repository has no ADR folder; decisions live in
+the subsystem's document.
+
+**Decision.**
+
+- Angular Material stays as the behaviour and accessibility layer: dialog,
+  menu, select (inside forms only), form field and input, snack-bar, tooltip,
+  slide-toggle, checkbox, progress and icon.
+- The look comes from the IPTVnator design kit, applied through
+  `mat.*-overrides()` on the `--app-*` tokens in one place: the shared
+  partials under `libs/ui/styles/` (the control mixins live in
+  `_app-controls.scss`), not per-component `::ng-deep`.
+- A kit component that Material lacks is built on CDK primitives (overlay,
+  a11y key managers), as the playlist switcher popover is.
+- A plain action button may become a native `<button>` with the kit mixins.
+- No wholesale replacement of Material. Re-evaluate Angular's headless
+  `@angular/aria` (developer preview as of v21; not installed) for menu,
+  listbox and combobox once it is stable.
+
+**Why** (production build, `renderer.initialBytes` 1,597,763 bytes):
+
+- Material's JavaScript is about 203 KB (12.7% of the initial bytes) and the
+  CDK's about 126 KB (7.9%). Any replacement keeps the CDK, and the CDK is
+  where the behaviour lives.
+- In the global CSS the `--mat-*` tokens are 96 KB raw but about 11 KB
+  gzipped, and Material's own rules are 9 KB. 23.6 KB of the tokens belong to
+  17 components the app never imports, because `mat.all-component-themes`
+  emits every component.
+- The startup cost came from a few eager imports (the form-field defaults
+  token in `app.config.ts`, the startup, update and EPG-progress components,
+  the confirm-dialog service), not from Material itself. Those are gone (see
+  Material off the startup path below): `renderer.initialBytes` went from
+  1,597,763 to 1,345,807 with Material still in place.
+- Rewriting dialog focus trapping, menu keyboard handling, select listboxes
+  and snack-bar live regions would cost months and accessibility risk for no
+  visible gain.
+
+**Consequences.**
+
+- Material upgrades can change behaviour. Seen in v22: the menu panel has no
+  max-height; a submenu is offset by the parent's first direct
+  `mat-menu-item`, so a trigger that follows `role="group"` rows is wrapped
+  in `<div role="none">`; overlay panes are `position: static` inside the
+  bounding box.
+- Keep E2E coverage on menus and dialogs.
+
 ## Canonical References
 
 - Channel row:
@@ -38,6 +86,12 @@ Use it when changing existing views or introducing new list-based UI in the work
   `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.scss`
 - Shared list selection style:
   `libs/ui/styles/_nav-list.scss`
+- Source row (Sources page and playlist switcher):
+  `libs/playlist/shared/ui/src/lib/source-row/source-row.component.html`
+- UI-kit buttons, menus and segmented control:
+  `libs/ui/styles/_app-controls.scss`
+- Side lists (title, group labels, single-choice rows):
+  `libs/ui/styles/_side-list.scss`
 - Theme tokens:
   `apps/web/src/m3-theme.scss`
 - Settings surfaces:
@@ -67,6 +121,16 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
 - `--app-success-color` — done/watched status (episode watched toggle)
+- `--app-list-selected-bg` / `--app-list-selected-fg` /
+  `--app-list-selected-outline` — the chosen row of a side list and the
+  active source's row on Sources and in the switcher (see Selection Pattern)
+- `--app-line-strong` — popover and menu borders, a step above
+  `--app-widget-header-border`
+- `--app-danger-text` / `--app-danger-surface` — a failing source's tag,
+  destructive menu items and `.app-destructive-button`;
+  `--app-neutral-tag-surface` for a neutral tag
+- `--app-font-mono` — URLs and keyboard hints (JetBrains Mono, 400/500)
+- `--app-popover-shadow` / `--app-popover-backdrop` — the switcher popover
 
 Angular Material mixins and Material-component overrides may use the tokens
 owned by that component. Outside a Material-owned component, prefer the
@@ -87,6 +151,58 @@ tokens, so the retired `--mdc-*` names compile but do nothing;
 `pnpm run styles:material-tokens:validate` (CI) rejects them. A stylesheet that
 a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
 token directly and says why.
+
+### Material off the startup path
+
+`renderer.initialBytes` ([performance journeys](performance-journeys.md#rendererinitialbytes))
+counts every module an eager file imports, and the bundler keeps a module in
+one chunk, so one import of one export carries the whole module. Material
+therefore reaches the initial bundle only through the snack-bar, which root
+services inject (and with it `button`, the icon button and the CDK overlay).
+Everything else is lazy by these rules:
+
+- **Form-field defaults.** A component that renders `<mat-form-field>`
+  adds `providers: [provideFormFieldDefaults()]`
+  (`@iptvnator/ui/components/form-field-defaults`); the token is never
+  provided at the root, where its import alone put the 54 KB form-field
+  chunk on the initial path. `pnpm run ui:form-field-defaults:validate` (CI)
+  requires the provider on every such component and allows the token
+  nowhere else; see the Dialogs and forms notes below.
+- **Dialogs from services created with the app.** A root service that opens a
+  dialog resolves `MatDialog` through `LazyMatDialog`
+  (`@iptvnator/ui/components/lazy-dialog`) and imports the dialog component
+  on demand, as `DialogService`, the player service, the parental lock prompt
+  and the workspace shell actions do; `openConfirmDialog` returns a promise
+  that settles once the dialog is open. A component in a lazy chunk injects
+  `MatDialog` directly.
+- **Panels the shell mounts on every launch.** The EPG progress panel and the
+  update notification are an eager host with `@defer (when visible)` around
+  the view that imports Material; the startup status draws its spinner as
+  static markup copied from `mat-spinner`. A new always-mounted component
+  follows the same split.
+- **Theme scope.** `m3-theme.scss` themes only the components in its
+  `$material-components` list, through `meta.apply` for both the light theme
+  and the dark colours. Add an entry with a new `@angular/material/<entry>`
+  import and remove it with the last one;
+  `pnpm run styles:material-theme-scope:validate` (CI) checks both directions
+  (`core` always stays, `button` brings `icon-button`; `fab` is listed only
+  while a runtime template renders `mat-fab` or `mat-mini-fab`, since the
+  button import carries the directives either way and the fab tokens alone
+  are about 6 KB).
+- **No animations module.** Nothing declares an Angular animation trigger and
+  Material 22 animates with CSS, deciding from `prefers-reduced-motion` itself,
+  so `app.config.ts` does not call `provideAnimations()`; the Electron
+  `material-motion.e2e.ts` checks that dialogs, selects, menus, snack-bars and
+  tooltips still animate in and out and stop under reduced motion. One side
+  effect of the module is gone with it: its renderer deferred every DOM
+  removal to the end of the change-detection tick, so a destroy hook still
+  saw its view attached. Without it Angular detaches the view first, where
+  `scrollTop` reads 0 and Chromium has already fired a `focusout` with no
+  related target for the focused control. A destroy hook therefore never
+  reads geometry or focus from its own view: the catalog list tracks the
+  grid offset from scroll events, and the player settings panel decides
+  "focus was inside" in a microtask after such a `focusout`, which the close
+  destroys the panel before. Both have specs that detach the view first.
 
 The app theme is the `.dark-theme` class that `SettingsService` puts on
 `<body>`; a "System" choice resolves the OS preference there and nowhere
@@ -167,7 +283,23 @@ Use this pattern for:
 
 Do not add extra badges, left rails, or second selection systems unless there is a strong reason.
 
+Side lists styled with `_side-list.scss` (the Sources filters) and the
+active source's row (Sources page and playlist switcher) use the Settings
+navigation's variant
+instead, through `--app-list-selected-*`: a soft tint with no lift or glow,
+outlined in light theme. Its text is the heading colour in light theme (the
+selection blue on its own tint is 3.3:1) and the selection colour in dark.
+
 ## Single-Choice Menus And Status Chips
+
+A `<mat-menu class="app-menu">` gets the kit panel from one global rule in
+`styles.scss` (`menu-panel` in `libs/ui/styles/_app-controls.scss`): a
+bordered 10px panel with 6px padding, 36px rows at 13px with 16px icons, the
+checked row on the list-selection tokens, a destructive row marked
+`app-menu-item--danger` after a divider, and a shortcut hint in a trailing
+`kbd.app-menu-item__kbd`. The panel renders in the overlay container, outside
+every component view, so a component never copies the mixin into its own
+stylesheet.
 
 A `mat-menu` that picks one value, such as a sort order or a rating
 threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
@@ -192,6 +324,15 @@ threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
 - A menu with several groups, such as the catalog refine menu, wraps each
   group in `role="group"`. The group is named by its section title, and
   `role="separator"` sits between groups.
+- Keep a menu short enough to open whole below its trigger in a 600px-tall
+  window. Material 22 sets no max-height on a menu panel: a taller menu is
+  pushed up over its own trigger, then clipped. Move a secondary group into
+  a submenu whose row shows the active value, as the refine menu does with
+  its rating thresholds.
+- Material offsets a submenu by the `offsetTop` of the parent menu's first
+  direct `mat-menu-item`. When the earlier rows sit inside a `role="group"`,
+  that first direct item is the submenu trigger itself, and the submenu
+  opens off screen. Wrap such a trigger in `<div role="none">`.
 
 A chip that shows the active state next to its menu trigger, such as the
 catalog sort chip, shows its icon and a short value at every width, for
@@ -1014,14 +1155,17 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
 - **Destructive actions.** Material only emits `warn` button colors for M2
   themes, so the `color` input is a no-op here. A button that removes or
   discards user data uses the global `.app-destructive-button` class from
-  `m3-theme.scss` (error/on-error tokens per theme, for filled, text,
-  outlined and icon buttons), as the unsaved-changes dialog's Discard does.
+  `m3-theme.scss`, as the unsaved-changes dialog's Discard does. It is the
+  kit's red tint on the `--app-danger-*` tokens per theme (tinted fill and
+  red text for filled and outlined buttons, red text for text and icon
+  buttons), never a solid error fill; hover changes the fill only, and a
+  disabled button is the same button at 40% opacity.
   Confirmations go through `DialogService.openConfirmDialog` with a
   translated verb as the required `confirmLabel` ("Remove playlist",
   "Clear") and `tone: 'destructive'` when the action loses data; the dismiss
   defaults to "Cancel". Never confirm with "Yes"/"No". When the verb itself
   is "Cancel …", pass `cancelLabel` "Close" so the two buttons do not read
-  alike. `theme-tokens.e2e.ts` checks the label and the error fill in both
+  alike. `theme-tokens.e2e.ts` checks the label and the danger tint in both
   themes.
 - **One control per action.** A page offers one control for a destructive
   action. Clearing a favorites or recently viewed tab goes through
@@ -1032,6 +1176,19 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   the single confirmation on M3U, Xtream and Stalker recently viewed pages.
 
 ## Forms
+
+Every `<mat-form-field>` is outlined with a dynamic subscript. A component
+that renders one adds `providers: [provideFormFieldDefaults()]`
+(`@iptvnator/ui/components/form-field-defaults`); the root injector does not
+provide the defaults, because the token import there would load Material's
+form field and `@angular/forms` on startup. `pnpm run
+ui:form-field-defaults:validate` (in CI) reports a missing provider.
+
+A `mat-select` belongs inside a form. Its option panel is styled once in
+`m3-theme.scss` to match the kit menu (a bordered 10px panel, 36px rows at
+13px, the chosen row on the list-selection tokens). A picker in a toolbar is
+not a select: it is a secondary button with a chevron that opens an
+`app-menu`.
 
 The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
 vocabulary, so a field reads the same wherever it appears:
@@ -1304,27 +1461,97 @@ A visual change is not done until:
 
 ### Source row keyboard access
 
-A Sources row (`app-playlist-item`) opens on a click anywhere on it, and it
-also holds a drag handle, a health indicator and actions. Like
-`app-content-card`, it opens from the keyboard through a dedicated element
-that is a sibling of those controls: the title and meta block
-`.playlist-content` (`role="button"`, `tabindex="0"`, named by the source
-title, `aria-current` on the active source, `aria-disabled` while busy).
-Enter and Space open the source (Space prevents the page scroll), and Tab
-reaches each row before its actions. Never put `role="button"` or key
-handlers on the whole row: the actions would sit inside a button, and their
-Enter and Space would bubble into it. The row draws the ring for that
-element, inset (`$offset: -2px`), because the list's scroller would cut a
-ring drawn outside the full-width row. `sources-keyboard.e2e.ts` (Electron)
-tabs to a row, checks its ring and opens the source with Enter.
+A Sources row (`app-source-row`, regular size) opens on a click anywhere on
+it, and it also holds a drag handle and its actions. Like `app-content-card`,
+it opens from the keyboard through a dedicated element that is a sibling of
+those controls: the title and meta block `.source-row__body`
+(`role="button"`, `tabindex="0"`, named by the source's display name,
+`aria-current` on the active source, `aria-disabled` while busy). Enter and
+Space open the source (Space prevents the page scroll), and Tab reaches each
+row before its actions. Never put `role="button"` or key handlers on the whole
+row: the actions would sit inside a button, and their Enter and Space would
+bubble into it. The row draws the ring for that element, inset
+(`$offset: -2px`), because the list's scroller would cut a ring drawn outside
+the full-width row. `R` on a focused row refreshes it, as its menu item shows.
+`sources-keyboard.e2e.ts` (Electron) tabs to a row, checks its ring, opens
+the source with Enter, and deletes and undoes a source keyboard-only.
+
+### Sources page and playlist switcher
+
+One `app-source-row` serves both lists: `size="regular"` on the Sources page
+(56px, 36px tile, hover actions Refresh, Edit and ⋯; a failing row keeps
+Retry in view; touch screens always show the actions) and `size="compact"`
+in the switcher (52px, 32px tile, ⋯ only). In both the active source's row
+is tinted with the selected-row token; the switcher adds a check. The page
+header (title, Clean up, Sort) stays; only the list below it scrolls. The meta line is always type · channels · added · updated · URL, with
+empty parts left out; only M3U playlists store a channel count. The helpers
+in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
+`source-list`) own that text, the filters and the counts.
+
+- **No credentials on screen.** Names come from `sourceDisplayName`: a URL, a
+  URL-derived name such as `get.php?username=…&password=…` or any name holding
+  the source's password, MAC or URL secrets becomes the host. URLs come from
+  `sourceDisplayUrl`, built on `stripUrlCredentials` (beside it in
+  `source-display`, out of the eager logging barrel): no
+  userinfo, sensitive query or fragment parameters, or Xtream path
+  credentials; Xtream shows `scheme://host:port · username`. Copy URL copies
+  the full address on request.
+- **Delete with Undo.** A single delete has no confirmation: the row leaves
+  every list at once (`SourceRemovalService.pendingIds`) and the delete runs
+  when the four-second Undo window ends. The window is the service's own
+  timer, not the toast's: another message replacing the toast (a refresh
+  finishing elsewhere) does not shorten it. The toast's close button commits
+  at once, and quitting within the four seconds keeps the source. Deleting the active source
+  switches to the next row; Undo switches back only if no other source was
+  chosen since. A desktop Xtream delete brings its row back as "Removing…"
+  with progress and Cancel on the Sources page; the switcher leaves the
+  source out until the delete ends. When the delete took the row and with
+  it the focus, the toast's Undo takes the focus. A delete from the
+  switcher closes the popover first, since its focus trap would keep the
+  keyboard from Undo: Undo takes the focus and returns it to the trigger
+  (`SourceRemovalOptions.returnFocusTo`). A source cannot be removed while
+  a refresh clears and refills it: every refresh (a Sources row, the
+  switcher, the Xtream flow, the startup auto-refresh), every Xtream import
+  and every delete holds the source in the root `SourceActivityService`,
+  which both lists, the removal service and a second refresh consult. The
+  Xtream route session takes its hold on the refresh's `NavigationEnd`, so
+  the catalog is never idle between the delete and the re-import. The Sources page shows
+  a switcher refresh as busy. Bulk cleanup keeps its confirmation dialog.
+- **Side list.** Type and, on desktop, Status (Any / Responding / Not
+  responding) combine and persist (`SourcesViewStateService`); each group
+  counts within the other's choice. The page checks every source, not only
+  the rows a filter shows (`keepSourcesChecked`): a saved status filter
+  would otherwise hide the unchecked sources it is waiting for.
+- **Switcher.** The trigger is a 40px secondary button; ⌘P / Ctrl+P opens it
+  (⌘K stays the command palette). The popover is a CDK connected overlay, so
+  row menus open above it, not inside its scrolling list. Focus stays in the
+  search field, which drives a `role="listbox"` through
+  `aria-activedescendant`: ↑/↓ move and wrap, Enter opens, Shift+F10 opens
+  the highlighted row's menu, Escape closes and returns focus to the
+  trigger. The compact row's ⋯ is pointer-only (`aria-hidden`, not
+  focusable), since an option may not contain a control. "Recent" lists the
+  three most recently opened sources once there are six or more. The search
+  field is the shared 36px search field (`--app-search-*`). The popover is a
+  height-capped column in which only the list shrinks and scrolls: every
+  other part is `flex: none`. Otherwise a long list (hundreds of sources)
+  squeezes them in proportion to its size, and the type filter collapses.
 
 ### Network source indicators (Electron)
 
-The switcher and source rows use `SourceHealthIndicatorComponent`: green means
-available, orange expired, red disabled/access refused, and neutral means
-checking or unverified. Accessible tooltip text distinguishes refusal from a
-confirmed disabled account and includes the check time. M3U indicators describe
-the source URL only. Check again is a separate action, not a playlist refresh.
+The status dot on a source tile reads `SourceStatusService`: green answers,
+red does not, orange is an expired account, grey is not checked yet; local
+files have no dot. On desktop the live `SourceHealthService` result wins; the
+last conclusive result per source is kept across restarts
+(`SourceHealthHistoryService`, no URL or credential stored, only a 32-bit
+fingerprint of the connection), so a source that failed yesterday shows as
+failing before it is checked again, with "Not responding · 3 days". An
+edited address or account is a new connection: its kept result no longer
+counts, and its history starts over. The dot's tooltip and accessible name give the
+check's cause (`SourceStatus.reason`: access denied, account disabled,
+timeout…, kept with the history) and check time; M3U checks say they
+cover the playlist URL, not its channels. Retry and Check
+again rerun the check; they are not a playlist refresh. The browser build
+keeps the Xtream portal status only.
 
 ### Inactive-source cleanup dialog
 
