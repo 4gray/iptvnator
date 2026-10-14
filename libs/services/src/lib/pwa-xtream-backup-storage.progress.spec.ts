@@ -210,6 +210,34 @@ describe('PWA restore list receipts', () => {
         expect(exported.position).toBeUndefined();
     });
 
+    it('does not mistake numeric identity normalization for a user replacement', async () => {
+        const { storage, read, deny } = fixture();
+        const old = {
+            xtream_id: 42,
+            type: 'movie',
+            title: 'Older cache',
+            tmdb_id: '100',
+            release_year: '1995',
+        };
+        storage.setItem(
+            KEYS.collectionItems,
+            JSON.stringify({ p: { 'movie:42': old } })
+        );
+        deny(KEYS.collectionItems);
+        const backup = new PwaXtreamBackupStorage(storage);
+        await expect(backup.restore('p', state)).rejects.toThrow();
+        deny();
+        // Collection reads normalize historical numeric strings without changing the saved item.
+        storage.setItem(
+            KEYS.collectionItems,
+            JSON.stringify({
+                p: { 'movie:42': { ...old, tmdb_id: 100, release_year: 1995 } },
+            })
+        );
+        await backup.restore('p', state);
+        expect(read(KEYS.collectionItems).p['movie:42'].title).toBe('Archived');
+    });
+
     it('treats a deliberate new import as a new operation', async () => {
         const { storage, read } = fixture();
         const backup = new PwaXtreamBackupStorage(storage);

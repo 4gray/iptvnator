@@ -1,3 +1,4 @@
+import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import type {
     XtreamBackupCollectionItem,
     XtreamPendingRestoreState,
@@ -165,6 +166,10 @@ export class PwaXtreamRestoreProgress {
 /** Availability/category cache changes do not constitute replacement of a user's saved identity. */
 function snapshotVersion(value: unknown): string {
     if (!record(value)) return 'null';
+    const identity = normalizeContentMetadataPatch({
+        tmdbId: value['tmdb_id'] as number,
+        releaseYear: value['release_year'] as number,
+    });
     return JSON.stringify(
         [
             'title',
@@ -175,6 +180,12 @@ function snapshotVersion(value: unknown): string {
             'original_title',
             'added_at',
             'position',
-        ].map((key) => value[key] ?? null)
+        ].map((key) =>
+            key === 'tmdb_id'
+                ? (identity?.tmdbId ?? null)
+                : key === 'release_year'
+                  ? (identity?.releaseYear ?? null)
+                  : (value[key] ?? null)
+        )
     );
 }
