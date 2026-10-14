@@ -75,3 +75,29 @@ export function clearServerAccessToken(): void {
         // Nothing stored.
     }
 }
+
+/**
+ * Whether `url` goes to the backend: the same origin as the backend URL and
+ * a path inside it. A plain prefix check fails for `BACKEND_URL=/`, where
+ * every URL, other origins included, would carry the token.
+ */
+export function isBackendUrl(
+    url: string,
+    baseUrl: string,
+    pageUrl = globalThis.location?.href ?? 'http://localhost/'
+): boolean {
+    try {
+        const base = new URL(baseUrl, pageUrl);
+        const target = new URL(url, pageUrl);
+        const root = base.pathname.endsWith('/')
+            ? base.pathname
+            : `${base.pathname}/`;
+        return (
+            target.origin === base.origin &&
+            (target.pathname === base.pathname ||
+                target.pathname.startsWith(root))
+        );
+    } catch {
+        return false;
+    }
+}

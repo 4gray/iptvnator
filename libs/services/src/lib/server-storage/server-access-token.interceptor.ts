@@ -8,9 +8,14 @@ import {
 import { inject, Injectable } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import {
+    isBackendUrl,
     isGatewayOutage,
     isServerAccessChallenge,
 } from '../server-access-token';
+
+// Lives with the token helpers so the startup bundle can check URLs
+// without loading the server storage code.
+export { isBackendUrl } from '../server-access-token';
 import { ServerStorageStatusService } from '../server-storage-status.service';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 
@@ -65,31 +70,5 @@ export class ServerAccessTokenInterceptor implements HttpInterceptor {
                 },
             })
         );
-    }
-}
-
-/**
- * Whether `url` goes to the backend: the same origin as the backend URL and
- * a path inside it. A plain prefix check fails for `BACKEND_URL=/`, where
- * every URL, other origins included, would carry the token.
- */
-export function isBackendUrl(
-    url: string,
-    baseUrl: string,
-    pageUrl = globalThis.location?.href ?? 'http://localhost/'
-): boolean {
-    try {
-        const base = new URL(baseUrl, pageUrl);
-        const target = new URL(url, pageUrl);
-        const root = base.pathname.endsWith('/')
-            ? base.pathname
-            : `${base.pathname}/`;
-        return (
-            target.origin === base.origin &&
-            (target.pathname === base.pathname ||
-                target.pathname.startsWith(root))
-        );
-    } catch {
-        return false;
     }
 }

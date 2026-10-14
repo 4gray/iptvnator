@@ -15,11 +15,11 @@ import {
 } from 'rxjs';
 import {
     DataService,
+    isBackendUrl,
     isGatewayOutage,
     isServerAccessChallenge,
     ServerStorageStatusService,
 } from '@iptvnator/services';
-import { isBackendUrl } from '@iptvnator/services/server-storage';
 import {
     CONNECTIVITY_GUARD_RESET,
     ERROR,

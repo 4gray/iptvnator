@@ -20,6 +20,7 @@ import {
     ServerStorageSession,
 } from '@iptvnator/services/server-storage';
 import { rememberServer } from './server-storage-start';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 
 export type ServerSignInFeedback = 'rejected' | 'unreachable' | 'storage';
@@ -34,6 +35,7 @@ export type ServerSignInFeedback = 'rejected' | 'unreachable' | 'storage';
         PasswordVisibilityToggleDirective,
         TranslatePipe,
     ],
+    providers: [provideFormFieldDefaults()],
     templateUrl: './server-sign-in.component.html',
     styleUrl: './server-sign-in.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
