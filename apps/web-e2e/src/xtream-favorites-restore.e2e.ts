@@ -1011,4 +1011,6 @@ test('@xtream @collections detail enrichment retains both category listings of o
     await expect(card).not.toHaveAttribute('aria-disabled', 'true');
     await card.click();
     await expect(page.locator('app-content-hero')).toBeVisible();
+    // The hero can render before the detail response rewrite finishes.
+    await page.unrouteAll({ behavior: 'wait' });
 });
