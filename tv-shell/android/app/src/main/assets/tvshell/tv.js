@@ -794,10 +794,15 @@
         if (!url || typeof url !== 'string') return;
         if (/^blob:|^data:/i.test(url)) return;
         var absolute;
-        try {
-            absolute = new URL(url, location.href).href;
-        } catch (e) {
-            return;
+        var trimmed = url.trim();
+        if (STREAM_SCHEME_RE.test(trimmed) && !/^https?:/i.test(trimmed)) {
+            absolute = trimmed; // as written: URL() would drop the '@' of udp://@239.0.0.1:1234
+        } else {
+            try {
+                absolute = new URL(url, location.href).href;
+            } catch (e) {
+                return;
+            }
         }
         if (!STREAM_SCHEME_RE.test(absolute)) return;
         if (/^https?:/i.test(absolute) && absolute.indexOf(location.origin) === 0) return; // our own files/API
@@ -854,35 +859,30 @@
      * after it are variants, segments and refreshes. Until the new session's
      * first request, the previous stream stays available (an engine recovering
      * from an error re-attaches without asking for its source again). The
-     * session ends when the engine revokes its MediaSource URL (teardown).
-     * Installed before the bundle runs: shaka keeps the functions it finds
-     * when its module is evaluated.
+     * session ends when its MediaSource closes, i.e. when the engine detaches
+     * it from the element. Revoking the object URL means nothing: shaka does
+     * that as soon as the source opens, while it plays. Installed before the
+     * bundle runs: shaka keeps the createObjectURL it finds when its module
+     * is evaluated.
      */
     function installMediaSourceTracking() {
         var urlApi = window.URL;
         if (!urlApi || typeof urlApi.createObjectURL !== 'function') return;
         var create = urlApi.createObjectURL;
-        var revoke = urlApi.revokeObjectURL;
         urlApi.createObjectURL = function (obj) {
             var objectUrl = create.apply(urlApi, arguments);
             try {
                 if (isMediaSource(obj)) {
                     endSession();
-                    session = { pinned: false, seen: new Set(), objectUrl: objectUrl };
+                    var current = session = { pinned: false, seen: new Set() };
+                    obj.addEventListener('sourceclose', function () {
+                        if (session === current) endSession();
+                    });
                 }
             } catch (e) {
                 /* ignore */
             }
             return objectUrl;
-        };
-        if (typeof revoke !== 'function') return;
-        urlApi.revokeObjectURL = function (objectUrl) {
-            try {
-                if (session && session.objectUrl === objectUrl) endSession();
-            } catch (e) {
-                /* ignore */
-            }
-            return revoke.apply(urlApi, arguments);
         };
     }
 

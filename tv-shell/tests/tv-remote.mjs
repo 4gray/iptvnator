@@ -198,6 +198,29 @@ console.log('8. the stream handed to an external player is the source, never a f
     const tracked = await page.evaluate(async (provider) => {
         const last = () => window.__tvShell.state().lastMediaUrl;
         const attach = () => URL.createObjectURL(new MediaSource());
+        // A MediaSource really attached to an element, as the engines do.
+        const open = async () => {
+            const ms = new MediaSource();
+            const video = document.createElement('video');
+            const url = URL.createObjectURL(ms);
+            const opened = new Promise((resolve) => ms.addEventListener('sourceopen', resolve, { once: true }));
+            video.src = url;
+            await opened;
+            return { ms, video, url };
+        };
+        // Engine teardown: the element drops the source and the MediaSource closes.
+        const detach = async ({ ms, video }) => {
+            const closed = new Promise((resolve) => ms.addEventListener('sourceclose', resolve, { once: true }));
+            video.removeAttribute('src');
+            video.load();
+            await closed;
+        };
+        // shaka: attach, revoke the object URL as soon as the source opens, then load.
+        const shakaAttach = async () => {
+            const media = await open();
+            URL.revokeObjectURL(media.url);
+            return media;
+        };
         const xhr = (url, responseType) => {
             const r = new XMLHttpRequest();
             r.open('GET', url);
@@ -222,13 +245,17 @@ console.log('8. the stream handed to an external player is the source, never a f
         xhr(provider + '/hls/user/pass/7/index.m3u8');
         out.afterCopy = last();
         // shaka (DASH): manifest, init segment and media segments, all through fetch.
-        attach();
+        const dashMedia = await shakaAttach();
         get(provider + '/dash/user/pass/9.mpd');
         get(provider + '/dash/user/pass/init-v.mp4');
         get(provider + '/dash/user/pass/seg-1.m4s', { headers: { Range: 'bytes=0-99' } });
         out.dash = last();
+        // A copy while that DASH channel plays (its object URL is already revoked).
+        await navigator.clipboard.writeText(provider + '/timeshift/user/pass/60/2026-10-14:09-00/9.ts').catch(() => null);
+        out.dashAfterCopy = last();
         // shaka MediaSource reset (codec switch): new MediaSource, next segments, manifest refresh.
-        attach();
+        await shakaAttach();
+        await detach(dashMedia); // the old MediaSource closes after the new one exists
         get(provider + '/dash/user/pass/init-a.mp4');
         get(provider + '/dash/user/pass/seg-2.m4s');
         out.dashReset = last();
@@ -242,26 +269,36 @@ console.log('8. the stream handed to an external player is the source, never a f
         attach();
         get(provider + '/user/pass/10');
         out.bare = last();
+        // A DASH channel whose manifest URL has no extension, after another channel.
+        await shakaAttach();
+        get(provider + '/c/7?format=mpd');
+        get(provider + '/dash/user/pass/seg-3.m4s');
+        out.dashBare = last();
         // An rtmp channel: mpegts.js fetches it (and fails); VLC can play it.
         attach();
         get('rtmp://cam.test/live/key');
         out.rtmp = last();
+        // A multicast UDP channel keeps its '@'.
+        attach();
+        get('udp://@239.0.0.1:1234');
+        out.udp = last();
         // A stream hosted on a Google CDN host.
         attach();
         get('https://storage.googleapis.com/bucket/live/index.m3u8');
         out.google = last();
-        // hls.js recovery as it really happens: detach (revoke), attach, variant refresh.
-        let mediaUrl = attach();
+        // hls.js recovery as it really happens: detach (the MediaSource closes), attach, variant refresh.
+        let media = await open();
         xhr(provider + '/live/user/pass/11.m3u8');
         xhr(provider + '/hls/user/pass/11/index.m3u8');
-        URL.revokeObjectURL(mediaUrl);
-        attach();
+        URL.revokeObjectURL(media.url);
+        await detach(media);
+        await open();
         xhr(provider + '/hls/user/pass/11/index.m3u8');
-        out.revokedRecovery = last();
+        out.closedRecovery = last();
         // The player is torn down; "Copy stream URL" on an item that never played.
-        mediaUrl = attach();
+        media = await open();
         xhr(provider + '/live/user/pass/12.m3u8');
-        URL.revokeObjectURL(mediaUrl);
+        await detach(media);
         await navigator.clipboard.writeText(provider + '/movie/user/pass/13.mkv').catch(() => null);
         out.copyAfterTeardown = last();
         return out;
@@ -271,13 +308,16 @@ console.log('8. the stream handed to an external player is the source, never a f
     expect('hlsRecovered', '/live/user/pass/7.m3u8', 'HLS error recovery keeps the playlist');
     expect('afterCopy', '/live/user/pass/7.m3u8', 'a copied URL does not replace the playing stream');
     expect('dash', '/dash/user/pass/9.mpd', 'DASH through fetch: the manifest, not a segment');
+    expect('dashAfterCopy', '/dash/user/pass/9.mpd', 'a copied URL does not replace the playing DASH stream');
     expect('dashReset', '/dash/user/pass/9.mpd', 'a DASH MediaSource reset keeps the manifest');
     expect('dashRefreshed', '/dash/user/pass/9.mpd', 'and so does the manifest refresh after it');
     expect('ts', '/live/user/pass/8.ts', 'the next channel replaces the previous stream');
     expect('bare', '/user/pass/10', 'a stream URL without an extension is still the stream');
+    expect('dashBare', '/c/7?format=mpd', 'a DASH manifest URL without an extension is the stream');
     check(tracked.rtmp === 'rtmp://cam.test/live/key', 'an rtmp stream is the stream: ' + tracked.rtmp);
+    check(tracked.udp === 'udp://@239.0.0.1:1234', 'a multicast udp stream keeps its @: ' + tracked.udp);
     check(tracked.google === 'https://storage.googleapis.com/bucket/live/index.m3u8', 'a stream on a Google host is the stream: ' + tracked.google);
-    expect('revokedRecovery', '/live/user/pass/11.m3u8', 'recovery through detach and re-attach keeps the playlist');
+    expect('closedRecovery', '/live/user/pass/11.m3u8', 'recovery through detach and re-attach keeps the playlist');
     expect('copyAfterTeardown', '/movie/user/pass/13.mkv', 'once the player is gone, a copied URL is the stream');
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
