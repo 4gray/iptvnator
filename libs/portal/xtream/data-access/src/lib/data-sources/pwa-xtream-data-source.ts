@@ -1465,6 +1465,23 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 'The server did not take the restored lists; the restore waits.'
             );
         }
+        // A conflict merges an edit another device made meanwhile into the
+        // lists: the restore replaces them, so it runs again on a fresh read.
+        const stored = [
+            this.collectionStorage.getFavoritesFromStorage()[playlistId],
+            this.collectionStorage.getRecentItemsFromStorage()[playlistId],
+            this.getPlaybackPositionsFromStorage()[playlistId],
+        ];
+        const restored = [
+            favorites[playlistId],
+            recentItems[playlistId],
+            playbackPositions[playlistId],
+        ];
+        if (JSON.stringify(stored) !== JSON.stringify(restored)) {
+            throw new Error(
+                'The lists changed elsewhere during the restore; it runs again.'
+            );
+        }
     }
 
     // =========================================================================

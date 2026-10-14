@@ -3,6 +3,16 @@ import { UNCONFIRMED_TTL_MS } from './server-unsent-writes';
 import { ServerUserDataStorage } from './server-user-data-storage';
 import { fakeServer, memoryStorage } from './server-user-data.test-helpers';
 
+/** Lets microtasks run until `condition` holds (a mocked call started). */
+async function until(condition: () => boolean): Promise<void> {
+    for (let turn = 0; turn < 1000 && !condition(); turn += 1) {
+        await Promise.resolve();
+    }
+    if (!condition()) {
+        throw new Error('The awaited call never started');
+    }
+}
+
 describe('ServerUserDataStorage taking over other page loads', () => {
     it("keeps progress this tab saved over a closed tab's older edit", async () => {
         const at = (seconds: number) => [
@@ -222,11 +232,13 @@ describe('ServerUserDataStorage taking over other page loads', () => {
         );
         await a.hydrate();
         let answer = (): void => undefined;
+        let asked = false;
         const b = new ServerUserDataStorage(
             {
                 ...server.api,
                 // Answered with the state of when it was asked.
                 getJson: jest.fn(() => {
+                    asked = true;
                     const old = server.api.getJson();
                     return new Promise((resolve) => {
                         answer = () => resolve(old);
@@ -239,9 +251,8 @@ describe('ServerUserDataStorage taking over other page loads', () => {
             memoryStorage()
         );
         const reading = b.hydrate();
-        for (let turn = 0; turn < 10; turn += 1) {
-            await Promise.resolve();
-        }
+        // Its read is out before the other tab's write lands.
+        await until(() => asked);
         a.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
         await a.flush();
         answer();
@@ -426,10 +437,12 @@ describe('ServerUserDataStorage taking over other page loads', () => {
         a.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
         const sending = a.flush();
         let answer = (): void => undefined;
+        let asked = false;
         const b = new ServerUserDataStorage(
             {
                 ...server.api,
                 getJson: jest.fn(() => {
+                    asked = true;
                     const old = server.api.getJson();
                     return new Promise((resolve) => {
                         answer = () => resolve(old);
@@ -442,9 +455,8 @@ describe('ServerUserDataStorage taking over other page loads', () => {
             memoryStorage()
         );
         const reading = b.hydrate();
-        for (let turn = 0; turn < 10; turn += 1) {
-            await Promise.resolve();
-        }
+        // Its read is out before the other tab's write lands.
+        await until(() => asked);
         // A's write lands (its record is cleared), then B's old answer.
         land();
         await sending;

@@ -138,8 +138,9 @@ export class PwaXtreamBackupStateService {
                 'Earlier changes to this playlist are not on the server yet; the restore waits.'
             );
         }
+        let written: Map<UserDataMap, unknown[]>;
         try {
-            this.replaceLists(playlistId, state);
+            written = this.replaceLists(playlistId, state);
         } catch (error) {
             if (!isQuotaExceeded(error)) {
                 try {
@@ -153,22 +154,43 @@ export class PwaXtreamBackupStateService {
         // Server mode: the lists count once the server took them; a refused
         // one keeps the restore parked (titles merged regardless, as above).
         const saved = (await this.storage.flushed?.(playlistId)) !== false;
+        // A conflict merges an edit another device made meanwhile into the
+        // lists: the backup replaces them, so it waits and runs again on a
+        // fresh read.
+        const replaced =
+            saved &&
+            [...written].every(
+                ([name, list]) =>
+                    JSON.stringify(this.listFor(name, playlistId)) ===
+                    JSON.stringify(list)
+            );
         this.mergeSnapshots(playlistId, snapshots);
         if (!saved) {
             throw new Error(
                 'The server did not take the restored lists; the restore waits.'
             );
         }
+        if (!replaced) {
+            throw new Error(
+                'The lists changed elsewhere during the restore; it runs again.'
+            );
+        }
     }
 
+    /** The lists it wrote, by map. */
     private replaceLists(
         playlistId: string,
         state: XtreamPendingRestoreState
-    ): void {
+    ): Map<UserDataMap, unknown[]> {
+        const written = new Map<UserDataMap, unknown[]>();
+        const write = (name: UserDataMap, list: unknown[]) => {
+            this.writeFor(name, playlistId, list);
+            written.set(name, list);
+        };
         const favorites = state.favorites
             .map((item) => typedKey(item.contentType, item.xtreamId))
             .filter((key): key is string => key !== null);
-        this.writeFor('favorites', playlistId, [...new Set(favorites)]);
+        write('favorites', [...new Set(favorites)]);
 
         const recent: StoredMap[] = [];
         for (const item of state.recentlyViewed) {
@@ -181,18 +203,18 @@ export class PwaXtreamBackupStateService {
                 });
             }
         }
-        this.writeFor('recentItems', playlistId, recent);
+        write('recentItems', recent);
 
         const now = new Date().toISOString();
-        this.writeFor(
+        write(
             'playbackPositions',
-            playlistId,
             state.playbackPositions.filter(isPlaybackPosition).map((item) => ({
                 ...item,
                 playlistId,
                 updatedAt: item.updatedAt ?? now,
             }))
         );
+        return written;
     }
 
     /**

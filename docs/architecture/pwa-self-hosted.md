@@ -273,8 +273,9 @@ settings and guards read them in every build.
   would merge into the server's instead of replacing them (the restore
   stays parked). A restore also replaces nothing while this page's own
   writes for the playlist are unsent (they would join the replacement) and
-  counts only once the server took its lists (`UserDataStorage.flushed`);
-  either way it stays parked. Replayed edits keep recently viewed lists newest first,
+  counts only once the server took its lists (`UserDataStorage.flushed`)
+  as they are: a conflict that merged another device's edit in leaves it
+  parked to run again on a fresh read. Replayed edits keep recently viewed lists newest first,
   as the app cuts them at their limit from the end. Also,
   re-reads run one at a time and keep entries edited while they were in
   flight or not yet saved, and entries another tab saved meanwhile or had

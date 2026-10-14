@@ -1091,6 +1091,60 @@ describe('PwaXtreamDataSource', () => {
             expect(flushed).toHaveBeenCalledWith('p1');
         });
 
+        it('replaces the lists, and runs again when a conflict merged them', async () => {
+            const values = new Map<string, string>([
+                ['xtream-favorites', JSON.stringify({ p1: ['live:1'] })],
+            ]);
+            let merge = false;
+            const storage = {
+                getItem: (key: string) => values.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    values.set(key, value);
+                },
+                removeItem: (key: string) => {
+                    values.delete(key);
+                },
+                ready: async () => true,
+                flushed: jest.fn(async () => {
+                    if (merge) {
+                        // Another device added one meanwhile: replayed in.
+                        values.set(
+                            'xtream-favorites',
+                            JSON.stringify({ p1: ['live:9', 'movie:5'] })
+                        );
+                    }
+                    return true;
+                }),
+            };
+            TestBed.resetTestingModule();
+            TestBed.configureTestingModule({
+                providers: [
+                    PwaXtreamDataSource,
+                    { provide: USER_DATA_STORAGE, useValue: storage },
+                    { provide: ParentalLockService, useValue: parentalLock },
+                    { provide: XtreamApiService, useValue: apiService },
+                    { provide: PlaylistsService, useValue: playlistsService },
+                ],
+            });
+            const source = TestBed.inject(PwaXtreamDataSource);
+            const state = {
+                hiddenCategories: [],
+                favorites: [{ xtreamId: 5, contentType: 'movie' }],
+                recentlyViewed: [],
+                playbackPositions: [],
+            } as never;
+
+            await source.restoreUserData('p1', state);
+            expect(JSON.parse(values.get('xtream-favorites') ?? '{}')).toEqual({
+                p1: ['movie:5'],
+            });
+
+            merge = true;
+            await expect(source.restoreUserData('p1', state)).rejects.toThrow(
+                /changed elsewhere/
+            );
+        });
+
         it('replaces nothing while earlier changes to the playlist are unsent', async () => {
             const values = new Map<string, string>([
                 ['xtream-favorites', JSON.stringify({ p1: ['live:1'] })],
