@@ -26,6 +26,7 @@ import {
 import {
     keepSourcesChecked,
     SourceStatusService,
+    sourceStatusBucket,
 } from '@iptvnator/portal/shared/data-access';
 import {
     filterSources,
@@ -42,7 +43,7 @@ import {
     SortService,
     SourceActivityService,
 } from '@iptvnator/services';
-import { PlaylistMeta, sourceStatusBucket } from '@iptvnator/shared/interfaces';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import type { PlaylistType } from '../add-playlist-menu/playlist-type';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { SourceRemovalService } from '../source-removal/source-removal.service';

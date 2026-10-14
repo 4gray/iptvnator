@@ -7,9 +7,9 @@ import {
 import {
     PlaylistMeta,
     SourceHealthHistoryEntry,
-    sourceHealthFingerprint,
     SourceHealthSnapshot,
 } from '@iptvnator/shared/interfaces';
+import { sourceHealthFingerprint } from './source-health-identity';
 import { SourceHealthHistoryService } from './source-health-history.service';
 import { SourceHealthService } from './source-health.service';
 import { SourceStatusService } from './source-status.service';

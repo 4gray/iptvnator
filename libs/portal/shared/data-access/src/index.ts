@@ -7,6 +7,7 @@ export * from './lib/source-health.service';
 export * from './lib/source-health-history.service';
 export * from './lib/source-status.service';
 export * from './lib/source-status-checks';
+export { sourceStatusBucket } from './lib/source-reachability';
 
 export * from './lib/source-cleanup.service';
 

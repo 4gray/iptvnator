@@ -18,7 +18,10 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { map } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
-import { SourceStatusService } from '@iptvnator/portal/shared/data-access';
+import {
+    SourceStatusService,
+    sourceStatusBucket,
+} from '@iptvnator/portal/shared/data-access';
 import {
     isLiveExternalPlayerSession,
     PORTAL_EXTERNAL_PLAYBACK,
@@ -43,7 +46,6 @@ import {
 import {
     PlaylistUpdateState,
     sourceHealthType,
-    sourceStatusBucket,
 } from '@iptvnator/shared/interfaces';
 import {
     MenuItemRadioCheckDirective,

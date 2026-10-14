@@ -1,12 +1,14 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { SourceHealthEvidenceService } from '@iptvnator/services';
 import {
-    isSourceHealthReason,
-    nextSourceHealthHistory,
     SourceHealthHistoryEntry,
     SourceHealthSnapshot,
-    sourceReachabilityFromHealth,
 } from '@iptvnator/shared/interfaces';
+import { isSourceHealthReason } from './source-health-identity';
+import {
+    nextSourceHealthHistory,
+    sourceReachabilityFromHealth,
+} from './source-reachability';
 
 export const SOURCE_HEALTH_HISTORY_STORAGE_KEY = 'source-health:history:v1';
 

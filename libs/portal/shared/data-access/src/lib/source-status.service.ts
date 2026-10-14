@@ -5,17 +5,19 @@ import {
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
-    isConclusiveReachability,
     PlaylistMeta,
     SourceHealthReason,
-    sourceHealthFingerprint,
     sourceHealthType,
-    sourceReachabilityFromHealth,
-    sourceReachabilityFromPortalStatus,
     SourceStatus,
 } from '@iptvnator/shared/interfaces';
+import { sourceHealthFingerprint } from './source-health-identity';
 import { SourceHealthHistoryService } from './source-health-history.service';
 import { SourceHealthService } from './source-health.service';
+import {
+    isConclusiveReachability,
+    sourceReachabilityFromHealth,
+    sourceReachabilityFromPortalStatus,
+} from './source-reachability';
 
 type XtreamAccount = PlaylistMeta & {
     serverUrl: string;

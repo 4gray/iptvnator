@@ -21,7 +21,10 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { SourceStatusService } from '@iptvnator/portal/shared/data-access';
+import {
+    SourceStatusService,
+    sourceStatusBucket,
+} from '@iptvnator/portal/shared/data-access';
 import {
     countSourcesByType,
     orderFailingFirst,
@@ -37,11 +40,7 @@ import {
     SortService,
     SourceActivityService,
 } from '@iptvnator/services';
-import {
-    PlaylistMeta,
-    PlaylistSourceKind,
-    sourceStatusBucket,
-} from '@iptvnator/shared/interfaces';
+import { PlaylistMeta, PlaylistSourceKind } from '@iptvnator/shared/interfaces';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
 import { SourceRemovalService } from '../source-removal/source-removal.service';

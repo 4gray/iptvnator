@@ -4,7 +4,6 @@ import {
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
-    fingerprintSourceHealthKey,
     PlaylistMeta,
     SourceHealthSnapshot,
     SourceHealthResult,
@@ -13,6 +12,7 @@ import {
     sourceHealthUnknown,
     sourceHealthError,
 } from '@iptvnator/shared/interfaces';
+import { fingerprintSourceHealthKey } from './source-health-identity';
 import { SourceHealthHistoryService } from './source-health-history.service';
 import { SourceHealthProbesService } from './source-health-probes.service';
 
