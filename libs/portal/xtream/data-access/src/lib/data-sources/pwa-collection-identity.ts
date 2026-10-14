@@ -109,7 +109,8 @@ export function findCollectionItems(
     for (const item of [...Object.values(snapshots), ...cached]) {
         if (!item || !wantedIds.has(item.xtream_id)) continue;
         const key = itemCollectionKey(item);
-        if (key !== null) typedItems.set(key, item);
+        if (key !== null)
+            typedItems.set(key, mergeCollectionItem(typedItems.get(key), item));
     }
     const uniqueIds = new Map<number, XtreamContentItem | null>();
     for (const item of cached) {
@@ -139,6 +140,27 @@ export function findCollectionItems(
         }
     }
     return results;
+}
+
+/** Sparse provider rows refresh the cache without erasing saved backup fields. */
+function mergeCollectionItem(
+    saved: XtreamContentItem | undefined,
+    current: XtreamContentItem
+): XtreamContentItem {
+    if (!saved) return current;
+    return {
+        ...saved,
+        ...current,
+        title: current.title || saved.title,
+        poster_url: current.poster_url || saved.poster_url,
+        backdrop_url: current.backdrop_url || saved.backdrop_url,
+        tmdb_id: current.tmdb_id ?? saved.tmdb_id,
+        release_year: current.release_year ?? saved.release_year,
+        original_title: current.original_title || saved.original_title,
+        // Provider metadata never owns the user's favorite date/order.
+        added_at: saved.added_at ?? current.added_at,
+        position: saved.position ?? current.position,
+    };
 }
 
 export function deduplicateRecentItems(

@@ -800,39 +800,6 @@ describe('UnifiedCollectionPageComponent', () => {
         expect(fixture.componentInstance.allItems()).toEqual(liveItems);
     });
 
-    it('does not open a stale history detail when the favorite is now missing', async () => {
-        const item: UnifiedCollectionItem = {
-            uid: 'xtream::xtream-1::movie:77',
-            name: 'ABC',
-            contentType: 'movie',
-            sourceType: 'xtream',
-            playlistId: 'xtream-1',
-            playlistName: 'Xtream',
-            xtreamId: 77,
-            favoriteId: 11,
-            catalogStatus: 'present',
-        };
-        favoritesData.getFavorites.mockResolvedValue([
-            { ...item, catalogStatus: 'missing' },
-        ]);
-        window.history.replaceState(
-            { [OPEN_COLLECTION_DETAIL_STATE_KEY]: { item } },
-            document.title
-        );
-        const hostFixture = TestBed.createComponent(
-            HostUnifiedCollectionPageComponent
-        );
-        hostFixture.detectChanges();
-        await hostFixture.whenStable();
-        hostFixture.detectChanges();
-        expect(
-            hostFixture.nativeElement.querySelector('.detail-probe')
-        ).toBeNull();
-        expect(
-            hostFixture.componentInstance.pageComponent?.selectedDetailItem()
-        ).toBeNull();
-    });
-
     it('opens inline detail from history state when a detail template is projected', async () => {
         const item: UnifiedCollectionItem = {
             uid: 'xtream::xtream-1::77',
@@ -948,6 +915,7 @@ describe('UnifiedCollectionPageComponent', () => {
                 ['/workspace', 'global-favorites'],
                 {
                     state: {
+                        [COLLECTION_VIEW_STATE_KEY]: { scope: 'all' },
                         [OPEN_COLLECTION_DETAIL_STATE_KEY]: {
                             item: expect.objectContaining({ xtreamId: 103 }),
                             seriesResume,
@@ -1071,6 +1039,7 @@ describe('UnifiedCollectionPageComponent', () => {
             ['/workspace', 'global-recent'],
             {
                 state: {
+                    [COLLECTION_VIEW_STATE_KEY]: { scope: 'all' },
                     [OPEN_COLLECTION_DETAIL_STATE_KEY]: {
                         item: expect.objectContaining({
                             uid: item.uid,

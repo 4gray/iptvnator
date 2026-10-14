@@ -469,6 +469,54 @@ describe('PWA Xtream collection identity', () => {
         }
     );
 
+    it('keeps imported favorite fields through sparse catalog reads, recent writes, reload and export', async () => {
+        const favorites = types.map((contentType, position) => ({
+            contentType,
+            xtreamId: 42,
+            position,
+            addedAt: '2026-10-01T12:00:00.000Z',
+            snapshot: {
+                title: `${contentType} 42`,
+                posterUrl: `https://img.example.com/${contentType}.jpg`,
+                backdropUrl: `https://img.example.com/${contentType}-wide.jpg`,
+                tmdbId: 100 + position,
+                releaseYear: 1995 + position,
+                originalTitle: `Original ${contentType}`,
+            },
+        }));
+        const entry: XtreamPlaylistBackupEntry = {
+            portalType: 'xtream',
+            exportedId: 'p1',
+            title: 'Saved portal',
+            autoRefresh: false,
+            connection: credentials,
+            userState: {
+                hiddenCategories: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+                favorites,
+            },
+        };
+        await source.restoreUserData('p1', entry.userState);
+        await loadAll();
+        const loaded = await source.getFavorites('p1');
+        expect(loaded.map((item) => item.poster_url)).toEqual(
+            favorites.map((item) => item.snapshot.posterUrl)
+        );
+        for (const type of types) {
+            await source.addRecentItem({ id: 42, type }, 'p1');
+        }
+        await source.getRecentItems('p1');
+        reload();
+        api.getStreams.mockResolvedValue([]);
+        await source.getFavorites('p1');
+        expect(
+            new PwaXtreamBackupStorage(
+                TestBed.inject(USER_DATA_STORAGE)
+            ).exportInto(entry).userState.favorites
+        ).toEqual(favorites);
+    });
+
     it('keeps the artwork saved with each view through clear/restore', async () => {
         await source.restoreUserData('p1', {
             hiddenCategories: [],

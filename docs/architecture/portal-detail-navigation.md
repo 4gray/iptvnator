@@ -333,6 +333,10 @@ Dashboard behavior to preserve:
   Xtream movie/series items into `/workspace/global-favorites` or
   `/workspace/global-recent` with collection detail pre-opened from navigation
   state.
+- Global detail handoffs carry `All playlists` scope in collection view state.
+  The active playlist stays unchanged, but availability is checked against
+  the target favorite's current row even when it belongs to another source.
+  Missing or removed favorites still cannot reopen through stale history.
 - When a series recent (Xtream, or a Stalker row that
   `resolvePortalActivityWatchKind` answers `series` for) has a saved episode
   position, the dashboard hero and Continue Watching card should include that

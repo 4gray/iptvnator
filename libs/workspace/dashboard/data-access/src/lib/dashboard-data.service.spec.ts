@@ -243,6 +243,8 @@ describe('DashboardDataService', () => {
     beforeEach(() => {
         Object.defineProperty(window, 'electron', {
             value: {
+                dbGetPlaylist: jest.fn(),
+                dbRestoreXtreamFavorites: jest.fn(),
                 dbGetRecentlyViewed: jest.fn(),
                 dbClearRecentlyViewed: jest.fn(),
                 dbGetAllGlobalFavorites: jest.fn(),
@@ -867,6 +869,7 @@ describe('DashboardDataService', () => {
             'global-favorites',
         ]);
         expect(service.getGlobalFavoriteNavigationState(movieItem!)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     uid: 'xtream::xtream-1::movie:5001',
@@ -1131,6 +1134,7 @@ describe('DashboardDataService', () => {
         expect(seriesPos?.seasonNumber).toBe(2);
         expect(seriesPos?.episodeNumber).toBe(4);
         expect(service.getRecentItemNavigationState(series)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     contentType: 'series',
@@ -1353,6 +1357,7 @@ describe('DashboardDataService', () => {
             expect.objectContaining({
                 link: ['/workspace', 'global-recent'],
                 state: {
+                    collectionViewState: { scope: 'all' },
                     openCollectionDetailItem: expect.objectContaining({
                         item: expect.objectContaining({
                             sourceType: 'stalker',
@@ -1425,6 +1430,7 @@ describe('DashboardDataService', () => {
         // The episode id must not be promoted to a series id: no resume
         // target, and the detail item keeps its original identifier.
         expect(service.getRecentItemNavigationState(series)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     contentType: 'series',
@@ -1526,6 +1532,7 @@ describe('DashboardDataService', () => {
         expect(position?.seasonNumber).toBe(3);
         expect(position?.episodeNumber).toBe(7);
         expect(service.getRecentItemNavigationState(series)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     contentType: 'series',
@@ -1747,6 +1754,7 @@ describe('DashboardDataService', () => {
             expect(
                 service.getRecentItemResumeNavigation(nextEpisode)?.state
             ).toMatchObject({
+                collectionViewState: { scope: 'all' },
                 openCollectionDetailItem: {
                     seriesResume: {
                         seriesXtreamId: 200,
@@ -2819,6 +2827,7 @@ describe('DashboardDataService', () => {
             'global-recent',
         ]);
         expect(service.getRecentItemNavigationState(movieItem!)).toEqual({
+            collectionViewState: { scope: 'all' },
             openCollectionDetailItem: {
                 item: expect.objectContaining({
                     uid: 'xtream::xtream-1::movie:7001',

@@ -748,6 +748,23 @@ test.describe('Electron Favorites', () => {
                 .first()
                 .click();
             await waitForXtreamWorkspaceReady(app.mainWindow);
+
+            // The dashboard includes Source favorites while Host stays active.
+            // A handoff must load all rows before checking saved availability.
+            for (const title of [movieTitle, seriesTitle]) {
+                await goToDashboard(app.mainWindow);
+                await app.mainWindow
+                    .getByTestId('dashboard-favorite-vod-rail-card')
+                    .filter({ hasText: title })
+                    .first()
+                    .click();
+                await expectInlineCollectionDetail(app.mainWindow, {
+                    pathname: /\/workspace\/global-favorites$/,
+                    title,
+                    playlistTitle: hostPortalTitle,
+                });
+            }
+            await goToDashboard(app.mainWindow);
             await openPlaylistFavorites(app.mainWindow);
             await expect(playlistSwitcherTitle(app.mainWindow)).toContainText(
                 hostPortalTitle

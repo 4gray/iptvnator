@@ -268,6 +268,9 @@ export function buildGlobalCollectionDetailNavigationTarget(
             mode === 'favorites' ? 'global-favorites' : 'global-recent',
         ],
         state: {
+            // The active playlist can differ from the dashboard/cross-portal item.
+            // Validate its current availability against all saved rows.
+            [COLLECTION_VIEW_STATE_KEY]: { scope: 'all' },
             [OPEN_COLLECTION_DETAIL_STATE_KEY]:
                 buildOpenCollectionDetailItemState(item, seriesResume),
         },
