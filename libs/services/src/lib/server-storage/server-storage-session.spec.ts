@@ -269,6 +269,31 @@ describe('ServerStorageSession', () => {
             ]);
         });
 
+        it('checks at once only once per retry interval', async () => {
+            const { session, status } = setup('none');
+            await session.start();
+            // Headers arrive, the body is cut off: success, then offline.
+            fetchMock.mockResolvedValue({
+                status: 200,
+                ok: true,
+                headers: new Headers(),
+                json: async () => {
+                    throw new TypeError('body cut off');
+                },
+            });
+            fetchMock.mockClear();
+
+            status.reportOffline();
+            for (let round = 0; round < 5; round += 1) {
+                TestBed.tick();
+                for (let turn = 0; turn < 10; turn += 1) {
+                    await Promise.resolve();
+                }
+            }
+
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+        });
+
         it('reloads when another instance answers at the address', async () => {
             const { session, status } = setup('none');
             const reload = jest

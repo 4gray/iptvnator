@@ -38,6 +38,7 @@ export class ServerStorageSession {
     private readonly translate = inject(TranslateService);
     private readonly router = inject(Router);
     private reloading = false;
+    private lastQuickCheck = 0;
     private lastNotice = { key: '', at: 0 };
 
     readonly api = new ServerApiClient({
@@ -72,16 +73,11 @@ export class ServerStorageSession {
             }
         });
         effect(() => {
-            // Gone offline, the token and writes wait for the instance
-            // check: after a blip it passes at once, not at the next retry.
-            // Only the check: a read failing on its own waits for the retry.
             if (
                 this.status.state() === 'offline' &&
                 !this.config.startedOffline
             ) {
-                untracked(
-                    () => void this.ensureVerified().catch(() => undefined)
-                );
+                untracked(() => this.checkSoon());
             }
         });
     }
@@ -110,6 +106,21 @@ export class ServerStorageSession {
                 setTimeout(resolve, STARTUP_HYDRATE_WAIT_MS)
             ),
         ]);
+    }
+
+    /**
+     * Gone offline, the token and writes wait for the instance check:
+     * after a blip it passes at once, not at the next retry. Only the
+     * check, and once per retry interval: a read or a check that keeps
+     * failing (a body cut off after its headers) waits for the retry.
+     */
+    private checkSoon(): void {
+        const now = Date.now();
+        if (now - this.lastQuickCheck < RETRY_INTERVAL_MS) {
+            return;
+        }
+        this.lastQuickCheck = now;
+        void this.ensureVerified().catch(() => undefined);
     }
 
     /** Re-reads synced user data; also the offline retry. */
