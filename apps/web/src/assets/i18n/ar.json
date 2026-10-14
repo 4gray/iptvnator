@@ -260,7 +260,10 @@
             "NAME_DESC": "الاسم (ي-أ)",
             "NEWEST": "تاريخ الإضافة (الأحدث أولاً)",
             "OLDEST": "تاريخ الإضافة (الأقدم أولاً)",
-            "CUSTOM_ORDER": "ترتيب مخصص (سحب وإفلات)"
+            "CUSTOM_ORDER": "ترتيب مخصص (سحب وإفلات)",
+            "UPDATED": "آخر تحديث",
+            "CHANNELS": "الأكثر قنوات",
+            "FAILING_FIRST": "غير المستجيبة أولاً"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (محلي، رابط، نص)",
@@ -607,6 +610,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "إصدار أحدث",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "لم يتم العثور على ملاحظات الإصدار {{version}} على GitHub. ربما تمت إزالة الإصدار أو لم يُنشر بعد.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "تعذّر تحميل ملاحظات الإصدار.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "تعذّر عرض إشعار التحديث. تحقّق من التحديثات في إعدادات التطبيق.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "ملاحظات الإصدار غير متاحة في هذه النسخة من التطبيق.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "فتح صفحة الإصدارات",
         "APP_UPDATE_CHANNEL": "قناة التحديث",
@@ -1024,6 +1028,7 @@
         },
         "FETCH_SUCCESS": "تم جلب الدليل بنجاح.",
         "IMPORT_PROGRESS": "استيراد EPG",
+        "IMPORT_PANEL_UNAVAILABLE": "تعذّر تحميل لوحة استيراد EPG. أعد تشغيل التطبيق لمتابعة تقدّم الاستيراد؛ تبقى حالة كل مصدر في إعدادات EPG.",
         "CHANNELS": "قنوات",
         "PROGRAMS": "برامج",
         "LOADING": "جارٍ التحميل",
@@ -1948,7 +1953,29 @@
             "STALKER_PLAYLISTS": "قوائم Stalker",
             "ALL_PLAYLISTS": "جميع قوائم التشغيل",
             "PLAYLIST_COUNT_ONE": "قائمة تشغيل واحدة",
-            "PLAYLIST_COUNT_OTHER": "{{count}} قائمة تشغيل"
+            "PLAYLIST_COUNT_OTHER": "{{count}} قائمة تشغيل",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · ملف",
+                "ADDED": "أُضيف {{date}}",
+                "UPDATED": "حُدِّث {{date}}",
+                "UNREACHABLE": "لا يستجيب",
+                "UNREACHABLE_FOR": "لا يستجيب · {{duration}}",
+                "EXPIRED": "منتهي",
+                "EDIT": "تعديل…",
+                "COPY_URL": "نسخ الرابط",
+                "OPEN": "فتح",
+                "CHANNELS_ONE": "قناة واحدة"
+            },
+            "STATUS": "الحالة",
+            "STATUS_ANY": "أي حالة",
+            "STATUS_OK": "تستجيب",
+            "STATUS_BAD": "لا تستجيب",
+            "NO_MATCHES": "لا توجد قوائم تطابق عوامل التصفية هذه",
+            "RESET_FILTERS": "إعادة تعيين عوامل التصفية",
+            "REMOVED": "تمت إزالة «{{name}}»",
+            "REMOVED_SWITCHED": "تمت إزالة «{{name}}»، والانتقال إلى «{{next}}»",
+            "REMOVE_FAILED": "تعذّرت إزالة «{{name}}»",
+            "ADD_SOURCE": "إضافة مصدر"
         },
         "CONTEXT": {
             "CATEGORIES": "الفئات",
@@ -2017,7 +2044,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "نقل تحديد لوحة الأوامر",
                 "COMMAND_PALETTE_RUN": "تشغيل عنصر لوحة الأوامر المحدد",
                 "CLOSE_DIALOGS": "إغلاق مربع الحوار أو إخفاء التراكب",
-                "DOWNLOADS_OPEN_ITEM": "فتح عنصر التنزيل المحدد في المكتبة"
+                "DOWNLOADS_OPEN_ITEM": "فتح عنصر التنزيل المحدد في المكتبة",
+                "OPEN_PLAYLIST_SWITCHER": "تبديل قائمة التشغيل"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2040,6 +2068,15 @@
             "NO_PLAYLISTS_BODY": "أضف قائمة تشغيل وسيظهر سجل المشاهدة هنا.",
             "NO_ITEMS_TITLE": "لا توجد مشاهدات بعد",
             "NO_ITEMS_BODY": "ابدأ بمشاهدة أي محتوى من مكتبتك وسيظهر هنا."
+        },
+        "SWITCHER": {
+            "SEARCH": "ابحث عن قائمة تشغيل…",
+            "RECENT": "الأخيرة",
+            "NO_MATCHES": "لم يُعثر على شيء",
+            "ALL_SOURCES": "كل المصادر",
+            "HINT_SELECT": "تحديد",
+            "HINT_OPEN": "فتح",
+            "HINT_CLOSE": "إغلاق"
         }
     },
     "LOADING": "جارٍ التحميل",

@@ -61,18 +61,15 @@ async function openPlaylistDetailsDialog(page: Page, title: string) {
         await playlistSettingsButton.click();
     } else {
         await page
-            .locator('app-playlist-switcher .playlist-switcher-trigger')
+            .locator('[data-test-id="playlist-switcher-trigger"]')
             .click();
 
-        const switcherMenu = page.getByRole('menu').filter({ hasText: title });
-        const sourceRow = switcherMenu
-            .locator('.playlist-item')
+        const sourceRow = page
+            .locator('app-playlist-switcher-panel [role="option"]')
             .filter({ hasText: title })
             .first();
         await expect(sourceRow).toBeVisible();
-        await sourceRow
-            .getByRole('button', { name: 'Playlist actions' })
-            .click();
+        await sourceRow.locator('.source-row__more').click();
         await page.getByRole('menuitem', { name: 'Playlist info' }).click();
     }
 

@@ -590,7 +590,7 @@ test('launch options target the workspace source cards and the shared sentinel',
     assert.equal(options.splashId, 'initial-splash');
     assert.equal(options.routeFragment, '/workspace');
     assert.match(options.cardSelector, /dashboard-recent-sources-rail-card/);
-    assert.match(options.cardSelector, /app-playlist-item/);
+    assert.match(options.cardSelector, /app-source-row/);
     assert.deepEqual(options.settle, {
         capMs: JOURNEY_SETTLE_CAP_MS,
         quietMs: JOURNEY_SETTLE_QUIET_MS,
@@ -921,7 +921,7 @@ test('open-source options start at the portal card and end on the source route',
         options.startClick?.selector ?? '',
         /dashboard-recent-sources-rail-card/
     );
-    assert.match(options.startClick?.selector ?? '', /app-playlist-item/);
+    assert.match(options.startClick?.selector ?? '', /app-source-row/);
     assert.equal(options.routeFragment, '/workspace/xtreams/');
     assert.match(options.cardSelector, /app-grid-list mat-card/);
     assert.match(options.cardSelector, /channel-item/);

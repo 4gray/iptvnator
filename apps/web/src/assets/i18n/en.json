@@ -260,7 +260,10 @@
             "NAME_DESC": "Name (Z-A)",
             "NEWEST": "Date added (Newest first)",
             "OLDEST": "Date added (Oldest first)",
-            "CUSTOM_ORDER": "Custom order (Drag & Drop)"
+            "CUSTOM_ORDER": "Custom order (Drag & Drop)",
+            "UPDATED": "Last updated",
+            "CHANNELS": "Most channels",
+            "FAILING_FIRST": "Not responding first"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (local, url, text)",
@@ -607,6 +610,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "Newer release",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "No release notes were found for {{version}} on GitHub. The release may have been removed or is not published yet.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "Release notes could not be loaded.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "The update notification could not be shown. Check for updates in the app settings.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "Release notes are not available in this build.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "Open releases page",
         "APP_UPDATE_CHANNEL": "Update channel",
@@ -1024,6 +1028,7 @@
         },
         "FETCH_SUCCESS": "EPG was fetched successfully",
         "IMPORT_PROGRESS": "EPG Import",
+        "IMPORT_PANEL_UNAVAILABLE": "The EPG import panel could not be loaded. Restart the app to see import progress; each source's status stays in the EPG settings.",
         "CHANNELS": "channels",
         "PROGRAMS": "programs",
         "LOADING": "Loading",
@@ -1948,7 +1953,29 @@
             "STALKER_PLAYLISTS": "Stalker Playlists",
             "ALL_PLAYLISTS": "All Playlists",
             "PLAYLIST_COUNT_ONE": "1 playlist",
-            "PLAYLIST_COUNT_OTHER": "{{count}} playlists"
+            "PLAYLIST_COUNT_OTHER": "{{count}} playlists",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · file",
+                "ADDED": "added {{date}}",
+                "UPDATED": "updated {{date}}",
+                "UNREACHABLE": "Not responding",
+                "UNREACHABLE_FOR": "Not responding · {{duration}}",
+                "EXPIRED": "Expired",
+                "EDIT": "Edit…",
+                "COPY_URL": "Copy URL",
+                "OPEN": "Open",
+                "CHANNELS_ONE": "1 channel"
+            },
+            "STATUS": "Status",
+            "STATUS_ANY": "Any",
+            "STATUS_OK": "Responding",
+            "STATUS_BAD": "Not responding",
+            "NO_MATCHES": "No playlists match these filters",
+            "RESET_FILTERS": "Reset filters",
+            "REMOVED": "Removed “{{name}}”",
+            "REMOVED_SWITCHED": "Removed “{{name}}”, switched to “{{next}}”",
+            "REMOVE_FAILED": "Could not remove “{{name}}”",
+            "ADD_SOURCE": "Add a source"
         },
         "CONTEXT": {
             "CATEGORIES": "Categories",
@@ -2017,7 +2044,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Move command palette selection",
                 "COMMAND_PALETTE_RUN": "Run selected command palette item",
                 "CLOSE_DIALOGS": "Close dialog or dismiss overlay",
-                "DOWNLOADS_OPEN_ITEM": "Open focused download item in the library"
+                "DOWNLOADS_OPEN_ITEM": "Open focused download item in the library",
+                "OPEN_PLAYLIST_SWITCHER": "Switch playlist"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2040,6 +2068,15 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        },
+        "SWITCHER": {
+            "SEARCH": "Find a playlist…",
+            "RECENT": "Recent",
+            "NO_MATCHES": "Nothing found",
+            "ALL_SOURCES": "All sources",
+            "HINT_SELECT": "select",
+            "HINT_OPEN": "open",
+            "HINT_CLOSE": "close"
         }
     },
     "LOADING": "Loading",

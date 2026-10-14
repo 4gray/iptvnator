@@ -20,6 +20,7 @@ import {
     ProviderImportKind,
     SOURCE_TYPE_ICONS,
 } from '@iptvnator/shared/interfaces';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 interface CandidateSummaryRow {
     labelKey: string;
@@ -145,6 +146,7 @@ function maskUrlQueryPasswords(url: string): string {
  */
 @Component({
     selector: 'app-auto-import',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './auto-import.component.html',
     styleUrl: './auto-import.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

@@ -7,7 +7,6 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -23,7 +22,7 @@ import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
 @Component({
     selector: 'app-startup-status',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButtonModule, MatProgressSpinnerModule, TranslatePipe],
+    imports: [MatButtonModule, TranslatePipe],
     template: `
         @if (!complete()) {
             <section
@@ -49,7 +48,40 @@ import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
                     />
                 </svg>
                 @if (!failed()) {
-                    <mat-spinner diameter="32" aria-hidden="true" />
+                    <div class="startup-spinner" aria-hidden="true">
+                        <div class="startup-spinner__container">
+                            <div class="startup-spinner__layer">
+                                <div
+                                    class="startup-spinner__clipper startup-spinner__clipper--left"
+                                >
+                                    <svg
+                                        viewBox="0 0 25.2 25.2"
+                                        focusable="false"
+                                    >
+                                        <circle r="11" cx="50%" cy="50%" />
+                                    </svg>
+                                </div>
+                                <div class="startup-spinner__gap">
+                                    <svg
+                                        viewBox="0 0 25.2 25.2"
+                                        focusable="false"
+                                    >
+                                        <circle r="11" cx="50%" cy="50%" />
+                                    </svg>
+                                </div>
+                                <div
+                                    class="startup-spinner__clipper startup-spinner__clipper--right"
+                                >
+                                    <svg
+                                        viewBox="0 0 25.2 25.2"
+                                        focusable="false"
+                                    >
+                                        <circle r="11" cx="50%" cy="50%" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 }
                 <h1>
                     {{
@@ -124,6 +156,148 @@ import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
         button {
             margin-top: 8px;
             app-region: no-drag;
+        }
+
+        /*
+         * The same drawing as an indeterminate <mat-spinner diameter="32">
+         * (two clipped half circles plus a gap patch, Material's durations,
+         * curves and keyframes, a 10% stroke on a 25.2 viewBox around an
+         * r=11 circle, 1.25x slower under reduced motion), as static markup:
+         * the component would load the progress-spinner chunk before the
+         * app's first screen and set every attribute after insertion.
+         */
+        .startup-spinner {
+            --startup-spinner-multiplier: 1;
+            position: relative;
+            width: 32px;
+            height: 32px;
+            overflow: hidden;
+            line-height: 0;
+            direction: ltr;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .startup-spinner {
+                --startup-spinner-multiplier: 1.25;
+            }
+        }
+        .startup-spinner__container,
+        .startup-spinner__layer,
+        .startup-spinner svg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        .startup-spinner__container {
+            animation: startup-spinner-container-rotate
+                calc(1568.2352941176ms * var(--startup-spinner-multiplier))
+                linear infinite;
+        }
+        .startup-spinner__layer {
+            animation: startup-spinner-layer-rotate
+                calc(5332ms * var(--startup-spinner-multiplier))
+                cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        }
+        .startup-spinner__clipper {
+            display: inline-flex;
+            position: relative;
+            width: 50%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .startup-spinner__clipper svg {
+            width: 200%;
+        }
+        .startup-spinner__clipper--left svg {
+            animation: startup-spinner-left-spin
+                calc(1333ms * var(--startup-spinner-multiplier))
+                cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        }
+        .startup-spinner__clipper--right svg {
+            left: -100%;
+            animation: startup-spinner-right-spin
+                calc(1333ms * var(--startup-spinner-multiplier))
+                cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        }
+        .startup-spinner__gap {
+            position: absolute;
+            top: 0;
+            left: 47.5%;
+            box-sizing: border-box;
+            width: 5%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .startup-spinner__gap svg {
+            left: -900%;
+            width: 2000%;
+            transform: rotate(180deg);
+        }
+        .startup-spinner svg {
+            fill: transparent;
+        }
+        .startup-spinner circle {
+            stroke: var(--mat-sys-primary);
+            stroke-width: 10%;
+            stroke-dasharray: 69.11503837897544px;
+            stroke-dashoffset: 34.55751918948772px;
+        }
+        @media (forced-colors: active) {
+            .startup-spinner circle {
+                stroke: CanvasText;
+            }
+        }
+        @keyframes startup-spinner-container-rotate {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        @keyframes startup-spinner-layer-rotate {
+            12.5% {
+                transform: rotate(135deg);
+            }
+            25% {
+                transform: rotate(270deg);
+            }
+            37.5% {
+                transform: rotate(405deg);
+            }
+            50% {
+                transform: rotate(540deg);
+            }
+            62.5% {
+                transform: rotate(675deg);
+            }
+            75% {
+                transform: rotate(810deg);
+            }
+            87.5% {
+                transform: rotate(945deg);
+            }
+            100% {
+                transform: rotate(1080deg);
+            }
+        }
+        @keyframes startup-spinner-left-spin {
+            from {
+                transform: rotate(265deg);
+            }
+            50% {
+                transform: rotate(130deg);
+            }
+            to {
+                transform: rotate(265deg);
+            }
+        }
+        @keyframes startup-spinner-right-spin {
+            from {
+                transform: rotate(-265deg);
+            }
+            50% {
+                transform: rotate(-130deg);
+            }
+            to {
+                transform: rotate(-265deg);
+            }
         }
     `,
 })

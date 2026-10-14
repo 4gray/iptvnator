@@ -146,8 +146,10 @@ export class PwaService extends DataService {
         }
 
         if (type === PLAYLIST_UPDATE) {
-            this.refreshPlaylist(payload as Partial<Playlist & { id: string }>);
-            return undefined as T;
+            // Settles when the refresh does, so callers keep the source busy.
+            return this.refreshPlaylist(
+                payload as Partial<Playlist & { id: string }>
+            ) as T;
         }
 
         if (type === XTREAM_REQUEST) {
@@ -231,16 +233,39 @@ export class PwaService extends DataService {
         }
     }
 
-    refreshPlaylist(payload?: Partial<Playlist & { id: string }>) {
+    /** Resolves once the backend has answered, whether it succeeded or not. */
+    refreshPlaylist(
+        payload?: Partial<Playlist & { id: string }>
+    ): Promise<void> {
         if (!payload?.url || !payload?.id) {
-            return;
+            return Promise.resolve();
         }
 
         const playlistId = payload.id;
+        const { url, userAgent } = payload;
 
-        this.getPlaylistFromUrl(payload.url, payload.userAgent)
-            .pipe(
-                catchError((error) => {
+        return new Promise<void>((resolve) => {
+            this.getPlaylistFromUrl(url, userAgent).subscribe({
+                next: (playlist: Playlist) => {
+                    this.store.dispatch(
+                        PlaylistActions.updatePlaylist({
+                            playlist,
+                            playlistId,
+                            refreshEpg: true,
+                        })
+                    );
+
+                    this.snackBar.open(
+                        this.translateService.instant(
+                            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
+                        ),
+                        undefined,
+                        { duration: 2000 }
+                    );
+                },
+                error: (error: unknown) => {
+                    // Redacted: the error can carry the playlist URL.
+                    this.logger.error('Playlist refresh error:', error);
                     this.snackBar.open(
                         this.appendProviderErrorCode(
                             this.getPlaylistRefreshErrorMessage(error),
@@ -251,26 +276,11 @@ export class PwaService extends DataService {
                             duration: 5000,
                         }
                     );
-                    return throwError(() => error);
-                })
-            )
-            .subscribe((playlist: Playlist) => {
-                this.store.dispatch(
-                    PlaylistActions.updatePlaylist({
-                        playlist,
-                        playlistId,
-                        refreshEpg: true,
-                    })
-                );
-
-                this.snackBar.open(
-                    this.translateService.instant(
-                        'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                    ),
-                    undefined,
-                    { duration: 2000 }
-                );
+                    resolve();
+                },
+                complete: () => resolve(),
             });
+        });
     }
 
     private getPlaylistRefreshErrorMessage(error: unknown): string {

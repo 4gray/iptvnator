@@ -12,7 +12,11 @@
 }
 
 .context-panel {
-    border-right: 1px solid var(--mat-sys-outline-variant);
+    // No divider line: the panel and the content surface differ in colour,
+    // and the content's shadow and rounded corner mark the edge. The border
+    // stays transparent so the panel keeps its width and the resize handle
+    // its place.
+    border-right: 1px solid transparent;
     background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
     display: flex;
     flex-direction: column;
@@ -28,8 +32,7 @@
     overflow: hidden;
     transition:
         width 180ms ease,
-        padding 180ms ease,
-        border-right-color 180ms ease;
+        padding 180ms ease;
 }
 
 .context-panel--collapsed {
@@ -40,7 +43,6 @@
     // visible empty strip beside the channels rail while "collapsed".
     padding-left: 0 !important;
     padding-right: 0 !important;
-    border-right-color: transparent;
 
     .resize-handle {
         display: none;
@@ -168,7 +170,6 @@
         width: 100% !important;
         min-width: 0 !important;
         padding: 12px 10px 10px 12px;
-        border-right-color: var(--mat-sys-outline-variant);
     }
 
     .context-panel :is(.resize-handle) {

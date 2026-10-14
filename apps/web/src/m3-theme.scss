@@ -1,4 +1,5 @@
 @use 'sass:map';
+@use 'sass:meta';
 @use '@angular/material' as mat;
 @use 'styles';
 
@@ -57,9 +58,58 @@ $dark-theme: mat.define-theme(
     )
 );
 
+// ─── Themed components ───────────────────────────────────────────────────────
+// Only the Material components the app imports, in Material's own order.
+// `mat.all-component-themes` also emitted about 24 KB of tokens for 17
+// components nothing imports. Add an entry with a new
+// `@angular/material/<entry>` import and remove it with the last one:
+// `pnpm run styles:material-theme-scope:validate` (CI) checks both
+// directions, and `core` (ripples, options, pseudo-checkboxes) always stays.
+$material-components: (
+    core,
+    card,
+    progress-bar,
+    tooltip,
+    form-field,
+    input,
+    select,
+    dialog,
+    slide-toggle,
+    slider,
+    menu,
+    list,
+    checkbox,
+    button,
+    icon-button,
+    fab,
+    snack-bar,
+    progress-spinner,
+    button-toggle,
+    divider,
+    icon
+);
+
+@mixin component-themes($theme) {
+    @each $component in $material-components {
+        @include meta.apply(
+            meta.get-mixin('#{$component}-theme', 'mat'),
+            $theme
+        );
+    }
+}
+
+@mixin component-colors($theme) {
+    @each $component in $material-components {
+        @include meta.apply(
+            meta.get-mixin('#{$component}-color', 'mat'),
+            $theme
+        );
+    }
+}
+
 // ─── Apply Themes ────────────────────────────────────────────────────────────
 html {
-    @include mat.all-component-themes($light-theme);
+    @include component-themes($light-theme);
 
     // The theme is built with the legacy `define-theme` config, whose
     // component mixins emit resolved component tokens but never declare the
@@ -169,8 +219,25 @@ html {
     // 4.5:1 over hero artwork under the light scrim (#a16207 measured 3.4:1).
     --app-rating-color: #7a4a00;
 
+    // Source lists (Sources page, playlist switcher) and their popovers.
+    --app-line-strong: rgba(0, 0, 0, 0.12);
+    --app-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    // A failing source's tag and destructive menu items.
+    --app-danger-text: #b3261e;
+    --app-danger-surface: color-mix(in srgb, #d12c2c 12%, transparent);
+    --app-neutral-tag-surface: rgba(0, 0, 0, 0.06);
+    // One selected-row look for side lists and the switcher's current row:
+    // the Settings navigation's soft tint, plus an outline in light theme
+    // (selection reads as outline + tint here, not a solid slab). Light
+    // text stays the heading colour: the blue on its own tint is 3.3:1.
+    --app-list-selected-bg: var(--app-selection-surface);
+    --app-list-selected-fg: var(--app-heading-color);
+    --app-list-selected-outline: var(--app-selection-border);
+    --app-popover-shadow: 0 24px 70px rgba(15, 20, 28, 0.18);
+    --app-popover-backdrop: rgba(20, 24, 32, 0.28);
+
     .dark-theme {
-        @include mat.all-component-colors($dark-theme);
+        @include component-colors($dark-theme);
         // Only the color roles differ per theme: the elevation shadows are
         // the same black in both, so html's declarations already apply here.
         @include mat.system-level-colors($dark-theme);
@@ -274,13 +341,27 @@ html {
         --app-cta-hover-bg: #ffffff;
         --app-cta-meta-fg: #5a6274;
         --app-rating-color: #ffcf5c;
+
+        // Source lists and popovers. The selected-row tokens are
+        // re-declared so they resolve against this context's selection
+        // colour, not the light values computed on `html`.
+        --app-line-strong: rgba(255, 255, 255, 0.1);
+        --app-danger-text: #ff8d9b;
+        --app-danger-surface: rgba(255, 91, 110, 0.14);
+        --app-neutral-tag-surface: rgba(255, 255, 255, 0.08);
+        --app-list-selected-bg: var(--app-selection-surface);
+        --app-list-selected-fg: var(--app-selection-color);
+        --app-list-selected-outline: transparent;
+        --app-popover-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+        --app-popover-backdrop: rgba(4, 6, 10, 0.5);
     }
 }
 
 // ─── Global refined outlined inputs ──────────────────────────────────────────
-// Applied app-wide AFTER mat.all-component-themes so these overrides win the
-// cascade. Pairs with MAT_FORM_FIELD_DEFAULT_OPTIONS (outline + dynamic) set
-// in app.config.ts.
+// Applied app-wide AFTER the component themes so these overrides win the
+// cascade. Pairs with the outline + dynamic MAT_FORM_FIELD_DEFAULT_OPTIONS
+// that provideFormFieldDefaults() (@iptvnator/ui/components) sets on each
+// component rendering a form field.
 $app-refined-input-density: mat.define-theme((
     density: (scale: -2),
 ));

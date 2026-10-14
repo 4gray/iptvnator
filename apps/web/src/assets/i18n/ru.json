@@ -260,7 +260,10 @@
             "NAME_DESC": "Имени (Я-А)",
             "NEWEST": "Дате добавления (сначала новые)",
             "OLDEST": "Дате добавления (сначала старые)",
-            "CUSTOM_ORDER": "Пользовательский порядок (перетаскивание)"
+            "CUSTOM_ORDER": "Пользовательский порядок (перетаскивание)",
+            "UPDATED": "Последнему обновлению",
+            "CHANNELS": "Числу каналов",
+            "FAILING_FIRST": "Сначала неактивные"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (локально, URL, текст)",
@@ -607,6 +610,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "Более поздняя версия",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "Заметки к версии {{version}} на GitHub не найдены. Релиз мог быть удалён или ещё не опубликован.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "Не удалось загрузить заметки к версии.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "Не удалось показать уведомление об обновлении. Проверьте наличие обновлений в настройках приложения.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "Заметки к версии недоступны в этой сборке.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "Открыть страницу релизов",
         "APP_UPDATE_CHANNEL": "Канал обновлений",
@@ -1024,6 +1028,7 @@
         },
         "FETCH_SUCCESS": "Программа каналов (EPG) была успешно получена",
         "IMPORT_PROGRESS": "Импорт EPG",
+        "IMPORT_PANEL_UNAVAILABLE": "Не удалось загрузить панель импорта EPG. Перезапустите приложение, чтобы видеть ход импорта; статус каждого источника остаётся в настройках EPG.",
         "CHANNELS": "каналов",
         "PROGRAMS": "программ",
         "LOADING": "Загрузка",
@@ -1948,7 +1953,29 @@
             "STALKER_PLAYLISTS": "Stalker плейлисты",
             "ALL_PLAYLISTS": "Все плейлисты",
             "PLAYLIST_COUNT_ONE": "1 плейлист",
-            "PLAYLIST_COUNT_OTHER": "{{count}} плейлистов"
+            "PLAYLIST_COUNT_OTHER": "{{count}} плейлистов",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · файл",
+                "ADDED": "добавлен {{date}}",
+                "UPDATED": "обновлён {{date}}",
+                "UNREACHABLE": "Не отвечает",
+                "UNREACHABLE_FOR": "Не отвечает · {{duration}}",
+                "EXPIRED": "Истёк",
+                "EDIT": "Изменить…",
+                "COPY_URL": "Копировать URL",
+                "OPEN": "Открыть",
+                "CHANNELS_ONE": "1 канал"
+            },
+            "STATUS": "Статус",
+            "STATUS_ANY": "Любой",
+            "STATUS_OK": "Отвечают",
+            "STATUS_BAD": "Не отвечают",
+            "NO_MATCHES": "Нет плейлистов с такими фильтрами",
+            "RESET_FILTERS": "Сбросить фильтры",
+            "REMOVED": "Удалён «{{name}}»",
+            "REMOVED_SWITCHED": "Удалён «{{name}}», открыт «{{next}}»",
+            "REMOVE_FAILED": "Не удалось удалить «{{name}}»",
+            "ADD_SOURCE": "Добавить источник"
         },
         "CONTEXT": {
             "CATEGORIES": "Категории",
@@ -2017,7 +2044,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Переместить выбор в палитре команд",
                 "COMMAND_PALETTE_RUN": "Выполнить выбранный пункт палитры команд",
                 "CLOSE_DIALOGS": "Закрыть диалог или скрыть оверлей",
-                "DOWNLOADS_OPEN_ITEM": "Открыть выбранную загрузку в библиотеке"
+                "DOWNLOADS_OPEN_ITEM": "Открыть выбранную загрузку в библиотеке",
+                "OPEN_PLAYLIST_SWITCHER": "Переключить плейлист"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2040,6 +2068,15 @@
             "NO_PLAYLISTS_BODY": "Добавьте плейлист, и история просмотра появится здесь.",
             "NO_ITEMS_TITLE": "Пока ничего не просмотрено",
             "NO_ITEMS_BODY": "Начните смотреть любой контент из библиотеки, и он появится здесь."
+        },
+        "SWITCHER": {
+            "SEARCH": "Найти плейлист…",
+            "RECENT": "Недавние",
+            "NO_MATCHES": "Ничего не найдено",
+            "ALL_SOURCES": "Все источники",
+            "HINT_SELECT": "выбор",
+            "HINT_OPEN": "открыть",
+            "HINT_CLOSE": "закрыть"
         }
     },
     "LOADING": "Загрузка",

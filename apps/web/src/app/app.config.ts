@@ -9,8 +9,6 @@ import {
     OverlayContainer,
 } from '@angular/cdk/overlay';
 import { ApplicationConfig, inject, importProvidersFrom } from '@angular/core';
-import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { provideEffects } from '@ngrx/effects';
@@ -107,7 +105,12 @@ export const appConfig: ApplicationConfig = {
     providers: [
         ...changeDetectionProviders,
         provideRouter(routes, withComponentInputBinding()),
-        provideAnimations(),
+        // No provideAnimations(): nothing declares an Angular animation
+        // trigger, and Material 22 animates with CSS, reading
+        // prefers-reduced-motion itself. The provider only put the 66 KB
+        // animation engine on the initial path, and its renderer deferred
+        // every DOM removal, so a routed page stayed beside the next one
+        // until the following tick (workspace-shell.md, "Route swaps").
         // CDK overlays (menus, tooltips, dialogs) live in a container under
         // <body>, which the browser hides behind an element in DOM fullscreen.
         // This container follows the fullscreen element instead, so the
@@ -162,9 +165,5 @@ export const appConfig: ApplicationConfig = {
         ...provideParentalLockPrompt(),
         provideParentalLockPlaylistCleanup(),
         ...provideXtreamDataSource(),
-        {
-            provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
-            useValue: { appearance: 'outline', subscriptSizing: 'dynamic' },
-        },
     ],
 };

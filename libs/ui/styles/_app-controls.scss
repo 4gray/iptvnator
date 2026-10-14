@@ -1,0 +1,302 @@
+// Buttons, menus and the segmented control of the IPTVnator UI kit, over
+// Angular Material: Material keeps the behaviour (focus, keyboard, overlay,
+// ARIA), these mixins set the look through `mat.*-overrides()`.
+//
+// Button variants are roles, not looks:
+// - `secondary-button` (`mat-flat-button`): every ordinary action and every
+//   dropdown trigger (label + 12px chevron, opening a `mat-menu`);
+// - `ghost-button` (`mat-button`) and `ghost-icon-button`
+//   (`mat-icon-button`): row and header actions.
+// No outline, no ripple: hover changes the fill only, and a disabled button
+// is the same button at 40% opacity. Focus keeps the app's ring
+// (`styles.scss` rings every `.mat-mdc-button-base`).
+@use 'sass:map';
+@use '@angular/material' as mat;
+
+$radius: 10px;
+$radius-sm: 8px;
+
+$_sizes: (
+    md: (
+        height: 40px,
+        radius: $radius,
+        padding: 16px,
+        icon-padding: 14px,
+        text: 13.5px,
+        icon: 16px,
+        gap: 8px,
+    ),
+    sm: (
+        height: 32px,
+        radius: $radius-sm,
+        padding: 12px,
+        icon-padding: 10px,
+        text: 12.5px,
+        icon: 14px,
+        gap: 6px,
+    ),
+);
+
+@function _size($size, $key) {
+    @return map.get($_sizes, $size, $key);
+}
+
+@mixin _icon-size($size) {
+    .mat-icon {
+        width: $size;
+        height: $size;
+        font-size: $size;
+        line-height: $size;
+    }
+}
+
+@mixin _disabled {
+    &[disabled],
+    &.mat-mdc-button-disabled {
+        opacity: 0.4;
+    }
+}
+
+/// `$size`: `md` (40px) or `sm` (32px).
+@mixin secondary-button($size: md) {
+    $fill: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    @include mat.button-overrides(
+        (
+            filled-container-color: $fill,
+            filled-disabled-container-color: $fill,
+            filled-label-text-color: var(--app-heading-color),
+            filled-disabled-label-text-color: var(--app-heading-color),
+            filled-container-height: _size($size, height),
+            filled-container-shape: _size($size, radius),
+            filled-horizontal-padding: _size($size, padding),
+            filled-label-text-size: _size($size, text),
+            filled-label-text-weight: 600,
+            filled-label-text-tracking: 0,
+            filled-icon-spacing: _size($size, gap),
+            filled-state-layer-color: var(--app-on-surface),
+            filled-hover-state-layer-opacity: 0.06,
+            filled-focus-state-layer-opacity: 0.06,
+            filled-pressed-state-layer-opacity: 0.1,
+            filled-ripple-color: transparent,
+        )
+    );
+    @include _icon-size(_size($size, icon));
+    @include _disabled;
+}
+
+/// A secondary button at another height (toolbars that stack on narrow
+/// windows use 36px).
+@mixin secondary-button-height($height) {
+    @include mat.button-overrides(
+        (
+            filled-container-height: $height,
+        )
+    );
+}
+
+/// A text action: `--app-body-color`, the heading colour on hover.
+@mixin ghost-button($size: sm) {
+    @include mat.button-overrides(
+        (
+            text-label-text-color: var(--app-body-color),
+            text-disabled-label-text-color: var(--app-body-color),
+            text-container-height: _size($size, height),
+            text-container-shape: _size($size, radius),
+            text-horizontal-padding: _size($size, padding),
+            text-with-icon-horizontal-padding: _size($size, icon-padding),
+            text-label-text-size: _size($size, text),
+            text-label-text-weight: 600,
+            text-label-text-tracking: 0,
+            text-icon-spacing: 6px,
+            text-state-layer-color: var(--app-on-surface),
+            text-hover-state-layer-opacity: 0.08,
+            text-focus-state-layer-opacity: 0.08,
+            text-pressed-state-layer-opacity: 0.12,
+            text-ripple-color: transparent,
+        )
+    );
+    @include _icon-size(14px);
+    @include _disabled;
+
+    &:not([disabled]):hover {
+        @include mat.button-overrides(
+            (
+                text-label-text-color: var(--app-heading-color),
+            )
+        );
+    }
+}
+
+/// A square icon action with an 8px radius, not Material's circle.
+@mixin ghost-icon-button($size: 32px, $icon-size: 16px) {
+    @include mat.icon-button-overrides(
+        (
+            state-layer-size: $size,
+            container-shape: $radius-sm,
+            icon-size: $icon-size,
+            icon-color: var(--app-body-color),
+            disabled-icon-color: var(--app-body-color),
+            state-layer-color: var(--app-on-surface),
+            hover-state-layer-opacity: 0.08,
+            focus-state-layer-opacity: 0.08,
+            pressed-state-layer-opacity: 0.12,
+            ripple-color: transparent,
+            touch-target-display: none,
+        )
+    );
+    border-radius: $radius-sm;
+    @include _icon-size($icon-size);
+    @include _disabled;
+
+    &:not([disabled]):hover {
+        @include mat.icon-button-overrides(
+            (
+                icon-color: var(--app-heading-color),
+            )
+        );
+    }
+}
+
+/// The trailing 12px chevron of a dropdown trigger.
+@mixin trigger-chevron {
+    width: 12px;
+    height: 12px;
+    font-size: 12px;
+    line-height: 12px;
+    margin-inline-start: 2px;
+    color: var(--app-body-color);
+}
+
+/// A `mat-menu` panel; apply to the class given to `<mat-menu class>`.
+/// Items: 36px, 13px, 16px icons in the body colour; destructive items
+/// carry `app-menu-item--danger` and sit after a divider; a keyboard hint
+/// is a trailing `kbd.app-menu-item__kbd`.
+@mixin menu-panel {
+    @include mat.menu-overrides(
+        (
+            container-color: var(--app-widget-bg),
+            container-shape: $radius,
+            item-label-text-color: var(--app-heading-color),
+            item-label-text-size: 13px,
+            item-label-text-weight: 400,
+            item-icon-color: var(--app-body-color),
+            item-icon-size: 16px,
+            item-hover-state-layer-color: color-mix(
+                    in srgb,
+                    var(--app-on-surface) 8%,
+                    transparent
+                ),
+            item-focus-state-layer-color: color-mix(
+                    in srgb,
+                    var(--app-on-surface) 10%,
+                    transparent
+                ),
+            item-leading-spacing: 10px,
+            item-trailing-spacing: 10px,
+            item-with-icon-leading-spacing: 10px,
+            item-with-icon-trailing-spacing: 10px,
+            item-spacing: 10px,
+            divider-color: var(--app-separator),
+            divider-top-spacing: 4px,
+            divider-bottom-spacing: 4px,
+        )
+    );
+    min-width: 240px;
+    border: 1px solid var(--app-line-strong);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+
+    .mat-mdc-menu-content {
+        padding: 6px;
+    }
+
+    .mat-mdc-menu-item {
+        min-height: 36px;
+        border-radius: 6px;
+
+        .mat-icon {
+            font-size: 16px;
+            line-height: 16px;
+        }
+    }
+
+    // The label span fills the row, so a trailing keyboard hint can sit at
+    // its end.
+    .mat-mdc-menu-item-text {
+        display: flex;
+        flex: 1;
+        align-items: center;
+    }
+
+    .mat-mdc-menu-item[aria-checked='true'] {
+        background: var(--app-list-selected-bg);
+        color: var(--app-list-selected-fg);
+
+        .mat-icon {
+            color: inherit;
+        }
+    }
+
+    .app-menu-item--danger,
+    .app-menu-item--danger .mat-icon {
+        color: var(--app-danger-text);
+    }
+
+    .app-menu-item__kbd {
+        margin-inline-start: auto;
+        padding-inline-start: 16px;
+        font-family: var(--app-font-mono);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--app-muted-color);
+    }
+}
+
+/// `mat-button-toggle-group` as a segmented control: a recessed track, no
+/// dividers, the chosen segment filled.
+@mixin segmented-control($height: 30px) {
+    @include mat.button-toggle-overrides(
+        (
+            height: $height,
+            shape: 10px,
+            divider-color: transparent,
+            background-color: transparent,
+            text-color: var(--app-muted-color),
+            selected-state-background-color: color-mix(
+                    in srgb,
+                    var(--app-on-surface) 10%,
+                    transparent
+                ),
+            selected-state-text-color: var(--app-heading-color),
+            state-layer-color: var(--app-on-surface),
+            hover-state-layer-opacity: 0.06,
+            focus-state-layer-opacity: 0.06,
+            label-text-size: 12.5px,
+            label-text-weight: 500,
+            label-text-tracking: 0,
+        )
+    );
+    display: inline-flex;
+    gap: 1px;
+    padding: 2px;
+    border: 1px solid var(--app-line-strong);
+    background: var(--app-content-bg);
+
+    .mat-button-toggle {
+        border-radius: 8px;
+        border: 0;
+    }
+
+    // The group already draws its frame; Material adds a left border per
+    // toggle as the divider.
+    .mat-button-toggle + .mat-button-toggle {
+        border-inline-start: 0;
+    }
+
+    .mat-button-toggle-label-content {
+        padding: 0 10px;
+    }
+
+    .mat-pseudo-checkbox {
+        display: none;
+    }
+}

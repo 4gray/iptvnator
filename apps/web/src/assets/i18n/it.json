@@ -260,7 +260,10 @@
             "NAME_DESC": "Nome (Z-A)",
             "NEWEST": "Data aggiunta (prima più recenti)",
             "OLDEST": "Data aggiunta (prima più vecchi)",
-            "CUSTOM_ORDER": "Ordine personalizzato (trascina e rilascia)"
+            "CUSTOM_ORDER": "Ordine personalizzato (trascina e rilascia)",
+            "UPDATED": "Ultimo aggiornamento",
+            "CHANNELS": "Più canali",
+            "FAILING_FIRST": "Prima quelle che non rispondono"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (locale, URL, testo)",
@@ -607,6 +610,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "Versione più recente",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "Nessuna nota di rilascio trovata per {{version}} su GitHub. La versione potrebbe essere stata rimossa o non è ancora pubblicata.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "Impossibile caricare le note di rilascio.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "Impossibile mostrare la notifica di aggiornamento. Cerca gli aggiornamenti nelle impostazioni dell'app.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "Le note di rilascio non sono disponibili in questa build.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "Apri la pagina delle versioni",
         "APP_UPDATE_CHANNEL": "Canale di aggiornamento",
@@ -1024,6 +1028,7 @@
         },
         "FETCH_SUCCESS": "EPG scaricato correttamente",
         "IMPORT_PROGRESS": "Importazione EPG",
+        "IMPORT_PANEL_UNAVAILABLE": "Impossibile caricare il pannello di importazione EPG. Riavvia l'app per seguire l'importazione; lo stato di ogni sorgente resta nelle impostazioni EPG.",
         "CHANNELS": "canali",
         "PROGRAMS": "programmi",
         "LOADING": "Caricamento",
@@ -1948,7 +1953,29 @@
             "STALKER_PLAYLISTS": "Playlist Stalker",
             "ALL_PLAYLISTS": "Tutte le playlist",
             "PLAYLIST_COUNT_ONE": "1 playlist",
-            "PLAYLIST_COUNT_OTHER": "{{count}} playlist"
+            "PLAYLIST_COUNT_OTHER": "{{count}} playlist",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · file locale",
+                "ADDED": "aggiunto il {{date}}",
+                "UPDATED": "aggiornato il {{date}}",
+                "UNREACHABLE": "Non risponde",
+                "UNREACHABLE_FOR": "Non risponde · {{duration}}",
+                "EXPIRED": "Scaduto",
+                "EDIT": "Modifica…",
+                "COPY_URL": "Copia URL",
+                "OPEN": "Apri",
+                "CHANNELS_ONE": "1 canale"
+            },
+            "STATUS": "Stato",
+            "STATUS_ANY": "Qualsiasi",
+            "STATUS_OK": "Rispondono",
+            "STATUS_BAD": "Non rispondono",
+            "NO_MATCHES": "Nessuna playlist corrisponde a questi filtri",
+            "RESET_FILTERS": "Reimposta filtri",
+            "REMOVED": "«{{name}}» rimossa",
+            "REMOVED_SWITCHED": "«{{name}}» rimossa, passaggio a «{{next}}»",
+            "REMOVE_FAILED": "Impossibile rimuovere «{{name}}»",
+            "ADD_SOURCE": "Aggiungi una fonte"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorie",
@@ -2017,7 +2044,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Sposta selezione della palette comandi",
                 "COMMAND_PALETTE_RUN": "Esegui elemento selezionato della palette comandi",
                 "CLOSE_DIALOGS": "Chiudi dialogo o nascondi overlay",
-                "DOWNLOADS_OPEN_ITEM": "Apri nella libreria l’elemento download selezionato"
+                "DOWNLOADS_OPEN_ITEM": "Apri nella libreria l’elemento download selezionato",
+                "OPEN_PLAYLIST_SWITCHER": "Cambia playlist"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2040,6 +2068,15 @@
             "NO_PLAYLISTS_BODY": "Aggiungi una playlist e la tua cronologia di visione apparirà qui.",
             "NO_ITEMS_TITLE": "Ancora nessun contenuto guardato",
             "NO_ITEMS_BODY": "Inizia a guardare qualsiasi contenuto della tua libreria e apparirà qui."
+        },
+        "SWITCHER": {
+            "SEARCH": "Trova una playlist…",
+            "RECENT": "Recenti",
+            "NO_MATCHES": "Nessun risultato",
+            "ALL_SOURCES": "Tutte le fonti",
+            "HINT_SELECT": "scegli",
+            "HINT_OPEN": "apri",
+            "HINT_CLOSE": "chiudi"
         }
     },
     "LOADING": "Caricamento",
