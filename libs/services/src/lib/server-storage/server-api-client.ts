@@ -201,11 +201,12 @@ export class ServerApiClient {
                 signal: this.timeoutSignal(),
             });
             if (response.ok) {
-                const body = (await response
-                    .json()
-                    .catch(
-                        () => ({})
-                    )) as Partial<ServerUserStateWriteResponse>;
+                const body = (await response.json().catch(() => {
+                    // Saved, on a version it cannot tell: cut off after its
+                    // headers, which counts as offline, as for requests.
+                    this.options.status.reportOffline();
+                    return {};
+                })) as Partial<ServerUserStateWriteResponse>;
                 return { status: 'saved', tag: body?.tag };
             }
             if (GATEWAY_UNAVAILABLE.has(response.status)) {

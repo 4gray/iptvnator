@@ -110,6 +110,23 @@ describe('ServerApiClient', () => {
         expect(status.reportOffline).toHaveBeenCalledTimes(1);
     });
 
+    it('reports a keepalive answer cut off after its headers as offline', async () => {
+        const cutOff = jest.fn().mockResolvedValue({
+            ...response(200),
+            json: async () => {
+                throw new TypeError('body cut off');
+            },
+        });
+
+        // Saved, on a version it cannot tell (see the write queue).
+        await expect(
+            client(cutOff).sendKeepalive('PUT', '/user-state/a/b', {
+                value: 1,
+            })
+        ).resolves.toEqual({ status: 'saved', tag: undefined });
+        expect(status.reportOffline).toHaveBeenCalled();
+    });
+
     it('reports a gateway answering for a down backend on a keepalive write', async () => {
         const down = jest.fn().mockResolvedValue(response(502));
 
