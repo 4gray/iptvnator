@@ -42,6 +42,7 @@ import {
 import { PLAYLIST_DELETE_CLEANUP } from './playlist-delete-cleanup.token';
 import {
     runWithPlaylistAuthorityMutation,
+    holdsPlaylistAuthority,
     runWithPlaylistAuthorityReset,
 } from './playlist-cross-context-lock';
 import {
@@ -431,7 +432,11 @@ export class PlaylistsService {
         return defer(() => {
             const previous = Promise.all([
                 this.playlistWriteQueues.get(playlistId),
-                this.deletingAll,
+                // A write under a reservation held here (a Stalker repair or
+                // Edit) cannot wait for Delete All: its reset waits for it.
+                holdsPlaylistAuthority(playlistId)
+                    ? undefined
+                    : this.deletingAll,
             ]);
             const next = previous.then(() => retryOnConflict(operation));
             const tail = next.then(
@@ -1342,25 +1347,20 @@ export class PlaylistsService {
     }
 
     removeAll(): Observable<void> {
-        // Inside the exclusive authority reset: a Stalker repair already
-        // holding its reservation finishes its write first (blocking it here
-        // would deadlock). Then writes queued so far land, and new ones wait
-        // for the delete.
-        return defer(() =>
-            runWithPlaylistAuthorityReset(async () => {
-                const pending = [...this.playlistWriteQueues.values()];
-                let deleted: () => void = () => undefined;
-                this.deletingAll = new Promise<void>(
-                    (resolve) => (deleted = resolve)
-                );
-                try {
-                    await Promise.all(pending);
-                    await this.deleteAllRows();
-                } finally {
-                    deleted();
-                }
-            })
-        );
+        // Writes queued so far land first, outside the reset (some take the
+        // shared side of its lock); new ones wait for the delete, except
+        // those under a reservation held here (serializePlaylistWrite).
+        return defer(() => {
+            const pending = [...this.playlistWriteQueues.values()];
+            const run = Promise.all(pending).then(() =>
+                runWithPlaylistAuthorityReset(() => this.deleteAllRows())
+            );
+            this.deletingAll = run.then(
+                () => undefined,
+                () => undefined
+            );
+            return run;
+        });
     }
 
     private async deleteAllRows(): Promise<void> {

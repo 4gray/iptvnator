@@ -1,5 +1,6 @@
 import { EMPTY, firstValueFrom, from, of } from 'rxjs';
 import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { reservePlaylistAuthority } from './playlist-cross-context-lock';
 import { PlaylistWriteConflict } from './playlist-storage-backend';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
 
@@ -1808,68 +1809,143 @@ describe('PlaylistsService', () => {
         expect(order).toEqual(['read', 'write', 'delete all', 'read', 'write']);
     });
 
-    it('lets a repair holding its reservation write before Delete All', async () => {
-        let releaseRepair: () => void = () => undefined;
-        const repairHeld = new Promise<void>(
-            (resolve) => (releaseRepair = resolve)
-        );
-        const request = jest.fn(
-            async <T>(
-                name: string,
-                options: LockOptions,
-                callback: (lock: Lock | null) => Promise<T>
-            ) => {
-                // The reset waits for the reservation a repair holds.
-                if (options.mode === 'exclusive') {
-                    await repairHeld;
+    describe('Delete All with cross-context locks', () => {
+        /** Web Locks as far as these tests need: the barrier and free rows. */
+        function fakeLocks() {
+            let shared = 0;
+            let exclusive = false;
+            const waiting: (() => void)[] = [];
+            const changed = () => waiting.splice(0).forEach((wake) => wake());
+            const until = async (free: () => boolean) => {
+                while (!free()) {
+                    await new Promise<void>((wake) => waiting.push(wake));
                 }
-                return callback({
-                    name,
-                    mode: options.mode ?? 'exclusive',
-                } as Lock);
-            }
-        );
-        Object.defineProperty(globalThis.navigator, 'locks', {
-            configurable: true,
-            value: { request },
-        });
-        const electron = {
-            dbGetAppPlaylist: jest.fn(async () => ({
-                _id: 'p9',
-                title: 'P',
-                favorites: [],
-            })),
-            dbGetAppPlaylists: jest.fn(async () => []),
-            dbGetAppState: jest.fn(async (key: string) =>
-                key === SQLITE_PLAYLIST_MIGRATION_FLAG ? '1' : null
-            ),
-            dbSetAppState: jest.fn(),
-            dbUpsertAppPlaylist: jest.fn(async () => undefined),
-            dbUpsertAppPlaylists: jest.fn(),
-            dbDeleteAllPlaylists: jest.fn(async () => undefined),
-        };
-        testWindow.electron = electron;
-        const service = createService();
+            };
+            const request = jest.fn(
+                async <T>(
+                    name: string,
+                    options: LockOptions,
+                    callback: (lock: Lock | null) => Promise<T>
+                ) => {
+                    const lock = {
+                        name,
+                        mode: options.mode ?? 'exclusive',
+                    } as Lock;
+                    if (name !== 'iptvnator:playlist-authority') {
+                        return callback(lock);
+                    }
+                    if (options.mode === 'shared') {
+                        await until(() => !exclusive);
+                        shared += 1;
+                        try {
+                            return await callback(lock);
+                        } finally {
+                            shared -= 1;
+                            changed();
+                        }
+                    }
+                    await until(() => !exclusive && shared === 0);
+                    exclusive = true;
+                    try {
+                        return await callback(lock);
+                    } finally {
+                        exclusive = false;
+                        changed();
+                    }
+                }
+            );
+            Object.defineProperty(globalThis.navigator, 'locks', {
+                configurable: true,
+                value: { request },
+            });
+        }
+
+        let finishWrite: () => void = () => undefined;
+        function store(slowWrites = false) {
+            const electron = {
+                dbGetAppPlaylist: jest.fn(async () => ({
+                    _id: 'p9',
+                    title: 'P',
+                    favorites: [],
+                })),
+                dbGetAppPlaylists: jest.fn(async () => []),
+                dbGetAppState: jest.fn(async (key: string) =>
+                    key === SQLITE_PLAYLIST_MIGRATION_FLAG ? '1' : null
+                ),
+                dbSetAppState: jest.fn(),
+                dbUpsertAppPlaylist: jest.fn(() =>
+                    slowWrites
+                        ? new Promise<void>(
+                              (resolve) => (finishWrite = resolve)
+                          )
+                        : Promise.resolve()
+                ),
+                dbUpsertAppPlaylists: jest.fn(),
+                dbDeletePlaylist: jest.fn(async () => undefined),
+                dbDeleteAllPlaylists: jest.fn(async () => undefined),
+            };
+            testWindow.electron = electron;
+            return electron;
+        }
+
         const settle = async () => {
-            for (let i = 0; i < 50; i += 1) {
+            for (let i = 0; i < 100; i += 1) {
                 await Promise.resolve();
             }
         };
 
-        const removed = firstValueFrom(service.removeAll());
-        // The repair's conditional row write, under its reservation.
-        let written = false;
-        const repair = firstValueFrom(
-            service.transformPlaylistFavorites('p9', (f) => [...f, 'a'])
-        ).then(() => (written = true));
-        await settle();
+        it('lets a repair holding its reservation write first', async () => {
+            fakeLocks();
+            const electron = store();
+            const service = createService();
+            const reservation = await reservePlaylistAuthority('p9');
+            if (reservation.status !== 'acquired') {
+                throw new Error('expected a reservation');
+            }
 
-        expect(written).toBe(true);
-        expect(electron.dbDeleteAllPlaylists).not.toHaveBeenCalled();
-        releaseRepair();
-        await repair;
-        await removed;
-        expect(electron.dbDeleteAllPlaylists).toHaveBeenCalled();
+            const removed = firstValueFrom(service.removeAll());
+            // The repair's conditional row write, under its reservation.
+            let written = false;
+            const repair = firstValueFrom(
+                service.transformPlaylistFavorites('p9', (f) => [...f, 'a'])
+            ).then(() => (written = true));
+            await settle();
+
+            expect(written).toBe(true);
+            expect(electron.dbDeleteAllPlaylists).not.toHaveBeenCalled();
+            reservation.release();
+            await repair;
+            await removed;
+            expect(electron.dbDeleteAllPlaylists).toHaveBeenCalled();
+        });
+
+        it('lets a deletion queued behind a slow write finish first', async () => {
+            fakeLocks();
+            const electron = store(true);
+            const service = createService();
+
+            const slow = firstValueFrom(
+                service.transformPlaylistFavorites('p9', (f) => [...f, 'a'])
+            );
+            await settle();
+            const deleted = firstValueFrom(service.deletePlaylist('p9'));
+            let done = false;
+            const removed = firstValueFrom(service.removeAll()).then(
+                () => (done = true)
+            );
+            await settle();
+            finishWrite();
+            await settle();
+
+            // The deletion needs the shared lock: it cannot wait for a
+            // reset that waits for it.
+            expect(done).toBe(true);
+            await slow;
+            await deleted;
+            await removed;
+            expect(electron.dbDeletePlaylist).toHaveBeenCalledWith('p9');
+            expect(electron.dbDeleteAllPlaylists).toHaveBeenCalled();
+        });
     });
 
     it('runs a mutation again on a fresh read when the server refused it', async () => {
