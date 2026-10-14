@@ -1,3 +1,4 @@
+import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import {
     TypedXtreamCollectionRef,
     XTREAM_CONTENT_TYPES,
@@ -157,12 +158,25 @@ export function collectionSnapshotMatchesContent(
     current: XtreamContentItem | undefined,
     allowMissing = false
 ): boolean {
+    const known = normalizeCollectionIdentity(saved);
+    const actual = normalizeCollectionIdentity(current);
     return (['tmdb_id', 'release_year'] as const).every(
         (key) =>
-            saved[key] == null ||
-            saved[key] === current?.[key] ||
-            (allowMissing && current?.[key] == null)
+            known[key] == null ||
+            known[key] === actual[key] ||
+            (allowMissing && actual[key] == null)
     );
+}
+
+/** Match Electron's metadata boundary, including numeric strings and unknown placeholders. */
+export function normalizeCollectionIdentity(
+    item: XtreamContentItem | undefined
+) {
+    const identity = normalizeContentMetadataPatch({
+        tmdbId: item?.tmdb_id ?? undefined,
+        releaseYear: item?.release_year ?? undefined,
+    });
+    return { tmdb_id: identity?.tmdbId, release_year: identity?.releaseYear };
 }
 
 /** Keep the durable snapshot separate until the actual catalog row confirms it. */
@@ -182,8 +196,12 @@ function mergeCollectionItem(
         title: current.title || saved.title,
         poster_url: current.poster_url || saved.poster_url,
         backdrop_url: current.backdrop_url || saved.backdrop_url,
-        tmdb_id: current.tmdb_id ?? saved.tmdb_id,
-        release_year: current.release_year ?? saved.release_year,
+        tmdb_id:
+            normalizeCollectionIdentity(current).tmdb_id ??
+            normalizeCollectionIdentity(saved).tmdb_id,
+        release_year:
+            normalizeCollectionIdentity(current).release_year ??
+            normalizeCollectionIdentity(saved).release_year,
         original_title: current.original_title || saved.original_title,
         // Provider metadata never owns the user's favorite date/order.
         added_at: saved.added_at ?? current.added_at,

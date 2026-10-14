@@ -104,8 +104,9 @@ cache, preserving metadata when the archive returns to Electron.
 Catalog hydration keeps the saved snapshot separate from current provider rows.
 Only a row confirming every saved TMDB ID/year may refresh that snapshot;
 missing, partially confirmed or conflicting identity retains the original title,
-artwork and metadata. After confirmation, blank catalog fields retain saved
-values. The favorite's added date and order always belong to user state.
+artwork and metadata. Identity numbers use the shared Electron metadata normalizer: numeric strings
+match numbers, and empty/zero placeholders are unknown. After confirmation,
+blank catalog fields retain saved values. The favorite's added date and order always belong to user state.
 Favorites and Recent reads/writes share this resolution. Recent/detail backdrop
 writes check the actual catalog evidence, never the resolved collection row
 which already carries saved identity. Browsing, reload and re-export therefore
@@ -123,6 +124,11 @@ storage failure cannot silently resurrect the old title. Ordinary optional
 snapshot-cache writes retain their existing quota behavior. The explicit browser
 favorite writer loads on demand; after loading, reference and snapshot writes
 run synchronously against fresh storage so concurrent additions are not lost.
+Browser status and add operations also reject known conflicts, so the replacement's
+heart cannot remove the retained favorite. Explicit collection removal still works.
+A newly recorded playback can replace obsolete Recent-only metadata. It must save
+a replacement snapshot before the Recent reference; failure leaves history unchanged
+for retry. A snapshot still owned by a favorite remains protected during playback.
 Initial browser imports and deferred retries share `PwaXtreamBackupStorage`;
 `PwaXtreamBackupStateService` supplies its injected storage for the importer.
 Both write the lists first and require the nested favorite snapshots to persist

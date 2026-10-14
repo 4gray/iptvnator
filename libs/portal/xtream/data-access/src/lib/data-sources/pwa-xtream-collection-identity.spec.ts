@@ -524,6 +524,9 @@ describe('PWA Xtream collection identity', () => {
         'tmdb conflict',
         'year conflict',
         'confirmed',
+        'numeric strings',
+        'zero',
+        'empty',
     ])(
         'protects imported identities through %s catalog rows, recent writes and re-export',
         async (identity) => {
@@ -568,7 +571,13 @@ describe('PWA Xtream collection identity', () => {
                                   tmdb_id:
                                       identity === 'tmdb conflict'
                                           ? 999
-                                          : 100 + position,
+                                          : identity === 'numeric strings'
+                                            ? String(100 + position)
+                                            : identity === 'zero'
+                                              ? '0'
+                                              : identity === 'empty'
+                                                ? ''
+                                                : 100 + position,
                               }
                             : {}),
                         ...(identity !== 'missing' && identity !== 'partial'
@@ -576,7 +585,13 @@ describe('PWA Xtream collection identity', () => {
                                   release_year:
                                       identity === 'year conflict'
                                           ? 2026
-                                          : 1995 + position,
+                                          : identity === 'numeric strings'
+                                            ? String(1995 + position)
+                                            : identity === 'zero'
+                                              ? 0
+                                              : identity === 'empty'
+                                                ? ''
+                                                : 1995 + position,
                               }
                             : {}),
                     },
@@ -597,13 +612,17 @@ describe('PWA Xtream collection identity', () => {
                 );
             }
             await source.getRecentItems('p1');
+            if (['zero', 'empty'].includes(identity)) {
+                for (const item of await source.getFavorites('p1'))
+                    expect(item.catalog_status).not.toBe('missing');
+            }
             if (identity.includes('conflict')) {
                 for (const item of await source.getFavorites('p1')) {
                     expect(item).toMatchObject({ catalog_status: 'missing' });
                 }
             }
             const expected = favorites.map((favorite) =>
-                identity === 'confirmed'
+                ['confirmed', 'numeric strings'].includes(identity)
                     ? {
                           ...favorite,
                           snapshot: {
@@ -665,8 +684,13 @@ describe('PWA Xtream collection identity', () => {
             } as XtreamContentItem;
             await source.saveContent('p1', [replacement], 'movie');
             await source.getFavorites('p1');
-            // Re-adding while retained must not replace the original saved identity.
-            await source.addFavorite({ id: 42, type: 'movie' }, 'p1');
+            // A replacement detail heart cannot remove or claim the original favorite.
+            expect(
+                await source.isFavorite({ id: 42, type: 'movie' }, 'p1')
+            ).toBe(false);
+            await expect(
+                source.addFavorite({ id: 42, type: 'movie' }, 'p1')
+            ).rejects.toThrow('XTREAM_FAVORITE_IDENTITY_CONFLICT');
             expect((await source.getFavorites('p1'))[0].title).toBe('Original');
             await source.removeFavorite({ id: 42, type: 'movie' }, 'p1');
             const setItem = Storage.prototype.setItem;
@@ -691,6 +715,79 @@ describe('PWA Xtream collection identity', () => {
                     poster_url: 'new.jpg',
                 }),
             ]);
+        }
+    );
+
+    it.each([false, true])(
+        'records replacement playback after removing obsolete Recent (quota=%s)',
+        async (quota) => {
+            const ref = { id: 42, type: 'movie' as const };
+            await source.saveContent(
+                'p1',
+                [
+                    {
+                        id: 42,
+                        category_id: '1',
+                        rating: '',
+                        added: '',
+                        poster_url: '',
+                        xtream_id: 42,
+                        type: 'movie',
+                        title: 'Original',
+                        tmdb_id: 100,
+                    },
+                ],
+                'movie'
+            );
+            await source.addRecentItem(ref, 'p1');
+            await source.saveContent(
+                'p1',
+                [
+                    {
+                        id: 42,
+                        category_id: '1',
+                        rating: '',
+                        added: '',
+                        poster_url: '',
+                        xtream_id: 42,
+                        type: 'movie',
+                        title: 'Replacement',
+                        tmdb_id: 200,
+                    },
+                ],
+                'movie'
+            );
+            await source.getRecentItems('p1');
+            await source.removeRecentItem(ref, 'p1');
+            if (quota) {
+                const setItem = Storage.prototype.setItem;
+                const failure = jest
+                    .spyOn(Storage.prototype, 'setItem')
+                    .mockImplementation(function (this: Storage, key, value) {
+                        if (key === 'xtream-collection-items')
+                            throw new DOMException(
+                                'full',
+                                'QuotaExceededError'
+                            );
+                        setItem.call(this, key, value);
+                    });
+                await expect(
+                    source.addRecentItem(ref, 'p1')
+                ).rejects.toMatchObject({ name: 'QuotaExceededError' });
+                expect(read('xtream-recent-items').p1).toEqual([]);
+                failure.mockRestore();
+            }
+            await source.addRecentItem(ref, 'p1');
+            expect((await source.getRecentItems('p1'))[0]).toMatchObject({
+                title: 'Replacement',
+                tmdb_id: 200,
+            });
+            reload();
+            api.getStreams.mockResolvedValue([]);
+            const [item] = await source.getRecentItems('p1');
+            expect(item).toMatchObject({ title: 'Replacement', tmdb_id: 200 });
+            expect(item.catalog_status).not.toBe('missing');
+            expect(await source.getFavorites('p1')).toEqual([]);
         }
     );
 

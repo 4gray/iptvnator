@@ -44,6 +44,7 @@ import {
     itemCollectionKey,
     findCollectionItems,
     normalizeStoredBackdrop,
+    normalizeCollectionIdentity,
 } from './pwa-collection-identity';
 import { PwaCollectionStorage } from './pwa-collection-storage';
 
@@ -629,6 +630,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         return {
             ...item,
+            ...normalizeCollectionIdentity(item as XtreamContentItem),
             added: item.added ?? item.last_modified ?? '',
             category_id: item.category_id ?? '',
             id: xtreamId,
@@ -781,7 +783,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             ids,
             normalizedContentId
         );
-        return ids.some((id) => matchingKeys.has(id));
+        return (
+            ids.some((id) => matchingKeys.has(id)) &&
+            !this.collectionStorage.hasFavoriteIdentityConflict(
+                playlistId,
+                normalizedContentId
+            )
+        );
     }
 
     // =========================================================================
@@ -1040,6 +1048,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Keep only last 50 items
         allRecent[playlistId] = allRecent[playlistId].slice(0, 50);
 
+        this.collectionStorage.prepareRecentReplacement(
+            playlistId,
+            normalizedContentId
+        );
         this.collectionStorage.saveRecentItemsToStorage(allRecent);
         this.collectionStorage.getLocalRecentItems(playlistId);
         this.collectionStorage.saveCollectionItemSnapshot(

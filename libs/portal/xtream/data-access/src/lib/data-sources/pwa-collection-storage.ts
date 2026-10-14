@@ -65,6 +65,51 @@ export class PwaCollectionStorage {
         );
     }
 
+    private savedFavorite(
+        playlistId: string,
+        key: CollectionKey
+    ): XtreamContentItem | undefined {
+        return [
+            ...this.resolveItems(
+                playlistId,
+                this.getFavoritesFromStorage()[playlistId] ?? []
+            ).values(),
+        ].find((item) => itemCollectionKey(item) === key);
+    }
+
+    hasFavoriteIdentityConflict(
+        playlistId: string,
+        key: CollectionKey
+    ): boolean {
+        const saved = this.savedFavorite(playlistId, key);
+        return (
+            !!saved &&
+            !collectionSnapshotMatchesContent(
+                saved,
+                this.resolveItems(playlistId, [key], true).get(key),
+                true
+            )
+        );
+    }
+
+    /** A newly recorded playback may replace disposable history, never a retained favorite. */
+    prepareRecentReplacement(playlistId: string, key: CollectionKey): void {
+        if (this.savedFavorite(playlistId, key)) return;
+        const saved = this.resolveItems(playlistId, [key]).get(key);
+        const current = this.resolveItems(playlistId, [key], true).get(key);
+        if (
+            !saved ||
+            !current ||
+            collectionSnapshotMatchesContent(saved, current)
+        )
+            return;
+        const allItems = this.getCollectionItemsFromStorage();
+        this.saveCollectionItemsToStorage({
+            ...allItems,
+            [playlistId]: { ...allItems[playlistId], [key]: current },
+        });
+    }
+
     clearFavoritesForPlaylist(playlistId: string): void {
         const allFavorites = this.getFavoritesFromStorage();
         delete allFavorites[playlistId];

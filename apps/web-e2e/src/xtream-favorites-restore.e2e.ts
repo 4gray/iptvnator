@@ -180,6 +180,26 @@ for (const identity of ['missing', 'conflicting'] as const) {
             await page.keyboard.press('Enter');
             await expect(page.locator('app-content-hero')).toHaveCount(0);
             expect(detailRequests).toBe(0);
+            // Opening the actual replacement from its catalog must not expose a
+            // Remove heart that could delete the retained, incompatible favorite.
+            await page.goto(`${playlistPath}/vod`);
+            await page
+                .locator(`[data-category-id="${movie.category_id}"]`)
+                .first()
+                .click();
+            await page.getByText(movie.name, { exact: true }).first().click();
+            const add = page
+                .getByRole('button', { name: 'Add to favorites', exact: true })
+                .first();
+            await expect(add).toBeVisible();
+            await add.click();
+            await expect(
+                page.getByText(
+                    'This source replaced an item you saved. Remove the older entry from Favorites before adding this one.',
+                    { exact: true }
+                )
+            ).toBeVisible();
+            await expect(add).toBeVisible();
             await page.goto('/workspace/global-favorites');
             const card = page
                 .locator('app-content-card')

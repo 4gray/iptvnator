@@ -1,3 +1,4 @@
+import { XTREAM_FAVORITE_IDENTITY_CONFLICT } from '@iptvnator/shared/interfaces';
 import {
     collectionSnapshotMatchesContent,
     itemCollectionKey,
@@ -15,6 +16,9 @@ export function addPwaFavorite(
     matchingKeysFor: (ids: CollectionKey[]) => Set<CollectionKey>,
     backdropUrl?: string
 ): void {
+    if (storage.hasFavoriteIdentityConflict(playlistId, key)) {
+        throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
+    }
     const allFavorites = storage.getFavoritesFromStorage();
     const ids = (allFavorites[playlistId] ??= []);
     const matchingKeys = matchingKeysFor(ids);
