@@ -127,7 +127,9 @@ export function findCollectionItems(
         }
     }
     // Track only requested snapshots, not another index of the entire catalog.
-    const missingKeys = completeCatalog ? new Set(typedItems.keys()) : undefined;
+    const missingKeys = completeCatalog
+        ? new Set(typedItems.keys())
+        : undefined;
     for (const item of cached) {
         if (!item || !wantedIds.has(item.xtream_id)) continue;
         const key = itemCollectionKey(item);
@@ -138,7 +140,16 @@ export function findCollectionItems(
     }
     for (const key of missingKeys ?? []) {
         const item = typedItems.get(key);
-        if (item) typedItems.set(key, { ...item, catalog_status: 'missing' });
+        if (item)
+            typedItems.set(key, {
+                ...item,
+                catalog_status: 'missing',
+                // Absence cannot erase an earlier conflict (or ambiguous legacy state).
+                catalog_missing_reason:
+                    item.catalog_status === 'missing'
+                        ? item.catalog_missing_reason
+                        : 'absent',
+            });
     }
     const uniqueIds = new Map<number, XtreamContentItem | null>();
     for (const item of cached) {
@@ -217,11 +228,21 @@ export function mergeCollectionItem(
 ): XtreamContentItem {
     if (!saved) return current;
     if (!collectionSnapshotMatchesContent(saved, current, true)) {
-        return { ...saved, catalog_status: 'missing' };
+        return {
+            ...saved,
+            catalog_status: 'missing',
+            catalog_missing_reason: 'identity_conflict',
+        };
     }
     if (!collectionSnapshotMatchesContent(saved, current))
         return {
             ...saved,
+            ...(saved.catalog_missing_reason === 'absent'
+                ? {
+                      catalog_status: 'present',
+                      catalog_missing_reason: undefined,
+                  }
+                : {}),
             // Routing is current catalog evidence, not saved presentation/identity.
             category_id: current.category_id || saved.category_id,
         };
@@ -229,6 +250,7 @@ export function mergeCollectionItem(
         ...saved,
         ...current,
         catalog_status: 'present',
+        catalog_missing_reason: undefined,
         title: current.title || saved.title,
         poster_url: current.poster_url || saved.poster_url,
         backdrop_url: current.backdrop_url || saved.backdrop_url,

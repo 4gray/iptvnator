@@ -109,7 +109,12 @@ absent from those catalogs is retained with `missing` status. Favorites and
 Recent persist that status across reload and disable catalog-dependent actions;
 partial or failed hydration cannot establish absence. Returning compatible
 catalog evidence can make the saved item available again without changing its
-favorite date/order or an independent Recent snapshot's identity.
+favorite date/order or an independent Recent snapshot's identity. Browser snapshots
+record whether missing status came from absence or a known identity conflict.
+A sparse returning typed row clears proven absence while retaining the saved
+presentation and identity. It cannot clear a known conflict or an older missing
+status whose cause is unknown; those still require identity confirmation. This
+evidence survives reload and browser backup/restore for Favorites and Recent.
 Catalog hydration keeps the saved snapshot separate from current provider rows.
 Only a row confirming every saved TMDB ID/year may refresh that snapshot;
 missing, partially confirmed or conflicting identity retains the original title,

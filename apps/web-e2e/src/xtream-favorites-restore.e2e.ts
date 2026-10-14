@@ -16,7 +16,7 @@ test.beforeEach(async ({ page, request }) => {
     await interceptXtreamRequests(page);
 });
 
-test('@xtream @collections a completed catalog disables absent saved items without losing legacy backup identity', async ({
+test('@xtream @collections absent saved items recover on sparse return without losing legacy backup identity', async ({
     page,
 }) => {
     const loaded = new Set<string>();
@@ -32,10 +32,8 @@ test('@xtream @collections a completed catalog disables absent saved items witho
             detailRequests++;
     });
     await addXtreamPortal(page, { name: 'Absent Favorites Portal' });
-    const rawId = new URL(page.url()).pathname
-        .replace(/\/vod.*$/, '')
-        .split('/')
-        .pop();
+    const playlistPath = new URL(page.url()).pathname.replace(/\/vod.*$/, '');
+    const rawId = playlistPath.split('/').pop();
     if (!rawId) throw new Error('Missing playlist ID');
     const playlistId = decodeURIComponent(rawId);
     await page.evaluate((playlistId) => {
@@ -115,6 +113,38 @@ test('@xtream @collections a completed catalog disables absent saved items witho
             releaseYear: 1995,
         },
     });
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        if (original.searchParams.get('action') !== 'get_vod_streams') {
+            await route.fallback();
+            return;
+        }
+        const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') mockUrl.searchParams.set(key, value);
+        });
+        const response = await route.fetch({ url: mockUrl.toString() });
+        const body = await response.json();
+        body.payload.push({
+            stream_id: 99999,
+            name: 'Sparse returning movie',
+            category_id: body.payload[0].category_id,
+            stream_type: 'movie',
+            container_extension: 'mp4',
+        });
+        await route.fulfill({ response, json: body });
+    });
+    await page.goto(`${playlistPath}/vod`);
+    await page
+        .getByRole('link', { name: 'Global favorites', exact: true })
+        .click();
+    await expect(card).not.toHaveAttribute('aria-disabled', 'true');
+    await page.reload();
+    await expect(card).not.toHaveAttribute('aria-disabled', 'true');
+    await page.goto('/workspace/global-recent');
+    await expect(card).not.toHaveAttribute('aria-disabled', 'true');
+    await card.click();
+    await expect.poll(() => detailRequests).toBeGreaterThan(0);
 });
 
 for (const identity of ['missing', 'conflicting'] as const) {

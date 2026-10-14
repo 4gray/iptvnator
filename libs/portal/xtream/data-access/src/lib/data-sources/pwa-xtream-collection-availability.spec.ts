@@ -108,7 +108,11 @@ describe('PWA collection availability after catalog completion', () => {
             ))
                 await source.saveContent('p', [], missingType);
             expect(await source.getFavorites('p')).toEqual([
-                { ...saved, catalog_status: 'missing' },
+                {
+                    ...saved,
+                    catalog_status: 'missing',
+                    catalog_missing_reason: 'absent',
+                },
             ]);
             expect((await source.getRecentItems('p'))[0]).toMatchObject({
                 title: 'Viewed item',
@@ -120,6 +124,7 @@ describe('PWA collection availability after catalog completion', () => {
             expect((await source.getFavorites('p'))[0]).toEqual({
                 ...saved,
                 catalog_status: 'missing',
+                catalog_missing_reason: 'absent',
             });
             expect((await source.getRecentItems('p'))[0]).toMatchObject({
                 title: 'Viewed item',
@@ -145,6 +150,33 @@ describe('PWA collection availability after catalog completion', () => {
                     releaseYear: 1995,
                 },
             });
+            // Presence without detail identity restores access, not presentation.
+            await source.saveContent(
+                'p',
+                [
+                    {
+                        ...saved,
+                        title: 'Sparse return',
+                        poster_url: 'new.jpg',
+                        tmdb_id: undefined,
+                        release_year: undefined,
+                    },
+                ],
+                type
+            );
+            for (const read of [
+                () => source.getFavorites('p'),
+                () => source.getRecentItems('p'),
+            ])
+                expect((await read())[0].catalog_status).toBe('present');
+            expect((await source.getFavorites('p'))[0]).toMatchObject(saved);
+            reload();
+            expect((await source.getFavorites('p'))[0]).toMatchObject(saved);
+            expect((await source.getRecentItems('p'))[0]).toMatchObject({
+                title: 'Viewed item',
+                tmdb_id: 950,
+                catalog_status: 'present',
+            });
             await source.saveContent(
                 'p',
                 [{ ...saved, title: 'Returned favorite' }],
@@ -164,6 +196,75 @@ describe('PWA collection availability after catalog completion', () => {
             });
             await source.removeFavorite({ type, id: 42 }, 'p');
             expect(await source.getFavorites('p')).toEqual([]);
+        }
+    );
+
+    it.each([false, true])(
+        'keeps a known conflict blocked after absence and sparse return (legacy=%s)',
+        async (legacy) => {
+            const saved = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Original',
+                tmdb_id: 949,
+                release_year: 1995,
+            } as XtreamContentItem;
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ p: ['movie:42'] })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({
+                    p: {
+                        'movie:42': {
+                            ...saved,
+                            ...(legacy ? { catalog_status: 'missing' } : {}),
+                        },
+                    },
+                })
+            );
+            if (!legacy) {
+                await source.saveContent(
+                    'p',
+                    [{ ...saved, tmdb_id: 950 }],
+                    'movie'
+                );
+                expect((await source.getFavorites('p'))[0].catalog_status).toBe(
+                    'missing'
+                );
+            }
+            for (const type of types) await source.saveContent('p', [], type);
+            expect((await source.getFavorites('p'))[0].catalog_status).toBe(
+                'missing'
+            );
+            const store = new PwaXtreamBackupStorage(localStorage);
+            const backup = store.exportInto({
+                exportedId: 'p',
+                userState: {
+                    favorites: [],
+                    hiddenCategories: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                },
+            } as unknown as XtreamPlaylistBackupEntry);
+            localStorage.clear();
+            await store.restore('p', backup.userState, backup);
+            reload();
+            await source.saveContent(
+                'p',
+                [{ ...saved, tmdb_id: undefined }],
+                'movie'
+            );
+            expect((await source.getFavorites('p'))[0]).toMatchObject({
+                title: 'Original',
+                catalog_status: 'missing',
+            });
+            await source.saveContent('p', [saved], 'movie');
+            expect((await source.getFavorites('p'))[0].catalog_status).toBe(
+                'present'
+            );
         }
     );
 
