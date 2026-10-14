@@ -1,6 +1,6 @@
 import { SourceActivityService } from '@iptvnator/services';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
@@ -54,9 +54,9 @@ describe('ElectronService', () => {
             openInVlc: jest.fn().mockResolvedValue(session),
         };
         snackBar = {
-            open: jest.fn(() => ({
-                onAction: () => of(undefined),
-            })),
+            open: jest.fn(() =>
+                Promise.resolve({ onAction: () => of(undefined) })
+            ),
         };
         store = { dispatch: jest.fn() };
         translateService = { instant: jest.fn((key: string) => key) };
@@ -70,7 +70,7 @@ describe('ElectronService', () => {
             providers: [
                 ElectronService,
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: snackBar,
                 },
                 {

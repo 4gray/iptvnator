@@ -3,7 +3,7 @@ import {
     HttpTestingController,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -34,9 +34,9 @@ describe('PwaService', () => {
             providers: [
                 PwaService,
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: {
-                        open: jest.fn(),
+                        open: jest.fn().mockResolvedValue(null),
                     },
                 },
                 {
@@ -86,7 +86,7 @@ describe('PwaService', () => {
         expect(request.request.params.get('connectionTest')).toBe('true');
         request.flush(failure);
         expect(await pending).toEqual(failure);
-        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
+        expect(TestBed.inject(LazySnackBar).open).not.toHaveBeenCalled();
     });
 
     it('ignores URL imports without a payload or URL instead of calling the backend', () => {
@@ -191,7 +191,7 @@ describe('PwaService', () => {
             );
             await new Promise((resolve) => setTimeout(resolve));
 
-            expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+            expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ETIMEDOUT)',
                 'CLOSE',
                 { duration: 5000 }
@@ -243,7 +243,7 @@ describe('PwaService', () => {
         );
 
         await expect(pending).resolves.toBeUndefined();
-        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+        expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
             expect.any(String),
             'CLOSE',
             { duration: 5000 }
@@ -277,7 +277,7 @@ describe('PwaService', () => {
             );
             await new Promise((resolve) => setTimeout(resolve));
 
-            expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+            expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
                 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED (ENETUNREACH)',
                 'CLOSE',
                 { duration: 5000 }
@@ -323,7 +323,7 @@ describe('PwaService', () => {
         expect(error.message).toBe('HTTP Error 404: Not Found');
         expect(error.status).toBe(404);
         // silent flag: discovery probes expect failures — no snackbar.
-        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
+        expect(TestBed.inject(LazySnackBar).open).not.toHaveBeenCalled();
 
         globalThis.fetch = originalFetch;
     });

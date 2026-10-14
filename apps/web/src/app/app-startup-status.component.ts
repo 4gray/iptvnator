@@ -5,7 +5,7 @@ import {
     inject,
     input,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
+import { MatButton } from '@angular/material/button';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -18,7 +18,7 @@ import {
 @Component({
     selector: 'app-startup-status',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButtonModule, TranslatePipe],
+    imports: [MatButton, TranslatePipe],
     template: `
         @if (!complete()) {
             <section
@@ -94,9 +94,20 @@ import {
                     }}
                 </p>
                 @if (failed()) {
-                    <button mat-flat-button type="button" (click)="retry()">
-                        {{ 'RETRY' | translate }}
-                    </button>
+                    <!--
+                        Material's button loads with the failure branch so the
+                        first screen does not carry the button chunk; a failed
+                        chunk load still leaves a working native button.
+                    -->
+                    @defer (on immediate) {
+                        <button mat-flat-button type="button" (click)="retry()">
+                            {{ 'RETRY' | translate }}
+                        </button>
+                    } @error {
+                        <button type="button" (click)="retry()">
+                            {{ 'RETRY' | translate }}
+                        </button>
+                    }
                 }
             </section>
         }

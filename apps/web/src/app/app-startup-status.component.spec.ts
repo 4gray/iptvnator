@@ -1,4 +1,8 @@
-import { TestBed } from '@angular/core/testing';
+import {
+    DeferBlockBehavior,
+    DeferBlockState,
+    TestBed,
+} from '@angular/core/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import {
@@ -12,6 +16,7 @@ describe('AppStartupStatusComponent', () => {
     beforeEach(() =>
         TestBed.configureTestingModule({
             imports: [AppStartupStatusComponent, TranslateModule.forRoot()],
+            deferBlockBehavior: DeferBlockBehavior.Manual,
             providers: [
                 provideMockStore({
                     selectors: [
@@ -48,7 +53,7 @@ describe('AppStartupStatusComponent', () => {
         expect(fixture.componentInstance.complete()).toBe(true);
     });
 
-    it('offers a retry on failure without rendering raw storage errors', () => {
+    it('offers a retry on failure without rendering raw storage errors', async () => {
         TestBed.inject(MockStore).overrideSelector(
             selectPlaylistsLoadFailed,
             true
@@ -59,8 +64,32 @@ describe('AppStartupStatusComponent', () => {
             fixture.nativeElement.querySelector('[role="alert"]')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('mat-spinner')).toBeNull();
+        // Material's button loads with the failure branch, not the first screen.
+        expect(fixture.nativeElement.querySelector('button')).toBeNull();
+        const [retryBlock] = await fixture.getDeferBlocks();
+        await retryBlock.render(DeferBlockState.Complete);
+        const button: HTMLButtonElement =
+            fixture.nativeElement.querySelector('button');
+        expect(button.classList).toContain('mat-mdc-unelevated-button');
         const dispatch = jest.spyOn(TestBed.inject(MockStore), 'dispatch');
-        fixture.nativeElement.querySelector('button').click();
+        button.click();
+        expect(dispatch).toHaveBeenCalledWith(PlaylistActions.loadPlaylists());
+    });
+
+    it('keeps a working retry button when the button chunk fails to load', async () => {
+        TestBed.inject(MockStore).overrideSelector(
+            selectPlaylistsLoadFailed,
+            true
+        );
+        const fixture = TestBed.createComponent(AppStartupStatusComponent);
+        fixture.detectChanges();
+        const [retryBlock] = await fixture.getDeferBlocks();
+        await retryBlock.render(DeferBlockState.Error);
+        const button: HTMLButtonElement =
+            fixture.nativeElement.querySelector('button');
+        expect(button.classList).not.toContain('mat-mdc-unelevated-button');
+        const dispatch = jest.spyOn(TestBed.inject(MockStore), 'dispatch');
+        button.click();
         expect(dispatch).toHaveBeenCalledWith(PlaylistActions.loadPlaylists());
     });
 });
