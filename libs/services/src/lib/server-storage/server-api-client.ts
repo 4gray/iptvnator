@@ -208,6 +208,11 @@ export class ServerApiClient {
                     )) as Partial<ServerUserStateWriteResponse>;
                 return { status: 'saved', tag: body?.tag };
             }
+            if (GATEWAY_UNAVAILABLE.has(response.status)) {
+                // As for requests: the backend may come back as another
+                // instance, checked before the next write goes out.
+                this.options.status.reportOffline();
+            }
             const { code, current } =
                 response.status === 412 || response.status === 404
                     ? await readErrorBody(response)
@@ -219,6 +224,7 @@ export class ServerApiClient {
                 ? { status: 'conflict', current }
                 : { status: 'failed' };
         } catch {
+            this.options.status.reportOffline();
             return { status: 'failed' };
         }
     }

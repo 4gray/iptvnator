@@ -348,8 +348,9 @@ settings and guards read them in every build.
   trouble. A page started from memory first checks that the instance at the
   address is the remembered one (`ensureVerified`), and reloads if not,
   before sign-in sends the token. So does a page that went offline (any
-  backend call can tell: the storage API, `HttpClient` calls through the
-  interceptor and `PwaService`'s raw fetches report no answer, or a
+  backend call can tell: the storage API with its page-hide `keepalive`
+  writes, `HttpClient` calls through the interceptor and `PwaService`'s raw
+  fetches report no answer, or a
   gateway's 502/503/504 that is not the backend's own JSON, as offline)
   before its next read: until then it sends neither the token nor writes (a
   replaced volume at the same address is another database), and it checks

@@ -106,6 +106,17 @@ describe('ServerApiClient', () => {
         await expect(
             slow.sendKeepalive('PUT', '/user-state/a/b', { value: 1 })
         ).resolves.toEqual({ status: 'failed' });
+        // An outage: the instance is checked before the next write.
+        expect(status.reportOffline).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a gateway answering for a down backend on a keepalive write', async () => {
+        const down = jest.fn().mockResolvedValue(response(502));
+
+        await expect(
+            client(down).sendKeepalive('PUT', '/user-state/a/b', { value: 1 })
+        ).resolves.toEqual({ status: 'failed' });
+        expect(status.reportOffline).toHaveBeenCalled();
     });
 
     it('reports how a keepalive write ended', async () => {
