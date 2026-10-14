@@ -199,28 +199,40 @@ function sourceSecrets(playlist: SourceDisplayFields): string[] {
 }
 
 /**
- * Whether the text shows any of the source's secrets. Escapes may be
- * written in either case (`%3a` for `%3A`) and a MAC in either letter case,
- * so text and secrets are compared lower-cased, the text as written and
- * fully decoded.
+ * Whether one of the texts shows the secret: as the whole text, or inside
+ * it when the secret is long enough. Each form on its own: `%2542` decodes
+ * to `B`, which may only hide a text that is nothing but `B`.
+ */
+function shows(texts: readonly string[], secret: string): boolean {
+    return texts.some(
+        (text) =>
+            text === secret ||
+            (secret.length >= MIN_SECRET_LENGTH && text.includes(secret))
+    );
+}
+
+/**
+ * Whether the text shows any of the source's secrets, read as written and
+ * fully decoded (so `%3a` escapes count as `:`). A password is compared in
+ * its own case: `Stress` in a name is not the password `stress`. A MAC is
+ * the same address in either letter case, so it is compared lower-cased.
  */
 export function containsSourceSecret(
     text: string,
     playlist: SourceDisplayFields
 ): boolean {
-    const forms = [text, decodeFully(text)].map((form) =>
-        form.trim().toLowerCase()
+    const texts = [text, decodeFully(text)].map((form) => form.trim());
+    if (sourceSecrets(playlist).some((secret) => shows(texts, secret))) {
+        return true;
+    }
+    const mac = playlist.macAddress?.toLowerCase();
+    const lowerTexts = texts.map((form) => form.toLowerCase());
+    return (
+        !!mac &&
+        [mac, encodeURIComponent(mac).toLowerCase()].some((form) =>
+            shows(lowerTexts, form)
+        )
     );
-    return sourceSecrets(playlist).some((secret) => {
-        const needle = secret.toLowerCase();
-        // Each form on its own: `%2542` decodes to `B`, which may only hide
-        // a text that is nothing but `b`.
-        return forms.some(
-            (form) =>
-                form === needle ||
-                (needle.length >= MIN_SECRET_LENGTH && form.includes(needle))
-        );
-    });
 }
 
 /**

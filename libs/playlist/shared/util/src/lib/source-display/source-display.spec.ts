@@ -148,9 +148,11 @@ describe('sourceDisplayName', () => {
         expect(sourceDisplayName({ ...xtream, title: 'pw' })).toBe(
             'xtream.tv:8080'
         );
-        expect(sourceDisplayName({ ...xtream, title: ' PW ' })).toBe(
+        expect(sourceDisplayName({ ...xtream, title: ' pw ' })).toBe(
             'xtream.tv:8080'
         );
+        // A password has its own case: `PW` is not `pw`.
+        expect(sourceDisplayName({ ...xtream, title: 'PW' })).toBe('PW');
         // Inside a longer name a short password is just letters.
         expect(sourceDisplayName({ ...xtream, title: 'Pwnova' })).toBe(
             'Pwnova'
@@ -158,6 +160,17 @@ describe('sourceDisplayName', () => {
         expect(sourceDisplayUrl({ ...xtream, username: 'pw' })).toBe(
             'http://xtream.tv:8080'
         );
+    });
+
+    it('keeps a name holding the password word in another case', () => {
+        expect(
+            sourceDisplayName({
+                title: 'Stress Portal',
+                serverUrl: 'http://xtream.tv',
+                username: 'stress',
+                password: 'stress',
+            })
+        ).toBe('Stress Portal');
     });
 
     it('keeps a name that only shares a letter with a decoded password', () => {
