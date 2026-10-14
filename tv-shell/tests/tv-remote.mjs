@@ -204,7 +204,8 @@ console.log('8. the stream handed to an external player is the source, never a f
             if (responseType) r.responseType = responseType;
             try { r.send(); } catch (e) { /* ignore */ }
         };
-        const get = (url, init) => fetch(url, init).catch(() => null);
+        // Aborted at once: the request is issued (and tracked) without reaching the network.
+        const get = (url, init) => fetch(url, Object.assign({ signal: AbortSignal.abort() }, init)).catch(() => null);
         const out = {};
         // hls.js / VHS: playlist as text, variant playlist, segments as arraybuffer.
         attach();
@@ -241,6 +242,28 @@ console.log('8. the stream handed to an external player is the source, never a f
         attach();
         get(provider + '/user/pass/10');
         out.bare = last();
+        // An rtmp channel: mpegts.js fetches it (and fails); VLC can play it.
+        attach();
+        get('rtmp://cam.test/live/key');
+        out.rtmp = last();
+        // A stream hosted on a Google CDN host.
+        attach();
+        get('https://storage.googleapis.com/bucket/live/index.m3u8');
+        out.google = last();
+        // hls.js recovery as it really happens: detach (revoke), attach, variant refresh.
+        let mediaUrl = attach();
+        xhr(provider + '/live/user/pass/11.m3u8');
+        xhr(provider + '/hls/user/pass/11/index.m3u8');
+        URL.revokeObjectURL(mediaUrl);
+        attach();
+        xhr(provider + '/hls/user/pass/11/index.m3u8');
+        out.revokedRecovery = last();
+        // The player is torn down; "Copy stream URL" on an item that never played.
+        mediaUrl = attach();
+        xhr(provider + '/live/user/pass/12.m3u8');
+        URL.revokeObjectURL(mediaUrl);
+        await navigator.clipboard.writeText(provider + '/movie/user/pass/13.mkv').catch(() => null);
+        out.copyAfterTeardown = last();
         return out;
     }, PROVIDER);
     const expect = (key, url, label) => check(tracked[key] === PROVIDER + url, label + ': ' + tracked[key]);
@@ -252,6 +275,10 @@ console.log('8. the stream handed to an external player is the source, never a f
     expect('dashRefreshed', '/dash/user/pass/9.mpd', 'and so does the manifest refresh after it');
     expect('ts', '/live/user/pass/8.ts', 'the next channel replaces the previous stream');
     expect('bare', '/user/pass/10', 'a stream URL without an extension is still the stream');
+    check(tracked.rtmp === 'rtmp://cam.test/live/key', 'an rtmp stream is the stream: ' + tracked.rtmp);
+    check(tracked.google === 'https://storage.googleapis.com/bucket/live/index.m3u8', 'a stream on a Google host is the stream: ' + tracked.google);
+    expect('revokedRecovery', '/live/user/pass/11.m3u8', 'recovery through detach and re-attach keeps the playlist');
+    expect('copyAfterTeardown', '/movie/user/pass/13.mkv', 'once the player is gone, a copied URL is the stream');
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;

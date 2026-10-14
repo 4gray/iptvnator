@@ -771,9 +771,11 @@
 
     // ------------------------------------------------ media URL tracking
     // Never a stream: provider APIs, metadata, artwork, subtitles, page assets,
-    // and the metadata hosts the app calls directly (TMDB, YouTube trailers).
+    // and the API hosts the page itself calls (TMDB metadata, the update check).
     var NOT_STREAM_RE = /\/(player_api|portal|get)\.php|\.(json|xml|png|jpe?g|webp|gif|svg|ico|css|js|woff2?|ttf|vtt|srt)(\?|#|$)/i;
-    var NOT_STREAM_HOST_RE = /^https?:\/\/([^\/?#]*\.)?(themoviedb\.org|tmdb\.org|youtube\.com|youtube-nocookie\.com|ytimg\.com|googleapis\.com|gstatic\.com)(:\d+)?([\/?#]|$)/i;
+    var NOT_STREAM_HOST_RE = /^https?:\/\/(api\.themoviedb\.org|image\.tmdb\.org|api\.github\.com)(:\d+)?([\/?#]|$)/i;
+    // Schemes a stream can have; only http(s) can be one of our own files.
+    var STREAM_SCHEME_RE = /^(https?|rtmps?|rtsps?|mms|udp|rtp):/i;
     // What only ever follows a playlist or manifest inside an MSE session: fMP4 /
     // CMAF / WebM segments (an .mp4 or .webm file itself plays from the element's src).
     var SEGMENT_RE = /\.(m4s|m4v|m4a|m4f|cmfv|cmfa|cmft|mp4|webm)(\?|#|$)/i;
@@ -797,8 +799,9 @@
         } catch (e) {
             return;
         }
-        if (!/^https?:/i.test(absolute) || absolute.indexOf(location.origin) === 0) return; // our own files/API
-        if (NOT_STREAM_RE.test(absolute) || NOT_STREAM_HOST_RE.test(absolute)) return;
+        if (!STREAM_SCHEME_RE.test(absolute)) return;
+        if (/^https?:/i.test(absolute) && absolute.indexOf(location.origin) === 0) return; // our own files/API
+        if (!authoritative && (NOT_STREAM_RE.test(absolute) || NOT_STREAM_HOST_RE.test(absolute))) return;
         var recognised = MEDIA_URL_RE.test(absolute);
         if (authoritative) {
             session = null; // a native source replaces any MediaSource session
@@ -850,28 +853,46 @@
      * stream. That first request is what an external player needs; the requests
      * after it are variants, segments and refreshes. Until the new session's
      * first request, the previous stream stays available (an engine recovering
-     * from an error re-attaches without asking for its source again). Installed
-     * before the bundle runs: shaka keeps the createObjectURL it finds when its
-     * module is evaluated.
+     * from an error re-attaches without asking for its source again). The
+     * session ends when the engine revokes its MediaSource URL (teardown).
+     * Installed before the bundle runs: shaka keeps the functions it finds
+     * when its module is evaluated.
      */
     function installMediaSourceTracking() {
         var urlApi = window.URL;
         if (!urlApi || typeof urlApi.createObjectURL !== 'function') return;
         var create = urlApi.createObjectURL;
+        var revoke = urlApi.revokeObjectURL;
         urlApi.createObjectURL = function (obj) {
+            var objectUrl = create.apply(urlApi, arguments);
             try {
                 if (isMediaSource(obj)) {
-                    if (session && session.pinned) prevSession = { pin: lastMediaUrl, seen: session.seen };
-                    session = { pinned: false, seen: new Set() };
+                    endSession();
+                    session = { pinned: false, seen: new Set(), objectUrl: objectUrl };
                 }
             } catch (e) {
                 /* ignore */
             }
-            return create.apply(urlApi, arguments);
+            return objectUrl;
+        };
+        if (typeof revoke !== 'function') return;
+        urlApi.revokeObjectURL = function (objectUrl) {
+            try {
+                if (session && session.objectUrl === objectUrl) endSession();
+            } catch (e) {
+                /* ignore */
+            }
+            return revoke.apply(urlApi, arguments);
         };
     }
 
-    /** A copied stream URL: the user's pick, unless a playing session already has its stream. */
+    /** Closes the current session, keeping its stream for a recovery match. */
+    function endSession() {
+        if (session && session.pinned) prevSession = { pin: lastMediaUrl, seen: session.seen };
+        session = null;
+    }
+
+    /** A copied stream URL: the user's pick, unless an engine is playing a stream it already has. */
     function noteCopiedUrl(url) {
         if (session && session.pinned) return; // e.g. a catch-up URL copied while live TV plays
         lastMediaUrl = url;
