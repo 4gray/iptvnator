@@ -260,7 +260,10 @@
             "NAME_DESC": "名稱（Z-A）",
             "NEWEST": "新增日期（最新優先）",
             "OLDEST": "新增日期（最舊優先）",
-            "CUSTOM_ORDER": "自訂順序（拖放）"
+            "CUSTOM_ORDER": "自訂順序（拖放）",
+            "UPDATED": "最近更新",
+            "CHANNELS": "頻道數量",
+            "FAILING_FIRST": "無回應的優先"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U（本機、網址、文字）",
@@ -1906,7 +1909,29 @@
             "STALKER_PLAYLISTS": "Stalker 播放清單",
             "ALL_PLAYLISTS": "所有播放清單",
             "PLAYLIST_COUNT_ONE": "1 個播放清單",
-            "PLAYLIST_COUNT_OTHER": "{{count}} 個播放清單"
+            "PLAYLIST_COUNT_OTHER": "{{count}} 個播放清單",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · 檔案",
+                "ADDED": "{{date}} 新增",
+                "UPDATED": "{{date}} 更新",
+                "UNREACHABLE": "無回應",
+                "UNREACHABLE_FOR": "無回應 · {{duration}}",
+                "EXPIRED": "已過期",
+                "EDIT": "編輯…",
+                "COPY_URL": "複製 URL",
+                "OPEN": "開啟",
+                "CHANNELS_ONE": "1 個頻道"
+            },
+            "STATUS": "狀態",
+            "STATUS_ANY": "全部",
+            "STATUS_OK": "有回應",
+            "STATUS_BAD": "無回應",
+            "NO_MATCHES": "沒有符合這些篩選條件的播放清單",
+            "RESET_FILTERS": "重設篩選",
+            "REMOVED": "已移除「{{name}}」",
+            "REMOVED_SWITCHED": "已移除「{{name}}」，已切換到「{{next}}」",
+            "REMOVE_FAILED": "無法移除「{{name}}」",
+            "ADD_SOURCE": "新增來源"
         },
         "CONTEXT": {
             "CATEGORIES": "類別",
@@ -1975,7 +2000,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "移動命令面板選取項",
                 "COMMAND_PALETTE_RUN": "執行選取的命令面板項目",
                 "CLOSE_DIALOGS": "關閉對話框或取消覆蓋層",
-                "DOWNLOADS_OPEN_ITEM": "在媒體庫中開啟聚焦的下載項目"
+                "DOWNLOADS_OPEN_ITEM": "在媒體庫中開啟聚焦的下載項目",
+                "OPEN_PLAYLIST_SWITCHER": "切換播放清單"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1998,6 +2024,15 @@
             "NO_PLAYLISTS_BODY": "新增播放清單後，您的觀看歷史會顯示在這裡。",
             "NO_ITEMS_TITLE": "還沒有觀看記錄",
             "NO_ITEMS_BODY": "開始觀看媒體庫中的任意內容後，它會顯示在這裡。"
+        },
+        "SWITCHER": {
+            "SEARCH": "尋找播放清單…",
+            "RECENT": "最近",
+            "NO_MATCHES": "找不到",
+            "ALL_SOURCES": "所有來源",
+            "HINT_SELECT": "選擇",
+            "HINT_OPEN": "開啟",
+            "HINT_CLOSE": "關閉"
         }
     },
     "LOADING": "載入中",

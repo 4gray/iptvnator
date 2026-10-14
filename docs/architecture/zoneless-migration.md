@@ -61,7 +61,7 @@ must be ticked here.
 ## Eager components
 
 65 production files, 66 components (`epg-progress-panel.component.ts` holds
-two). Tick an entry by deleting `changeDetection: ChangeDetectionStrategy.Eager`
+two); two have since been deleted (the old Sources row and its health dot). Tick an entry by deleting `changeDetection: ChangeDetectionStrategy.Eager`
 (or setting OnPush) once its template state is signals, signal inputs or
 explicitly marked. The guard spec compares the unticked entries with the
 files whose component metadata still sets
@@ -127,7 +127,7 @@ picker), so each marks itself on the form's `events` through
 - [x] `libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts` (idle audit root)
 - [x] `libs/workspace/shell/feature/src/lib/workspace-sources/workspace-sources.component.ts`
 
-### libs/playlist (14)
+### libs/playlist (12)
 
 - [x] `libs/playlist/import/feature/src/lib/add-playlist-dialog/add-playlist-dialog.component.ts`
 - [x] `libs/playlist/import/feature/src/lib/auto-import/auto-import.component.ts`
@@ -140,9 +140,7 @@ picker), so each marks itself on the form's `events` through
 - [x] `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts`
 - [x] `libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.component.ts`
 - [x] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts`
-- [x] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts`
 - [x] `libs/playlist/shared/ui/src/lib/source-health/source-cleanup-dialog.component.ts`
-- [x] `libs/playlist/shared/ui/src/lib/source-health/source-health-indicator.component.ts`
 
 `libs/playlist/m3u/feature-player` (2) goes with the playback PR.
 
@@ -173,7 +171,7 @@ the field a signal (or a `computed`), or writes it through one.
 | --- | --- | --- | --- |
 | [x] | `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts` `onChannelNumberInput`/`clearChannelNumberInput` | 2 s `window.setTimeout` hides the channel-number overlay through plain `showChannelNumberOverlay`/`channelNumberInput` | playback |
 | [x] | same file, `applySettings` and the settings `effect()` | IndexedDB `storage.get(...).subscribe` and an effect assign plain `playerSettings`, which picks the player in the template | playback |
-| [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts` `checkPortalStatus` | plain `portalStatus` assigned after `await` in `ngOnInit` (PWA only: skipped when source health is supported) | playlist |
+| [x] | `libs/portal/shared/data-access/src/lib/source-status.service.ts` `checkPortal` (replaced the old Sources row's `checkPortalStatus`) | the PWA Xtream portal status lands after `await`; it is written to a signal | playlist |
 | [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts` (EPG clear and EPG file pick handlers) | plain `playlist` reassigned after `await` | playlist |
 | [x] | `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.ts` (device-id derivation) | `form.patchValue` after `await`; no fix needed: while derivation is on `hasManualDeviceIds` is false whatever the IDs are, the controls write their own DOM values, and typing goes through value-accessor listeners that mark the view | playlist |
 | [x] | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` (favorites load) | `favorites` Map filled in a `subscribe` without `markForCheck`; the component is OnPush already, so this is a latent bug today | portal |

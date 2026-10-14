@@ -260,7 +260,10 @@
             "NAME_DESC": "名前（Z-A）",
             "NEWEST": "追加日（新しい順）",
             "OLDEST": "追加日（古い順）",
-            "CUSTOM_ORDER": "カスタム順（ドラッグ＆ドロップ）"
+            "CUSTOM_ORDER": "カスタム順（ドラッグ＆ドロップ）",
+            "UPDATED": "最終更新",
+            "CHANNELS": "チャンネル数",
+            "FAILING_FIRST": "応答なしを先頭に"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U（ローカル、URL、テキスト）",
@@ -1906,7 +1909,29 @@
             "STALKER_PLAYLISTS": "Stalkerプレイリスト",
             "ALL_PLAYLISTS": "すべてのプレイリスト",
             "PLAYLIST_COUNT_ONE": "1 件のプレイリスト",
-            "PLAYLIST_COUNT_OTHER": "{{count}} 件のプレイリスト"
+            "PLAYLIST_COUNT_OTHER": "{{count}} 件のプレイリスト",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · ファイル",
+                "ADDED": "{{date}}に追加",
+                "UPDATED": "{{date}}に更新",
+                "UNREACHABLE": "応答なし",
+                "UNREACHABLE_FOR": "応答なし · {{duration}}",
+                "EXPIRED": "期限切れ",
+                "EDIT": "編集…",
+                "COPY_URL": "URLをコピー",
+                "OPEN": "開く",
+                "CHANNELS_ONE": "1 チャンネル"
+            },
+            "STATUS": "状態",
+            "STATUS_ANY": "すべて",
+            "STATUS_OK": "応答あり",
+            "STATUS_BAD": "応答なし",
+            "NO_MATCHES": "この条件に一致するプレイリストはありません",
+            "RESET_FILTERS": "フィルターをリセット",
+            "REMOVED": "「{{name}}」を削除しました",
+            "REMOVED_SWITCHED": "「{{name}}」を削除し、「{{next}}」に切り替えました",
+            "REMOVE_FAILED": "「{{name}}」を削除できませんでした",
+            "ADD_SOURCE": "ソースを追加"
         },
         "CONTEXT": {
             "CATEGORIES": "カテゴリー",
@@ -1975,7 +2000,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "コマンドパレットの選択を移動",
                 "COMMAND_PALETTE_RUN": "選択中のコマンドパレット項目を実行",
                 "CLOSE_DIALOGS": "ダイアログを閉じる、またはオーバーレイを解除",
-                "DOWNLOADS_OPEN_ITEM": "フォーカス中のダウンロード項目をライブラリで開く"
+                "DOWNLOADS_OPEN_ITEM": "フォーカス中のダウンロード項目をライブラリで開く",
+                "OPEN_PLAYLIST_SWITCHER": "プレイリストを切り替え"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1998,6 +2024,15 @@
             "NO_PLAYLISTS_BODY": "プレイリストを追加すると、視聴履歴がここに表示されます。",
             "NO_ITEMS_TITLE": "視聴履歴はまだありません",
             "NO_ITEMS_BODY": "ライブラリ内のコンテンツを視聴し始めると、ここに表示されます。"
+        },
+        "SWITCHER": {
+            "SEARCH": "プレイリストを検索…",
+            "RECENT": "最近",
+            "NO_MATCHES": "見つかりませんでした",
+            "ALL_SOURCES": "すべてのソース",
+            "HINT_SELECT": "選択",
+            "HINT_OPEN": "開く",
+            "HINT_CLOSE": "閉じる"
         }
     },
     "LOADING": "読み込み中",

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import {
     compareThemeScope,
     requiredThemes,
+    templateThemeUsers,
     themedComponents,
     usedEntryPoints,
 } from './check-material-theme-scope.mjs';
@@ -77,10 +78,121 @@ test('requiredThemes always keeps core and expands the button entry point', () =
             ['core', 'always themed'],
             ['button', '@angular/material/button in a.ts'],
             ['icon-button', '@angular/material/button in a.ts'],
-            ['fab', '@angular/material/button in a.ts'],
             ['tooltip', '@angular/material/tooltip in b.ts'],
         ]
     );
+});
+
+test('requiredThemes adds the themes rendered templates call for', () => {
+    const required = requiredThemes(
+        new Map([['button', 'a.ts']]),
+        new Map([['fab', { file: 'b.component.ts', selector: 'mat-mini-fab' }]])
+    );
+
+    assert.deepEqual(
+        [...required],
+        [
+            ['core', 'always themed'],
+            ['button', '@angular/material/button in a.ts'],
+            ['icon-button', '@angular/material/button in a.ts'],
+            ['fab', 'mat-mini-fab in b.component.ts'],
+        ]
+    );
+});
+
+test('templateThemeUsers finds a fab element in the first template that renders one', async () => {
+    const templates = {
+        'libs/b/b.component.html':
+            '<a [disabled]="count > 1" matFab href="#">Up</a>',
+    };
+    const users = await templateThemeUsers(
+        [
+            {
+                file: 'libs/a/a.component.ts',
+                source: lines(
+                    '@Component({',
+                    '    template: `',
+                    '        <!-- <button mat-fab></button> -->',
+                    '        <p title="a > b">Use mat-fab or matMiniFab here</p>',
+                    '        <button class="mat-fab mat-mini-fab">mat-fab</button>',
+                    '        <button mat-fab-like matFabulous></button>',
+                    '    `,',
+                    '})',
+                    'export class A {}'
+                ),
+            },
+            {
+                file: 'libs/b/b.component.ts',
+                source: lines(
+                    '@Component({',
+                    "    templateUrl: './b.component.html',",
+                    '})',
+                    'export class B {}'
+                ),
+            },
+            {
+                file: 'libs/c/c.component.ts',
+                source: lines(
+                    '@Component({',
+                    '    template: `<button mat-mini-fab (click)="go()"></button>`,',
+                    '})',
+                    'export class C {}'
+                ),
+            },
+        ],
+        async (file) => templates[file]
+    );
+
+    assert.deepEqual(
+        [...users],
+        [['fab', { file: 'libs/b/b.component.ts', selector: 'matFab' }]]
+    );
+});
+
+test('templateThemeUsers strips HTML comments only: a // in text or a URL hides nothing', async () => {
+    const users = await templateThemeUsers(
+        [
+            {
+                file: 'libs/e/e.component.ts',
+                source: lines(
+                    '@Component({',
+                    '    template: `',
+                    '        <!-- <button mat-fab></button> -->',
+                    '        <span>now // later</span> <a href="https://x/up" mat-fab>Up</a>',
+                    '        <button title="Help // tips" mat-mini-fab></button>',
+                    '    `,',
+                    '})',
+                    'export class E {}'
+                ),
+            },
+        ],
+        async () => undefined
+    );
+
+    assert.deepEqual(
+        [...users],
+        [['fab', { file: 'libs/e/e.component.ts', selector: 'mat-fab' }]]
+    );
+});
+
+test('templateThemeUsers finds nothing without a rendered fab', async () => {
+    const users = await templateThemeUsers(
+        [
+            {
+                file: 'libs/d/d.component.ts',
+                source: lines(
+                    '@Component({',
+                    '    template: `<button mat-icon-button class="play-btn"></button>`,',
+                    '})',
+                    'export class D {}'
+                ),
+            },
+            { file: 'libs/d/d.service.ts', source: 'export const fab = 1;' },
+        ],
+        async () => undefined
+    );
+
+    assert.deepEqual([...users], []);
 });
 
 test('themedComponents reads the list, direct includes and the all-components mixin', () => {

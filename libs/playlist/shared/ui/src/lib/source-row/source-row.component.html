@@ -1,0 +1,261 @@
+<div
+    class="source-row"
+    cdkDrag
+    [cdkDragDisabled]="!draggable() || busy()"
+    cdkDragPreviewContainer="parent"
+    [class.source-row--compact]="compact()"
+    [class.source-row--current]="current()"
+    [class.source-row--highlighted]="highlighted()"
+    [class.source-row--failing]="failing()"
+    [class.source-row--menu-open]="menuOpen()"
+    [class.source-row--busy]="busy()"
+    (click)="onRowClick()"
+    (keydown)="onRowKeydown($event)"
+>
+    @if (draggable()) {
+        <!-- Grabbing the handle is not opening the source. -->
+        <mat-icon
+            cdkDragHandle
+            class="source-row__handle"
+            aria-hidden="true"
+            (click)="$event.stopPropagation()"
+            >drag_indicator</mat-icon
+        >
+    }
+    <app-source-tile
+        [playlist]="playlist()"
+        [status]="status()"
+        [size]="compact() ? 'md' : 'lg'"
+    />
+    <div
+        class="source-row__body"
+        [attr.role]="compact() ? null : 'button'"
+        [attr.tabindex]="compact() ? null : 0"
+        [attr.aria-label]="compact() ? null : name()"
+        [attr.aria-current]="(!compact() && current()) || null"
+        [attr.aria-disabled]="(!compact() && busy()) || null"
+        (keydown.enter)="compact() || onActivationKey($event)"
+        (keydown.space)="compact() || onActivationKey($event)"
+    >
+        <div class="source-row__title">
+            <span class="source-row__name">{{ name() }}</span>
+            @if (tag(); as tag) {
+                <span
+                    class="source-row__tag"
+                    [class.source-row__tag--neutral]="tag.tone === 'neutral'"
+                    >{{ tag.label }}</span
+                >
+            }
+        </div>
+        <div class="source-row__meta">
+            @for (part of meta(); track part.kind; let first = $first) {
+                @if (!first) {
+                    <span class="source-row__sep" aria-hidden="true">·</span>
+                }
+                <span
+                    class="source-row__part"
+                    [class.source-row__part--url]="part.kind === 'url'"
+                    [class.source-row__part--number]="part.kind === 'channels'"
+                    >{{ part.text }}</span
+                >
+            }
+        </div>
+        @if (busy() && busyMessage()) {
+            <div class="source-row__busy" role="status">
+                <span class="source-row__busy-message">{{
+                    busyMessage()
+                }}</span>
+                @if (busyProgress() !== null) {
+                    <span class="source-row__busy-value"
+                        >{{ busyProgress() }}%</span
+                    >
+                }
+            </div>
+            <mat-progress-bar
+                class="source-row__busy-bar"
+                [mode]="
+                    busyProgress() === null ? 'indeterminate' : 'determinate'
+                "
+                [value]="busyProgress() ?? 0"
+            />
+        }
+    </div>
+
+    <div class="source-row__actions">
+        @if (compact()) {
+            @if (current()) {
+                <mat-icon class="source-row__check" aria-hidden="true"
+                    >check</mat-icon
+                >
+            }
+            <!-- Pointer-only: a focusable control inside a listbox option is
+                 an invalid structure. The list opens this menu from the
+                 keyboard (Shift+F10). -->
+            <span
+                class="source-row__more source-row__more--compact"
+                aria-hidden="true"
+                [matMenuTriggerFor]="menu"
+                [matMenuTriggerRestoreFocus]="false"
+                (menuOpened)="menuOpen.set(true)"
+                (menuClosed)="onMenuClosed()"
+                (click)="$event.stopPropagation()"
+            >
+                <mat-icon>more_horiz</mat-icon>
+            </span>
+        } @else {
+            @if (canCancelBusy()) {
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="source-row__action source-row__action--visible source-row__cancel"
+                    (click)="
+                        $event.stopPropagation(); cancelBusyRequested.emit()
+                    "
+                    [matTooltip]="
+                        'WORKSPACE.SHELL.XTREAM_IMPORT_CANCEL' | translate
+                    "
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.XTREAM_IMPORT_CANCEL' | translate
+                    "
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            }
+            @if (failing() && canRecheck()) {
+                <button
+                    mat-button
+                    type="button"
+                    class="source-row__retry"
+                    [disabled]="busy()"
+                    (click)="$event.stopPropagation(); recheck()"
+                >
+                    <mat-icon>refresh</mat-icon>
+                    {{ 'RETRY' | translate }}
+                </button>
+            } @else if (canRefresh()) {
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="source-row__action source-row__refresh"
+                    [class.source-row__action--visible]="refreshing()"
+                    [disabled]="busy()"
+                    (click)="$event.stopPropagation(); refreshRequested.emit()"
+                    [matTooltip]="'HOME.PLAYLISTS.REFRESH' | translate"
+                    [attr.aria-label]="'HOME.PLAYLISTS.REFRESH' | translate"
+                    aria-keyshortcuts="R"
+                >
+                    @if (refreshing()) {
+                        <mat-spinner diameter="14" strokeWidth="2" />
+                    } @else {
+                        <mat-icon>sync</mat-icon>
+                    }
+                </button>
+            }
+            <button
+                mat-icon-button
+                type="button"
+                class="source-row__action source-row__edit"
+                [disabled]="busy()"
+                (click)="$event.stopPropagation(); editRequested.emit()"
+                [matTooltip]="'WORKSPACE.SOURCES.ROW.EDIT' | translate"
+                [attr.aria-label]="'WORKSPACE.SOURCES.ROW.EDIT' | translate"
+            >
+                <mat-icon>edit</mat-icon>
+            </button>
+            <button
+                mat-icon-button
+                type="button"
+                class="source-row__action source-row__more"
+                [disabled]="busy()"
+                [matMenuTriggerFor]="menu"
+                (menuOpened)="menuOpen.set(true)"
+                (menuClosed)="onMenuClosed()"
+                (click)="$event.stopPropagation()"
+                [matTooltip]="'HOME.PLAYLISTS.PLAYLIST_ACTIONS' | translate"
+                [attr.aria-label]="
+                    'HOME.PLAYLISTS.PLAYLIST_ACTIONS' | translate
+                "
+            >
+                <mat-icon>more_horiz</mat-icon>
+            </button>
+        }
+    </div>
+</div>
+
+<mat-menu #menu="matMenu" class="app-menu" xPosition="before">
+    <ng-template matMenuContent>
+        @if (canRefresh()) {
+            <button
+                mat-menu-item
+                type="button"
+                (click)="refreshRequested.emit()"
+            >
+                <mat-icon>sync</mat-icon>
+                <span>{{ 'HOME.PLAYLISTS.REFRESH' | translate }}</span>
+                @if (!compact()) {
+                    <kbd class="app-menu-item__kbd" aria-hidden="true">R</kbd>
+                }
+            </button>
+        }
+        @if (compact()) {
+            <button
+                mat-menu-item
+                type="button"
+                (click)="playlistInfoRequested.emit()"
+            >
+                <mat-icon>info</mat-icon>
+                <span>{{ 'WORKSPACE.SHELL.PLAYLIST_INFO' | translate }}</span>
+            </button>
+            @if (hasAccountInfo()) {
+                <button
+                    mat-menu-item
+                    type="button"
+                    (click)="accountInfoRequested.emit()"
+                >
+                    <mat-icon>person</mat-icon>
+                    <span>{{
+                        'WORKSPACE.SHELL.ACCOUNT_INFO' | translate
+                    }}</span>
+                </button>
+            }
+        } @else {
+            <button mat-menu-item type="button" (click)="editRequested.emit()">
+                <mat-icon>edit</mat-icon>
+                <span>{{ 'WORKSPACE.SOURCES.ROW.EDIT' | translate }}</span>
+            </button>
+            @if (copyUrl()) {
+                <button
+                    mat-menu-item
+                    type="button"
+                    (click)="copyUrlToClipboard()"
+                >
+                    <mat-icon>content_copy</mat-icon>
+                    <span>{{
+                        'WORKSPACE.SOURCES.ROW.COPY_URL' | translate
+                    }}</span>
+                </button>
+            }
+            <button mat-menu-item type="button" (click)="activated.emit()">
+                <mat-icon>arrow_forward</mat-icon>
+                <span>{{ 'WORKSPACE.SOURCES.ROW.OPEN' | translate }}</span>
+            </button>
+        }
+        @if (canRecheck()) {
+            <button mat-menu-item type="button" (click)="recheck()">
+                <mat-icon>network_check</mat-icon>
+                <span>{{ 'SOURCE_HEALTH.RECHECK' | translate }}</span>
+            </button>
+        }
+        <mat-divider />
+        <button
+            mat-menu-item
+            type="button"
+            class="app-menu-item--danger"
+            [disabled]="busy() || !removable()"
+            (click)="removeRequested.emit()"
+        >
+            <mat-icon>delete</mat-icon>
+            <span>{{ 'HOME.PLAYLISTS.REMOVE' | translate }}</span>
+        </button>
+    </ng-template>
+</mat-menu>

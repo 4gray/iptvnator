@@ -260,7 +260,10 @@
             "NAME_DESC": "Name (Z-A)",
             "NEWEST": "Hinzugefügt (Neueste zuerst)",
             "OLDEST": "Hinzugefügt (Älteste zuerst)",
-            "CUSTOM_ORDER": "Benutzerdefinierte Reihenfolge (Drag & Drop)"
+            "CUSTOM_ORDER": "Benutzerdefinierte Reihenfolge (Drag & Drop)",
+            "UPDATED": "Zuletzt aktualisiert",
+            "CHANNELS": "Meiste Sender",
+            "FAILING_FIRST": "Nicht erreichbare zuerst"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (lokal, URL, Text)",
@@ -1906,7 +1909,29 @@
             "STALKER_PLAYLISTS": "Stalker-Playlists",
             "ALL_PLAYLISTS": "Alle Playlists",
             "PLAYLIST_COUNT_ONE": "1 Playlist",
-            "PLAYLIST_COUNT_OTHER": "{{count}} Playlists"
+            "PLAYLIST_COUNT_OTHER": "{{count}} Playlists",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · Datei",
+                "ADDED": "hinzugefügt am {{date}}",
+                "UPDATED": "aktualisiert am {{date}}",
+                "UNREACHABLE": "Antwortet nicht",
+                "UNREACHABLE_FOR": "Antwortet nicht · {{duration}}",
+                "EXPIRED": "Abgelaufen",
+                "EDIT": "Bearbeiten…",
+                "COPY_URL": "URL kopieren",
+                "OPEN": "Öffnen",
+                "CHANNELS_ONE": "1 Sender"
+            },
+            "STATUS": "Status (Erreichbarkeit)",
+            "STATUS_ANY": "Alle",
+            "STATUS_OK": "Erreichbar",
+            "STATUS_BAD": "Nicht erreichbar",
+            "NO_MATCHES": "Keine Playlists passen zu diesen Filtern",
+            "RESET_FILTERS": "Filter zurücksetzen",
+            "REMOVED": "„{{name}}“ entfernt",
+            "REMOVED_SWITCHED": "„{{name}}“ entfernt, zu „{{next}}“ gewechselt",
+            "REMOVE_FAILED": "„{{name}}“ konnte nicht entfernt werden",
+            "ADD_SOURCE": "Quelle hinzufügen"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategorien",
@@ -1975,7 +2000,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Auswahl in der Befehlspalette verschieben",
                 "COMMAND_PALETTE_RUN": "Ausgewählten Eintrag der Befehlspalette ausführen",
                 "CLOSE_DIALOGS": "Dialog schließen oder Overlay ausblenden",
-                "DOWNLOADS_OPEN_ITEM": "Fokussierten Download-Eintrag in der Bibliothek öffnen"
+                "DOWNLOADS_OPEN_ITEM": "Fokussierten Download-Eintrag in der Bibliothek öffnen",
+                "OPEN_PLAYLIST_SWITCHER": "Playlist wechseln"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1998,6 +2024,15 @@
             "NO_PLAYLISTS_BODY": "Füge eine Wiedergabeliste hinzu, und dein Wiedergabeverlauf erscheint hier.",
             "NO_ITEMS_TITLE": "Noch nichts angesehen",
             "NO_ITEMS_BODY": "Beginne, etwas aus deiner Bibliothek anzusehen, dann erscheint es hier."
+        },
+        "SWITCHER": {
+            "SEARCH": "Playlist suchen…",
+            "RECENT": "Zuletzt geöffnet",
+            "NO_MATCHES": "Nichts gefunden",
+            "ALL_SOURCES": "Alle Quellen",
+            "HINT_SELECT": "auswählen",
+            "HINT_OPEN": "öffnen",
+            "HINT_CLOSE": "schließen"
         }
     },
     "LOADING": "Laden",

@@ -260,7 +260,10 @@
             "NAME_DESC": "이름 (Z-A)",
             "NEWEST": "추가 날짜 (최신순)",
             "OLDEST": "추가 날짜 (오래된순)",
-            "CUSTOM_ORDER": "사용자 지정 순서(드래그 앤 드롭)"
+            "CUSTOM_ORDER": "사용자 지정 순서(드래그 앤 드롭)",
+            "UPDATED": "최근 업데이트",
+            "CHANNELS": "채널 많은 순",
+            "FAILING_FIRST": "응답 없는 항목 먼저"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (로컬, URL, 텍스트)",
@@ -1906,7 +1909,29 @@
             "STALKER_PLAYLISTS": "Stalker 재생목록",
             "ALL_PLAYLISTS": "모든 재생목록",
             "PLAYLIST_COUNT_ONE": "1개 재생목록",
-            "PLAYLIST_COUNT_OTHER": "{{count}}개 재생목록"
+            "PLAYLIST_COUNT_OTHER": "{{count}}개 재생목록",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · 파일",
+                "ADDED": "{{date}} 추가됨",
+                "UPDATED": "{{date}} 업데이트됨",
+                "UNREACHABLE": "응답 없음",
+                "UNREACHABLE_FOR": "응답 없음 · {{duration}}",
+                "EXPIRED": "만료됨",
+                "EDIT": "편집…",
+                "COPY_URL": "URL 복사",
+                "OPEN": "열기",
+                "CHANNELS_ONE": "채널 1개"
+            },
+            "STATUS": "상태",
+            "STATUS_ANY": "전체",
+            "STATUS_OK": "응답함",
+            "STATUS_BAD": "응답 없음",
+            "NO_MATCHES": "이 필터와 일치하는 재생목록이 없습니다",
+            "RESET_FILTERS": "필터 초기화",
+            "REMOVED": "'{{name}}' 삭제됨",
+            "REMOVED_SWITCHED": "'{{name}}' 삭제됨, '{{next}}'(으)로 전환됨",
+            "REMOVE_FAILED": "'{{name}}'을(를) 삭제할 수 없습니다",
+            "ADD_SOURCE": "소스 추가"
         },
         "CONTEXT": {
             "CATEGORIES": "카테고리",
@@ -1975,7 +2000,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "명령 팔레트 선택 이동",
                 "COMMAND_PALETTE_RUN": "선택한 명령 팔레트 항목 실행",
                 "CLOSE_DIALOGS": "대화상자 닫기 또는 오버레이 해제",
-                "DOWNLOADS_OPEN_ITEM": "포커스된 다운로드 항목을 라이브러리에서 열기"
+                "DOWNLOADS_OPEN_ITEM": "포커스된 다운로드 항목을 라이브러리에서 열기",
+                "OPEN_PLAYLIST_SWITCHER": "재생목록 전환"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1998,6 +2024,15 @@
             "NO_PLAYLISTS_BODY": "플레이리스트를 추가하면 시청 기록이 여기에 표시됩니다.",
             "NO_ITEMS_TITLE": "아직 시청 기록이 없습니다",
             "NO_ITEMS_BODY": "라이브러리의 콘텐츠를 시청하기 시작하면 여기에 표시됩니다."
+        },
+        "SWITCHER": {
+            "SEARCH": "재생목록 찾기…",
+            "RECENT": "최근",
+            "NO_MATCHES": "찾은 항목 없음",
+            "ALL_SOURCES": "모든 소스",
+            "HINT_SELECT": "선택",
+            "HINT_OPEN": "열기",
+            "HINT_CLOSE": "닫기"
         }
     },
     "LOADING": "로드 중",

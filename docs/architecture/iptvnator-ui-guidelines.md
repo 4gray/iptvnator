@@ -38,6 +38,12 @@ Use it when changing existing views or introducing new list-based UI in the work
   `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.scss`
 - Shared list selection style:
   `libs/ui/styles/_nav-list.scss`
+- Source row (Sources page and playlist switcher):
+  `libs/playlist/shared/ui/src/lib/source-row/source-row.component.html`
+- UI-kit buttons, menus and segmented control:
+  `libs/ui/styles/_app-controls.scss`
+- Side lists (title, group labels, single-choice rows):
+  `libs/ui/styles/_side-list.scss`
 - Theme tokens:
   `apps/web/src/m3-theme.scss`
 - Settings surfaces:
@@ -67,6 +73,15 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
 - `--app-success-color` — done/watched status (episode watched toggle)
+- `--app-list-selected-bg` / `--app-list-selected-fg` /
+  `--app-list-selected-outline` — the chosen row of a side list and the
+  active source's row on Sources and in the switcher (see Selection Pattern)
+- `--app-line-strong` — popover and menu borders, a step above
+  `--app-widget-header-border`
+- `--app-danger-text` / `--app-danger-surface` — a failing source's tag and
+  destructive menu items; `--app-neutral-tag-surface` for a neutral tag
+- `--app-font-mono` — URLs and keyboard hints (JetBrains Mono, 400/500)
+- `--app-popover-shadow` / `--app-popover-backdrop` — the switcher popover
 
 Angular Material mixins and Material-component overrides may use the tokens
 owned by that component. Outside a Material-owned component, prefer the
@@ -121,7 +136,10 @@ Everything else is lazy by these rules:
   and the dark colours. Add an entry with a new `@angular/material/<entry>`
   import and remove it with the last one;
   `pnpm run styles:material-theme-scope:validate` (CI) checks both directions
-  (`core` always stays, `button` brings `icon-button` and `fab`).
+  (`core` always stays, `button` brings `icon-button`; `fab` is listed only
+  while a runtime template renders `mat-fab` or `mat-mini-fab`, since the
+  button import carries the directives either way and the fab tokens alone
+  are about 6 KB).
 - **No animations module.** Nothing declares an Angular animation trigger and
   Material 22 animates with CSS, deciding from `prefers-reduced-motion` itself,
   so `app.config.ts` does not call `provideAnimations()`; the Electron
@@ -216,6 +234,13 @@ Use this pattern for:
 
 Do not add extra badges, left rails, or second selection systems unless there is a strong reason.
 
+Side lists styled with `_side-list.scss` (the Sources filters) and the
+active source's row (Sources page and playlist switcher) use the Settings
+navigation's variant
+instead, through `--app-list-selected-*`: a soft tint with no lift or glow,
+outlined in light theme. Its text is the heading colour in light theme (the
+selection blue on its own tint is 3.3:1) and the selection colour in dark.
+
 ## Single-Choice Menus And Status Chips
 
 A `mat-menu` that picks one value, such as a sort order or a rating
@@ -241,6 +266,15 @@ threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
 - A menu with several groups, such as the catalog refine menu, wraps each
   group in `role="group"`. The group is named by its section title, and
   `role="separator"` sits between groups.
+- Keep a menu short enough to open whole below its trigger in a 600px-tall
+  window. Material 22 sets no max-height on a menu panel: a taller menu is
+  pushed up over its own trigger, then clipped. Move a secondary group into
+  a submenu whose row shows the active value, as the refine menu does with
+  its rating thresholds.
+- Material offsets a submenu by the `offsetTop` of the parent menu's first
+  direct `mat-menu-item`. When the earlier rows sit inside a `role="group"`,
+  that first direct item is the submenu trigger itself, and the submenu
+  opens off screen. Wrap such a trigger in `<div role="none">`.
 
 A chip that shows the active state next to its menu trigger, such as the
 catalog sort chip, shows its icon and a short value at every width, for
@@ -1360,27 +1394,97 @@ A visual change is not done until:
 
 ### Source row keyboard access
 
-A Sources row (`app-playlist-item`) opens on a click anywhere on it, and it
-also holds a drag handle, a health indicator and actions. Like
-`app-content-card`, it opens from the keyboard through a dedicated element
-that is a sibling of those controls: the title and meta block
-`.playlist-content` (`role="button"`, `tabindex="0"`, named by the source
-title, `aria-current` on the active source, `aria-disabled` while busy).
-Enter and Space open the source (Space prevents the page scroll), and Tab
-reaches each row before its actions. Never put `role="button"` or key
-handlers on the whole row: the actions would sit inside a button, and their
-Enter and Space would bubble into it. The row draws the ring for that
-element, inset (`$offset: -2px`), because the list's scroller would cut a
-ring drawn outside the full-width row. `sources-keyboard.e2e.ts` (Electron)
-tabs to a row, checks its ring and opens the source with Enter.
+A Sources row (`app-source-row`, regular size) opens on a click anywhere on
+it, and it also holds a drag handle and its actions. Like `app-content-card`,
+it opens from the keyboard through a dedicated element that is a sibling of
+those controls: the title and meta block `.source-row__body`
+(`role="button"`, `tabindex="0"`, named by the source's display name,
+`aria-current` on the active source, `aria-disabled` while busy). Enter and
+Space open the source (Space prevents the page scroll), and Tab reaches each
+row before its actions. Never put `role="button"` or key handlers on the whole
+row: the actions would sit inside a button, and their Enter and Space would
+bubble into it. The row draws the ring for that element, inset
+(`$offset: -2px`), because the list's scroller would cut a ring drawn outside
+the full-width row. `R` on a focused row refreshes it, as its menu item shows.
+`sources-keyboard.e2e.ts` (Electron) tabs to a row, checks its ring, opens
+the source with Enter, and deletes and undoes a source keyboard-only.
+
+### Sources page and playlist switcher
+
+One `app-source-row` serves both lists: `size="regular"` on the Sources page
+(56px, 36px tile, hover actions Refresh, Edit and ⋯; a failing row keeps
+Retry in view; touch screens always show the actions) and `size="compact"`
+in the switcher (52px, 32px tile, ⋯ only). In both the active source's row
+is tinted with the selected-row token; the switcher adds a check. The page
+header (title, Clean up, Sort) stays; only the list below it scrolls. The meta line is always type · channels · added · updated · URL, with
+empty parts left out; only M3U playlists store a channel count. The helpers
+in `@iptvnator/playlist/shared/util` (`source-display`, `source-format`,
+`source-list`) own that text, the filters and the counts.
+
+- **No credentials on screen.** Names come from `sourceDisplayName`: a URL, a
+  URL-derived name such as `get.php?username=…&password=…` or any name holding
+  the source's password, MAC or URL secrets becomes the host. URLs come from
+  `sourceDisplayUrl`, built on `stripUrlCredentials` (beside it in
+  `source-display`, out of the eager logging barrel): no
+  userinfo, sensitive query or fragment parameters, or Xtream path
+  credentials; Xtream shows `scheme://host:port · username`. Copy URL copies
+  the full address on request.
+- **Delete with Undo.** A single delete has no confirmation: the row leaves
+  every list at once (`SourceRemovalService.pendingIds`) and the delete runs
+  when the four-second Undo window ends. The window is the service's own
+  timer, not the toast's: another message replacing the toast (a refresh
+  finishing elsewhere) does not shorten it. The toast's close button commits
+  at once, and quitting within the four seconds keeps the source. Deleting the active source
+  switches to the next row; Undo switches back only if no other source was
+  chosen since. A desktop Xtream delete brings its row back as "Removing…"
+  with progress and Cancel on the Sources page; the switcher leaves the
+  source out until the delete ends. When the delete took the row and with
+  it the focus, the toast's Undo takes the focus. A delete from the
+  switcher closes the popover first, since its focus trap would keep the
+  keyboard from Undo: Undo takes the focus and returns it to the trigger
+  (`SourceRemovalOptions.returnFocusTo`). A source cannot be removed while
+  a refresh clears and refills it: every refresh (a Sources row, the
+  switcher, the Xtream flow, the startup auto-refresh), every Xtream import
+  and every delete holds the source in the root `SourceActivityService`,
+  which both lists, the removal service and a second refresh consult. The
+  Xtream route session takes its hold on the refresh's `NavigationEnd`, so
+  the catalog is never idle between the delete and the re-import. The Sources page shows
+  a switcher refresh as busy. Bulk cleanup keeps its confirmation dialog.
+- **Side list.** Type and, on desktop, Status (Any / Responding / Not
+  responding) combine and persist (`SourcesViewStateService`); each group
+  counts within the other's choice. The page checks every source, not only
+  the rows a filter shows (`keepSourcesChecked`): a saved status filter
+  would otherwise hide the unchecked sources it is waiting for.
+- **Switcher.** The trigger is a 40px secondary button; ⌘P / Ctrl+P opens it
+  (⌘K stays the command palette). The popover is a CDK connected overlay, so
+  row menus open above it, not inside its scrolling list. Focus stays in the
+  search field, which drives a `role="listbox"` through
+  `aria-activedescendant`: ↑/↓ move and wrap, Enter opens, Shift+F10 opens
+  the highlighted row's menu, Escape closes and returns focus to the
+  trigger. The compact row's ⋯ is pointer-only (`aria-hidden`, not
+  focusable), since an option may not contain a control. "Recent" lists the
+  three most recently opened sources once there are six or more. The search
+  field is the shared 36px search field (`--app-search-*`). The popover is a
+  height-capped column in which only the list shrinks and scrolls: every
+  other part is `flex: none`. Otherwise a long list (hundreds of sources)
+  squeezes them in proportion to its size, and the type filter collapses.
 
 ### Network source indicators (Electron)
 
-The switcher and source rows use `SourceHealthIndicatorComponent`: green means
-available, orange expired, red disabled/access refused, and neutral means
-checking or unverified. Accessible tooltip text distinguishes refusal from a
-confirmed disabled account and includes the check time. M3U indicators describe
-the source URL only. Check again is a separate action, not a playlist refresh.
+The status dot on a source tile reads `SourceStatusService`: green answers,
+red does not, orange is an expired account, grey is not checked yet; local
+files have no dot. On desktop the live `SourceHealthService` result wins; the
+last conclusive result per source is kept across restarts
+(`SourceHealthHistoryService`, no URL or credential stored, only a 32-bit
+fingerprint of the connection), so a source that failed yesterday shows as
+failing before it is checked again, with "Not responding · 3 days". An
+edited address or account is a new connection: its kept result no longer
+counts, and its history starts over. The dot's tooltip and accessible name give the
+check's cause (`SourceStatus.reason`: access denied, account disabled,
+timeout…, kept with the history) and check time; M3U checks say they
+cover the playlist URL, not its channels. Retry and Check
+again rerun the check; they are not a playlist refresh. The browser build
+keeps the Xtream portal status only.
 
 ### Inactive-source cleanup dialog
 
