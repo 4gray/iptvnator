@@ -341,15 +341,20 @@ export class ServerUserDataStorage implements UserDataStorage {
         const deletesBefore = this.deleted.length;
         await this.writes.flush();
         const sent = this.cache.snapshot();
+        const foreign = () =>
+            othersUnconfirmed(this.local, this.instanceId, this.tabId);
+        const foreignBefore = foreign();
         const { entries, tags } = withoutDeleted(
             await this.api.getJson<ServerUserStateResponse>('/user-state'),
             this.deleted.slice(deletesBefore)
         );
         const unsaved = this.writes.unsavedSince(editsBefore);
-        // In the shared cache: other tabs' unconfirmed writes, and what a
-        // tab saved while this read travelled (newer than its answer).
+        // In the shared cache: other tabs' writes unconfirmed when this read
+        // went out or now (one confirmed meanwhile is newer than its answer),
+        // and what a tab saved while it travelled.
         for (const key of [
-            ...othersUnconfirmed(this.local, this.instanceId, this.tabId),
+            ...foreignBefore,
+            ...foreign(),
             ...this.cache.changedSince(sent),
         ]) {
             unsaved.add(key);

@@ -397,4 +397,74 @@ describe('ServerUserDataStorage taking over other page loads', () => {
 
         expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
     });
+
+    it('keeps a write another tab confirmed while this read travelled', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const shared = memoryStorage();
+        const send = server.api.sendJson.getMockImplementation();
+        if (!send) {
+            throw new Error('The fake server answers sendJson');
+        }
+        let land = (): void => undefined;
+        const a = new ServerUserDataStorage(
+            {
+                ...server.api,
+                // Tab A's write is still on its way when B asks.
+                sendJson: jest.fn(
+                    (...args: Parameters<typeof send>) =>
+                        new Promise((resolve) => {
+                            land = () => resolve(send(...args));
+                        })
+                ),
+            } as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await a.hydrate();
+        a.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        const sending = a.flush();
+        let answer = (): void => undefined;
+        const b = new ServerUserDataStorage(
+            {
+                ...server.api,
+                getJson: jest.fn(() => {
+                    const old = server.api.getJson();
+                    return new Promise((resolve) => {
+                        answer = () => resolve(old);
+                    });
+                }),
+            } as never,
+            shared,
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        const reading = b.hydrate();
+        for (let turn = 0; turn < 10; turn += 1) {
+            await Promise.resolve();
+        }
+        // A's write lands (its record is cleared), then B's old answer.
+        land();
+        await sending;
+        answer();
+        await reading;
+
+        // Tab A removes S from the list as it reads it now.
+        const read = JSON.parse(a.getItem('xtream-favorites') ?? '{}');
+        a.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: read.p1.filter((id: string) => id !== 'S') })
+        );
+        land = () => undefined;
+        const removing = a.flush();
+        for (let turn = 0; turn < 10; turn += 1) {
+            await Promise.resolve();
+        }
+        land();
+        await removing;
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['X']);
+    });
 });
