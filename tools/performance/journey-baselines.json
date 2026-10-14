@@ -3,7 +3,7 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 1237440,
+                "value": 1231455,
                 "unit": "bytes",
                 "slack": 4096,
                 "updatedAt": "2026-10-14",

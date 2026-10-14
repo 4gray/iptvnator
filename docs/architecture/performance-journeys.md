@@ -1176,9 +1176,11 @@ eager `MatSnackBar` injections moved to `LazySnackBar` and the startup
 status deferring its Retry button, the snack-bar, Material's button, the icon
 button chunk, ripple and the CDK a11y module left the initial bundle,
 1,349,048 to 1,237,440 bytes (-111,608, 8.3%) on a local build, and no
-Material module remains in it. Of the CDK, the overlay, scrolling and portal
-chunks (about 78 KB) stay through the `FullscreenOverlayContainer` provider
-in `app.config.ts`, whose token lives in the overlay chunk.
+Material module remains in it; merged with #1938 (the radio play control
+no longer a fab, so its theme tokens left the stylesheet) the branch measures
+1,231,455, which the baseline follows. Of the CDK, the overlay, scrolling and
+portal chunks (about 78 KB) stay through the `FullscreenOverlayContainer`
+provider in `app.config.ts`, whose token lives in the overlay chunk.
 
 `--summary` writes the journey summary shape (`journeys.<journey>.counters`)
 that the ratchet checker consumes. `--dist <dir>` points the script at another
