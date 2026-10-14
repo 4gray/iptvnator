@@ -33,6 +33,8 @@ const SHOWN_ACCOUNT_KEYS = new Set(['username', 'login', 'user', 'usr']);
  */
 const MIN_SECRET_LENGTH = 3;
 const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:\/\//i;
+/** Six hex pairs, as a STB MAC is written, wherever the secret came from. */
+const MAC_ADDRESS = /^[0-9a-f]{2}(?:[:-][0-9a-f]{2}){5}$/i;
 
 function parseUrl(value: string | undefined): URL | null {
     if (!value) {
@@ -215,24 +217,24 @@ function shows(texts: readonly string[], secret: string): boolean {
  * Whether the text shows any of the source's secrets, read as written and
  * fully decoded (so `%3a` escapes count as `:`). A password is compared in
  * its own case: `Stress` in a name is not the password `stress`. A MAC is
- * the same address in either letter case, so it is compared lower-cased.
+ * the same address in either letter case, so it is compared lower-cased:
+ * the source's own, and any MAC-shaped secret its URL carries (`?mac=…`,
+ * nested ones included).
  */
 export function containsSourceSecret(
     text: string,
     playlist: SourceDisplayFields
 ): boolean {
     const texts = [text, decodeFully(text)].map((form) => form.trim());
-    if (sourceSecrets(playlist).some((secret) => shows(texts, secret))) {
-        return true;
-    }
-    const mac = playlist.macAddress?.toLowerCase();
     const lowerTexts = texts.map((form) => form.toLowerCase());
-    return (
-        !!mac &&
-        [mac, encodeURIComponent(mac).toLowerCase()].some((form) =>
-            shows(lowerTexts, form)
-        )
-    );
+    const ownMac = playlist.macAddress?.toLowerCase();
+    return sourceSecrets(playlist).some((secret) => {
+        const plain = decodeFully(secret).toLowerCase();
+        const isMac = plain === ownMac || MAC_ADDRESS.test(plain);
+        return isMac
+            ? shows(lowerTexts, secret.toLowerCase())
+            : shows(texts, secret);
+    });
 }
 
 /**

@@ -162,6 +162,20 @@ describe('sourceDisplayName', () => {
         );
     });
 
+    it('finds a MAC from the URL whatever its letter case', () => {
+        const mac = '00:1A:79:00:00:01';
+        for (const url of [
+            `https://host.test/list.m3u?mac=${mac}`,
+            `https://proxy.test/list?url=${encodeURIComponent(
+                `http://origin.test/c/?mac=${mac}`
+            )}`,
+        ]) {
+            expect(
+                sourceDisplayName({ title: 'Box 00:1a:79:00:00:01', url })
+            ).toBe(new URL(url).host);
+        }
+    });
+
     it('keeps a name holding the password word in another case', () => {
         expect(
             sourceDisplayName({
