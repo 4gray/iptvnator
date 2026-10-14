@@ -130,10 +130,21 @@ export class ServerMigrationService {
                     merged += 1;
                     targets.set(step.browserId, step.serverId);
                 } else {
-                    await this.session.documentStore.dbUpsertAppPlaylist(
-                        step.playlist
-                    );
-                    imported += 1;
+                    // Create-only: another tab or device that moved the
+                    // same playlist first keeps its copy, merged into.
+                    const created =
+                        await this.session.documentStore.dbCreateAppPlaylist(
+                            step.playlist
+                        );
+                    if (created) {
+                        imported += 1;
+                    } else {
+                        await this.mergeDocumentUserData(
+                            step.playlist,
+                            step.playlist._id
+                        );
+                        merged += 1;
+                    }
                     onServer.add(step.playlist._id);
                     targets.set(step.playlist._id, step.playlist._id);
                 }

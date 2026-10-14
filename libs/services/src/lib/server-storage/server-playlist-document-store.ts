@@ -191,6 +191,29 @@ export class ServerPlaylistDocumentStore implements PlaylistDocumentStore {
         }
     }
 
+    /**
+     * A create-only upload (the move from browser storage): false when the
+     * server has a playlist with that id already, uploaded meanwhile by
+     * another tab or device, which the caller merges into instead.
+     */
+    async dbCreateAppPlaylist(playlist: Playlist): Promise<boolean> {
+        try {
+            const response = await this.api.sendJson(
+                'PUT',
+                `/playlists/${encodeURIComponent(playlist._id)}`,
+                playlist,
+                { 'If-None-Match': '*' }
+            );
+            this.remember(playlist._id, response, playlist);
+            return true;
+        } catch (error) {
+            if (error instanceof ServerApiError && error.status === 412) {
+                return false;
+            }
+            throw error;
+        }
+    }
+
     /** `null` when the server has no payload to keep (write it in full). */
     private async keepPayload(
         playlist: Playlist,

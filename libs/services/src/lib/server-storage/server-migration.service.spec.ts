@@ -22,6 +22,7 @@ describe('ServerMigrationService', () => {
             dbGetAppPlaylist: jest.Mock;
             dbGetAppPlaylistMetas: jest.Mock;
             dbUpsertAppPlaylist: jest.Mock;
+            dbCreateAppPlaylist: jest.Mock;
         };
         api: { getJson: jest.Mock; sendJson: jest.Mock };
         userData: {
@@ -52,6 +53,7 @@ describe('ServerMigrationService', () => {
                 dbUpsertAppPlaylist: jest
                     .fn()
                     .mockResolvedValue({ success: true }),
+                dbCreateAppPlaylist: jest.fn().mockResolvedValue(true),
             },
             api: {
                 getJson: jest.fn().mockResolvedValue({ entries: {} }),
@@ -117,7 +119,7 @@ describe('ServerMigrationService', () => {
         const result = await migration.moveBrowserData();
 
         expect(result).toEqual({ imported: 2, merged: 0, failed: 0 });
-        expect(session.documentStore.dbUpsertAppPlaylist).toHaveBeenCalledTimes(
+        expect(session.documentStore.dbCreateAppPlaylist).toHaveBeenCalledTimes(
             2
         );
         expect(session.api.sendJson).toHaveBeenCalledWith(
@@ -353,10 +355,38 @@ describe('ServerMigrationService', () => {
         });
     });
 
+    it('merges into a copy another tab or device uploaded first', async () => {
+        TestBed.overrideProvider(NgxIndexedDBService, {
+            useValue: {
+                getAll: () =>
+                    of([{ ...browserPlaylists[0], favorites: ['http://s/2'] }]),
+            },
+        });
+        // The id was free when planned, taken when uploaded.
+        session.documentStore.dbCreateAppPlaylist.mockResolvedValue(false);
+        const first = {
+            ...browserPlaylists[0],
+            favorites: ['http://s/1'],
+            recentlyViewed: [],
+        };
+        session.documentStore.dbGetAppPlaylist.mockResolvedValue(first);
+
+        const result = await TestBed.inject(
+            ServerMigrationService
+        ).moveBrowserData();
+
+        expect(result).toEqual({ imported: 0, merged: 1, failed: 0 });
+        // Never overwritten: this browser's favorites join the first copy's.
+        expect(session.documentStore.dbUpsertAppPlaylist).toHaveBeenCalledWith({
+            ...first,
+            favorites: ['http://s/1', 'http://s/2'],
+        });
+    });
+
     it('keeps the move on offer when a playlist could not be uploaded', async () => {
-        session.documentStore.dbUpsertAppPlaylist
+        session.documentStore.dbCreateAppPlaylist
             .mockRejectedValueOnce(new Error('413'))
-            .mockResolvedValue({ success: true });
+            .mockResolvedValue(true);
         const migration = TestBed.inject(ServerMigrationService);
 
         const result = await migration.moveBrowserData();
@@ -382,7 +412,7 @@ describe('ServerMigrationService', () => {
 
         await expect(migration.moveBrowserData()).rejects.toThrow('Unsent');
         expect(
-            session.documentStore.dbUpsertAppPlaylist
+            session.documentStore.dbCreateAppPlaylist
         ).not.toHaveBeenCalled();
         expect(session.api.sendJson).not.toHaveBeenCalled();
         expect(migration.browserDataMoved()).toBe(false);
@@ -398,7 +428,7 @@ describe('ServerMigrationService', () => {
                     ]),
             },
         });
-        session.documentStore.dbUpsertAppPlaylist.mockRejectedValue(
+        session.documentStore.dbCreateAppPlaylist.mockRejectedValue(
             new Error('500')
         );
         localStorage.setItem(
@@ -501,7 +531,7 @@ describe('ServerMigrationService', () => {
 
         await TestBed.inject(ServerMigrationService).moveBrowserData();
 
-        expect(session.documentStore.dbUpsertAppPlaylist).toHaveBeenCalledWith(
+        expect(session.documentStore.dbCreateAppPlaylist).toHaveBeenCalledWith(
             expect.objectContaining({ _id: 's1', isFullStalkerPortal: true })
         );
     });

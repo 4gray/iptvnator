@@ -170,6 +170,19 @@ describe('ServerPlaylistDocumentStore', () => {
         expect(api.sendJson.mock.calls[1][3]).toEqual({});
     });
 
+    it('creates a playlist only while the server has none of that id', async () => {
+        const { api, store } = setup();
+        api.sendJson.mockResolvedValueOnce(putResponse('"b.0.1"', ''));
+
+        await expect(store.dbCreateAppPlaylist(doc)).resolves.toBe(true);
+        expect(api.sendJson.mock.calls[0][3]).toEqual({ 'If-None-Match': '*' });
+
+        api.sendJson.mockRejectedValueOnce(
+            new ServerApiError(412, 'conflict', 'exists')
+        );
+        await expect(store.dbCreateAppPlaylist(doc)).resolves.toBe(false);
+    });
+
     it('writes a portal document on the version it read', async () => {
         const { api, store } = setup();
         const portal = { _id: 'p2', title: 'Portal', macAddress: 'm' };

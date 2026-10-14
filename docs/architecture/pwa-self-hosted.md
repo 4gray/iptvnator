@@ -86,7 +86,8 @@ Server storage adds versioned routes under `/v1`, which the PWA uses in
   `header` fields (`409 payload_missing` without a stored row); every `PUT`
   answers with the new `ETag` and `X-Replaced-ETag`, the version it
   replaced, and one with `If-Match` answers `412 conflict` when another
-  write replaced that version
+  write replaced that version, one with `If-None-Match: *` when the
+  playlist exists already
 - `GET /v1/user-state`, `PUT|DELETE /v1/user-state/:namespace/:playlistId`:
   Xtream favorites, recently viewed, collection snapshots and playback
   positions, one JSON value per namespace and playlist; `GET` adds a
@@ -363,7 +364,8 @@ settings and guards read them in every build.
   a conditional mutation, a conflict retried at the next start). A
   playlist the server already has, by id or by source (Xtream server and
   user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
-  others upload with their ids. A merged playlist gains the browser
+  others upload with their ids, create-only (`If-None-Match: *`): one that
+  another tab or device moved first is merged into instead of overwritten. A merged playlist gains the browser
   document's favorites and history (M3U favorites name channels by stream
   URL, as the app looks them up; older ones by a channel id that is random
   per import, which becomes its URL on both sides; history entries keep

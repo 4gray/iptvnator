@@ -251,6 +251,35 @@ describe('server storage routes', () => {
             })
         ));
 
+    it('creates a playlist create-only, refused once it exists', () =>
+        withTempStorage((storage) =>
+            withServer(app(storage), async (baseUrl) => {
+                const create = (title: string) =>
+                    fetch(
+                        `${baseUrl}/v1/playlists/p1`,
+                        json(
+                            { ...m3uDocument('p1'), title },
+                            {
+                                method: 'PUT',
+                                headers: { 'if-none-match': '*' },
+                            }
+                        )
+                    );
+
+                expect((await create('First')).status).toBe(200);
+                // Another tab or device moved the same playlist first.
+                const second = await create('Second');
+                expect(second.status).toBe(412);
+                await expect(second.json()).resolves.toMatchObject({
+                    code: 'conflict',
+                });
+                const stored = await fetch(`${baseUrl}/v1/playlists/p1`);
+                await expect(stored.json()).resolves.toMatchObject({
+                    title: 'First',
+                });
+            })
+        ));
+
     it('writes user state only on the tag it was read at', () =>
         withTempStorage((storage) =>
             withServer(app(storage), async (baseUrl) => {

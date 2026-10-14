@@ -64,6 +64,15 @@ export function createPlaylistsRouter(
                 'The playlist changed since it was read.'
             );
         }
+        // A create-only upload (a move from browser storage) that another
+        // tab or device made first. Checked and written in one handler.
+        if (req.get('if-none-match')?.trim() === '*' && playlists.exists(id)) {
+            throw new StorageRequestError(
+                412,
+                'conflict',
+                'A playlist with this id exists already.'
+            );
+        }
         playlists.upsert(
             { ...requireDocument(req.body), _id: id },
             { keepPayload: req.query['keepPayload'] === '1' }
