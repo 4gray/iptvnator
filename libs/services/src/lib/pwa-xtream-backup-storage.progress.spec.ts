@@ -131,6 +131,7 @@ describe('PWA restore list receipts', () => {
             KEYS.collectionItems,
             JSON.stringify({ p: { 'movie:42': replacement } })
         );
+        writeXtreamUserDataMap(storage, KEYS.favorites, { p: [] });
         writeXtreamUserDataMap(storage, KEYS.favorites, {
             p: ['series:42', 'movie:42'],
         });
@@ -187,6 +188,8 @@ describe('PWA restore list receipts', () => {
         const backup = new PwaXtreamBackupStorage(storage);
         await expect(backup.restore('p', archived)).rejects.toThrow();
         deny();
+        writeXtreamUserDataMap(storage, KEYS.favorites, { p: [] });
+        writeXtreamUserDataMap(storage, KEYS.favorites, { p: ['movie:42'] });
         storage.setItem(
             KEYS.collectionItems,
             JSON.stringify({
@@ -236,6 +239,162 @@ describe('PWA restore list receipts', () => {
         );
         await backup.restore('p', state);
         expect(read(KEYS.collectionItems).p['movie:42'].title).toBe('Archived');
+    });
+
+    it('retries archived identity after ordinary catalog hydration without a favorite action', async () => {
+        const { storage, read, deny } = fixture();
+        deny(KEYS.collectionItems);
+        const backup = new PwaXtreamBackupStorage(storage);
+        await expect(backup.restore('p', state)).rejects.toThrow();
+        deny();
+        // Optional cache hydration is not an explicit remove/re-add.
+        storage.setItem(
+            KEYS.collectionItems,
+            JSON.stringify({
+                p: {
+                    'movie:42': {
+                        xtream_id: 42,
+                        type: 'movie',
+                        title: 'Catalog replacement',
+                        tmdb_id: 200,
+                    },
+                },
+            })
+        );
+        expect(
+            backup.exportInto(entry, state).userState.favorites[0].snapshot
+        ).toEqual(state.favorites[0].snapshot);
+        await backup.restore('p', state);
+        expect(read(KEYS.collectionItems).p['movie:42']).toMatchObject({
+            title: 'Archived',
+            tmdb_id: 100,
+            release_year: 1995,
+        });
+    });
+
+    it('exports the pending archive date and position ahead of a pre-import cache', async () => {
+        const { storage, deny } = fixture();
+        const archived = {
+            ...state,
+            favorites: [
+                { ...state.favorites[0], addedAt: '2026-01-01', position: 2 },
+            ],
+        };
+        storage.setItem(
+            KEYS.collectionItems,
+            JSON.stringify({
+                p: {
+                    'movie:42': {
+                        xtream_id: 42,
+                        type: 'movie',
+                        title: 'Older cache',
+                        tmdb_id: 100,
+                        release_year: 1995,
+                        added_at: '2020-01-01',
+                        position: 9,
+                    },
+                },
+            })
+        );
+        deny(KEYS.collectionItems);
+        const backup = new PwaXtreamBackupStorage(storage);
+        await expect(backup.restore('p', archived)).rejects.toThrow();
+        expect(
+            backup.exportInto(entry, archived).userState.favorites[0]
+        ).toMatchObject({ addedAt: '2026-01-01', position: 2 });
+    });
+
+    it('scopes explicit removal markers to the content type', async () => {
+        const { storage, read, deny } = fixture();
+        const mixed = {
+            ...state,
+            favorites: [
+                ...state.favorites,
+                {
+                    contentType: 'live' as const,
+                    xtreamId: 42,
+                    snapshot: { title: 'Channel', tmdbId: 200 },
+                },
+            ],
+        };
+        deny(KEYS.collectionItems);
+        const backup = new PwaXtreamBackupStorage(storage);
+        await expect(backup.restore('p', mixed)).rejects.toThrow();
+        writeXtreamUserDataMap(storage, KEYS.favorites, { p: ['movie:42'] });
+        deny();
+        await backup.restore('p', mixed);
+        expect(read(KEYS.favorites).p).toEqual(['movie:42']);
+        expect(read(KEYS.collectionItems).p['movie:42'].tmdb_id).toBe(100);
+        expect(backup.exportInto(entry, mixed).userState.favorites).toEqual(
+            state.favorites
+        );
+    });
+
+    it('keeps legacy shared Recent metadata when its imported favorite is removed before retry', async () => {
+        const { storage, read, deny } = fixture();
+        const shared = {
+            ...state,
+            recentlyViewed: [
+                {
+                    contentType: 'movie' as const,
+                    xtreamId: 42,
+                    viewedAt: '2020-01-01',
+                },
+            ],
+        };
+        const backup = new PwaXtreamBackupStorage(storage);
+        deny(KEYS.collectionItems);
+        await expect(backup.restore('p', shared)).rejects.toThrow();
+        writeXtreamUserDataMap(storage, KEYS.favorites, { p: [] });
+        deny();
+        await backup.restore('p', shared);
+        expect(read(KEYS.favorites).p).toEqual([]);
+        const [recent] = backup.exportInto(entry).userState.recentlyViewed;
+        expect(recent.viewedAt).toBe('2020-01-01');
+        expect(recent.collectionItem).toMatchObject({
+            title: 'Archived',
+            tmdb_id: 100,
+            release_year: 1995,
+        });
+    });
+
+    it('does not require extra quota space to record an explicit favorite removal', async () => {
+        const { storage, read, deny } = fixture();
+        const backup = new PwaXtreamBackupStorage(storage);
+        deny(KEYS.collectionItems);
+        await expect(backup.restore('p', state)).rejects.toThrow();
+        const previousSize = (storage.getItem(KEYS.favorites) ?? '').length;
+        const setItem = storage.setItem;
+        storage.setItem = (key, value) => {
+            if (key === KEYS.favorites && value.length > previousSize)
+                throw new DOMException('full', 'QuotaExceededError');
+            setItem(key, value);
+        };
+        expect(() =>
+            writeXtreamUserDataMap(storage, KEYS.favorites, { p: [] })
+        ).not.toThrow();
+        expect(read(KEYS.favorites).p).toEqual([]);
+        deny();
+        await backup.restore('p', state);
+        expect(read(KEYS.favorites).p).toEqual([]);
+    });
+
+    it('retains pending data when an ownership receipt is damaged', async () => {
+        const { storage, read, deny } = fixture();
+        deny(KEYS.collectionItems);
+        const backup = new PwaXtreamBackupStorage(storage);
+        await expect(backup.restore('p', state)).rejects.toThrow();
+        const map = read(KEYS.favorites);
+        map['__iptvnator_xtream_restore_receipts__'].p.keys = null;
+        storage.setItem(KEYS.favorites, JSON.stringify(map));
+        deny();
+        await expect(backup.restore('p', state)).rejects.toThrow(
+            'receipt is unreadable'
+        );
+        expect(() => backup.exportInto(entry, state)).toThrow(
+            'receipt is unreadable'
+        );
+        expect(storage.getItem(KEYS.collectionItems)).toBeNull();
     });
 
     it('treats a deliberate new import as a new operation', async () => {

@@ -452,11 +452,13 @@ test('@xtream @collections cold shared live playback records the selected favori
     await expect(row).toBeVisible();
     await row.click();
     await expect
-        .poll(() =>
-            page
-                .locator('video')
-                .first()
-                .evaluate((video: HTMLVideoElement) => video.currentTime)
+        .poll(
+            () =>
+                page
+                    .locator('video')
+                    .first()
+                    .evaluate((video: HTMLVideoElement) => video.currentTime),
+            { timeout: 30_000 }
         )
         .toBeGreaterThan(2);
     await expect
@@ -491,4 +493,162 @@ test('@xtream @collections cold shared live playback records the selected favori
             id
         )
     ).toBe(200);
+});
+
+test('@xtream @collections catalog hydration cannot replace pending backup identity or dates', async ({
+    page,
+}) => {
+    test.setTimeout(60_000);
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        if (original.searchParams.get('action') !== 'get_vod_streams')
+            return route.fallback();
+        const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') mockUrl.searchParams.set(key, value);
+        });
+        const response = await route.fetch({ url: mockUrl.toString() });
+        const body = await response.json();
+        body.payload.push({
+            stream_id: 987655,
+            name: 'Catalog replacement',
+            category_id: body.payload[0].category_id,
+            stream_type: 'movie',
+            tmdb_id: 200,
+        });
+        await route.fulfill({ response, json: body });
+    });
+    await addXtreamPortal(page, { name: 'Hydration Retry Portal' });
+    const playlistPath = new URL(page.url()).pathname.replace(/\/vod.*$/, '');
+    const rawId = playlistPath.split('/').pop();
+    if (!rawId) throw new Error('Missing playlist ID');
+    const id = decodeURIComponent(rawId);
+    await page.goto('/');
+    await page.evaluate((id) => {
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify({
+                [id]: {
+                    'movie:987656': {
+                        xtream_id: 987656,
+                        type: 'movie',
+                        title: 'Older cached item',
+                        tmdb_id: 300,
+                        added_at: '2020-01-01',
+                        position: 9,
+                    },
+                },
+            })
+        );
+        localStorage.setItem(
+            `xtream-restore-${id}`,
+            JSON.stringify({
+                favoritesRestoreId: 'hydration-race',
+                hiddenCategories: [],
+                favorites: [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 987655,
+                        snapshot: { title: 'Archived original', tmdbId: 100 },
+                    },
+                    {
+                        contentType: 'movie',
+                        xtreamId: 987656,
+                        addedAt: '2026-01-01',
+                        position: 2,
+                        snapshot: { title: 'Archived dated item', tmdbId: 300 },
+                    },
+                ],
+                recentlyViewed: [],
+                playbackPositions: [],
+            })
+        );
+        sessionStorage.setItem('block-hydration-snapshot', '1');
+    }, id);
+    await page.addInitScript(() => {
+        const set = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (this: Storage, key, value) {
+            if (
+                this === localStorage &&
+                key === 'xtream-collection-items' &&
+                sessionStorage.getItem('block-hydration-snapshot')
+            ) {
+                sessionStorage.setItem('hydration-snapshot-attempted', '1');
+                throw new DOMException('full', 'QuotaExceededError');
+            }
+            return set.call(this, key, value);
+        };
+    });
+    await page.goto(`${playlistPath}/vod`);
+    await expect
+        .poll(() =>
+            page.evaluate(() =>
+                sessionStorage.getItem('hydration-snapshot-attempted')
+            )
+        )
+        .toBe('1');
+    await page.goto('/workspace/settings/backup');
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const path = await (await download).path();
+    if (!path) throw new Error('Missing backup');
+    const exported = JSON.parse(await readFile(path, 'utf8')).playlists.find(
+        (entry: { exportedId: string }) => entry.exportedId === id
+    );
+    expect(
+        exported.userState.favorites.find(
+            (item: { xtreamId: number }) => item.xtreamId === 987656
+        )
+    ).toMatchObject({
+        addedAt: '2026-01-01',
+        position: 2,
+        snapshot: { title: 'Archived dated item' },
+    });
+    await page.evaluate(() =>
+        sessionStorage.removeItem('block-hydration-snapshot')
+    );
+    // Client-side navigation performs a collection read without restarting the pending import.
+    await page
+        .getByRole('link', { name: 'Global favorites', exact: true })
+        .click();
+    await expect
+        .poll(() =>
+            page.evaluate(
+                (id) =>
+                    JSON.parse(
+                        localStorage.getItem('xtream-collection-items') ?? '{}'
+                    )[id]?.['movie:987655']?.tmdb_id,
+                id
+            )
+        )
+        .toBe(200);
+    expect(
+        await page.evaluate(
+            (id) => localStorage.getItem(`xtream-restore-${id}`),
+            id
+        )
+    ).not.toBeNull();
+    await page.goto(`${playlistPath}/vod`);
+    await expect
+        .poll(() =>
+            page.evaluate(
+                (id) => localStorage.getItem(`xtream-restore-${id}`),
+                id
+            )
+        )
+        .toBeNull();
+    await page.goto('/workspace/global-favorites');
+    await expect(
+        page.getByRole('button', { name: 'Archived original', exact: true })
+    ).toBeVisible();
+    await page.reload();
+    expect(
+        await page.evaluate(
+            (id) =>
+                JSON.parse(
+                    localStorage.getItem('xtream-collection-items') ?? '{}'
+                )[id]?.['movie:987655']?.tmdb_id,
+            id
+        )
+    ).toBe(100);
 });

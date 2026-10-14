@@ -406,6 +406,7 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
                         id: 'movie:501',
                         viewedAt: '2026-07-03T10:00:00.000Z',
                         backdropUrl: 'https://img.example.com/heat-still.jpg',
+                        collectionItem: heat,
                     },
                 ],
             });
@@ -446,9 +447,15 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
 
             const { manifest: again } = await reexport.exportBackup();
 
-            expect(xtreamEntry(again).userState).toEqual(
-                xtreamEntry(manifest).userState
-            );
+            const original = xtreamEntry(manifest).userState;
+            expect(xtreamEntry(again).userState).toEqual({
+                ...original,
+                recentlyViewed: original.recentlyViewed.map((item) =>
+                    item.contentType === 'movie' && item.xtreamId === 501
+                        ? { ...item, collectionItem: heat }
+                        : item
+                ),
+            });
             expect(xtreamEntry(again, 'xtream-2').userState).toEqual(
                 xtreamEntry(manifest, 'xtream-2').userState
             );

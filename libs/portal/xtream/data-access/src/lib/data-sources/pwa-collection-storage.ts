@@ -116,7 +116,25 @@ export class PwaCollectionStorage {
             if (!entry.collectionItem) continue;
             const key = itemCollectionKey(entry.collectionItem);
             if (key !== null) {
-                snapshots[key] = entry.collectionItem;
+                const shared = snapshots[key];
+                // Matching snapshots share unavailable evidence, never presentation or another identity.
+                snapshots[key] =
+                    shared?.catalog_status === 'missing' &&
+                    collectionSnapshotMatchesContent(
+                        shared,
+                        entry.collectionItem
+                    ) &&
+                    collectionSnapshotMatchesContent(
+                        entry.collectionItem,
+                        shared
+                    )
+                        ? {
+                              ...entry.collectionItem,
+                              catalog_status: 'missing',
+                              catalog_missing_reason:
+                                  shared.catalog_missing_reason,
+                          }
+                        : entry.collectionItem;
                 independentKeys.add(entry.id);
             }
         }

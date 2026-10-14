@@ -177,7 +177,7 @@ export class PwaXtreamBackupStorage {
             state
         );
         try {
-            this.replaceLists(playlistId, state, progress);
+            this.replaceLists(playlistId, state, progress, snapshots);
         } catch (error) {
             if (!isQuotaExceeded(error)) {
                 try {
@@ -191,17 +191,25 @@ export class PwaXtreamBackupStorage {
             }
             throw error;
         }
+        const remaining = progress.pendingSnapshots(snapshots);
         this.mergeSnapshots(
             playlistId,
-            progress.pendingSnapshots(snapshots),
-            state.favorites.some((favorite) => !!favorite.snapshot)
+            remaining,
+            state.favorites.some(
+                (favorite) =>
+                    !!favorite.snapshot &&
+                    !!remaining[
+                        typedKey(favorite.contentType, favorite.xtreamId) ?? ''
+                    ]
+            )
         );
     }
 
     private replaceLists(
         playlistId: string,
         state: XtreamPendingRestoreState,
-        progress: PwaXtreamRestoreProgress
+        progress: PwaXtreamRestoreProgress,
+        snapshots: Record<string, XtreamBackupCollectionItem>
     ): void {
         const favorites = state.favorites
             .map((item) => typedKey(item.contentType, item.xtreamId))
@@ -209,19 +217,24 @@ export class PwaXtreamBackupStorage {
         progress.writeList('favorites', [...new Set(favorites)]);
 
         const recent: StoredMap[] = [];
+        const durableKeys = new Set(
+            state.favorites
+                .filter((favorite) => !!favorite.snapshot)
+                .map((favorite) =>
+                    typedKey(favorite.contentType, favorite.xtreamId)
+                )
+        );
         for (const item of state.recentlyViewed) {
             const id = typedKey(item.contentType, item.xtreamId);
             if (id !== null && typeof item.viewedAt === 'string') {
+                // Legacy shared history must retain its own metadata if the imported favorite is removed.
+                const collectionItem =
+                    snapshotsByKey([item.collectionItem])[id] ??
+                    (durableKeys.has(id) ? snapshots[id] : undefined);
                 recent.push({
                     id,
                     viewedAt: item.viewedAt,
-                    ...(snapshotsByKey([item.collectionItem])[id]
-                        ? {
-                              collectionItem: snapshotsByKey([
-                                  item.collectionItem,
-                              ])[id],
-                          }
-                        : {}),
+                    ...(collectionItem ? { collectionItem } : {}),
                     ...backdropOf(item),
                 });
             }

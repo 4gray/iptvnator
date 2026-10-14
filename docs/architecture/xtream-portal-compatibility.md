@@ -210,10 +210,21 @@ Each browser list write stores its restore receipt in the same JSON blob, under
 `__iptvnator_xtream_restore_receipts__` outside the playlist arrays. Ordinary
 list edits preserve that internal metadata, so retries skip completed list writes
 and cannot undo later removals, reordering, history updates or playback progress.
-A bounded per-playlist receipt also records the pre-import favorite snapshot
-version: remaining metadata retries preserve a snapshot changed by an explicit
-remove/re-add. Pending exports combine current applied lists with still-unwritten
-archive metadata; receipts never enter the exported manifest. A deliberate new
+A bounded per-playlist receipt remembers the imported keys still owned by the
+archive. Explicit removal shrinks that set atomically, requiring no extra quota
+space for a tombstone; a later re-add owns its current snapshot. Catalog hydration and
+detail/cache normalization never count as an explicit replacement. Remaining
+metadata retries therefore preserve genuine user replacements without discarding
+parked archived identity after an ordinary read. Pending exports combine current
+applied lists with authoritative archived snapshots, dates and positions for
+untouched imported favorites; receipts never enter the exported manifest.
+When legacy Recent shares a required imported favorite snapshot, its metadata
+is copied into the Recent entry with the viewing date before snapshot replay.
+Removing or replacing that favorite cannot erase the history’s only metadata.
+Legacy optional-cache-only imports keep their best-effort behavior. Saved
+unavailable evidence can pass to an independent Recent snapshot only when both
+snapshots confirm the same normalized identity in both directions. Only status
+is copied; a different played identity retains its own metadata and availability. A deliberate new
 import gets a fresh ID and can intentionally apply the archive again.
 Legacy browser-only `collectionItems` remain an optional cache; their quota
 failure does not invalidate a restore with no durable nested favorite snapshots.

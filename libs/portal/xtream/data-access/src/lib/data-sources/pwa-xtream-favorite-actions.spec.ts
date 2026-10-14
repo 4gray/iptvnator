@@ -121,6 +121,120 @@ describe('PWA favorite action and detail identity', () => {
         ).toBe(200);
     });
 
+    it('restores parked identity after a Favorites read hydrates a replacement into cache', async () => {
+        const state = {
+            favoritesRestoreId: 'hydration-test',
+            hiddenCategories: [],
+            favorites: [
+                {
+                    contentType: 'movie' as const,
+                    xtreamId: 42,
+                    addedAt: '2026-01-01',
+                    position: 2,
+                    snapshot: {
+                        title: 'Archived original',
+                        tmdbId: 100,
+                        releaseYear: 1995,
+                    },
+                },
+            ],
+            recentlyViewed: [],
+            playbackPositions: [],
+        };
+        const originalSet = Storage.prototype.setItem;
+        const quota = jest
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(function (this: Storage, key, value) {
+                if (key === 'xtream-collection-items')
+                    throw new DOMException('full', 'QuotaExceededError');
+                originalSet.call(this, key, value);
+            });
+        await expect(source.restoreUserData('p1', state)).rejects.toThrow();
+        quota.mockRestore();
+        api.getStreams.mockResolvedValue([
+            {
+                stream_id: 42,
+                name: 'Catalog replacement',
+                category_id: '2',
+                tmdb_id: 200,
+            },
+        ]);
+        await source.getContent('p1', credentials, 'movie');
+        await source.getFavorites('p1');
+        expect(read('xtream-collection-items').p1['movie:42'].tmdb_id).toBe(
+            200
+        );
+        await source.restoreUserData('p1', state);
+        reload();
+        expect((await source.getFavorites('p1'))[0]).toMatchObject({
+            title: 'Archived original',
+            tmdb_id: 100,
+            release_year: 1995,
+            added_at: '2026-01-01',
+            position: 2,
+        });
+    });
+
+    it.each([100, 200])(
+        'shares unavailable evidence only with the same saved Recent identity (%s)',
+        async (tmdb) => {
+            const saved = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Saved',
+                category_id: '1',
+                tmdb_id: 100,
+                release_year: 1995,
+                catalog_status: 'missing',
+                catalog_missing_reason: 'identity_conflict',
+            };
+            const recent = {
+                ...saved,
+                title: tmdb === 100 ? 'Saved' : 'Replacement',
+                tmdb_id: tmdb,
+                catalog_status: undefined,
+                catalog_missing_reason: undefined,
+            };
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ p1: ['movie:42'] })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({ p1: { 'movie:42': saved } })
+            );
+            localStorage.setItem(
+                'xtream-recent-items',
+                JSON.stringify({
+                    p1: [
+                        {
+                            id: 'movie:42',
+                            viewedAt: '2020-01-01',
+                            collectionItem: recent,
+                        },
+                    ],
+                })
+            );
+            reload();
+            const [resolved] = await source.getRecentItems('p1');
+            expect(resolved.tmdb_id).toBe(tmdb);
+            expect(resolved.catalog_status).toBe(
+                tmdb === 100 ? 'missing' : undefined
+            );
+            expect(read('xtream-recent-items').p1[0].viewedAt).toBe(
+                '2020-01-01'
+            );
+            expect(read('xtream-collection-items').p1['movie:42'].tmdb_id).toBe(
+                100
+            );
+            reload();
+            expect((await source.getRecentItems('p1'))[0].catalog_status).toBe(
+                tmdb === 100 ? 'missing' : undefined
+            );
+        }
+    );
+
     it.each(['live', 'movie', 'series'] as const)(
         'persists %s detail identity against compatible duplicates before reload',
         async (type) => {

@@ -19,22 +19,48 @@ export function writeXtreamUserDataMap(
     key: string,
     map: Record<string, unknown>
 ): void {
-    let receipts: unknown;
     const raw = storage.getItem(key);
+    let previous: unknown;
     try {
-        receipts = raw ? JSON.parse(raw)?.[XTREAM_RESTORE_RECEIPTS] : undefined;
+        previous = raw ? JSON.parse(raw) : {};
     } catch {
         /* Damaged legacy data has no usable receipt. */
+    }
+    const stored = isRecord(previous) ? previous : {};
+    const receipts = stored[XTREAM_RESTORE_RECEIPTS];
+    const retained = isRecord(receipts) ? { ...receipts } : undefined;
+    if (retained && key === XTREAM_USER_DATA_KEYS.favorites) {
+        for (const [playlistId, value] of Object.entries(retained)) {
+            if (!isRecord(value) || !Array.isArray(value['keys'])) continue;
+            const before = new Set(
+                Array.isArray(stored[playlistId])
+                    ? (stored[playlistId] as unknown[])
+                    : []
+            );
+            const after = new Set(
+                Array.isArray(map[playlistId])
+                    ? (map[playlistId] as unknown[])
+                    : []
+            );
+            // Shrink the archive-owned set on removal. Re-adding never restores archive ownership.
+            // This is atomic with the list and needs no extra quota space for a tombstone.
+            retained[playlistId] = {
+                ...value,
+                keys: value['keys'].filter(
+                    (id) => !before.has(id) || after.has(id)
+                ),
+            };
+        }
     }
     storage.setItem(
         key,
         JSON.stringify({
             ...map,
-            ...(receipts &&
-            typeof receipts === 'object' &&
-            !Array.isArray(receipts)
-                ? { [XTREAM_RESTORE_RECEIPTS]: receipts }
-                : {}),
+            ...(retained ? { [XTREAM_RESTORE_RECEIPTS]: retained } : {}),
         })
     );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
 }

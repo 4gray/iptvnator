@@ -1,4 +1,3 @@
-import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import type {
     XtreamBackupCollectionItem,
     XtreamPendingRestoreState,
@@ -15,7 +14,7 @@ type ListName = 'favorites' | 'recentItems' | 'playbackPositions';
 type StoredMap = Record<string, unknown>;
 interface Receipt {
     id: string;
-    snapshots?: Record<string, string>;
+    keys?: string[];
 }
 const record = (value: unknown): value is StoredMap =>
     !!value && typeof value === 'object' && !Array.isArray(value);
@@ -35,24 +34,19 @@ export class PwaXtreamRestoreProgress {
     }
 
     hasApplied(name: ListName): boolean {
-        return !!this.receipt(this.read(name));
+        return !!this.receipt(this.read(name), name === 'favorites');
     }
 
     writeList(name: ListName, list: unknown[]): void {
         const map = this.read(name);
-        if (this.receipt(map)) return;
+        if (this.receipt(map, name === 'favorites')) return;
         const previous = map[XTREAM_RESTORE_RECEIPTS];
         const receipt: Receipt = { id: this.id };
-        if (name === 'favorites') {
-            const stored = this.read('collectionItems')[this.playlistId];
-            receipt.snapshots = {};
-            for (const favorite of this.state.favorites) {
-                const key = `${favorite.contentType}:${favorite.xtreamId}`;
-                receipt.snapshots[key] = snapshotVersion(
-                    record(stored) ? stored[key] : undefined
-                );
-            }
-        }
+        if (name === 'favorites')
+            receipt.keys = list.filter(
+                (key): key is string => typeof key === 'string'
+            );
+
         this.storage.setItem(
             XTREAM_USER_DATA_KEYS[name],
             JSON.stringify({
@@ -66,47 +60,38 @@ export class PwaXtreamRestoreProgress {
         );
     }
 
-    /** Retry missing metadata, but never replace a snapshot explicitly changed since list commit. */
+    /** Only explicit favorite edits can supersede parked metadata; cache writes cannot. */
     pendingSnapshots(incoming: Record<string, XtreamBackupCollectionItem>) {
         const map = this.read('favorites');
-        const receipt = this.receipt(map);
+        const receipt = this.receipt(map, true);
         const favorites = map[this.playlistId];
-        const stored = this.read('collectionItems')[this.playlistId];
+        const untouched = new Set(receipt?.keys ?? []);
         const filtered = { ...incoming };
-        for (const [key, version] of Object.entries(receipt?.snapshots ?? {})) {
+        for (const favorite of this.state.favorites) {
+            const key = `${favorite.contentType}:${favorite.xtreamId}`;
             if (
                 !Array.isArray(favorites) ||
                 !favorites.includes(key) ||
-                snapshotVersion(record(stored) ? stored[key] : undefined) !==
-                    version
+                !untouched.has(key)
             )
                 delete filtered[key];
         }
         return filtered;
     }
 
-    /** Applied lists belong to the user; unwritten snapshots still have an owner in pending. */
+    /** Untouched imported favorites still belong to pending; explicit re-additions belong to the user. */
     exportInto(entry: XtreamPlaylistBackupEntry): XtreamPlaylistBackupEntry {
-        const receipt = this.receipt(this.read('favorites'));
-        const stored = this.read('collectionItems')[this.playlistId];
+        const receipt = this.receipt(this.read('favorites'), true);
+        const untouched = new Set(receipt?.keys ?? []);
         const favorites = this.hasApplied('favorites')
             ? entry.userState.favorites.map((favorite) => {
+                  const key = `${favorite.contentType}:${favorite.xtreamId}`;
                   const pending = this.state.favorites.find(
                       (item) =>
                           item.contentType === favorite.contentType &&
                           item.xtreamId === favorite.xtreamId
                   );
-                  const key = `${favorite.contentType}:${favorite.xtreamId}`;
-                  const unchanged =
-                      receipt?.snapshots?.[key] ===
-                      snapshotVersion(record(stored) ? stored[key] : undefined);
-                  if (!unchanged) return favorite;
-                  const snapshot = pending?.snapshot ?? favorite.snapshot;
-                  return {
-                      ...pending,
-                      ...favorite,
-                      ...(snapshot ? { snapshot } : {}),
-                  };
+                  return untouched.has(key) && pending ? pending : favorite;
               })
             : this.state.favorites;
         const recentlyViewed = this.hasApplied('recentItems')
@@ -135,19 +120,27 @@ export class PwaXtreamRestoreProgress {
         };
     }
 
-    private receipt(map: StoredMap): Receipt | undefined {
+    private receipt(map: StoredMap, favorites = false): Receipt | undefined {
         const receipts = map[XTREAM_RESTORE_RECEIPTS];
         const saved = record(receipts) ? receipts[this.playlistId] : undefined;
         if (!record(saved) || saved['id'] !== this.id) return undefined;
+        if (
+            favorites &&
+            (!Array.isArray(saved['keys']) ||
+                saved['keys'].some((key) => typeof key !== 'string'))
+        )
+            throw new Error('Stored favorites restore receipt is unreadable.');
         return {
             id: this.id,
-            ...(record(saved['snapshots'])
-                ? { snapshots: saved['snapshots'] as Record<string, string> }
-                : {}),
+            keys: Array.isArray(saved['keys'])
+                ? saved['keys'].filter(
+                      (key): key is string => typeof key === 'string'
+                  )
+                : [],
         };
     }
 
-    private read(name: keyof typeof XTREAM_USER_DATA_KEYS): StoredMap {
+    private read(name: ListName): StoredMap {
         const raw = this.storage.getItem(XTREAM_USER_DATA_KEYS[name]);
         if (raw === null) return {};
         try {
@@ -156,36 +149,8 @@ export class PwaXtreamRestoreProgress {
         } catch {
             /* Report invalid authoritative lists below. */
         }
-        if (name === 'collectionItems') return {};
         throw new Error(
             `Stored ${XTREAM_USER_DATA_KEYS[name]} are unreadable.`
         );
     }
-}
-
-/** Availability/category cache changes do not constitute replacement of a user's saved identity. */
-function snapshotVersion(value: unknown): string {
-    if (!record(value)) return 'null';
-    const identity = normalizeContentMetadataPatch({
-        tmdbId: value['tmdb_id'] as number,
-        releaseYear: value['release_year'] as number,
-    });
-    return JSON.stringify(
-        [
-            'title',
-            'poster_url',
-            'backdrop_url',
-            'tmdb_id',
-            'release_year',
-            'original_title',
-            'added_at',
-            'position',
-        ].map((key) =>
-            key === 'tmdb_id'
-                ? (identity?.tmdbId ?? null)
-                : key === 'release_year'
-                  ? (identity?.releaseYear ?? null)
-                  : (value[key] ?? null)
-        )
-    );
 }
