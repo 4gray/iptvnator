@@ -260,7 +260,10 @@
             "NAME_DESC": "Név szerint (Z–A)",
             "NEWEST": "Hozzáadás dátuma (legújabb elöl)",
             "OLDEST": "Hozzáadás dátuma (legrégebbi elöl)",
-            "CUSTOM_ORDER": "Egyéni sorrend (húzás és ejtés)"
+            "CUSTOM_ORDER": "Egyéni sorrend (húzás és ejtés)",
+            "UPDATED": "Legutóbbi frissítés",
+            "CHANNELS": "Legtöbb csatorna",
+            "FAILING_FIRST": "Nem válaszolók elöl"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (helyi fájl, URL vagy szöveg)",
@@ -1908,7 +1911,29 @@
             "STALKER_PLAYLISTS": "Stalker-lejátszási listák",
             "ALL_PLAYLISTS": "Összes lejátszási lista",
             "PLAYLIST_COUNT_ONE": "1 lejátszási lista",
-            "PLAYLIST_COUNT_OTHER": "{{count}} lejátszási lista"
+            "PLAYLIST_COUNT_OTHER": "{{count}} lejátszási lista",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · fájl",
+                "ADDED": "hozzáadva: {{date}}",
+                "UPDATED": "frissítve: {{date}}",
+                "UNREACHABLE": "Nem válaszol",
+                "UNREACHABLE_FOR": "Nem válaszol · {{duration}}",
+                "EXPIRED": "Lejárt",
+                "EDIT": "Szerkesztés…",
+                "COPY_URL": "URL másolása",
+                "OPEN": "Megnyitás",
+                "CHANNELS_ONE": "1 csatorna"
+            },
+            "STATUS": "Állapot",
+            "STATUS_ANY": "Bármelyik",
+            "STATUS_OK": "Válaszolnak",
+            "STATUS_BAD": "Nem válaszolnak",
+            "NO_MATCHES": "Egyik lejátszási lista sem felel meg ezeknek a szűrőknek",
+            "RESET_FILTERS": "Szűrők törlése",
+            "REMOVED": "„{{name}}” eltávolítva",
+            "REMOVED_SWITCHED": "„{{name}}” eltávolítva, váltás erre: „{{next}}”",
+            "REMOVE_FAILED": "„{{name}}” nem távolítható el",
+            "ADD_SOURCE": "Forrás hozzáadása"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategóriák",
@@ -1977,7 +2002,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Kijelölés mozgatása a parancspalettán",
                 "COMMAND_PALETTE_RUN": "A parancspalettán kijelölt művelet végrehajtása",
                 "CLOSE_DIALOGS": "Párbeszédpanel bezárása vagy fedőréteg eltüntetése",
-                "DOWNLOADS_OPEN_ITEM": "A fókuszban lévő letöltés megnyitása a médiatárban"
+                "DOWNLOADS_OPEN_ITEM": "A fókuszban lévő letöltés megnyitása a médiatárban",
+                "OPEN_PLAYLIST_SWITCHER": "Lejátszási lista váltása"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2002,6 +2028,15 @@
             "NO_PLAYLISTS_BODY": "Adjon hozzá egy lejátszási listát, és megtekintési előzményei itt fognak megjelenni.",
             "NO_ITEMS_TITLE": "Még nincs megtekintett tartalom",
             "NO_ITEMS_BODY": "Indítson el bármit a médiatárából, és itt meg fog jelenni."
+        },
+        "SWITCHER": {
+            "SEARCH": "Lejátszási lista keresése…",
+            "RECENT": "Legutóbbiak",
+            "NO_MATCHES": "Nincs találat",
+            "ALL_SOURCES": "Összes forrás",
+            "HINT_SELECT": "kijelölés",
+            "HINT_OPEN": "megnyitás",
+            "HINT_CLOSE": "bezárás"
         }
     },
     "LOADING": "Betöltés",

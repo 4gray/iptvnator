@@ -9,6 +9,7 @@ import {
     DatabaseService,
     DbOperationEvent,
     PlaybackPositionService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
@@ -218,6 +219,42 @@ describe('XtreamRefreshFlowService', () => {
             databaseService.deleteXtreamPlaylistContent
         ).not.toHaveBeenCalled();
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('holds the source in the shared registry for the run, and skips a held one', async () => {
+        const activity = TestBed.inject(SourceActivityService);
+        const item = createPlaylistMeta();
+        let heldDuringDelete = false;
+        let runningDuringDelete = false;
+        databaseService.deleteXtreamPlaylistContent.mockImplementationOnce(
+            () => {
+                heldDuringDelete = activity.isBusy(item._id);
+                runningDuringDelete = service.isRunning(item._id);
+                return Promise.resolve({
+                    success: true,
+                    favorites: [],
+                    recentlyViewed: [],
+                    hiddenCategories: [],
+                });
+            }
+        );
+        service.confirmAndRefresh(item, createReporter().reporter);
+        await confirmPromise;
+        expect(heldDuringDelete).toBe(true);
+        expect(runningDuringDelete).toBe(true);
+        expect(activity.isBusy(item._id)).toBe(false);
+        expect(service.isRunning(item._id)).toBe(false);
+
+        // A delete or another refresh already holds it: nothing runs.
+        const release = activity.begin([item._id]);
+        const second = createReporter();
+        service.confirmAndRefresh(item, second.reporter);
+        await confirmPromise;
+        expect(second.calls).toEqual([]);
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).toHaveBeenCalledTimes(1);
+        release();
     });
 
     it('serializes destructive runs for one playlist across entry points', async () => {

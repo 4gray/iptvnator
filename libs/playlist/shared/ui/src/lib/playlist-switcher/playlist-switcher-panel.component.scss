@@ -1,0 +1,202 @@
+@use '../../../../../../ui/styles/app-controls' as controls;
+
+// 440px popover on the widget surface; only the list scrolls.
+:host {
+    display: block;
+    width: min(440px, calc(100vw - 16px));
+}
+
+.switcher {
+    display: flex;
+    flex-direction: column;
+    max-height: var(--playlist-switcher-max-height, calc(100vh - 88px));
+    overflow: hidden;
+    border: 1px solid var(--app-line-strong);
+    border-radius: 14px;
+    background: var(--app-widget-bg);
+    box-shadow: var(--app-popover-shadow);
+    color: var(--app-heading-color);
+}
+
+// Only the list shrinks and scrolls. A column flex container shrinks its
+// items in proportion to their size, so with a long list (hundreds of
+// sources) the fixed parts lost nearly all their height too: the type
+// filter, which clips its overflow, collapsed to 2px and the search field
+// to its text line.
+.switcher__header,
+.switcher__search,
+.switcher__types,
+.switcher__empty,
+.switcher__footer {
+    flex: none;
+}
+
+.switcher__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 14px 10px;
+}
+
+.switcher__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+}
+
+.switcher__count {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--app-muted-color);
+}
+
+.switcher__spacer {
+    flex: 1;
+}
+
+.switcher__action {
+    @include controls.ghost-icon-button(32px, 18px);
+}
+
+// The same search field as the header and the side panels: 36px, the
+// shared search tokens, focus on the field (token border and halo) rather
+// than as an outline on the input.
+.switcher__search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    margin: 0 14px 10px;
+    padding: 0 10px;
+    box-sizing: border-box;
+    border: 1px solid var(--app-search-border, var(--app-line-strong));
+    border-radius: 10px;
+    background: var(--app-search-bg, var(--app-content-bg));
+    color: var(--app-muted-color);
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+
+    &:focus-within {
+        border-color: var(--app-focus-ring);
+        box-shadow: 0 0 0 3px
+            color-mix(in srgb, var(--app-focus-ring) 12%, transparent);
+    }
+
+    .mat-icon {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+
+    input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: none;
+        background: none;
+        color: var(--app-heading-color);
+        font: inherit;
+        font-size: 0.84rem;
+
+        &::placeholder {
+            color: var(--app-muted-color);
+        }
+    }
+
+    kbd {
+        font-family: var(--app-font-mono);
+        font-size: 11px;
+        font-weight: 500;
+    }
+}
+
+.switcher__types {
+    @include controls.segmented-control(30px);
+    align-self: flex-start;
+    margin: 0 14px 8px;
+}
+
+.switcher__type-count {
+    margin-inline-start: 4px;
+    font-size: 11px;
+    color: var(--app-muted-color);
+}
+
+.switcher__list {
+    // Positioned, so options' offsetTop is relative to the list it scrolls.
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 8px 8px;
+    border-top: 1px solid var(--app-widget-header-border);
+    scrollbar-width: thin;
+
+    app-source-row {
+        --source-row-base: var(--app-widget-bg);
+    }
+}
+
+.switcher__group {
+    padding: 10px 8px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--app-muted-color);
+}
+
+.switcher__empty {
+    margin: 0;
+    padding: 20px 16px;
+    font-size: 13px;
+    color: var(--app-body-color);
+}
+
+.switcher__footer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    border-top: 1px solid var(--app-widget-header-border);
+    background: color-mix(in srgb, var(--app-shell-bg) 40%, transparent);
+}
+
+.switcher__hints {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px;
+    font-family: var(--app-font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--app-muted-color);
+
+    kbd {
+        margin-inline-start: 4px;
+        padding: 0 4px;
+        border: 1px solid var(--app-line-strong);
+        border-radius: 3px;
+        font: inherit;
+        font-weight: 500;
+        color: var(--app-body-color);
+    }
+
+    kbd:first-child {
+        margin-inline-start: 0;
+    }
+}
+
+.switcher__all {
+    @include controls.ghost-button(sm);
+}
+
+// Phones: the hints need a keyboard; the link stays.
+@media (max-width: 480px) {
+    .switcher__hints {
+        display: none;
+    }
+}

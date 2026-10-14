@@ -70,7 +70,7 @@ test.describe('Electron Native Playlist Import', () => {
             });
             await openSources(app.mainWindow);
             await expect(
-                app.mainWindow.locator('app-playlist-item')
+                app.mainWindow.locator('app-workspace-sources app-source-row')
             ).toHaveCount(2, { timeout: 30000 });
         } finally {
             await closeElectronApp(app);

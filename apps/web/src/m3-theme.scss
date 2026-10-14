@@ -219,6 +219,23 @@ html {
     // 4.5:1 over hero artwork under the light scrim (#a16207 measured 3.4:1).
     --app-rating-color: #7a4a00;
 
+    // Source lists (Sources page, playlist switcher) and their popovers.
+    --app-line-strong: rgba(0, 0, 0, 0.12);
+    --app-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    // A failing source's tag and destructive menu items.
+    --app-danger-text: #b3261e;
+    --app-danger-surface: color-mix(in srgb, #d12c2c 12%, transparent);
+    --app-neutral-tag-surface: rgba(0, 0, 0, 0.06);
+    // One selected-row look for side lists and the switcher's current row:
+    // the Settings navigation's soft tint, plus an outline in light theme
+    // (selection reads as outline + tint here, not a solid slab). Light
+    // text stays the heading colour: the blue on its own tint is 3.3:1.
+    --app-list-selected-bg: var(--app-selection-surface);
+    --app-list-selected-fg: var(--app-heading-color);
+    --app-list-selected-outline: var(--app-selection-border);
+    --app-popover-shadow: 0 24px 70px rgba(15, 20, 28, 0.18);
+    --app-popover-backdrop: rgba(20, 24, 32, 0.28);
+
     .dark-theme {
         @include component-colors($dark-theme);
         // Only the color roles differ per theme: the elevation shadows are
@@ -324,6 +341,19 @@ html {
         --app-cta-hover-bg: #ffffff;
         --app-cta-meta-fg: #5a6274;
         --app-rating-color: #ffcf5c;
+
+        // Source lists and popovers. The selected-row tokens are
+        // re-declared so they resolve against this context's selection
+        // colour, not the light values computed on `html`.
+        --app-line-strong: rgba(255, 255, 255, 0.1);
+        --app-danger-text: #ff8d9b;
+        --app-danger-surface: rgba(255, 91, 110, 0.14);
+        --app-neutral-tag-surface: rgba(255, 255, 255, 0.08);
+        --app-list-selected-bg: var(--app-selection-surface);
+        --app-list-selected-fg: var(--app-selection-color);
+        --app-list-selected-outline: transparent;
+        --app-popover-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+        --app-popover-backdrop: rgba(4, 6, 10, 0.5);
     }
 }
 

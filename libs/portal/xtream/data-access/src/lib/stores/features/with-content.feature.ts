@@ -23,6 +23,7 @@ import {
     DbOperationEvent,
     isDbAbortError,
     resetHostConnectivityGuard,
+    SourceActivityService,
     XtreamPendingRestoreService,
     XtreamImportStatus,
 } from '@iptvnator/services';
@@ -244,6 +245,7 @@ export function withContent() {
             const dataService = inject(DataService);
             const databaseService = inject(DatabaseService);
             const pendingRestoreService = inject(XtreamPendingRestoreService);
+            const sourceActivity = inject(SourceActivityService);
             const xtreamApiService = inject(XtreamApiService);
             const importTypes: ContentType[] = ['live', 'vod', 'series'];
             let activeInitializationPromise: Promise<void> | null = null;
@@ -1122,9 +1124,15 @@ export function withContent() {
                     return activeInitializationPromise;
                 }
 
+                // Deletion and refreshes wait for the import's writes.
+                const playlistId = getCredentialsFromStore()?.playlistId;
+                const release = playlistId
+                    ? sourceActivity.begin([playlistId])
+                    : undefined;
                 const initializationPromise = executeContentInitialization(
                     ignoreBlockedState
                 ).finally(() => {
+                    release?.();
                     if (activeInitializationPromise === initializationPromise) {
                         activeInitializationPromise = null;
                     }

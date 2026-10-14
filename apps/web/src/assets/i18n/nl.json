@@ -260,7 +260,10 @@
             "NAME_DESC": "Naam (Z-A)",
             "NEWEST": "Datum toegevoegd (Nieuwste eerst)",
             "OLDEST": "Datum toegevoegd (Oudste eerst)",
-            "CUSTOM_ORDER": "Aangepaste volgorde (slepen en neerzetten)"
+            "CUSTOM_ORDER": "Aangepaste volgorde (slepen en neerzetten)",
+            "UPDATED": "Laatst bijgewerkt",
+            "CHANNELS": "Meeste zenders",
+            "FAILING_FIRST": "Niet-reagerende eerst"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (lokaal, URL, tekst)",
@@ -1908,7 +1911,29 @@
             "STALKER_PLAYLISTS": "Stalker-afspeellijsten",
             "ALL_PLAYLISTS": "Alle afspeellijsten",
             "PLAYLIST_COUNT_ONE": "1 afspeellijst",
-            "PLAYLIST_COUNT_OTHER": "{{count}} afspeellijsten"
+            "PLAYLIST_COUNT_OTHER": "{{count}} afspeellijsten",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · bestand",
+                "ADDED": "toegevoegd {{date}}",
+                "UPDATED": "bijgewerkt {{date}}",
+                "UNREACHABLE": "Reageert niet",
+                "UNREACHABLE_FOR": "Reageert niet · {{duration}}",
+                "EXPIRED": "Verlopen",
+                "EDIT": "Bewerken…",
+                "COPY_URL": "URL kopiëren",
+                "OPEN": "Openen",
+                "CHANNELS_ONE": "1 zender"
+            },
+            "STATUS": "Bereikbaarheid",
+            "STATUS_ANY": "Alle",
+            "STATUS_OK": "Reageren",
+            "STATUS_BAD": "Reageren niet",
+            "NO_MATCHES": "Geen afspeellijsten voldoen aan deze filters",
+            "RESET_FILTERS": "Filters wissen",
+            "REMOVED": "‘{{name}}’ verwijderd",
+            "REMOVED_SWITCHED": "‘{{name}}’ verwijderd, overgeschakeld naar ‘{{next}}’",
+            "REMOVE_FAILED": "‘{{name}}’ kon niet worden verwijderd",
+            "ADD_SOURCE": "Bron toevoegen"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorieën",
@@ -1977,7 +2002,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Selectie in opdrachtpalet verplaatsen",
                 "COMMAND_PALETTE_RUN": "Geselecteerd item in opdrachtpalet uitvoeren",
                 "CLOSE_DIALOGS": "Dialoogvenster sluiten of overlay verbergen",
-                "DOWNLOADS_OPEN_ITEM": "Gefocust downloaditem in de bibliotheek openen"
+                "DOWNLOADS_OPEN_ITEM": "Gefocust downloaditem in de bibliotheek openen",
+                "OPEN_PLAYLIST_SWITCHER": "Afspeellijst wisselen"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2002,6 +2028,15 @@
             "NO_PLAYLISTS_BODY": "Voeg een afspeellijst toe en uw kijkgeschiedenis verschijnt hier.",
             "NO_ITEMS_TITLE": "Nog niets bekeken",
             "NO_ITEMS_BODY": "Begin iets uit uw bibliotheek te kijken en het verschijnt hier."
+        },
+        "SWITCHER": {
+            "SEARCH": "Afspeellijst zoeken…",
+            "RECENT": "Onlangs geopend",
+            "NO_MATCHES": "Niets gevonden",
+            "ALL_SOURCES": "Alle bronnen",
+            "HINT_SELECT": "kiezen",
+            "HINT_OPEN": "openen",
+            "HINT_CLOSE": "sluiten"
         }
     },
     "LOADING": "Laden",

@@ -57,7 +57,7 @@ export const JOURNEY_PLAYBACK_START_SELECTOR =
 export const JOURNEY_PLAYBACK_VIDEO_SELECTOR = 'app-web-player-view video';
 /** The Xtream portal card on the dashboard or its row on /workspace/sources. */
 export const JOURNEY_OPEN_SOURCE_START_SELECTOR =
-    '[data-test-id="dashboard-recent-sources-rail-card"], app-playlist-item';
+    '[data-test-id="dashboard-recent-sources-rail-card"], app-source-row';
 /**
  * Bridge method used for the sentinels. The preload emits the trace event
  * before it forwards the call, and `SOURCE_HEALTH_CANCEL` only looks the id
@@ -862,7 +862,7 @@ export function createLaunchJourneyProbeOptions(
 ): JourneyRendererProbeOptions {
     return {
         cardSelector:
-            '[data-test-id="dashboard-recent-sources-rail-card"], app-playlist-item',
+            '[data-test-id="dashboard-recent-sources-rail-card"], app-source-row',
         cdTickCounterKey: JOURNEY_CD_TICK_COUNTER_KEY,
         ...(idleWindowMs === null
             ? {}

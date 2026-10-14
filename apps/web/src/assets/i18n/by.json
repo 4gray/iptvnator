@@ -260,7 +260,10 @@
             "NAME_DESC": "Назва (Я-А)",
             "NEWEST": "Дата дадання (спачатку новыя)",
             "OLDEST": "Дата дадання (спачатку старыя)",
-            "CUSTOM_ORDER": "Уласны парадак (перацягванне)"
+            "CUSTOM_ORDER": "Уласны парадак (перацягванне)",
+            "UPDATED": "Апошняе абнаўленне",
+            "CHANNELS": "Колькасць каналаў",
+            "FAILING_FIRST": "Спачатку тыя, што не адказваюць"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (лакальны, URL, тэкст)",
@@ -1908,7 +1911,29 @@
             "STALKER_PLAYLISTS": "Stalker плэйлісты",
             "ALL_PLAYLISTS": "Усе плэйлісты",
             "PLAYLIST_COUNT_ONE": "1 плэйліст",
-            "PLAYLIST_COUNT_OTHER": "{{count}} плэйлістаў"
+            "PLAYLIST_COUNT_OTHER": "{{count}} плэйлістаў",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · файл",
+                "ADDED": "дададзены {{date}}",
+                "UPDATED": "абноўлены {{date}}",
+                "UNREACHABLE": "Не адказвае",
+                "UNREACHABLE_FOR": "Не адказвае · {{duration}}",
+                "EXPIRED": "Скончыўся",
+                "EDIT": "Змяніць…",
+                "COPY_URL": "Скапіяваць URL",
+                "OPEN": "Адкрыць",
+                "CHANNELS_ONE": "1 канал"
+            },
+            "STATUS": "Статус",
+            "STATUS_ANY": "Любы",
+            "STATUS_OK": "Адказваюць",
+            "STATUS_BAD": "Не адказваюць",
+            "NO_MATCHES": "Няма плэйлістоў пад гэтыя фільтры",
+            "RESET_FILTERS": "Скінуць фільтры",
+            "REMOVED": "Выдалены «{{name}}»",
+            "REMOVED_SWITCHED": "Выдалены «{{name}}», адкрыты «{{next}}»",
+            "REMOVE_FAILED": "Не ўдалося выдаліць «{{name}}»",
+            "ADD_SOURCE": "Дадаць крыніцу"
         },
         "CONTEXT": {
             "CATEGORIES": "Катэгорыі",
@@ -1977,7 +2002,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Перамясціць выбар у палітры каманд",
                 "COMMAND_PALETTE_RUN": "Выканаць выбраны элемент палітры каманд",
                 "CLOSE_DIALOGS": "Закрыць дыялог або схаваць накладку",
-                "DOWNLOADS_OPEN_ITEM": "Адкрыць сфакусаваную спампоўку ў бібліятэцы"
+                "DOWNLOADS_OPEN_ITEM": "Адкрыць сфакусаваную спампоўку ў бібліятэцы",
+                "OPEN_PLAYLIST_SWITCHER": "Пераключыць плэйліст"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2002,6 +2028,15 @@
             "NO_PLAYLISTS_BODY": "Дадайце плэйліст, і гісторыя прагляду з’явіцца тут.",
             "NO_ITEMS_TITLE": "Праглядаў пакуль няма",
             "NO_ITEMS_BODY": "Пачніце глядзець што-небудзь з бібліятэкі, і гэта з’явіцца тут."
+        },
+        "SWITCHER": {
+            "SEARCH": "Знайсці плэйліст…",
+            "RECENT": "Нядаўнія",
+            "NO_MATCHES": "Нічога не знойдзена",
+            "ALL_SOURCES": "Усе крыніцы",
+            "HINT_SELECT": "выбар",
+            "HINT_OPEN": "адкрыць",
+            "HINT_CLOSE": "закрыць"
         }
     },
     "LOADING": "Загрузка",

@@ -260,7 +260,10 @@
             "NAME_DESC": "名称（Z-A）",
             "NEWEST": "添加日期（最新优先）",
             "OLDEST": "添加日期（最旧优先）",
-            "CUSTOM_ORDER": "自定义顺序（拖放）"
+            "CUSTOM_ORDER": "自定义顺序（拖放）",
+            "UPDATED": "最近更新",
+            "CHANNELS": "频道数量",
+            "FAILING_FIRST": "无响应的优先"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U（本地、URL、文本）",
@@ -1908,7 +1911,29 @@
             "STALKER_PLAYLISTS": "Stalker 播放列表",
             "ALL_PLAYLISTS": "所有播放列表",
             "PLAYLIST_COUNT_ONE": "1 个播放列表",
-            "PLAYLIST_COUNT_OTHER": "{{count}} 个播放列表"
+            "PLAYLIST_COUNT_OTHER": "{{count}} 个播放列表",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · 文件",
+                "ADDED": "{{date}} 添加",
+                "UPDATED": "{{date}} 更新",
+                "UNREACHABLE": "无响应",
+                "UNREACHABLE_FOR": "无响应 · {{duration}}",
+                "EXPIRED": "已过期",
+                "EDIT": "编辑…",
+                "COPY_URL": "复制 URL",
+                "OPEN": "打开",
+                "CHANNELS_ONE": "1 个频道"
+            },
+            "STATUS": "状态",
+            "STATUS_ANY": "全部",
+            "STATUS_OK": "有响应",
+            "STATUS_BAD": "无响应",
+            "NO_MATCHES": "没有符合这些筛选条件的播放列表",
+            "RESET_FILTERS": "重置筛选",
+            "REMOVED": "已删除“{{name}}”",
+            "REMOVED_SWITCHED": "已删除“{{name}}”，已切换到“{{next}}”",
+            "REMOVE_FAILED": "无法删除“{{name}}”",
+            "ADD_SOURCE": "添加来源"
         },
         "CONTEXT": {
             "CATEGORIES": "分类",
@@ -1977,7 +2002,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "移动命令面板选中项",
                 "COMMAND_PALETTE_RUN": "运行选中的命令面板项目",
                 "CLOSE_DIALOGS": "关闭对话框或取消覆盖层",
-                "DOWNLOADS_OPEN_ITEM": "在媒体库中打开聚焦的下载项"
+                "DOWNLOADS_OPEN_ITEM": "在媒体库中打开聚焦的下载项",
+                "OPEN_PLAYLIST_SWITCHER": "切换播放列表"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2002,6 +2028,15 @@
             "NO_PLAYLISTS_BODY": "添加播放列表后，您的观看历史会显示在这里。",
             "NO_ITEMS_TITLE": "还没有观看记录",
             "NO_ITEMS_BODY": "开始观看媒体库中的任意内容后，它会显示在这里。"
+        },
+        "SWITCHER": {
+            "SEARCH": "查找播放列表…",
+            "RECENT": "最近",
+            "NO_MATCHES": "未找到",
+            "ALL_SOURCES": "所有来源",
+            "HINT_SELECT": "选择",
+            "HINT_OPEN": "打开",
+            "HINT_CLOSE": "关闭"
         }
     },
     "LOADING": "加载中",

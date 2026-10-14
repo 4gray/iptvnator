@@ -114,4 +114,5 @@ export * from './lib/xtream-connection-test';
 export * from './lib/portal-request-failure.util';
 
 export * from './lib/source-health';
+export * from './lib/source-reachability';
 export * from './lib/server-storage.contract';
