@@ -39,6 +39,10 @@
     var api = {};
     var lastRect = null; // where focus last was, for recycled/removed elements
     var lastMediaUrl = null;
+    // MediaSource playback session (see installMediaSourceTracking): while one is
+    // open, its first media request is the stream and later ones never replace it.
+    var mseSessionOpen = false;
+    var mseSessionPinned = false;
     var lastMediaTitle = null;
     var currentVideo = null;
     var navDepth = 0;
@@ -766,7 +770,8 @@
     }
 
     // ------------------------------------------------ media URL tracking
-    function noteMediaUrl(url, title) {
+    /** Records a media request. `authoritative`: the element's own http(s) source. */
+    function noteMediaUrl(url, title, authoritative) {
         if (!url || typeof url !== 'string') return;
         if (/^blob:|^data:/i.test(url)) return;
         var absolute;
@@ -778,11 +783,50 @@
         if (absolute.indexOf(location.origin) === 0) return; // our own files/API
         if (!MEDIA_URL_RE.test(absolute)) return;
         if (/\/(player_api|portal|get)\.php|\.(json|xml|png|jpg|jpeg|webp|gif|svg)(\?|$)/i.test(absolute)) return;
+        if (authoritative) {
+            mseSessionOpen = false; // a native source replaces any MediaSource session
+            mseSessionPinned = false;
+        } else if (mseSessionPinned) {
+            return; // a segment, init segment or playlist refresh of the current stream
+        }
         lastMediaUrl = absolute;
+        if (mseSessionOpen) mseSessionPinned = true;
         if (title) lastMediaTitle = title;
     }
 
+    function isMediaSource(obj) {
+        return !!obj && ((typeof MediaSource !== 'undefined' && obj instanceof MediaSource) ||
+            (typeof ManagedMediaSource !== 'undefined' && obj instanceof ManagedMediaSource));
+    }
+
+    /**
+     * Every MSE engine the app uses (hls.js, video.js VHS, shaka, mpegts.js)
+     * attaches a new MediaSource through URL.createObjectURL before it requests
+     * the source it was given: the playlist, the DASH manifest or the raw TS
+     * stream. That first request is what an external player needs; the requests
+     * after it are segments (through XHR or fetch, with or without Range) and
+     * playlist refreshes. Installed before the bundle runs: shaka keeps a
+     * reference to URL.createObjectURL from when its module is evaluated.
+     */
+    function installMediaSourceTracking() {
+        var urlApi = window.URL;
+        if (!urlApi || typeof urlApi.createObjectURL !== 'function') return;
+        var create = urlApi.createObjectURL;
+        urlApi.createObjectURL = function (obj) {
+            try {
+                if (isMediaSource(obj)) {
+                    mseSessionOpen = true;
+                    mseSessionPinned = false;
+                }
+            } catch (e) {
+                /* ignore */
+            }
+            return create.apply(urlApi, arguments);
+        };
+    }
+
     function installNetworkTracking() {
+        installMediaSourceTracking();
         var open = XMLHttpRequest.prototype.open;
         var send = XMLHttpRequest.prototype.send;
         XMLHttpRequest.prototype.open = function (method, url) {
@@ -810,7 +854,7 @@
             var fetchFn = window.fetch;
             window.fetch = function (input, init) {
                 try {
-                    var url = typeof input === 'string' ? input : input && input.url;
+                    var url = typeof input === 'string' ? input : input instanceof URL ? input.href : input && input.url;
                     if (!init || !init.method || String(init.method).toUpperCase() === 'GET') noteMediaUrl(url);
                 } catch (e) {
                     /* ignore */
@@ -822,7 +866,7 @@
             var t = e.target;
             if (t && (t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) {
                 currentVideo = t;
-                noteMediaUrl(t.currentSrc || t.getAttribute('src'));
+                noteMediaUrl(t.currentSrc || t.getAttribute('src'), null, true);
                 lastMediaTitle = document.title;
             }
         }, true);
@@ -863,7 +907,7 @@
             var t = e.target;
             if (t && (t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) {
                 currentVideo = t;
-                noteMediaUrl(t.currentSrc || t.getAttribute('src'));
+                noteMediaUrl(t.currentSrc || t.getAttribute('src'), null, true);
                 promptedFor = null; // a new load attempt may prompt once more
                 promptedRoot = null;
             }
@@ -879,6 +923,7 @@
             try {
                 if (typeof text === 'string' && /^(https?|rtsp|rtmp|udp|rtp|mms):\/\//i.test(text.trim())) {
                     lastMediaUrl = text.trim();
+                    mseSessionPinned = mseSessionOpen;
                     native('onUrlCopied', text.trim(), lastMediaTitle || document.title || '');
                 }
             } catch (e) {
@@ -905,6 +950,7 @@
                 text = (text || '').trim();
                 if (/^(https?|rtsp|rtmp|udp|rtp|mms):\/\/\S+$/i.test(text)) {
                     lastMediaUrl = text;
+                    mseSessionPinned = mseSessionOpen;
                     native('onUrlCopied', text, lastMediaTitle || document.title || '');
                 }
             } catch (err) {

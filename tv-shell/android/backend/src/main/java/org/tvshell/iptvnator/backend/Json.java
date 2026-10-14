@@ -203,9 +203,11 @@ public final class Json {
 
     /**
      * Nesting the reader accepts. Provider payloads are a few levels deep; the
-     * limit turns a hostile {@code [[[[...} body into a {@link JsonException}
-     * (an HTTP 400/502) instead of a {@link StackOverflowError} that would
-     * take the whole app down with it.
+     * limit turns a hostile {@code [[[[...} body into a {@link JsonException},
+     * which callers already handle (a provider body that does not parse is
+     * passed through as a string, as axios does; a request body answers 400),
+     * instead of a {@link StackOverflowError} that would take the whole app
+     * down with it.
      */
     static final int MAX_DEPTH = 256;
 

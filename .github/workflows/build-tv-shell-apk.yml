@@ -119,20 +119,35 @@ jobs:
           WWW: ${{ github.workspace }}/dist/apps/web
           SHOTS: ${{ runner.temp }}/tv-shell-shots
         run: |
-          set -euo pipefail
-          "$SHELL_DIR/devserver/run-dev.sh" > "$RUNNER_TEMP/devserver.log" 2>&1 &
+          set -uo pipefail
+          LOG="$RUNNER_TEMP/devserver.log"
+          "$SHELL_DIR/devserver/run-dev.sh" > "$LOG" 2>&1 &
           DEV_PID=$!
+          trap 'kill "$DEV_PID" 2>/dev/null || true' EXIT
+          ready=0
           for _ in $(seq 1 60); do
-            if curl -sS -o /dev/null --max-time 2 http://127.0.0.1:43330/ \
+            # Any answer from the mock provider will do; the dev server must serve the PWA.
+            if curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:43330/ \
                 && curl -sS -o /dev/null --max-time 2 http://127.0.0.1:43331/player_api.php; then
+              ready=1
               break
             fi
             sleep 1
           done
-          curl -fsS -o /dev/null http://127.0.0.1:43330/ || { cat "$RUNNER_TEMP/devserver.log"; exit 1; }
-          node "$SHELL_DIR/tests/tv-remote.mjs" --shots "$SHOTS/remote"
-          node "$SHELL_DIR/tests/tv-longlist.mjs" --shots "$SHOTS/longlist"
-          kill "$DEV_PID" 2>/dev/null || true
+          if [ "$ready" != 1 ]; then
+            echo "::error::the dev server or the mock provider did not start"
+            cat "$LOG"
+            exit 1
+          fi
+          # Both suites always run; the dev server log is printed when either fails.
+          status=0
+          node "$SHELL_DIR/tests/tv-remote.mjs" --shots "$SHOTS/remote" || status=1
+          node "$SHELL_DIR/tests/tv-longlist.mjs" --shots "$SHOTS/longlist" || status=1
+          if [ "$status" != 0 ]; then
+            echo "--- dev server log"
+            cat "$LOG"
+          fi
+          exit "$status"
 
       - name: Upload the suites' screenshots
         if: ${{ failure() }}
