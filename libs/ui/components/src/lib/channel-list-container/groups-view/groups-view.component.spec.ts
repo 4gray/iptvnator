@@ -740,7 +740,7 @@ describe('GroupsViewComponent', () => {
 
     it('positions the context menu at the viewport click and opens channel details from the selected group pane', async () => {
         const openMenuSpy = jest
-            .spyOn(component.contextMenuTrigger(), 'openMenu')
+            .spyOn(component.channelContextMenu(), 'open')
             .mockImplementation();
 
         component.onChannelContextMenu(movieClassic, {
@@ -750,11 +750,9 @@ describe('GroupsViewComponent', () => {
         await Promise.resolve();
 
         expect(component.contextMenuChannel()).toBe(movieClassic);
-        expect(component.contextMenuPosition()).toEqual({
-            x: '212px',
-            y: '264px',
-        });
-        expect(openMenuSpy).toHaveBeenCalled();
+        expect(openMenuSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ clientX: 212, clientY: 264 })
+        );
 
         component.openChannelDetails();
 

@@ -75,7 +75,7 @@ describe('FavoritesViewComponent', () => {
 
     it('stores context-menu coordinates and opens channel details for the selected favorite', async () => {
         const openMenuSpy = jest
-            .spyOn(component.contextMenuTrigger(), 'openMenu')
+            .spyOn(component.channelContextMenu(), 'open')
             .mockImplementation();
 
         component.onChannelContextMenu(primaryChannel, {
@@ -85,11 +85,9 @@ describe('FavoritesViewComponent', () => {
         await Promise.resolve();
 
         expect(component.contextMenuChannel()).toBe(primaryChannel);
-        expect(component.contextMenuPosition()).toEqual({
-            x: '88px',
-            y: '132px',
-        });
-        expect(openMenuSpy).toHaveBeenCalled();
+        expect(openMenuSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ clientX: 88, clientY: 132 })
+        );
 
         component.openChannelDetails();
 

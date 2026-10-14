@@ -1,4 +1,5 @@
 export * from './lib/channel-list-container/channel-list-container.component';
+export * from './lib/channel-list-container/channel-context-menu/channel-context-menu.component';
 export * from './lib/channel-list-container/channel-details-dialog/channel-details-dialog.component';
 export * from './lib/channel-list-container/epg-mapping-dialog/epg-mapping-dialog.component';
 export * from './lib/channel-list-container/channel-list-item/channel-list-item.component';

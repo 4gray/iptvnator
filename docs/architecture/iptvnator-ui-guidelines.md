@@ -515,6 +515,14 @@ dialogs, player controls and hidden/inert panes keep their own behavior.
 
 The shared row should be reused instead of rebuilding channel markup per view.
 
+Its right-click menu is `app-channel-context-menu` (`@iptvnator/ui/components`),
+shared by the M3U views, the Xtream and Stalker live lists and the unified
+favorites and recents. A host sets which rows apply (`showMapEpg`,
+`showDetails`, `openInPlaylistName`, `showRemoveFromHistory`), handles their
+outputs, and calls `open(event)` from the row's `contextMenuRequested`; the
+rows keep one order and Remove from history is the danger row after a
+divider.
+
 ### Current Reference Values
 
 - Current minimum height:
