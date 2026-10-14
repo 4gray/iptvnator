@@ -4,6 +4,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
+import {
+    componentMetadata,
+    componentTemplate,
+    property,
+} from './component-templates.mjs';
+
 /**
  * The app's `<mat-form-field>` defaults (outline, dynamic subscript) are
  * provided per component, not in the root injector: importing
@@ -23,43 +29,6 @@ const SCANNED_PATHSPECS = ['apps/web/*.ts', 'libs/*.ts'];
 
 function isScanned(file) {
     return !/\.(spec|test)\.[cm]?[jt]s$/.test(file);
-}
-
-/** The object literal of an `@Component({...})` decorator, if `node` is one. */
-function componentMetadata(node) {
-    if (
-        !ts.isDecorator(node) ||
-        !ts.isCallExpression(node.expression) ||
-        !ts.isIdentifier(node.expression.expression) ||
-        node.expression.expression.text !== 'Component'
-    ) {
-        return undefined;
-    }
-    const [metadata] = node.expression.arguments;
-    return metadata && ts.isObjectLiteralExpression(metadata)
-        ? metadata
-        : undefined;
-}
-
-function property(metadata, name) {
-    return metadata.properties.find(
-        (entry) =>
-            ts.isPropertyAssignment(entry) &&
-            (ts.isIdentifier(entry.name) || ts.isStringLiteral(entry.name)) &&
-            entry.name.text === name
-    )?.initializer;
-}
-
-/** Literal text of a quoted, backticked or interpolated template. */
-function literalText(node) {
-    if (ts.isStringLiteralLike(node)) return node.text;
-    if (ts.isTemplateExpression(node)) {
-        return [
-            node.head.text,
-            ...node.templateSpans.map((span) => span.literal.text),
-        ].join('');
-    }
-    return undefined;
 }
 
 function isProviderCall(node) {
@@ -125,14 +94,7 @@ export async function checkComponentSource(file, source, readTemplate) {
     visitCalls(sourceFile);
 
     for (const { node, metadata, provides } of components) {
-        const inline = property(metadata, 'template');
-        const url = property(metadata, 'templateUrl');
-        let template = inline ? literalText(inline) : undefined;
-        if (template === undefined && url && ts.isStringLiteralLike(url)) {
-            template = await readTemplate(
-                path.posix.join(path.posix.dirname(file), url.text)
-            );
-        }
+        const template = await componentTemplate(metadata, file, readTemplate);
         if (provides || !/<mat-form-field\b/.test(template ?? '')) continue;
         findings.push({
             file,

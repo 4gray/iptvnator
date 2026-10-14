@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { isScanned, stripComments } from './check-theme-references.mjs';
+import { componentTemplates } from './component-templates.mjs';
 
 /**
  * `apps/web/src/m3-theme.scss` themes only the Material components the app
@@ -12,7 +13,9 @@ import { isScanned, stripComments } from './check-theme-references.mjs';
  * keeps the list in step with the imports in both directions: a component a
  * new `@angular/material/<entry>` import brings in must be themed, or it
  * renders with no colours at all, and a component whose last import went
- * must leave the list.
+ * must leave the list. The fab theme follows the templates instead: the
+ * button chunk carries its directives either way, so only a rendered
+ * `mat-fab` or `mat-mini-fab` earns its tokens.
  */
 
 /** Angular renderer sources that load the theme (the remote control has its own styles). */
@@ -40,7 +43,7 @@ export const THEMES_BY_ENTRY_POINT = new Map([
     ['autocomplete', ['autocomplete']],
     ['badge', ['badge']],
     ['bottom-sheet', ['bottom-sheet']],
-    ['button', ['button', 'icon-button', 'fab']],
+    ['button', ['button', 'icon-button']],
     ['button-toggle', ['button-toggle']],
     ['card', ['card']],
     ['checkbox', ['checkbox']],
@@ -98,8 +101,55 @@ export function usedEntryPoints(sources) {
     return importers;
 }
 
-/** The theme names the imported entry points need, each with a reason. */
-export function requiredThemes(importers) {
+/**
+ * Themes a rendered element, not an import, calls for. The button entry
+ * point carries the fab directives whether or not a template uses them, but
+ * their tokens are about 6 KB of the initial stylesheet that only an element
+ * with one of the fab attribute selectors reads. The pattern matches that
+ * attribute on an element, never in text, a class value or a comment.
+ */
+export const THEMES_BY_TEMPLATE = new Map([
+    [
+        'fab',
+        /<[a-z][^\s<>/]*(?:[^<>"']|"[^"]*"|'[^']*')*?\s(mat-fab|mat-mini-fab|matFab|matMiniFab)(?=[\s/>=])/i,
+    ],
+]);
+
+/**
+ * An Angular template knows HTML comments only: `//` there is text or part
+ * of a URL, never a comment, so the source-code rules of `stripComments`
+ * would blank a real element after it.
+ */
+function stripHtmlComments(template) {
+    return template.replace(/<!--[\s\S]*?-->/g, ' ');
+}
+
+/**
+ * The template-gated themes the runtime templates render, each with the
+ * first component template that renders the element and the attribute it
+ * carries. `readTemplate` reads a `templateUrl` relative to its component.
+ */
+export async function templateThemeUsers(sources, readTemplate) {
+    const users = new Map();
+    for (const { file, source } of sources) {
+        if (users.size === THEMES_BY_TEMPLATE.size) break;
+        const templates = await componentTemplates(file, source, readTemplate);
+        for (const template of templates) {
+            const markup = stripHtmlComments(template);
+            for (const [name, element] of THEMES_BY_TEMPLATE) {
+                const match = users.has(name) ? null : element.exec(markup);
+                if (match) users.set(name, { file, selector: match[1] });
+            }
+        }
+    }
+    return users;
+}
+
+/**
+ * The theme names the imported entry points and the rendered templates
+ * need, each with a reason.
+ */
+export function requiredThemes(importers, templateUsers = new Map()) {
     const required = new Map(
         ALWAYS_THEMED.map((name) => [name, 'always themed'])
     );
@@ -112,6 +162,9 @@ export function requiredThemes(importers) {
                 );
             }
         }
+    }
+    for (const [name, { file, selector }] of templateUsers) {
+        if (!required.has(name)) required.set(name, `${selector} in ${file}`);
     }
     return required;
 }
@@ -180,7 +233,11 @@ if (isMain) {
             source: await readFile(path.join(rootDir, file), 'utf8'),
         }))
     );
-    const required = requiredThemes(usedEntryPoints(sources));
+    const readTemplate = (file) => readFile(path.join(rootDir, file), 'utf8');
+    const required = requiredThemes(
+        usedEntryPoints(sources),
+        await templateThemeUsers(sources, readTemplate)
+    );
     const scope = themedComponents(
         await readFile(path.join(rootDir, THEME_FILE), 'utf8')
     );
@@ -188,7 +245,7 @@ if (isMain) {
 
     if (unthemed.length > 0) {
         console.error(
-            `Material components the app imports but ${THEME_FILE} does not theme; they render without colours. Add them to $material-components:`
+            `Material components the app imports or renders but ${THEME_FILE} does not theme; they render without colours. Add them to $material-components:`
         );
         for (const [name, reason] of unthemed) {
             console.error(`- ${name} (${reason})`);
@@ -197,7 +254,7 @@ if (isMain) {
     }
     if (unused.length > 0) {
         console.error(
-            `Material components ${THEME_FILE} themes although no runtime source imports them; their tokens only add to the initial stylesheet. Remove them from $material-components:`
+            `Material components ${THEME_FILE} themes although no runtime source imports or renders them; their tokens only add to the initial stylesheet. Remove them from $material-components:`
         );
         for (const name of unused) {
             console.error(`- ${name}`);
@@ -208,7 +265,7 @@ if (isMain) {
         console.log(
             scope.all
                 ? `Checked ${files.length} renderer sources; ${THEME_FILE} themes every Material component through all-component-themes.`
-                : `Checked ${files.length} renderer sources; ${THEME_FILE} themes exactly the ${scope.themed.size} Material components they import.`
+                : `Checked ${files.length} renderer sources; ${THEME_FILE} themes exactly the ${scope.themed.size} Material components they use.`
         );
     }
 }
