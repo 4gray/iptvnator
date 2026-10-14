@@ -129,7 +129,9 @@ export default defineConfig({
                 IPTVNATOR_DATA_DIR: storageBackendDataDir,
             },
             url: `http://localhost:${storageBackendPort}/health`,
-            reuseExistingServer: !process.env['CI'],
+            // Never another backend on that port: the specs delete every
+            // playlist before each test, which would wipe its library.
+            reuseExistingServer: false,
             cwd: workspaceRoot,
         },
     ],
