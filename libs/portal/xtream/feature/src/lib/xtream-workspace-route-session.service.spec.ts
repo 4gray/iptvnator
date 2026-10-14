@@ -9,6 +9,7 @@ import {
     XtreamPlaylistData,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { SourceActivityService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { XtreamWorkspaceRouteSession } from './xtream-workspace-route-session.service';
 
@@ -282,6 +283,30 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.setSelectedContentType).toHaveBeenCalledWith('vod');
         expect(xtreamStore.prepareContentLoading).toHaveBeenCalledWith('vod');
         expect(xtreamStore.initializeContent).toHaveBeenCalled();
+    });
+
+    it('holds the routed source busy until the import it awaits settles', async () => {
+        xtreamStore.checkPortalStatus.mockImplementation(async () => {
+            portalStatus.set('active');
+            return 'active';
+        });
+        const importDone = createDeferred<void>();
+        xtreamStore.initializeContent.mockImplementationOnce(
+            () => importDone.promise
+        );
+        const activity = TestBed.inject(SourceActivityService);
+
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        // Taken at once, before any await: a refresh's own hold ends when
+        // its navigation does, and nothing may find the source idle then.
+        expect(activity.isBusy(PLAYLIST_ID)).toBe(true);
+        await flushEffects();
+        expect(xtreamStore.initializeContent).toHaveBeenCalled();
+        expect(activity.isBusy(PLAYLIST_ID)).toBe(true);
+
+        importDone.resolve();
+        await flushEffects();
+        expect(activity.isBusy(PLAYLIST_ID)).toBe(false);
     });
 
     it('marks the routed section loading before status checks complete during playlist switches', async () => {

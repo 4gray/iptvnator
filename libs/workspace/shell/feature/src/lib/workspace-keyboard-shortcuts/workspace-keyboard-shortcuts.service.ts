@@ -1,4 +1,5 @@
 import { DestroyRef, Injectable, inject } from '@angular/core';
+import { dialogSize } from '@iptvnator/ui/components';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
@@ -23,9 +24,12 @@ export class WorkspaceKeyboardShortcutsService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     // Root-provided; optional keeps standalone unit tests light. The help key must not open a dialog over the modal phone
     // context drawer.
-    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
-        optional: true,
-    });
+    private readonly contextDrawer = inject(
+        WorkspaceShellContextDrawerService,
+        {
+            optional: true,
+        }
+    );
     private readonly backGestures = inject(WorkspaceBackGesturesService);
     private readonly onDocumentKeydown = (event: KeyboardEvent): void =>
         this.handleKeydown(event);
@@ -66,9 +70,7 @@ export class WorkspaceKeyboardShortcutsService {
             WorkspaceKeyboardShortcutsDialogComponent,
             WorkspaceKeyboardShortcutsDialogData
         >(WorkspaceKeyboardShortcutsDialogComponent, {
-            width: 'min(960px, 94vw)',
-            maxWidth: '94vw',
-            panelClass: 'workspace-shortcuts-overlay',
+            ...dialogSize('lg'),
             autoFocus: false,
             data: {
                 groups: getKeyboardShortcutGroups({

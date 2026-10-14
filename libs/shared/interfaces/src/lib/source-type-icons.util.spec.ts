@@ -1,6 +1,7 @@
 import {
     getPlaylistSourceIcon,
     resolvePlaylistSourceIconKey,
+    resolvePlaylistSourceKind,
     SOURCE_TYPE_ICONS,
 } from './source-type-icons.util';
 
@@ -39,5 +40,15 @@ describe('source type icons', () => {
         expect(getPlaylistSourceIcon(playlist)).toBe(
             SOURCE_TYPE_ICONS[expected]
         );
+    });
+
+    it.each([
+        [{ macAddress: '00:1A:79:00:00:01', serverUrl: 'http://x' }, 'stalker'],
+        // An Xtream row missing a credential is still Xtream, not M3U: the
+        // old list filter dropped it from every type.
+        [{ serverUrl: 'http://xtream' }, 'xtream'],
+        [{}, 'm3u'],
+    ] as const)('puts %o in the %s family', (playlist, expected) => {
+        expect(resolvePlaylistSourceKind(playlist)).toBe(expected);
     });
 });

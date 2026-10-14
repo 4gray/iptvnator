@@ -12,4 +12,5 @@
 @forward 'detail-view-actions';
 @forward 'nav-list';
 @forward 'focus-ring';
+@forward 'app-controls' as controls-*;
 @forward 'skeleton-shimmer' as skeleton-*;

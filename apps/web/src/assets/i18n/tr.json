@@ -3,6 +3,7 @@
     "CLEAR": "Temizle",
     "CLEAR_SEARCH": "Aramayı temizle",
     "CLOSE": "Kapat",
+    "CLOSE_DIALOG": "İletişim kutusunu kapat",
     "REMOVE": "Kaldır",
     "BACK": "Geri",
     "SHOW_MORE": "Daha fazla",
@@ -260,7 +261,10 @@
             "NAME_DESC": "İsim (Z-A)",
             "NEWEST": "Eklenme tarihi (En yeni önce)",
             "OLDEST": "Eklenme tarihi (En eski önce)",
-            "CUSTOM_ORDER": "Özel sıra (sürükle ve bırak)"
+            "CUSTOM_ORDER": "Özel sıra (sürükle ve bırak)",
+            "UPDATED": "Son güncelleme",
+            "CHANNELS": "En çok kanal",
+            "FAILING_FIRST": "Önce yanıt vermeyenler"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (yerel, url, metin)",
@@ -589,6 +593,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "Daha yeni sürüm",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "GitHub'da {{version}} için sürüm notu bulunamadı. Sürüm kaldırılmış ya da henüz yayınlanmamış olabilir.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "Sürüm notları yüklenemedi.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "Güncelleme bildirimi gösterilemedi. Güncellemeleri uygulama ayarlarından kontrol edin.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "Sürüm notları bu derlemede kullanılamıyor.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "Sürümler sayfasını aç",
         "APP_UPDATE_CHANNEL": "Güncelleme kanalı",
@@ -980,6 +985,7 @@
         },
         "FETCH_SUCCESS": "EPG verileri başarıyla alındı",
         "IMPORT_PROGRESS": "EPG İçe Aktarımı",
+        "IMPORT_PANEL_UNAVAILABLE": "EPG içe aktarma paneli yüklenemedi. İçe aktarma ilerlemesini görmek için uygulamayı yeniden başlatın; her kaynağın durumu EPG ayarlarında kalır.",
         "CHANNELS": "kanallar",
         "PROGRAMS": "programlar",
         "LOADING": "Yükleniyor",
@@ -1904,7 +1910,29 @@
             "STALKER_PLAYLISTS": "Stalker Oynatma Listeleri",
             "ALL_PLAYLISTS": "Tüm Oynatma Listeleri",
             "PLAYLIST_COUNT_ONE": "1 oynatma listesi",
-            "PLAYLIST_COUNT_OTHER": "{{count}} oynatma listesi"
+            "PLAYLIST_COUNT_OTHER": "{{count}} oynatma listesi",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · dosya",
+                "ADDED": "{{date}} eklendi",
+                "UPDATED": "{{date}} güncellendi",
+                "UNREACHABLE": "Yanıt vermiyor",
+                "UNREACHABLE_FOR": "Yanıt vermiyor · {{duration}}",
+                "EXPIRED": "Süresi doldu",
+                "EDIT": "Düzenle…",
+                "COPY_URL": "URL'yi kopyala",
+                "OPEN": "Aç",
+                "CHANNELS_ONE": "1 kanal"
+            },
+            "STATUS": "Durum",
+            "STATUS_ANY": "Tümü",
+            "STATUS_OK": "Yanıt veriyor",
+            "STATUS_BAD": "Yanıt vermiyor",
+            "NO_MATCHES": "Bu filtrelere uyan oynatma listesi yok",
+            "RESET_FILTERS": "Filtreleri sıfırla",
+            "REMOVED": "“{{name}}” kaldırıldı",
+            "REMOVED_SWITCHED": "“{{name}}” kaldırıldı, “{{next}}” açıldı",
+            "REMOVE_FAILED": "“{{name}}” kaldırılamadı",
+            "ADD_SOURCE": "Kaynak ekle"
         },
         "CONTEXT": {
             "CATEGORIES": "Kategoriler",
@@ -1974,7 +2002,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Komut paleti seçimini taşı",
                 "COMMAND_PALETTE_RUN": "Seçili komut paleti öğesini çalıştır",
                 "CLOSE_DIALOGS": "İletişim kutusunu kapat veya katmanı gizle",
-                "DOWNLOADS_OPEN_ITEM": "Odaktaki indirme öğesini kitaplıkta aç"
+                "DOWNLOADS_OPEN_ITEM": "Odaktaki indirme öğesini kitaplıkta aç",
+                "OPEN_PLAYLIST_SWITCHER": "Oynatma listesini değiştir"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1997,6 +2026,15 @@
             "NO_PLAYLISTS_BODY": "Bir oynatma listesi ekleyin; izleme geçmişiniz burada görünecek.",
             "NO_ITEMS_TITLE": "Henüz hiçbir şey izlenmedi",
             "NO_ITEMS_BODY": "Kitaplığınızdaki herhangi bir şeyi izlemeye başlayın, burada görünecek."
+        },
+        "SWITCHER": {
+            "SEARCH": "Oynatma listesi bul…",
+            "RECENT": "Son açılanlar",
+            "NO_MATCHES": "Hiçbir şey bulunamadı",
+            "ALL_SOURCES": "Tüm kaynaklar",
+            "HINT_SELECT": "seç",
+            "HINT_OPEN": "aç",
+            "HINT_CLOSE": "kapat"
         }
     },
     "LOADING": "Yükleniyor",

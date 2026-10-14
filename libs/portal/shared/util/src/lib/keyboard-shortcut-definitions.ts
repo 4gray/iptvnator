@@ -1,8 +1,5 @@
 export type KeyboardShortcutGroupId =
-    | 'global'
-    | 'navigation'
-    | 'playback'
-    | 'dialogs';
+    'global' | 'navigation' | 'playback' | 'dialogs';
 
 export interface PlatformShortcutChord {
     mac: readonly string[];
@@ -10,9 +7,7 @@ export interface PlatformShortcutChord {
 }
 
 export type KeyboardShortcutChord =
-    | string
-    | readonly string[]
-    | PlatformShortcutChord;
+    string | readonly string[] | PlatformShortcutChord;
 
 export interface KeyboardShortcutDefinition {
     id: string;
@@ -72,6 +67,14 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         icon: 'terminal',
         keys: [commandChord('K')],
         order: 10,
+    },
+    {
+        id: 'open-playlist-switcher',
+        group: 'global',
+        labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.OPEN_PLAYLIST_SWITCHER',
+        icon: 'playlist_play',
+        keys: [commandChord('P')],
+        order: 15,
     },
     {
         id: 'open-global-search',

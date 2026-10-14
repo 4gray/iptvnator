@@ -435,6 +435,7 @@ async function openMoviesWithRatingFilter(page: Page): Promise<void> {
         timeout: 20_000,
     });
     await view.locator('.refine-action').click();
+    await page.locator('.refine-rating-trigger').click();
     await page
         .getByRole('menuitemradio', { name: /^\s*5\.0 and higher/ })
         .click();
@@ -550,19 +551,21 @@ test.describe('Keyboard focus ring', () => {
             // Sources: the type filters, then the list's row actions.
             await openSources(page);
             await expect(
-                page.locator('app-playlist-item').first()
+                page.locator('app-workspace-sources app-source-row').first()
             ).toBeVisible();
+            // Add, the Type and Status rows, Clean up, Sort, then the first
+            // row and its actions; Check again lives in the row's menu.
             await walk(
                 'sources list',
                 page.locator('app-workspace-shell'),
                 page
                     .locator('app-workspace-sources-filters-panel button')
                     .first(),
-                12
+                16
             );
             expect(
                 report['sources list (dark)'].map((stop) => stop.label)
-            ).toContain('Check again');
+            ).toContain('Playlist actions');
 
             // The live EPG list: its rows are Tab stops (`role="button"`)
             // with their own inset ring, then the row's info button.

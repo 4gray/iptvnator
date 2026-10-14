@@ -514,5 +514,7 @@ The series page keeps its launch state at module level in
 
 Regression coverage: `serial-details-external-launch.spec.ts` (chain,
 duplicate guard, queued choice), `serial-details-playback.service.spec.ts`
-(page token) and, for the external-player and reset rows,
+(page token, the queued start, the launch-position marker),
+`serial-details-menu.service.spec.ts` (launch-failure message, the rows held
+while a launch is pending) and, for the external-player and reset rows,
 `libs/ui/components/src/lib/detail-ui/series-hero.state.spec.ts`.

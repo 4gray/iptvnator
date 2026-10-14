@@ -3,6 +3,7 @@
     "CLEAR": "Effacer",
     "CLEAR_SEARCH": "Effacer la recherche",
     "CLOSE": "Fermer",
+    "CLOSE_DIALOG": "Fermer la boîte de dialogue",
     "REMOVE": "Retirer",
     "BACK": "Retour",
     "SHOW_MORE": "Plus",
@@ -260,7 +261,10 @@
             "NAME_DESC": "Nom (Z-A)",
             "NEWEST": "Date d'ajout (Plus récent)",
             "OLDEST": "Date d'ajout (Plus ancien)",
-            "CUSTOM_ORDER": "Ordre personnalisé (glisser-déposer)"
+            "CUSTOM_ORDER": "Ordre personnalisé (glisser-déposer)",
+            "UPDATED": "Dernière mise à jour",
+            "CHANNELS": "Plus de chaînes",
+            "FAILING_FIRST": "Celles qui ne répondent pas d'abord"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (local, URL, texte)",
@@ -589,6 +593,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "Version plus récente",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "Aucune note de version n'a été trouvée pour {{version}} sur GitHub. La version a peut-être été supprimée ou n'est pas encore publiée.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "Impossible de charger les notes de version.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "La notification de mise à jour n'a pas pu être affichée. Recherchez les mises à jour dans les réglages de l'application.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "Les notes de version ne sont pas disponibles dans cette compilation.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "Ouvrir la page des versions",
         "APP_UPDATE_CHANNEL": "Canal de mise à jour",
@@ -980,6 +985,7 @@
         },
         "FETCH_SUCCESS": "L'EPG a été récupéré avec succès",
         "IMPORT_PROGRESS": "Importation EPG",
+        "IMPORT_PANEL_UNAVAILABLE": "Le panneau d'import EPG n'a pas pu être chargé. Redémarrez l'application pour suivre l'import ; l'état de chaque source reste dans les réglages EPG.",
         "CHANNELS": "chaînes",
         "PROGRAMS": "programmes",
         "LOADING": "Chargement",
@@ -1904,7 +1910,29 @@
             "STALKER_PLAYLISTS": "Listes de lecture Stalker",
             "ALL_PLAYLISTS": "Toutes les listes de lecture",
             "PLAYLIST_COUNT_ONE": "1 liste de lecture",
-            "PLAYLIST_COUNT_OTHER": "{{count}} listes de lecture"
+            "PLAYLIST_COUNT_OTHER": "{{count}} listes de lecture",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · fichier",
+                "ADDED": "ajouté le {{date}}",
+                "UPDATED": "mis à jour le {{date}}",
+                "UNREACHABLE": "Ne répond pas",
+                "UNREACHABLE_FOR": "Ne répond pas · {{duration}}",
+                "EXPIRED": "Expiré",
+                "EDIT": "Modifier…",
+                "COPY_URL": "Copier l’URL",
+                "OPEN": "Ouvrir",
+                "CHANNELS_ONE": "1 chaîne"
+            },
+            "STATUS": "État",
+            "STATUS_ANY": "Tous",
+            "STATUS_OK": "Répondent",
+            "STATUS_BAD": "Ne répondent pas",
+            "NO_MATCHES": "Aucune playlist ne correspond à ces filtres",
+            "RESET_FILTERS": "Réinitialiser les filtres",
+            "REMOVED": "« {{name}} » supprimée",
+            "REMOVED_SWITCHED": "« {{name}} » supprimée, passage à « {{next}} »",
+            "REMOVE_FAILED": "Impossible de supprimer « {{name}} »",
+            "ADD_SOURCE": "Ajouter une source"
         },
         "CONTEXT": {
             "CATEGORIES": "Catégories",
@@ -1974,7 +2002,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Déplacer la sélection dans la palette de commandes",
                 "COMMAND_PALETTE_RUN": "Exécuter l’élément sélectionné dans la palette de commandes",
                 "CLOSE_DIALOGS": "Fermer une boîte de dialogue ou masquer une superposition",
-                "DOWNLOADS_OPEN_ITEM": "Ouvrir l’élément de téléchargement ciblé dans la bibliothèque"
+                "DOWNLOADS_OPEN_ITEM": "Ouvrir l’élément de téléchargement ciblé dans la bibliothèque",
+                "OPEN_PLAYLIST_SWITCHER": "Changer de playlist"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1997,6 +2026,15 @@
             "NO_PLAYLISTS_BODY": "Ajoutez une playlist et votre historique de visionnage apparaîtra ici.",
             "NO_ITEMS_TITLE": "Rien regardé pour le moment",
             "NO_ITEMS_BODY": "Commencez à regarder un contenu de votre bibliothèque et il apparaîtra ici."
+        },
+        "SWITCHER": {
+            "SEARCH": "Trouver une playlist…",
+            "RECENT": "Récentes",
+            "NO_MATCHES": "Aucun résultat",
+            "ALL_SOURCES": "Toutes les sources",
+            "HINT_SELECT": "choisir",
+            "HINT_OPEN": "ouvrir",
+            "HINT_CLOSE": "fermer"
         }
     },
     "LOADING": "Chargement",

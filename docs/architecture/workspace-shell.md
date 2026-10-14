@@ -175,9 +175,10 @@ navigation (Back, drawer toggle) changes.
    ends: `perf:compositing` reads the same layer and mask counts on every
    route as before the slides (#1895).
 6. **Not covered.** A slide does not change what the route renders. Going
-   back from a portal to the dashboard still shows one frame with the new
-   dashboard below the old page before the old page leaves; that jump is a
-   routing issue, not a layout slide.
+   back from a portal to the dashboard used to lay the new dashboard out
+   below the old page before the old page left, a shift a slide cannot
+   hide. That was the route swap, fixed at its cause (see
+   [Route swaps](#route-swaps)).
 
 `WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
 kept as a thin template-facing API and delegates ownership to component-scoped
@@ -207,6 +208,40 @@ services:
 When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
 for the template unless the template contract itself intentionally changes.
+
+### Route swaps
+
+The router's activation runs in one task, outside change detection:
+deactivation destroys the old routed view, then activation creates the new
+one and inserts its host element into `main.workspace-content` at once.
+`WorkspaceShellRouteStateService.currentUrl` is set on `NavigationEnd`, which
+the router emits synchronously after activation, so the shell's state does
+not lag the outlet. The shell re-renders (the context panel leaves, the
+content frame slides) in the next change detection. With event coalescing
+that runs in the next `requestAnimationFrame`, before that frame paints.
+
+The app does not provide `provideAnimations()`. Nothing uses
+`@angular/animations` triggers (Material animates with CSS), and that
+package's renderer queues every DOM removal until the end of the next change
+detection, while insertions apply at once. Leaving a portal section for the
+dashboard therefore inserted the dashboard below the still-present portal
+page, and the old page left only in the coalesced tick. In between, Chromium
+laid out the document with both pages, the dashboard at y=720 in a 720 px
+window, and scored the swap as one layout shift: 0.337 at 1280 px, 0.394 at
+900 px, 0.723 at 420 px (measured with a `layout-shift` observer in the
+`electron-performance` build). With the default DOM renderer the old page is
+removed in the same microtask, before the new one is inserted, and the swap
+records no shift. `app.config.spec.ts` keeps the animations renderer out, and
+`workspace-route-swap.e2e.ts` asserts that no mutation checkpoint holds both
+pages and that neither the dashboard nor the content pane shifts.
+
+Destroy hooks therefore run with the view's DOM already detached; the
+[UI guidelines](./iptvnator-ui-guidelines.md) ("No animations module") say
+how hooks record geometry and focus instead.
+
+Do not add `provideAnimations()` or `provideAnimationsAsync()` back; animate
+with CSS. A leave animation (`animate.leave` included) delays its element's
+removal in the same way, so a routed page must not carry one.
 
 ## Header Back
 
@@ -941,6 +976,9 @@ Toolchain notes for the Electron 43 baseline:
    Those dependencies require standalone PRs so their dedicated package,
    worker, playback, and diagnostic-contract validation cannot be hidden by an
    unrelated grouped update.
+   Electron majors are ignored: Electron 44 ships no `linux-armv7l` binary,
+   and the release still packages armv7l AppImage, DEB and Snap builds. Remove
+   the ignore together with those targets when 32-bit ARM support is dropped.
 4. Electron 42 and newer download their development binary on the first
    Electron command instead of during package `postinstall`, so `electron`
    must not remain in pnpm's `onlyBuiltDependencies` allowlist. The first local

@@ -3,6 +3,7 @@
     "CLEAR": "Borrar",
     "CLEAR_SEARCH": "Borrar búsqueda",
     "CLOSE": "Cerrar",
+    "CLOSE_DIALOG": "Cerrar el diálogo",
     "REMOVE": "Quitar",
     "BACK": "Atrás",
     "SHOW_MORE": "Más",
@@ -260,7 +261,10 @@
             "NAME_DESC": "Nombre (Z-A)",
             "NEWEST": "Fecha de adición (más recientes primero)",
             "OLDEST": "Fecha de adición (más antiguas primero)",
-            "CUSTOM_ORDER": "Orden personalizado (arrastrar y soltar)"
+            "CUSTOM_ORDER": "Orden personalizado (arrastrar y soltar)",
+            "UPDATED": "Última actualización",
+            "CHANNELS": "Más canales",
+            "FAILING_FIRST": "Primero las que no responden"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (local, url, texto)",
@@ -589,6 +593,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "Versión más reciente",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "No se encontraron notas de la versión {{version}} en GitHub. Es posible que la versión se haya eliminado o aún no esté publicada.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "No se pudieron cargar las notas de la versión.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "No se pudo mostrar la notificación de actualización. Busca actualizaciones en los ajustes de la aplicación.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "Las notas de la versión no están disponibles en esta compilación.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "Abrir página de versiones",
         "APP_UPDATE_CHANNEL": "Canal de actualizaciones",
@@ -980,6 +985,7 @@
         },
         "FETCH_SUCCESS": "EPG obtenida correctamente",
         "IMPORT_PROGRESS": "Importación de EPG",
+        "IMPORT_PANEL_UNAVAILABLE": "No se pudo cargar el panel de importación de EPG. Reinicia la aplicación para ver el progreso de la importación; el estado de cada fuente sigue en los ajustes de EPG.",
         "CHANNELS": "canales",
         "PROGRAMS": "programas",
         "LOADING": "Cargando",
@@ -1904,7 +1910,29 @@
             "STALKER_PLAYLISTS": "Listas Stalker",
             "ALL_PLAYLISTS": "Todas las listas",
             "PLAYLIST_COUNT_ONE": "1 lista de reproducción",
-            "PLAYLIST_COUNT_OTHER": "{{count}} listas de reproducción"
+            "PLAYLIST_COUNT_OTHER": "{{count}} listas de reproducción",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · archivo",
+                "ADDED": "añadido el {{date}}",
+                "UPDATED": "actualizado el {{date}}",
+                "UNREACHABLE": "No responde",
+                "UNREACHABLE_FOR": "No responde · {{duration}}",
+                "EXPIRED": "Caducada",
+                "EDIT": "Editar…",
+                "COPY_URL": "Copiar URL",
+                "OPEN": "Abrir",
+                "CHANNELS_ONE": "1 canal"
+            },
+            "STATUS": "Estado",
+            "STATUS_ANY": "Cualquiera",
+            "STATUS_OK": "Responden",
+            "STATUS_BAD": "No responden",
+            "NO_MATCHES": "Ninguna lista coincide con estos filtros",
+            "RESET_FILTERS": "Restablecer filtros",
+            "REMOVED": "Se eliminó «{{name}}»",
+            "REMOVED_SWITCHED": "Se eliminó «{{name}}» y se cambió a «{{next}}»",
+            "REMOVE_FAILED": "No se pudo eliminar «{{name}}»",
+            "ADD_SOURCE": "Añadir una fuente"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorías",
@@ -1974,7 +2002,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Mover la selección de la paleta de comandos",
                 "COMMAND_PALETTE_RUN": "Ejecutar el elemento seleccionado de la paleta de comandos",
                 "CLOSE_DIALOGS": "Cerrar diálogo o descartar superposición",
-                "DOWNLOADS_OPEN_ITEM": "Abrir en la biblioteca el elemento de descarga enfocado"
+                "DOWNLOADS_OPEN_ITEM": "Abrir en la biblioteca el elemento de descarga enfocado",
+                "OPEN_PLAYLIST_SWITCHER": "Cambiar de lista"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1997,6 +2026,15 @@
             "NO_PLAYLISTS_BODY": "Añade una lista de reproducción y tu historial de visualización aparecerá aquí.",
             "NO_ITEMS_TITLE": "Aún no has visto nada",
             "NO_ITEMS_BODY": "Empieza a ver cualquier contenido de tu biblioteca y aparecerá aquí."
+        },
+        "SWITCHER": {
+            "SEARCH": "Buscar una lista…",
+            "RECENT": "Recientes",
+            "NO_MATCHES": "No se encontró nada",
+            "ALL_SOURCES": "Todas las fuentes",
+            "HINT_SELECT": "elegir",
+            "HINT_OPEN": "abrir",
+            "HINT_CLOSE": "cerrar"
         }
     },
     "LOADING": "Cargando",

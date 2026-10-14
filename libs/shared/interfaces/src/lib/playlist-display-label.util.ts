@@ -12,7 +12,8 @@
  */
 
 /** Query keys whose presence means the string is a credential-bearing URL. */
-const CREDENTIAL_KEYS = /(?:^|[?&;])(?:username|password|user|pass|token|auth)=/i;
+const CREDENTIAL_KEYS =
+    /(?:^|[?&;])(?:username|password|user|pass|token|auth)=/i;
 
 /** Hand-typed credential fragments, e.g. "usr== Tl24uy0xGi pas== abc". */
 const INLINE_CREDENTIALS =
@@ -56,6 +57,9 @@ export function playlistNameHasCredentials(
     rawName: string | null | undefined
 ): boolean {
     const name = rawName ?? '';
+    // INLINE_CREDENTIALS is global for `replace`; `test` on a global pattern
+    // resumes at its lastIndex, so a second call would skip the match.
+    INLINE_CREDENTIALS.lastIndex = 0;
     return CREDENTIAL_KEYS.test(name) || INLINE_CREDENTIALS.test(name);
 }
 

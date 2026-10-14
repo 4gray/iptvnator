@@ -27,6 +27,7 @@ import {
     PARENTAL_LOCK_PIN_MAX_LENGTH,
     PARENTAL_LOCK_PIN_MIN_LENGTH,
 } from '@iptvnator/shared/interfaces';
+import { provideFormFieldDefaults } from '../form-field-defaults/form-field-defaults';
 
 export type ParentalLockPinDialogMode = 'unlock' | 'set';
 
@@ -59,6 +60,7 @@ export interface ParentalLockPinDialogData {
  */
 @Component({
     selector: 'app-parental-lock-pin-dialog',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './parental-lock-pin-dialog.component.html',
     styleUrl: './parental-lock-pin-dialog.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

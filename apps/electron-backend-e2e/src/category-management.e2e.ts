@@ -545,8 +545,15 @@ async function expectCategoryCentered(row: Locator): Promise<void> {
 }
 
 async function refreshFromWorkspaceHeader(page: Page): Promise<void> {
+    // Refresh for the active source lives in its switcher row menu.
+    await page.getByTestId('playlist-switcher-trigger').click();
     await page
-        .getByRole('button', { name: 'Refresh playlist', exact: true })
+        .locator(
+            'app-playlist-switcher-panel [role="option"][aria-current="true"] .source-row__more'
+        )
+        .click();
+    await page
+        .getByRole('menuitem', { name: 'Refresh playlist', exact: true })
         .click();
 
     const dialog = page.locator('mat-dialog-container');

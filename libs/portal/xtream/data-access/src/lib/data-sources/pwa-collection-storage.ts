@@ -6,13 +6,16 @@ import {
     normalizeFavoriteStorage,
     normalizeRecentStorage,
 } from './pwa-collection-identity';
-import type { UserDataStorage } from '@iptvnator/services';
+import {
+    XTREAM_USER_DATA_KEYS,
+    type UserDataStorage,
+} from '@iptvnator/services';
 import { XtreamContentItem } from './xtream-data-source.interface';
 
 const STORAGE_KEYS = {
-    COLLECTION_ITEMS: 'xtream-collection-items',
-    FAVORITES: 'xtream-favorites',
-    RECENT_ITEMS: 'xtream-recent-items',
+    COLLECTION_ITEMS: XTREAM_USER_DATA_KEYS.collectionItems,
+    FAVORITES: XTREAM_USER_DATA_KEYS.favorites,
+    RECENT_ITEMS: XTREAM_USER_DATA_KEYS.recentItems,
 };
 
 /** Synchronous persistence and migration using only snapshots and cached identity evidence. */

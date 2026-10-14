@@ -1,3 +1,4 @@
+import { PlaylistSwitcherOpenService } from '@iptvnator/playlist/shared/ui';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
@@ -329,6 +330,7 @@ describe('WorkspaceShellFacade', () => {
                 {
                     provide: MatDialog,
                     useValue: {
+                        openDialogs: [],
                         open: jest.fn().mockReturnValue({
                             afterClosed: () => of(undefined),
                         }),
@@ -1125,6 +1127,43 @@ describe('WorkspaceShellFacade', () => {
         );
         await Promise.resolve();
         expect(dialog.open).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the playlist switcher on Ctrl/Cmd+P when one is on screen', () => {
+        const switcher = TestBed.inject(PlaylistSwitcherOpenService);
+        const opened = jest.fn();
+        const subscription = switcher.openRequests.subscribe(opened);
+        const press = () => {
+            const event = new KeyboardEvent('keydown', {
+                key: 'p',
+                ctrlKey: true,
+                cancelable: true,
+            });
+            document.dispatchEvent(event);
+            return event;
+        };
+
+        // Settings hides the switcher: the key keeps its default there.
+        expect(press().defaultPrevented).toBe(false);
+        expect(opened).not.toHaveBeenCalled();
+
+        const unregister = switcher.register();
+        expect(press().defaultPrevented).toBe(true);
+        expect(opened).toHaveBeenCalledTimes(1);
+
+        // An open dialog keeps the key and the focus.
+        const dialogs = (
+            TestBed.inject(MatDialog) as unknown as {
+                openDialogs: unknown[];
+            }
+        ).openDialogs;
+        dialogs.push({});
+        expect(press().defaultPrevented).toBe(false);
+        expect(opened).toHaveBeenCalledTimes(1);
+        dialogs.length = 0;
+
+        unregister();
+        subscription.unsubscribe();
     });
 
     it('records the executed command id after the palette closes with a selection', () => {

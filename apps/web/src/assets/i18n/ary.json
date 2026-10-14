@@ -3,6 +3,7 @@
     "CLEAR": "مسح",
     "CLEAR_SEARCH": "مسح البحث",
     "CLOSE": "سد",
+    "CLOSE_DIALOG": "سدّ مربع الحوار",
     "REMOVE": "حيد",
     "BACK": "رجع",
     "SHOW_MORE": "وري كثر",
@@ -260,7 +261,10 @@
             "NAME_DESC": "الاسم (ي-أ)",
             "NEWEST": "تاريخ الإضافة (الأحدث أولاً)",
             "OLDEST": "تاريخ الإضافة (الأقدم أولاً)",
-            "CUSTOM_ORDER": "ترتيب مخصص (جرّ وحط)"
+            "CUSTOM_ORDER": "ترتيب مخصص (جرّ وحط)",
+            "UPDATED": "آخر تحديث",
+            "CHANNELS": "اللي فيها كتر القنوات",
+            "FAILING_FIRST": "اللي ما كيجاوبوش اللولين"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (محلي، رابط، نص)",
@@ -589,6 +593,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "إصدار أحدث",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "ما لقيناش ملاحظات الإصدار {{version}} فـ GitHub. يمكن الإصدار تحيد ولا مازال ما تنشرش.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "ما قدرناش نحمّلو ملاحظات الإصدار.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "ما قدرناش نعرضو إشعار التحديث. تأكد من التحديثات فإعدادات التطبيق.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "ملاحظات الإصدار ما متوفراش فهاد النسخة.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "فتح صفحة الإصدارات",
         "APP_UPDATE_CHANNEL": "قناة التحديث",
@@ -980,6 +985,7 @@
         },
         "FETCH_SUCCESS": "EPG تجلب بنجاح",
         "IMPORT_PROGRESS": "استيراد EPG",
+        "IMPORT_PANEL_UNAVAILABLE": "ما قدرناش نحمّلو لوحة استيراد EPG. عاود شغّل التطبيق باش تشوف تقدّم الاستيراد؛ حالة كل مصدر كتبقى فإعدادات EPG.",
         "CHANNELS": "قنوات",
         "PROGRAMS": "برامج",
         "LOADING": "جاري التشريج",
@@ -1904,7 +1910,29 @@
             "STALKER_PLAYLISTS": "قوائم تشغيل Stalker",
             "ALL_PLAYLISTS": "جميع قوائم التشغيل",
             "PLAYLIST_COUNT_ONE": "قائمة تشغيل وحدة",
-            "PLAYLIST_COUNT_OTHER": "{{count}} ديال قوائم التشغيل"
+            "PLAYLIST_COUNT_OTHER": "{{count}} ديال قوائم التشغيل",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · فيشي",
+                "ADDED": "تزاد {{date}}",
+                "UPDATED": "تحدّث {{date}}",
+                "UNREACHABLE": "ما كيجاوبش",
+                "UNREACHABLE_FOR": "ما كيجاوبش · {{duration}}",
+                "EXPIRED": "سالات",
+                "EDIT": "بدّل…",
+                "COPY_URL": "نسخ الرابط",
+                "OPEN": "حلّ",
+                "CHANNELS_ONE": "قناة وحدة"
+            },
+            "STATUS": "الحالة",
+            "STATUS_ANY": "أي حالة",
+            "STATUS_OK": "كيجاوبو",
+            "STATUS_BAD": "ما كيجاوبوش",
+            "NO_MATCHES": "حتى ليستة ما كتوافق هاد الفلاتر",
+            "RESET_FILTERS": "رجّع الفلاتر",
+            "REMOVED": "تحيّدات «{{name}}»",
+            "REMOVED_SWITCHED": "تحيّدات «{{name}}»، دوّزنا لـ «{{next}}»",
+            "REMOVE_FAILED": "ما قدرناش نحيّدو «{{name}}»",
+            "ADD_SOURCE": "زيد مصدر"
         },
         "CONTEXT": {
             "CATEGORIES": "الفئات",
@@ -1974,7 +2002,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "حرك الاختيار فلوحة الأوامر",
                 "COMMAND_PALETTE_RUN": "شغل العنصر المختار فلوحة الأوامر",
                 "CLOSE_DIALOGS": "سد النافذة ولا خبي الطبقة",
-                "DOWNLOADS_OPEN_ITEM": "حل عنصر التحميل المحدد فالمكتبة"
+                "DOWNLOADS_OPEN_ITEM": "حل عنصر التحميل المحدد فالمكتبة",
+                "OPEN_PLAYLIST_SWITCHER": "بدّل الليستة"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1997,6 +2026,15 @@
             "NO_PLAYLISTS_BODY": "زيد قائمة تشغيل وسجل التفرج ديالك غادي يبان هنا.",
             "NO_ITEMS_TITLE": "ما تشاف حتى شي حاجة دابا",
             "NO_ITEMS_BODY": "بدا تفرج فشي حاجة من المكتبة ديالك وغادي تبان هنا."
+        },
+        "SWITCHER": {
+            "SEARCH": "قلّب على ليستة…",
+            "RECENT": "الجداد",
+            "NO_MATCHES": "ما لقينا والو",
+            "ALL_SOURCES": "كاع المصادر",
+            "HINT_SELECT": "ختار",
+            "HINT_OPEN": "حلّ",
+            "HINT_CLOSE": "سدّ"
         }
     },
     "LOADING": "كيتشارجا",

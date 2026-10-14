@@ -1,0 +1,29 @@
+@use '@angular/material' as mat;
+
+.source-removal-toast__undo {
+    font-weight: 600;
+}
+
+.source-removal-toast__close {
+    color: var(--app-body-color);
+}
+
+// The toast frame (`panelClass: 'app-toast'`): bottom centre, one step
+// above the page. The container renders in the overlay, so the rule is
+// global; it ships with this component instead of the initial stylesheet.
+::ng-deep .mat-mdc-snack-bar-container.app-toast {
+    @include mat.snack-bar-overrides(
+        (
+            container-color: var(--app-widget-bg),
+            container-shape: 10px,
+            supporting-text-color: var(--app-heading-color),
+            supporting-text-size: 13px,
+            button-color: var(--app-selection-color),
+        )
+    );
+
+    .mat-mdc-snackbar-surface {
+        border: 1px solid var(--app-line-strong);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+}
