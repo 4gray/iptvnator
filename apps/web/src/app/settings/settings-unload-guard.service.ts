@@ -1,4 +1,4 @@
-import { inject, Injectable, NgZone, OnDestroy } from '@angular/core';
+import { inject, Injectable, OnDestroy } from '@angular/core';
 import { AppUpdateInstallService } from '../services/app-update-install.service';
 import { SettingsForm } from './settings-form.utils';
 
@@ -39,7 +39,6 @@ export interface SettingsUnloadGuardHost {
  */
 @Injectable()
 export class SettingsUnloadGuardService implements OnDestroy {
-    private readonly zone = inject(NgZone);
     private readonly installService = inject(AppUpdateInstallService);
     private host: SettingsUnloadGuardHost | null = null;
     private unsubscribeCloseRequests: (() => void) | null = null;
@@ -78,7 +77,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
         this.unsubscribeCloseRequests =
             window.electron?.onWindowCloseRequested?.((requestId) => {
                 this.latestCloseRequestId = requestId;
-                this.zone.run(() => void this.handleCloseRequest('close'));
+                void this.handleCloseRequest('close');
             }) ?? null;
 
         // Whatever surface installs an app update — the settings About
@@ -141,9 +140,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
         this.host = null;
     }
 
-    private readonly beforeUnloadHandler = (
-        event: BeforeUnloadEvent
-    ): void => {
+    private readonly beforeUnloadHandler = (event: BeforeUnloadEvent): void => {
         if (!this.host?.form.dirty) {
             return;
         }
@@ -160,7 +157,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
             // handler entirely — so this can only be a reload: ask, then
             // re-trigger it.
             setTimeout(() => {
-                this.zone.run(() => void this.handleCloseRequest('reload'));
+                void this.handleCloseRequest('reload');
             });
         }
     };

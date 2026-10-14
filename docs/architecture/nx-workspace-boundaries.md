@@ -64,12 +64,14 @@ in both dependency sections and all official Nx packages on one exact version.
 Use `.nvmrc` for development/CI; supported LTS Node ranges are
 `^22.22.3 || ^24.15.0`. Docker uses the supported Node 24 line.
 
-The Angular 22 migration explicitly preserves the old default change detection
-with `ChangeDetectionStrategy.Eager`. Existing OnPush components and
-`provideZoneChangeDetection` remain in their existing modes.
-Existing eager components under Angular ESLint carry a line-scoped explanation
-for the newly recommended OnPush rule; new components keep that rule enabled.
-Adopting OnPush in those components requires a separate behavior review.
+The Angular 22 migration explicitly preserved the old default change detection
+with `ChangeDetectionStrategy.Eager`. Plan item C6 since converted every component
+the renderer uses to OnPush and switched it to
+`provideZonelessChangeDetection()` without the `zone.js` polyfill; see the
+[zoneless migration](zoneless-migration.md). `apps/remote-control-web` and its
+remote-control component still use zone.js and `ChangeDetectionStrategy.Eager`,
+with a line-scoped explanation for the OnPush lint rule; new components keep
+that rule enabled.
 TypeScript 6 migration settings preserve compiler defaults and per-project output roots;
 `ignoreDeprecations: "6.0"` temporarily supports legacy Node test configs and
 `baseUrl`, rather than changing the whole workspace to browser resolution.
@@ -105,8 +107,10 @@ imports `zone.js/testing` for existing `fakeAsync` helpers. This preserves the
 Angular 21 scheduler used by jest-preset-angular 15: its `setupZoneTestEnv` loaded
 Zone but did not provide zone-based change detection on Angular 20+. Preset 17
 does provide it, which disables automatic fixture rendering and changes
-`whenStable()` behavior. Production applications continue to use their existing
-`provideZoneChangeDetection`; browser and Electron E2E validate that runtime.
+`whenStable()` behavior. The production renderer (`apps/web`) runs
+`provideZonelessChangeDetection()` like the tests; `apps/remote-control-web`
+keeps `provideZoneChangeDetection`. Browser and Electron E2E validate both
+runtimes.
 
 ## Vite Dev-Server Patch
 
