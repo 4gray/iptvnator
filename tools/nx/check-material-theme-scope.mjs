@@ -116,6 +116,15 @@ export const THEMES_BY_TEMPLATE = new Map([
 ]);
 
 /**
+ * An Angular template knows HTML comments only: `//` there is text or part
+ * of a URL, never a comment, so the source-code rules of `stripComments`
+ * would blank a real element after it.
+ */
+function stripHtmlComments(template) {
+    return template.replace(/<!--[\s\S]*?-->/g, ' ');
+}
+
+/**
  * The template-gated themes the runtime templates render, each with the
  * first component template that renders the element and the attribute it
  * carries. `readTemplate` reads a `templateUrl` relative to its component.
@@ -126,7 +135,7 @@ export async function templateThemeUsers(sources, readTemplate) {
         if (users.size === THEMES_BY_TEMPLATE.size) break;
         const templates = await componentTemplates(file, source, readTemplate);
         for (const template of templates) {
-            const markup = stripComments(template);
+            const markup = stripHtmlComments(template);
             for (const [name, element] of THEMES_BY_TEMPLATE) {
                 const match = users.has(name) ? null : element.exec(markup);
                 if (match) users.set(name, { file, selector: match[1] });

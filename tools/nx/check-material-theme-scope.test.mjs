@@ -149,6 +149,32 @@ test('templateThemeUsers finds a fab element in the first template that renders 
     );
 });
 
+test('templateThemeUsers strips HTML comments only: a // in text or a URL hides nothing', async () => {
+    const users = await templateThemeUsers(
+        [
+            {
+                file: 'libs/e/e.component.ts',
+                source: lines(
+                    '@Component({',
+                    '    template: `',
+                    '        <!-- <button mat-fab></button> -->',
+                    '        <span>now // later</span> <a href="https://x/up" mat-fab>Up</a>',
+                    '        <button title="Help // tips" mat-mini-fab></button>',
+                    '    `,',
+                    '})',
+                    'export class E {}'
+                ),
+            },
+        ],
+        async () => undefined
+    );
+
+    assert.deepEqual(
+        [...users],
+        [['fab', { file: 'libs/e/e.component.ts', selector: 'mat-fab' }]]
+    );
+});
+
 test('templateThemeUsers finds nothing without a rendered fab', async () => {
     const users = await templateThemeUsers(
         [
