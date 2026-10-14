@@ -682,4 +682,48 @@ describe('ServerUserDataStorage taking over other page loads', () => {
             expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'Y']);
         });
     });
+
+    it('lands a page-hide batch before a flush scheduled in the same turn', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const keepalive = server.api.sendKeepalive.getMockImplementation();
+        if (!keepalive) {
+            throw new Error('The fake server answers sendKeepalive');
+        }
+        let land = (): void => undefined;
+        let started = false;
+        const tab = new ServerUserDataStorage(
+            {
+                ...server.api,
+                // The page-hide write is still on its way.
+                sendKeepalive: jest.fn(
+                    (...args: Parameters<typeof keepalive>) =>
+                        new Promise((resolve) => {
+                            started = true;
+                            land = () => resolve(keepalive(...args));
+                        })
+                ),
+            } as never,
+            memoryStorage(),
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await tab.hydrate();
+        tab.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        const flushing = tab.flush();
+        tab.flushWithKeepalive();
+        // Removed again before either batch was answered.
+        tab.setItem('xtream-favorites', JSON.stringify({ p1: ['S'] }));
+        await until(() => started);
+        // The scheduled flush has its turn while the page-hide write travels.
+        for (let turn = 0; turn < 10; turn += 1) {
+            await Promise.resolve();
+        }
+        land();
+        await flushing;
+        await tab.flush();
+        await tab.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S']);
+    });
 });

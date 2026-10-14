@@ -3,6 +3,7 @@ import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { firstValueFrom } from 'rxjs';
 import {
     DbStores,
+    getXtreamPendingRestoreStorageKey,
     SERVER_USER_STATE_NAMESPACES,
     type Playlist,
     type ServerUserStateNamespace,
@@ -155,6 +156,7 @@ export class ServerMigrationService {
 
         failed += await this.copyXtreamUserData(targets);
         failed += await this.moveParentalLocks(targets);
+        failed += movePendingRestores(targets);
         await this.session.userData.hydrate();
         if (failed === 0) {
             // A partial move stays on offer, in Settings → Server.
@@ -378,6 +380,33 @@ export class ServerMigrationService {
             // Without storage the offer simply returns next time.
         }
     }
+}
+
+/**
+ * A parked Xtream restore (a browser backup import that could not finish)
+ * follows a playlist merged under another id, where it is applied and
+ * exported; one the server playlist has parked already wins. Returns how
+ * many could not be copied.
+ */
+function movePendingRestores(targets: ReadonlyMap<string, string>): number {
+    let failed = 0;
+    for (const [browserId, serverId] of targets) {
+        if (browserId === serverId) {
+            continue;
+        }
+        try {
+            const parked = localStorage.getItem(
+                getXtreamPendingRestoreStorageKey(browserId)
+            );
+            const target = getXtreamPendingRestoreStorageKey(serverId);
+            if (parked !== null && localStorage.getItem(target) === null) {
+                localStorage.setItem(target, parked);
+            }
+        } catch {
+            failed += 1;
+        }
+    }
+    return failed;
 }
 
 /** The M3U channels of a full playlist document. */
