@@ -5,8 +5,9 @@ import {
     XtreamBackupRecentlyViewedItem,
     XtreamBackupSourcePin,
 } from './playlist-backup.interface';
-import { XtreamFavoriteSnapshot } from './xtream-favorite.interface';
 import { PlaybackPositionData } from './playback-position.interface';
+import { normalizeContentMetadataIdentity } from './content-metadata-identity';
+import type { XtreamFavoriteSnapshot } from './xtream-favorite.interface';
 
 export interface XtreamPendingRestoreState {
     hiddenCategories: XtreamBackupHiddenCategory[];
@@ -231,10 +232,14 @@ function normalizeFavoriteSnapshot(
         if (typeof field === 'string') snapshot[key] = field;
         else if (field === null) snapshot[key] = null;
     }
+    const identity = normalizeContentMetadataIdentity(value);
     for (const key of ['tmdbId', 'releaseYear'] as const) {
         const field = value[key];
-        if (typeof field === 'number' && Number.isInteger(field) && field > 0)
-            snapshot[key] = field;
+        const normalized =
+            typeof field === 'number' || typeof field === 'string'
+                ? identity[key]
+                : undefined;
+        if (normalized !== undefined) snapshot[key] = normalized;
         else if (field === null) snapshot[key] = null;
     }
     return snapshot;

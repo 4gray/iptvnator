@@ -126,11 +126,19 @@ export function findCollectionItems(
             typedItems.set(key, item);
         }
     }
+    // Track only requested snapshots, not another index of the entire catalog.
+    const missingKeys = completeCatalog ? new Set(typedItems.keys()) : undefined;
     for (const item of cached) {
         if (!item || !wantedIds.has(item.xtream_id)) continue;
         const key = itemCollectionKey(item);
-        if (key !== null)
+        if (key !== null) {
+            missingKeys?.delete(key);
             typedItems.set(key, mergeCollectionItem(typedItems.get(key), item));
+        }
+    }
+    for (const key of missingKeys ?? []) {
+        const item = typedItems.get(key);
+        if (item) typedItems.set(key, { ...item, catalog_status: 'missing' });
     }
     const uniqueIds = new Map<number, XtreamContentItem | null>();
     for (const item of cached) {

@@ -101,6 +101,15 @@ Browser imports convert desktop favorite snapshots into typed collection-cache
 rows so saved titles and artwork remain visible offline. Browser exports include
 the normalized nested favorite snapshots as well as their optional collection
 cache, preserving metadata when the archive returns to Electron.
+The backup boundary normalizes numeric-string TMDB IDs and years from older
+browser snapshots with the shared metadata rules, preserving identity checks
+after Electron restore. Nulls remain null; unusable placeholders are omitted.
+Once all three browser catalogs have loaded successfully, a saved typed item
+absent from those catalogs is retained with `missing` status. Favorites and
+Recent persist that status across reload and disable catalog-dependent actions;
+partial or failed hydration cannot establish absence. Returning compatible
+catalog evidence can make the saved item available again without changing its
+favorite date/order or an independent Recent snapshot's identity.
 Catalog hydration keeps the saved snapshot separate from current provider rows.
 Only a row confirming every saved TMDB ID/year may refresh that snapshot;
 missing, partially confirmed or conflicting identity retains the original title,

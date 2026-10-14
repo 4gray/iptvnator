@@ -153,6 +153,32 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
     }
 
     describe('export', () => {
+        it('exports numeric-string identity from legacy browser snapshots', async () => {
+            seed();
+            const snapshots = read(KEYS.collectionItems);
+            Object.assign(snapshots['xtream-1']['movie:501'], {
+                tmdb_id: '949',
+                release_year: '1995',
+                added_at: '2026-01-02',
+                position: 3,
+            });
+            localStorage.setItem(
+                KEYS.collectionItems,
+                JSON.stringify(snapshots)
+            );
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+            });
+            const manifest = (await service.exportBackup()).manifest;
+            expect(xtreamEntry(manifest).userState.favorites[0]).toMatchObject({
+                contentType: 'movie',
+                xtreamId: 501,
+                addedAt: '2026-01-02',
+                position: 3,
+                snapshot: { title: heat.title, tmdbId: 949, releaseYear: 1995 },
+            });
+        });
+
         it('writes each playlist its own favorites, history, positions and snapshots', async () => {
             const manifest = await exportSeeded();
 

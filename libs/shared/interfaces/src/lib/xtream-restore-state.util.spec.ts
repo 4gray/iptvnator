@@ -1,6 +1,53 @@
 import { normalizeXtreamPendingRestoreState } from './xtream-restore-state.util';
 
 describe('normalizeXtreamPendingRestoreState', () => {
+    it.each([
+        ['949', '1995', { tmdbId: 949, releaseYear: 1995 }],
+        [949, 1995, { tmdbId: 949, releaseYear: 1995 }],
+        [' 949 ', ' 1995 ', { tmdbId: 949, releaseYear: 1995 }],
+        ['949', 'N/A', { tmdbId: 949 }],
+        ['0', '1995', { releaseYear: 1995 }],
+        [null, null, { tmdbId: null, releaseYear: null }],
+        ['', '0', {}],
+        [-1, 1899, {}],
+        [1.5, 2100, {}],
+        [true, ['1995'], {}],
+        [{ value: 949 }, Infinity, {}],
+    ])(
+        'normalizes saved identity %p / %p at the backup boundary',
+        (tmdbId, releaseYear, expected) => {
+            const input = {
+                favorites: [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 7,
+                        addedAt: '2026-01-02',
+                        position: 3,
+                        snapshot: {
+                            title: 'Saved',
+                            posterUrl: null,
+                            tmdbId,
+                            releaseYear,
+                        },
+                    },
+                ],
+            };
+            const state = normalizeXtreamPendingRestoreState(input);
+            expect(state.favorites[0]).toEqual({
+                contentType: 'movie',
+                xtreamId: 7,
+                addedAt: '2026-01-02',
+                position: 3,
+                snapshot: {
+                    title: 'Saved',
+                    posterUrl: null,
+                    ...(expected as object),
+                },
+            });
+            expect(normalizeXtreamPendingRestoreState(state)).toEqual(state);
+        }
+    );
+
     it('retains only display metadata in a durable favorite snapshot', () => {
         const state = normalizeXtreamPendingRestoreState({
             favorites: [

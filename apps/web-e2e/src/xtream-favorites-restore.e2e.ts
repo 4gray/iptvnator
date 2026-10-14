@@ -16,6 +16,107 @@ test.beforeEach(async ({ page, request }) => {
     await interceptXtreamRequests(page);
 });
 
+test('@xtream @collections a completed catalog disables absent saved items without losing legacy backup identity', async ({
+    page,
+}) => {
+    const loaded = new Set<string>();
+    let detailRequests = 0;
+    page.on('response', (response) => {
+        const action = new URL(response.url()).searchParams.get('action');
+        if (action && response.ok()) loaded.add(action);
+    });
+    page.on('request', (request) => {
+        if (
+            new URL(request.url()).searchParams.get('action') === 'get_vod_info'
+        )
+            detailRequests++;
+    });
+    await addXtreamPortal(page, { name: 'Absent Favorites Portal' });
+    const rawId = new URL(page.url()).pathname
+        .replace(/\/vod.*$/, '')
+        .split('/')
+        .pop();
+    if (!rawId) throw new Error('Missing playlist ID');
+    const playlistId = decodeURIComponent(rawId);
+    await page.evaluate((playlistId) => {
+        const key = 'movie:99999';
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ [playlistId]: [key] })
+        );
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({
+                [playlistId]: [{ id: key, viewedAt: '2026-01-03' }],
+            })
+        );
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify({
+                [playlistId]: {
+                    [key]: {
+                        id: 99999,
+                        xtream_id: 99999,
+                        type: 'movie',
+                        title: 'Saved absent favorite',
+                        poster_url: '/assets/icons/icon-192x192.png',
+                        tmdb_id: '949',
+                        release_year: '1995',
+                        added_at: '2026-01-02',
+                        position: 3,
+                        catalog_status: 'present',
+                    },
+                },
+            })
+        );
+    }, playlistId);
+    await page.getByRole('link', { name: 'Series', exact: true }).click();
+    await expect.poll(() => loaded.has('get_series')).toBe(true);
+    await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await expect.poll(() => loaded.has('get_live_streams')).toBe(true);
+    await expect.poll(() => loaded.has('get_vod_streams')).toBe(true);
+    await page
+        .getByRole('link', { name: 'Global favorites', exact: true })
+        .click();
+    const card = page.getByRole('button', {
+        name: 'Saved absent favorite',
+        exact: true,
+    });
+    await expect(card).toHaveAttribute('aria-disabled', 'true');
+    await card.dispatchEvent('click');
+    await card.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('app-content-hero')).toHaveCount(0);
+    expect(detailRequests).toBe(0);
+    await page.reload();
+    await expect(card).toHaveAttribute('aria-disabled', 'true');
+    await page.goto('/workspace/global-recent');
+    await expect(card).toHaveAttribute('aria-disabled', 'true');
+    await card.dispatchEvent('click');
+    await expect(page.locator('app-content-hero')).toHaveCount(0);
+    expect(detailRequests).toBe(0);
+    await page.goto('/workspace/settings/backup');
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const path = await (await download).path();
+    if (!path) throw new Error('Backup download is missing');
+    const backup = JSON.parse(await readFile(path, 'utf8'));
+    const entry = backup.playlists.find(
+        (item: { exportedId: string }) => item.exportedId === playlistId
+    );
+    expect(entry.userState.favorites[0]).toMatchObject({
+        contentType: 'movie',
+        xtreamId: 99999,
+        addedAt: '2026-01-02',
+        position: 3,
+        snapshot: {
+            title: 'Saved absent favorite',
+            tmdbId: 949,
+            releaseYear: 1995,
+        },
+    });
+});
+
 for (const identity of ['missing', 'conflicting'] as const) {
     test(`@xtream @collections ${identity} catalog identity preserves saved favorites through reload and export`, async ({
         page,
