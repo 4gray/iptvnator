@@ -235,7 +235,8 @@ settings and guards read them in every build.
   tab remembers its page load in `sessionStorage`, so a reload takes its
   writes over and sends them first (the old copy goes only once the new one
   is saved, at the latest with this page's next saved copy). A page marks
-  its record closed on `pagehide` (not into the back-forward cache, where
+  its record closed on `pagehide`, and it stays closed when a page-hide
+  write failing afterwards rewrites it (not into the back-forward cache, where
   its record goes stale, as in a background tab the browser suspends;
   restored or shown again after another tab adopted it, the page reloads
   rather than send those writes again, and until then it neither sends nor

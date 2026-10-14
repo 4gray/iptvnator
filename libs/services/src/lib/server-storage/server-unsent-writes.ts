@@ -406,7 +406,9 @@ export function pageIsLive(
 
 /**
  * Writes only this page load's record (none without keys); true when one
- * now stands for it.
+ * now stands for it. A closed record stays closed: a page-hide write that
+ * fails after `pagehide` rewrites it, and the reload must still see a page
+ * that unloaded, not one that seems to run.
  */
 export function markUnconfirmed(
     local: UserDataStorage,
@@ -420,9 +422,14 @@ export function markUnconfirmed(
             local.removeItem(recordKey(instanceId, tabId));
             return false;
         }
+        const closed = readRecord(local, instanceId, tabId)?.closed === true;
         local.setItem(
             recordKey(instanceId, tabId),
-            JSON.stringify({ at: now, keys: [...keys] })
+            JSON.stringify({
+                at: now,
+                keys: [...keys],
+                ...(closed ? { closed } : {}),
+            })
         );
         return true;
     } catch {

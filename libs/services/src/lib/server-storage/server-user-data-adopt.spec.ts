@@ -352,4 +352,49 @@ describe('ServerUserDataStorage taking over other page loads', () => {
         await expect(tab.flushed()).resolves.toBe(false);
         expect(server.state['xtream-favorites']['p1']).toEqual(['live:1']);
     });
+
+    it('stays closed when a page-hide write fails after pagehide', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const local = memoryStorage();
+        const tabStore = memoryStorage();
+        const page = new ServerUserDataStorage(
+            {
+                ...server.api,
+                // Offline: the page-hide write fails at once.
+                sendJson: jest.fn(() =>
+                    Promise.reject(new ServerApiError(0, 'network', 'offline'))
+                ),
+                sendKeepalive: jest.fn(async () => ({
+                    status: 'failed' as const,
+                })),
+            } as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        await page.hydrate();
+        page.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+
+        // pagehide: flush, then close; the failure is answered after.
+        page.flushWithKeepalive();
+        page.close();
+        for (let turn = 0; turn < 10; turn += 1) {
+            await Promise.resolve();
+        }
+
+        // The reload takes its writes over at once, not after ten minutes.
+        const reloaded = new ServerUserDataStorage(
+            server.api as never,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        await reloaded.hydrate();
+        await reloaded.flush();
+        await reloaded.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+    });
 });
