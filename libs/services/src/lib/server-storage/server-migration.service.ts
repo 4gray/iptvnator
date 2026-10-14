@@ -12,6 +12,7 @@ import {
 import {
     combineRecentViews,
     combineUserData,
+    newestViewsFirst,
     remapChannelReferences,
     retargetUserData,
     unionItems,
@@ -178,18 +179,28 @@ export class ServerMigrationService {
                     serverChannels
                 )
             ),
+            // Newest first, one per item: its newest view (the server's on
+            // a tie), as the app keeps the list.
             recentlyViewed: unionItems(
-                stored.recentlyViewed ?? [],
-                remapChannelReferences(
-                    recentlyViewed,
-                    browserChannels,
-                    serverChannels
+                newestViewsFirst(
+                    [
+                        ...(stored.recentlyViewed ?? []),
+                        ...remapChannelReferences(
+                            recentlyViewed,
+                            browserChannels,
+                            serverChannels
+                        ),
+                    ],
+                    'added_at'
                 )
             ),
         };
+        // Also when only a newer view of an item it has changed.
         if (
-            next.favorites.length !== (stored.favorites ?? []).length ||
-            next.recentlyViewed.length !== (stored.recentlyViewed ?? []).length
+            JSON.stringify(next.favorites) !==
+                JSON.stringify(stored.favorites ?? []) ||
+            JSON.stringify(next.recentlyViewed) !==
+                JSON.stringify(stored.recentlyViewed ?? [])
         ) {
             await this.session.documentStore.dbUpsertAppPlaylist(next);
         }

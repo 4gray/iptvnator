@@ -578,58 +578,83 @@ describe('PlaylistsService', () => {
         );
     });
 
-    it('migrates legacy Stalker portal flags on the server too', async () => {
+    describe('legacy Stalker portal flags on the server', () => {
         // A desktop database copied to the server, from before the flag.
-        let storedPlaylists: Playlist[] = [
-            {
-                _id: 'stalker-1',
-                title: 'Copied Stalker',
-                count: 0,
-                importDate: new Date('2026-03-28T00:00:00.000Z').toISOString(),
-                lastUsage: new Date('2026-03-28T00:00:00.000Z').toISOString(),
-                autoRefresh: false,
-                macAddress: '00:1A:79:AA:BB:CC',
-                portalUrl: 'http://example.com/stalker_portal/c/',
-            } as Playlist,
-        ];
-        const appState = new Map<string, string>();
-        const server = {
-            dbGetAppPlaylists: jest.fn(async () => storedPlaylists),
-            dbGetAppState: jest.fn(
-                async (key: string) => appState.get(key) ?? null
-            ),
-            dbSetAppState: jest.fn(async (key: string, value: string) => {
-                appState.set(key, value);
-            }),
-            dbUpsertAppPlaylist: jest.fn(),
-            dbUpsertAppPlaylists: jest.fn(async (playlists: Playlist[]) => {
-                storedPlaylists = playlists;
-            }),
-            dbRecoverLegacyPlaylists: jest.fn(),
-        };
-        testWindow.electron = undefined;
-        const service = createService();
-        Object.assign(service as object, {
-            storageBackend: {
-                kind: () => 'server',
-                documentStore: () => server,
-            },
+        const copied = {
+            _id: 'stalker-1',
+            title: 'Copied Stalker',
+            count: 0,
+            importDate: new Date('2026-03-28T00:00:00.000Z').toISOString(),
+            lastUsage: new Date('2026-03-28T00:00:00.000Z').toISOString(),
+            autoRefresh: false,
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'http://example.com/stalker_portal/c/',
+        } as Playlist;
+
+        function serverService(
+            fresh: Playlist,
+            upsert: jest.Mock = jest.fn(async () => ({ success: true }))
+        ) {
+            const appState = new Map<string, string>();
+            const server = {
+                dbGetAppPlaylists: jest.fn(async () => [copied]),
+                // Another device may have changed it since the list read.
+                dbGetAppPlaylist: jest.fn(async () => fresh),
+                dbGetAppState: jest.fn(
+                    async (key: string) => appState.get(key) ?? null
+                ),
+                dbSetAppState: jest.fn(async (key: string, value: string) => {
+                    appState.set(key, value);
+                }),
+                dbUpsertAppPlaylist: upsert,
+                dbUpsertAppPlaylists: jest.fn(),
+                dbRecoverLegacyPlaylists: jest.fn(),
+            };
+            testWindow.electron = undefined;
+            const service = createService();
+            Object.assign(service as object, {
+                storageBackend: {
+                    kind: () => 'server',
+                    documentStore: () => server,
+                },
+            });
+            return { service, server, appState };
+        }
+
+        it('are written per row on a fresh read, as conditional mutations', async () => {
+            const edited = { ...copied, title: 'Renamed elsewhere' };
+            const { service, server, appState } = serverService(edited);
+
+            await firstValueFrom(service.getAllPlaylists());
+
+            // Never the stale list copy, never an unconditional bulk write.
+            expect(server.dbUpsertAppPlaylists).not.toHaveBeenCalled();
+            expect(server.dbUpsertAppPlaylist).toHaveBeenCalledWith({
+                ...edited,
+                isFullStalkerPortal: true,
+            });
+            expect(appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)).toBe(
+                '1'
+            );
+            // The desktop-only steps stay with the desktop.
+            expect(server.dbRecoverLegacyPlaylists).not.toHaveBeenCalled();
         });
 
-        await expect(
-            firstValueFrom(service.getAllPlaylists())
-        ).resolves.toEqual([
-            expect.objectContaining({
-                _id: 'stalker-1',
-                isFullStalkerPortal: true,
-            }),
-        ]);
+        it('stay unflagged for the next start after a conflict', async () => {
+            const { service, appState } = serverService(
+                copied,
+                jest.fn(async () => {
+                    throw new PlaylistWriteConflict('stalker-1');
+                })
+            );
+            jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
-        expect(appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)).toBe(
-            '1'
-        );
-        // The desktop-only steps stay with the desktop.
-        expect(server.dbRecoverLegacyPlaylists).not.toHaveBeenCalled();
+            await firstValueFrom(service.getAllPlaylists());
+
+            expect(
+                appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)
+            ).toBeUndefined();
+        });
     });
 
     it('does not rerun the SQLite Stalker metadata migration after the flag is set', async () => {

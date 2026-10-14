@@ -357,13 +357,15 @@ settings and guards read them in every build.
   playlists this browser kept in IndexedDB (`planServerMigration`), Stalker
   rows from before the portal-mode flag normalized first (server rows get
   the same Stalker metadata migration once per server, as a desktop
-  database copied there can predate it). A
+  database copied there can predate it: each row read again and written as
+  a conditional mutation, a conflict retried at the next start). A
   playlist the server already has, by id or by source (Xtream server and
   user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
   others upload with their ids. A merged playlist gains the browser
   document's favorites and history (M3U favorites name channels by stream
   URL; older ones by a channel id that is random per import and is
-  translated through the URL; Stalker items by id, category and series
+  translated through the URL; recently viewed newest first by `added_at`,
+  one per item with its newest view; Stalker items by id, category and series
   flag, since one provider category can hold a movie and a series of one
   id; nothing is dropped), and the legacy Xtream maps follow under
   the server id; each copy's bare legacy Xtream ids are typed from its own

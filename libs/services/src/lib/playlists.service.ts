@@ -304,7 +304,20 @@ export class PlaylistsService {
             const updates =
                 this.collectStalkerMetadataMigrationUpdates(storedPlaylists);
 
-            if (updates.length > 0) {
+            if (this.storageBackend.kind() === 'server') {
+                // Shared with other devices: each row is read again and
+                // written on that version, never over a newer copy. A
+                // conflict leaves the flag unset, so the next start retries.
+                for (const { _id } of updates) {
+                    const fresh = await store.dbGetAppPlaylist(_id);
+                    const [update] = fresh
+                        ? this.collectStalkerMetadataMigrationUpdates([fresh])
+                        : [];
+                    if (update) {
+                        await store.dbUpsertAppPlaylist(update);
+                    }
+                }
+            } else if (updates.length > 0) {
                 await store.dbUpsertAppPlaylists(updates);
             }
 

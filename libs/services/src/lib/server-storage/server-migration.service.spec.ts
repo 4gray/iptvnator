@@ -300,6 +300,55 @@ describe('ServerMigrationService', () => {
         });
     });
 
+    it("keeps a document's newest view of an item both copies hold", async () => {
+        const view = (day: number, extra = {}) => ({
+            source: 'm3u',
+            id: 'b1',
+            url: 'http://s/1',
+            title: 'One',
+            category_id: 'live',
+            added_at: `2026-10-0${day}T20:00:00.000Z`,
+            ...extra,
+        });
+        TestBed.overrideProvider(NgxIndexedDBService, {
+            useValue: {
+                getAll: () =>
+                    of([
+                        {
+                            ...browserPlaylists[0],
+                            recentlyViewed: [
+                                view(3, { poster_url: 'new.png' }),
+                            ],
+                            playlist: {
+                                items: [{ id: 'b1', url: 'http://s/1' }],
+                            },
+                        },
+                    ]),
+            },
+        });
+        session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
+            { _id: 'server-m', title: 'Family', url: browserPlaylists[0].url },
+        ]);
+        const stored = {
+            _id: 'server-m',
+            title: 'Family',
+            url: browserPlaylists[0].url,
+            favorites: [],
+            // The same channel, watched there before this browser's view.
+            recentlyViewed: [view(1, { id: 's1' })],
+            playlist: { items: [{ id: 's1', url: 'http://s/1' }] },
+        };
+        session.documentStore.dbGetAppPlaylist.mockResolvedValue(stored);
+
+        await TestBed.inject(ServerMigrationService).moveBrowserData();
+
+        // Not skipped for an unchanged length: the newer view replaces it.
+        expect(session.documentStore.dbUpsertAppPlaylist).toHaveBeenCalledWith({
+            ...stored,
+            recentlyViewed: [view(3, { id: 's1', poster_url: 'new.png' })],
+        });
+    });
+
     it('keeps the move on offer when a playlist could not be uploaded', async () => {
         session.documentStore.dbUpsertAppPlaylist
             .mockRejectedValueOnce(new Error('413'))

@@ -151,12 +151,19 @@ export function combineRecentViews(values: readonly unknown[]): unknown {
     );
 }
 
-/** Items with a `viewedAt` (recently viewed), newest first; stable. */
-export function newestViewsFirst<T>(items: readonly T[]): T[] {
+/**
+ * Recently viewed items newest first, by `viewedAt` (Xtream maps) or
+ * `added_at` (playlist documents: an ISO date or epoch milliseconds);
+ * stable, undated items after dated ones.
+ */
+export function newestViewsFirst<T>(
+    items: readonly T[],
+    field: 'viewedAt' | 'added_at' = 'viewedAt'
+): T[] {
     const viewedAt = (item: unknown) => {
-        const at = isPlainObject(item)
-            ? Date.parse(String(item['viewedAt']))
-            : NaN;
+        const value = isPlainObject(item) ? item[field] : undefined;
+        const at =
+            typeof value === 'number' ? value : Date.parse(String(value));
         return Number.isNaN(at) ? 0 : at;
     };
     return [...items].sort((a, b) => viewedAt(b) - viewedAt(a));
