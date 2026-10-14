@@ -1175,7 +1175,7 @@ point (#1931); the baseline follows the measurement of the branch merged with
 eager `MatSnackBar` injections moved to `LazySnackBar` and the startup
 status deferring its Retry button, the snack-bar, Material's button, the icon
 button chunk, ripple and the CDK a11y module left the initial bundle,
-1,349,048 to 1,236,918 bytes (-112,130, 8.3%) on a local build, and no
+1,349,048 to 1,237,440 bytes (-111,608, 8.3%) on a local build, and no
 Material module remains in it. Of the CDK, the overlay, scrolling and portal
 chunks (about 78 KB) stay through the `FullscreenOverlayContainer` provider
 in `app.config.ts`, whose token lives in the overlay chunk.

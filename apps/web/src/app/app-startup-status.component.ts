@@ -5,6 +5,7 @@ import {
     inject,
     input,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { MatButton } from '@angular/material/button';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -18,7 +19,7 @@ import {
 @Component({
     selector: 'app-startup-status',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButton, TranslatePipe],
+    imports: [MatButton, NgTemplateOutlet, TranslatePipe],
     template: `
         @if (!complete()) {
             <section
@@ -96,18 +97,28 @@ import {
                 @if (failed()) {
                     <!--
                         Material's button loads with the failure branch so the
-                        first screen does not carry the button chunk; a failed
-                        chunk load still leaves a working native button.
+                        first screen does not carry the button chunk. A native
+                        button retries while the chunk downloads and stays when
+                        the load fails.
                     -->
                     @defer (on immediate) {
                         <button mat-flat-button type="button" (click)="retry()">
                             {{ 'RETRY' | translate }}
                         </button>
+                    } @placeholder {
+                        <ng-container [ngTemplateOutlet]="nativeRetry" />
                     } @error {
-                        <button type="button" (click)="retry()">
+                        <ng-container [ngTemplateOutlet]="nativeRetry" />
+                    }
+                    <ng-template #nativeRetry>
+                        <button
+                            class="startup-retry-native"
+                            type="button"
+                            (click)="retry()"
+                        >
                             {{ 'RETRY' | translate }}
                         </button>
-                    }
+                    </ng-template>
                 }
             </section>
         }
@@ -163,6 +174,19 @@ import {
         button {
             margin-top: 8px;
             app-region: no-drag;
+        }
+        /* The flat button's shape in the theme's colours, until the
+           Material button loads. */
+        .startup-retry-native {
+            height: 40px;
+            padding: 0 24px;
+            border: 0;
+            border-radius: 20px;
+            background: var(--mat-sys-primary);
+            color: var(--mat-sys-on-primary);
+            font: inherit;
+            font-weight: 500;
+            cursor: pointer;
         }
 
         /*

@@ -141,7 +141,8 @@ in the overlay chunk. Everything else is lazy by these rules:
   the view that imports Material; the startup status draws its spinner as
   static markup copied from `mat-spinner` and renders its Retry button in
   `@defer (on immediate)` inside the failure branch, with a native button
-  in `@error`. A new always-mounted component follows the same split.
+  as the placeholder and the error view so a retry never waits for the
+  chunk. A new always-mounted component follows the same split.
 - **Theme scope.** `m3-theme.scss` themes only the components in its
   `$material-components` list, through `meta.apply` for both the light theme
   and the dark colours. Add an entry with a new `@angular/material/<entry>`
