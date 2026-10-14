@@ -93,4 +93,14 @@ describe('ServerStorageStatusService', () => {
         expect(status.state()).toBe('online');
         expect(readServerAccessToken('i-1')).toBe('kept');
     });
+
+    it('checks the instance again after an outage on the sign-in page', () => {
+        status.activate(instance, jest.fn());
+        status.reportUnauthorized();
+
+        status.reportOffline();
+
+        expect(status.state()).toBe('unauthorized');
+        expect(status.isVerified()).toBe(false);
+    });
 });

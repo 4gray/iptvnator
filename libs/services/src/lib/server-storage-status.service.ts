@@ -77,11 +77,15 @@ export class ServerStorageStatusService {
     }
 
     reportOffline(): void {
+        if (!this.isActive()) {
+            return;
+        }
+        // It may come back as another database (a replaced volume at the
+        // same address): no token, no writes until it is checked, also
+        // from the sign-in page.
+        this.verified = false;
         // A late failure after sign-out must not unlock the workspace.
-        if (this.isActive() && this.stateSignal() !== 'unauthorized') {
-            // It may come back as another database (a replaced volume at
-            // the same address): no token, no writes until it is checked.
-            this.verified = false;
+        if (this.stateSignal() !== 'unauthorized') {
             this.stateSignal.set('offline');
         }
     }
