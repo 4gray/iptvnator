@@ -1,5 +1,6 @@
 import {
     CollectionKey,
+    collectionSnapshotMatchesContent,
     StoredRecentItem,
     deduplicateRecentItems,
     itemCollectionKey,
@@ -23,7 +24,8 @@ export class PwaCollectionStorage {
     constructor(
         private readonly resolveItems: (
             playlistId: string,
-            ids: readonly CollectionKey[]
+            ids: readonly CollectionKey[],
+            catalogOnly?: boolean
         ) => Map<CollectionKey, XtreamContentItem>,
         private readonly storage: UserDataStorage
     ) {}
@@ -240,7 +242,9 @@ export class PwaCollectionStorage {
         const playlistItems = allItems[playlistId] ?? {};
         playlistItems[String(contentId)] = {
             ...item,
-            ...(normalizedBackdropUrl && !item.backdrop_url
+            ...(normalizedBackdropUrl &&
+            !item.backdrop_url &&
+            this.canEnrichSnapshot(playlistId, contentId, item)
                 ? { backdrop_url: normalizedBackdropUrl }
                 : {}),
         };
@@ -248,6 +252,18 @@ export class PwaCollectionStorage {
             ...allItems,
             [playlistId]: playlistItems,
         });
+    }
+
+    private canEnrichSnapshot(
+        playlistId: string,
+        key: CollectionKey,
+        saved: XtreamContentItem
+    ): boolean {
+        // A merged collection row carries saved identity, so it is not confirmation.
+        return collectionSnapshotMatchesContent(
+            saved,
+            this.resolveItems(playlistId, [key], true).get(key)
+        );
     }
 
     setCollectionItemBackdropIfMissing(
@@ -258,7 +274,11 @@ export class PwaCollectionStorage {
         const allItems = this.getCollectionItemsFromStorage();
         const playlistItems = allItems[playlistId];
         const item = playlistItems?.[String(contentId)];
-        if (!item || item.backdrop_url) {
+        if (
+            !item ||
+            item.backdrop_url ||
+            !this.canEnrichSnapshot(playlistId, contentId, item)
+        ) {
             return;
         }
 

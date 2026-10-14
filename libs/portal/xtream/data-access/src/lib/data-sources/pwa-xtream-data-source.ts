@@ -96,7 +96,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly contentTypes = ['live', 'movie', 'series'] as const;
     private readonly userDataStorage = inject(USER_DATA_STORAGE);
     private readonly collectionStorage = new PwaCollectionStorage(
-        (playlistId, ids) => this.getCollectionItemsById(playlistId, ids),
+        (playlistId, ids, catalogOnly) =>
+            this.getCollectionItemsById(playlistId, ids, catalogOnly),
         this.userDataStorage
     );
 
@@ -1097,21 +1098,25 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     private getCollectionItemsById(
         playlistId: string,
-        ids: readonly CollectionKey[]
+        ids: readonly CollectionKey[],
+        catalogOnly = false
     ): Map<CollectionKey, XtreamContentItem> {
         if (!ids.length) return new Map();
-        const cached: XtreamContentItem[] = [];
-        for (const type of this.contentTypes) {
-            const content =
-                this.contentCache.get(`${playlistId}-${type}-content`) ?? [];
-            for (const item of content) cached.push(item as XtreamContentItem);
-        }
+        const cached = ([] as XtreamContentItem[]).concat(
+            ...this.contentTypes.map(
+                (type) =>
+                    (this.contentCache.get(`${playlistId}-${type}-content`) ??
+                        []) as XtreamContentItem[]
+            )
+        );
         return findCollectionItems(
             ids,
             cached,
-            this.collectionStorage.getCollectionItemsFromStorage()[
-                playlistId
-            ] ?? {},
+            catalogOnly
+                ? {}
+                : (this.collectionStorage.getCollectionItemsFromStorage()[
+                      playlistId
+                  ] ?? {}),
             this.contentTypes.every((type) =>
                 this.contentCache.has(`${playlistId}-${type}-content`)
             )
@@ -1388,9 +1393,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         options?: XtreamOperationOptions
     ): Promise<void> {
         void options;
-        const { restorePwaXtreamUserData } = await import(
-            './pwa-xtream-restore'
-        );
+        const { restorePwaXtreamUserData } =
+            await import('./pwa-xtream-restore');
         await restorePwaXtreamUserData(
             this.userDataStorage,
             playlistId,

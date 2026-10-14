@@ -517,6 +517,115 @@ describe('PWA Xtream collection identity', () => {
         ).toEqual(favorites);
     });
 
+    it.each([
+        'missing',
+        'partial',
+        'tmdb conflict',
+        'year conflict',
+        'confirmed',
+    ])(
+        'protects imported identities through %s catalog rows, recent writes and re-export',
+        async (identity) => {
+            const favorites = types.map((contentType, position) => ({
+                contentType,
+                xtreamId: 42,
+                position,
+                addedAt: '2026-10-01T12:00:00.000Z',
+                snapshot: {
+                    title: `Saved ${contentType}`,
+                    posterUrl: `https://img.example.com/saved-${contentType}.jpg`,
+                    tmdbId: 100 + position,
+                    releaseYear: 1995 + position,
+                    originalTitle: `Original ${contentType}`,
+                },
+            }));
+            const entry: XtreamPlaylistBackupEntry = {
+                portalType: 'xtream',
+                exportedId: 'p1',
+                title: 'Saved portal',
+                autoRefresh: false,
+                connection: credentials,
+                userState: {
+                    hiddenCategories: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                    favorites,
+                },
+            };
+            await source.restoreUserData('p1', entry.userState);
+            api.getStreams.mockImplementation((_credentials, type) => {
+                const position = types.indexOf(type);
+                return Promise.resolve([
+                    {
+                        stream_id: 42,
+                        series_id: 42,
+                        category_id: '1',
+                        name: `Returning ${type}`,
+                        stream_icon: `https://img.example.com/returning-${type}.jpg`,
+                        ...(identity !== 'missing'
+                            ? {
+                                  tmdb_id:
+                                      identity === 'tmdb conflict'
+                                          ? 999
+                                          : 100 + position,
+                              }
+                            : {}),
+                        ...(identity !== 'missing' && identity !== 'partial'
+                            ? {
+                                  release_year:
+                                      identity === 'year conflict'
+                                          ? 2026
+                                          : 1995 + position,
+                              }
+                            : {}),
+                    },
+                ]);
+            });
+            await loadAll();
+            // Recent and detail enrichment can run before Favorites is read.
+            for (const type of types) {
+                await source.addRecentItem(
+                    { id: 42, type },
+                    'p1',
+                    'https://img.example.com/returning-wide.jpg'
+                );
+                await source.setContentMetadataIfMissing(
+                    { id: 42, type },
+                    'p1',
+                    { backdropUrl: 'https://img.example.com/detail-wide.jpg' }
+                );
+            }
+            await source.getRecentItems('p1');
+            const expected = favorites.map((favorite) =>
+                identity === 'confirmed'
+                    ? {
+                          ...favorite,
+                          snapshot: {
+                              ...favorite.snapshot,
+                              title: `Returning ${favorite.contentType}`,
+                              posterUrl: `https://img.example.com/returning-${favorite.contentType}.jpg`,
+                              backdropUrl:
+                                  'https://img.example.com/detail-wide.jpg',
+                          },
+                      }
+                    : favorite
+            );
+            expect(
+                (await source.getFavorites('p1')).map((item) => item.title)
+            ).toEqual(expected.map((item) => item.snapshot.title));
+            const exportFavorites = () =>
+                new PwaXtreamBackupStorage(
+                    TestBed.inject(USER_DATA_STORAGE)
+                ).exportInto(entry).userState.favorites;
+            expect(exportFavorites()).toEqual(expected);
+            reload();
+            api.getStreams.mockResolvedValue([]);
+            await source.getRecentItems('p1');
+            await source.getFavorites('p1');
+            expect(exportFavorites()).toEqual(expected);
+        }
+    );
+
     it('keeps the artwork saved with each view through clear/restore', async () => {
         await source.restoreUserData('p1', {
             hiddenCategories: [],

@@ -142,12 +142,25 @@ export function findCollectionItems(
     return results;
 }
 
-/** Sparse provider rows refresh the cache without erasing saved backup fields. */
+/** Catalog evidence must confirm every saved identity field before replacing metadata. */
+export function collectionSnapshotMatchesContent(
+    saved: XtreamContentItem,
+    current: XtreamContentItem | undefined
+): boolean {
+    return (
+        (saved.tmdb_id == null || saved.tmdb_id === current?.tmdb_id) &&
+        (saved.release_year == null ||
+            saved.release_year === current?.release_year)
+    );
+}
+
+/** Keep the durable snapshot separate until the actual catalog row confirms it. */
 function mergeCollectionItem(
     saved: XtreamContentItem | undefined,
     current: XtreamContentItem
 ): XtreamContentItem {
     if (!saved) return current;
+    if (!collectionSnapshotMatchesContent(saved, current)) return saved;
     return {
         ...saved,
         ...current,

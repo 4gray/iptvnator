@@ -101,11 +101,15 @@ Browser imports convert desktop favorite snapshots into typed collection-cache
 rows so saved titles and artwork remain visible offline. Browser exports include
 the normalized nested favorite snapshots as well as their optional collection
 cache, preserving metadata when the archive returns to Electron.
-Catalog hydration merges sparse provider rows with saved collection metadata;
-absent artwork and identity fields retain their saved values. The favorite's
-added date and order belong to user state and never come from the provider.
-Favorites and Recent reads/writes share this resolution, so browsing before
-re-exporting cannot strip imported fields.
+Catalog hydration keeps the saved snapshot separate from current provider rows.
+Only a row confirming every saved TMDB ID/year may refresh that snapshot;
+missing, partially confirmed or conflicting identity retains the original title,
+artwork and metadata. After confirmation, blank catalog fields retain saved
+values. The favorite's added date and order always belong to user state.
+Favorites and Recent reads/writes share this resolution. Recent/detail backdrop
+writes check the actual catalog evidence, never the resolved collection row
+which already carries saved identity. Browsing, reload and re-export therefore
+cannot replace an imported snapshot merely because a provider reused its ID.
 Initial browser imports and deferred retries share `PwaXtreamBackupStorage`;
 `PwaXtreamBackupStateService` supplies its injected storage for the importer.
 Both write the lists first and require the nested favorite snapshots to persist
