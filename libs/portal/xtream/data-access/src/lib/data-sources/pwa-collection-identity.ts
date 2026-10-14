@@ -111,7 +111,8 @@ export function findCollectionItems(
     ids: readonly CollectionKey[],
     cached: readonly XtreamContentItem[],
     snapshots: Record<string, XtreamContentItem>,
-    completeCatalog: boolean
+    completeCatalog: boolean,
+    preferred?: Record<string, CollectionIdentity>
 ): Map<CollectionKey, XtreamContentItem> {
     const wantedIds = new Set(
         ids.map((key) => typedCollectionRef(key)?.id ?? key)
@@ -136,7 +137,7 @@ export function findCollectionItems(
         const key = itemCollectionKey(item);
         if (key !== null) {
             missingKeys?.delete(key);
-            const saved = typedItems.get(key);
+            const saved = preferred?.[key] ?? typedItems.get(key);
             const previous = candidates.get(key);
             if (
                 !previous ||
@@ -193,7 +194,7 @@ export function findCollectionItems(
 
 /** Compare duplicates against the original snapshot, never an earlier candidate. */
 function collectionMatchRank(
-    saved: XtreamContentItem | undefined,
+    saved: CollectionIdentity | undefined,
     item: XtreamContentItem
 ): number {
     if (!saved || collectionSnapshotMatchesContent(saved, item)) return 2;
@@ -211,7 +212,10 @@ export function collectionRefIdentity(ref: XtreamCollectionRef) {
         : undefined;
 }
 
-type CollectionIdentity = Pick<XtreamContentItem, 'tmdb_id' | 'release_year'>;
+export type CollectionIdentity = Pick<
+    XtreamContentItem,
+    'tmdb_id' | 'release_year'
+>;
 
 /** Catalog evidence must confirm every saved identity field before replacing metadata. */
 export function collectionSnapshotMatchesContent(

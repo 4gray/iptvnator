@@ -88,7 +88,10 @@ export class PwaCollectionStorage {
             !!saved &&
             !collectionSnapshotMatchesContent(
                 saved,
-                expected ?? this.resolveItems(playlistId, [key], true).get(key),
+                expected ??
+                    this.resolveItems(playlistId, [key], true, {
+                        [key]: saved,
+                    }).get(key),
                 true
             )
         );

@@ -34,11 +34,13 @@ import {
     XtreamOperationOptions,
     XtreamCategoryFromDb,
     XtreamContentItem,
+    XtreamPlayedContent,
     XtreamPlaylistData,
 } from './xtream-data-source.interface';
 
 import {
     CollectionKey,
+    type CollectionIdentity,
     collectionRefIdentity,
     collectionKey,
     typedCollectionRef,
@@ -723,6 +725,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             return;
         }
 
+        const expected = collectionRefIdentity(contentId);
         const { addPwaFavorite } = await import('./pwa-favorite-write');
         addPwaFavorite(
             this.collectionStorage,
@@ -731,7 +734,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             this.getCollectionItemsById(
                 playlistId,
                 [normalizedContentId],
-                true
+                true,
+                undefined,
+                expected ? { [normalizedContentId]: expected } : undefined
             ).get(normalizedContentId),
             (ids) =>
                 this.getMatchingCollectionKeys(
@@ -740,7 +745,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                     normalizedContentId
                 ),
             backdropUrl,
-            collectionRefIdentity(contentId)
+            expected
         );
     }
 
@@ -957,7 +962,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async addRecentItem(
         contentId: XtreamCollectionRef,
         playlistId: string,
-        _backdropUrl?: string
+        _backdropUrl?: string,
+        playedContent?: XtreamPlayedContent
     ): Promise<void> {
         const normalizedContentId = await this.resolveCollectionKey(
             playlistId,
@@ -979,7 +985,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                     ids,
                     normalizedContentId
                 ),
-            _backdropUrl
+            _backdropUrl,
+            playedContent
         );
     }
 
@@ -1033,7 +1040,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         ids: readonly CollectionKey[],
         catalogOnly = false,
-        snapshots?: Record<string, XtreamContentItem>
+        snapshots?: Record<string, XtreamContentItem>,
+        preferred?: Record<string, CollectionIdentity>
     ): Map<CollectionKey, XtreamContentItem> {
         if (!ids.length) return new Map();
         const cached = ([] as XtreamContentItem[]).concat(
@@ -1055,7 +1063,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                       {}),
             this.contentTypes.every((type) =>
                 this.contentCache.has(`${playlistId}-${type}-content`)
-            )
+            ),
+            preferred ?? (catalogOnly ? snapshots : undefined)
         );
     }
 

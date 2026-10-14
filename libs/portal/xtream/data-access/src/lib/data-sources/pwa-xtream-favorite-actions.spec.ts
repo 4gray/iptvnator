@@ -584,4 +584,125 @@ describe('PWA favorite action and detail identity', () => {
         expect(read('xtream-collection-items').p1['movie:42']).toEqual(before);
         expect(read('xtream-favorites').p1).toEqual(['movie:42']);
     });
+    it.each(['live', 'movie', 'series'] as const)(
+        'uses the displayed %s identity for duplicate catalog heart actions',
+        async (type) => {
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Original',
+                    category_id: '1',
+                    tmdb_id: 100,
+                },
+            ]);
+            await source.getContent('p1', credentials, type);
+            await source.addFavorite({ id: 42, type }, 'p1');
+            source.clearSessionCache('p1');
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Original',
+                    category_id: '1',
+                    tmdb_id: 100,
+                },
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Replacement',
+                    category_id: '2',
+                    tmdb_id: 200,
+                },
+            ]);
+            await source.getContent('p1', credentials, type);
+            const original = { id: 42, type, identity: { tmdbId: 100 } };
+            const replacement = { id: 42, type, identity: { tmdbId: 200 } };
+            expect(await source.isFavorite(original, 'p1')).toBe(true);
+            expect(await source.isFavorite(replacement, 'p1')).toBe(false);
+            await expect(source.addFavorite(replacement, 'p1')).rejects.toThrow(
+                'XTREAM_FAVORITE_IDENTITY_CONFLICT'
+            );
+            await source.removeFavorite(original, 'p1');
+            await source.addFavorite(original, 'p1');
+            expect(await source.isFavorite(original, 'p1')).toBe(true);
+            await source.removeFavorite(original, 'p1');
+            await source.addFavorite(replacement, 'p1');
+            expect(await source.isFavorite(replacement, 'p1')).toBe(true);
+            expect(
+                read('xtream-collection-items').p1[`${type}:42`].tmdb_id
+            ).toBe(200);
+        }
+    );
+
+    it.each(['live', 'movie', 'series'] as const)(
+        'records the played %s identity over independent cold Recent metadata',
+        async (type) => {
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Watched original',
+                    category_id: '1',
+                    tmdb_id: 100,
+                },
+            ]);
+            await source.getContent('p1', credentials, type);
+            await source.addRecentItem({ id: 42, type }, 'p1');
+            source.clearSessionCache('p1');
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Replacement favorite',
+                    category_id: '1',
+                    tmdb_id: 200,
+                },
+            ]);
+            await source.getContent('p1', credentials, type);
+            await source.addFavorite({ id: 42, type }, 'p1');
+            reload();
+            expect((await source.getRecentItems('p1'))[0].tmdb_id).toBe(100);
+            const ref = { id: 42, type };
+            const prior = localStorage.getItem('xtream-recent-items');
+            const set = localStorage.setItem.bind(localStorage);
+            const failure = jest
+                .spyOn(Storage.prototype, 'setItem')
+                .mockImplementation((key, value) => {
+                    if (key === 'xtream-recent-items') throw new Error('quota');
+                    set(key, value);
+                });
+            await expect(
+                source.addRecentItem(ref, 'p1', undefined, {
+                    title: 'Replacement favorite',
+                    tmdbId: 200,
+                })
+            ).rejects.toThrow('quota');
+            expect(localStorage.getItem('xtream-recent-items')).toBe(prior);
+            failure.mockRestore();
+            await source.addRecentItem(ref, 'p1', undefined, {
+                title: 'Replacement favorite',
+                tmdbId: 200,
+            });
+            reload();
+            expect((await source.getRecentItems('p1'))[0]).toMatchObject({
+                title: 'Replacement favorite',
+                tmdb_id: 200,
+            });
+            // Playing the older independent item must not overwrite the favorite.
+            await source.addRecentItem(ref, 'p1', undefined, {
+                title: 'Watched original',
+                tmdbId: 100,
+            });
+            reload();
+            expect((await source.getRecentItems('p1'))[0]).toMatchObject({
+                title: 'Watched original',
+                tmdb_id: 100,
+            });
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                title: 'Replacement favorite',
+                tmdb_id: 200,
+            });
+        }
+    );
 });

@@ -3,6 +3,9 @@ import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     type IXtreamDataSource,
+    type XtreamPlayedContent,
+    type XtreamDetailMetadataSource,
+    xtreamDetailContentMetadata,
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -11,6 +14,7 @@ export interface XtreamRecentItemRequest {
     readonly xtreamId: number | string;
     readonly contentType: 'live' | 'movie' | 'series';
     readonly backdropUrl?: string;
+    readonly playedContent?: XtreamPlayedContent;
 }
 
 /**
@@ -38,10 +42,16 @@ export function injectXtreamRecentHistory(): (
 
     return (streamUrl, request, sessionKey) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
+        const captured = {
+            ...request,
+            ...(request.playedContent
+                ? { playedContent: { ...request.playedContent } }
+                : {}),
+        };
         gate.defer({ sessionKey, streamUrls: [streamUrl] }, () => {
             const playlistId = playlist()?.id;
             if (store.currentPlaylist()?.id === playlistId) {
-                store.addRecentItem({ ...request, playlist });
+                store.addRecentItem({ ...captured, playlist });
             } else if (playlistId) {
                 void saveWithoutListRefresh(
                     injector.get(XTREAM_DATA_SOURCE),
@@ -50,7 +60,7 @@ export function injectXtreamRecentHistory(): (
                     !injector.get(RuntimeCapabilitiesService)
                         .supportsXtreamSqliteDataSource,
                     playlistId,
-                    request
+                    captured
                 );
             }
         });
@@ -68,7 +78,12 @@ async function saveWithoutListRefresh(
     dataSource: IXtreamDataSource,
     keysByXtreamId: boolean,
     playlistId: string,
-    { xtreamId, contentType, backdropUrl }: XtreamRecentItemRequest
+    {
+        xtreamId,
+        contentType,
+        backdropUrl,
+        playedContent,
+    }: XtreamRecentItemRequest
 ): Promise<void> {
     const id = Number(xtreamId);
     if (!Number.isFinite(id) || id <= 0) {
@@ -84,7 +99,38 @@ async function saveWithoutListRefresh(
         await dataSource.addRecentItem(
             { id: contentId, type: contentType },
             playlistId,
-            backdropUrl
+            backdropUrl,
+            ...(playedContent ? ([playedContent] as const) : [])
         );
     }
+}
+
+/** Capture displayed detail metadata before playback confirmation or navigation. */
+export function xtreamPlayedDetail(
+    info:
+        | (XtreamDetailMetadataSource & {
+              name?: string;
+              cover?: string;
+              movie_image?: string;
+              cover_big?: string;
+              category_id?: string;
+          })
+        | null
+        | undefined,
+    fallbackTitle?: string,
+    fallbackPoster?: string | null
+): XtreamPlayedContent | undefined {
+    const title = info?.name || fallbackTitle;
+    if (!title) return undefined;
+    return {
+        ...xtreamDetailContentMetadata(info),
+        title,
+        posterUrl:
+            info?.cover ||
+            info?.movie_image ||
+            info?.cover_big ||
+            fallbackPoster ||
+            undefined,
+        categoryId: info?.category_id,
+    };
 }

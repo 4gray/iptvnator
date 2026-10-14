@@ -1011,6 +1011,148 @@ test('@xtream @collections detail enrichment retains both category listings of o
     await expect(card).not.toHaveAttribute('aria-disabled', 'true');
     await card.click();
     await expect(page.locator('app-content-hero')).toBeVisible();
+    const remove = page.getByRole('button', {
+        name: 'Remove from favorites',
+        exact: true,
+    });
+    await expect(remove).toBeVisible();
+    await remove.click();
+    await page
+        .getByRole('button', { name: 'Add to favorites', exact: true })
+        .click();
+    await expect(remove).toBeVisible();
     // The hero can render before the detail response rewrite finishes.
+    await page.unrouteAll({ behavior: 'wait' });
+});
+
+test('@xtream @collections cold replacement playback records its own Recent identity', async ({
+    page,
+    request,
+}) => {
+    test.setTimeout(60_000);
+    await routeMovieClip(page);
+    await selectWebPlayer(page, 'HTML5 video player');
+    const response = await request.get(`${MOCK_SERVER}/player_api.php`, {
+        params: {
+            username: DEFAULT_USERNAME,
+            password: DEFAULT_PASSWORD,
+            action: 'get_vod_streams',
+        },
+    });
+    const movie = (await response.json())[0];
+    let cold = false;
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        const action = original.searchParams.get('action');
+        if (cold && action === 'get_vod_streams') return route.abort();
+        if (action !== 'get_vod_info') return route.fallback();
+        const url = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') url.searchParams.set(key, value);
+        });
+        const response = await route.fetch({ url: url.toString() });
+        const body = await response.json();
+        Object.assign(body.payload.info, {
+            tmdb_id: 200,
+            releasedate: '2026-01-01',
+            name: movie.name,
+        });
+        body.payload.movie_data.container_extension = 'mp4';
+        await route.fulfill({ response, json: body });
+    });
+    await addXtreamPortal(page, { name: 'Cold Played Identity Portal' });
+    const rawId = new URL(page.url()).pathname
+        .replace(/\/vod.*$/, '')
+        .split('/')
+        .pop();
+    if (!rawId) throw new Error('Missing playlist ID');
+    const playlistId = decodeURIComponent(rawId);
+    await page.evaluate(
+        ({ id, movie }) => {
+            const key = `movie:${movie.stream_id}`;
+            const item = {
+                id: movie.stream_id,
+                xtream_id: movie.stream_id,
+                type: 'movie',
+                title: movie.name,
+                poster_url: movie.stream_icon,
+                category_id: movie.category_id,
+                tmdb_id: 200,
+            };
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ [id]: [key] })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({ [id]: { [key]: item } })
+            );
+            localStorage.setItem(
+                'xtream-recent-items',
+                JSON.stringify({
+                    [id]: [
+                        {
+                            id: key,
+                            viewedAt: '2026-10-01T12:00:00.000Z',
+                            collectionItem: {
+                                ...item,
+                                title: 'Previously watched original',
+                                tmdb_id: 100,
+                            },
+                        },
+                    ],
+                })
+            );
+        },
+        { id: playlistId, movie }
+    );
+    cold = true;
+    await page.goto('/workspace/global-favorites');
+    await page.reload();
+    await page
+        .locator('app-content-card')
+        .filter({ hasText: movie.name })
+        .first()
+        .click();
+    await page.getByRole('button', { name: /^Play / }).click();
+    await expect
+        .poll(() =>
+            page.evaluate(
+                (id) =>
+                    JSON.parse(
+                        localStorage.getItem('xtream-recent-items') ?? '{}'
+                    )[id]?.[0]?.collectionItem?.tmdb_id,
+                playlistId
+            )
+        )
+        .toBe(200);
+    await page.goto('/workspace/global-recent');
+    await page.reload();
+    await expect(
+        page.locator('app-content-card').filter({ hasText: movie.name }).first()
+    ).toBeVisible();
+    await expect(
+        page.getByText('Previously watched original', { exact: true })
+    ).toHaveCount(0);
+    await page.goto('/workspace/settings/backup');
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const path = await (await download).path();
+    if (!path) throw new Error('Missing backup');
+    const backup = JSON.parse(await readFile(path, 'utf8'));
+    const state = backup.playlists.find(
+        (entry: { exportedId: string }) => entry.exportedId === playlistId
+    ).userState;
+    expect(state.favorites[0].snapshot).toMatchObject({
+        title: movie.name,
+        tmdbId: 200,
+    });
+    expect(state.recentlyViewed[0].collectionItem).toMatchObject({
+        title: movie.name,
+        tmdb_id: 200,
+    });
+    expect(state.recentlyViewed[0].viewedAt).not.toBe(
+        '2026-10-01T12:00:00.000Z'
+    );
     await page.unrouteAll({ behavior: 'wait' });
 });

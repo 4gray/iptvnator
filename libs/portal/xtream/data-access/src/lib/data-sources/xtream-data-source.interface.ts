@@ -22,6 +22,13 @@ export type { PlaybackPositionData };
 export const XTREAM_CONTENT_TYPES = ['live', 'movie', 'series'] as const;
 export type XtreamContentType = (typeof XTREAM_CONTENT_TYPES)[number];
 
+/** Captured from the content that actually starts playback, not a later catalog lookup. */
+export interface XtreamPlayedContent extends ContentMetadataPatch {
+    readonly title: string;
+    readonly posterUrl?: string;
+    readonly categoryId?: number | string;
+}
+
 /** SQLite row id on Electron; provider id on PWA. Always carry type for PWA. */
 export interface TypedXtreamCollectionRef {
     readonly id: number;
@@ -393,7 +400,8 @@ export interface IXtreamDataSource {
     addRecentItem(
         contentId: XtreamCollectionRef,
         playlistId: string,
-        backdropUrl?: string
+        backdropUrl?: string,
+        playedContent?: XtreamPlayedContent
     ): Promise<void>;
 
     /**

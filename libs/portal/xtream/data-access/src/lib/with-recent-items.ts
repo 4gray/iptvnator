@@ -20,7 +20,10 @@ import {
     PortalRecentItem,
 } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
-import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
+import {
+    XTREAM_DATA_SOURCE,
+    type XtreamPlayedContent,
+} from './data-sources/xtream-data-source.interface';
 
 export interface RecentlyViewedItem extends PortalRecentItem {
     /** @deprecated Redundant — always equals `id`. Retained for compat. */
@@ -90,6 +93,7 @@ export const withRecentItems = function () {
                     contentType: 'live' | 'movie' | 'series';
                     playlist: Signal<{ id: string } | null | undefined>;
                     backdropUrl?: string;
+                    playedContent?: XtreamPlayedContent;
                 }>(
                     pipe(
                         switchMap(
@@ -98,6 +102,7 @@ export const withRecentItems = function () {
                                 contentType,
                                 playlist,
                                 backdropUrl,
+                                playedContent,
                             }) => {
                                 const playlistId = playlist()?.id;
                                 const normalizedXtreamId = Number(xtreamId);
@@ -125,7 +130,10 @@ export const withRecentItems = function () {
                                     await dataSource.addRecentItem(
                                         { id: contentId, type: contentType },
                                         playlistId,
-                                        backdropUrl
+                                        backdropUrl,
+                                        ...(playedContent
+                                            ? ([playedContent] as const)
+                                            : [])
                                     );
 
                                     // Reload after add/update so re-watched items

@@ -380,4 +380,25 @@ describe('withRecentItems', () => {
             }),
         ]);
     });
+    it('forwards played metadata even when a cold PWA lookup has no row', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        const playedContent = {
+            title: 'Replacement',
+            tmdbId: 200,
+            posterUrl: 'replacement.jpg',
+        };
+        store.addRecentItem({
+            xtreamId: 42,
+            contentType: 'movie',
+            playlist: signal({ id: 'playlist-1' }),
+            playedContent,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 42, type: 'movie' },
+            'playlist-1',
+            undefined,
+            playedContent
+        );
+    });
 });

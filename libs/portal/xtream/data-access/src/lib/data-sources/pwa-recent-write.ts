@@ -1,11 +1,16 @@
 import {
     collectionSnapshotMatchesContent,
+    typedCollectionRef,
     deduplicateRecentItems,
     itemCollectionKey,
     type CollectionKey,
 } from './pwa-collection-identity';
 import type { PwaCollectionStorage } from './pwa-collection-storage';
-import type { XtreamContentItem } from './xtream-data-source.interface';
+import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
+import type {
+    XtreamContentItem,
+    XtreamPlayedContent,
+} from './xtream-data-source.interface';
 
 /** Keep the snapshot and viewedAt write synchronous against fresh storage. */
 export function addPwaRecentItem(
@@ -17,7 +22,8 @@ export function addPwaRecentItem(
         catalogOnly?: boolean
     ) => Map<CollectionKey, XtreamContentItem>,
     matchingKeysFor: (ids: CollectionKey[]) => Set<CollectionKey>,
-    backdropUrl?: string
+    backdropUrl?: string,
+    playedContent?: XtreamPlayedContent
 ): void {
     const normalizedBackdropUrl = backdropUrl?.trim();
 
@@ -51,11 +57,16 @@ export function addPwaRecentItem(
     const current = resolveItems([key], true).get(key);
     const saved = resolveItems([key]).get(key);
     const collectionItem =
-        current &&
+        playedSnapshot(key, playedContent, [
+            current,
+            saved,
+            previous?.collectionItem,
+        ]) ??
+        (current &&
         (previous?.collectionItem ||
             (saved && !collectionSnapshotMatchesContent(saved, current)))
             ? current
-            : previous?.collectionItem;
+            : previous?.collectionItem);
     allRecent[playlistId].unshift({
         ...(collectionItem ? { collectionItem } : {}),
         id: key,
@@ -71,4 +82,39 @@ export function addPwaRecentItem(
     storage.saveRecentItemsToStorage(allRecent);
     storage.getLocalRecentItems(playlistId);
     storage.saveCollectionItemSnapshot(playlistId, key, normalizedBackdropUrl);
+}
+
+/** Playback evidence owns the new Recent row; it never becomes Favorite evidence. */
+function playedSnapshot(
+    key: CollectionKey,
+    played: XtreamPlayedContent | undefined,
+    candidates: (XtreamContentItem | undefined)[]
+): XtreamContentItem | undefined {
+    const ref = typedCollectionRef(key);
+    if (!ref || !played?.title.trim()) return undefined;
+    const patch = normalizeContentMetadataPatch(played);
+    const identity = {
+        tmdb_id: patch?.tmdbId,
+        release_year: patch?.releaseYear,
+    };
+    const compatible = candidates.find(
+        (item) =>
+            item &&
+            itemCollectionKey(item) === key &&
+            collectionSnapshotMatchesContent(item, identity) &&
+            (patch?.tmdbId || patch?.releaseYear || item.title === played.title)
+    );
+    return {
+        id: ref.id,
+        xtream_id: ref.id,
+        type: ref.type,
+        category_id: played.categoryId ?? compatible?.category_id ?? '',
+        title: played.title,
+        poster_url: played.posterUrl || compatible?.poster_url || '',
+        rating: compatible?.rating ?? '',
+        added: compatible?.added ?? '',
+        ...identity,
+        backdrop_url: patch?.backdropUrl || compatible?.backdrop_url,
+        original_title: patch?.originalTitle || compatible?.original_title,
+    };
 }

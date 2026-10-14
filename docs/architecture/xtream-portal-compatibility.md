@@ -182,8 +182,15 @@ When a provider ID appears in multiple catalog categories, detail enrichment fil
 only compatible missing metadata in each original row. It preserves each row's
 category, title, poster, rating and other provider fields; conflicting rows are
 left untouched rather than replaced by one resolved catalog object.
-New playback keeps its own typed `collectionItem` on the Recent entry when the
-shared snapshot belongs to another identity. Its metadata and viewing date are
+Favorite status and save guards choose raw catalog duplicates against the saved or
+explicitly displayed identity as well. This selection hint cannot create catalog
+evidence when no actual row exists, and an unrelated duplicate cannot veto a
+matching heart action.
+Playback captures the displayed title, artwork and normalized detail identity before
+waiting for confirmation. That metadata travels with the captured playlist even if
+navigation or catalog changes happen before the save. New playback keeps its own
+typed `collectionItem` on the Recent entry; a cold catalog never gives the older
+independent Recent snapshot a new timestamp for a different played identity. Its metadata and viewing date are
 saved atomically, independently of any retained favorite, and remain available
 after reload, export/restore and deferred retries. Reading Recent never copies
 that independent snapshot into the favorite cache. Older Recent entries still
