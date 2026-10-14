@@ -7,7 +7,7 @@
                 "unit": "bytes",
                 "slack": 4096,
                 "updatedAt": "2026-10-14",
-                "evidencePr": 1931,
+                "evidencePr": null,
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
             },
             "renderer.ipcCallsToFirstCard": {

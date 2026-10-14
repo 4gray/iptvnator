@@ -113,6 +113,7 @@ test('templateThemeUsers finds a fab element in the first template that renders 
                     '@Component({',
                     '    template: `',
                     '        <!-- <button mat-fab></button> -->',
+                    '        <p title="a > b">Use mat-fab or matMiniFab here</p>',
                     '        <button class="mat-fab mat-mini-fab">mat-fab</button>',
                     '        <button mat-fab-like matFabulous></button>',
                     '    `,',
