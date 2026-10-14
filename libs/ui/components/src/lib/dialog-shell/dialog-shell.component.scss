@@ -163,6 +163,20 @@ app-dialog-shell {
     }
 }
 
+// Short windows: a stacked footer can take most of the cap and leave the
+// body a sliver, so the cap comes off and Material's surface scrolls the
+// whole dialog as the single scroll owner, as it did before the shell.
+@media (max-height: 600px) {
+    app-dialog-shell {
+        max-height: none;
+    }
+
+    .app-dialog__body {
+        flex: none;
+        overflow: visible;
+    }
+}
+
 // Phone: one full-width action per row, in DOM order.
 @media (max-width: 480px) {
     .app-dialog__footer {
