@@ -1171,7 +1171,7 @@ app does not provide the animations module, which nothing used (Material 22
 animates with CSS). Together these lowered the counter from 1,596,201 to
 1,344,067 bytes (-252,134, 15.8%) on a local production build at the branch
 point (#1931); the baseline follows the measurement of the branch merged with
-`master`, 1,345,807. The snack-bar followed in #1937: with the last seven
+`master`, 1,345,807. The snack-bar followed in #1939: with the last seven
 eager `MatSnackBar` injections moved to `LazySnackBar` and the startup
 status deferring its Retry button, the snack-bar, Material's button, the icon
 button chunk, ripple and the CDK a11y module left the initial bundle,
