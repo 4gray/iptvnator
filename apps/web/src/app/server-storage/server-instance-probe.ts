@@ -1,8 +1,10 @@
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, takeSlowStart } from '@iptvnator/services';
 import type { ServerInstanceInfo } from '@iptvnator/shared/interfaces';
 import type { IptvnatorRuntimeConfig } from '../services/runtime-config';
 
 const PROBE_TIMEOUT_MS = 2_500;
+/** After a reload for a server that answered later: as long as requests. */
+const SLOW_PROBE_TIMEOUT_MS = 20_000;
 
 /**
  * - `skipped`: no runtime backend URL, or Electron.
@@ -47,7 +49,11 @@ export async function probeServerInstance(
             cache: 'no-store',
             signal:
                 typeof AbortSignal.timeout === 'function'
-                    ? AbortSignal.timeout(PROBE_TIMEOUT_MS)
+                    ? AbortSignal.timeout(
+                          takeSlowStart()
+                              ? SLOW_PROBE_TIMEOUT_MS
+                              : PROBE_TIMEOUT_MS
+                      )
                     : undefined,
         });
     } catch {

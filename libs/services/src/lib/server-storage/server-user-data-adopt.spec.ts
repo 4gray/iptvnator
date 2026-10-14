@@ -1,5 +1,11 @@
 import { ServerApiError } from './server-api-client';
-import { UNCONFIRMED_TTL_MS } from './server-page-registry';
+import { keepPages } from './server-page-pointer';
+import {
+    markClosed,
+    markUnconfirmed,
+    UNCONFIRMED_TTL_MS,
+} from './server-page-registry';
+import { saveUnsentWrites } from './server-unsent-writes';
 import { ServerUserDataStorage } from './server-user-data-storage';
 import { fakeServer, memoryStorage } from './server-user-data.test-helpers';
 
@@ -592,5 +598,132 @@ describe('ServerUserDataStorage taking over other page loads', () => {
         running.close();
         duplicate.touch();
         expect(duplicate.hasUnsentWrites()).toBe(true);
+    });
+
+    describe('a page load and the older one it kept', () => {
+        // The older page added X; the newer one took that over and then
+        // removed X again; neither copy could replace the other.
+        function journals() {
+            const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+            const local = memoryStorage();
+            const tag = `t${JSON.stringify(['S']).replace(/"/g, "'")}`;
+            const entry = (steps: { before: unknown; after: unknown }[]) => [
+                {
+                    namespace: 'xtream-favorites' as const,
+                    playlistId: 'p1',
+                    value: steps[steps.length - 1].after,
+                    tag,
+                    steps,
+                },
+            ];
+            saveUnsentWrites(
+                local,
+                'default',
+                'older',
+                entry([{ before: ['S'], after: ['S', 'X'] }])
+            );
+            saveUnsentWrites(
+                local,
+                'default',
+                'newer',
+                entry([
+                    { before: ['S'], after: ['S', 'X'] },
+                    { before: ['S', 'X'], after: ['S'] },
+                ])
+            );
+            // Another device adds Y meanwhile: the replay decides.
+            server.state['xtream-favorites']['p1'] = ['S', 'Y'];
+            return { server, local };
+        }
+
+        async function send(page: ServerUserDataStorage) {
+            await page.hydrate();
+            await page.flush();
+            await page.flush();
+        }
+
+        it('replays them oldest first on a reload', async () => {
+            const { server, local } = journals();
+            const tabStore = memoryStorage();
+            keepPages(tabStore, 'default', 'newer', ['older']);
+
+            await send(
+                new ServerUserDataStorage(
+                    server.api as never,
+                    local,
+                    jest.fn(),
+                    'default',
+                    tabStore
+                )
+            );
+
+            // X stays removed.
+            expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'Y']);
+        });
+
+        it('replays them oldest first when a duplicate adopts them', async () => {
+            const { server, local } = journals();
+            const tabStore = memoryStorage();
+            keepPages(tabStore, 'default', 'newer', ['older']);
+            // The newer page load still runs when the duplicate opens.
+            markUnconfirmed(local, 'default', 'newer', ['xtream-favorites|p1']);
+            const duplicate = new ServerUserDataStorage(
+                server.api as never,
+                local,
+                jest.fn(),
+                'default',
+                tabStore
+            );
+            markClosed(local, 'default', 'newer');
+            duplicate.touch();
+
+            await send(duplicate);
+
+            expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'Y']);
+        });
+    });
+
+    it('lands a page-hide batch before a flush scheduled in the same turn', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const keepalive = server.api.sendKeepalive.getMockImplementation();
+        if (!keepalive) {
+            throw new Error('The fake server answers sendKeepalive');
+        }
+        let land = (): void => undefined;
+        let started = false;
+        const tab = new ServerUserDataStorage(
+            {
+                ...server.api,
+                // The page-hide write is still on its way.
+                sendKeepalive: jest.fn(
+                    (...args: Parameters<typeof keepalive>) =>
+                        new Promise((resolve) => {
+                            started = true;
+                            land = () => resolve(keepalive(...args));
+                        })
+                ),
+            } as never,
+            memoryStorage(),
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await tab.hydrate();
+        tab.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        const flushing = tab.flush();
+        tab.flushWithKeepalive();
+        // Removed again before either batch was answered.
+        tab.setItem('xtream-favorites', JSON.stringify({ p1: ['S'] }));
+        await until(() => started);
+        // The scheduled flush has its turn while the page-hide write travels.
+        for (let turn = 0; turn < 10; turn += 1) {
+            await Promise.resolve();
+        }
+        land();
+        await flushing;
+        await tab.flush();
+        await tab.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S']);
     });
 });

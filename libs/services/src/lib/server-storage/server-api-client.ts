@@ -184,12 +184,13 @@ export class ServerApiClient {
         if (this.options.holdWrites?.()) {
             return { status: 'failed' };
         }
+        const token = this.token();
         try {
             const response = await this.fetchFn()(this.url(path), {
                 method,
                 keepalive: true,
                 headers: {
-                    ...bearer(this.token()),
+                    ...bearer(token),
                     ...headers,
                     ...(body === undefined
                         ? {}
@@ -213,6 +214,10 @@ export class ServerApiClient {
                 // As for requests: the backend may come back as another
                 // instance, checked before the next write goes out.
                 this.options.status.reportOffline();
+            }
+            if (response.status === 401) {
+                // As for requests: a token replaced since is not refused.
+                this.options.status.reportAccessDenied(token);
             }
             const { code, current } =
                 response.status === 412 || response.status === 404

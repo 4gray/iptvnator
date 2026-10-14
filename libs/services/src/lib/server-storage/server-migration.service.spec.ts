@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { of } from 'rxjs';
+import { getXtreamPendingRestoreStorageKey } from '@iptvnator/shared/interfaces';
 import { ParentalLockService } from '../parental-lock/parental-lock.service';
 import { SERVER_STORAGE_CONFIG } from './server-storage.config';
 import { ServerStorageSession } from './server-storage-session';
@@ -381,6 +382,26 @@ describe('ServerMigrationService', () => {
             ...first,
             favorites: ['http://s/1', 'http://s/2'],
         });
+    });
+
+    it('takes a parked Xtream restore along to the server playlist id', async () => {
+        session.documentStore.dbGetAppPlaylistMetas.mockResolvedValue([
+            { ...browserPlaylists[1], _id: 'server-x' },
+        ]);
+        // A browser backup import that could not finish.
+        const parked = JSON.stringify({
+            hiddenCategories: [],
+            favorites: [{ xtreamId: 5, contentType: 'movie' }],
+            recentlyViewed: [],
+            playbackPositions: [],
+        });
+        localStorage.setItem(getXtreamPendingRestoreStorageKey('x'), parked);
+
+        await TestBed.inject(ServerMigrationService).moveBrowserData();
+
+        expect(
+            localStorage.getItem(getXtreamPendingRestoreStorageKey('server-x'))
+        ).toBe(parked);
     });
 
     it('keeps the move on offer when a playlist could not be uploaded', async () => {

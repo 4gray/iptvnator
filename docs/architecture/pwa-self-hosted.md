@@ -226,7 +226,8 @@ settings and guards read them in every build.
   `keepalive` flush when the page hides. A change is compared with the map
   the caller read: when the cache changed since (another tab, a re-read),
   only the entries the caller changed are applied to it. Batches go out one after another
-  (the page-hide flush waits for a batch still travelling), a failed write,
+  (the page-hide flush waits for a batch still travelling, and a flush
+  scheduled before it waits for the page-hide batch it sent at once), a failed write,
   including a refused `keepalive` one or one the server took and never
   answered (it ends after the request timeout), stays queued for the next
   flush (a write saved whose answer was cut off counts as saved on an
@@ -346,7 +347,9 @@ settings and guards read them in every build.
   database (backend URL or instance id) than the one it remembers; sign-in
   therefore remembers the server along with the token, or reports storage
   trouble. A page started from memory first checks that the instance at the
-  address is the remembered one (`ensureVerified`), and reloads if not,
+  address is the remembered one (`ensureVerified`), and reloads if not
+  (a reload after a server answered late gives the next start probe as
+  long as requests take, once, so a slow server does not reload forever),
   before sign-in sends the token. So does a page that went offline (any
   backend call can tell: the storage API with its page-hide `keepalive`
   writes, `HttpClient` calls through the interceptor and `PwaService`'s raw
@@ -391,7 +394,9 @@ settings and guards read them in every build.
   maps, the server's value winning on a
   conflict. Parental locks stay in the browser but move to the server
   playlist id with it; while the lock store or a browser user-data map
-  cannot be read the move counts as failed. Browser data is never
+  cannot be read the move counts as failed. A parked Xtream restore (a
+  browser backup import that could not finish) is copied to the server
+  playlist id it merged into, unless that one has its own. Browser data is never
   deleted, the move does not start while user-data writes are unsent, and
   the marker is written only when nothing failed, so Settings → Server
   keeps offering a partial move.

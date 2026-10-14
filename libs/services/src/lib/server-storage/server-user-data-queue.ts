@@ -49,6 +49,8 @@ export class UserDataWriteQueue {
     private flushTimer: ReturnType<typeof setTimeout> | null = null;
     /** Batches go out one at a time, so an older write never lands last. */
     private sending: Promise<void> = Promise.resolve();
+    /** A page-hide batch sent at once, which a scheduled flush waits for. */
+    private keepaliveRun: Promise<void> = Promise.resolve();
     private writesInFlight = 0;
     /** Edit counter per `namespace|playlistId`, for re-reads to keep them. */
     private readonly edits = new Map<string, number>();
@@ -208,7 +210,12 @@ export class UserDataWriteQueue {
 
     /** Sends the queued entries after any batch still travelling. */
     flush(): Promise<void> {
-        const run = this.sending.then(() => this.sendBatch(false));
+        const run = this.sending.then(async () => {
+            // A page-hide batch that went out at once in the meantime is
+            // not chained on this one: its writes land first.
+            await this.keepaliveRun;
+            await this.sendBatch(false);
+        });
         this.sending = run.then(
             () => undefined,
             () => undefined
@@ -230,14 +237,17 @@ export class UserDataWriteQueue {
         // Idle: send synchronously, while the hiding page still runs. Behind
         // a travelling write the entries stay queued until it is answered,
         // so the version it created can still become their baseline.
-        const run =
-            this.writesInFlight === 0
-                ? this.sendBatch(true)
-                : this.sending.then(() => this.sendBatch(true));
+        const now = this.writesInFlight === 0;
+        const run = now
+            ? this.sendBatch(true)
+            : this.sending.then(() => this.sendBatch(true));
         this.sending = run.then(
             () => undefined,
             () => undefined
         );
+        if (now) {
+            this.keepaliveRun = this.sending;
+        }
     }
 
     /**

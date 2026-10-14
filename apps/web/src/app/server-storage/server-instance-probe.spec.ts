@@ -1,3 +1,4 @@
+import { markSlowStart } from '@iptvnator/services';
 import { probeServerInstance } from './server-instance-probe';
 
 const instance = {
@@ -53,6 +54,28 @@ describe('probeServerInstance', () => {
             })
         ).resolves.toEqual({ kind: 'server', instance });
         expect(fetchFn.mock.calls[0][0]).toBe('/api/v1/instance');
+    });
+
+    it('waits longer once after a reload for a server that answered late', async () => {
+        const timeout = jest.spyOn(AbortSignal, 'timeout');
+        try {
+            markSlowStart();
+            await probeServerInstance({
+                ...config,
+                fetchFn: answer(instance) as never,
+            });
+            await probeServerInstance({
+                ...config,
+                fetchFn: answer(instance) as never,
+            });
+
+            // A slow server otherwise times out again and reloads forever.
+            expect(timeout.mock.calls.map(([ms]) => ms)).toEqual([
+                20_000, 2_500,
+            ]);
+        } finally {
+            timeout.mockRestore();
+        }
     });
 
     it('reports no server storage for an answer without it', async () => {

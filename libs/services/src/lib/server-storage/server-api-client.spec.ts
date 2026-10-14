@@ -127,6 +127,19 @@ describe('ServerApiClient', () => {
         expect(status.reportOffline).toHaveBeenCalled();
     });
 
+    it('reports a keepalive write refused by the access guard', async () => {
+        token = 'old';
+        const refused = jest.fn().mockResolvedValue(response(401));
+
+        await expect(
+            client(refused).sendKeepalive('PUT', '/user-state/a/b', {
+                value: 1,
+            })
+        ).resolves.toEqual({ status: 'failed' });
+        // With the token it sent: one replaced since is not refused.
+        expect(status.reportAccessDenied).toHaveBeenCalledWith('old');
+    });
+
     it('reports a gateway answering for a down backend on a keepalive write', async () => {
         const down = jest.fn().mockResolvedValue(response(502));
 

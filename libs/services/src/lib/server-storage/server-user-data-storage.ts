@@ -166,8 +166,9 @@ export class ServerUserDataStorage implements UserDataStorage {
         const owner = pages[pages.length - 1];
         if (owner && !this.journal.isLive(owner)) {
             // This page may have read and edited since: adopt, not restore.
+            // Each adopted page goes ahead of what is queued: newest first.
             this.awaited = [];
-            pages.forEach((page) => this.adoptPage(page));
+            [...pages].reverse().forEach((page) => this.adoptPage(page));
         }
         // A tab with nothing to sync never re-reads, which is where closed
         // tabs' saved writes are otherwise picked up.

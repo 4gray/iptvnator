@@ -1138,6 +1138,17 @@ describe('PwaXtreamDataSource', () => {
             expect(JSON.parse(values.get('xtream-favorites') ?? '{}')).toEqual({
                 p1: ['movie:5'],
             });
+            // A saved restore may list one favorite twice: reads drop the
+            // copy on both sides of the comparison.
+            await expect(
+                source.restoreUserData('p1', {
+                    ...(state as object),
+                    favorites: [
+                        { xtreamId: 5, contentType: 'movie' },
+                        { xtreamId: 5, contentType: 'movie' },
+                    ],
+                } as never)
+            ).resolves.toBeUndefined();
 
             merge = true;
             await expect(source.restoreUserData('p1', state)).rejects.toThrow(
