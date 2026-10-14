@@ -169,6 +169,14 @@ describe('SourceRowComponent', () => {
         expect(opened).toHaveBeenCalledTimes(2);
     });
 
+    it('does not open the source from a click on the drag handle', () => {
+        const element = render(M3U, { draggable: true });
+        const opened = jest.fn();
+        fixture.componentInstance.activated.subscribe(opened);
+        element.querySelector<HTMLElement>('.source-row__handle')?.click();
+        expect(opened).not.toHaveBeenCalled();
+    });
+
     it('refreshes the focused row with R', () => {
         const element = render(M3U, { canRefresh: true });
         const refresh = jest.fn();

@@ -13,7 +13,12 @@
     (keydown)="onRowKeydown($event)"
 >
     @if (draggable()) {
-        <mat-icon cdkDragHandle class="source-row__handle" aria-hidden="true"
+        <!-- Grabbing the handle is not opening the source. -->
+        <mat-icon
+            cdkDragHandle
+            class="source-row__handle"
+            aria-hidden="true"
+            (click)="$event.stopPropagation()"
             >drag_indicator</mat-icon
         >
     }

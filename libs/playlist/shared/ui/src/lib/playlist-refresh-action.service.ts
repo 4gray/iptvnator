@@ -64,7 +64,13 @@ export class PlaylistRefreshActionService {
     readonly refreshPreparation = this.refreshPreparationState.asReadonly();
 
     canRefresh(playlist: PlaylistMeta | null): boolean {
-        if (!playlist || this.activity.isBusy(playlist._id)) {
+        // The same guards as refresh(): one refresh runs at a time, so an
+        // offer made meanwhile would be a silent no-op.
+        if (
+            !playlist ||
+            this.isRefreshing() ||
+            this.activity.isBusy(playlist._id)
+        ) {
             return false;
         }
 

@@ -369,6 +369,15 @@ describe('PlaylistRefreshActionService', () => {
         service.refresh(playlist);
         expect(service.isSourceBusy('busy')).toBe(true);
         expect(service.isSourceBusy('other')).toBe(false);
+        // One refresh at a time: no other source is offered meanwhile.
+        const other = createPlaylistMeta({
+            _id: 'other',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            url: 'https://source.test/other',
+        });
+        expect(service.canRefresh(other)).toBe(false);
         // The Sources page and the removal guard see it too.
         expect(activity.isBusy('busy')).toBe(true);
         resolve({ _id: 'busy', playlist: { items: [] } } as Playlist);
@@ -376,6 +385,7 @@ describe('PlaylistRefreshActionService', () => {
         await Promise.resolve();
         expect(service.isSourceBusy('busy')).toBe(false);
         expect(activity.isBusy('busy')).toBe(false);
+        expect(service.canRefresh(other)).toBe(true);
     });
 
     it('passes trusted TLS hosts to URL-backed M3U refreshes', async () => {
