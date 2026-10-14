@@ -61,7 +61,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     private readonly deferred = new Map<string, DeferredEdit>();
     private hydrated = false;
     /** The previous page load in this tab, while it still looks live. */
-    private awaited: string | null = null;
+    private awaited: string[] = [];
     /** A record stands for this page: a stale one is adopted elsewhere. */
     private recorded = false;
     /** Playlists deleted here, in order: a read sent earlier skips them. */
@@ -108,14 +108,14 @@ export class ServerUserDataStorage implements UserDataStorage {
         claimCache(local, instanceId);
         const [previous, ...kept] = swapPage(tabStore, instanceId, this.tabId);
         // Older page loads whose copies a reload kept come first.
-        kept.forEach((page) => this.takeOver(page));
-        // A duplicated tab copies the page load of a tab that still runs;
-        // so does a reload whose close flag could not be saved: `touch`
-        // adopts it once it no longer looks live.
+        const pages = previous ? [...kept, previous] : kept;
+        // A duplicated tab copies the page load of a tab that still runs,
+        // and the ones it keeps; so does a reload whose close flag could not
+        // be saved: `touch` adopts them once it no longer looks live.
         if (previous && pageIsLive(local, instanceId, previous)) {
-            this.awaited = previous;
-        } else if (previous) {
-            this.takeOver(previous);
+            this.awaited = pages;
+        } else {
+            pages.forEach((page) => this.takeOver(page));
         }
     }
 
@@ -173,11 +173,12 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     /** Tells other tabs this one is alive and still sending its writes. */
     touch(): void {
-        const page = this.awaited;
-        if (page && !pageIsLive(this.local, this.instanceId, page)) {
+        const pages = this.awaited;
+        const owner = pages[pages.length - 1];
+        if (owner && !pageIsLive(this.local, this.instanceId, owner)) {
             // This page may have read and edited since: adopt, not restore.
-            this.awaited = null;
-            this.adoptPage(page);
+            this.awaited = [];
+            pages.forEach((page) => this.adoptPage(page));
         }
         // A tab with nothing to sync never re-reads, which is where closed
         // tabs' saved writes are otherwise picked up.

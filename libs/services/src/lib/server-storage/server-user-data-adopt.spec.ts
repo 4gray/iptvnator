@@ -539,4 +539,46 @@ describe('ServerUserDataStorage taking over other page loads', () => {
 
         expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
     });
+
+    it("leaves a running tab's kept page loads to it in a duplicate", async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const local = memoryStorage();
+        const tabStore = memoryStorage();
+        const api = {
+            ...server.api,
+            sendJson: jest.fn(() =>
+                Promise.reject(new ServerApiError(0, 'network', 'offline'))
+            ),
+        } as never;
+        const page = (store: ReturnType<typeof memoryStorage>) =>
+            new ServerUserDataStorage(api, local, jest.fn(), 'default', store);
+        const first = page(tabStore);
+        await first.hydrate();
+        first.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await first.flush();
+        first.close();
+        // The reload cannot save its copy: it keeps the first one's.
+        const setItem = local.setItem;
+        local.setItem = (key: string, value: string) => {
+            if (key.startsWith('iptvnator-server:unsent-writes:')) {
+                throw new DOMException('full', 'QuotaExceededError');
+            }
+            setItem(key, value);
+        };
+        const running = page(tabStore);
+        expect(running.hasUnsentWrites()).toBe(true);
+
+        // A duplicate copies the tab's session storage, pointer and all.
+        const copied = memoryStorage();
+        for (const key of tabStore.keys()) {
+            copied.setItem(key, tabStore.getItem(key) ?? '');
+        }
+        const duplicate = page(copied);
+
+        // The running tab owns those writes and may hold newer ones.
+        expect(duplicate.hasUnsentWrites()).toBe(false);
+        running.close();
+        duplicate.touch();
+        expect(duplicate.hasUnsentWrites()).toBe(true);
+    });
 });
