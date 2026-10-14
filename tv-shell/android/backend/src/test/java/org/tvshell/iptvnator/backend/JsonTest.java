@@ -38,7 +38,10 @@ public class JsonTest {
         }
         // Each of these is rejected by RFC 8259; the old reader passed some of
         // them through to the PWA, where JSON.parse then failed on the answer.
-        String[] bad = {"01", "00", "-01", "1.", ".5", "-.5", "-", "1e", "1e-", "1e+", "1.e5", "+1", "1..2", "0x10", "\u0661"};
+        // Non-ASCII digits after an ASCII one ("1" + ARABIC-INDIC DIGIT ONE): the old
+        // reader took them with Character.isDigit and wrote them back to the PWA.
+        String[] bad = {"01", "00", "-01", "1.", ".5", "-.5", "-", "1e", "1e-", "1e+", "1.e5", "+1", "1..2", "0x10",
+            "1\u0661", "1.\u0661", "1e\u0661"};
         for (String text : bad) assertTrue("rejects " + text, !Json.isValid(text));
         assertTrue("rejects inside an object", !Json.isValid("{\"a\":01}"));
         assertTrue("rejects inside an array", !Json.isValid("[1e-]"));

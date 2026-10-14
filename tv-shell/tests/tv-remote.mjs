@@ -190,23 +190,43 @@ if (consoleErrors.length) {
     console.log('console errors (' + consoleErrors.length + '):');
     for (const e of consoleErrors.slice(0, 10)) console.log('  - ' + e.slice(0, 200));
 }
-console.log('8. the stream handed to an external player is the playlist, never a fetched segment');
+console.log('8. the stream handed to an external player is the source, never a fetched segment');
 {
-    // Same request pattern as hls.js / VHS: playlist as text, segments as arraybuffer.
-    // The requests themselves may fail (CORS): the tracking happens at send().
+    // The request patterns of the app's engines, each after attaching a new
+    // MediaSource as they do. The requests may fail (CORS, 404): tracking
+    // happens when they are issued.
     const tracked = await page.evaluate((provider) => {
-        const get = (url, responseType) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', url);
-            if (responseType) xhr.responseType = responseType;
-            try { xhr.send(); } catch (e) { /* ignore */ }
+        const last = () => window.__tvShell.state().lastMediaUrl;
+        const attach = () => URL.createObjectURL(new MediaSource());
+        const xhr = (url, responseType) => {
+            const r = new XMLHttpRequest();
+            r.open('GET', url);
+            if (responseType) r.responseType = responseType;
+            try { r.send(); } catch (e) { /* ignore */ }
         };
-        get(provider + '/live/user/pass/7.m3u8');
-        get(provider + '/hls/user/pass/7_000001.ts', 'arraybuffer');
-        get(provider + '/hls/user/pass/7_000002.ts', 'arraybuffer');
-        return window.__tvShell.state().lastMediaUrl;
+        const get = (url, init) => fetch(url, init).catch(() => null);
+        const out = {};
+        // hls.js / VHS: playlist as text, variant playlist, segments as arraybuffer.
+        attach();
+        xhr(provider + '/live/user/pass/7.m3u8');
+        xhr(provider + '/hls/user/pass/7/index.m3u8');
+        xhr(provider + '/hls/user/pass/7_000001.ts', 'arraybuffer');
+        out.hls = last();
+        // shaka (DASH): manifest, init segment and media segments, all through fetch.
+        attach();
+        get(provider + '/dash/user/pass/9.mpd');
+        get(provider + '/dash/user/pass/init-v.mp4');
+        get(provider + '/dash/user/pass/seg-1.m4s', { headers: { Range: 'bytes=0-99' } });
+        out.dash = last();
+        // mpegts.js on the next channel: a new MediaSource, then the raw TS stream.
+        attach();
+        get(provider + '/live/user/pass/8.ts');
+        out.ts = last();
+        return out;
     }, PROVIDER);
-    check(tracked === PROVIDER + '/live/user/pass/7.m3u8', 'segments fetched after the playlist do not replace it: ' + tracked);
+    check(tracked.hls === PROVIDER + '/live/user/pass/7.m3u8', 'HLS: the playlist, not a variant or a segment: ' + tracked.hls);
+    check(tracked.dash === PROVIDER + '/dash/user/pass/9.mpd', 'DASH through fetch: the manifest, not a segment: ' + tracked.dash);
+    check(tracked.ts === PROVIDER + '/live/user/pass/8.ts', 'the next channel replaces the previous stream: ' + tracked.ts);
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
