@@ -539,10 +539,44 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             ).not.toBeNull();
         });
 
+        it('replaces nothing while earlier changes to the playlist are unsent', async () => {
+            const manifest = await exportSeeded();
+            localStorage.clear();
+            localStorage.setItem(
+                KEYS.favorites,
+                JSON.stringify({ 'xtream-1': ['live:1'] })
+            );
+            // A write of this page for the playlist that the server refused.
+            const flushed = jest.fn().mockResolvedValueOnce(false);
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, value),
+                    removeItem: (key) => localStorage.removeItem(key),
+                    ready: async () => true,
+                    flushed,
+                }),
+            });
+
+            const summary = await service.importBackup(xtreamOnly(manifest));
+
+            expect(summary.failed).toBe(1);
+            // Its edits would have joined the replacement lists.
+            expect(read(KEYS.favorites)).toEqual({ 'xtream-1': ['live:1'] });
+            expect(
+                pendingRestore(service).getOrThrow('xtream-1')
+            ).not.toBeNull();
+        });
+
         it('keeps the restore parked until the server took the lists', async () => {
             const manifest = await exportSeeded();
             localStorage.clear();
-            const flushed = jest.fn(async () => false);
+            // Nothing unsent before; the restored lists are refused.
+            const flushed = jest
+                .fn()
+                .mockResolvedValueOnce(true)
+                .mockResolvedValue(false);
             const service = createPlaylistBackupService({
                 playlistsService: playlistsService([existingXtreamPlaylist]),
                 pwaXtream: createPwaXtreamBackupState({

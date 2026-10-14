@@ -268,8 +268,10 @@ settings and guards read them in every build.
   first (`ready(true)`: another device may have changed the lists since) and
   fails when that read does not succeed: unread maps would export as empty lists, and a restore's lists
   would merge into the server's instead of replacing them (the restore
-  stays parked). A restore also counts only once the server took that
-  playlist's lists (`UserDataStorage.flushed`); a refused one stays parked. Replayed edits keep recently viewed lists newest first,
+  stays parked). A restore also replaces nothing while this page's own
+  writes for the playlist are unsent (they would join the replacement) and
+  counts only once the server took its lists (`UserDataStorage.flushed`);
+  either way it stays parked. Replayed edits keep recently viewed lists newest first,
   as the app cuts them at their limit from the end. Also,
   re-reads run one at a time and keep entries edited while they were in
   flight or not yet saved, and entries another tab saved meanwhile or had

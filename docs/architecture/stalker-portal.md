@@ -244,8 +244,10 @@ reservation stays held through its conditional row transform. The reservation
 blocks every new authentication (including a URL edit with the same normalized
 fingerprint) and repair, and drains any work already in flight. Delete All
 drains the playlist writes queued before it, then takes the exclusive reset;
-later writes wait for the delete, except a write under a reservation this tab
-holds (`holdsPlaylistAuthority`), which the reset waits for in turn.
+later writes wait for the delete before they join their playlist's queue, so
+no queue holds work blocked on the reset, except a write under a reservation
+this tab holds (`holdsPlaylistAuthority`), which joins at once since the
+reset waits for that reservation.
 When Save follows a lazy repair in the same tab, Edit publishes its local
 authentication owner first, drains that repair through the actual Web Lock
 request completion, and only then requests the row reservation itself. Repair

@@ -106,6 +106,8 @@ export class PlaylistsService {
     private readonly playlistWriteQueues = new Map<string, Promise<unknown>>();
     /** "Remove all" in progress: every playlist write waits for it. */
     private deletingAll: Promise<void> = Promise.resolve();
+    /** Delete All runs in progress (see serializePlaylistWrite). */
+    private resets = 0;
 
     /** Electron bridge or server store; `null` means IndexedDB. */
     private get documentStore(): PlaylistDocumentStore | null {
@@ -430,14 +432,20 @@ export class PlaylistsService {
         operation: () => Promise<T>
     ): Observable<T> {
         return defer(() => {
-            const previous = Promise.all([
-                this.playlistWriteQueues.get(playlistId),
-                // A write under a reservation held here (a Stalker repair or
-                // Edit) cannot wait for Delete All: its reset waits for it.
-                holdsPlaylistAuthority(playlistId)
-                    ? undefined
-                    : this.deletingAll,
-            ]);
+            // While Delete All runs, a write waits for it before it joins
+            // its playlist's queue, so no queue holds work blocked on the
+            // reset; a write under a reservation held here (a Stalker repair
+            // or Edit) joins at once, as the reset waits for that reservation.
+            if (this.resets > 0 && !holdsPlaylistAuthority(playlistId)) {
+                return this.deletingAll.then(() =>
+                    firstValueFrom(
+                        this.serializePlaylistWrite(playlistId, operation)
+                    )
+                );
+            }
+            const previous = Promise.resolve(
+                this.playlistWriteQueues.get(playlistId)
+            );
             const next = previous.then(() => retryOnConflict(operation));
             const tail = next.then(
                 () => undefined,
@@ -1348,13 +1356,16 @@ export class PlaylistsService {
 
     removeAll(): Observable<void> {
         // Writes queued so far land first, outside the reset (some take the
-        // shared side of its lock); new ones wait for the delete, except
-        // those under a reservation held here (serializePlaylistWrite).
+        // shared side of its lock); new ones wait for the delete before they
+        // queue, except those under a reservation held here.
         return defer(() => {
             const pending = [...this.playlistWriteQueues.values()];
-            const run = Promise.all(pending).then(() =>
-                runWithPlaylistAuthorityReset(() => this.deleteAllRows())
-            );
+            this.resets += 1;
+            const run = Promise.all(pending)
+                .then(() =>
+                    runWithPlaylistAuthorityReset(() => this.deleteAllRows())
+                )
+                .finally(() => (this.resets -= 1));
             this.deletingAll = run.then(
                 () => undefined,
                 () => undefined

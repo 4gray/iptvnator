@@ -68,6 +68,8 @@ describe('PlaylistsService', () => {
             electronMigrationPromise: null,
             indexedDbMigrationPromise: null,
             playlistWriteQueues: new Map(),
+            deletingAll: Promise.resolve(),
+            resets: 0,
             playlistDeleteCleanups: [],
         });
 
@@ -1873,13 +1875,16 @@ describe('PlaylistsService', () => {
                     key === SQLITE_PLAYLIST_MIGRATION_FLAG ? '1' : null
                 ),
                 dbSetAppState: jest.fn(),
-                dbUpsertAppPlaylist: jest.fn(() =>
-                    slowWrites
-                        ? new Promise<void>(
-                              (resolve) => (finishWrite = resolve)
-                          )
-                        : Promise.resolve()
-                ),
+                // Only the first write is slow.
+                dbUpsertAppPlaylist: jest.fn(() => {
+                    if (!slowWrites) {
+                        return Promise.resolve();
+                    }
+                    slowWrites = false;
+                    return new Promise<void>(
+                        (resolve) => (finishWrite = resolve)
+                    );
+                }),
                 dbUpsertAppPlaylists: jest.fn(),
                 dbDeletePlaylist: jest.fn(async () => undefined),
                 dbDeleteAllPlaylists: jest.fn(async () => undefined),
@@ -1916,6 +1921,40 @@ describe('PlaylistsService', () => {
             reservation.release();
             await repair;
             await removed;
+            expect(electron.dbDeleteAllPlaylists).toHaveBeenCalled();
+        });
+
+        it('lets a repair write past later writes waiting for the reset', async () => {
+            fakeLocks();
+            const electron = store(true);
+            const service = createService();
+            // An earlier slow write that Delete All waits for.
+            const slow = firstValueFrom(
+                service.transformPlaylistFavorites('q1', (f) => [...f, 'a'])
+            );
+            await settle();
+            const removed = firstValueFrom(service.removeAll());
+            // A later write for P, which waits for the reset.
+            const later = firstValueFrom(
+                service.transformPlaylistFavorites('p9', (f) => [...f, 'b'])
+            );
+            // A repair reserves P before the reset takes its lock.
+            const reservation = await reservePlaylistAuthority('p9');
+            if (reservation.status !== 'acquired') {
+                throw new Error('expected a reservation');
+            }
+            let repaired = false;
+            const repair = firstValueFrom(
+                service.transformPlaylistFavorites('p9', (f) => [...f, 'r'])
+            ).then(() => {
+                repaired = true;
+                reservation.release();
+            });
+            await settle();
+
+            expect(repaired).toBe(true);
+            finishWrite();
+            await Promise.all([slow, repair, removed, later]);
             expect(electron.dbDeleteAllPlaylists).toHaveBeenCalled();
         });
 

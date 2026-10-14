@@ -125,6 +125,19 @@ export class PwaXtreamBackupStateService {
         const snapshots = snapshotsByKey(
             Array.isArray(archived) ? archived : []
         );
+        // The lists replace what the server has now: this page's own unsent
+        // writes for the playlist would join them, so they go first or the
+        // restore waits (titles merged regardless, as below).
+        if ((await this.storage.flushed?.(playlistId)) === false) {
+            try {
+                this.mergeSnapshots(playlistId, snapshots);
+            } catch {
+                // The unsent writes are the failure to report.
+            }
+            throw new Error(
+                'Earlier changes to this playlist are not on the server yet; the restore waits.'
+            );
+        }
         try {
             this.replaceLists(playlistId, state);
         } catch (error) {

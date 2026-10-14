@@ -1052,7 +1052,11 @@ describe('PwaXtreamDataSource', () => {
 
         it('keeps a restore parked while the server refuses its lists', async () => {
             const values = new Map<string, string>();
-            const flushed = jest.fn(async () => false);
+            // Nothing unsent before; the restored lists are refused.
+            const flushed = jest
+                .fn()
+                .mockResolvedValueOnce(true)
+                .mockResolvedValue(false);
             const storage = {
                 getItem: (key: string) => values.get(key) ?? null,
                 setItem: (key: string, value: string) => {
@@ -1085,6 +1089,46 @@ describe('PwaXtreamDataSource', () => {
                 } as never)
             ).rejects.toThrow(/did not take the restored lists/);
             expect(flushed).toHaveBeenCalledWith('p1');
+        });
+
+        it('replaces nothing while earlier changes to the playlist are unsent', async () => {
+            const values = new Map<string, string>([
+                ['xtream-favorites', JSON.stringify({ p1: ['live:1'] })],
+            ]);
+            const storage = {
+                getItem: (key: string) => values.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    values.set(key, value);
+                },
+                removeItem: (key: string) => {
+                    values.delete(key);
+                },
+                ready: async () => true,
+                flushed: jest.fn().mockResolvedValueOnce(false),
+            };
+            TestBed.resetTestingModule();
+            TestBed.configureTestingModule({
+                providers: [
+                    PwaXtreamDataSource,
+                    { provide: USER_DATA_STORAGE, useValue: storage },
+                    { provide: ParentalLockService, useValue: parentalLock },
+                    { provide: XtreamApiService, useValue: apiService },
+                    { provide: PlaylistsService, useValue: playlistsService },
+                ],
+            });
+            const source = TestBed.inject(PwaXtreamDataSource);
+
+            await expect(
+                source.restoreUserData('p1', {
+                    hiddenCategories: [],
+                    favorites: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                } as never)
+            ).rejects.toThrow(/not on the server yet/);
+            expect(values.get('xtream-favorites')).toBe(
+                JSON.stringify({ p1: ['live:1'] })
+            );
         });
     });
 });

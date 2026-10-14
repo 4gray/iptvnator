@@ -1413,6 +1413,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 "The server's user data could not be read yet; the restore waits."
             );
         }
+        // This page's unsent writes for the playlist would join the
+        // replacement: they go first, or the restore waits.
+        if ((await this.userDataStorage.flushed?.(playlistId)) === false) {
+            throw new Error(
+                'Earlier changes to this playlist are not on the server yet; the restore waits.'
+            );
+        }
         // Restore favorites
         const favorites = this.collectionStorage.getFavoritesFromStorage();
         favorites[playlistId] = restoreState.favorites
