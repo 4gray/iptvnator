@@ -149,6 +149,126 @@ describe('PWA favorite action and detail identity', () => {
     );
 
     it.each(['movie', 'series'] as const)(
+        're-adds a cold %s favorite with detail identity and no Recent entry',
+        async (type) => {
+            const ref = { id: 42, type };
+            await source.getContent('p1', credentials, type);
+            await source.addFavorite(ref, 'p1');
+            const before = read('xtream-collection-items');
+            reload();
+            await source.getFavorites('p1');
+            await source.setContentMetadataIfMissing(ref, 'p1', {
+                tmdbId: 100,
+            });
+            await source.setContentMetadataIfMissing(ref, 'p1', {
+                releaseYear: 1995,
+                backdropUrl: 'detail.jpg',
+            });
+            // Cold details are not catalog confirmation and must not mutate the favorite.
+            expect(read('xtream-collection-items')).toEqual(before);
+            expect(await source.getRecentItems('p1')).toEqual([]);
+            const detailRef = {
+                ...ref,
+                identity: { tmdbId: 100, releaseYear: 1995 },
+            };
+            await source.removeFavorite(detailRef, 'p1');
+            const setItem = Storage.prototype.setItem;
+            const blocked = jest
+                .spyOn(Storage.prototype, 'setItem')
+                .mockImplementation(function (this: Storage, key, value) {
+                    if (key === 'xtream-collection-items')
+                        throw new DOMException('Full', 'QuotaExceededError');
+                    setItem.call(this, key, value);
+                });
+            await expect(source.addFavorite(detailRef, 'p1')).rejects.toThrow();
+            expect(read('xtream-favorites').p1).toEqual([]);
+            blocked.mockRestore();
+            await source.addFavorite(detailRef, 'p1');
+            reload();
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                title: 'Original',
+                tmdb_id: 100,
+                release_year: 1995,
+                backdrop_url: 'detail.jpg',
+            });
+            const backup = new PwaXtreamBackupStorage(localStorage).exportInto({
+                exportedId: 'p1',
+                portalType: 'xtream',
+                title: 'Test',
+                autoRefresh: false,
+                connection: credentials,
+                userState: {
+                    favorites: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                    hiddenCategories: [],
+                },
+            });
+            expect(backup.userState.favorites[0].snapshot).toMatchObject({
+                tmdbId: 100,
+                releaseYear: 1995,
+                title: 'Original',
+            });
+            expect(api.getStreams).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('does not reuse cold detail candidates after another snapshot replaces their source', async () => {
+        const ref = { id: 42, type: 'movie' } as const;
+        await source.getContent('p1', credentials, 'movie');
+        await source.addFavorite(ref, 'p1');
+        reload();
+        await source.setContentMetadataIfMissing(ref, 'p1', { tmdbId: 100 });
+        await source.removeFavorite(ref, 'p1');
+        const snapshots = read('xtream-collection-items');
+        snapshots.p1['movie:42'].title = 'Imported replacement';
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify(snapshots)
+        );
+        await expect(
+            source.addFavorite({ ...ref, identity: { tmdbId: 100 } }, 'p1')
+        ).rejects.toThrow('XTREAM_FAVORITE_SAVE_FAILED');
+        expect(read('xtream-favorites').p1).toEqual([]);
+    });
+
+    it('keeps cold favorite candidates scoped and rejects conflicting detail identity', async () => {
+        const ref = { id: 42, type: 'movie' } as const;
+        await source.getContent('p1', credentials, 'movie');
+        await source.addFavorite(ref, 'p1');
+        reload();
+        await source.setContentMetadataIfMissing(ref, 'p1', { tmdbId: 100 });
+        await source.removeFavorite(ref, 'p1');
+        for (const [playlist, type] of [
+            ['p2', 'movie'],
+            ['p1', 'series'],
+        ] as const) {
+            await expect(
+                source.addFavorite(
+                    { id: 42, type, identity: { tmdbId: 100 } },
+                    playlist
+                )
+            ).rejects.toThrow('XTREAM_FAVORITE_SAVE_FAILED');
+        }
+        await source.addFavorite({ ...ref, identity: { tmdbId: 100 } }, 'p1');
+        reload();
+        await source.setContentMetadataIfMissing(ref, 'p1', { tmdbId: 200 });
+        await expect(
+            source.removeFavorite({ ...ref, identity: { tmdbId: 200 } }, 'p1')
+        ).rejects.toThrow('XTREAM_FAVORITE_IDENTITY_CONFLICT');
+        await source.removeFavorite(
+            { ...ref, identity: { tmdbId: 100 } },
+            'p1'
+        );
+        await expect(
+            source.addFavorite({ ...ref, identity: { tmdbId: 200 } }, 'p1')
+        ).rejects.toThrow('XTREAM_FAVORITE_SAVE_FAILED');
+        expect(read('xtream-collection-items').p1['movie:42'].tmdb_id).toBe(
+            100
+        );
+    });
+
+    it.each(['movie', 'series'] as const)(
         'enriches cold %s Recent metadata before accepting its detail favorite',
         async (type) => {
             const ref = { id: 42, type };

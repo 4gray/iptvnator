@@ -11,6 +11,7 @@ import {
 } from './pwa-collection-identity';
 import type { PwaCollectionStorage } from './pwa-collection-storage';
 import type { XtreamContentItem } from './xtream-data-source.interface';
+import { rememberColdFavoriteMetadata } from './pwa-cold-favorite';
 
 /** Detail-only module: catalog evidence and each saved identity retain separate ownership. */
 export function enrichPwaContentMetadata(
@@ -23,6 +24,7 @@ export function enrichPwaContentMetadata(
     const normalized = normalizeContentMetadataPatch(patch);
     if (!normalized) return current;
     if (!current) {
+        rememberColdFavoriteMetadata(storage, playlistId, key, normalized);
         enrichColdRecent(storage, playlistId, key, normalized);
         return undefined;
     }

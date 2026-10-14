@@ -6,6 +6,7 @@ import {
 } from './pwa-collection-identity';
 import type { PwaCollectionStorage } from './pwa-collection-storage';
 import type { XtreamContentItem } from './xtream-data-source.interface';
+import { coldFavoriteCandidate } from './pwa-cold-favorite';
 
 /** Loaded only for an explicit favorite action; all storage writes remain synchronous. */
 export function addPwaFavorite(
@@ -33,6 +34,7 @@ export function addPwaFavorite(
                   ...(storage
                       .getRecentItemsFromStorage()
                       [playlistId]?.map((entry) => entry.collectionItem) ?? []),
+                  coldFavoriteCandidate(storage, playlistId, key),
                   ...Object.values(
                       storage.getCollectionItemsFromStorage()[playlistId] ?? {}
                   ),

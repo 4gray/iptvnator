@@ -141,6 +141,12 @@ compatible metadata or a required snapshot-write failure rejects the save.
 Cold detail enrichment updates the matching independent Recent snapshot without
 treating it as catalog evidence or rewriting the retained favorite. This lets a
 sparse Recent item gain its detail identity before a new favorite is saved.
+For a cold Favorites-only detail, compatible enrichment stays in a bounded,
+data-source-local candidate until the user explicitly removes and re-adds the
+favorite. It never confirms catalog availability or mutates the retained snapshot
+just by opening details. A changed stored snapshot invalidates the candidate;
+re-adding persists its enriched snapshot before the favorite reference, so quota
+failure leaves the item removed and retryable rather than restoring stale identity.
 Detail metadata fills missing identity and presentation fields in the current PWA
 catalog row and reconciles each compatible saved snapshot separately. Identity-only
 patches also persist, so an initially sparse favorite gains protection before a
