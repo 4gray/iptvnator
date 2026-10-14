@@ -30,6 +30,7 @@ import {
     writeTemporaryM3uFile,
     xtreamMockServer,
 } from './electron-test-fixtures';
+import { waitForMenuFocus } from './menu-keyboard';
 import {
     routePlayableStreams,
     startAndConfirmPlayback,
@@ -572,8 +573,7 @@ test.describe('Electron Playlist Switcher', () => {
             await expect(search).toBeFocused();
             await page.keyboard.press('ArrowDown');
             await page.keyboard.press('Shift+F10');
-            const rowMenu = page.locator('.mat-mdc-menu-panel');
-            await expect(rowMenu).toBeVisible();
+            const rowMenu = await waitForMenuFocus(page);
             await page.keyboard.press('End');
             await expect(
                 rowMenu.getByRole('menuitem', { name: /Remove/ })
