@@ -3,7 +3,8 @@
 @use '@angular/material' as mat;
 @use 'styles';
 
-@include mat.elevation-classes();
+// No `mat.elevation-classes()`: nothing in the app uses the `.mat-elevation-z*`
+// utilities, and the 25 rules cost 4.4 KB of the initial stylesheet.
 @include mat.app-background();
 
 // ─── Typography ─────────────────────────────────────────────────────────────
@@ -65,6 +66,9 @@ $dark-theme: mat.define-theme(
 // `@angular/material/<entry>` import and remove it with the last one:
 // `pnpm run styles:material-theme-scope:validate` (CI) checks both
 // directions, and `core` (ripples, options, pseudo-checkboxes) always stays.
+// `fab` follows the templates instead: the button import carries its
+// directives either way, so it is listed only while a template renders
+// `mat-fab` or `mat-mini-fab` (its tokens alone were about 6 KB).
 $material-components: (
     core,
     card,
@@ -81,7 +85,6 @@ $material-components: (
     checkbox,
     button,
     icon-button,
-    fab,
     snack-bar,
     progress-spinner,
     button-toggle,
@@ -405,39 +408,104 @@ html {
         font-size: 13.5px;
     }
 
+    // A select stays inside a form; its option panel follows the kit menu:
+    // a bordered 10px panel with 6px padding, 36px rows at 13px and the
+    // chosen row on the list-selection tokens. The overrides sit on the
+    // panel, which renders in the overlay container inside the theme
+    // context, so the `--app-*` values resolve per theme. The selector is
+    // doubled because Material sets the panel's padding and attached
+    // corners from `div.mat-mdc-select-panel` and
+    // `.mat-mdc-select-panel-above div.mat-mdc-select-panel`, injected after
+    // the global stylesheet.
+    div.mat-mdc-select-panel.mat-mdc-select-panel {
+        @include mat.select-overrides(
+            (
+                panel-background-color: var(--app-widget-bg),
+                container-elevation-shadow: 0 18px 40px rgba(0, 0, 0, 0.35),
+            )
+        );
+        @include mat.option-overrides(
+            (
+                label-text-size: 13px,
+                label-text-color: var(--app-heading-color),
+                selected-state-label-text-color: var(--app-list-selected-fg),
+                selected-state-layer-color: var(--app-list-selected-bg),
+                hover-state-layer-color:
+                    color-mix(in srgb, var(--app-on-surface) 8%, transparent),
+                focus-state-layer-color:
+                    color-mix(in srgb, var(--app-on-surface) 10%, transparent),
+            )
+        );
+        padding: 6px;
+        border: 1px solid var(--app-line-strong);
+        border-radius: 10px;
+
+        .mat-mdc-option {
+            min-height: 36px;
+            padding: 0 10px;
+            border-radius: 6px;
+        }
+    }
+
     // ─── Destructive actions ───────────────────────────────────────────────
     // Material only emits `.mat-warn` button colors for M2 themes, so the
     // `warn` color input is a no-op with this M3 theme. Buttons that remove or
-    // discard user data opt in with this class instead; the error tokens are
-    // declared per theme context above, so light and dark each get their own
-    // error/on-error pair.
+    // discard user data opt in with this class instead. The kit draws them as
+    // a red tint (`--app-danger-*`, declared per theme context above), never
+    // a solid error fill: hover changes the fill only, the ripple is off and
+    // a disabled button is the same button at 40% opacity.
     .app-destructive-button {
         @include mat.button-overrides(
             (
-                filled-container-color: var(--mat-sys-error),
-                filled-label-text-color: var(--mat-sys-on-error),
-                filled-state-layer-color: var(--mat-sys-on-error),
-                filled-ripple-color:
-                    color-mix(in srgb, var(--mat-sys-on-error) 12%, transparent),
-                text-label-text-color: var(--mat-sys-error),
-                text-state-layer-color: var(--mat-sys-error),
-                text-ripple-color:
-                    color-mix(in srgb, var(--mat-sys-error) 12%, transparent),
-                outlined-label-text-color: var(--mat-sys-error),
-                outlined-outline-color: var(--mat-sys-error),
-                outlined-state-layer-color: var(--mat-sys-error),
-                outlined-ripple-color:
-                    color-mix(in srgb, var(--mat-sys-error) 12%, transparent),
+                filled-container-color: var(--app-danger-surface),
+                filled-disabled-container-color: var(--app-danger-surface),
+                filled-label-text-color: var(--app-danger-text),
+                filled-disabled-label-text-color: var(--app-danger-text),
+                filled-state-layer-color: var(--app-danger-text),
+                filled-hover-state-layer-opacity: 0.08,
+                filled-focus-state-layer-opacity: 0.08,
+                filled-pressed-state-layer-opacity: 0.12,
+                filled-ripple-color: transparent,
+                text-label-text-color: var(--app-danger-text),
+                text-disabled-label-text-color: var(--app-danger-text),
+                text-state-layer-color: var(--app-danger-text),
+                text-hover-state-layer-opacity: 0.08,
+                text-focus-state-layer-opacity: 0.08,
+                text-pressed-state-layer-opacity: 0.12,
+                text-ripple-color: transparent,
+                outlined-label-text-color: var(--app-danger-text),
+                outlined-disabled-label-text-color: var(--app-danger-text),
+                outlined-outline-color: transparent,
+                outlined-disabled-outline-color: transparent,
+                outlined-state-layer-color: var(--app-danger-text),
+                outlined-hover-state-layer-opacity: 0.08,
+                outlined-focus-state-layer-opacity: 0.08,
+                outlined-pressed-state-layer-opacity: 0.12,
+                outlined-ripple-color: transparent,
             )
         );
         @include mat.icon-button-overrides(
             (
-                icon-color: var(--mat-sys-error),
-                state-layer-color: var(--mat-sys-error),
-                ripple-color:
-                    color-mix(in srgb, var(--mat-sys-error) 12%, transparent),
+                icon-color: var(--app-danger-text),
+                disabled-icon-color: var(--app-danger-text),
+                state-layer-color: var(--app-danger-text),
+                hover-state-layer-opacity: 0.08,
+                focus-state-layer-opacity: 0.08,
+                pressed-state-layer-opacity: 0.12,
+                ripple-color: transparent,
             )
         );
+
+        // The kit has no outlined buttons: an outlined destructive button
+        // carries the same tint as a filled one.
+        &.mat-mdc-outlined-button {
+            background-color: var(--app-danger-surface);
+        }
+
+        &[disabled],
+        &.mat-mdc-button-disabled {
+            opacity: 0.4;
+        }
     }
 
     .mat-mdc-form-field-subscript-wrapper {
