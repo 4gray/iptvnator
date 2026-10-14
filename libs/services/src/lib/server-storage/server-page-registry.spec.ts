@@ -2,7 +2,7 @@ import {
     markUnconfirmed,
     othersUnconfirmed,
     UNCONFIRMED_TTL_MS,
-} from './server-unsent-writes';
+} from './server-page-registry';
 
 function memoryStorage() {
     const values = new Map<string, string>();
