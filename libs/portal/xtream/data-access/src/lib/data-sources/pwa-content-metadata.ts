@@ -17,11 +17,15 @@ export function enrichPwaContentMetadata(
     storage: PwaCollectionStorage,
     playlistId: string,
     key: CollectionKey,
-    current: XtreamContentItem,
+    current: XtreamContentItem | undefined,
     patch: ContentMetadataPatch
-): XtreamContentItem {
+): XtreamContentItem | undefined {
     const normalized = normalizeContentMetadataPatch(patch);
     if (!normalized) return current;
+    if (!current) {
+        enrichColdRecent(storage, playlistId, key, normalized);
+        return undefined;
+    }
     const identity = {
         tmdb_id: normalized.tmdbId,
         release_year: normalized.releaseYear,
@@ -83,4 +87,41 @@ export function enrichPwaContentMetadata(
         });
     }
     return enriched;
+}
+
+/** Cold detail evidence belongs to Recent, never to another retained favorite. */
+function enrichColdRecent(
+    storage: PwaCollectionStorage,
+    playlistId: string,
+    key: CollectionKey,
+    patch: ContentMetadataPatch
+): void {
+    const allRecent = storage.getRecentItemsFromStorage();
+    const snapshots = storage.getCollectionItemsFromStorage()[playlistId] ?? {};
+    const identity = { tmdb_id: patch.tmdbId, release_year: patch.releaseYear };
+    const recent = allRecent[playlistId];
+    if (!recent) return;
+    storage.saveRecentItemsToStorage({
+        ...allRecent,
+        [playlistId]: recent.map((entry) => {
+            const saved = entry.collectionItem ?? snapshots[String(entry.id)];
+            if (
+                !saved ||
+                itemCollectionKey(saved) !== key ||
+                !collectionSnapshotMatchesContent(saved, identity, true)
+            )
+                return entry;
+            const known = normalizeCollectionIdentity(saved);
+            return {
+                ...entry,
+                collectionItem: {
+                    ...saved,
+                    tmdb_id: known.tmdb_id ?? patch.tmdbId,
+                    release_year: known.release_year ?? patch.releaseYear,
+                    original_title: saved.original_title || patch.originalTitle,
+                    backdrop_url: saved.backdrop_url || patch.backdropUrl,
+                },
+            };
+        }),
+    });
 }

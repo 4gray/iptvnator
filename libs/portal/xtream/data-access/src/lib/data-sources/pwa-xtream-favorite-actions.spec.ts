@@ -88,6 +88,19 @@ describe('PWA favorite action and detail identity', () => {
             ).toBe(false);
             // Preserve references while simulating a cold data source, no provider hydration.
             reload();
+            await source.setContentMetadataIfMissing(ref, 'p1', {
+                tmdbId: 200,
+                releaseYear: 2026,
+            });
+            expect(
+                read('xtream-collection-items').p1[`${type}:42`]
+            ).toMatchObject({
+                title: 'Original',
+                tmdb_id: 100,
+            });
+            expect(
+                read('xtream-collection-items').p1[`${type}:42`].release_year
+            ).toBeUndefined();
             const recent = (await source.getRecentItems('p1'))[0];
             const replacement = {
                 ...ref,
@@ -132,6 +145,33 @@ describe('PWA favorite action and detail identity', () => {
                 title: 'Replacement',
                 tmdb_id: 200,
             });
+        }
+    );
+
+    it.each(['movie', 'series'] as const)(
+        'enriches cold %s Recent metadata before accepting its detail favorite',
+        async (type) => {
+            const ref = { id: 42, type };
+            await source.getContent('p1', credentials, type);
+            await source.addRecentItem(ref, 'p1');
+            const viewedAt = read('xtream-recent-items').p1[0].viewedAt;
+            reload();
+            await source.setContentMetadataIfMissing(ref, 'p1', {
+                tmdbId: 100,
+                releaseYear: 1995,
+            });
+            await source.addFavorite(
+                { ...ref, identity: { tmdbId: 100, releaseYear: 1995 } },
+                'p1'
+            );
+            reload();
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                title: 'Original',
+                tmdb_id: 100,
+                release_year: 1995,
+            });
+            expect(read('xtream-recent-items').p1[0].viewedAt).toBe(viewedAt);
+            expect(api.getStreams).toHaveBeenCalledTimes(1);
         }
     );
 

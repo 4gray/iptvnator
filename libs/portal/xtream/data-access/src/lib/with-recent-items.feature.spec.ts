@@ -235,6 +235,21 @@ describe('withRecentItems', () => {
         );
     });
 
+    it('backfills a cold PWA Recent item by typed provider identity', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        await store.backfillContentMetadata({
+            xtreamId: 290,
+            contentType: 'series',
+            playlist: signal({ id: 'playlist-1' }),
+            patch: { tmdbId: 200 },
+        });
+        expect(dataSource.setContentMetadataIfMissing).toHaveBeenCalledWith(
+            { id: 290, type: 'series' },
+            'playlist-1',
+            { tmdbId: 200 }
+        );
+    });
+
     it('backfills a backdrop without rewriting recent ordering', async () => {
         dataSource.getContentByXtreamId.mockResolvedValue({
             id: 3941697,

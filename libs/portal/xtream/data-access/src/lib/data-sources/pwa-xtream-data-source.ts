@@ -1290,7 +1290,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return null;
     }
 
-    /** Persist detail identity on the current catalog row and compatible saved snapshots. */
+    /** Enrich the current catalog and compatible snapshots, or independent cold Recent data. */
     async setContentMetadataIfMissing(
         contentId: XtreamCollectionRef,
         playlistId: string,
@@ -1305,7 +1305,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             [key],
             true
         ).get(key);
-        if (!current) return;
         const enriched = enrichPwaContentMetadata(
             this.collectionStorage,
             playlistId,
@@ -1313,6 +1312,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             current,
             patch
         );
+        if (!enriched) return;
         for (const type of this.contentTypes) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey);

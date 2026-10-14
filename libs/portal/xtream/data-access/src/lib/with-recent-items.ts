@@ -172,12 +172,15 @@ export const withRecentItems = function () {
                         playlistId,
                         contentType
                     );
-                    if (!content) {
-                        return;
-                    }
+                    const contentId =
+                        content?.id ??
+                        (!runtime.supportsXtreamSqliteDataSource
+                            ? normalizedXtreamId
+                            : null);
+                    if (contentId == null) return;
 
                     await dataSource.setContentMetadataIfMissing(
-                        { id: content.id, type: contentType },
+                        { id: contentId, type: contentType },
                         playlistId,
                         normalized
                     );
