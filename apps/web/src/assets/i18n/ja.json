@@ -1962,6 +1962,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "アプリウィンドウの全画面表示を切り替え",
                 "ZOOM_IN_OUT": "アプリを拡大または縮小",
                 "RESET_ZOOM": "アプリのズームをリセット",
+                "GO_BACK": "前のページに戻る",
                 "TOGGLE_SIDEBAR": "サイドバーを切り替え",
                 "M3U_CHANNEL_NUMBER": "番号で M3U チャンネルを選択",
                 "PLAY_PAUSE": "Embedded MPV の再生/一時停止",

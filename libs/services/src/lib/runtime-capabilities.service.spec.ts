@@ -316,6 +316,22 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsStartupWindowMode).toBe(true);
     });
 
+    it('offers window Back gestures only with their push subscription', () => {
+        const service = new RuntimeCapabilitiesService();
+
+        testWindow.electron = undefined;
+        expect(service.supportsWindowBackGestures).toBe(false);
+
+        // An Electron bridge without the subscription (an older preload)
+        // forwards no gestures.
+        testWindow.electron = { platform: 'darwin', minimizeWindow: jest.fn() };
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsWindowBackGestures).toBe(false);
+
+        testWindow.electron = { onWindowBackRequested: jest.fn() };
+        expect(service.supportsWindowBackGestures).toBe(true);
+    });
+
     it('decouples external player launch support from path-setting support', () => {
         testWindow.electron = {
             openInMpv: jest.fn(),

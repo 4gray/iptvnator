@@ -70,6 +70,15 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    /**
+     * The main process forwards the window's platform Back gestures (mouse
+     * Back buttons and Browser Back through `app-command` on Windows/Linux,
+     * the trackpad swipe on macOS) to the workspace Back.
+     */
+    get supportsWindowBackGestures(): boolean {
+        return this.hasElectronMethod('onWindowBackRequested');
+    }
+
     /** Desktop-only preference: PWA clients cannot configure the shared server guard. */
     get supportsPortalConnectivityGuard(): boolean {
         return (

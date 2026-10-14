@@ -1154,8 +1154,9 @@ but the component has not.
   `defaultPrevented`, so one keypress cannot close both the drawer and the
   obscured player) and suppresses workspace-level shortcuts (Ctrl/Cmd+F
   global search, Ctrl/Cmd+K command palette, Ctrl/Cmd+R global recent, the
-  `?` shortcuts dialog — dialogs must not stack a second focus trap on the
-  modal drawer, and navigation must not act behind it), and document-level
+  `?` shortcuts dialog, the Back chord and the other Back gestures — dialogs
+  must not stack a second focus trap on the modal drawer, and navigation must
+  not act behind it), and document-level
   shortcuts owned by routed content (shared controls, Embedded MPV legacy
   dock, radio audio player, the live layouts' Ctrl/Cmd+B sidebar toggle,
   the M3U player's digit-key channel switching and sidebar toggle) opt out

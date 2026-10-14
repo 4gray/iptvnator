@@ -5,9 +5,11 @@ import {
     getKeyboardShortcutGroups,
     isKeyboardShortcutHelpTrigger,
     isTypingInInput,
+    isWorkspaceBackShortcut,
     resolveZoomShortcutAction,
 } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { WorkspaceBackGesturesService } from '../workspace-back-gestures/workspace-back-gestures.service';
 import {
     WorkspaceKeyboardShortcutsDialogComponent,
     WorkspaceKeyboardShortcutsDialogData,
@@ -24,8 +26,11 @@ export class WorkspaceKeyboardShortcutsService {
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
         optional: true,
     });
+    private readonly backGestures = inject(WorkspaceBackGesturesService);
     private readonly onDocumentKeydown = (event: KeyboardEvent): void =>
         this.handleKeydown(event);
+    private readonly onDocumentKeydownCapture = (event: KeyboardEvent): void =>
+        this.handleBackShortcut(event);
 
     private dialogRef: MatDialogRef<
         WorkspaceKeyboardShortcutsDialogComponent,
@@ -35,8 +40,18 @@ export class WorkspaceKeyboardShortcutsService {
     constructor() {
         if (typeof document !== 'undefined') {
             document.addEventListener('keydown', this.onDocumentKeydown);
+            document.addEventListener(
+                'keydown',
+                this.onDocumentKeydownCapture,
+                true
+            );
             this.destroyRef.onDestroy(() => {
                 document.removeEventListener('keydown', this.onDocumentKeydown);
+                document.removeEventListener(
+                    'keydown',
+                    this.onDocumentKeydownCapture,
+                    true
+                );
             });
         }
     }
@@ -96,6 +111,41 @@ export class WorkspaceKeyboardShortcutsService {
 
         event.preventDefault();
         this.openShortcutsDialog();
+    }
+
+    /**
+     * Alt+← (Cmd+[ on macOS) runs the header's Back through
+     * `WorkspaceBackGesturesService`. It listens in the capture phase and
+     * stops a chord that runs Back there, so a focused carousel, tab list or
+     * player cannot also read it as a plain arrow. While a dialog, menu, the
+     * phone drawer or a fullscreen player is up the chord is swallowed but
+     * still reaches them. Not while typing, where Alt/Option arrows move by
+     * word. A held chord runs Back once; its repeats are swallowed, so the
+     * browser does not step on them either. Without a Back the chord stays
+     * the browser's.
+     */
+    private handleBackShortcut(event: KeyboardEvent): void {
+        if (
+            event.defaultPrevented ||
+            isTypingInInput(event) ||
+            !isWorkspaceBackShortcut(event, {
+                isMac: this.getShortcutPlatform() === 'mac',
+            })
+        ) {
+            return;
+        }
+
+        const result = event.repeat
+            ? this.backGestures.peek()
+            : this.backGestures.goBack('keyboard');
+        if (result === 'none') {
+            return;
+        }
+
+        event.preventDefault();
+        if (result === 'back') {
+            event.stopPropagation();
+        }
     }
 
     /**
@@ -185,5 +235,4 @@ export class WorkspaceKeyboardShortcutsService {
 
         return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'mac' : 'other';
     }
-
 }

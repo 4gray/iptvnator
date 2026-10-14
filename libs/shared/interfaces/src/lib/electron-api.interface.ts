@@ -225,6 +225,13 @@ export interface ElectronBridgeWindowState {
 }
 
 /**
+ * The window event behind a Back request: `app-command` (`browser-backward`,
+ * Windows and Linux: mouse Back buttons and the keyboard Browser Back key)
+ * or `swipe` (macOS trackpad swipe).
+ */
+export type ElectronBridgeBackGestureSource = 'app-command' | 'swipe';
+
+/**
  * Portal credentials for an auth-gated stream, passed alongside the scoped
  * header override. The main process attaches them only to requests going to
  * the exact origin of the override's `scopeUrl`, keeps them in memory only,
@@ -763,6 +770,14 @@ export interface ElectronBridgeApi {
     getWindowState: () => Promise<ElectronBridgeWindowState>;
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void
+    ) => () => void;
+    /**
+     * Platform Back gestures the window receives, forwarded from the main
+     * process. Subscribe-only: the renderer runs the workspace Back (or
+     * ignores the request) and sends nothing back. Returns the unsubscribe.
+     */
+    onWindowBackRequested: (
+        callback: (source: ElectronBridgeBackGestureSource) => void
     ) => () => void;
     /**
      * While active, the main process intercepts window close / app quit and

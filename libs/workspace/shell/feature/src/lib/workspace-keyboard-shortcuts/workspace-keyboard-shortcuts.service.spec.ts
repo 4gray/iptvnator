@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { Observable, Subject } from 'rxjs';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { WorkspaceBackGesturesService } from '../workspace-back-gestures/workspace-back-gestures.service';
 import { WorkspaceKeyboardShortcutsDialogData } from './workspace-keyboard-shortcuts-dialog.component';
 import { WorkspaceKeyboardShortcutsService } from './workspace-keyboard-shortcuts.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
@@ -15,6 +16,7 @@ describe('WorkspaceKeyboardShortcutsService', () => {
         >;
     };
     let runtime: { isElectron: boolean };
+    let backGestures: { peek: jest.Mock; goBack: jest.Mock };
     let service: WorkspaceKeyboardShortcutsService;
 
     function openedDialogData(): WorkspaceKeyboardShortcutsDialogData {
@@ -33,12 +35,20 @@ describe('WorkspaceKeyboardShortcutsService', () => {
             }),
         };
         runtime = { isElectron: true };
+        backGestures = {
+            peek: jest.fn(() => 'back'),
+            goBack: jest.fn(() => 'back'),
+        };
 
         TestBed.configureTestingModule({
             providers: [
                 WorkspaceKeyboardShortcutsService,
                 { provide: MatDialog, useValue: dialog },
                 { provide: RuntimeCapabilitiesService, useValue: runtime },
+                {
+                    provide: WorkspaceBackGesturesService,
+                    useValue: backGestures,
+                },
             ],
         });
 
@@ -82,6 +92,10 @@ describe('WorkspaceKeyboardShortcutsService', () => {
                     provide: WorkspaceShellContextDrawerService,
                     useValue: { isOpen: () => true },
                 },
+                {
+                    provide: WorkspaceBackGesturesService,
+                    useValue: backGestures,
+                },
             ],
         });
         TestBed.inject(WorkspaceKeyboardShortcutsService);
@@ -104,6 +118,139 @@ describe('WorkspaceKeyboardShortcutsService', () => {
 
         expect(dialog.open).not.toHaveBeenCalled();
         input.remove();
+    });
+
+    describe('Back chord', () => {
+        function setPlatform(platform: string): void {
+            Object.defineProperty(navigator, 'userAgentData', {
+                configurable: true,
+                value: { platform },
+            });
+        }
+
+        function press(
+            init: KeyboardEventInit,
+            target: EventTarget = document.body
+        ): KeyboardEvent {
+            const event = new KeyboardEvent('keydown', {
+                bubbles: true,
+                cancelable: true,
+                ...init,
+            });
+            target.dispatchEvent(event);
+            return event;
+        }
+
+        it('runs Back for Alt+ArrowLeft outside macOS and keeps the chord from the page and the browser', () => {
+            setPlatform('Windows');
+            const pageListener = jest.fn();
+            document.body.addEventListener('keydown', pageListener);
+
+            const event = press({ key: 'ArrowLeft', altKey: true });
+
+            expect(backGestures.goBack).toHaveBeenCalledWith('keyboard');
+            expect(event.defaultPrevented).toBe(true);
+            // A focused carousel or player must not also read the arrow.
+            expect(pageListener).not.toHaveBeenCalled();
+            document.body.removeEventListener('keydown', pageListener);
+        });
+
+        it('runs Back for Cmd+[ on macOS only', () => {
+            setPlatform('macOS');
+
+            press({ key: 'ArrowLeft', altKey: true });
+            expect(backGestures.goBack).not.toHaveBeenCalled();
+
+            const event = press({
+                key: '[',
+                code: 'BracketLeft',
+                metaKey: true,
+            });
+            expect(backGestures.goBack).toHaveBeenCalledWith('keyboard');
+            expect(event.defaultPrevented).toBe(true);
+        });
+
+        it('swallows the chord without stopping it while something sits above the page', () => {
+            setPlatform('Linux');
+            backGestures.goBack.mockReturnValue('blocked');
+            const dialogListener = jest.fn();
+            document.body.addEventListener('keydown', dialogListener);
+
+            const event = press({ key: 'ArrowLeft', altKey: true });
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(dialogListener).toHaveBeenCalledTimes(1);
+            document.body.removeEventListener('keydown', dialogListener);
+        });
+
+        it('leaves the chord to the page and the browser where there is no Back', () => {
+            setPlatform('Linux');
+            backGestures.goBack.mockReturnValue('none');
+            const pageListener = jest.fn();
+            document.body.addEventListener('keydown', pageListener);
+
+            const event = press({ key: 'ArrowLeft', altKey: true });
+
+            expect(backGestures.goBack).toHaveBeenCalledTimes(1);
+            expect(event.defaultPrevented).toBe(false);
+            expect(pageListener).toHaveBeenCalledTimes(1);
+            document.body.removeEventListener('keydown', pageListener);
+        });
+
+        it('ignores the chord while typing', () => {
+            setPlatform('Windows');
+            const input = document.createElement('input');
+            document.body.appendChild(input);
+
+            const event = press({ key: 'ArrowLeft', altKey: true }, input);
+
+            expect(backGestures.goBack).not.toHaveBeenCalled();
+            expect(backGestures.peek).not.toHaveBeenCalled();
+            expect(event.defaultPrevented).toBe(false);
+            input.remove();
+        });
+
+        it('runs Back once for a held chord and swallows its repeats', () => {
+            setPlatform('Windows');
+
+            press({ key: 'ArrowLeft', altKey: true });
+            const repeat = press({
+                key: 'ArrowLeft',
+                altKey: true,
+                repeat: true,
+            });
+
+            expect(backGestures.goBack).toHaveBeenCalledTimes(1);
+            expect(backGestures.peek).toHaveBeenCalledTimes(1);
+            expect(repeat.defaultPrevented).toBe(true);
+
+            backGestures.peek.mockReturnValue('none');
+            const lastRepeat = press({
+                key: 'ArrowLeft',
+                altKey: true,
+                repeat: true,
+            });
+            expect(lastRepeat.defaultPrevented).toBe(false);
+        });
+
+        it('ignores other arrows, modifiers and a chord another handler consumed', () => {
+            setPlatform('Windows');
+
+            press({ key: 'ArrowLeft' });
+            press({ key: 'ArrowRight', altKey: true });
+            press({ key: 'ArrowLeft', altKey: true, ctrlKey: true });
+            const consumed = new KeyboardEvent('keydown', {
+                key: 'ArrowLeft',
+                altKey: true,
+                bubbles: true,
+                cancelable: true,
+            });
+            consumed.preventDefault();
+            document.body.dispatchEvent(consumed);
+
+            expect(backGestures.goBack).not.toHaveBeenCalled();
+            expect(dialog.open).not.toHaveBeenCalled();
+        });
     });
 
     describe('F11 window fullscreen toggle', () => {

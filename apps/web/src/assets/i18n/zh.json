@@ -1962,6 +1962,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "切换应用窗口全屏",
                 "ZOOM_IN_OUT": "放大或缩小应用",
                 "RESET_ZOOM": "重置应用缩放",
+                "GO_BACK": "返回上一页",
                 "TOGGLE_SIDEBAR": "切换侧边栏",
                 "M3U_CHANNEL_NUMBER": "按数字选择 M3U 频道",
                 "PLAY_PAUSE": "播放或暂停嵌入式 MPV 播放",

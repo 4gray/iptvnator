@@ -1962,6 +1962,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "Attiva/disattiva schermo intero della finestra",
                 "ZOOM_IN_OUT": "Ingrandisci o riduci l'applicazione",
                 "RESET_ZOOM": "Reimposta lo zoom dell'applicazione",
+                "GO_BACK": "Torna alla pagina precedente",
                 "TOGGLE_SIDEBAR": "Mostra/nascondi barra laterale",
                 "M3U_CHANNEL_NUMBER": "Seleziona canale M3U per numero",
                 "PLAY_PAUSE": "Riproduci o metti in pausa MPV integrato",
