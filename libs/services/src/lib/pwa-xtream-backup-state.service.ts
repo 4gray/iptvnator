@@ -135,7 +135,15 @@ export class PwaXtreamBackupStateService {
             }
             throw error;
         }
+        // Server mode: the lists count once the server took them; a refused
+        // one keeps the restore parked (titles merged regardless, as above).
+        const saved = (await this.storage.flushed?.(playlistId)) !== false;
         this.mergeSnapshots(playlistId, snapshots);
+        if (!saved) {
+            throw new Error(
+                'The server did not take the restored lists; the restore waits.'
+            );
+        }
     }
 
     private replaceLists(

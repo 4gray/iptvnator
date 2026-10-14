@@ -1047,5 +1047,42 @@ describe('PwaXtreamDataSource', () => {
                 JSON.stringify({ p1: ['live:1'] })
             );
         });
+
+        it('keeps a restore parked while the server refuses its lists', async () => {
+            const values = new Map<string, string>();
+            const flushed = jest.fn(async () => false);
+            const storage = {
+                getItem: (key: string) => values.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    values.set(key, value);
+                },
+                removeItem: (key: string) => {
+                    values.delete(key);
+                },
+                ready: async () => true,
+                flushed,
+            };
+            TestBed.resetTestingModule();
+            TestBed.configureTestingModule({
+                providers: [
+                    PwaXtreamDataSource,
+                    { provide: USER_DATA_STORAGE, useValue: storage },
+                    { provide: ParentalLockService, useValue: parentalLock },
+                    { provide: XtreamApiService, useValue: apiService },
+                    { provide: PlaylistsService, useValue: playlistsService },
+                ],
+            });
+            const source = TestBed.inject(PwaXtreamDataSource);
+
+            await expect(
+                source.restoreUserData('p1', {
+                    hiddenCategories: [],
+                    favorites: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                } as never)
+            ).rejects.toThrow(/did not take the restored lists/);
+            expect(flushed).toHaveBeenCalledWith('p1');
+        });
     });
 });

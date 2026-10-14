@@ -255,7 +255,8 @@ self-hosted server storage is covered too.
   So does server mode before its first read of the server's user data:
   the export waits for a read in flight (`UserDataStorage.ready`) and fails
   when none succeeded. A restore does the same and stays parked, since its
-  replacement lists would otherwise merge into the server's.
+  replacement lists would otherwise merge into the server's; it also stays
+  parked until the server took that playlist's lists.
 - A pending restore snapshot still wins over the stored maps, as on desktop.
 - Import parks the restore state like the desktop does, then applies it at
   once through `XtreamPendingRestoreService.applyAndConsume`: the browser has

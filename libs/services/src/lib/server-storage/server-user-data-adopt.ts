@@ -2,6 +2,7 @@ import type { ServerUserStateNamespace } from '@iptvnator/shared/interfaces';
 import {
     behind,
     type EditStep,
+    splitEditKey,
     UNKNOWN_TAG,
     yielding,
 } from './server-user-data-entries';
@@ -103,4 +104,27 @@ export function restorePage(
     for (const edit of readDeferredEdits(local, instanceId, page)) {
         deferred.set(`${edit.namespace}|${edit.playlistId}`, edit);
     }
+}
+
+/**
+ * Flushes until nothing (of `playlistId`) is queued or travelling, a few
+ * rounds for conflict replays: false when some stays unsent (refused, or
+ * offline).
+ */
+export async function settleWrites(
+    writes: UserDataWriteQueue,
+    playlistId?: string
+): Promise<boolean> {
+    const unsent = () =>
+        writes
+            .unconfirmedKeys()
+            .some(
+                (key) =>
+                    playlistId === undefined ||
+                    splitEditKey(key)[1] === playlistId
+            );
+    for (let round = 0; round < 3 && unsent(); round += 1) {
+        await writes.flush();
+    }
+    return !unsent();
 }

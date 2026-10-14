@@ -17,6 +17,7 @@ import {
     adoptEdits,
     extendUnsent,
     restorePage,
+    settleWrites,
 } from './server-user-data-adopt';
 import { UserDataCache } from './server-user-data-cache';
 import {
@@ -304,9 +305,11 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     /** Sends the queued entries after any batch still travelling. */
-    flush(): Promise<void> {
-        return this.writes.flush();
-    }
+    readonly flush = (): Promise<void> => this.writes.flush();
+
+    /** See `UserDataStorage.flushed`. */
+    readonly flushed = (playlistId?: string) =>
+        settleWrites(this.writes, playlistId);
 
     /** Page hide: sends the queue with requests that survive the page. */
     flushWithKeepalive(): void {

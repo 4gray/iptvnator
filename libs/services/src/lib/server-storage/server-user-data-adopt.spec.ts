@@ -317,4 +317,39 @@ describe('ServerUserDataStorage taking over other page loads', () => {
         expect(server.state['xtream-favorites']['p1']).toEqual(['S']);
         expect(suspended.resumed()).toBe(false);
     });
+
+    it("tells whether one playlist's writes were all taken", async () => {
+        const server = fakeServer({ 'xtream-favorites': {} });
+        const send = server.api.sendJson.getMockImplementation();
+        if (!send) {
+            throw new Error('The fake server answers sendJson');
+        }
+        const tab = new ServerUserDataStorage(
+            {
+                ...server.api,
+                // The server refuses p2's entry as too large.
+                sendJson: jest.fn(async (...args: Parameters<typeof send>) =>
+                    args[1].endsWith('/p2')
+                        ? Promise.reject(
+                              new ServerApiError(413, 'too_large', 'big')
+                          )
+                        : send(...args)
+                ),
+            } as never,
+            memoryStorage(),
+            jest.fn(),
+            'default',
+            memoryStorage()
+        );
+        await tab.hydrate();
+        tab.setItem(
+            'xtream-favorites',
+            JSON.stringify({ p1: ['live:1'], p2: ['live:2'] })
+        );
+
+        await expect(tab.flushed('p1')).resolves.toBe(true);
+        await expect(tab.flushed('p2')).resolves.toBe(false);
+        await expect(tab.flushed()).resolves.toBe(false);
+        expect(server.state['xtream-favorites']['p1']).toEqual(['live:1']);
+    });
 });

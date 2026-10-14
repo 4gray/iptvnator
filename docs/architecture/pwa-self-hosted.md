@@ -265,7 +265,8 @@ settings and guards read them in every build.
   restore (also its replay when the playlist opens) fails while no read
   succeeded: unread maps would export as empty lists, and a restore's lists
   would merge into the server's instead of replacing them (the restore
-  stays parked). Replayed edits keep recently viewed lists newest first,
+  stays parked). A restore also counts only once the server took that
+  playlist's lists (`UserDataStorage.flushed`); a refused one stays parked. Replayed edits keep recently viewed lists newest first,
   as the app cuts them at their limit from the end. Also,
   re-reads run one at a time and keep entries edited while they were in
   flight or not yet saved, and entries another tab saved meanwhile (the
@@ -363,8 +364,9 @@ settings and guards read them in every build.
   user, Stalker portal and MAC, M3U URL), merges into the server's copy; the
   others upload with their ids. A merged playlist gains the browser
   document's favorites and history (M3U favorites name channels by stream
-  URL; older ones by a channel id that is random per import and is
-  translated through the URL; recently viewed newest first by `added_at`,
+  URL, as the app looks them up; older ones by a channel id that is random
+  per import, which becomes its URL on both sides; history entries keep
+  their URL id and get the server's channel id as `channel_id`; recently viewed newest first by `added_at`,
   one per item with its newest view; Stalker items by id, category and series
   flag, since one provider category can hold a movie and a series of one
   id; nothing is dropped), and the legacy Xtream maps follow under

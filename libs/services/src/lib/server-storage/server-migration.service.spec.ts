@@ -293,9 +293,10 @@ describe('ServerMigrationService', () => {
         ).moveBrowserData();
 
         expect(result).toEqual({ imported: 0, merged: 1, failed: 0 });
+        // By stream URL, as the app looks favorites up.
         expect(session.documentStore.dbUpsertAppPlaylist).toHaveBeenCalledWith({
             ...stored,
-            favorites: ['s1', 's2'],
+            favorites: ['http://s/1', 'http://s/2'],
             recentlyViewed: [],
         });
     });
@@ -303,9 +304,10 @@ describe('ServerMigrationService', () => {
     it("keeps a document's newest view of an item both copies hold", async () => {
         const view = (day: number, extra = {}) => ({
             source: 'm3u',
-            id: 'b1',
+            id: 'http://s/1',
             url: 'http://s/1',
             title: 'One',
+            channel_id: 'b1',
             category_id: 'live',
             added_at: `2026-10-0${day}T20:00:00.000Z`,
             ...extra,
@@ -335,7 +337,7 @@ describe('ServerMigrationService', () => {
             url: browserPlaylists[0].url,
             favorites: [],
             // The same channel, watched there before this browser's view.
-            recentlyViewed: [view(1, { id: 's1' })],
+            recentlyViewed: [view(1, { channel_id: 's1' })],
             playlist: { items: [{ id: 's1', url: 'http://s/1' }] },
         };
         session.documentStore.dbGetAppPlaylist.mockResolvedValue(stored);
@@ -345,7 +347,9 @@ describe('ServerMigrationService', () => {
         // Not skipped for an unchanged length: the newer view replaces it.
         expect(session.documentStore.dbUpsertAppPlaylist).toHaveBeenCalledWith({
             ...stored,
-            recentlyViewed: [view(3, { id: 's1', poster_url: 'new.png' })],
+            recentlyViewed: [
+                view(3, { channel_id: 's1', poster_url: 'new.png' }),
+            ],
         });
     });
 

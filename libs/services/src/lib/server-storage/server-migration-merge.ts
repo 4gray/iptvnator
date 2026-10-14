@@ -80,38 +80,36 @@ interface ChannelRef {
 }
 
 /**
- * M3U favorites name channels by stream URL (older ones by channel id),
- * and every import gives channels new random ids. A browser channel id is
- * translated to the server channel with the same URL; URLs and anything
- * the server cannot resolve are kept as they are, never dropped. M3U
- * history entries get the server's channel id; portal items pass through.
+ * M3U favorites and history as the app reads them, moved to the server's
+ * copy of a playlist. Favorites name channels by stream URL; older ones by
+ * a channel id that every import makes up anew, which becomes that
+ * channel's URL here (`ownChannels`: the playlist the favorite came from).
+ * History entries keep their URL id and get the server's channel id as
+ * `channel_id`. Anything else passes through, never dropped.
  */
 export function remapChannelReferences<T>(
     references: readonly T[],
-    browserChannels: readonly ChannelRef[],
+    ownChannels: readonly ChannelRef[],
     serverChannels: readonly ChannelRef[]
 ): T[] {
-    const urlByBrowserId = new Map<unknown, unknown>(
-        browserChannels.map((channel) => [channel.id, channel.url])
+    const urlById = new Map<unknown, unknown>(
+        ownChannels.map((channel) => [channel.id, channel.url])
     );
-    const serverIds = new Set(serverChannels.map((channel) => channel.id));
     const idByUrl = new Map<unknown, unknown>(
         serverChannels.map((channel) => [channel.url, channel.id])
     );
     return references.map((reference) => {
         if (typeof reference === 'string') {
-            if (serverIds.has(reference) || idByUrl.has(reference)) {
-                return reference;
-            }
-            const id = idByUrl.get(urlByBrowserId.get(reference));
-            return (typeof id === 'string' ? id : reference) as T;
+            const url = urlById.get(reference);
+            return (typeof url === 'string' ? url : reference) as T;
         }
-        if (
-            isPlainObject(reference) &&
-            reference['source'] === 'm3u' &&
-            typeof idByUrl.get(reference['url']) === 'string'
-        ) {
-            return { ...reference, id: idByUrl.get(reference['url']) } as T;
+        if (isPlainObject(reference) && reference['source'] === 'm3u') {
+            const channelId = idByUrl.get(reference['url']);
+            return (
+                typeof channelId === 'string'
+                    ? { ...reference, channel_id: channelId }
+                    : reference
+            ) as T;
         }
         return reference;
     });

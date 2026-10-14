@@ -171,8 +171,13 @@ export class ServerMigrationService {
         const serverChannels = channelsOf(stored);
         const next = {
             ...stored,
+            // By stream URL on both sides, so one channel is one favorite.
             favorites: unionItems(
-                stored.favorites ?? [],
+                remapChannelReferences(
+                    stored.favorites ?? [],
+                    serverChannels,
+                    serverChannels
+                ),
                 remapChannelReferences(
                     favorites,
                     browserChannels,

@@ -2,14 +2,19 @@ import { InjectionToken } from '@angular/core';
 
 /**
  * The slice of the Web Storage API that PWA user-data stores rely on, plus
- * the stored keys where the store can list them, and `ready` where reads
- * show a source's data only once it was read (server mode): it waits for
- * a first read in flight and tells whether one succeeded.
+ * the stored keys where the store can list them, and where writes reach a
+ * source later (server mode): `ready`, which waits for a first read in
+ * flight and tells whether one succeeded, and `flushed`, which sends what
+ * is queued and tells whether all of it (of one playlist) was taken.
  */
 export type UserDataStorage = Pick<
     Storage,
     'getItem' | 'setItem' | 'removeItem'
-> & { keys?(): string[]; ready?(): Promise<boolean> };
+> & {
+    keys?(): string[];
+    ready?(): Promise<boolean>;
+    flushed?(playlistId?: string): Promise<boolean>;
+};
 
 /**
  * `localStorage` behind an adapter that reads the global only inside each

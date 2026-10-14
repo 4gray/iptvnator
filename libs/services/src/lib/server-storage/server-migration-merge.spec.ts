@@ -137,30 +137,36 @@ describe('remapChannelReferences', () => {
         { id: 's2', url: 'http://s/2' },
     ];
 
-    it('names the server channel with the same stream URL', () => {
+    it('turns legacy channel-id favorites into their stream URL', () => {
         expect(
-            remapChannelReferences(['b2', 'b1', 's1'], browser, server)
-        ).toEqual(['s2', 's1', 's1']);
+            remapChannelReferences(['b2', 'b1', 'http://s/1'], browser, server)
+        ).toEqual(['http://s/2', 'http://s/1', 'http://s/1']);
+        // The server's own legacy ids, against its own channels.
+        expect(remapChannelReferences(['s1'], server, server)).toEqual([
+            'http://s/1',
+        ]);
     });
 
     it('keeps URL favorites and anything it cannot resolve', () => {
         expect(
             remapChannelReferences(
-                ['http://s/1', 'http://elsewhere/9', 'b3'],
+                ['http://elsewhere/9', 'b9', 'b3'],
                 browser,
                 server
             )
-        ).toEqual(['http://s/1', 'http://elsewhere/9', 'b3']);
+        ).toEqual(['http://elsewhere/9', 'b9', 'http://s/gone']);
     });
 
-    it('updates M3U history entries and passes portal items through', () => {
+    it("keeps a history entry's URL id and names the server's channel", () => {
         const portal = { id: 7, category_id: 'itv' };
+        const entry = {
+            source: 'm3u',
+            id: 'http://s/1',
+            url: 'http://s/1',
+            channel_id: 'b1',
+        };
         expect(
-            remapChannelReferences(
-                [{ source: 'm3u', id: 'b1', url: 'http://s/1' }, portal],
-                browser,
-                server
-            )
-        ).toEqual([{ source: 'm3u', id: 's1', url: 'http://s/1' }, portal]);
+            remapChannelReferences([entry, portal], browser, server)
+        ).toEqual([{ ...entry, channel_id: 's1' }, portal]);
     });
 });

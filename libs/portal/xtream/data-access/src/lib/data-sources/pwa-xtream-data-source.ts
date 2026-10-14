@@ -1450,6 +1450,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             })
         );
         this.savePlaybackPositionsToStorage(playbackPositions);
+        // Server mode: done once the server took the lists, else it stays
+        // parked for the next open.
+        if ((await this.userDataStorage.flushed?.(playlistId)) === false) {
+            throw new Error(
+                'The server did not take the restored lists; the restore waits.'
+            );
+        }
     }
 
     // =========================================================================

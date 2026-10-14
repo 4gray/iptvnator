@@ -537,6 +537,34 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             ).not.toBeNull();
         });
 
+        it('keeps the restore parked until the server took the lists', async () => {
+            const manifest = await exportSeeded();
+            localStorage.clear();
+            const flushed = jest.fn(async () => false);
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, value),
+                    removeItem: (key) => localStorage.removeItem(key),
+                    ready: async () => true,
+                    flushed,
+                }),
+            });
+
+            const summary = await service.importBackup(xtreamOnly(manifest));
+
+            expect(flushed).toHaveBeenCalledWith('xtream-1');
+            expect(summary.failed).toBe(1);
+            expect(
+                pendingRestore(service).getOrThrow('xtream-1')
+            ).not.toBeNull();
+            // Titles are merged regardless: the replay carries none.
+            expect(read(KEYS.collectionItems)).toEqual({
+                'xtream-1': { 'movie:501': heat, 'series:77': legacyShow },
+            });
+        });
+
         it('replaces a damaged title cache but refuses an unreadable storage', async () => {
             const manifest = await exportSeeded();
             localStorage.setItem(KEYS.collectionItems, '{"xtream-1": {');
