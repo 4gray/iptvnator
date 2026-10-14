@@ -3,6 +3,7 @@ import {
     behind,
     type EditStep,
     splitEditKey,
+    uncertain,
     UNKNOWN_TAG,
     yielding,
 } from './server-user-data-entries';
@@ -95,6 +96,17 @@ export function restorePage(
     page: string
 ): void {
     for (const write of readUnsentWrites(local, instanceId, page)) {
+        const key = `${write.namespace}|${write.playlistId}`;
+        const queued = writes.isQueued(key) ? writes.unsent(key) : undefined;
+        if (queued) {
+            // An older page load's copy came first: these steps follow it.
+            writes.put({
+                ...queued,
+                value: write.value,
+                steps: [...queued.steps, ...uncertain(write.steps)],
+            });
+            continue;
+        }
         writes.queue(
             write.namespace,
             write.playlistId,
@@ -107,7 +119,11 @@ export function restorePage(
         );
     }
     for (const edit of readDeferredEdits(local, instanceId, page)) {
-        deferred.set(`${edit.namespace}|${edit.playlistId}`, edit);
+        const key = `${edit.namespace}|${edit.playlistId}`;
+        deferred.set(key, {
+            ...edit,
+            steps: [...(deferred.get(key)?.steps ?? []), ...edit.steps],
+        });
     }
 }
 

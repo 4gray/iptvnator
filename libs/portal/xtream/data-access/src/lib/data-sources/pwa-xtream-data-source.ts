@@ -1458,6 +1458,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             })
         );
         this.savePlaybackPositionsToStorage(playbackPositions);
+        // The lists as reads return them (deduplicated, normalized).
+        const restoredLists = () =>
+            JSON.stringify([
+                this.collectionStorage.getFavoritesFromStorage()[playlistId],
+                this.collectionStorage.getRecentItemsFromStorage()[playlistId],
+                this.getPlaybackPositionsFromStorage()[playlistId],
+            ]);
+        const restored = restoredLists();
         // Server mode: done once the server took the lists, else it stays
         // parked for the next open.
         if ((await this.userDataStorage.flushed?.(playlistId)) === false) {
@@ -1467,17 +1475,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
         // A conflict merges an edit another device made meanwhile into the
         // lists: the restore replaces them, so it runs again on a fresh read.
-        const stored = [
-            this.collectionStorage.getFavoritesFromStorage()[playlistId],
-            this.collectionStorage.getRecentItemsFromStorage()[playlistId],
-            this.getPlaybackPositionsFromStorage()[playlistId],
-        ];
-        const restored = [
-            favorites[playlistId],
-            recentItems[playlistId],
-            playbackPositions[playlistId],
-        ];
-        if (JSON.stringify(stored) !== JSON.stringify(restored)) {
+        if (restoredLists() !== restored) {
             throw new Error(
                 'The lists changed elsewhere during the restore; it runs again.'
             );
