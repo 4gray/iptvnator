@@ -90,6 +90,25 @@ test('@xtream @collections absent saved items recover on sparse return without l
     await card.dispatchEvent('click');
     await expect(page.locator('app-content-hero')).toHaveCount(0);
     expect(detailRequests).toBe(0);
+    await page.goto('/workspace/dashboard');
+    await expect(
+        page.locator('[data-test-id="dashboard-page-heading"]')
+    ).toBeVisible();
+    await expect(
+        page
+            .locator('lib-workspace-dashboard-rails')
+            .getByText('Saved absent favorite', { exact: true })
+            .first()
+    ).toBeVisible();
+    await expect(
+        page.locator('[data-test-id="dashboard-hero-skeleton"]')
+    ).toHaveCount(0);
+    await expect(
+        page
+            .locator('lib-dashboard-hero .hero__content')
+            .filter({ hasText: 'Saved absent favorite' })
+    ).toHaveCount(0);
+    expect(detailRequests).toBe(0);
     await page.goto('/workspace/settings/backup');
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Export', exact: true }).click();

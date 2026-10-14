@@ -70,6 +70,78 @@ function fixture() {
 }
 
 describe('PWA restore list receipts', () => {
+    it.each([false, true])(
+        'retries required favorite metadata without oversized optional cache rows or fields (legacy history: %s)',
+        async (legacyHistory) => {
+            const minimal = {
+                ...state,
+                recentlyViewed: legacyHistory
+                    ? [
+                          {
+                              contentType: 'movie' as const,
+                              xtreamId: 42,
+                              viewedAt: '2020-01-01',
+                          },
+                      ]
+                    : [],
+                playbackPositions: [],
+            };
+            const data = new Map<string, string>();
+            const storage = {
+                getItem: (key: string) => data.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    if (
+                        (key === KEYS.collectionItems ||
+                            key === KEYS.recentItems) &&
+                        value.length > 1000
+                    )
+                        throw new DOMException('full', 'QuotaExceededError');
+                    data.set(key, value);
+                },
+                removeItem: (key: string) => {
+                    data.delete(key);
+                },
+            };
+            const backup = new PwaXtreamBackupStorage(storage);
+            const archive: XtreamPlaylistBackupEntry = {
+                ...entry,
+                userState: {
+                    ...minimal,
+                    collectionItems: [
+                        {
+                            id: 42,
+                            xtream_id: 42,
+                            type: 'movie',
+                            title: 'Cache',
+                            plot: 'x'.repeat(4000),
+                        },
+                        {
+                            id: 99,
+                            xtream_id: 99,
+                            type: 'series',
+                            title: 'Optional',
+                            plot: 'x'.repeat(4000),
+                        },
+                    ],
+                },
+            };
+            await expect(
+                backup.restore('p', minimal, archive)
+            ).resolves.toBeUndefined();
+            const saved = JSON.parse(data.get(KEYS.collectionItems) ?? '{}');
+            expect(saved.p['movie:42']).toMatchObject({
+                title: 'Archived',
+                tmdb_id: 100,
+                release_year: 1995,
+            });
+            expect(saved.p['movie:42'].plot).toBeUndefined();
+            expect(saved.p['series:99']).toBeUndefined();
+            expect(
+                backup.exportInto(entry).userState.favorites[0].snapshot
+            ).toEqual(minimal.favorites[0].snapshot);
+        }
+    );
+
     it.each([
         KEYS.favorites,
         KEYS.recentItems,

@@ -132,12 +132,12 @@ export class PwaXtreamBackupStorage {
         const snapshots = snapshotsByKey(
             Array.isArray(archived) ? archived : []
         );
+        const required: Record<string, XtreamBackupCollectionItem> = {};
         for (const favorite of state.favorites) {
             const saved = favorite.snapshot;
             const key = typedKey(favorite.contentType, favorite.xtreamId);
             if (!saved || key === null) continue;
-            snapshots[key] = {
-                ...snapshots[key],
+            required[key] = {
                 id: favorite.xtreamId,
                 xtream_id: favorite.xtreamId,
                 type: favorite.contentType,
@@ -171,13 +171,15 @@ export class PwaXtreamBackupStorage {
                     : {}),
             };
         }
+        for (const [key, saved] of Object.entries(required))
+            snapshots[key] = { ...snapshots[key], ...saved };
         const progress = new PwaXtreamRestoreProgress(
             this.storage,
             playlistId,
             state
         );
         try {
-            this.replaceLists(playlistId, state, progress, snapshots);
+            this.replaceLists(playlistId, state, progress, snapshots, required);
         } catch (error) {
             if (!isQuotaExceeded(error)) {
                 try {
@@ -191,17 +193,10 @@ export class PwaXtreamBackupStorage {
             }
             throw error;
         }
-        const remaining = progress.pendingSnapshots(snapshots);
         this.mergeSnapshots(
             playlistId,
-            remaining,
-            state.favorites.some(
-                (favorite) =>
-                    !!favorite.snapshot &&
-                    !!remaining[
-                        typedKey(favorite.contentType, favorite.xtreamId) ?? ''
-                    ]
-            )
+            progress.pendingSnapshots(snapshots),
+            progress.pendingSnapshots(required)
         );
     }
 
@@ -209,7 +204,8 @@ export class PwaXtreamBackupStorage {
         playlistId: string,
         state: XtreamPendingRestoreState,
         progress: PwaXtreamRestoreProgress,
-        snapshots: Record<string, XtreamBackupCollectionItem>
+        snapshots: Record<string, XtreamBackupCollectionItem>,
+        required: Record<string, XtreamBackupCollectionItem>
     ): void {
         const favorites = state.favorites
             .map((item) => typedKey(item.contentType, item.xtreamId))
@@ -217,6 +213,7 @@ export class PwaXtreamBackupStorage {
         progress.writeList('favorites', [...new Set(favorites)]);
 
         const recent: StoredMap[] = [];
+        const requiredRecent: StoredMap[] = [];
         const durableKeys = new Set(
             state.favorites
                 .filter((favorite) => !!favorite.snapshot)
@@ -231,6 +228,17 @@ export class PwaXtreamBackupStorage {
                 const collectionItem =
                     snapshotsByKey([item.collectionItem])[id] ??
                     (durableKeys.has(id) ? snapshots[id] : undefined);
+                const base = {
+                    id,
+                    viewedAt: item.viewedAt,
+                    ...backdropOf(item),
+                };
+                const owned =
+                    snapshotsByKey([item.collectionItem])[id] ?? required[id];
+                requiredRecent.push({
+                    ...base,
+                    ...(owned ? { collectionItem: owned } : {}),
+                });
                 recent.push({
                     id,
                     viewedAt: item.viewedAt,
@@ -239,7 +247,12 @@ export class PwaXtreamBackupStorage {
                 });
             }
         }
-        progress.writeList('recentItems', recent);
+        try {
+            progress.writeList('recentItems', recent);
+        } catch (error) {
+            if (!isQuotaExceeded(error)) throw error;
+            progress.writeList('recentItems', requiredRecent);
+        }
 
         const now = new Date().toISOString();
         progress.writeList(
@@ -261,7 +274,7 @@ export class PwaXtreamBackupStorage {
     private mergeSnapshots(
         playlistId: string,
         incoming: Record<string, XtreamBackupCollectionItem>,
-        required = false
+        required: Record<string, XtreamBackupCollectionItem> = {}
     ): void {
         if (Object.keys(incoming).length === 0) return;
         const all = this.readMap('collectionItems', { replaceDamaged: true });
@@ -272,7 +285,13 @@ export class PwaXtreamBackupStorage {
                 [playlistId]: { ...current, ...incoming },
             });
         } catch (error) {
-            if (required || !isQuotaExceeded(error)) throw error;
+            if (!isQuotaExceeded(error)) throw error;
+            if (Object.keys(required).length > 0)
+                // Required fields must fit, but optional archive rows/fields must not block them.
+                this.writeMap('collectionItems', {
+                    ...all,
+                    [playlistId]: { ...current, ...required },
+                });
         }
     }
 

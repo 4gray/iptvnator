@@ -50,6 +50,7 @@ import {
     normalizeCollectionIdentity,
 } from './pwa-collection-identity';
 import { PwaCollectionStorage } from './pwa-collection-storage';
+import { PwaCollectionCatalog } from './pwa-collection-catalog';
 
 /**
  * Storage keys for PWA persistence
@@ -99,6 +100,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly logger = createLogger('PwaXtreamDataSource');
     private readonly contentTypes = ['live', 'movie', 'series'] as const;
     private readonly userDataStorage = inject(USER_DATA_STORAGE);
+    private readonly collectionCatalog = new PwaCollectionCatalog();
     private readonly collectionStorage = new PwaCollectionStorage(
         (playlistId, ids, catalogOnly, snapshots) =>
             this.getCollectionItemsById(
@@ -1047,10 +1049,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     ): Map<CollectionKey, XtreamContentItem> {
         if (!ids.length) return new Map();
         const cached = ([] as XtreamContentItem[]).concat(
-            ...this.contentTypes.map(
-                (type) =>
+            ...this.contentTypes.map((type) =>
+                this.collectionCatalog.select(
                     (this.contentCache.get(`${playlistId}-${type}-content`) ??
-                        []) as XtreamContentItem[]
+                        []) as XtreamContentItem[],
+                    ids
+                )
             )
         );
         return findCollectionItems(

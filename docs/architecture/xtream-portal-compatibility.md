@@ -75,7 +75,7 @@ details, downloads and EPG requests that depend on catalog resolution. History
 navigation rechecks current collection state. Removing a live row or making it
 unavailable closes its active detail and invalidates pending selection work,
 including a retained player during a channel switch. Unresolved records are not
-promoted to dashboard hero slides. Parental locks still gate display: an
+promoted to dashboard hero slides, including Continue Watching and the most-recent fallback. Parental locks still gate display: an
 unresolved category cannot prove that it is unlocked, so those records remain
 stored but are withheld while locks apply. For duplicate category copies, ordinary
 reads choose an unlocked compatible row before resolving the catalog link; a
@@ -226,9 +226,17 @@ unavailable evidence can pass to an independent Recent snapshot only when both
 snapshots confirm the same normalized identity in both directions. Only status
 is copied; a different played identity retains its own metadata and availability. A deliberate new
 import gets a fresh ID and can intentionally apply the archive again.
-Legacy browser-only `collectionItems` remain an optional cache; their quota
-failure does not invalidate a restore with no durable nested favorite snapshots.
+Legacy browser-only `collectionItems` remain an optional cache. If a combined
+write exceeds quota, restoration retries only the required favorite fields;
+optional rows or extra cache fields cannot block metadata that fits. The same
+fallback applies when copying a required favorite into legacy Recent. A failed
+required-only write still keeps pending state.
 The PWA retry loads that storage implementation on demand through a local module.
+Collection identity lookups index only requested provider IDs per cached array,
+including all typed/category duplicates. Recent heart checks reuse that index
+instead of repeatedly scanning the catalog. Catalog refresh or detail enrichment
+replaces the array and therefore invalidates its index; loading completeness
+still comes from the original caches, never the requested subset.
 
 Both Xtream data-source and portal-activity capabilities require the pending
 favorite conversion bridge; activity reads also require playlist lookup. The

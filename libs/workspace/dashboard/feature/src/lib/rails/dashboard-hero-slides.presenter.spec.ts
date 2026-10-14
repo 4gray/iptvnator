@@ -240,6 +240,27 @@ describe('DashboardHeroSlidesPresenter', () => {
         ).toBe(false);
     });
 
+    it.each([false, true])(
+        'excludes unavailable history from resume and fallback hero inputs (watched: %s)',
+        (watched) => {
+            recentItems.set([
+                {
+                    ...(watched ? watchedMovie : series),
+                    source: 'xtream',
+                    catalogStatus: 'missing',
+                },
+            ]);
+            favorites.set([]);
+            addedItems.set([]);
+            candidates.set([]);
+            tmdbEnabled.set(true);
+            const presenter = create();
+            TestBed.tick();
+            expect(presenter.slides()).toEqual([]);
+            expect(getExtras).not.toHaveBeenCalled();
+        }
+    );
+
     it('builds the rotation from resume, live, favourite and import slides', () => {
         const slides = create().slides();
 

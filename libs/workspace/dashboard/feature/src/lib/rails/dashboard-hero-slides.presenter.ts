@@ -123,7 +123,9 @@ export class DashboardHeroSlidesPresenter {
 
     private readonly sources = computed(() =>
         pickDashboardHeroSources({
-            continueItems: this.data.continueWatchingItems(),
+            continueItems: this.data
+                .continueWatchingItems()
+                .filter((item) => !isCatalogUnavailable(item)),
             live: this.liveSlide()?.candidate ?? null,
             reserveLive: this.liveEpg.heroLiveCandidates().length > 0,
             favorites: this.data
@@ -137,7 +139,9 @@ export class DashboardHeroSlidesPresenter {
             // Until the resume candidates are known the newest row may be one
             // of them; featuring it as the fallback would swap the slide.
             mostRecent: this.data.continueWatchingSettled()
-                ? (this.data.globalRecentItems()[0] ?? null)
+                ? (this.data
+                      .globalRecentItems()
+                      .find((item) => !isCatalogUnavailable(item)) ?? null)
                 : null,
         })
     );
