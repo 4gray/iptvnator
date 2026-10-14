@@ -837,6 +837,64 @@ describe('GroupsViewComponent', () => {
         );
     });
 
+    describe('groups rail scrolling', () => {
+        const scrollToMock = (): jest.Mock =>
+            HTMLElement.prototype.scrollTo as unknown as jest.Mock;
+
+        function mockRailGeometry(rowTops: number[]): {
+            container: HTMLElement;
+            rows: HTMLElement[];
+        } {
+            const container = fixture.nativeElement.querySelector(
+                '.groups-nav-list'
+            ) as HTMLElement;
+            Object.defineProperties(container, {
+                clientHeight: { value: 400 },
+                scrollHeight: { value: 3000 },
+            });
+            container.scrollTop = 500;
+            container.getBoundingClientRect = () =>
+                new DOMRect(0, 100, 200, 400);
+            const rows = Array.from(
+                container.querySelectorAll<HTMLElement>('[data-group-key]')
+            );
+            rows.forEach((row, index) => {
+                row.getBoundingClientRect = () =>
+                    new DOMRect(0, rowTops[index] ?? 150, 200, 40);
+            });
+            return { container, rows };
+        }
+
+        it('does not scroll when the clicked group is already fully visible', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const { rows } = mockRailGeometry([150, 250, 350, 450]);
+            scrollToMock().mockClear();
+
+            component.selectGroup(rows[1].dataset['groupKey'] as string);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(scrollToMock()).not.toHaveBeenCalled();
+        });
+
+        it('centres the selected group when it is off-screen', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const { rows } = mockRailGeometry([150, 250, 350, 2200]);
+            scrollToMock().mockClear();
+
+            component.selectGroup(rows[3].dataset['groupKey'] as string);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(scrollToMock()).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                top: 2420,
+            });
+        });
+    });
+
     it('keeps the manage action visible when all groups are hidden', () => {
         setInputs({
             hiddenGroupTitles: ['Movies', 'News', 'Series', 'Sports'],
