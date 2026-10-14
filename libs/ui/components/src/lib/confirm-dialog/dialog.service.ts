@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { dialogSize } from '../dialog-shell/dialog-size';
 import { LazyMatDialog } from '../lazy-dialog/lazy-mat-dialog';
 import type {
     ConfirmDialogComponent,
@@ -41,12 +42,10 @@ export class DialogService {
             ConfirmDialogComponent,
             ConfirmDialogData
         >(dialogModule.ConfirmDialogComponent, {
+            ...dialogSize('sm'),
             data,
-            // Wide enough for two side-by-side action buttons with
-            // translated labels; 300px forced them to wrap into a
-            // vertical stack.
-            width: data.width ?? '420px',
-            maxWidth: 'calc(100vw - 32px)',
+            // A caller may still ask for a wider dialog (a long message).
+            ...(data.width ? { width: data.width } : {}),
         });
         dialogRef
             .afterClosed()

@@ -84,6 +84,33 @@ $_sizes: (
     @include _disabled;
 }
 
+/// The one accent action of a dialog or form: the selection blue, 40px,
+/// 10px radius, no ripple. Disabled keeps the fill at 40% opacity.
+@mixin accent-button($size: md) {
+    @include mat.button-overrides(
+        (
+            filled-container-color: var(--app-selection-color),
+            filled-disabled-container-color: var(--app-selection-color),
+            filled-label-text-color: var(--app-selection-on-color),
+            filled-disabled-label-text-color: var(--app-selection-on-color),
+            filled-container-height: _size($size, height),
+            filled-container-shape: _size($size, radius),
+            filled-horizontal-padding: _size($size, padding),
+            filled-label-text-size: _size($size, text),
+            filled-label-text-weight: 600,
+            filled-label-text-tracking: 0,
+            filled-icon-spacing: _size($size, gap),
+            filled-state-layer-color: var(--app-selection-on-color),
+            filled-hover-state-layer-opacity: 0.1,
+            filled-focus-state-layer-opacity: 0.1,
+            filled-pressed-state-layer-opacity: 0.16,
+            filled-ripple-color: transparent,
+        )
+    );
+    @include _icon-size(_size($size, icon));
+    @include _disabled;
+}
+
 /// A secondary button at another height (toolbars that stack on narrow
 /// windows use 36px).
 @mixin secondary-button-height($height) {
