@@ -195,7 +195,7 @@ console.log('8. the stream handed to an external player is the source, never a f
     // The request patterns of the app's engines, each after attaching a new
     // MediaSource as they do. The requests may fail (CORS, 404): tracking
     // happens when they are issued.
-    const tracked = await page.evaluate((provider) => {
+    const tracked = await page.evaluate(async (provider) => {
         const last = () => window.__tvShell.state().lastMediaUrl;
         const attach = () => URL.createObjectURL(new MediaSource());
         const xhr = (url, responseType) => {
@@ -212,21 +212,46 @@ console.log('8. the stream handed to an external player is the source, never a f
         xhr(provider + '/hls/user/pass/7/index.m3u8');
         xhr(provider + '/hls/user/pass/7_000001.ts', 'arraybuffer');
         out.hls = last();
+        // hls.js recoverMediaError: a new MediaSource, then a refresh of the variant.
+        attach();
+        xhr(provider + '/hls/user/pass/7/index.m3u8');
+        out.hlsRecovered = last();
+        // A copied URL (an EPG catch-up link) while that stream plays.
+        await navigator.clipboard.writeText(provider + '/timeshift/user/pass/60/2026-10-14:08-00/7.ts').catch(() => null);
+        xhr(provider + '/hls/user/pass/7/index.m3u8');
+        out.afterCopy = last();
         // shaka (DASH): manifest, init segment and media segments, all through fetch.
         attach();
         get(provider + '/dash/user/pass/9.mpd');
         get(provider + '/dash/user/pass/init-v.mp4');
         get(provider + '/dash/user/pass/seg-1.m4s', { headers: { Range: 'bytes=0-99' } });
         out.dash = last();
+        // shaka MediaSource reset (codec switch): new MediaSource, next segments, manifest refresh.
+        attach();
+        get(provider + '/dash/user/pass/init-a.mp4');
+        get(provider + '/dash/user/pass/seg-2.m4s');
+        out.dashReset = last();
+        get(provider + '/dash/user/pass/9.mpd');
+        out.dashRefreshed = last();
         // mpegts.js on the next channel: a new MediaSource, then the raw TS stream.
         attach();
         get(provider + '/live/user/pass/8.ts');
         out.ts = last();
+        // An M3U channel whose URL has no extension (mpegts.js too).
+        attach();
+        get(provider + '/user/pass/10');
+        out.bare = last();
         return out;
     }, PROVIDER);
-    check(tracked.hls === PROVIDER + '/live/user/pass/7.m3u8', 'HLS: the playlist, not a variant or a segment: ' + tracked.hls);
-    check(tracked.dash === PROVIDER + '/dash/user/pass/9.mpd', 'DASH through fetch: the manifest, not a segment: ' + tracked.dash);
-    check(tracked.ts === PROVIDER + '/live/user/pass/8.ts', 'the next channel replaces the previous stream: ' + tracked.ts);
+    const expect = (key, url, label) => check(tracked[key] === PROVIDER + url, label + ': ' + tracked[key]);
+    expect('hls', '/live/user/pass/7.m3u8', 'HLS: the playlist, not a variant or a segment');
+    expect('hlsRecovered', '/live/user/pass/7.m3u8', 'HLS error recovery keeps the playlist');
+    expect('afterCopy', '/live/user/pass/7.m3u8', 'a copied URL does not replace the playing stream');
+    expect('dash', '/dash/user/pass/9.mpd', 'DASH through fetch: the manifest, not a segment');
+    expect('dashReset', '/dash/user/pass/9.mpd', 'a DASH MediaSource reset keeps the manifest');
+    expect('dashRefreshed', '/dash/user/pass/9.mpd', 'and so does the manifest refresh after it');
+    expect('ts', '/live/user/pass/8.ts', 'the next channel replaces the previous stream');
+    expect('bare', '/user/pass/10', 'a stream URL without an extension is still the stream');
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;

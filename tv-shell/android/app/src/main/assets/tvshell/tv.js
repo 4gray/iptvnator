@@ -39,10 +39,10 @@
     var api = {};
     var lastRect = null; // where focus last was, for recycled/removed elements
     var lastMediaUrl = null;
-    // MediaSource playback session (see installMediaSourceTracking): while one is
-    // open, its first media request is the stream and later ones never replace it.
-    var mseSessionOpen = false;
-    var mseSessionPinned = false;
+    // MediaSource playback sessions (see installMediaSourceTracking): the first
+    // request of a session is the stream, later ones never replace it.
+    var session = null;     // { pinned, seen } while an MSE engine is attached
+    var prevSession = null; // { pin, seen } of the session before it
     var lastMediaTitle = null;
     var currentVideo = null;
     var navDepth = 0;
@@ -770,7 +770,24 @@
     }
 
     // ------------------------------------------------ media URL tracking
-    /** Records a media request. `authoritative`: the element's own http(s) source. */
+    // Never a stream: provider APIs, metadata, artwork, subtitles, page assets,
+    // and the metadata hosts the app calls directly (TMDB, YouTube trailers).
+    var NOT_STREAM_RE = /\/(player_api|portal|get)\.php|\.(json|xml|png|jpe?g|webp|gif|svg|ico|css|js|woff2?|ttf|vtt|srt)(\?|#|$)/i;
+    var NOT_STREAM_HOST_RE = /^https?:\/\/([^\/?#]*\.)?(themoviedb\.org|tmdb\.org|youtube\.com|youtube-nocookie\.com|ytimg\.com|googleapis\.com|gstatic\.com)(:\d+)?([\/?#]|$)/i;
+    // What only ever follows a playlist or manifest inside an MSE session: fMP4 /
+    // CMAF / WebM segments (an .mp4 or .webm file itself plays from the element's src).
+    var SEGMENT_RE = /\.(m4s|m4v|m4a|m4f|cmfv|cmfa|cmft|mp4|webm)(\?|#|$)/i;
+
+    function remember(set, url) {
+        set.delete(url);
+        set.add(url);
+        if (set.size > 300) set.delete(set.values().next().value);
+    }
+
+    /**
+     * Records a request the page made. `authoritative`: the media element's own
+     * http(s) source, which is the stream by definition.
+     */
     function noteMediaUrl(url, title, authoritative) {
         if (!url || typeof url !== 'string') return;
         if (/^blob:|^data:/i.test(url)) return;
@@ -780,17 +797,44 @@
         } catch (e) {
             return;
         }
-        if (absolute.indexOf(location.origin) === 0) return; // our own files/API
-        if (!MEDIA_URL_RE.test(absolute)) return;
-        if (/\/(player_api|portal|get)\.php|\.(json|xml|png|jpg|jpeg|webp|gif|svg)(\?|$)/i.test(absolute)) return;
+        if (!/^https?:/i.test(absolute) || absolute.indexOf(location.origin) === 0) return; // our own files/API
+        if (NOT_STREAM_RE.test(absolute) || NOT_STREAM_HOST_RE.test(absolute)) return;
+        var recognised = MEDIA_URL_RE.test(absolute);
         if (authoritative) {
-            mseSessionOpen = false; // a native source replaces any MediaSource session
-            mseSessionPinned = false;
-        } else if (mseSessionPinned) {
-            return; // a segment, init segment or playlist refresh of the current stream
+            session = null; // a native source replaces any MediaSource session
+            prevSession = null;
+            setStream(absolute, title);
+            return;
         }
-        lastMediaUrl = absolute;
-        if (mseSessionOpen) mseSessionPinned = true;
+        if (!session) {
+            if (recognised) setStream(absolute, title); // no MSE engine attached: latest wins
+            return;
+        }
+        if (session.pinned) {
+            if (recognised) remember(session.seen, absolute);
+            return; // a segment, a variant or a refresh of the current stream
+        }
+        // First request of the session. An engine that re-attached for the same
+        // stream (hls.js recoverMediaError, a shaka MediaSource reset) asks for a
+        // variant or a segment it already fetched: keep the stream it had.
+        if (prevSession && prevSession.pin && prevSession.seen.has(absolute)) {
+            session.pinned = true;
+            session.seen = prevSession.seen;
+            remember(session.seen, absolute);
+            setStream(prevSession.pin, null);
+            return;
+        }
+        // A segment never starts a stream: wait for the playlist, manifest or raw stream.
+        if (SEGMENT_RE.test(absolute)) return;
+        // Anything else is the source the engine was given, whatever its shape
+        // (extension-less or .php streams included).
+        session.pinned = true;
+        remember(session.seen, absolute);
+        setStream(absolute, title);
+    }
+
+    function setStream(url, title) {
+        lastMediaUrl = url;
         if (title) lastMediaTitle = title;
     }
 
@@ -804,9 +848,11 @@
      * attaches a new MediaSource through URL.createObjectURL before it requests
      * the source it was given: the playlist, the DASH manifest or the raw TS
      * stream. That first request is what an external player needs; the requests
-     * after it are segments (through XHR or fetch, with or without Range) and
-     * playlist refreshes. Installed before the bundle runs: shaka keeps a
-     * reference to URL.createObjectURL from when its module is evaluated.
+     * after it are variants, segments and refreshes. Until the new session's
+     * first request, the previous stream stays available (an engine recovering
+     * from an error re-attaches without asking for its source again). Installed
+     * before the bundle runs: shaka keeps the createObjectURL it finds when its
+     * module is evaluated.
      */
     function installMediaSourceTracking() {
         var urlApi = window.URL;
@@ -815,14 +861,24 @@
         urlApi.createObjectURL = function (obj) {
             try {
                 if (isMediaSource(obj)) {
-                    mseSessionOpen = true;
-                    mseSessionPinned = false;
+                    if (session && session.pinned) prevSession = { pin: lastMediaUrl, seen: session.seen };
+                    session = { pinned: false, seen: new Set() };
                 }
             } catch (e) {
                 /* ignore */
             }
             return create.apply(urlApi, arguments);
         };
+    }
+
+    /** A copied stream URL: the user's pick, unless a playing session already has its stream. */
+    function noteCopiedUrl(url) {
+        if (session && session.pinned) return; // e.g. a catch-up URL copied while live TV plays
+        lastMediaUrl = url;
+        if (session) {
+            session.pinned = true;
+            remember(session.seen, url);
+        }
     }
 
     function installNetworkTracking() {
@@ -844,7 +900,8 @@
         XMLHttpRequest.prototype.send = function () {
             try {
                 var url = this.__tvGetUrl;
-                if (url && this.responseType !== 'arraybuffer' && this.responseType !== 'blob') noteMediaUrl(url);
+                var type = this.responseType;
+                if (url && type !== 'arraybuffer' && type !== 'blob' && type !== 'json' && type !== 'document') noteMediaUrl(url);
             } catch (e) {
                 /* ignore */
             }
@@ -922,8 +979,7 @@
         var writeText = function (text) {
             try {
                 if (typeof text === 'string' && /^(https?|rtsp|rtmp|udp|rtp|mms):\/\//i.test(text.trim())) {
-                    lastMediaUrl = text.trim();
-                    mseSessionPinned = mseSessionOpen;
+                    noteCopiedUrl(text.trim());
                     native('onUrlCopied', text.trim(), lastMediaTitle || document.title || '');
                 }
             } catch (e) {
@@ -949,8 +1005,7 @@
                 var text = (t && typeof t.value === 'string' && t.value) || (window.getSelection ? window.getSelection().toString() : '');
                 text = (text || '').trim();
                 if (/^(https?|rtsp|rtmp|udp|rtp|mms):\/\/\S+$/i.test(text)) {
-                    lastMediaUrl = text;
-                    mseSessionPinned = mseSessionOpen;
+                    noteCopiedUrl(text);
                     native('onUrlCopied', text, lastMediaTitle || document.title || '');
                 }
             } catch (err) {
