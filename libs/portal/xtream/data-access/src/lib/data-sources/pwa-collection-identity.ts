@@ -130,14 +130,24 @@ export function findCollectionItems(
     const missingKeys = completeCatalog
         ? new Set(typedItems.keys())
         : undefined;
+    const candidates = new Map<CollectionKey, XtreamContentItem>();
     for (const item of cached) {
         if (!item || !wantedIds.has(item.xtream_id)) continue;
         const key = itemCollectionKey(item);
         if (key !== null) {
             missingKeys?.delete(key);
-            typedItems.set(key, mergeCollectionItem(typedItems.get(key), item));
+            const saved = typedItems.get(key);
+            const previous = candidates.get(key);
+            if (
+                !previous ||
+                collectionMatchRank(saved, item) >=
+                    collectionMatchRank(saved, previous)
+            )
+                candidates.set(key, item);
         }
     }
+    for (const [key, item] of candidates)
+        typedItems.set(key, mergeCollectionItem(typedItems.get(key), item));
     for (const key of missingKeys ?? []) {
         const item = typedItems.get(key);
         if (item)
@@ -179,6 +189,15 @@ export function findCollectionItems(
         }
     }
     return results;
+}
+
+/** Compare duplicates against the original snapshot, never an earlier candidate. */
+function collectionMatchRank(
+    saved: XtreamContentItem | undefined,
+    item: XtreamContentItem
+): number {
+    if (!saved || collectionSnapshotMatchesContent(saved, item)) return 2;
+    return collectionSnapshotMatchesContent(saved, item, true) ? 1 : 0;
 }
 
 export function collectionRefIdentity(ref: XtreamCollectionRef) {

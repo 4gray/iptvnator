@@ -4,6 +4,7 @@ import {
     Playlist,
     PlaylistBackupManifestV1,
     XtreamPlaylistBackupEntry,
+    XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import {
     createPlaylistBackupService,
@@ -620,6 +621,52 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(xtreamEntry(reexport).userState.favorites).toEqual(
                 xtreamEntry(manifest).userState.favorites
             );
+        });
+
+        it('parks old browser availability evidence before a snapshot quota failure', async () => {
+            const manifest = await exportSeeded();
+            const entry = xtreamEntry(manifest);
+            const item = entry.userState.collectionItems?.find(
+                (item) => item.xtream_id === 501
+            );
+            if (!item) throw new Error('Missing browser snapshot fixture');
+            Object.assign(item, {
+                catalog_status: 'missing',
+                catalog_missing_reason: 'identity_conflict',
+            });
+            localStorage.clear();
+            const storage = createBrowserBackedStorage();
+            storage.setItem.mockImplementation((key: string, value: string) => {
+                if (key === KEYS.collectionItems)
+                    throw new DOMException('full', 'QuotaExceededError');
+                localStorage.setItem(key, value);
+            });
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState(storage),
+            });
+            expect(
+                (await service.importBackup(xtreamOnly(manifest))).failed
+            ).toBe(1);
+            const parked = pendingRestore(service).getOrThrow(
+                'xtream-1'
+            ) as XtreamPendingRestoreState;
+            expect(
+                parked.favorites.find((item) => item.xtreamId === 501)?.snapshot
+            ).toMatchObject({
+                title: heat.title,
+                catalogStatus: 'missing',
+                catalogMissingReason: 'identity_conflict',
+            });
+            const { manifest: exported } = await service.exportBackup();
+            expect(
+                xtreamEntry(exported).userState.favorites.find(
+                    (item) => item.xtreamId === 501
+                )?.snapshot
+            ).toMatchObject({
+                catalogStatus: 'missing',
+                catalogMissingReason: 'identity_conflict',
+            });
         });
 
         it('still restores legacy lists when their optional cache exceeds the quota', async () => {

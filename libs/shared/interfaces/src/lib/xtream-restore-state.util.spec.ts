@@ -48,6 +48,110 @@ describe('normalizeXtreamPendingRestoreState', () => {
         }
     );
 
+    it.each(['absent', 'identity_conflict', undefined])(
+        'preserves availability %p from old browser cache through normalized pending retries',
+        (reason) => {
+            const input = {
+                favorites: [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 7,
+                        snapshot: {
+                            title: 'Original',
+                            tmdbId: 949,
+                            releaseYear: 1995,
+                        },
+                    },
+                ],
+                collectionItems: [
+                    {
+                        type: 'movie',
+                        xtream_id: 7,
+                        title: 'Original',
+                        tmdb_id: '949',
+                        release_year: '1995',
+                        catalog_status: 'missing',
+                        catalog_missing_reason: reason,
+                    },
+                ],
+            };
+            const state = normalizeXtreamPendingRestoreState(input);
+            expect(state.favorites[0].snapshot).toMatchObject({
+                catalogStatus: 'missing',
+                ...(reason ? { catalogMissingReason: reason } : {}),
+            });
+            expect(normalizeXtreamPendingRestoreState(state)).toEqual(state);
+        }
+    );
+
+    it.each([
+        [
+            'missing',
+            'identity_conflict',
+            {
+                catalogStatus: 'missing',
+                catalogMissingReason: 'identity_conflict',
+            },
+        ],
+        ['missing', 'untrusted', { catalogStatus: 'missing' }],
+        ['present', 'identity_conflict', { catalogStatus: 'present' }],
+        ['unknown', 'absent', { catalogStatus: 'unknown' }],
+        ['invalid', 'absent', {}],
+    ])(
+        'allowlists snapshot availability %p / %p',
+        (catalogStatus, catalogMissingReason, expected) => {
+            const state = normalizeXtreamPendingRestoreState({
+                favorites: [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 7,
+                        snapshot: {
+                            title: 'Saved',
+                            catalogStatus,
+                            catalogMissingReason,
+                        },
+                    },
+                ],
+            });
+            expect(state.favorites[0].snapshot).toEqual({
+                title: 'Saved',
+                ...(expected as object),
+            });
+        }
+    );
+
+    it('never borrows availability from a different cached identity or overrides explicit evidence', () => {
+        const favorite = {
+            contentType: 'movie',
+            xtreamId: 7,
+            snapshot: { title: 'Original', tmdbId: 949 },
+        };
+        const wrong = {
+            type: 'movie',
+            xtream_id: 7,
+            tmdb_id: 950,
+            catalog_status: 'missing',
+            catalog_missing_reason: 'absent',
+        };
+        expect(
+            normalizeXtreamPendingRestoreState({
+                favorites: [favorite],
+                collectionItems: [wrong],
+            }).favorites[0].snapshot
+        ).toEqual(favorite.snapshot);
+        const snapshot = {
+            ...favorite.snapshot,
+            catalogStatus: 'missing',
+            catalogMissingReason: 'identity_conflict',
+        };
+        expect(
+            normalizeXtreamPendingRestoreState({
+                favorites: [{ ...favorite, snapshot }],
+                collectionItems: [{ ...wrong, tmdb_id: 949 }],
+            }).favorites[0].snapshot
+        ).toEqual(snapshot);
+    });
+
     it('retains only display metadata in a durable favorite snapshot', () => {
         const state = normalizeXtreamPendingRestoreState({
             favorites: [

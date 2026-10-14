@@ -1,7 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import { PwaXtreamBackupStorage } from '@iptvnator/services/pwa-xtream-backup-storage';
-import { XtreamPlaylistBackupEntry } from '@iptvnator/shared/interfaces';
+import {
+    normalizeXtreamPendingRestoreState,
+    XtreamPlaylistBackupEntry,
+} from '@iptvnator/shared/interfaces';
 import { of } from 'rxjs';
 import { XtreamApiService } from '../services/xtream-api.service';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
@@ -265,6 +268,223 @@ describe('PWA collection availability after catalog completion', () => {
             expect((await source.getFavorites('p'))[0].catalog_status).toBe(
                 'present'
             );
+        }
+    );
+
+    it.each([
+        [949, 950, null],
+        [950, 949, null],
+        [null, 949, 950],
+        [null, 950, 949],
+    ])(
+        'resolves each collection against its original identity with duplicate rows %p',
+        async (...identities) => {
+            const saved = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Favorite',
+                tmdb_id: 949,
+                release_year: 1995,
+                added_at: '2026-01-02',
+                position: 3,
+            } as XtreamContentItem;
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ p: ['movie:42'] })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({ p: { 'movie:42': saved } })
+            );
+            localStorage.setItem(
+                'xtream-recent-items',
+                JSON.stringify({
+                    p: [
+                        {
+                            id: 'movie:42',
+                            viewedAt: '2026-01-03',
+                            collectionItem: {
+                                ...saved,
+                                title: 'Recent',
+                                tmdb_id: 950,
+                            },
+                        },
+                    ],
+                })
+            );
+            await source.saveContent(
+                'p',
+                identities.map((id) => ({
+                    ...saved,
+                    title: `Catalog ${id}`,
+                    tmdb_id: id,
+                    category_id: String(id),
+                })),
+                'movie'
+            );
+            expect((await source.getFavorites('p'))[0]).toMatchObject({
+                title: 'Catalog 949',
+                tmdb_id: 949,
+                category_id: '949',
+                catalog_status: 'present',
+                added_at: saved.added_at,
+                position: 3,
+            });
+            expect((await source.getRecentItems('p'))[0]).toMatchObject({
+                title: 'Catalog 950',
+                tmdb_id: 950,
+                category_id: '950',
+                catalog_status: 'present',
+                viewed_at: '2026-01-03',
+            });
+            reload();
+            expect((await source.getFavorites('p'))[0].catalog_status).toBe(
+                'present'
+            );
+            expect((await source.getRecentItems('p'))[0].catalog_status).toBe(
+                'present'
+            );
+        }
+    );
+
+    it.each(['absent', 'identity_conflict', undefined])(
+        'retains %p availability evidence through quota failure and entry-free retry',
+        async (reason) => {
+            const saved = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Original',
+                tmdb_id: 949,
+                release_year: 1995,
+                catalog_status: 'missing',
+                catalog_missing_reason: reason,
+            };
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ p: ['movie:42'] })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({ p: { 'movie:42': saved } })
+            );
+            const store = new PwaXtreamBackupStorage(localStorage);
+            const archive = store.exportInto({
+                exportedId: 'p',
+                userState: {
+                    favorites: [],
+                    hiddenCategories: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                },
+            } as unknown as XtreamPlaylistBackupEntry);
+            const pending = normalizeXtreamPendingRestoreState(
+                JSON.parse(JSON.stringify(archive.userState))
+            );
+            localStorage.clear();
+            const write = Storage.prototype.setItem;
+            const failure = jest
+                .spyOn(Storage.prototype, 'setItem')
+                .mockImplementation(function (
+                    this: Storage,
+                    key: string,
+                    value: string
+                ) {
+                    if (key === 'xtream-collection-items')
+                        throw new DOMException('full', 'QuotaExceededError');
+                    return write.call(this, key, value);
+                });
+            await expect(store.restore('p', pending, archive)).rejects.toThrow(
+                'full'
+            );
+            failure.mockRestore();
+            await source.restoreUserData('p', pending);
+            reload();
+            await source.saveContent(
+                'p',
+                [
+                    {
+                        ...saved,
+                        tmdb_id: undefined,
+                        release_year: undefined,
+                        catalog_status: undefined,
+                    } as XtreamContentItem,
+                ],
+                'movie'
+            );
+            expect((await source.getFavorites('p'))[0]).toMatchObject({
+                title: 'Original',
+                tmdb_id: 949,
+                catalog_status: reason === 'absent' ? 'present' : 'missing',
+            });
+        }
+    );
+
+    it.each([false, true])(
+        'keeps conflicts unavailable through stored aliases until identity returns (legacy=%s)',
+        async (legacy) => {
+            await source.restoreUserData('p', {
+                favorites: [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 42,
+                        snapshot: {
+                            title: 'Original',
+                            tmdbId: 100,
+                            releaseYear: 1995,
+                        },
+                    },
+                ],
+                hiddenCategories: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+            });
+            if (legacy) {
+                const snapshots = JSON.parse(
+                    localStorage.getItem('xtream-collection-items') ?? '{}'
+                );
+                snapshots.p[42] = snapshots.p['movie:42'];
+                localStorage.setItem(
+                    'xtream-collection-items',
+                    JSON.stringify(snapshots)
+                );
+            }
+            const returning = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Returning',
+                tmdb_id: 200,
+                release_year: 1995,
+            } as XtreamContentItem;
+            await source.saveContent('p', [returning], 'movie');
+            expect((await source.getFavorites('p'))[0]).toMatchObject({
+                catalog_status: 'missing',
+                title: 'Original',
+            });
+            reload();
+            expect((await source.getFavorites('p'))[0]).toMatchObject({
+                catalog_status: 'missing',
+            });
+            await source.saveContent(
+                'p',
+                [{ ...returning, tmdb_id: undefined }],
+                'movie'
+            );
+            expect((await source.getFavorites('p'))[0]).toMatchObject({
+                catalog_status: 'missing',
+                title: 'Original',
+            });
+            await source.saveContent(
+                'p',
+                [{ ...returning, tmdb_id: 100 }],
+                'movie'
+            );
+            expect((await source.getFavorites('p'))[0]).toMatchObject({
+                catalog_status: 'present',
+                title: 'Returning',
+            });
         }
     );
 

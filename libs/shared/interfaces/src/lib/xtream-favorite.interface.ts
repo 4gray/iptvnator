@@ -15,6 +15,9 @@ export interface XtreamFavoriteSnapshot {
     tmdbId?: number | null;
     releaseYear?: number | null;
     originalTitle?: string | null;
+    /** Browser availability evidence, retained through backup and deferred restore. */
+    catalogStatus?: XtreamFavoriteCatalogStatus;
+    catalogMissingReason?: 'absent' | 'identity_conflict';
 }
 
 /** Numeric references are legacy catalog row IDs, never provider IDs. */

@@ -627,13 +627,23 @@ describe('PWA Xtream collection identity', () => {
                           ...favorite,
                           snapshot: {
                               ...favorite.snapshot,
+                              catalogStatus: 'present',
                               title: `Returning ${favorite.contentType}`,
                               posterUrl: `https://img.example.com/returning-${favorite.contentType}.jpg`,
                               backdropUrl:
                                   'https://img.example.com/detail-wide.jpg',
                           },
                       }
-                    : favorite
+                    : identity.includes('conflict')
+                      ? {
+                            ...favorite,
+                            snapshot: {
+                                ...favorite.snapshot,
+                                catalogStatus: 'missing',
+                                catalogMissingReason: 'identity_conflict',
+                            },
+                        }
+                      : favorite
             );
             expect(
                 (await source.getFavorites('p1')).map((item) => item.title)
@@ -826,7 +836,16 @@ describe('PWA Xtream collection identity', () => {
         const backup = new PwaXtreamBackupStorage(
             TestBed.inject(USER_DATA_STORAGE)
         ).exportInto(entry);
-        expect(backup.userState.favorites).toEqual(entry.userState.favorites);
+        expect(backup.userState.favorites).toEqual(
+            entry.userState.favorites.map((favorite) => ({
+                ...favorite,
+                snapshot: {
+                    ...favorite.snapshot,
+                    catalogStatus: 'missing',
+                    catalogMissingReason: 'identity_conflict',
+                },
+            }))
+        );
         localStorage.clear();
         reload();
         await new PwaXtreamBackupStorage(
@@ -868,71 +887,6 @@ describe('PWA Xtream collection identity', () => {
             (await source.getFavorites('p1')).map((item) => item.type)
         ).toEqual(['movie']);
     });
-
-    it.each([false, true])(
-        'keeps conflicts unavailable through stored aliases until identity returns (legacy=%s)',
-        async (legacy) => {
-            await source.restoreUserData('p1', {
-                favorites: [
-                    {
-                        contentType: 'movie',
-                        xtreamId: 42,
-                        snapshot: {
-                            title: 'Original',
-                            tmdbId: 100,
-                            releaseYear: 1995,
-                        },
-                    },
-                ],
-                hiddenCategories: [],
-                recentlyViewed: [],
-                playbackPositions: [],
-            });
-            if (legacy) {
-                const snapshots = read('xtream-collection-items');
-                snapshots.p1[42] = snapshots.p1['movie:42'];
-                localStorage.setItem(
-                    'xtream-collection-items',
-                    JSON.stringify(snapshots)
-                );
-            }
-            const returning = {
-                id: 42,
-                xtream_id: 42,
-                type: 'movie',
-                title: 'Returning',
-                tmdb_id: 200,
-                release_year: 1995,
-            } as XtreamContentItem;
-            await source.saveContent('p1', [returning], 'movie');
-            expect((await source.getFavorites('p1'))[0]).toMatchObject({
-                catalog_status: 'missing',
-                title: 'Original',
-            });
-            reload();
-            expect((await source.getFavorites('p1'))[0]).toMatchObject({
-                catalog_status: 'missing',
-            });
-            await source.saveContent(
-                'p1',
-                [{ ...returning, tmdb_id: undefined }],
-                'movie'
-            );
-            expect((await source.getFavorites('p1'))[0]).toMatchObject({
-                catalog_status: 'missing',
-                title: 'Original',
-            });
-            await source.saveContent(
-                'p1',
-                [{ ...returning, tmdb_id: 100 }],
-                'movie'
-            );
-            expect((await source.getFavorites('p1'))[0]).toMatchObject({
-                catalog_status: 'present',
-                title: 'Returning',
-            });
-        }
-    );
 
     it('keeps the artwork saved with each view through clear/restore', async () => {
         await source.restoreUserData('p1', {

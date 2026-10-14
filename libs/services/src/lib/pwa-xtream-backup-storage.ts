@@ -130,6 +130,12 @@ export class PwaXtreamBackupStorage {
                 xtream_id: favorite.xtreamId,
                 type: favorite.contentType,
                 title: saved.title,
+                ...(saved.catalogStatus
+                    ? {
+                          catalog_status: saved.catalogStatus,
+                          catalog_missing_reason: saved.catalogMissingReason,
+                      }
+                    : {}),
                 ...(saved.posterUrl !== undefined
                     ? { poster_url: saved.posterUrl }
                     : {}),
@@ -299,6 +305,8 @@ function favoriteWithSnapshot(
                     tmdbId: saved['tmdb_id'],
                     releaseYear: saved['release_year'],
                     originalTitle: saved['original_title'],
+                    catalogStatus: saved['catalog_status'],
+                    catalogMissingReason: saved['catalog_missing_reason'],
                 },
             },
         ],

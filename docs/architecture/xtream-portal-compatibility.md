@@ -115,6 +115,13 @@ A sparse returning typed row clears proven absence while retaining the saved
 presentation and identity. It cannot clear a known conflict or an older missing
 status whose cause is unknown; those still require identity confirmation. This
 evidence survives reload and browser backup/restore for Favorites and Recent.
+Favorite snapshot backups include allowlisted availability evidence in pending
+state too, so retrying a failed snapshot write cannot enable a known conflict.
+Older browser cache evidence is promoted only for the same typed identity and
+compatible saved metadata; legacy optional-cache-only imports remain optional.
+Duplicate category rows are ranked against the original collection snapshot:
+fully confirming rows take precedence over compatible sparse rows, which take
+precedence over conflicting rows. Favorite and Recent choose independently.
 Catalog hydration keeps the saved snapshot separate from current provider rows.
 Only a row confirming every saved TMDB ID/year may refresh that snapshot;
 missing, partially confirmed or conflicting identity retains the original title,
