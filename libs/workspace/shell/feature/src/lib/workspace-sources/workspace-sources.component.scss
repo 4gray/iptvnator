@@ -123,10 +123,3 @@
 .sort-failing-first__check--off {
     visibility: hidden;
 }
-
-// UI-kit menu panel. The panel renders in the overlay container, so the
-// rule is global; it ships with the components that use `class="app-menu"`
-// rather than in the app's initial stylesheet.
-::ng-deep .mat-mdc-menu-panel.app-menu {
-    @include controls.menu-panel;
-}
