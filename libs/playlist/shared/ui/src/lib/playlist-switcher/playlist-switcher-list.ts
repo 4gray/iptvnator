@@ -65,8 +65,8 @@ export interface SwitcherGroups {
 
 /**
  * The switcher's two groups: "Recent" (newest first, only without a search
- * and with enough sources to be worth it) and "All" in the given order,
- * both narrowed by type and search.
+ * and when enough sources are shown to be worth it) and "All" in the given
+ * order, both narrowed by type and search.
  */
 export function buildSwitcherGroups(
     ordered: readonly PlaylistMeta[],
@@ -86,8 +86,10 @@ export function buildSwitcherGroups(
             group,
             playlist,
         });
+    // Counted after the type filter: a short filtered list would show the
+    // same sources twice, and the keyboard would visit each twice.
     const showRecent =
-        !query.trim() && ordered.length >= SWITCHER_RECENT_MIN_SOURCES;
+        !query.trim() && visible.length >= SWITCHER_RECENT_MIN_SOURCES;
     const byId = new Map(visible.map((playlist) => [playlist._id, playlist]));
     const recent = showRecent
         ? recentIds

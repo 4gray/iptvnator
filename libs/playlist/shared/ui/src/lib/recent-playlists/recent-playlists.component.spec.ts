@@ -305,6 +305,23 @@ describe('RecentPlaylistsComponent', () => {
         ).toBe(true);
     });
 
+    it('offers no Refresh while something else holds a source', () => {
+        const canRefresh = () =>
+            fixture.debugElement
+                .queryAll(By.directive(SourceRowComponent))
+                .map((row) =>
+                    (row.componentInstance as SourceRowComponent).canRefresh()
+                );
+        expect(canRefresh()).toEqual([true, true, true]);
+        // The startup auto-refresh or an import: refresh() would refuse.
+        const release = TestBed.inject(SourceActivityService).begin(['m3u']);
+        fixture.detectChanges();
+        expect(canRefresh()).toEqual([false, true, true]);
+        release();
+        fixture.detectChanges();
+        expect(canRefresh()).toEqual([true, true, true]);
+    });
+
     it('offers no Remove while something else holds a source', () => {
         const removable = () =>
             fixture.debugElement

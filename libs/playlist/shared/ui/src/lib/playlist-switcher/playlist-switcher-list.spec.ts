@@ -45,6 +45,10 @@ describe('buildSwitcherGroups', () => {
         expect(
             buildSwitcherGroups(many.slice(0, 3), ['a'], 'all', '').recent
         ).toEqual([]);
+        // A long library filtered down to one type is a short list too.
+        expect(buildSwitcherGroups(many, ['b'], 'xtream', '').recent).toEqual(
+            []
+        );
     });
 
     it('filters by type and by name or host', () => {

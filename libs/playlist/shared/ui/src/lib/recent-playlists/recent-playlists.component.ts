@@ -230,6 +230,18 @@ export class RecentPlaylistsComponent {
         );
     }
 
+    /**
+     * Refresh is offered while it can run, and kept (with its spinner)
+     * while this source refreshes. Held by anything else (the startup
+     * auto-refresh, an import, a delete), refresh() would refuse it.
+     */
+    canRefresh(item: PlaylistMeta): boolean {
+        return (
+            this.refresh.canRefresh(item) &&
+            (this.isRefreshing(item) || !this.activity.isBusy(item._id))
+        );
+    }
+
     /** Nothing else (a refresh, the startup auto-refresh) holds it. */
     isRemovable(item: PlaylistMeta): boolean {
         return !this.activity.isBusy(item._id);

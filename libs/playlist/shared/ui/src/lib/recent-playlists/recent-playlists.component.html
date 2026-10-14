@@ -35,7 +35,7 @@
                 [playlist]="item"
                 [current]="activePlaylistId() === item._id"
                 [draggable]="isCustomSort()"
-                [canRefresh]="refresh.canRefresh(item)"
+                [canRefresh]="canRefresh(item)"
                 [refreshing]="isRefreshing(item)"
                 [removable]="isRemovable(item)"
                 [deleting]="removal.progress.isDeleting(item._id)"
