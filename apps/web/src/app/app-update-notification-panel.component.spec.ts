@@ -1,10 +1,17 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+    ComponentFixture,
+    DeferBlockBehavior,
+    DeferBlockState,
+    TestBed,
+} from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
+import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
+import { AppUpdateNotificationCardComponent } from './app-update-notification-card.component';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-release-notes-dialog.component';
 
@@ -62,9 +69,34 @@ describe('AppUpdateNotificationPanelComponent', () => {
         window.electron = originalElectron;
     });
 
-    it('shows a startup update notification when the main process reports an available update', () => {
-        statusHandler?.(availableStatus);
+    /**
+     * Pushes a status and lets the deferred card render: its chunk resolves
+     * asynchronously, after which the panel needs one more check.
+     */
+    async function showUpdate(
+        status: ElectronBridgeAppUpdateStatus
+    ): Promise<void> {
+        statusHandler?.(status);
         fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
+        fixture.detectChanges();
+    }
+
+    function card(): AppUpdateNotificationCardComponent {
+        return fixture.debugElement.query(
+            By.directive(AppUpdateNotificationCardComponent)
+        ).componentInstance as AppUpdateNotificationCardComponent;
+    }
+
+    it('renders no card before the main process reports an update', () => {
+        expect(
+            fixture.nativeElement.querySelector('app-update-notification-card')
+        ).toBeNull();
+    });
+
+    it('shows a startup update notification when the main process reports an available update', async () => {
+        await showUpdate(availableStatus);
 
         expect(
             fixture.nativeElement.querySelector(
@@ -73,9 +105,26 @@ describe('AppUpdateNotificationPanelComponent', () => {
         ).not.toBeNull();
     });
 
-    it('opens release notes without dismissing the notification', async () => {
-        statusHandler?.(availableStatus);
+    it('hides the notification when it is dismissed', async () => {
+        await showUpdate(availableStatus);
+
+        (
+            fixture.nativeElement.querySelector(
+                '.app-update-notification__header button'
+            ) as HTMLButtonElement
+        ).click();
         fixture.detectChanges();
+
+        expect(fixture.componentInstance.dismissedVersion()).toBe('0.23.0');
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="app-update-notification"]'
+            )
+        ).toBeNull();
+    });
+
+    it('opens release notes without dismissing the notification', async () => {
+        await showUpdate(availableStatus);
 
         (
             fixture.nativeElement.querySelector(
@@ -104,12 +153,12 @@ describe('AppUpdateNotificationPanelComponent', () => {
         const error = jest
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);
-        fixture.componentInstance.loadReleaseNotesDialog = () =>
+        await showUpdate(availableStatus);
+        const notification = card();
+        notification.loadReleaseNotesDialog = () =>
             Promise.reject(new Error('chunk failed'));
-        statusHandler?.(availableStatus);
-        fixture.detectChanges();
 
-        await fixture.componentInstance.openReleaseNotes();
+        await notification.openReleaseNotes();
 
         expect(TestBed.inject(MatDialog).open).not.toHaveBeenCalled();
         expect(open).toHaveBeenCalledWith(
@@ -123,8 +172,7 @@ describe('AppUpdateNotificationPanelComponent', () => {
     });
 
     it('starts downloading the update from the notification action', async () => {
-        statusHandler?.(availableStatus);
-        fixture.detectChanges();
+        await showUpdate(availableStatus);
 
         (
             fixture.nativeElement.querySelector(
@@ -134,15 +182,47 @@ describe('AppUpdateNotificationPanelComponent', () => {
         await fixture.whenStable();
 
         expect(window.electron.downloadAppUpdate).toHaveBeenCalledTimes(1);
+        // The card reports the updater's reply back to the panel.
+        expect(fixture.componentInstance.status()?.status).toBe(
+            ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading
+        );
     });
 
-    it('labels unsupported platform action as a GitHub release link', () => {
+    it('tells the user when the card chunk cannot be loaded', async () => {
+        fixture.destroy();
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [
+                AppUpdateNotificationPanelComponent,
+                TranslateModule.forRoot(),
+            ],
+            providers: [{ provide: MatDialog, useValue: { open: jest.fn() } }],
+            deferBlockBehavior: DeferBlockBehavior.Manual,
+        }).compileComponents();
+        fixture = TestBed.createComponent(AppUpdateNotificationPanelComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        statusHandler?.(availableStatus);
+        fixture.detectChanges();
+
+        const [block] = await fixture.getDeferBlocks();
+        await block.render(DeferBlockState.Error);
+
+        const notice = fixture.nativeElement.querySelector('[role="alert"]');
+        expect(notice?.textContent).toContain(
+            'SETTINGS.APP_UPDATE_PANEL_UNAVAILABLE'
+        );
+        expect(
+            fixture.nativeElement.querySelector('app-update-notification-card')
+        ).toBeNull();
+    });
+
+    it('labels unsupported platform action as a GitHub release link', async () => {
         const open = jest.spyOn(window, 'open').mockImplementation(() => null);
-        statusHandler?.({
+        await showUpdate({
             ...availableStatus,
             supportedSelfUpdate: false,
         });
-        fixture.detectChanges();
 
         const button = fixture.nativeElement.querySelector(
             '[data-test-id="app-update-notification-download"]'

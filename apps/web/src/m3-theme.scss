@@ -1,4 +1,5 @@
 @use 'sass:map';
+@use 'sass:meta';
 @use '@angular/material' as mat;
 @use 'styles';
 
@@ -57,9 +58,58 @@ $dark-theme: mat.define-theme(
     )
 );
 
+// ─── Themed components ───────────────────────────────────────────────────────
+// Only the Material components the app imports, in Material's own order.
+// `mat.all-component-themes` also emitted about 24 KB of tokens for 17
+// components nothing imports. Add an entry with a new
+// `@angular/material/<entry>` import and remove it with the last one:
+// `pnpm run styles:material-theme-scope:validate` (CI) checks both
+// directions, and `core` (ripples, options, pseudo-checkboxes) always stays.
+$material-components: (
+    core,
+    card,
+    progress-bar,
+    tooltip,
+    form-field,
+    input,
+    select,
+    dialog,
+    slide-toggle,
+    slider,
+    menu,
+    list,
+    checkbox,
+    button,
+    icon-button,
+    fab,
+    snack-bar,
+    progress-spinner,
+    button-toggle,
+    divider,
+    icon
+);
+
+@mixin component-themes($theme) {
+    @each $component in $material-components {
+        @include meta.apply(
+            meta.get-mixin('#{$component}-theme', 'mat'),
+            $theme
+        );
+    }
+}
+
+@mixin component-colors($theme) {
+    @each $component in $material-components {
+        @include meta.apply(
+            meta.get-mixin('#{$component}-color', 'mat'),
+            $theme
+        );
+    }
+}
+
 // ─── Apply Themes ────────────────────────────────────────────────────────────
 html {
-    @include mat.all-component-themes($light-theme);
+    @include component-themes($light-theme);
 
     // The theme is built with the legacy `define-theme` config, whose
     // component mixins emit resolved component tokens but never declare the
@@ -187,7 +237,7 @@ html {
     --app-popover-backdrop: rgba(20, 24, 32, 0.28);
 
     .dark-theme {
-        @include mat.all-component-colors($dark-theme);
+        @include component-colors($dark-theme);
         // Only the color roles differ per theme: the elevation shadows are
         // the same black in both, so html's declarations already apply here.
         @include mat.system-level-colors($dark-theme);
@@ -308,7 +358,7 @@ html {
 }
 
 // ─── Global refined outlined inputs ──────────────────────────────────────────
-// Applied app-wide AFTER mat.all-component-themes so these overrides win the
+// Applied app-wide AFTER the component themes so these overrides win the
 // cascade. Pairs with the outline + dynamic MAT_FORM_FIELD_DEFAULT_OPTIONS
 // that provideFormFieldDefaults() (@iptvnator/ui/components) sets on each
 // component rendering a form field.
