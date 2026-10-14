@@ -3,7 +3,7 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 1231455,
+                "value": 1229592,
                 "unit": "bytes",
                 "slack": 4096,
                 "updatedAt": "2026-10-14",
@@ -57,6 +57,25 @@
                 "evidencePr": null,
                 "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
+            },
+            "renderer.cdTicksToFirstCard": {
+                "value": 5,
+                "unit": "ticks",
+                "slack": 1,
+                "note": "one-tick race since #1931 moved Angular Material off the startup path: 5 in all 15 iterations of the three dispatched runs before it, 5, 5, 5, 5, 6 in #1929's journeys job after merging it (https://github.com/4gray/iptvnator/actions/runs/38476954719/job/115583649036)",
+                "updatedAt": "2026-10-13",
+                "evidencePr": 1929,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38359088033",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 15 measured iterations of 3 runs of #1929 (zoneless, d88d00506)"
+            },
+            "renderer.cdTicksIdle30s": {
+                "value": 3,
+                "unit": "ticks",
+                "slack": 0,
+                "updatedAt": "2026-10-13",
+                "evidencePr": 1929,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38359088033",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 15 measured iterations of 3 runs of #1929 (zoneless, d88d00506)"
             }
         },
         "open-source": {
@@ -89,6 +108,15 @@
                 "evidencePr": null,
                 "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38147072417",
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), 0 with no shift recorded in all 5 measured iterations of PR #1895 (d2cb9445d), which slides the content frame and header controls instead of jumping (was 0.233)"
+            },
+            "renderer.cdTicksToFirstPage": {
+                "value": 9,
+                "unit": "ticks",
+                "slack": 0,
+                "updatedAt": "2026-10-13",
+                "evidencePr": 1929,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38359088033",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 15 measured iterations of 3 runs of #1929 (zoneless, d88d00506)"
             }
         },
         "playback": {

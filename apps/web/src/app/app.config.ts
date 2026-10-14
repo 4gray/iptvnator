@@ -8,7 +8,12 @@ import {
     FullscreenOverlayContainer,
     OverlayContainer,
 } from '@angular/cdk/overlay';
-import { ApplicationConfig, inject, importProvidersFrom } from '@angular/core';
+import {
+    ApplicationConfig,
+    inject,
+    importProvidersFrom,
+    provideZonelessChangeDetection,
+} from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { provideEffects } from '@ngrx/effects';
@@ -30,7 +35,6 @@ import {
     DataService,
 } from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
-import { changeDetectionProviders } from '../environments/change-detection.providers';
 import { storeDevtoolsProviders } from '../environments/store-devtools.providers';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
@@ -103,7 +107,7 @@ export function DataFactory() {
 
 export const appConfig: ApplicationConfig = {
     providers: [
-        ...changeDetectionProviders,
+        provideZonelessChangeDetection(),
         provideRouter(routes, withComponentInputBinding()),
         // No provideAnimations(): nothing declares an Angular animation
         // trigger, and Material 22 animates with CSS, reading

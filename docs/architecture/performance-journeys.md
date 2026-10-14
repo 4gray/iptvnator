@@ -250,8 +250,9 @@ swaps `apps/web/src/environments/environment.ts` for
 and calls `installChangeDetectionTickCounter()` from
 `change-detection-tick-counter.ts` while `main.js` is evaluated, before
 Angular bootstraps. The counter wraps the internal `ApplicationRef._tick`,
-the method every tick runs through: the zone scheduler's `onMicrotaskEmpty`,
-the zoneless scheduler, `afterNextRender` idle buckets and the public
+the method every tick runs through: the zoneless scheduler (and, before the
+zoneless flip, the zone scheduler's `onMicrotaskEmpty`), `afterNextRender`
+idle buckets and the public
 `ApplicationRef.tick()` all call it, and it is where Angular emits the
 profiler's `ChangeDetectionStart`. The count therefore equals the profiler's
 tick count and stays comparable across the zoneless migration. The running
@@ -295,6 +296,16 @@ two startup callbacks that land in one task on one launch and in two tasks
 on another differ by one tick without any different work. Treat a one-tick
 difference in J1 as that race, and confirm on the CI runner that the counter
 is deterministic before it becomes a baseline.
+
+Since the zoneless flip (plan item C6) the renderer has no zone.js: a tick
+runs only when a signal, a `markForCheck`, an Angular event or an
+`afterNextRender` hook schedules one, so the race above is gone. The first
+local measurement after the flip (macOS, 2026-10-13, five iterations each)
+read `renderer.cdTicksToFirstCard` 5, `renderer.cdTicksIdle30s` 3 and
+`renderer.cdTicksToFirstPage` 9 in every iteration, `renderer.cdTicksToPlaying`
+7 or 8 and J4 `renderer.cdTicksToResults` 11 or 12; the DOM mutation counts
+were identical across iterations. The history of the migration and the
+before/after tables are in [zoneless migration](zoneless-migration.md).
 
 #### Main-process counters
 
@@ -1150,8 +1161,8 @@ runtime flag: `if (!AppConfig.production)` keeps the imported module in
 `main.js` because the optimizer does not fold the property read. The NgRx
 store devtools therefore come from
 `apps/web/src/environments/store-devtools.providers.ts`, an empty list in
-every build, which only the `development`, `electron-e2e` and
-`electron-e2e-zoneless` configurations replace with
+every build, which only the `development` and `electron-e2e` configurations
+replace with
 `store-devtools.providers.dev.ts`; a build-config test in
 `performance-build-config.spec.ts` keeps it that way. Removing the static
 import lowered the counter by 12,565 bytes.
@@ -1177,8 +1188,9 @@ status deferring its Retry button, the snack-bar, Material's button, the icon
 button chunk, ripple and the CDK a11y module left the initial bundle,
 1,349,048 to 1,237,440 bytes (-111,608, 8.3%) on a local build, and no
 Material module remains in it; merged with #1938 (the radio play control
-no longer a fab, so its theme tokens left the stylesheet) the branch measures
-1,231,455, which the baseline follows. Of the CDK, the overlay, scrolling and
+no longer a fab, so its theme tokens left the stylesheet) and #1936 (one
+global kit layer replacing per-component overrides) the branch measures
+1,229,592, which the baseline follows. Of the CDK, the overlay, scrolling and
 portal chunks (about 78 KB) stay through the `FullscreenOverlayContainer`
 provider in `app.config.ts`, whose token lives in the overlay chunk.
 
@@ -1439,8 +1451,15 @@ Not enforced, with the reason:
 - Every `renderer.longTasks` (J1 2 or 1, J2 0 with one 1 earlier in the
   week, J3 1 or 2 until #1817 and 0 since): a long task is a task over
   50 ms, so the count follows runner speed, not work.
-- Every `cdTicks` counter: the zoneless migration (plan item C6) changes
-  them.
+- J3 `renderer.cdTicksToPlaying` (7 or 8) and J4
+  `renderer.cdTicksToResults` (10 or 11): not identical even zoneless; the
+  player's and the search debounce's events land in one or two ticks. J1
+  `renderer.cdTicksIdle30s` (3) and J2 `renderer.cdTicksToFirstPage` (9) are
+  enforced exactly since the zoneless flip (#1929), identical in all 15
+  iterations of its three dispatched runs. J1 `renderer.cdTicksToFirstCard`
+  read 5 in those 15 too, but after #1931 moved Angular Material off the
+  startup path one iteration in six read 6: the lazy chunk resolves on either
+  side of a render. It is enforced at 5 with `slack: 1`.
 - J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
   recent commits.
 - J3 `renderer.ipcCallsToPlaying` (4 or 5) and
