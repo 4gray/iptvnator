@@ -64,10 +64,10 @@ the subsystem's document.
 **Consequences.**
 
 - Material upgrades can change behaviour. Seen in v22: the menu panel has no
-  max-height; a submenu is offset by the parent's first direct
-  `mat-menu-item`, so a trigger that follows `role="group"` rows is wrapped
-  in `<div role="none">`; overlay panes are `position: static` inside the
-  bounding box.
+  max-height (the kit panel adds one); a submenu is offset by the parent's
+  first direct `mat-menu-item`, so a trigger that follows `role="group"` rows
+  is wrapped in `<div role="none">`; overlay panes are `position: static`
+  inside the bounding box.
 - Keep E2E coverage on menus and dialogs.
 
 ## Canonical References
@@ -332,11 +332,12 @@ a season or a guide scope, uses `appMenuItemRadio` and
 - A menu with several groups, such as the catalog refine menu, wraps each
   group in `role="group"`. The group is named by its section title, and
   `role="separator"` sits between groups.
-- Keep a menu short enough to open whole below its trigger in a 600px-tall
-  window. Material 22 sets no max-height on a menu panel: a taller menu is
-  pushed up over its own trigger, then clipped. Move a secondary group into
-  a submenu whose row shows the active value, as the refine menu does with
-  its rating thresholds.
+- Keep a menu of actions or groups short enough to open whole below its
+  trigger in a 600px-tall window. The kit panel caps every menu at 480px
+  (less in a short window) and scrolls past that, which suits a long list
+  of peers such as seasons or guide scopes, but a scrolled-off action is
+  easy to miss. Move a secondary group into a submenu whose row shows the
+  active value, as the refine menu does with its rating thresholds.
 - Material offsets a submenu by the `offsetTop` of the parent menu's first
   direct `mat-menu-item`. When the earlier rows sit inside a `role="group"`,
   that first direct item is the submenu trigger itself, and the submenu
