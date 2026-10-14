@@ -1008,5 +1008,44 @@ describe('PwaXtreamDataSource', () => {
                 positionSeconds: 120,
             });
         });
+
+        it('keeps a restore parked while the server user data is unread', async () => {
+            const values = new Map<string, string>([
+                ['xtream-favorites', JSON.stringify({ p1: ['live:1'] })],
+            ]);
+            const storage = {
+                getItem: (key: string) => values.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    values.set(key, value);
+                },
+                removeItem: (key: string) => {
+                    values.delete(key);
+                },
+                ready: async () => false,
+            };
+            TestBed.resetTestingModule();
+            TestBed.configureTestingModule({
+                providers: [
+                    PwaXtreamDataSource,
+                    { provide: USER_DATA_STORAGE, useValue: storage },
+                    { provide: ParentalLockService, useValue: parentalLock },
+                    { provide: XtreamApiService, useValue: apiService },
+                    { provide: PlaylistsService, useValue: playlistsService },
+                ],
+            });
+            const source = TestBed.inject(PwaXtreamDataSource);
+
+            await expect(
+                source.restoreUserData('p1', {
+                    hiddenCategories: [],
+                    favorites: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                } as never)
+            ).rejects.toThrow(/restore waits/);
+            expect(values.get('xtream-favorites')).toBe(
+                JSON.stringify({ p1: ['live:1'] })
+            );
+        });
     });
 });

@@ -170,13 +170,16 @@ export class ServerStorageSession {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 this.userData.flushWithKeepalive();
+            } else if (!this.userData.resumed()) {
+                // Suspended long enough for another tab to take its writes.
+                this.reloadPage();
             } else {
                 void this.refresh();
             }
         });
         window.addEventListener('pageshow', (event) => {
             // Back from the back-forward cache: another tab may have taken
-            // its writes over while it was frozen, so this page reloads.
+            // its writes over while it was frozen; then this page reloads.
             if (event.persisted && !this.userData.resumed()) {
                 this.reloadPage();
             }

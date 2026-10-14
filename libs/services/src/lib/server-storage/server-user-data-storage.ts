@@ -203,9 +203,10 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     /**
-     * Back from the back-forward cache, where its record went stale: false
-     * when another tab took its writes over meanwhile, which this page
-     * must then not send again (it reloads instead).
+     * Back from the back-forward cache or a suspended background tab, where
+     * its record could go stale: false when another tab took its writes
+     * over meanwhile, which this page must then not send again (it reloads
+     * instead).
      */
     resumed(): boolean {
         if (

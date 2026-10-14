@@ -146,14 +146,25 @@ export function combineRecentViews(values: readonly unknown[]): unknown {
     if (present.length === 0 || !present.every(Array.isArray)) {
         return combineUserData(values);
     }
+    return unionItems(
+        newestViewsFirst(([] as unknown[]).concat(...(present as unknown[][])))
+    );
+}
+
+/** Items with a `viewedAt` (recently viewed), newest first; stable. */
+export function newestViewsFirst<T>(items: readonly T[]): T[] {
     const viewedAt = (item: unknown) => {
         const at = isPlainObject(item)
             ? Date.parse(String(item['viewedAt']))
             : NaN;
         return Number.isNaN(at) ? 0 : at;
     };
-    const views = ([] as unknown[]).concat(...(present as unknown[][]));
-    return unionItems(views.sort((a, b) => viewedAt(b) - viewedAt(a)));
+    return [...items].sort((a, b) => viewedAt(b) - viewedAt(a));
+}
+
+/** Whether a list holds recently viewed items, which stay newest first. */
+export function isViewHistory(items: readonly unknown[]): boolean {
+    return items.some((item) => isPlainObject(item) && 'viewedAt' in item);
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

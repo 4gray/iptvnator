@@ -60,6 +60,23 @@ describe('applyEdit', () => {
     });
 });
 
+describe('applyEdit of recently viewed items', () => {
+    it('puts a replayed view ahead of older ones', () => {
+        const view = (id: string, day: number) => ({
+            id,
+            viewedAt: `2026-10-0${day}T20:00:00.000Z`,
+        });
+        // Another device added a view meanwhile; this one is newer still.
+        expect(
+            applyEdit(
+                [view('b', 2), view('a', 1)],
+                [view('a', 1)],
+                [view('c', 3), view('a', 1)]
+            )
+        ).toEqual([view('c', 3), view('b', 2), view('a', 1)]);
+    });
+});
+
 describe('applyEdit of a gone page (yields)', () => {
     it('changes only what is still as that page saw it', () => {
         // Map keys: `a` changed since, `b` did not.

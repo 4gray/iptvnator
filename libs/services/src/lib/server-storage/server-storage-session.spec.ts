@@ -175,7 +175,16 @@ describe('ServerStorageSession', () => {
 
         resumed.mockReturnValue(false);
         pageshow(true);
-        expect(reload).toHaveBeenCalled();
+        expect(reload).toHaveBeenCalledTimes(1);
+
+        // So does a background tab the browser suspended as long.
+        Object.defineProperty(document, 'visibilityState', {
+            configurable: true,
+            get: () => 'visible',
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+        expect(reload).toHaveBeenCalledTimes(2);
+        delete (document as { visibilityState?: unknown }).visibilityState;
     });
 
     describe('after losing the server', () => {

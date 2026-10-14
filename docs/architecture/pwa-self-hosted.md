@@ -235,8 +235,9 @@ settings and guards read them in every build.
   writes over and sends them first (the old copy goes only once the new one
   is saved, at the latest with this page's next saved copy). A page marks
   its record closed on `pagehide` (not into the back-forward cache, where
-  its record goes stale; restored after another tab adopted it, the page
-  reloads rather than send those writes again), and
+  its record goes stale, as in a background tab the browser suspends;
+  restored or shown again after another tab adopted it, the page reloads
+  rather than send those writes again), and
   only a closed, stale or missing record is taken over: a duplicated tab,
   which copies `sessionStorage`, leaves the running tab its writes. A page
   load that still looked live (or whose close flag storage refused) is
@@ -256,12 +257,14 @@ settings and guards read them in every build.
   starts clean. Startup waits for the first read only a few seconds;
   `UserDataStorage.ready()` waits for a first read in flight (it starts
   none, so an offline page is not held up) and tells whether one
-  succeeded. The Xtream data source's favorites, history and position
-  reads wait for it, so a new device does not show empty lists or start
-  playback without its resume position. A backup export or restore fails
-  while no read succeeded: unread maps would export as empty lists, and a
-  restore's lists would merge into the server's instead of replacing them
-  (the restore stays parked). Also,
+  succeeded. The Xtream data source's favorites, favorite checks, history
+  and position reads wait for it, so a new device does not show empty
+  lists or start playback without its resume position. A backup export or
+  restore (also its replay when the playlist opens) fails while no read
+  succeeded: unread maps would export as empty lists, and a restore's lists
+  would merge into the server's instead of replacing them (the restore
+  stays parked). Replayed edits keep recently viewed lists newest first,
+  as the app cuts them at their limit from the end. Also,
   re-reads run one at a time and keep entries edited while they were in
   flight or not yet saved. A response body cut off after its headers counts
   as offline. Each write is sent on the tag of the entry it was made

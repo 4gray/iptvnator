@@ -3,7 +3,11 @@ import {
     type ServerUserStateNamespace,
     type ServerUserStateResponse,
 } from '@iptvnator/shared/interfaces';
-import { itemKey } from './server-migration-merge';
+import {
+    isViewHistory,
+    itemKey,
+    newestViewsFirst,
+} from './server-migration-merge';
 import { type EditStep, idMap } from './server-user-data-entries';
 
 /** Edits made before the first read, applied once the server's value is known. */
@@ -90,7 +94,9 @@ export function applyEdit(
                 result[index] = item;
             }
         }
-        return result;
+        // History is cut at its limit from the end: a replayed view must
+        // not land behind older ones.
+        return isViewHistory(result) ? newestViewsFirst(result) : result;
     }
     if (isMap(after) && isMapOrMissing(server) && isMapOrMissing(before)) {
         const was = before ?? {};
