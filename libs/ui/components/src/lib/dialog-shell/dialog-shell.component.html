@@ -1,0 +1,41 @@
+<header class="app-dialog__header">
+    @if (icon(); as icon) {
+        <span
+            class="app-dialog__icon"
+            [class.app-dialog__icon--warn]="iconTone() === 'warn'"
+            aria-hidden="true"
+        >
+            <mat-icon>{{ icon }}</mat-icon>
+        </span>
+    }
+    <div class="app-dialog__heading">
+        <h2 mat-dialog-title class="app-dialog__title">{{ heading() }}</h2>
+        @if (subtitle(); as subtitle) {
+            <p class="app-dialog__subtitle">{{ subtitle }}</p>
+        }
+    </div>
+    <div class="app-dialog__header-end">
+        <ng-content select="[appDialogHeaderEnd]" />
+    </div>
+</header>
+<mat-dialog-content class="app-dialog__body">
+    <ng-content />
+</mat-dialog-content>
+@if (hasFooter()) {
+    <mat-dialog-actions align="end" class="app-dialog__footer">
+        <ng-content select="[appDialogFooterStart]" />
+        <span class="app-dialog__footer-spacer"></span>
+        <ng-content select="[appDialogFooter]" />
+    </mat-dialog-actions>
+}
+@if (showClose()) {
+    <button
+        type="button"
+        mat-icon-button
+        mat-dialog-close
+        class="app-dialog__close"
+        [aria-label]="'CLOSE_DIALOG' | translate"
+    >
+        <mat-icon>close</mat-icon>
+    </button>
+}

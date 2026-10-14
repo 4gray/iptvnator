@@ -86,6 +86,8 @@ the subsystem's document.
   `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.scss`
 - Shared list selection style:
   `libs/ui/styles/_nav-list.scss`
+- Dialog shell and size presets:
+  `libs/ui/components/src/lib/dialog-shell/`
 - Source row (Sources page and playlist switcher):
   `libs/playlist/shared/ui/src/lib/source-row/source-row.component.html`
 - UI-kit buttons, menus and segmented control:
@@ -1133,8 +1135,33 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   strut, as the programme dialog does.
 - **Order.** Dismiss first, primary last. With end alignment the primary sits
   on the inline end: the right in LTR, the left in RTL.
-- **One dismiss.** Offer one visible dismiss: a footer "Cancel"/"Close" or a
-  header close icon, not both. Escape and the backdrop still close.
+- **Shell.** A dialog's markup is `app-dialog-shell`
+  (`@iptvnator/ui/components`): the heading (its `mat-dialog-title`, so
+  the container is named by it), an optional subtitle and 40px icon tile
+  (`iconTone="warn"` for a destructive question), the body as default
+  content, and a footer rendered only when an element with
+  `appDialogFooter` wraps the actions (`appDialogFooterStart` wraps a Clear
+  action or a notice at the footer's start, `appDialogHeaderEnd` a chip
+  before the close button); a conditional action sits inside the wrapper,
+  since a control-flow block at the top level is projected into the body.
+  Footer
+  buttons take the kit look from the shell: `mat-button` ghost,
+  `mat-flat-button` accent, `mat-flat-button.app-dialog__secondary`
+  secondary; `.app-destructive-button` keeps its tint. The frame itself
+  (16px panel on the widget surface, hairline border, popover shadow,
+  tinted blurred backdrop) is global in `m3-theme.scss` and reaches every
+  dialog; a dialog that draws its own surface strips it through its panel
+  class, as the command palette and the programme dialog do.
+  The shell caps itself at the viewport minus the preset's margins and
+  lets only the body scroll; under 600px of height the cap comes off and the
+  surface scrolls the whole dialog, so a stacked footer never squeezes the
+  body to a sliver.
+- **Dismiss.** The shell's header × (named "Close dialog", so a footer
+  "Close" stays the only button of that name) and the footer
+  "Cancel"/"Close" both dismiss; a dialog never adds a second footer
+  dismiss. The × is the last
+  element in the DOM, so `first-tabbable` autofocus lands in the body and
+  Tab reaches it after the footer. Escape and the backdrop still close.
 - **One row.** Action labels are short verbs ("Cancel", "Discard", "Save"),
   not phrases, so the row fits one line in every locale at the dialog width.
   Secondary actions tied to one part of the content stay with that content
@@ -1147,11 +1174,17 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   locales. The programme dialog stacks its archive tools and footer the same
   way, letting a long label wrap inside its button; the Electron
   `epg-timeline-interaction.e2e.ts` measures it in French at 360px.
-- **Width.** A dialog with several openers is opened through one helper that
-  owns its `MatDialogConfig`, so its width never depends on the entry point.
-  `EpgProgrammeDialogService` opens the programme dialog at 540px from the
-  timeline, list, guide and channel rows, with a panel class that scopes its
-  surface overrides.
+- **Width.** An opener spreads a size preset first, `...dialogSize('sm' |
+  'md' | 'lg')` (440, 560 and 760px with the viewport limits), then its own
+  options. `sm` is a confirmation or a PIN prompt, `md` a form or a list,
+  `lg` a picker with a grid, a table or long text. The helper imports
+  `MatDialogConfig` as a type only, so a root service may use it without
+  putting Material's dialog on the startup path; `MAT_DIALOG_DEFAULT_OPTIONS`
+  is never provided at the root for that reason. A dialog with several
+  openers is opened through one helper that owns its config, so its width
+  never depends on the entry point: `EpgProgrammeDialogService` opens the
+  programme dialog at 540px from the timeline, list, guide and channel rows,
+  with a panel class that scopes its surface overrides.
 - **Destructive actions.** Material only emits `warn` button colors for M2
   themes, so the `color` input is a no-op here. A button that removes or
   discards user data uses the global `.app-destructive-button` class from
