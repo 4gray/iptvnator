@@ -104,7 +104,10 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
     }
 
     function read(key: string, storage: UserDataStorage = localStorage) {
-        return JSON.parse(storage.getItem(key) ?? 'null');
+        const parsed = JSON.parse(storage.getItem(key) ?? 'null');
+        if (parsed && typeof parsed === 'object')
+            delete parsed['__iptvnator_xtream_restore_receipts__'];
+        return parsed;
     }
 
     function pendingRestore(service: object) {
@@ -623,6 +626,42 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             );
         });
 
+        it('keeps explicit removals when a required snapshot write is retried', async () => {
+            const manifest = await exportSeeded();
+            localStorage.clear();
+            const storage = createBrowserBackedStorage();
+            let full = true;
+            storage.setItem.mockImplementation((key: string, value: string) => {
+                if (full && key === KEYS.collectionItems)
+                    throw new DOMException('full', 'QuotaExceededError');
+                localStorage.setItem(key, value);
+            });
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState(storage),
+            });
+            expect(
+                (await service.importBackup(xtreamOnly(manifest))).failed
+            ).toBe(1);
+            // The application has already exposed these successfully written lists.
+            const favorites = JSON.parse(
+                storage.getItem(KEYS.favorites) ?? '{}'
+            );
+            favorites['xtream-1'] = [];
+            storage.setItem(KEYS.favorites, JSON.stringify(favorites));
+            const { manifest: duringRetry } = await service.exportBackup();
+            expect(xtreamEntry(duringRetry).userState.favorites).toEqual([]);
+            const parked = pendingRestore(service).getOrThrow(
+                'xtream-1'
+            ) as XtreamPendingRestoreState;
+            full = false;
+            await createPwaXtreamBackupState(storage).restore(
+                'xtream-1',
+                parked
+            );
+            expect(read(KEYS.favorites)['xtream-1']).toEqual([]);
+        });
+
         it('parks old browser availability evidence before a snapshot quota failure', async () => {
             const manifest = await exportSeeded();
             const entry = xtreamEntry(manifest);
@@ -761,7 +800,12 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             const { summary, data } = await importInto(await listsSize());
 
             expect(summary.failed).toBe(0);
-            expect(JSON.parse(data.get(KEYS.favorites) ?? '{}')).toEqual({
+            expect(
+                read(KEYS.favorites, {
+                    ...localStorage,
+                    getItem: (key: string) => data.get(key) ?? null,
+                })
+            ).toEqual({
                 'xtream-1': ['movie:501', 'series:77'],
             });
             expect(data.has(KEYS.collectionItems)).toBe(false);

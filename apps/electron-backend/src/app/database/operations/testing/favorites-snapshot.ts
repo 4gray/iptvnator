@@ -96,6 +96,32 @@ export async function verifyFavoriteSnapshot(db: AppDatabase) {
         confirmed,
         'blank fields on a confirmed return must preserve the saved snapshot'
     );
+    // A fully confirming duplicate must outrank an earlier sparse category copy.
+    await deleteXtreamContent(db, 'p');
+    await catalog(6, 7, 'Sparse copy', 'movie', 'p', { tmdbId: 10 });
+    await catalog(7, 7, 'Confirmed copy', 'movie', 'p', {
+        tmdbId: 10,
+        releaseYear: 2000,
+        posterUrl: 'confirmed.jpg',
+    });
+    await setAppState(db, 'xtream-import-status:p:movie', 'completed');
+    const [duplicate] = await getFavoritesForBackup(db, 'p');
+    assert.equal(
+        duplicate.id,
+        7,
+        'fully confirming duplicate wins over sparse lower ID'
+    );
+    assert.equal(duplicate.title, 'Confirmed copy');
+    assert.equal(duplicate.poster_url, 'confirmed.jpg');
+    const [duplicateSaved] = await db.select().from(schema.favorites);
+    assert.equal(duplicateSaved.contentId, 7);
+    assert.equal(duplicateSaved.title, 'Confirmed copy');
+    await deleteXtreamContent(db, 'p');
+    await catalog(3, 7, 'Confirmed copy', 'movie', 'p', {
+        tmdbId: 10,
+        releaseYear: 2000,
+    });
+    await setAppState(db, 'xtream-import-status:p:movie', 'completed');
     // A replacement's year/artwork must not fill gaps before its TMDB identity is known.
     await removeFavorite(db, 3, 'p');
     await deleteXtreamContent(db, 'p');

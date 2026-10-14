@@ -10,6 +10,7 @@ import type {
 import { normalizeXtreamPendingRestoreState } from '@iptvnator/shared/interfaces/xtream-restore-state';
 import type { UserDataStorage } from './user-data-storage';
 import { XTREAM_USER_DATA_KEYS } from './xtream-user-data-keys';
+import { PwaXtreamRestoreProgress } from './pwa-xtream-restore-progress';
 
 type StoredMap = Record<string, unknown>;
 type UserDataMap = keyof typeof XTREAM_USER_DATA_KEYS;
@@ -38,7 +39,10 @@ export class PwaXtreamBackupStorage {
      * treats these lists as authoritative, so "could not read" written as
      * `[]` would turn the archive into an instruction to delete.
      */
-    exportInto(entry: XtreamPlaylistBackupEntry): XtreamPlaylistBackupEntry {
+    exportInto(
+        entry: XtreamPlaylistBackupEntry,
+        pending?: XtreamPendingRestoreState
+    ): XtreamPlaylistBackupEntry {
         const playlistId = entry.exportedId;
         const stored = this.readMap('collectionItems')[playlistId];
         const snapshots = isRecord(stored) ? stored : {};
@@ -84,7 +88,7 @@ export class PwaXtreamBackupStorage {
             .filter((key) => key in byKey)
             .map((key) => byKey[key]);
 
-        return {
+        const exported: XtreamPlaylistBackupEntry = {
             ...entry,
             userState: {
                 ...entry.userState,
@@ -96,6 +100,13 @@ export class PwaXtreamBackupStorage {
                 ...(collectionItems.length > 0 ? { collectionItems } : {}),
             },
         };
+        return pending
+            ? new PwaXtreamRestoreProgress(
+                  this.storage,
+                  playlistId,
+                  pending
+              ).exportInto(exported)
+            : exported;
     }
 
     /**
@@ -106,6 +117,7 @@ export class PwaXtreamBackupStorage {
      * Lists first, so the optional cache never takes space they need. A
      * failed write throws with earlier ones applied, and the caller keeps the
      * pending snapshot for the Xtream store to replay on the next open.
+     * Atomic per-list receipts skip successful writes on retry, preserving user edits.
      * Browser-only cache rows come from `entry`; durable favorite snapshots
      * also travel in `state` through deferred retries. A durable snapshot
      * write must succeed before the caller consumes that pending state.
@@ -159,12 +171,20 @@ export class PwaXtreamBackupStorage {
                     : {}),
             };
         }
+        const progress = new PwaXtreamRestoreProgress(
+            this.storage,
+            playlistId,
+            state
+        );
         try {
-            this.replaceLists(playlistId, state);
+            this.replaceLists(playlistId, state, progress);
         } catch (error) {
             if (!isQuotaExceeded(error)) {
                 try {
-                    this.mergeSnapshots(playlistId, snapshots);
+                    this.mergeSnapshots(
+                        playlistId,
+                        progress.pendingSnapshots(snapshots)
+                    );
                 } catch {
                     // The list failure is the one to report.
                 }
@@ -173,19 +193,20 @@ export class PwaXtreamBackupStorage {
         }
         this.mergeSnapshots(
             playlistId,
-            snapshots,
+            progress.pendingSnapshots(snapshots),
             state.favorites.some((favorite) => !!favorite.snapshot)
         );
     }
 
     private replaceLists(
         playlistId: string,
-        state: XtreamPendingRestoreState
+        state: XtreamPendingRestoreState,
+        progress: PwaXtreamRestoreProgress
     ): void {
         const favorites = state.favorites
             .map((item) => typedKey(item.contentType, item.xtreamId))
             .filter((key): key is string => key !== null);
-        this.writeFor('favorites', playlistId, [...new Set(favorites)]);
+        progress.writeList('favorites', [...new Set(favorites)]);
 
         const recent: StoredMap[] = [];
         for (const item of state.recentlyViewed) {
@@ -205,12 +226,11 @@ export class PwaXtreamBackupStorage {
                 });
             }
         }
-        this.writeFor('recentItems', playlistId, recent);
+        progress.writeList('recentItems', recent);
 
         const now = new Date().toISOString();
-        this.writeFor(
+        progress.writeList(
             'playbackPositions',
-            playlistId,
             state.playbackPositions.filter(isPlaybackPosition).map((item) => ({
                 ...item,
                 playlistId,
@@ -252,10 +272,6 @@ export class PwaXtreamBackupStorage {
             );
         }
         return list;
-    }
-
-    private writeFor(name: UserDataMap, playlistId: string, list: unknown[]) {
-        this.writeMap(name, { ...this.readMap(name), [playlistId]: list });
     }
 
     /**

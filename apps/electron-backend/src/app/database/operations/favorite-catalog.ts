@@ -16,7 +16,10 @@ export function resolvedFavoriteContentId(includeLocked: boolean) {
                 OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
             AND (${schema.favorites.releaseYear} IS NULL OR candidate.release_year IS NULL
                 OR ${schema.favorites.releaseYear} = candidate.release_year))
-        ORDER BY candidate.id LIMIT 1)`;
+        ORDER BY (
+            (${schema.favorites.tmdbId} IS NULL OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
+            AND (${schema.favorites.releaseYear} IS NULL OR ${schema.favorites.releaseYear} = candidate.release_year)
+        ) DESC, candidate.id LIMIT 1)`;
 }
 
 /** Missing candidate metadata cannot authorize replacing an already known snapshot. */

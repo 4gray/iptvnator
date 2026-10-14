@@ -20,7 +20,10 @@ export function createBrowserUserDataStorage(): UserDataStorage {
     };
 }
 
-export { XTREAM_USER_DATA_KEYS } from './xtream-user-data-keys';
+export {
+    XTREAM_USER_DATA_KEYS,
+    writeXtreamUserDataMap,
+} from './xtream-user-data-keys';
 
 /**
  * Browser persistence for PWA user data such as Xtream favorites, recently

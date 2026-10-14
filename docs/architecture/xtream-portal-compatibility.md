@@ -79,7 +79,9 @@ promoted to dashboard hero slides. Parental locks still gate display: an
 unresolved category cannot prove that it is unlocked, so those records remain
 stored but are withheld while locks apply. For duplicate category copies, ordinary
 reads choose an unlocked compatible row before resolving the catalog link; a
-locked earlier copy cannot hide a later unlocked copy. Backup reads remain
+locked earlier copy cannot hide a later unlocked copy. Fully confirming duplicates
+rank before sparse compatible rows, with the catalog row ID breaking ties, so a
+confirmed return can refresh saved artwork in reads, completed imports and exports. Backup reads remain
 unfiltered.
 
 Legacy pending favorites are converted before destructive refresh, import
@@ -179,7 +181,9 @@ patches also persist, so an initially sparse favorite gains protection before a
 later provider-ID reuse. A conflicting detail response cannot enrich another known
 identity; independent Recent snapshots never backfill a retained favorite.
 When a provider ID appears in multiple catalog categories, detail enrichment fills
-only compatible missing metadata in each original row. It preserves each row's
+only compatible missing metadata in each original row. The initial detail candidate
+is selected against the normalized patch identity before saved snapshots are
+enriched; a conflicting last duplicate cannot discard identity learned in details. It preserves each row's
 category, title, poster, rating and other provider fields; conflicting rows are
 left untouched rather than replaced by one resolved catalog object.
 Favorite status and save guards choose raw catalog duplicates against the saved or
@@ -188,7 +192,9 @@ evidence when no actual row exists, and an unrelated duplicate cannot veto a
 matching heart action.
 Playback captures the displayed title, artwork and normalized detail identity before
 waiting for confirmation. That metadata travels with the captured playlist even if
-navigation or catalog changes happen before the save. New playback keeps its own
+navigation or catalog changes happen before the save. Shared live playback from
+Favorites and Recent forwards the selected row’s metadata through the same
+confirmed-playback boundary as the portal live view. New playback keeps its own
 typed `collectionItem` on the Recent entry; a cold catalog never gives the older
 independent Recent snapshot a new timestamp for a different played identity. Its metadata and viewing date are
 saved atomically, independently of any retained favorite, and remain available
@@ -200,6 +206,15 @@ Initial browser imports and deferred retries share `PwaXtreamBackupStorage`;
 Both write the lists first and require the nested favorite snapshots to persist
 before consuming pending state. A quota or storage failure keeps the archive
 parked for another attempt, including when the provider returns an empty catalog.
+Each browser list write stores its restore receipt in the same JSON blob, under
+`__iptvnator_xtream_restore_receipts__` outside the playlist arrays. Ordinary
+list edits preserve that internal metadata, so retries skip completed list writes
+and cannot undo later removals, reordering, history updates or playback progress.
+A bounded per-playlist receipt also records the pre-import favorite snapshot
+version: remaining metadata retries preserve a snapshot changed by an explicit
+remove/re-add. Pending exports combine current applied lists with still-unwritten
+archive metadata; receipts never enter the exported manifest. A deliberate new
+import gets a fresh ID and can intentionally apply the archive again.
 Legacy browser-only `collectionItems` remain an optional cache; their quota
 failure does not invalidate a restore with no durable nested favorite snapshots.
 The PWA retry loads that storage implementation on demand through a local module.

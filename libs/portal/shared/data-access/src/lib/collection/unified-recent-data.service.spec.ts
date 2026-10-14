@@ -282,6 +282,39 @@ describe('UnifiedRecentDataService', () => {
         );
     });
 
+    it('passes the displayed live identity to cold PWA playback history', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        const item = {
+            uid: 'xtream::xtream-1::live:290',
+            name: 'Played B',
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            contentId: 290,
+            xtreamId: 290,
+            logo: 'b.jpg',
+            categoryId: '2',
+            xtreamIdentity: { tmdbId: 200, releaseYear: 2002 },
+        } satisfies UnifiedCollectionItem;
+        await service.recordLivePlayback(item);
+        expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 290, type: 'live' },
+            'xtream-1',
+            undefined,
+            {
+                title: 'Played B',
+                posterUrl: 'b.jpg',
+                categoryId: '2',
+                tmdbId: 200,
+                releaseYear: 2002,
+            }
+        );
+    });
+
     it('uses the Xtream id as the PWA recent key when cached content is cold', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,
@@ -308,7 +341,9 @@ describe('UnifiedRecentDataService', () => {
         );
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
             { id: 290, type: 'movie' },
-            'xtream-1'
+            'xtream-1',
+            undefined,
+            { title: 'PWA Movie', posterUrl: undefined, categoryId: undefined }
         );
         expect(dbService.addRecentItem).not.toHaveBeenCalled();
         expect(recorded).toEqual(

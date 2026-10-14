@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './fixtures';
+import { configureLiveFormat } from './xtream-live-format.fixture';
 import {
     addXtreamPortal,
     interceptXtreamRequests,
@@ -273,4 +274,221 @@ test('@xtream @collections PWA retries retain saved favorite metadata when snaps
     await expect(card).toHaveAttribute('aria-disabled', 'true');
     await card.dispatchEvent('click');
     await expect(page.locator('app-content-hero')).toHaveCount(0);
+});
+
+test('@xtream @collections removing a readable favorite during failed restore survives retry and export', async ({
+    page,
+}) => {
+    await addXtreamPortal(page, { name: 'Removal Retry Portal' });
+    const playlistPath = new URL(page.url()).pathname.replace(/\/vod.*$/, '');
+    const rawId = playlistPath.split('/').pop();
+    if (!rawId) throw new Error('Missing playlist ID');
+    const id = decodeURIComponent(rawId);
+    await page.goto('/');
+    await page.evaluate((id) => {
+        const item = {
+            id: 987654,
+            xtream_id: 987654,
+            type: 'movie',
+            title: 'Readable saved movie',
+            tmdb_id: 949,
+            poster_url: '/assets/icons/icon-192x192.png',
+            catalog_status: 'missing',
+            catalog_missing_reason: 'absent',
+        };
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify({ [id]: { 'movie:987654': item } })
+        );
+        localStorage.setItem(
+            `xtream-restore-${id}`,
+            JSON.stringify({
+                favoritesRestoreId: 'removal-test',
+                hiddenCategories: [],
+                favorites: [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 987654,
+                        snapshot: { title: item.title, tmdbId: 949 },
+                    },
+                ],
+                recentlyViewed: [],
+                playbackPositions: [],
+            })
+        );
+        sessionStorage.setItem('block-removal-snapshot', '1');
+    }, id);
+    await page.addInitScript(() => {
+        const set = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (this: Storage, key, value) {
+            if (
+                this === localStorage &&
+                key === 'xtream-collection-items' &&
+                sessionStorage.getItem('block-removal-snapshot')
+            ) {
+                sessionStorage.setItem('removal-snapshot-attempted', '1');
+                throw new DOMException('full', 'QuotaExceededError');
+            }
+            return set.call(this, key, value);
+        };
+    });
+    await page.goto(`${playlistPath}/vod`);
+    await expect
+        .poll(() =>
+            page.evaluate(() =>
+                sessionStorage.getItem('removal-snapshot-attempted')
+            )
+        )
+        .toBe('1');
+    await page.goto('/workspace/global-favorites');
+    const card = page
+        .locator('app-content-card')
+        .filter({ hasText: 'Readable saved movie' });
+    await expect(card).toBeVisible();
+    await card
+        .getByRole('button', { name: 'Remove from favorites', exact: true })
+        .click();
+    await expect(card).toHaveCount(0);
+    await page.goto('/workspace/settings/backup');
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const path = await (await download).path();
+    if (!path) throw new Error('Missing backup');
+    const archived = JSON.parse(await readFile(path, 'utf8')).playlists.find(
+        (entry: { exportedId: string }) => entry.exportedId === id
+    );
+    expect(archived.userState.favorites).toEqual([]);
+    await page.evaluate(() =>
+        sessionStorage.removeItem('block-removal-snapshot')
+    );
+    await page.goto(`${playlistPath}/vod`);
+    await expect
+        .poll(() =>
+            page.evaluate(
+                (id) => localStorage.getItem(`xtream-restore-${id}`),
+                id
+            )
+        )
+        .toBeNull();
+    await page.goto('/workspace/global-favorites');
+    await page.reload();
+    await expect(card).toHaveCount(0);
+    expect(
+        await page.evaluate(
+            (id) =>
+                JSON.parse(localStorage.getItem('xtream-favorites') ?? '{}')[
+                    id
+                ],
+            id
+        )
+    ).toEqual([]);
+});
+
+test('@xtream @collections cold shared live playback records the selected favorite identity', async ({
+    page,
+}) => {
+    test.setTimeout(60_000);
+    await configureLiveFormat(page, 'html5', 'ts');
+    await addXtreamPortal(page, {
+        name: 'Shared Live Identity Portal',
+        username: 'live-fallback',
+        password: 'live-fallback',
+    });
+    const rawId = new URL(page.url()).pathname
+        .replace(/\/vod.*$/, '')
+        .split('/')
+        .pop();
+    if (!rawId) throw new Error('Missing playlist ID');
+    const id = decodeURIComponent(rawId);
+    await page.goto('/workspace/global-favorites');
+    await page.evaluate((id) => {
+        const played = {
+            id: 10000,
+            xtream_id: 10000,
+            type: 'live',
+            title: 'Played favorite B',
+            tmdb_id: 200,
+            category_id: '1',
+            poster_url: '',
+            catalog_status: 'present',
+        };
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ [id]: ['live:10000'] })
+        );
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify({ [id]: { 'live:10000': played } })
+        );
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({
+                [id]: [
+                    {
+                        id: 'live:10000',
+                        viewedAt: '2020-01-01',
+                        collectionItem: {
+                            ...played,
+                            title: 'Earlier watched A',
+                            tmdb_id: 100,
+                        },
+                    },
+                ],
+            })
+        );
+    }, id);
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        if (
+            new URL(route.request().url()).searchParams.get('action') ===
+            'get_live_streams'
+        )
+            return route.abort();
+        await route.fallback();
+    });
+    await page.reload();
+    const row = page
+        .locator('app-channel-list-item')
+        .filter({ hasText: 'Played favorite B' });
+    await expect(row).toBeVisible();
+    await row.click();
+    await expect
+        .poll(() =>
+            page
+                .locator('video')
+                .first()
+                .evaluate((video: HTMLVideoElement) => video.currentTime)
+        )
+        .toBeGreaterThan(2);
+    await expect
+        .poll(() =>
+            page.evaluate(
+                (id) =>
+                    JSON.parse(
+                        localStorage.getItem('xtream-recent-items') ?? '{}'
+                    )[id]?.[0]?.collectionItem?.tmdb_id,
+                id
+            )
+        )
+        .toBe(200);
+    await page.goto('/workspace/global-recent');
+    await page.reload();
+    await expect(
+        page
+            .locator('app-channel-list-item')
+            .filter({ hasText: 'Played favorite B' })
+    ).toBeVisible();
+    await expect(
+        page
+            .locator('app-channel-list-item')
+            .filter({ hasText: 'Earlier watched A' })
+    ).toHaveCount(0);
+    expect(
+        await page.evaluate(
+            (id) =>
+                JSON.parse(
+                    localStorage.getItem('xtream-collection-items') ?? '{}'
+                )[id]['live:10000'].tmdb_id,
+            id
+        )
+    ).toBe(200);
 });

@@ -339,7 +339,7 @@ export class PlaylistBackupService {
             const sourcePins =
                 pending.sourcePins ??
                 (await this.readSourcePinsForExport(playlist._id));
-            return {
+            const pendingEntry: XtreamPlaylistBackupEntry = {
                 ...entry,
                 userState: {
                     hiddenCategories: pending.hiddenCategories,
@@ -350,6 +350,9 @@ export class PlaylistBackupService {
                     ...(sourcePins ? { sourcePins } : {}),
                 },
             };
+            return this.runtime.supportsXtreamSqliteDataSource
+                ? pendingEntry
+                : this.pwaXtream.exportInto(pendingEntry, pending);
         }
         // An unavailable pin store is no opinion, never an authoritative [].
         // Same choice as XTREAM_DATA_SOURCE: user state lives where it reads.

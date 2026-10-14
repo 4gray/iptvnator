@@ -54,6 +54,128 @@ describe('PWA favorite action and detail identity', () => {
         localStorage.clear();
     });
 
+    it('keeps a PWA removal and replacement through pending snapshot replay', async () => {
+        const state = {
+            favoritesRestoreId: 'backup-1',
+            hiddenCategories: [],
+            favorites: [
+                {
+                    contentType: 'movie' as const,
+                    xtreamId: 42,
+                    snapshot: { title: 'Original', tmdbId: 100 },
+                },
+            ],
+            recentlyViewed: [],
+            playbackPositions: [],
+        };
+        const setItem = Storage.prototype.setItem;
+        const quota = jest
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(function (this: Storage, key, value) {
+                if (key === 'xtream-collection-items')
+                    throw new DOMException('full', 'QuotaExceededError');
+                setItem.call(this, key, value);
+            });
+        await expect(
+            new PwaXtreamBackupStorage(localStorage).restore('p1', state)
+        ).rejects.toThrow();
+        await source.removeFavorite({ id: 42, type: 'movie' }, 'p1');
+        quota.mockRestore();
+        reload();
+        await source.restoreUserData('p1', state);
+        expect(read('xtream-favorites').p1).toEqual([]);
+        api.getStreams.mockResolvedValue([
+            {
+                stream_id: 42,
+                name: 'Replacement',
+                category_id: '2',
+                tmdb_id: 200,
+            },
+        ]);
+        await source.getContent('p1', credentials, 'movie');
+        await source.addFavorite(
+            { id: 42, type: 'movie', identity: { tmdbId: 200 } },
+            'p1'
+        );
+        await source.restoreUserData('p1', state);
+        expect((await source.getFavorites('p1'))[0]).toMatchObject({
+            title: 'Replacement',
+            tmdb_id: 200,
+        });
+        const entry = {
+            autoRefresh: false,
+            exportedId: 'p1',
+            portalType: 'xtream' as const,
+            title: 'Source',
+            connection: credentials,
+            userState: {
+                hiddenCategories: [],
+                favorites: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+            },
+        };
+        expect(
+            new PwaXtreamBackupStorage(localStorage).exportInto(entry, state)
+                .userState.favorites[0].snapshot?.tmdbId
+        ).toBe(200);
+    });
+
+    it.each(['live', 'movie', 'series'] as const)(
+        'persists %s detail identity against compatible duplicates before reload',
+        async (type) => {
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Original',
+                    category_id: '1',
+                    tmdb_id: 100,
+                },
+            ]);
+            await source.getContent('p1', credentials, type);
+            await source.addFavorite({ id: 42, type }, 'p1');
+            await source.addRecentItem({ id: 42, type }, 'p1', undefined, {
+                title: 'Original',
+                tmdbId: 100,
+            });
+            source.clearSessionCache('p1');
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Original',
+                    category_id: '1',
+                    tmdb_id: 100,
+                },
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: 'Replacement',
+                    category_id: '2',
+                    tmdb_id: 200,
+                },
+            ]);
+            await source.getContent('p1', credentials, type);
+            await source.setContentMetadataIfMissing({ id: 42, type }, 'p1', {
+                tmdbId: 100,
+                releaseYear: 1995,
+            });
+            expect(
+                read('xtream-collection-items').p1[`${type}:42`]
+            ).toMatchObject({ tmdb_id: 100, release_year: 1995 });
+            reload();
+            expect((await source.getRecentItems('p1'))[0]).toMatchObject({
+                tmdb_id: 100,
+                release_year: 1995,
+            });
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                tmdb_id: 100,
+                release_year: 1995,
+            });
+        }
+    );
+
     it.each(['live', 'movie', 'series'] as const)(
         'enriches duplicate %s IDs without replacing category-specific rows',
         async (type) => {

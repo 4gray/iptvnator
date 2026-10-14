@@ -9,6 +9,7 @@ import {
 } from './pwa-collection-identity';
 import {
     XTREAM_USER_DATA_KEYS,
+    writeXtreamUserDataMap,
     type UserDataStorage,
 } from '@iptvnator/services';
 import { XtreamContentItem } from './xtream-data-source.interface';
@@ -60,9 +61,10 @@ export class PwaCollectionStorage {
     }
 
     saveFavoritesToStorage(favorites: Record<string, CollectionKey[]>): void {
-        this.storage.setItem(
+        writeXtreamUserDataMap(
+            this.storage,
             XTREAM_USER_DATA_KEYS.favorites,
-            JSON.stringify(favorites)
+            favorites
         );
     }
 
@@ -202,9 +204,10 @@ export class PwaCollectionStorage {
     saveRecentItemsToStorage(
         recentItems: Record<string, StoredRecentItem[]>
     ): void {
-        this.storage.setItem(
+        writeXtreamUserDataMap(
+            this.storage,
             XTREAM_USER_DATA_KEYS.recentItems,
-            JSON.stringify(recentItems)
+            recentItems
         );
     }
 

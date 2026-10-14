@@ -24,6 +24,7 @@ import {
     PlaylistsService,
     USER_DATA_STORAGE,
     XTREAM_USER_DATA_KEYS,
+    writeXtreamUserDataMap,
 } from '@iptvnator/services';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -931,9 +932,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private savePlaybackPositionsToStorage(
         positions: Record<string, PlaybackPositionData[]>
     ): void {
-        this.userDataStorage.setItem(
+        writeXtreamUserDataMap(
+            this.userDataStorage,
             STORAGE_KEYS.PLAYBACK_POSITIONS,
-            JSON.stringify(positions)
+            positions
         );
     }
 
@@ -1184,7 +1186,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const current = this.getCollectionItemsById(
             playlistId,
             [key],
-            true
+            true,
+            undefined,
+            {
+                [key]: normalizeCollectionIdentity({
+                    tmdb_id: patch.tmdbId,
+                    release_year: patch.releaseYear,
+                }),
+            }
         ).get(key);
         const enriched = enrichPwaContentMetadata(
             this.collectionStorage,
