@@ -1410,22 +1410,24 @@ changes) and the wall-clock entries did not move. Under
 still sees the jump that the journey no longer measures.
 
 `playback/renderer.domMutationsToPlaying` 733 is validated by #1817 and is
-the one runtime counter enforced with slack. #1817 windowed the EPG
+enforced with slack. #1817 windowed the EPG
 timeline: on the runner the counter fell from 6,182 to 731, `renderer.longTasks`
 from 1 to 0, and the click→`playing` P50 from 221-341 ms (four `master` runs)
-to 196-215 ms (three dispatched runs of the branch). It is not identical
-between commits: 731, 732, 733, 734 or 736 since #1817, and 748 in an
-iteration where a fifth bridge call (`updateRemoteControlStatus`) lands
-before `playing`. `slack` 16 covers that band; the regression it guards, the
-timeline rendering the whole schedule again, is about 5,000 mutations above
-it. `evidenceRun` 38311314484 (f60d79701) read 733 in every iteration.
+to 196-215 ms (three dispatched runs of the branch). It is not identical: the
+usual value is 731 to 736, and it moves between runs of the same commit (733
+and 736 for a8505e0f9). An iteration where a fifth bridge call
+(`updateRemoteControlStatus`) lands before `playing` adds exactly 17
+(731→748, 733→750). `slack` 20 covers the top of that band, 736 + 17 = 753;
+the regression it guards, the timeline rendering the whole schedule again, is
+about 5,000 mutations above it. `evidenceRun` 38311314484 (f60d79701) read
+733 in every iteration.
 
 The entry carries `"autoTighten": false`, so the weekly tightening leaves it
 alone: three runs that all read 731 would lower `value` to 731 and the limit
-to 747, below the 748 of a normal fifth-call iteration. Lower it by hand, and
-only with runs showing the top of the band fell too (a fifth-call iteration
-at or below the new `value` + `slack`). Remove the slack and the flag once the
-fifth call's race is gone and `master` runs agree.
+to 751, below the 753 of a normal fifth-call iteration on a 736 run. Lower it
+by hand, and only with runs showing the top of the band fell too (a
+fifth-call iteration at or below the new `value` + `slack`). Remove the slack
+and the flag once the fifth call's race is gone and `master` runs agree.
 
 The two J4 entries, `search/renderer.ipcCallsPerSearch` 1 and
 `search/renderer.sqlStatementsPerSearch` 2 (#1899, `evidenceRun`
