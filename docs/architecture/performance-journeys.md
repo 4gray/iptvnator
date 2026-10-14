@@ -1156,6 +1156,24 @@ every build, which only the `development`, `electron-e2e` and
 `performance-build-config.spec.ts` keeps it that way. Removing the static
 import lowered the counter by 12,565 bytes.
 
+The bundler keeps each module in one chunk, so one eager import of any
+export carries the module's whole code: providing
+`MAT_FORM_FIELD_DEFAULT_OPTIONS` in `app.config.ts` alone put the 54 KB
+form-field chunk on the initial path, although every form field renders in a
+lazy route or dialog. Angular Material therefore stays off the startup path by
+construction, with the rules and guards in the
+[UI guidelines](iptvnator-ui-guidelines.md#material-off-the-startup-path):
+form-field defaults are provided per component (#1928), services created with
+the app resolve `MatDialog` through `LazyMatDialog`, the panels the shell
+mounts on every launch defer their Material views, the theme emits tokens only
+for imported components, and the app does not provide the animations module,
+which nothing used (Material 22 animates with CSS). Together these lowered the
+counter from 1,596,201 to 1,344,067 bytes (-252,134, 15.8%) on a local
+production build at the branch point (#1931); the baseline follows the
+measurement of the branch merged with `master`, 1,345,807. The snack-bar stays: root
+services inject it, and with it Material's button, the icon button chunk and
+the CDK overlay (about 190 KB) remain initial.
+
 `--summary` writes the journey summary shape (`journeys.<journey>.counters`)
 that the ratchet checker consumes. `--dist <dir>` points the script at another
 build output, for example the `electron-performance` configuration.

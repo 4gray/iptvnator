@@ -792,6 +792,26 @@ describe('CategoryContentViewComponent', () => {
             expect(catalog.saveScrollPosition).toHaveBeenCalledWith(333);
         });
 
+        it('saves the offset the grid last reported when it is destroyed detached', () => {
+            const infiniteFixture = createInfiniteFixture();
+            infiniteFixture.detectChanges();
+            const grid = infiniteFixture.nativeElement.querySelector(
+                'app-grid-list'
+            ) as HTMLElement;
+            // A detached element reports scrollTop 0, as in a browser.
+            Object.defineProperty(grid, 'scrollTop', {
+                configurable: true,
+                get: () => (grid.isConnected ? 420 : 0),
+            });
+            grid.dispatchEvent(new Event('scroll'));
+
+            // The view's DOM leaves the document before ngOnDestroy runs.
+            infiniteFixture.nativeElement.remove();
+            infiniteFixture.destroy();
+
+            expect(catalog.saveScrollPosition).toHaveBeenCalledWith(420);
+        });
+
         it('consumes a saved scroll position once the list is rendered', () => {
             catalog.consumeSavedScrollPosition.mockReturnValue(500);
             const infiniteFixture = createInfiniteFixture();
