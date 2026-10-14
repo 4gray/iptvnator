@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { DestroyRef, inject, Injectable, NgZone } from '@angular/core';
+import { DestroyRef, inject, Injectable } from '@angular/core';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import type { ElectronBridgeBackGestureSource } from '@iptvnator/shared/interfaces';
@@ -59,7 +59,6 @@ function hasOpenPopup(doc: Document): boolean {
 @Injectable()
 export class WorkspaceBackGesturesService {
     private readonly document = inject(DOCUMENT);
-    private readonly zone = inject(NgZone);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly backNavigation = inject(WorkspaceBackNavigationService);
     // Root-provided; optional keeps standalone unit tests light.
@@ -120,9 +119,9 @@ export class WorkspaceBackGesturesService {
         // The capability, not a generic bridge check: an older preload has
         // no subscription to offer.
         const unsubscribe = this.runtime.supportsWindowBackGestures
-            ? window.electron?.onWindowBackRequested((source) =>
-                  this.zone.run(() => this.goBack(source))
-              )
+            ? window.electron?.onWindowBackRequested((source) => {
+                  this.goBack(source);
+              })
             : undefined;
 
         inject(DestroyRef).onDestroy(() => {
