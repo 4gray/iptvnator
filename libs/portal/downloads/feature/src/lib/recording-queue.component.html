@@ -161,7 +161,9 @@
                                 [disabled]="isPending(row.item.id)"
                                 (click)="emitAction('remove', row.item)"
                             >
-                                {{ 'DOWNLOADS.REMOVE_FROM_MANAGER' | translate }}
+                                {{
+                                    'DOWNLOADS.REMOVE_FROM_MANAGER' | translate
+                                }}
                             </button>
                         }
 
@@ -195,8 +197,12 @@
                                 </button>
                             }
                             @if (row.item.status !== 'recording') {
+                                @if (row.attentionReason === null) {
+                                    <mat-divider />
+                                }
                                 <button
                                     mat-menu-item
+                                    class="app-menu-item--danger"
                                     data-test-action="menu-remove-recording"
                                     (click)="emitAction('remove', row.item)"
                                 >

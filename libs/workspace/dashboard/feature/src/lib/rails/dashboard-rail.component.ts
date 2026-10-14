@@ -15,6 +15,7 @@ import {
     viewChildren,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
@@ -123,6 +124,7 @@ export interface DashboardRailActionSelection {
     selector: 'lib-dashboard-rail',
     imports: [
         MatButtonModule,
+        MatDividerModule,
         MatIcon,
         MatMenuModule,
         RouterLink,

@@ -1,4 +1,4 @@
-<div class="season-tabs" role="tablist">
+<div class="season-tabs" [attr.role]="useDropdown() ? null : 'tablist'">
     @if (useDropdown()) {
         <button
             class="season-tabs__dropdown"
@@ -22,11 +22,10 @@
                     mat-menu-item
                     class="season-tabs__menu-item"
                     data-testid="season-menu-item"
-                    [class.season-tabs__menu-item--selected]="
-                        seasonKey === selectedSeason()
-                    "
+                    [appMenuItemRadio]="seasonKey === selectedSeason()"
                     (click)="selectSeason(seasonKey)"
                 >
+                    <mat-icon appMenuItemRadioCheck>check</mat-icon>
                     <span class="season-tabs__menu-row">
                         <span class="season-tabs__menu-name">
                             {{

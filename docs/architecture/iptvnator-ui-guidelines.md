@@ -294,18 +294,20 @@ selection blue on its own tint is 3.3:1) and the selection colour in dark.
 
 ## Single-Choice Menus And Status Chips
 
-A `<mat-menu class="app-menu">` gets the kit panel from one global rule in
-`styles.scss` (`menu-panel` in `libs/ui/styles/_app-controls.scss`): a
-bordered 10px panel with 6px padding, 36px rows at 13px with 16px icons, the
-checked row on the list-selection tokens, a destructive row marked
-`app-menu-item--danger` after a divider, and a shortcut hint in a trailing
-`kbd.app-menu-item__kbd`. The panel renders in the overlay container, outside
-every component view, so a component never copies the mixin into its own
-stylesheet.
+Every `mat-menu` gets the kit panel from one global rule in `styles.scss`
+(`menu-panel` in `libs/ui/styles/_app-controls.scss`): a bordered 10px panel
+with 6px padding, 240–360px wide, 36px rows at 13px with 16px icons, the
+checked row on the list-selection tokens, and at most 480px tall (less in a
+short window), so a long list scrolls inside the panel. A destructive row
+carries `app-menu-item--danger` and sits after a `<mat-divider>`; a shortcut
+hint is a trailing `kbd.app-menu-item__kbd`. The panel renders in the overlay
+container, outside every component view, so a component neither copies the
+mixin nor styles its own panel; a section caption inside a menu uses the
+kit's 11px uppercase label, as the catalog refine menu does.
 
-A `mat-menu` that picks one value, such as a sort order or a rating
-threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
-`@iptvnator/ui/components`:
+A `mat-menu` that picks one value, such as a sort order, a rating threshold,
+a season or a guide scope, uses `appMenuItemRadio` and
+`appMenuItemRadioCheck` from `@iptvnator/ui/components`:
 
 ```html
 <button mat-menu-item [appMenuItemRadio]="mode() === option.mode">
@@ -323,6 +325,10 @@ threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
   therefore shifted that row's label. In a button, put a trailing icon after
   the label with `iconPositionEnd`.
 - A semantic icon, if any, comes after the check slot.
+- `@iptvnator/ui/epg` sits below `@iptvnator/ui/components` in the
+  dependency graph, so the guide toolbar's scope menu spells the same markup
+  out: `role="menuitemradio"` on the item, `aria-checked`, and an
+  `app-menu-item-radio-check` icon hidden while unchecked.
 - A menu with several groups, such as the catalog refine menu, wraps each
   group in `role="group"`. The group is named by its section title, and
   `role="separator"` sits between groups.
