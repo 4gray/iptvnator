@@ -200,6 +200,50 @@ for (const identity of ['missing', 'conflicting'] as const) {
                 )
             ).toBeVisible();
             await expect(add).toBeVisible();
+            await page
+                .getByRole('button', { name: /^Play / })
+                .first()
+                .click();
+            await expect
+                .poll(() =>
+                    page.evaluate(
+                        (id) =>
+                            JSON.parse(
+                                localStorage.getItem('xtream-recent-items') ??
+                                    '{}'
+                            )[id]?.[0]?.collectionItem?.title,
+                        playlistId
+                    )
+                )
+                .toBe(movie.name);
+            await page.goto('/workspace/global-recent');
+            await page.reload();
+            const replacement = page.getByRole('button', {
+                name: movie.name,
+                exact: true,
+            });
+            await expect(replacement).toBeVisible();
+            await expect(replacement).not.toHaveAttribute(
+                'aria-disabled',
+                'true'
+            );
+            await page.goto('/workspace/settings/backup');
+            const playedDownload = page.waitForEvent('download');
+            await page
+                .getByRole('button', { name: 'Export', exact: true })
+                .click();
+            const playedPath = await (await playedDownload).path();
+            if (!playedPath) throw new Error('Played backup is missing');
+            const playedEntry = JSON.parse(
+                await readFile(playedPath, 'utf8')
+            ).playlists.find(
+                (entry: { exportedId: string }) =>
+                    entry.exportedId === playlistId
+            );
+            expect(playedEntry.userState.favorites).toEqual([favorite]);
+            expect(
+                playedEntry.userState.recentlyViewed[0].collectionItem
+            ).toMatchObject({ title: movie.name, tmdb_id: 999 });
             await page.goto('/workspace/global-favorites');
             const card = page
                 .locator('app-content-card')

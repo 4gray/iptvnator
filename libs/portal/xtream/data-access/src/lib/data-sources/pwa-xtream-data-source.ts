@@ -39,6 +39,7 @@ import {
 import {
     CollectionKey,
     collectionKey,
+    collectionSnapshotMatchesContent,
     deduplicateRecentItems,
     typedCollectionRef,
     itemCollectionKey,
@@ -97,8 +98,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly contentTypes = ['live', 'movie', 'series'] as const;
     private readonly userDataStorage = inject(USER_DATA_STORAGE);
     private readonly collectionStorage = new PwaCollectionStorage(
-        (playlistId, ids, catalogOnly) =>
-            this.getCollectionItemsById(playlistId, ids, catalogOnly),
+        (playlistId, ids, catalogOnly, snapshots) =>
+            this.getCollectionItemsById(
+                playlistId,
+                ids,
+                catalogOnly,
+                snapshots
+            ),
         this.userDataStorage
     );
 
@@ -1032,12 +1038,30 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             allRecent[playlistId].map((item) => item.id),
             normalizedContentId
         );
+        const previous = allRecent[playlistId].find((r) =>
+            matchingKeys.has(r.id)
+        );
         allRecent[playlistId] = allRecent[playlistId].filter(
             (r) => !matchingKeys.has(r.id)
         );
 
         // Add new entry at the beginning
+        const current = this.getCollectionItemsById(
+            playlistId,
+            [normalizedContentId],
+            true
+        ).get(normalizedContentId);
+        const saved = this.getCollectionItemsById(playlistId, [
+            normalizedContentId,
+        ]).get(normalizedContentId);
+        const collectionItem =
+            current &&
+            (previous?.collectionItem ||
+                (saved && !collectionSnapshotMatchesContent(saved, current)))
+                ? current
+                : previous?.collectionItem;
         allRecent[playlistId].unshift({
+            ...(collectionItem ? { collectionItem } : {}),
             id: normalizedContentId,
             viewedAt: new Date().toISOString(),
             ...(normalizedBackdropUrl
@@ -1048,10 +1072,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Keep only last 50 items
         allRecent[playlistId] = allRecent[playlistId].slice(0, 50);
 
-        this.collectionStorage.prepareRecentReplacement(
-            playlistId,
-            normalizedContentId
-        );
         this.collectionStorage.saveRecentItemsToStorage(allRecent);
         this.collectionStorage.getLocalRecentItems(playlistId);
         this.collectionStorage.saveCollectionItemSnapshot(
@@ -1110,7 +1130,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private getCollectionItemsById(
         playlistId: string,
         ids: readonly CollectionKey[],
-        catalogOnly = false
+        catalogOnly = false,
+        snapshots?: Record<string, XtreamContentItem>
     ): Map<CollectionKey, XtreamContentItem> {
         if (!ids.length) return new Map();
         const cached = ([] as XtreamContentItem[]).concat(
@@ -1125,9 +1146,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             cached,
             catalogOnly
                 ? {}
-                : (this.collectionStorage.getCollectionItemsFromStorage()[
-                      playlistId
-                  ] ?? {}),
+                : (snapshots ??
+                      this.collectionStorage.getCollectionItemsFromStorage()[
+                          playlistId
+                      ] ??
+                      {}),
             this.contentTypes.every((type) =>
                 this.contentCache.has(`${playlistId}-${type}-content`)
             )
@@ -1374,6 +1397,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 return {
                     ...identity,
                     viewedAt: item.viewedAt,
+                    ...(item.collectionItem
+                        ? {
+                              collectionItem: {
+                                  ...item.collectionItem,
+                                  type: identity.contentType,
+                              },
+                          }
+                        : {}),
                     ...normalizeStoredBackdrop(item),
                 };
             })

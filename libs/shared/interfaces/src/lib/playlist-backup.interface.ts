@@ -70,6 +70,8 @@ export interface XtreamBackupRecentlyViewedItem {
      * reads it.
      */
     backdropUrl?: string;
+    /** Browser view metadata, independent of a retained favorite with the same provider key. */
+    collectionItem?: XtreamBackupCollectionItem;
 }
 
 /**

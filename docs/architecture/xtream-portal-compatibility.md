@@ -126,9 +126,12 @@ favorite writer loads on demand; after loading, reference and snapshot writes
 run synchronously against fresh storage so concurrent additions are not lost.
 Browser status and add operations also reject known conflicts, so the replacement's
 heart cannot remove the retained favorite. Explicit collection removal still works.
-A newly recorded playback can replace obsolete Recent-only metadata. It must save
-a replacement snapshot before the Recent reference; failure leaves history unchanged
-for retry. A snapshot still owned by a favorite remains protected during playback.
+New playback keeps its own typed `collectionItem` on the Recent entry when the
+shared snapshot belongs to another identity. Its metadata and viewing date are
+saved atomically, independently of any retained favorite, and remain available
+after reload, export/restore and deferred retries. Reading Recent never copies
+that independent snapshot into the favorite cache. Older Recent entries still
+use the shared cache; compatible optional caches keep their quota behavior.
 Initial browser imports and deferred retries share `PwaXtreamBackupStorage`;
 `PwaXtreamBackupStateService` supplies its injected storage for the importer.
 Both write the lists first and require the nested favorite snapshots to persist

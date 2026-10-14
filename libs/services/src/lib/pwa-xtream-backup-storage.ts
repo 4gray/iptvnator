@@ -66,6 +66,13 @@ export class PwaXtreamBackupStorage {
                 recent.set(ref.key, {
                     ...ref.item,
                     viewedAt,
+                    ...(snapshotsByKey([item['collectionItem']])[ref.key]
+                        ? {
+                              collectionItem: snapshotsByKey([
+                                  item['collectionItem'],
+                              ])[ref.key],
+                          }
+                        : {}),
                     ...backdropOf(item),
                 });
             }
@@ -181,6 +188,13 @@ export class PwaXtreamBackupStorage {
                 recent.push({
                     id,
                     viewedAt: item.viewedAt,
+                    ...(snapshotsByKey([item.collectionItem])[id]
+                        ? {
+                              collectionItem: snapshotsByKey([
+                                  item.collectionItem,
+                              ])[id],
+                          }
+                        : {}),
                     ...backdropOf(item),
                 });
             }

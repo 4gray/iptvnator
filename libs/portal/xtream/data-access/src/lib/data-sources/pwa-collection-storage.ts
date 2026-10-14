@@ -19,7 +19,8 @@ export class PwaCollectionStorage {
         private readonly resolveItems: (
             playlistId: string,
             ids: readonly CollectionKey[],
-            catalogOnly?: boolean
+            catalogOnly?: boolean,
+            snapshots?: Record<string, XtreamContentItem>
         ) => Map<CollectionKey, XtreamContentItem>,
         private readonly storage: UserDataStorage
     ) {}
@@ -92,24 +93,6 @@ export class PwaCollectionStorage {
         );
     }
 
-    /** A newly recorded playback may replace disposable history, never a retained favorite. */
-    prepareRecentReplacement(playlistId: string, key: CollectionKey): void {
-        if (this.savedFavorite(playlistId, key)) return;
-        const saved = this.resolveItems(playlistId, [key]).get(key);
-        const current = this.resolveItems(playlistId, [key], true).get(key);
-        if (
-            !saved ||
-            !current ||
-            collectionSnapshotMatchesContent(saved, current)
-        )
-            return;
-        const allItems = this.getCollectionItemsFromStorage();
-        this.saveCollectionItemsToStorage({
-            ...allItems,
-            [playlistId]: { ...allItems[playlistId], [key]: current },
-        });
-    }
-
     clearFavoritesForPlaylist(playlistId: string): void {
         const allFavorites = this.getFavoritesFromStorage();
         delete allFavorites[playlistId];
@@ -119,22 +102,45 @@ export class PwaCollectionStorage {
     getLocalRecentItems(playlistId: string): XtreamContentItem[] {
         const allRecent = this.getRecentItemsFromStorage();
         const playlistRecent = allRecent[playlistId] || [];
+        const snapshots = {
+            ...this.getCollectionItemsFromStorage()[playlistId],
+        };
+        const independentKeys = new Set<CollectionKey>();
+        for (const entry of playlistRecent) {
+            if (!entry.collectionItem) continue;
+            const key = itemCollectionKey(entry.collectionItem);
+            if (key !== null) {
+                snapshots[key] = entry.collectionItem;
+                independentKeys.add(entry.id);
+            }
+        }
         const contentById = this.resolveItems(
             playlistId,
-            playlistRecent.map((item) => item.id)
+            playlistRecent.map((item) => item.id),
+            false,
+            snapshots
         );
         const migrated = deduplicateRecentItems(
             playlistRecent.map((entry) => {
                 const item = contentById.get(entry.id);
                 return item
-                    ? { ...entry, id: itemCollectionKey(item) ?? entry.id }
+                    ? {
+                          ...entry,
+                          id: itemCollectionKey(item) ?? entry.id,
+                          ...(entry.collectionItem
+                              ? { collectionItem: item }
+                              : {}),
+                      }
                     : entry;
             })
         );
         if (
             migrated.length !== playlistRecent.length ||
             migrated.some(
-                (entry, index) => entry.id !== playlistRecent[index].id
+                (entry, index) =>
+                    entry.id !== playlistRecent[index].id ||
+                    entry.collectionItem !==
+                        playlistRecent[index].collectionItem
             )
         ) {
             allRecent[playlistId] = migrated;
@@ -142,11 +148,18 @@ export class PwaCollectionStorage {
                 this.saveRecentItemsToStorage(allRecent)
             );
         }
-        this.persistCollectionSnapshots(playlistId, contentById);
+        this.persistCollectionSnapshots(
+            playlistId,
+            new Map(
+                [...contentById].filter(([key]) => !independentKeys.has(key))
+            )
+        );
         const results: (XtreamContentItem & { viewed_at: string })[] = [];
         const migratedContent = this.resolveItems(
             playlistId,
-            migrated.map((item) => item.id)
+            migrated.map((item) => item.id),
+            false,
+            snapshots
         );
         for (const recentEntry of migrated) {
             const item = migratedContent.get(recentEntry.id);

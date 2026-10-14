@@ -10,6 +10,7 @@ export interface StoredRecentItem {
     readonly id: CollectionKey;
     readonly viewedAt: string;
     readonly backdropUrl?: string;
+    readonly collectionItem?: XtreamContentItem;
 }
 
 export function typedCollectionRef(
@@ -89,6 +90,14 @@ export function normalizeRecentStorage(
                     id,
                     viewedAt: item.viewedAt,
                     ...normalizeStoredBackdrop(item),
+                    ...(item?.collectionItem &&
+                    typeof item.collectionItem.title === 'string' &&
+                    (itemCollectionKey(item.collectionItem) === id ||
+                        (typeof id === 'number' &&
+                            item.collectionItem.xtream_id === id &&
+                            itemCollectionKey(item.collectionItem) !== null))
+                        ? { collectionItem: item.collectionItem }
+                        : {}),
                 });
             }
         }

@@ -722,39 +722,19 @@ describe('PWA Xtream collection identity', () => {
         'records replacement playback after removing obsolete Recent (quota=%s)',
         async (quota) => {
             const ref = { id: 42, type: 'movie' as const };
-            await source.saveContent(
+            const [cached] = await source.getContent(
                 'p1',
-                [
-                    {
-                        id: 42,
-                        category_id: '1',
-                        rating: '',
-                        added: '',
-                        poster_url: '',
-                        xtream_id: 42,
-                        type: 'movie',
-                        title: 'Original',
-                        tmdb_id: 100,
-                    },
-                ],
+                credentials,
                 'movie'
             );
+            const original = cached as XtreamContentItem;
+            original.tmdb_id = 100;
+            const expected = { title: 'Replacement', tmdb_id: 200 };
+            await source.saveContent('p1', [original], 'movie');
             await source.addRecentItem(ref, 'p1');
             await source.saveContent(
                 'p1',
-                [
-                    {
-                        id: 42,
-                        category_id: '1',
-                        rating: '',
-                        added: '',
-                        poster_url: '',
-                        xtream_id: 42,
-                        type: 'movie',
-                        title: 'Replacement',
-                        tmdb_id: 200,
-                    },
-                ],
+                [{ ...original, ...expected }],
                 'movie'
             );
             await source.getRecentItems('p1');
@@ -764,7 +744,7 @@ describe('PWA Xtream collection identity', () => {
                 const failure = jest
                     .spyOn(Storage.prototype, 'setItem')
                     .mockImplementation(function (this: Storage, key, value) {
-                        if (key === 'xtream-collection-items')
+                        if (key === 'xtream-recent-items')
                             throw new DOMException(
                                 'full',
                                 'QuotaExceededError'
@@ -778,10 +758,9 @@ describe('PWA Xtream collection identity', () => {
                 failure.mockRestore();
             }
             await source.addRecentItem(ref, 'p1');
-            expect((await source.getRecentItems('p1'))[0]).toMatchObject({
-                title: 'Replacement',
-                tmdb_id: 200,
-            });
+            expect((await source.getRecentItems('p1'))[0]).toMatchObject(
+                expected
+            );
             reload();
             api.getStreams.mockResolvedValue([]);
             const [item] = await source.getRecentItems('p1');
@@ -790,6 +769,74 @@ describe('PWA Xtream collection identity', () => {
             expect(await source.getFavorites('p1')).toEqual([]);
         }
     );
+
+    it('keeps played replacements separate from retained favorites through reload and backup restore', async () => {
+        const entry: XtreamPlaylistBackupEntry = {
+            portalType: 'xtream',
+            exportedId: 'p1',
+            title: 'Saved portal',
+            autoRefresh: false,
+            connection: credentials,
+            userState: {
+                hiddenCategories: [],
+                playbackPositions: [],
+                recentlyViewed: [],
+                favorites: types.map((contentType) => ({
+                    contentType,
+                    xtreamId: 42,
+                    snapshot: { title: `Original ${contentType}`, tmdbId: 100 },
+                })),
+            },
+        };
+        await source.restoreUserData('p1', entry.userState);
+        api.getStreams.mockImplementation((_credentials, type) =>
+            Promise.resolve([
+                {
+                    stream_id: 42,
+                    series_id: 42,
+                    name: `Replacement ${type}`,
+                    category_id: '1',
+                    tmdb_id: 200,
+                    stream_icon: 'replacement.jpg',
+                },
+            ])
+        );
+        await loadAll();
+        for (const type of types)
+            await source.addRecentItem({ id: 42, type }, 'p1');
+        const verify = async () => {
+            expect(
+                (await source.getFavorites('p1')).map((item) => item.title)
+            ).toEqual(types.map((type) => `Original ${type}`));
+            const recent = await source.getRecentItems('p1');
+            expect(recent).toHaveLength(3);
+            for (const item of recent) {
+                expect(item).toMatchObject({
+                    title: `Replacement ${item.type}`,
+                    tmdb_id: 200,
+                    poster_url: 'replacement.jpg',
+                });
+                expect(item.catalog_status).not.toBe('missing');
+            }
+        };
+        await verify();
+        reload();
+        api.getStreams.mockResolvedValue([]);
+        await verify();
+        const backup = new PwaXtreamBackupStorage(
+            TestBed.inject(USER_DATA_STORAGE)
+        ).exportInto(entry);
+        expect(backup.userState.favorites).toEqual(entry.userState.favorites);
+        localStorage.clear();
+        reload();
+        await new PwaXtreamBackupStorage(
+            TestBed.inject(USER_DATA_STORAGE)
+        ).restore('p1', backup.userState, backup);
+        await verify();
+        const pending = await source.clearPlaylistContent('p1');
+        await source.restoreUserData('p1', pending);
+        await verify();
+    });
 
     it('retains concurrent explicit additions after loading the favorite writer', async () => {
         await loadAll();
