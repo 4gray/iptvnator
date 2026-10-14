@@ -26,6 +26,8 @@ export type XtreamContentType = (typeof XTREAM_CONTENT_TYPES)[number];
 export interface TypedXtreamCollectionRef {
     readonly id: number;
     readonly type: XtreamContentType;
+    /** Expected identity of the rendered collection row, independent of catalog hydration. */
+    readonly identity?: Pick<ContentMetadataPatch, 'tmdbId' | 'releaseYear'>;
 }
 export type XtreamCollectionRef = number | TypedXtreamCollectionRef;
 

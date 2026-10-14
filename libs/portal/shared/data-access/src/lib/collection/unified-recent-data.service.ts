@@ -492,6 +492,10 @@ export class UnifiedRecentDataService {
             ),
             name: item.title,
             catalogStatus: item.catalog_status,
+            xtreamIdentity: {
+                tmdbId: item.tmdb_id ?? undefined,
+                releaseYear: item.release_year ?? undefined,
+            },
             contentType,
             sourceType: 'xtream',
             playlistId,

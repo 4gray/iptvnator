@@ -89,7 +89,13 @@ export class UnifiedFavoritesDataService {
             return this.dbService.isFavorite(contentId, item.playlistId);
         }
         return this.xtreamDataSource.isFavorite(
-            { id: contentId, type: item.contentType },
+            {
+                id: contentId,
+                type: item.contentType,
+                ...(item.xtreamIdentity
+                    ? { identity: item.xtreamIdentity }
+                    : {}),
+            },
             item.playlistId
         );
     }
@@ -124,7 +130,13 @@ export class UnifiedFavoritesDataService {
                     return;
                 }
                 await this.xtreamDataSource.removeFavorite(
-                    { id: item.contentId, type: item.contentType },
+                    {
+                        id: item.contentId,
+                        type: item.contentType,
+                        ...(item.xtreamIdentity
+                            ? { identity: item.xtreamIdentity }
+                            : {}),
+                    },
                     item.playlistId
                 );
                 break;
@@ -169,7 +181,13 @@ export class UnifiedFavoritesDataService {
         const electron = this.electronActivityBridge;
         if (!electron) {
             await this.xtreamDataSource.addFavorite(
-                { id: contentId, type: item.contentType },
+                {
+                    id: contentId,
+                    type: item.contentType,
+                    ...(item.xtreamIdentity
+                        ? { identity: item.xtreamIdentity }
+                        : {}),
+                },
                 item.playlistId,
                 item.posterUrl ?? item.logo ?? undefined
             );
@@ -389,7 +407,13 @@ export class UnifiedFavoritesDataService {
                     )
                     .map((item) =>
                         this.xtreamDataSource.removeFavorite(
-                            { id: item.contentId, type: item.contentType },
+                            {
+                                id: item.contentId,
+                                type: item.contentType,
+                                ...(item.xtreamIdentity
+                                    ? { identity: item.xtreamIdentity }
+                                    : {}),
+                            },
                             item.playlistId
                         )
                     )
@@ -647,6 +671,10 @@ export class UnifiedFavoritesDataService {
             contentId: item.id ?? undefined,
             favoriteId: item.favorite_id,
             catalogStatus: item.catalog_status,
+            xtreamIdentity: {
+                tmdbId: item.tmdb_id ?? undefined,
+                releaseYear: item.release_year ?? undefined,
+            },
         };
     }
 

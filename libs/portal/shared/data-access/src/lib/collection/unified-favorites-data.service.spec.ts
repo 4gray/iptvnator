@@ -767,6 +767,49 @@ describe('UnifiedFavoritesDataService', () => {
         }
     );
 
+    it('passes the rendered PWA identity to status, add and stale-heart removal', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        const item: UnifiedCollectionItem = {
+            uid: 'xtream::xtream-1::movie:101',
+            name: 'Replacement',
+            sourceType: 'xtream',
+            contentType: 'movie',
+            playlistId: 'xtream-1',
+            playlistName: 'Test',
+            contentId: 101,
+            xtreamId: 101,
+            xtreamIdentity: { tmdbId: 200, releaseYear: 2026 },
+        };
+        const ref = { id: 101, type: 'movie', identity: item.xtreamIdentity };
+        await service.isXtreamFavorite(item);
+        expect(xtreamDataSource.isFavorite).toHaveBeenCalledWith(
+            ref,
+            'xtream-1'
+        );
+        await service.addFavorite(item);
+        expect(xtreamDataSource.addFavorite).toHaveBeenCalledWith(
+            ref,
+            'xtream-1',
+            undefined
+        );
+        xtreamDataSource.removeFavorite.mockRejectedValue(
+            new Error('XTREAM_FAVORITE_IDENTITY_CONFLICT')
+        );
+        const collection = TestBed.inject(UnifiedCollectionDataService);
+        collection.favoriteUidSet.set(new Set([item.uid]));
+        await expect(collection.toggleFavorite(item)).rejects.toThrow(
+            'XTREAM_FAVORITE_IDENTITY_CONFLICT'
+        );
+        expect(xtreamDataSource.removeFavorite).toHaveBeenCalledWith(
+            ref,
+            'xtream-1'
+        );
+        expect(collection.favoriteUidSet().has(item.uid)).toBe(true);
+    });
+
     it('uses the Xtream id as the favorite key in PWA when cached content is cold', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,

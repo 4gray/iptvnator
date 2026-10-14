@@ -124,8 +124,16 @@ storage failure cannot silently resurrect the old title. Ordinary optional
 snapshot-cache writes retain their existing quota behavior. The explicit browser
 favorite writer loads on demand; after loading, reference and snapshot writes
 run synchronously against fresh storage so concurrent additions are not lost.
-Browser status and add operations also reject known conflicts, so the replacement's
-heart cannot remove the retained favorite. Explicit collection removal still works.
+Browser collection actions carry the rendered row's saved TMDB/year identity,
+independent of whether the catalog has hydrated. Status, add and remove compare
+that identity with the retained favorite; removal rechecks storage so a stale
+Recent heart cannot delete a different favorite. Explicit removal of the original
+row still works while the provider is showing a conflicting replacement.
+Detail metadata fills missing identity and presentation fields in the current PWA
+catalog row and reconciles each compatible saved snapshot separately. Identity-only
+patches also persist, so an initially sparse favorite gains protection before a
+later provider-ID reuse. A conflicting detail response cannot enrich another known
+identity; independent Recent snapshots never backfill a retained favorite.
 New playback keeps its own typed `collectionItem` on the Recent entry when the
 shared snapshot belongs to another identity. Its metadata and viewing date are
 saved atomically, independently of any retained favorite, and remain available

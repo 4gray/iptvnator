@@ -1,6 +1,7 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import {
     ALL_CATEGORIES_WITHHELD,
+    XTREAM_FAVORITE_IDENTITY_CONFLICT,
     foldSearchText,
     ContentMetadataPatch,
     Playlist,
@@ -38,6 +39,7 @@ import {
 
 import {
     CollectionKey,
+    collectionRefIdentity,
     collectionKey,
     collectionSnapshotMatchesContent,
     deduplicateRecentItems,
@@ -740,7 +742,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                     ids,
                     normalizedContentId
                 ),
-            backdropUrl
+            backdropUrl,
+            collectionRefIdentity(contentId)
         );
     }
 
@@ -755,6 +758,17 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         if (normalizedContentId == null) {
             return;
         }
+
+        const expected = collectionRefIdentity(contentId);
+        if (
+            expected &&
+            this.collectionStorage.hasFavoriteIdentityConflict(
+                playlistId,
+                normalizedContentId,
+                expected
+            )
+        )
+            throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
 
         const allFavorites = this.collectionStorage.getFavoritesFromStorage();
         if (allFavorites[playlistId]) {
@@ -793,7 +807,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             ids.some((id) => matchingKeys.has(id)) &&
             !this.collectionStorage.hasFavoriteIdentityConflict(
                 playlistId,
-                normalizedContentId
+                normalizedContentId,
+                collectionRefIdentity(contentId)
             )
         );
     }
@@ -1271,81 +1286,45 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return null;
     }
 
-    /**
-     * Only the backdrop is retained here. The identity fields exist to spare
-     * a later reader from rebuilding a weaker TMDB query than the detail view
-     * used, and that reader is the dashboard reading a persisted `content`
-     * row — which the PWA has no equivalent of. Its catalog lives in a
-     * session-scoped cache that is rebuilt from the API on every load, so a
-     * stored id would never outlive the detail view that resolved it. PWA
-     * lookups stay on the documented title-only fallback.
-     */
+    /** Persist detail identity on the current catalog row and compatible saved snapshots. */
     async setContentMetadataIfMissing(
         contentId: XtreamCollectionRef,
         playlistId: string,
         patch: ContentMetadataPatch
     ): Promise<void> {
-        const normalizedContentId = await this.resolveCollectionKey(
+        const key = await this.resolveCollectionKey(playlistId, contentId);
+        if (key == null) return;
+        const { enrichPwaContentMetadata } =
+            await import('./pwa-content-metadata');
+        const current = this.getCollectionItemsById(
             playlistId,
-            contentId
+            [key],
+            true
+        ).get(key);
+        if (!current) return;
+        const enriched = enrichPwaContentMetadata(
+            this.collectionStorage,
+            playlistId,
+            key,
+            current,
+            patch
         );
-        const normalizedBackdropUrl = patch.backdropUrl?.trim();
-        if (normalizedContentId == null || !normalizedBackdropUrl) {
-            return;
-        }
-
         for (const type of this.contentTypes) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey);
-            if (!content) {
-                continue;
-            }
-
-            this.contentCache.set(
-                cacheKey,
-                content.map((item) => {
-                    const itemId = this.getItemIdentity(item, type);
-                    if (
-                        collectionKey({ id: itemId, type }) !==
-                            normalizedContentId ||
-                        item.backdrop_url
-                    ) {
-                        return item;
-                    }
-
-                    return {
-                        ...item,
-                        backdrop_url: normalizedBackdropUrl,
-                    };
-                })
-            );
+            if (content)
+                this.contentCache.set(
+                    cacheKey,
+                    content.map((item) =>
+                        collectionKey({
+                            id: this.getItemIdentity(item, type),
+                            type,
+                        }) === key
+                            ? enriched
+                            : item
+                    )
+                );
         }
-
-        this.collectionStorage.setCollectionItemBackdropIfMissing(
-            playlistId,
-            normalizedContentId,
-            normalizedBackdropUrl
-        );
-
-        const allRecent = this.collectionStorage.getRecentItemsFromStorage();
-        const playlistRecent = allRecent[playlistId];
-        if (!playlistRecent) {
-            return;
-        }
-
-        this.collectionStorage.saveRecentItemsToStorage({
-            ...allRecent,
-            [playlistId]: playlistRecent.map((item) => {
-                if (item.id !== normalizedContentId || item.backdropUrl) {
-                    return item;
-                }
-
-                return {
-                    ...item,
-                    backdropUrl: normalizedBackdropUrl,
-                };
-            }),
-        });
     }
 
     private findContentIdentity(playlistId: string, key: CollectionKey) {

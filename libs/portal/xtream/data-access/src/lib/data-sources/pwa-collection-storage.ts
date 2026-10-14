@@ -80,14 +80,15 @@ export class PwaCollectionStorage {
 
     hasFavoriteIdentityConflict(
         playlistId: string,
-        key: CollectionKey
+        key: CollectionKey,
+        expected?: Pick<XtreamContentItem, 'tmdb_id' | 'release_year'>
     ): boolean {
         const saved = this.savedFavorite(playlistId, key);
         return (
             !!saved &&
             !collectionSnapshotMatchesContent(
                 saved,
-                this.resolveItems(playlistId, [key], true).get(key),
+                expected ?? this.resolveItems(playlistId, [key], true).get(key),
                 true
             )
         );
@@ -323,33 +324,5 @@ export class PwaCollectionStorage {
             saved,
             this.resolveItems(playlistId, [key], true).get(key)
         );
-    }
-
-    setCollectionItemBackdropIfMissing(
-        playlistId: string,
-        contentId: CollectionKey,
-        backdropUrl: string
-    ): void {
-        const allItems = this.getCollectionItemsFromStorage();
-        const playlistItems = allItems[playlistId];
-        const item = playlistItems?.[String(contentId)];
-        if (
-            !item ||
-            item.backdrop_url ||
-            !this.canEnrichSnapshot(playlistId, contentId, item)
-        ) {
-            return;
-        }
-
-        this.trySaveCollectionItemsToStorage({
-            ...allItems,
-            [playlistId]: {
-                ...playlistItems,
-                [String(contentId)]: {
-                    ...item,
-                    backdrop_url: backdropUrl,
-                },
-            },
-        });
     }
 }

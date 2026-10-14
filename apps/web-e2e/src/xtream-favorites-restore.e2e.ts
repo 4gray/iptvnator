@@ -29,6 +29,7 @@ for (const identity of ['missing', 'conflicting'] as const) {
         expect(response.ok()).toBeTruthy();
         const movie = (await response.json())[0];
         let detailRequests = 0;
+        let catalogOffline = false;
         page.on('request', (request) => {
             if (
                 new URL(request.url()).searchParams.get('action') ===
@@ -40,6 +41,10 @@ for (const identity of ['missing', 'conflicting'] as const) {
             const original = new URL(route.request().url());
             if (original.searchParams.get('action') !== 'get_vod_streams') {
                 await route.fallback();
+                return;
+            }
+            if (catalogOffline) {
+                await route.abort();
                 return;
             }
             const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
@@ -216,6 +221,7 @@ for (const identity of ['missing', 'conflicting'] as const) {
                     )
                 )
                 .toBe(movie.name);
+            catalogOffline = true;
             await page.goto('/workspace/global-recent');
             await page.reload();
             const replacement = page.getByRole('button', {
@@ -368,4 +374,192 @@ test('@xtream @collections PWA retries retain saved favorite metadata when snaps
         added_at: favorite.addedAt,
         position: 3,
     });
+});
+
+test('@xtream @collections detail identity protects a sparse PWA favorite from a reused provider ID', async ({
+    page,
+    request,
+}) => {
+    const response = await request.get(`${MOCK_SERVER}/player_api.php`, {
+        params: {
+            username: DEFAULT_USERNAME,
+            password: DEFAULT_PASSWORD,
+            action: 'get_vod_streams',
+        },
+    });
+    const movie = (await response.json())[0];
+    let replaced = false;
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        const action = original.searchParams.get('action');
+        if (action !== 'get_vod_streams' && action !== 'get_vod_info') {
+            await route.fallback();
+            return;
+        }
+        const url = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') url.searchParams.set(key, value);
+        });
+        const response = await route.fetch({ url: url.toString() });
+        const body = await response.json();
+        if (action === 'get_vod_streams') {
+            for (const item of body.payload) {
+                delete item.tmdb_id;
+                delete item.release_year;
+                if (replaced && item.stream_id === movie.stream_id)
+                    Object.assign(item, {
+                        name: 'Reused provider entry',
+                        tmdb_id: 999,
+                        release_year: 2026,
+                    });
+            }
+        } else {
+            Object.assign(body.payload.info, {
+                tmdb_id: 949,
+                releasedate: '1995-12-15',
+                o_name: 'Original detail identity',
+            });
+        }
+        await route.fulfill({ response, json: body });
+    });
+    await addXtreamPortal(page, { name: 'Detail Identity Portal' });
+    const rawId = new URL(page.url()).pathname
+        .replace(/\/vod.*$/, '')
+        .split('/')
+        .pop();
+    if (!rawId) throw new Error('Missing playlist ID');
+    const playlistId = decodeURIComponent(rawId);
+    await page
+        .locator(`[data-category-id="${movie.category_id}"]`)
+        .first()
+        .click();
+    await page.getByText(movie.name, { exact: true }).first().click();
+    await page
+        .getByRole('button', { name: 'Add to favorites', exact: true })
+        .first()
+        .click();
+    await expect
+        .poll(() =>
+            page.evaluate(
+                ({ playlistId, key }) =>
+                    JSON.parse(
+                        localStorage.getItem('xtream-collection-items') ?? '{}'
+                    )[playlistId]?.[key]?.tmdb_id,
+                { playlistId, key: `movie:${movie.stream_id}` }
+            )
+        )
+        .toBe(949);
+    replaced = true;
+    await page.goto(`/workspace/xtreams/${rawId}/vod`);
+    await page
+        .locator(`[data-category-id="${movie.category_id}"]`)
+        .first()
+        .click();
+    await expect(
+        page.getByText('Reused provider entry', { exact: true }).first()
+    ).toBeVisible();
+    await page
+        .getByRole('link', { name: 'Global favorites', exact: true })
+        .click();
+    const originalCard = page.getByRole('button', {
+        name: movie.name,
+        exact: true,
+    });
+    await expect(originalCard).toBeVisible();
+    await expect(originalCard).toHaveAttribute('aria-disabled', 'true');
+    await page.goto('/workspace/settings/backup');
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const path = await (await download).path();
+    if (!path) throw new Error('Backup download is missing');
+    const entry = JSON.parse(await readFile(path, 'utf8')).playlists.find(
+        (entry: { exportedId: string }) => entry.exportedId === playlistId
+    );
+    expect(entry.userState.favorites[0].snapshot).toMatchObject({
+        title: movie.name,
+        tmdbId: 949,
+        releaseYear: 1995,
+    });
+});
+
+test('@xtream @collections a cold Recent heart cannot remove a different saved favorite', async ({
+    page,
+}) => {
+    await addXtreamPortal(page, { name: 'Cold Recent Portal' });
+    const rawId = new URL(page.url()).pathname
+        .replace(/\/vod.*$/, '')
+        .split('/')
+        .pop();
+    if (!rawId) throw new Error('Missing playlist ID');
+    const playlistId = decodeURIComponent(rawId);
+    await page.evaluate((id) => {
+        const original = {
+            id: 42,
+            xtream_id: 42,
+            type: 'live',
+            title: 'Original saved channel',
+            poster_url: '',
+            category_id: '1',
+            tmdb_id: 100,
+        };
+        const replacement = {
+            ...original,
+            title: 'Viewed replacement channel',
+            tmdb_id: 200,
+        };
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ [id]: ['live:42'] })
+        );
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify({ [id]: { 'live:42': original } })
+        );
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({
+                [id]: [
+                    {
+                        id: 'live:42',
+                        viewedAt: '2026-10-01T12:00:00.000Z',
+                        collectionItem: replacement,
+                    },
+                ],
+            })
+        );
+    }, playlistId);
+    await page.goto('/workspace/global-recent');
+    await page.reload();
+    const recent = page
+        .locator('app-channel-list-item')
+        .filter({ hasText: 'Viewed replacement channel' });
+    await expect(recent).toBeVisible();
+    await recent.hover();
+    const heart = recent.locator('.favorite-button');
+    await expect(heart).toHaveAttribute('aria-pressed', 'false');
+    await heart.click();
+    await expect(
+        page.getByText(
+            'This source replaced an item you saved. Remove the older entry from Favorites before adding this one.',
+            { exact: true }
+        )
+    ).toBeVisible();
+    await expect(heart).toHaveAttribute('aria-pressed', 'false');
+    expect(
+        await page.evaluate(
+            (id) =>
+                JSON.parse(localStorage.getItem('xtream-favorites') ?? '{}')[
+                    id
+                ],
+            playlistId
+        )
+    ).toEqual(['live:42']);
+    await page.goto('/workspace/global-favorites');
+    const original = page
+        .locator('app-channel-list-item')
+        .filter({ hasText: 'Original saved channel' });
+    await expect(original).toBeVisible();
+    await original.hover();
+    await original.locator('.favorite-button').click();
+    await expect(original).toHaveCount(0);
 });

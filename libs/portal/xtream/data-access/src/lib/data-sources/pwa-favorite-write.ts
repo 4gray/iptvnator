@@ -14,9 +14,13 @@ export function addPwaFavorite(
     key: CollectionKey,
     current: XtreamContentItem | undefined,
     matchingKeysFor: (ids: CollectionKey[]) => Set<CollectionKey>,
-    backdropUrl?: string
+    backdropUrl?: string,
+    expected?: Pick<XtreamContentItem, 'tmdb_id' | 'release_year'>
 ): void {
-    if (storage.hasFavoriteIdentityConflict(playlistId, key)) {
+    if (
+        storage.hasFavoriteIdentityConflict(playlistId, key) ||
+        storage.hasFavoriteIdentityConflict(playlistId, key, expected)
+    ) {
         throw new Error(XTREAM_FAVORITE_IDENTITY_CONFLICT);
     }
     const allFavorites = storage.getFavoritesFromStorage();

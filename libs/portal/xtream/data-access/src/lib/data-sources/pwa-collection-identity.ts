@@ -1,6 +1,7 @@
 import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import {
     TypedXtreamCollectionRef,
+    XtreamCollectionRef,
     XTREAM_CONTENT_TYPES,
     XtreamContentItem,
 } from './xtream-data-source.interface';
@@ -161,10 +162,23 @@ export function findCollectionItems(
     return results;
 }
 
+export function collectionRefIdentity(ref: XtreamCollectionRef) {
+    const identity =
+        typeof ref === 'number'
+            ? null
+            : normalizeContentMetadataPatch(ref.identity);
+    return identity &&
+        (identity.tmdbId !== undefined || identity.releaseYear !== undefined)
+        ? { tmdb_id: identity.tmdbId, release_year: identity.releaseYear }
+        : undefined;
+}
+
+type CollectionIdentity = Pick<XtreamContentItem, 'tmdb_id' | 'release_year'>;
+
 /** Catalog evidence must confirm every saved identity field before replacing metadata. */
 export function collectionSnapshotMatchesContent(
-    saved: XtreamContentItem,
-    current: XtreamContentItem | undefined,
+    saved: CollectionIdentity,
+    current: CollectionIdentity | undefined,
     allowMissing = false
 ): boolean {
     const known = normalizeCollectionIdentity(saved);
@@ -179,7 +193,7 @@ export function collectionSnapshotMatchesContent(
 
 /** Match Electron's metadata boundary, including numeric strings and unknown placeholders. */
 export function normalizeCollectionIdentity(
-    item: XtreamContentItem | undefined
+    item: CollectionIdentity | undefined
 ) {
     const identity = normalizeContentMetadataPatch({
         tmdbId: item?.tmdb_id ?? undefined,
@@ -189,7 +203,7 @@ export function normalizeCollectionIdentity(
 }
 
 /** Keep the durable snapshot separate until the actual catalog row confirms it. */
-function mergeCollectionItem(
+export function mergeCollectionItem(
     saved: XtreamContentItem | undefined,
     current: XtreamContentItem
 ): XtreamContentItem {
