@@ -3,6 +3,7 @@ import {
     type ServerUserStateNamespace,
 } from '@iptvnator/shared/interfaces';
 import type { UserDataStorage } from '../user-data-storage';
+import { changedEntries } from './server-user-data-edit';
 import { parseMap } from './server-user-data-entries';
 
 /** Server-mode cache keys; the legacy unprefixed keys are never touched. */
@@ -57,6 +58,34 @@ export class UserDataCache {
         } catch {
             this.overflow.set(namespace, value ?? '{}');
         }
+    }
+
+    /** What every namespace holds now, to compare with later. */
+    snapshot(): Map<ServerUserStateNamespace, string | null> {
+        return new Map(
+            SERVER_USER_STATE_NAMESPACES.map((namespace) => [
+                namespace,
+                this.read(namespace),
+            ])
+        );
+    }
+
+    /** Entries (`namespace|playlistId`) changed since `snapshot`. */
+    changedSince(
+        snapshot: ReadonlyMap<ServerUserStateNamespace, string | null>
+    ): string[] {
+        const keys: string[] = [];
+        for (const [namespace, before] of snapshot) {
+            if (this.read(namespace) !== before) {
+                for (const [playlistId] of changedEntries(
+                    parseMap(before ?? '{}'),
+                    this.map(namespace)
+                )) {
+                    keys.push(`${namespace}|${playlistId}`);
+                }
+            }
+        }
+        return keys;
     }
 
     map(namespace: ServerUserStateNamespace): Record<string, unknown> {

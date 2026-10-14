@@ -41,6 +41,8 @@ export interface UserDataQueueHooks {
         value: unknown
     ) => void;
     readonly writeFailed: (error: unknown) => void;
+    /** False while nothing may go out (another tab took the writes over). */
+    readonly maySend?: () => boolean;
 }
 
 /**
@@ -290,6 +292,9 @@ export class UserDataWriteQueue {
         if (this.flushTimer !== null) {
             clearTimeout(this.flushTimer);
             this.flushTimer = null;
+        }
+        if (this.hooks.maySend?.() === false) {
+            return [];
         }
         const batch: PendingEntry[] = [];
         for (const [key, entry] of this.pending) {

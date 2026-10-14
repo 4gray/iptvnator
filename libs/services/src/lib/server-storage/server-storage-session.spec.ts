@@ -185,6 +185,10 @@ describe('ServerStorageSession', () => {
         document.dispatchEvent(new Event('visibilitychange'));
         expect(reload).toHaveBeenCalledTimes(2);
         delete (document as { visibilityState?: unknown }).visibilityState;
+
+        // And its retry timer, which may run before it is shown again.
+        jest.advanceTimersByTime(30_000);
+        expect(reload).toHaveBeenCalledTimes(3);
     });
 
     it('goes to sign-in on every sign-out, also when already signed out', async () => {

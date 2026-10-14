@@ -237,7 +237,8 @@ settings and guards read them in every build.
   its record closed on `pagehide` (not into the back-forward cache, where
   its record goes stale, as in a background tab the browser suspends;
   restored or shown again after another tab adopted it, the page reloads
-  rather than send those writes again), and
+  rather than send those writes again, and until then it neither sends nor
+  saves them, also when its retry timer runs first), and
   only a closed, stale or missing record is taken over: a duplicated tab,
   which copies `sessionStorage`, leaves the running tab its writes. A page
   load that still looked live (or whose close flag storage refused) is
@@ -266,7 +267,8 @@ settings and guards read them in every build.
   stays parked). Replayed edits keep recently viewed lists newest first,
   as the app cuts them at their limit from the end. Also,
   re-reads run one at a time and keep entries edited while they were in
-  flight or not yet saved. A response body cut off after its headers counts
+  flight or not yet saved, and entries another tab saved meanwhile (the
+  answer predates them; their next write here conflicts and replays). A response body cut off after its headers counts
   as offline. Each write is sent on the tag of the entry it was made
   against (`UserDataWriteQueue`); after a `412` the edit (before → after) is
   replayed on the server's current value, so another device's change to the

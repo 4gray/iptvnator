@@ -104,6 +104,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             show: (namespace, playlistId, value) =>
                 this.cache.setEntry(namespace, playlistId, value),
             writeFailed: onWriteFailure,
+            maySend: () => !this.superseded(),
         });
         claimCache(local, instanceId);
         const previous = swapPage(tabStore, instanceId, this.tabId);
@@ -209,14 +210,18 @@ export class ServerUserDataStorage implements UserDataStorage {
      * instead).
      */
     resumed(): boolean {
-        if (
-            this.recorded &&
-            !hasRecord(this.local, this.instanceId, this.tabId)
-        ) {
-            return false;
-        }
         this.publishUnconfirmed();
-        return true;
+        return !this.superseded();
+    }
+
+    /**
+     * Its record is gone: another tab took this page's writes over, so
+     * nothing more of them goes out or is saved here.
+     */
+    private superseded(): boolean {
+        return (
+            this.recorded && !hasRecord(this.local, this.instanceId, this.tabId)
+        );
     }
 
     /** Not read yet, or holding writes the server has not taken. */
@@ -342,17 +347,18 @@ export class ServerUserDataStorage implements UserDataStorage {
         const editsBefore = this.writes.lastEdit;
         const deletesBefore = this.deleted.length;
         await this.writes.flush();
+        const sent = this.cache.snapshot();
         const { entries, tags } = withoutDeleted(
             await this.api.getJson<ServerUserStateResponse>('/user-state'),
             this.deleted.slice(deletesBefore)
         );
         const unsaved = this.writes.unsavedSince(editsBefore);
-        // Another tab's unconfirmed writes are in the shared cache too.
-        for (const key of othersUnconfirmed(
-            this.local,
-            this.instanceId,
-            this.tabId
-        )) {
+        // In the shared cache: other tabs' unconfirmed writes, and what a
+        // tab saved while this read travelled (newer than its answer).
+        for (const key of [
+            ...othersUnconfirmed(this.local, this.instanceId, this.tabId),
+            ...this.cache.changedSince(sent),
+        ]) {
             unsaved.add(key);
         }
         const deferred = [...this.deferred.values()];
@@ -469,6 +475,9 @@ export class ServerUserDataStorage implements UserDataStorage {
     /** Persists what the server has not confirmed; skips idle rewrites. */
     /** False when browser storage refused the copy. */
     private saveUnsent(): boolean {
+        if (this.superseded()) {
+            return false;
+        }
         // A newer edit can be queued while an older one is still travelling.
         const writes = this.writes.unsentWrites();
         if (writes.length === 0 && !this.unsentSaved) {
@@ -508,11 +517,12 @@ export class ServerUserDataStorage implements UserDataStorage {
     }
 
     private publishUnconfirmed(): void {
-        this.recorded = markUnconfirmed(
-            this.local,
-            this.instanceId,
-            this.tabId,
-            [...this.writes.unconfirmedKeys(), ...this.deferred.keys()]
-        );
+        // Superseded, it stays so: the record is not written again.
+        this.recorded =
+            this.superseded() ||
+            markUnconfirmed(this.local, this.instanceId, this.tabId, [
+                ...this.writes.unconfirmedKeys(),
+                ...this.deferred.keys(),
+            ]);
     }
 }

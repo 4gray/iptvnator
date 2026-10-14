@@ -201,6 +201,11 @@ export class ServerStorageSession {
             }
         });
         setInterval(() => {
+            // A suspended tab's timers can run before it is shown again.
+            if (!this.userData.resumed()) {
+                this.reloadPage();
+                return;
+            }
             this.userData.touch();
             // Also online: a write the server refused (a 5xx) or a first
             // read that failed is not retried by anything else.
