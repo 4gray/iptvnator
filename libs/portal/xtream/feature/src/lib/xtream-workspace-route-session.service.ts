@@ -16,6 +16,7 @@ import {
     XtreamPlaylistData,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { SourceActivityService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 function normalizeOptionalConnectionValue(
@@ -212,6 +213,9 @@ export class XtreamWorkspaceRouteSession {
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly activity = inject(SourceActivityService);
+    /** Sources this sync loop holds busy, released when the loop settles. */
+    private readonly heldSources = new Map<string, () => void>();
 
     private syncInFlight = false;
     private syncPending = false;
@@ -266,6 +270,7 @@ export class XtreamWorkspaceRouteSession {
     }
 
     private scheduleSyncRouteContext(): void {
+        this.holdRoutedSource();
         if (this.syncInFlight) {
             this.syncPending = true;
             return;
@@ -281,8 +286,24 @@ export class XtreamWorkspaceRouteSession {
                 } while (this.syncPending);
             } finally {
                 this.syncInFlight = false;
+                this.heldSources.forEach((release) => release());
+                this.heldSources.clear();
             }
         })();
+    }
+
+    /**
+     * Holds the routed source busy from the moment its route is reached
+     * until the sync, and the import it awaits, settle. An Xtream refresh
+     * releases its own hold when its navigation ends, and this one is taken
+     * on that NavigationEnd, so removal never sees the source idle between
+     * the catalog delete and the re-import.
+     */
+    private holdRoutedSource(): void {
+        const playlistId = getXtreamRouteTarget(this.router.url).playlistId;
+        if (playlistId && !this.heldSources.has(playlistId)) {
+            this.heldSources.set(playlistId, this.activity.begin([playlistId]));
+        }
     }
 
     private async syncRouteContext(): Promise<void> {

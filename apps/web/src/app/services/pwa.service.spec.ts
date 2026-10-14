@@ -201,6 +201,55 @@ describe('PwaService', () => {
         }
     });
 
+    it('settles a playlist refresh only once the backend has answered', async () => {
+        let settled = false;
+        const pending = Promise.resolve(
+            service.sendIpcEvent(PLAYLIST_UPDATE, {
+                id: 'playlist-1',
+                url: 'https://provider.example/list.m3u',
+            })
+        ).then(() => {
+            settled = true;
+        });
+
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'target-1',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        // The caller keeps the source busy while the parse is in flight.
+        expect(settled).toBe(false);
+
+        http.expectOne((req) => req.url.endsWith('/parse')).flush({
+            _id: 'playlist-1',
+        });
+        await pending;
+        expect(settled).toBe(true);
+        expect(TestBed.inject(Store).dispatch).toHaveBeenCalled();
+    });
+
+    it('settles a failed playlist refresh after reporting it', async () => {
+        const pending = service.sendIpcEvent(PLAYLIST_UPDATE, {
+            id: 'playlist-1',
+            url: 'https://provider.example/list.m3u',
+        });
+
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'target-1',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        http.expectOne((req) => req.url.endsWith('/parse')).flush(
+            { message: 'failed', status: 500 },
+            { status: 500, statusText: 'Internal Server Error' }
+        );
+
+        await expect(pending).resolves.toBeUndefined();
+        expect(TestBed.inject(MatSnackBar).open).toHaveBeenCalledWith(
+            expect.any(String),
+            'CLOSE',
+            { duration: 5000 }
+        );
+    });
+
     it('appends the proxy network code to the playlist-refresh failure toast', async () => {
         const unhandled: unknown[] = [];
         const previousHandler = rxjsConfig.onUnhandledError;

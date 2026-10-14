@@ -260,7 +260,10 @@
             "NAME_DESC": "Nome (Z-A)",
             "NEWEST": "Data de adição (Mais recente primeiro)",
             "OLDEST": "Data de adição (Mais antigo primeiro)",
-            "CUSTOM_ORDER": "Ordem personalizada (arrastar e soltar)"
+            "CUSTOM_ORDER": "Ordem personalizada (arrastar e soltar)",
+            "UPDATED": "Última atualização",
+            "CHANNELS": "Mais canais",
+            "FAILING_FIRST": "Primeiro as que não respondem"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (local, url, texto)",
@@ -1906,7 +1909,29 @@
             "STALKER_PLAYLISTS": "Playlists Stalker",
             "ALL_PLAYLISTS": "Todas as playlists",
             "PLAYLIST_COUNT_ONE": "1 playlist",
-            "PLAYLIST_COUNT_OTHER": "{{count}} playlists"
+            "PLAYLIST_COUNT_OTHER": "{{count}} playlists",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · arquivo",
+                "ADDED": "adicionado em {{date}}",
+                "UPDATED": "atualizado em {{date}}",
+                "UNREACHABLE": "Não responde",
+                "UNREACHABLE_FOR": "Não responde · {{duration}}",
+                "EXPIRED": "Expirada",
+                "EDIT": "Editar…",
+                "COPY_URL": "Copiar URL",
+                "OPEN": "Abrir",
+                "CHANNELS_ONE": "1 canal"
+            },
+            "STATUS": "Estado",
+            "STATUS_ANY": "Qualquer",
+            "STATUS_OK": "Respondem",
+            "STATUS_BAD": "Não respondem",
+            "NO_MATCHES": "Nenhuma lista corresponde a estes filtros",
+            "RESET_FILTERS": "Repor filtros",
+            "REMOVED": "«{{name}}» removida",
+            "REMOVED_SWITCHED": "«{{name}}» removida, mudou para «{{next}}»",
+            "REMOVE_FAILED": "Não foi possível remover «{{name}}»",
+            "ADD_SOURCE": "Adicionar uma fonte"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorias",
@@ -1975,7 +2000,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Mover seleção da paleta de comandos",
                 "COMMAND_PALETTE_RUN": "Executar item selecionado da paleta de comandos",
                 "CLOSE_DIALOGS": "Fechar diálogo ou dispensar sobreposição",
-                "DOWNLOADS_OPEN_ITEM": "Abrir o download em foco na biblioteca"
+                "DOWNLOADS_OPEN_ITEM": "Abrir o download em foco na biblioteca",
+                "OPEN_PLAYLIST_SWITCHER": "Mudar de lista"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1998,6 +2024,15 @@
             "NO_PLAYLISTS_BODY": "Adicione uma playlist e seu histórico de visualização aparecerá aqui.",
             "NO_ITEMS_TITLE": "Nada assistido ainda",
             "NO_ITEMS_BODY": "Comece a assistir qualquer item da sua biblioteca e ele aparecerá aqui."
+        },
+        "SWITCHER": {
+            "SEARCH": "Procurar uma lista…",
+            "RECENT": "Recentes",
+            "NO_MATCHES": "Nada encontrado",
+            "ALL_SOURCES": "Todas as fontes",
+            "HINT_SELECT": "escolher",
+            "HINT_OPEN": "abrir",
+            "HINT_CLOSE": "fechar"
         }
     },
     "LOADING": "A carregar",

@@ -160,6 +160,21 @@
     background: color-mix(in srgb, var(--app-on-surface) 8%, transparent);
 }
 
+// The label span fills the row, so the active threshold sits at its end,
+// before the submenu arrow.
+.refine-rating-trigger ::ng-deep .mat-mdc-menu-item-text {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 16px;
+}
+
+.refine-rating-value {
+    margin-inline-start: auto;
+    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    font-variant-numeric: tabular-nums;
+}
+
 @container category-content (max-width: 920px) {
     .category-content-header {
         grid-template-columns: minmax(0, 1fr) auto auto;
