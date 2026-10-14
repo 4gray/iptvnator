@@ -17,7 +17,6 @@ export const UNSENT_WRITES_KEY = 'iptvnator-server:unsent-writes';
 /** Which server database the cached user data belongs to. */
 export const CACHE_OWNER_KEY = 'iptvnator-server:cache-owner';
 /** The tab's current page load, in the tab's own storage. */
-export const PAGE_KEY = 'iptvnator-server:page';
 
 const writesKey = (instanceId: string, page: string) =>
     `${UNSENT_WRITES_KEY}:${instanceId}:${page}`;
@@ -118,24 +117,6 @@ function readSteps(stored: unknown): Steps {
 
 const saveSteps = (steps: Steps) =>
     steps.map(({ before, after, yields }) => ({ before, after, yields }));
-
-/**
- * Records `page` as the tab's current page load and returns the one
- * before it: a reload, whose saved writes this page takes over.
- */
-export function swapPage(
-    tabStore: UserDataStorage,
-    instanceId: string,
-    page: string
-): string | null {
-    try {
-        const previous = tabStore.getItem(`${PAGE_KEY}:${instanceId}`);
-        tabStore.setItem(`${PAGE_KEY}:${instanceId}`, page);
-        return previous;
-    } catch {
-        return null;
-    }
-}
 
 /**
  * Page loads whose record went stale: closed tabs nobody sends for. Saved

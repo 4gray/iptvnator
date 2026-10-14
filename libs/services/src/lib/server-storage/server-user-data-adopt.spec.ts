@@ -467,4 +467,76 @@ describe('ServerUserDataStorage taking over other page loads', () => {
 
         expect(server.state['xtream-favorites']['p1']).toEqual(['X']);
     });
+
+    it('finds a kept page load again on a second reload', async () => {
+        const server = fakeServer({ 'xtream-favorites': { p1: ['S'] } });
+        const local = memoryStorage();
+        const tabStore = memoryStorage();
+        let online = false;
+        const send = server.api.sendJson.getMockImplementation();
+        if (!send) {
+            throw new Error('The fake server answers sendJson');
+        }
+        const api = {
+            ...server.api,
+            sendJson: jest.fn((...args: Parameters<typeof send>) =>
+                online
+                    ? send(...args)
+                    : Promise.reject(
+                          new ServerApiError(0, 'network', 'offline')
+                      )
+            ),
+        } as never;
+        const first = new ServerUserDataStorage(
+            api,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        await first.hydrate();
+        first.setItem('xtream-favorites', JSON.stringify({ p1: ['S', 'X'] }));
+        await first.flush();
+        first.close();
+        // Its registry record is gone too: only this tab can find it.
+        for (const key of local.keys()) {
+            if (key.startsWith('iptvnator-server:unconfirmed:')) {
+                local.removeItem(key);
+            }
+        }
+        // Storage is full: the reloads cannot save their own copies.
+        const setItem = local.setItem;
+        local.setItem = (key: string, value: string) => {
+            if (key.startsWith('iptvnator-server:unsent-writes:')) {
+                throw new DOMException('full', 'QuotaExceededError');
+            }
+            setItem(key, value);
+        };
+        const second = new ServerUserDataStorage(
+            api,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        expect(second.hasUnsentWrites()).toBe(true);
+        second.close();
+
+        // Reloaded again before any copy was saved.
+        const third = new ServerUserDataStorage(
+            api,
+            local,
+            jest.fn(),
+            'default',
+            tabStore
+        );
+        expect(third.hasUnsentWrites()).toBe(true);
+        local.setItem = setItem;
+        online = true;
+        await third.hydrate();
+        await third.flush();
+        await third.flush();
+
+        expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'X']);
+    });
 });

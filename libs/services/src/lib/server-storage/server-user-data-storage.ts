@@ -19,6 +19,7 @@ import {
     restorePage,
     settleWrites,
 } from './server-user-data-adopt';
+import { keepPages, swapPage } from './server-page-pointer';
 import { UserDataCache } from './server-user-data-cache';
 import {
     changedEntries,
@@ -39,7 +40,6 @@ import {
     removePage,
     saveDeferredEdits,
     saveUnsentWrites,
-    swapPage,
 } from './server-unsent-writes';
 
 /**
@@ -95,7 +95,7 @@ export class ServerUserDataStorage implements UserDataStorage {
          * The tab's own storage (`sessionStorage` in the app): remembers
          * its page load, so a reload takes over the writes it saved.
          */
-        tabStore: UserDataStorage = local
+        private readonly tabStore: UserDataStorage = local
     ) {
         this.cache = new UserDataCache(local, instanceId);
         this.writes = new UserDataWriteQueue(api, {
@@ -106,7 +106,9 @@ export class ServerUserDataStorage implements UserDataStorage {
             maySend: () => !this.superseded(),
         });
         claimCache(local, instanceId);
-        const previous = swapPage(tabStore, instanceId, this.tabId);
+        const [previous, ...kept] = swapPage(tabStore, instanceId, this.tabId);
+        // Older page loads whose copies a reload kept come first.
+        kept.forEach((page) => this.takeOver(page));
         // A duplicated tab copies the page load of a tab that still runs;
         // so does a reload whose close flag could not be saved: `touch`
         // adopts it once it no longer looks live.
@@ -495,6 +497,7 @@ export class ServerUserDataStorage implements UserDataStorage {
                 removePage(this.local, this.instanceId, page);
             }
             this.retained.clear();
+            keepPages(this.tabStore, this.instanceId, this.tabId, []);
         }
         return saved;
     }
@@ -505,6 +508,9 @@ export class ServerUserDataStorage implements UserDataStorage {
             removePage(this.local, this.instanceId, page);
         } else {
             this.retained.add(page);
+            keepPages(this.tabStore, this.instanceId, this.tabId, [
+                ...this.retained,
+            ]);
         }
     }
 
