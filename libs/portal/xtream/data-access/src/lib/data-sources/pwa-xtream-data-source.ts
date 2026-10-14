@@ -807,6 +807,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             ids.some((id) => matchingKeys.has(id)) &&
             !this.collectionStorage.hasFavoriteIdentityConflict(
                 playlistId,
+                normalizedContentId
+            ) &&
+            !this.collectionStorage.hasFavoriteIdentityConflict(
+                playlistId,
                 normalizedContentId,
                 collectionRefIdentity(contentId)
             )

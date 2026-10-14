@@ -9,6 +9,12 @@ import {
 /** What the backfill needs off the store, kept structural to avoid a cycle */
 interface ContentMetadataBackfillStore {
     currentPlaylist: Signal<{ id: string } | null | undefined>;
+    checkFavoriteStatus?(
+        xtreamId: number,
+        playlistId: string,
+        contentType: 'movie' | 'series',
+        identity?: ContentMetadataPatch
+    ): Promise<void>;
     backfillContentMetadata(input: {
         xtreamId: number | string;
         contentType: 'live' | 'movie' | 'series';
@@ -61,6 +67,12 @@ export function registerContentMetadataBackfill(options: {
         }
 
         lastKey.set(key);
+        void options.store.checkFavoriteStatus?.(
+            xtreamId,
+            playlistId,
+            options.contentType,
+            patch
+        );
         void options.store.backfillContentMetadata({
             xtreamId,
             contentType: options.contentType,

@@ -113,6 +113,25 @@ describe('PWA favorite action and detail identity', () => {
             expect(await source.isFavorite(replacement, 'p1')).toBe(false);
             await source.removeFavorite(original, 'p1');
             expect(await source.getFavorites('p1')).toEqual([]);
+            reload();
+            const setItem = Storage.prototype.setItem;
+            const blocked = jest
+                .spyOn(Storage.prototype, 'setItem')
+                .mockImplementation(function (this: Storage, key, value) {
+                    if (key === 'xtream-collection-items')
+                        throw new DOMException('Full', 'QuotaExceededError');
+                    setItem.call(this, key, value);
+                });
+            await expect(
+                source.addFavorite(replacement, 'p1')
+            ).rejects.toThrow();
+            expect(read('xtream-favorites').p1).toEqual([]);
+            blocked.mockRestore();
+            await source.addFavorite(replacement, 'p1');
+            expect((await source.getFavorites('p1'))[0]).toMatchObject({
+                title: 'Replacement',
+                tmdb_id: 200,
+            });
         }
     );
 

@@ -129,6 +129,11 @@ independent of whether the catalog has hydrated. Status, add and remove compare
 that identity with the retained favorite; removal rechecks storage so a stale
 Recent heart cannot delete a different favorite. Explicit removal of the original
 row still works while the provider is showing a conflicting replacement.
+Movie/series detail hearts carry the displayed detail identity too, and metadata
+arrival refreshes their status without accepting stale lookup results. After
+explicit removal, a cold Recent save uses its independently stored matching
+snapshot; it persists that snapshot before the favorite reference. Missing
+compatible metadata or a required snapshot-write failure rejects the save.
 Detail metadata fills missing identity and presentation fields in the current PWA
 catalog row and reconciles each compatible saved snapshot separately. Identity-only
 patches also persist, so an initially sparse favorite gains protection before a

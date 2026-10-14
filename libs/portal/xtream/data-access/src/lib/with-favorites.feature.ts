@@ -2,7 +2,10 @@ import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { XTREAM_FAVORITE_IDENTITY_CONFLICT } from '@iptvnator/shared/interfaces';
+import {
+    type ContentMetadataPatch,
+    XTREAM_FAVORITE_IDENTITY_CONFLICT,
+} from '@iptvnator/shared/interfaces';
 import {
     patchState,
     signalStoreFeature,
@@ -25,119 +28,148 @@ export const withFavorites = function () {
                 runtime = inject(RuntimeCapabilitiesService),
                 snackBar = inject(MatSnackBar),
                 translate = inject(TranslateService)
-            ) => ({
-                async toggleFavorite(
-                    xtreamId: number | string,
-                    playlistId: string,
-                    contentType: 'live' | 'movie' | 'series',
-                    backdropUrl?: string
-                ) {
-                    const normalizedXtreamId = Number(xtreamId);
-                    if (
-                        !Number.isFinite(normalizedXtreamId) ||
-                        normalizedXtreamId <= 0 ||
-                        !playlistId
+            ) => {
+                let request = 0;
+                let activeTarget = '';
+                const publish = (owner: number, isFavorite: boolean) => {
+                    if (owner === request) patchState(store, { isFavorite });
+                };
+                return {
+                    async toggleFavorite(
+                        xtreamId: number | string,
+                        playlistId: string,
+                        contentType: 'live' | 'movie' | 'series',
+                        backdropUrl?: string,
+                        identity?: ContentMetadataPatch
                     ) {
-                        return false;
-                    }
-
-                    const content = await dataSource.getContentByXtreamId(
-                        normalizedXtreamId,
-                        playlistId,
-                        contentType
-                    );
-                    const contentId =
-                        content?.id ??
-                        (!runtime.supportsXtreamSqliteDataSource
-                            ? normalizedXtreamId
-                            : null);
-
-                    if (contentId == null) {
-                        logger.error(
-                            'Content not found for xtream ID',
-                            normalizedXtreamId
-                        );
-                        return false;
-                    }
-
-                    const currentStatus = await dataSource.isFavorite(
-                        { id: contentId, type: contentType },
-                        playlistId
-                    );
-
-                    if (currentStatus) {
-                        // Remove from favorites
-                        await dataSource.removeFavorite(
-                            { id: contentId, type: contentType },
-                            playlistId
-                        );
-                        patchState(store, { isFavorite: false });
-                        return false;
-                    } else {
-                        // Add to favorites
-                        try {
-                            await dataSource.addFavorite(
-                                { id: contentId, type: contentType },
-                                playlistId,
-                                backdropUrl
-                            );
-                        } catch (error) {
-                            patchState(store, { isFavorite: false });
-                            const key =
-                                error instanceof Error &&
-                                error.message ===
-                                    XTREAM_FAVORITE_IDENTITY_CONFLICT
-                                    ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
-                                    : 'PORTALS.FAVORITE_SAVE_FAILED';
-                            snackBar.open(translate.instant(key), undefined, {
-                                duration: 6000,
-                            });
+                        ++request;
+                        const normalizedXtreamId = Number(xtreamId);
+                        const targetKey = `${playlistId}:${contentType}:${normalizedXtreamId}`;
+                        activeTarget = targetKey;
+                        if (
+                            !Number.isFinite(normalizedXtreamId) ||
+                            normalizedXtreamId <= 0 ||
+                            !playlistId
+                        ) {
                             return false;
                         }
-                        patchState(store, { isFavorite: true });
-                        return true;
-                    }
-                },
 
-                async checkFavoriteStatus(
-                    xtreamId: number | string,
-                    playlistId: string,
-                    contentType: 'live' | 'movie' | 'series'
-                ) {
-                    const normalizedXtreamId = Number(xtreamId);
-                    if (
-                        !Number.isFinite(normalizedXtreamId) ||
-                        normalizedXtreamId <= 0 ||
-                        !playlistId
+                        const content = await dataSource.getContentByXtreamId(
+                            normalizedXtreamId,
+                            playlistId,
+                            contentType
+                        );
+                        const contentId =
+                            content?.id ??
+                            (!runtime.supportsXtreamSqliteDataSource
+                                ? normalizedXtreamId
+                                : null);
+
+                        if (contentId == null) {
+                            logger.error(
+                                'Content not found for xtream ID',
+                                normalizedXtreamId
+                            );
+                            return false;
+                        }
+
+                        const target = {
+                            id: contentId,
+                            type: contentType,
+                            ...(!runtime.supportsXtreamSqliteDataSource &&
+                            identity
+                                ? { identity }
+                                : {}),
+                        };
+                        const currentStatus = await dataSource.isFavorite(
+                            target,
+                            playlistId
+                        );
+                        let nextStatus = !currentStatus;
+                        try {
+                            if (currentStatus)
+                                await dataSource.removeFavorite(
+                                    target,
+                                    playlistId
+                                );
+                            else
+                                await dataSource.addFavorite(
+                                    target,
+                                    playlistId,
+                                    backdropUrl
+                                );
+                        } catch (error) {
+                            nextStatus = currentStatus;
+                            if (activeTarget === targetKey) {
+                                const key =
+                                    error instanceof Error &&
+                                    error.message ===
+                                        XTREAM_FAVORITE_IDENTITY_CONFLICT
+                                        ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
+                                        : 'PORTALS.FAVORITE_SAVE_FAILED';
+                                snackBar.open(
+                                    translate.instant(key),
+                                    undefined,
+                                    { duration: 6000 }
+                                );
+                            }
+                        }
+                        if (activeTarget === targetKey)
+                            publish(++request, nextStatus);
+                        return nextStatus;
+                    },
+
+                    async checkFavoriteStatus(
+                        xtreamId: number | string,
+                        playlistId: string,
+                        contentType: 'live' | 'movie' | 'series',
+                        identity?: ContentMetadataPatch
                     ) {
-                        patchState(store, { isFavorite: false });
-                        return;
-                    }
+                        const owner = ++request;
+                        const normalizedXtreamId = Number(xtreamId);
+                        const targetKey = `${playlistId}:${contentType}:${normalizedXtreamId}`;
+                        activeTarget = targetKey;
+                        if (
+                            !Number.isFinite(normalizedXtreamId) ||
+                            normalizedXtreamId <= 0 ||
+                            !playlistId
+                        ) {
+                            publish(owner, false);
+                            return;
+                        }
 
-                    const content = await dataSource.getContentByXtreamId(
-                        normalizedXtreamId,
-                        playlistId,
-                        contentType
-                    );
-                    const contentId =
-                        content?.id ??
-                        (!runtime.supportsXtreamSqliteDataSource
-                            ? normalizedXtreamId
-                            : null);
+                        const content = await dataSource.getContentByXtreamId(
+                            normalizedXtreamId,
+                            playlistId,
+                            contentType
+                        );
+                        const contentId =
+                            content?.id ??
+                            (!runtime.supportsXtreamSqliteDataSource
+                                ? normalizedXtreamId
+                                : null);
 
-                    if (contentId == null) {
-                        patchState(store, { isFavorite: false });
-                        return;
-                    }
+                        if (contentId == null) {
+                            publish(owner, false);
+                            return;
+                        }
 
-                    const isFavorite = await dataSource.isFavorite(
-                        { id: contentId, type: contentType },
-                        playlistId
-                    );
+                        const isFavorite = await dataSource.isFavorite(
+                            {
+                                id: contentId,
+                                type: contentType,
+                                ...(!runtime.supportsXtreamSqliteDataSource &&
+                                identity
+                                    ? { identity }
+                                    : {}),
+                            },
+                            playlistId
+                        );
 
-                    patchState(store, { isFavorite });
-                },
-            })
+                        publish(owner, isFavorite);
+                    },
+                };
+            }
         )
     );
 };

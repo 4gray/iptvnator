@@ -27,7 +27,32 @@ export function addPwaFavorite(
     const ids = (allFavorites[playlistId] ??= []);
     const matchingKeys = matchingKeysFor(ids);
     if (!ids.some((id) => matchingKeys.has(id))) {
-        prepareReplacement(storage, playlistId, key, current, backdropUrl);
+        const candidate = expected
+            ? [
+                  current,
+                  ...(storage
+                      .getRecentItemsFromStorage()
+                      [playlistId]?.map((entry) => entry.collectionItem) ?? []),
+                  ...Object.values(
+                      storage.getCollectionItemsFromStorage()[playlistId] ?? {}
+                  ),
+              ].find(
+                  (item) =>
+                      item &&
+                      itemCollectionKey(item) === key &&
+                      collectionSnapshotMatchesContent(expected, item)
+              )
+            : current;
+        if (expected && !candidate)
+            throw new Error('XTREAM_FAVORITE_SAVE_FAILED');
+        prepareReplacement(
+            storage,
+            playlistId,
+            key,
+            candidate,
+            backdropUrl,
+            candidate === current
+        );
         ids.push(key);
     }
     storage.saveFavoritesToStorage(allFavorites);
@@ -41,7 +66,8 @@ function prepareReplacement(
     playlistId: string,
     key: CollectionKey,
     current: XtreamContentItem | undefined,
-    backdropUrl?: string
+    backdropUrl?: string,
+    catalogEvidence = true
 ): void {
     if (!current) return;
     const allItems = storage.getCollectionItemsFromStorage();
@@ -50,12 +76,22 @@ function prepareReplacement(
         (storedKey) => itemCollectionKey(snapshots[storedKey]) === key
     );
     if (
-        keys.every((storedKey) =>
-            collectionSnapshotMatchesContent(snapshots[storedKey], current)
+        (keys.length > 0 || catalogEvidence) &&
+        keys.every(
+            (storedKey) =>
+                collectionSnapshotMatchesContent(
+                    snapshots[storedKey],
+                    current
+                ) &&
+                (catalogEvidence ||
+                    collectionSnapshotMatchesContent(
+                        current,
+                        snapshots[storedKey]
+                    ))
         )
     )
         return;
-    for (const storedKey of keys) {
+    for (const storedKey of new Set([...keys, String(key)])) {
         snapshots[storedKey] = {
             ...current,
             backdrop_url: current.backdrop_url || backdropUrl?.trim(),

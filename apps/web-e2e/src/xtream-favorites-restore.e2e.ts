@@ -39,11 +39,15 @@ for (const identity of ['missing', 'conflicting'] as const) {
         });
         await page.route('**/localhost:3000/xtream**', async (route) => {
             const original = new URL(route.request().url());
-            if (original.searchParams.get('action') !== 'get_vod_streams') {
+            const action = original.searchParams.get('action');
+            if (
+                action !== 'get_vod_streams' &&
+                !(action === 'get_vod_info' && identity === 'conflicting')
+            ) {
                 await route.fallback();
                 return;
             }
-            if (catalogOffline) {
+            if (catalogOffline && action === 'get_vod_streams') {
                 await route.abort();
                 return;
             }
@@ -52,9 +56,15 @@ for (const identity of ['missing', 'conflicting'] as const) {
                 if (key !== 'targetId') mockUrl.searchParams.set(key, value);
             });
             const response = await route.fetch({ url: mockUrl.toString() });
-            const body = (await response.json()) as {
-                payload: Record<string, unknown>[];
-            };
+            const body = await response.json();
+            if (action === 'get_vod_info') {
+                Object.assign(body.payload.info, {
+                    tmdb_id: 999,
+                    releasedate: '2026-01-01',
+                });
+                await route.fulfill({ response, json: body });
+                return;
+            }
             for (const item of body.payload) {
                 delete item['tmdb_id'];
                 delete item['release_year'];
@@ -233,6 +243,19 @@ for (const identity of ['missing', 'conflicting'] as const) {
                 'aria-disabled',
                 'true'
             );
+            await replacement.click();
+            const coldDetailAdd = page
+                .getByRole('button', { name: 'Add to favorites', exact: true })
+                .first();
+            await expect(coldDetailAdd).toBeVisible();
+            await coldDetailAdd.click();
+            await expect(
+                page.getByText(
+                    'This source replaced an item you saved. Remove the older entry from Favorites before adding this one.',
+                    { exact: true }
+                )
+            ).toBeVisible();
+            await expect(coldDetailAdd).toBeVisible();
             await page.goto('/workspace/settings/backup');
             const playedDownload = page.waitForEvent('download');
             await page
@@ -561,5 +584,18 @@ test('@xtream @collections a cold Recent heart cannot remove a different saved f
     await expect(original).toBeVisible();
     await original.hover();
     await original.locator('.favorite-button').click();
+    await expect(original).toHaveCount(0);
+    await page.goto('/workspace/global-recent');
+    await page.reload();
+    await expect(recent).toBeVisible();
+    await recent.hover();
+    await heart.click();
+    await expect(heart).toHaveAttribute('aria-pressed', 'true');
+    await page.goto('/workspace/global-favorites');
+    await expect(
+        page
+            .locator('app-channel-list-item')
+            .filter({ hasText: 'Viewed replacement channel' })
+    ).toBeVisible();
     await expect(original).toHaveCount(0);
 });

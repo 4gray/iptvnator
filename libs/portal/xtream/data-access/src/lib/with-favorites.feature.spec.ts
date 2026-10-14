@@ -67,6 +67,49 @@ describe('withFavorites', () => {
         });
     });
 
+    it('uses displayed detail identity for cold PWA status and toggle', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        dataSource.isFavorite.mockImplementation(
+            async (ref) => ref.identity?.tmdbId !== 200
+        );
+        const identity = { tmdbId: 200, releaseYear: 2026 };
+        await store.checkFavoriteStatus(42, 'playlist-1', 'movie', identity);
+        expect(store.isFavorite()).toBe(false);
+        await store.toggleFavorite(
+            42,
+            'playlist-1',
+            'movie',
+            undefined,
+            identity
+        );
+        expect(dataSource.removeFavorite).not.toHaveBeenCalled();
+        expect(dataSource.addFavorite).toHaveBeenCalledWith(
+            { id: 42, type: 'movie', identity },
+            'playlist-1',
+            undefined
+        );
+    });
+
+    it('does not let an earlier catalog-only check overwrite a newer detail check', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        let resolveOld!: (value: boolean) => void;
+        dataSource.isFavorite
+            .mockReturnValueOnce(
+                new Promise<boolean>((resolve) => {
+                    resolveOld = resolve;
+                })
+            )
+            .mockResolvedValueOnce(false);
+        const old = store.checkFavoriteStatus(42, 'playlist-1', 'movie');
+        await Promise.resolve();
+        await store.checkFavoriteStatus(42, 'playlist-1', 'movie', {
+            tmdbId: 200,
+        });
+        resolveOld(true);
+        await old;
+        expect(store.isFavorite()).toBe(false);
+    });
+
     it.each([
         [
             'XTREAM_FAVORITE_IDENTITY_CONFLICT',
