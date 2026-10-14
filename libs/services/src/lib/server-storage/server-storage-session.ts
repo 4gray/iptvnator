@@ -74,8 +74,14 @@ export class ServerStorageSession {
         effect(() => {
             // Gone offline, the token and writes wait for the instance
             // check: after a blip it passes at once, not at the next retry.
-            if (this.status.state() === 'offline') {
-                untracked(() => void this.refresh());
+            // Only the check: a read failing on its own waits for the retry.
+            if (
+                this.status.state() === 'offline' &&
+                !this.config.startedOffline
+            ) {
+                untracked(
+                    () => void this.ensureVerified().catch(() => undefined)
+                );
             }
         });
     }
@@ -164,6 +170,9 @@ export class ServerStorageSession {
     signOut(): void {
         clearServerAccessToken();
         this.status.reportUnauthorized();
+        // Also when signed out already: a guard (unsaved Settings) may have
+        // kept the page here the first time.
+        void this.router.navigateByUrl(SERVER_SIGN_IN_PATH);
     }
 
     private listen(): void {

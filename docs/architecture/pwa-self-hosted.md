@@ -336,7 +336,10 @@ settings and guards read them in every build.
   before sign-in sends the token. So does a page that went offline before
   its next read: until then it sends neither the token nor writes (a
   replaced volume at the same address is another database), and it checks
-  as soon as it goes offline, so a blip costs no retry interval. Both turn
+  the instance as soon as it goes offline, so a blip costs no retry
+  interval (only the instance: a read that keeps failing waits for the
+  retry). Sign-out always navigates to sign-in, also when a guard kept the
+  page the first time. Both turn
   the guard's 401 (`isServerAccessChallenge`) into `reportAccessDenied()`,
   as the storage API client does with any 401, so a token changed on the
   server sends an open page back to sign-in; a late 401 for a token

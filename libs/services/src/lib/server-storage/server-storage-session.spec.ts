@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistStorageBackend } from '../playlist-storage-backend';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
@@ -187,6 +187,21 @@ describe('ServerStorageSession', () => {
         delete (document as { visibilityState?: unknown }).visibilityState;
     });
 
+    it('goes to sign-in on every sign-out, also when already signed out', async () => {
+        const { session } = setup('none');
+        await session.start();
+        const navigate = jest
+            .spyOn(TestBed.inject(Router), 'navigateByUrl')
+            .mockResolvedValue(false);
+
+        session.signOut();
+        // A guard kept the page (unsaved Settings); the user signs out again.
+        session.signOut();
+
+        expect(navigate).toHaveBeenCalledTimes(2);
+        expect(navigate).toHaveBeenLastCalledWith('/server-sign-in');
+    });
+
     describe('after losing the server', () => {
         const answer = (body: unknown) => ({
             status: 200,
@@ -224,6 +239,30 @@ describe('ServerStorageSession', () => {
                 '/api/v1/user-state',
                 expect.anything()
             );
+        });
+
+        it('checks only the instance at once when it goes offline', async () => {
+            const { session, status } = setup('none');
+            await session.start();
+            // The instance answers, its user data does not.
+            fetchMock.mockImplementation(async (url: string) =>
+                url.endsWith('/instance')
+                    ? answer({ instanceId: 'i-1' })
+                    : { status: 503, ok: false, headers: new Headers() }
+            );
+            fetchMock.mockClear();
+
+            status.reportOffline();
+            TestBed.tick();
+            for (let turn = 0; turn < 10; turn += 1) {
+                await Promise.resolve();
+            }
+
+            expect(status.isVerified()).toBe(true);
+            // A failing read waits for the retry interval, not a loop.
+            expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+                '/api/v1/instance',
+            ]);
         });
 
         it('reloads when another instance answers at the address', async () => {
