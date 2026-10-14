@@ -10,7 +10,12 @@ import { replaySteps } from './server-user-data-edit';
 import type { UserDataWriteQueue } from './server-user-data-queue';
 import type { UserDataStorage } from '../user-data-storage';
 import type { DeferredEdit } from './server-user-data-edit';
-import { readDeferredEdits, readUnsentWrites } from './server-unsent-writes';
+import {
+    othersUnconfirmed,
+    readDeferredEdits,
+    readUnsentWrites,
+} from './server-unsent-writes';
+import type { UserDataCache } from './server-user-data-cache';
 
 /**
  * A closed tab's saved edits, ahead of this tab's own (which may have been
@@ -127,4 +132,36 @@ export async function settleWrites(
         await writes.flush();
     }
     return !unsent();
+}
+
+/**
+ * Another page load's saved writes and early edits, shown on what this tab
+ * shows now and queued with its writes (also when the cache shows them).
+ */
+export function adoptPageEdits(
+    writes: UserDataWriteQueue,
+    cache: UserDataCache,
+    from: {
+        readonly local: UserDataStorage;
+        readonly instanceId: string;
+        readonly tabId: string;
+        readonly page: string;
+    }
+): void {
+    const { local, instanceId, tabId, page } = from;
+    const foreign = othersUnconfirmed(local, instanceId, tabId);
+    for (const { namespace, playlistId, steps } of [
+        ...readDeferredEdits(local, instanceId, page),
+        ...readUnsentWrites(local, instanceId, page),
+    ]) {
+        const value = adoptEdits(
+            writes,
+            namespace,
+            playlistId,
+            cache.map(namespace)[playlistId],
+            steps,
+            foreign.has(`${namespace}|${playlistId}`)
+        );
+        cache.setEntry(namespace, playlistId, value);
+    }
 }

@@ -951,10 +951,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
      * Server mode: favorites, history and positions show the server's data
      * once its first read settled, which startup does not wait for beyond a
      * few seconds. A read before it would show a new device empty lists.
-     * Whether a read succeeded (always true outside server mode).
+     * Whether a read succeeded (always true outside server mode); `fresh`
+     * reads again first, for a restore that replaces the current lists.
      */
-    private async userDataRead(): Promise<boolean> {
-        return (await this.userDataStorage.ready?.()) ?? true;
+    private async userDataRead(fresh = false): Promise<boolean> {
+        return (await this.userDataStorage.ready?.(fresh)) ?? true;
     }
 
     private getPlaybackPositionsFromStorage(): Record<
@@ -1407,7 +1408,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         void options;
         // Its lists replace the server's: before the server's are read they
         // would merge into them instead. The restore stays parked.
-        if (!(await this.userDataRead())) {
+        if (!(await this.userDataRead(true))) {
             throw new Error(
                 "The server's user data could not be read yet; the restore waits."
             );

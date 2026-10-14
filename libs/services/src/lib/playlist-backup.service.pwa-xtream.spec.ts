@@ -288,6 +288,8 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
 
             const { manifest } = await service.exportBackup();
 
+            // A fresh read: another device may have changed them since.
+            expect(ready).toHaveBeenCalledWith(true);
             expect(ready).toHaveBeenCalledTimes(1);
             expect(xtreamEntry(manifest).userState.favorites).not.toEqual([]);
         });

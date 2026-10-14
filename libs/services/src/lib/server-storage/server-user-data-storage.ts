@@ -14,7 +14,7 @@ import {
     UNKNOWN_TAG,
 } from './server-user-data-entries';
 import {
-    adoptEdits,
+    adoptPageEdits,
     extendUnsent,
     restorePage,
     settleWrites,
@@ -36,8 +36,6 @@ import {
     orphanedPages,
     pageIsLive,
     othersUnconfirmed,
-    readDeferredEdits,
-    readUnsentWrites,
     removePage,
     saveDeferredEdits,
     saveUnsentWrites,
@@ -159,27 +157,12 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     /** Its edits go ahead of this tab's own, which may be newer. */
     private adoptPage(page: string): void {
-        const edits = [
-            ...readDeferredEdits(this.local, this.instanceId, page),
-            ...readUnsentWrites(this.local, this.instanceId, page),
-        ];
-        const foreign = othersUnconfirmed(
-            this.local,
-            this.instanceId,
-            this.tabId
-        );
-        for (const { namespace, playlistId, steps } of edits) {
-            // Queued even when the cache shows it already.
-            const value = adoptEdits(
-                this.writes,
-                namespace,
-                playlistId,
-                this.cache.map(namespace)[playlistId],
-                steps,
-                foreign.has(`${namespace}|${playlistId}`)
-            );
-            this.cache.setEntry(namespace, playlistId, value);
-        }
+        adoptPageEdits(this.writes, this.cache, {
+            local: this.local,
+            instanceId: this.instanceId,
+            tabId: this.tabId,
+            page,
+        });
         this.adopted.add(page);
         // The other page's copy goes only once this tab saved its own.
         this.release(page, this.saveUnsent());
@@ -232,9 +215,16 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     /**
      * Once a first read in flight settled: whether reads show the server's
-     * data. Starts no read, so an offline page is not held up.
+     * data. Starts no read, so an offline page is not held up; `fresh`
+     * (backups) reads the server again and tells whether that succeeded.
      */
-    async ready(): Promise<boolean> {
+    async ready(fresh = false): Promise<boolean> {
+        if (fresh) {
+            return this.hydrate().then(
+                () => true,
+                () => false
+            );
+        }
         await (this.hydrated ? undefined : this.hydration);
         return this.hydrated;
     }

@@ -1808,6 +1808,70 @@ describe('PlaylistsService', () => {
         expect(order).toEqual(['read', 'write', 'delete all', 'read', 'write']);
     });
 
+    it('lets a repair holding its reservation write before Delete All', async () => {
+        let releaseRepair: () => void = () => undefined;
+        const repairHeld = new Promise<void>(
+            (resolve) => (releaseRepair = resolve)
+        );
+        const request = jest.fn(
+            async <T>(
+                name: string,
+                options: LockOptions,
+                callback: (lock: Lock | null) => Promise<T>
+            ) => {
+                // The reset waits for the reservation a repair holds.
+                if (options.mode === 'exclusive') {
+                    await repairHeld;
+                }
+                return callback({
+                    name,
+                    mode: options.mode ?? 'exclusive',
+                } as Lock);
+            }
+        );
+        Object.defineProperty(globalThis.navigator, 'locks', {
+            configurable: true,
+            value: { request },
+        });
+        const electron = {
+            dbGetAppPlaylist: jest.fn(async () => ({
+                _id: 'p9',
+                title: 'P',
+                favorites: [],
+            })),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async (key: string) =>
+                key === SQLITE_PLAYLIST_MIGRATION_FLAG ? '1' : null
+            ),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(async () => undefined),
+            dbUpsertAppPlaylists: jest.fn(),
+            dbDeleteAllPlaylists: jest.fn(async () => undefined),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+        const settle = async () => {
+            for (let i = 0; i < 50; i += 1) {
+                await Promise.resolve();
+            }
+        };
+
+        const removed = firstValueFrom(service.removeAll());
+        // The repair's conditional row write, under its reservation.
+        let written = false;
+        const repair = firstValueFrom(
+            service.transformPlaylistFavorites('p9', (f) => [...f, 'a'])
+        ).then(() => (written = true));
+        await settle();
+
+        expect(written).toBe(true);
+        expect(electron.dbDeleteAllPlaylists).not.toHaveBeenCalled();
+        releaseRepair();
+        await repair;
+        await removed;
+        expect(electron.dbDeleteAllPlaylists).toHaveBeenCalled();
+    });
+
     it('runs a mutation again on a fresh read when the server refused it', async () => {
         const versions = [
             { _id: 'p9', title: 'P', favorites: ['a'] },

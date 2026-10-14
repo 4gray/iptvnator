@@ -594,6 +594,22 @@ describe('ServerUserDataStorage', () => {
         expect(api.getJson).toHaveBeenCalledTimes(2);
     });
 
+    it('reads the server again when a backup asks for fresh data', async () => {
+        const { api, storage } = setup();
+        await storage.hydrate();
+        api.getJson.mockClear();
+
+        // Another device may have changed it since: read again.
+        await expect(storage.ready(true)).resolves.toBe(true);
+        expect(api.getJson).toHaveBeenCalledTimes(1);
+
+        api.getJson.mockRejectedValueOnce(new Error('offline'));
+        await expect(storage.ready(true)).resolves.toBe(false);
+        // Without `fresh` an earlier read is enough.
+        await expect(storage.ready()).resolves.toBe(true);
+        expect(api.getJson).toHaveBeenCalledTimes(2);
+    });
+
     it("never writes over another server instance's cache", async () => {
         const local = memoryStorage();
         const tab = (instanceId: string, favorites: unknown) =>

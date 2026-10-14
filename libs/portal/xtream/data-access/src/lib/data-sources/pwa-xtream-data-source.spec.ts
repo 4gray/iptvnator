@@ -1021,7 +1021,7 @@ describe('PwaXtreamDataSource', () => {
                 removeItem: (key: string) => {
                     values.delete(key);
                 },
-                ready: async () => false,
+                ready: jest.fn(async () => false),
             };
             TestBed.resetTestingModule();
             TestBed.configureTestingModule({
@@ -1043,6 +1043,8 @@ describe('PwaXtreamDataSource', () => {
                     playbackPositions: [],
                 } as never)
             ).rejects.toThrow(/restore waits/);
+            // A fresh read: the restore replaces the current lists.
+            expect(storage.ready).toHaveBeenCalledWith(true);
             expect(values.get('xtream-favorites')).toBe(
                 JSON.stringify({ p1: ['live:1'] })
             );

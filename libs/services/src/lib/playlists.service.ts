@@ -1342,34 +1342,39 @@ export class PlaylistsService {
     }
 
     removeAll(): Observable<void> {
-        // Writes already queued land first; new ones wait for the delete.
-        return defer(() => {
-            const pending = [...this.playlistWriteQueues.values()];
-            const run = Promise.all(pending).then(() => this.removeAllNow());
-            this.deletingAll = run.then(
-                () => undefined,
-                () => undefined
-            );
-            return run;
-        });
+        // Inside the exclusive authority reset: a Stalker repair already
+        // holding its reservation finishes its write first (blocking it here
+        // would deadlock). Then writes queued so far land, and new ones wait
+        // for the delete.
+        return defer(() =>
+            runWithPlaylistAuthorityReset(async () => {
+                const pending = [...this.playlistWriteQueues.values()];
+                let deleted: () => void = () => undefined;
+                this.deletingAll = new Promise<void>(
+                    (resolve) => (deleted = resolve)
+                );
+                try {
+                    await Promise.all(pending);
+                    await this.deleteAllRows();
+                } finally {
+                    deleted();
+                }
+            })
+        );
     }
 
-    private removeAllNow(): Promise<void> {
-        return runWithPlaylistAuthorityReset(async () => {
-            if (this.usesDocumentStore) {
-                await this.ensureElectronPlaylistMigrations();
-                const store = this.documentStore;
-                if (store) {
-                    this.startupMetas = null;
-                    await store.dbDeleteAllPlaylists();
-                    this.healthEvidence?.connections.next({});
-                }
-                return undefined;
+    private async deleteAllRows(): Promise<void> {
+        if (this.usesDocumentStore) {
+            await this.ensureElectronPlaylistMigrations();
+            const store = this.documentStore;
+            if (store) {
+                this.startupMetas = null;
+                await store.dbDeleteAllPlaylists();
+                this.healthEvidence?.connections.next({});
             }
-
-            await firstValueFrom(this.dbService.clear(DbStores.Playlists));
-            return undefined;
-        });
+            return;
+        }
+        await firstValueFrom(this.dbService.clear(DbStores.Playlists));
     }
 
     private normalizePortalRecentIdentity(value: unknown): string {

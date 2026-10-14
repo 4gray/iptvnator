@@ -264,8 +264,9 @@ settings and guards read them in every build.
   succeeded. The Xtream data source's favorites, favorite checks, history
   and position reads wait for it, so a new device does not show empty
   lists or start playback without its resume position. A backup export or
-  restore (also its replay when the playlist opens) fails while no read
-  succeeded: unread maps would export as empty lists, and a restore's lists
+  restore (also its replay when the playlist opens) reads the server again
+  first (`ready(true)`: another device may have changed the lists since) and
+  fails when that read does not succeed: unread maps would export as empty lists, and a restore's lists
   would merge into the server's instead of replacing them (the restore
   stays parked). A restore also counts only once the server took that
   playlist's lists (`UserDataStorage.flushed`); a refused one stays parked. Replayed edits keep recently viewed lists newest first,

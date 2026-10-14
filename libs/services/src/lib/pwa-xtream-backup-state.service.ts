@@ -38,7 +38,9 @@ export class PwaXtreamBackupStateService {
      * restore's replacement lists would merge into the server's instead.
      */
     async ready(): Promise<void> {
-        if ((await this.storage.ready?.()) === false) {
+        // Read again: another device may have changed them since this
+        // page's first read, and a restore must replace the current lists.
+        if ((await this.storage.ready?.(true)) === false) {
             throw new Error(
                 "The server's user data could not be read yet; try again once the server answers."
             );

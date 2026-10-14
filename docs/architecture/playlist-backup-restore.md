@@ -252,9 +252,10 @@ self-hosted server storage is covered too.
   browser tracks neither.
 - An unreadable map (storage error, malformed JSON, a playlist entry that is
   not a list) fails the export instead of being written as an empty list.
-  So does server mode before its first read of the server's user data:
-  the export waits for a read in flight (`UserDataStorage.ready`) and fails
-  when none succeeded. A restore does the same and stays parked, since its
+  So does server mode when it cannot read the server's user data: the
+  export reads it again (`UserDataStorage.ready(true)`, as another device
+  may have changed it since this page's first read) and fails when that
+  read does not succeed. A restore does the same and stays parked, since its
   replacement lists would otherwise merge into the server's; it also stays
   parked until the server took that playlist's lists.
 - A pending restore snapshot still wins over the stored maps, as on desktop.
