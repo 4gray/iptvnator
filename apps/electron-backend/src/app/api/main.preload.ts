@@ -996,13 +996,15 @@ const electronApi: ElectronBridgeApi = {
     dbGetContentByXtreamId: (
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch
     ) =>
         ipcRenderer.invoke(
             'DB_GET_CONTENT_BY_XTREAM_ID',
             xtreamId,
             playlistId,
-            contentType
+            contentType,
+            ...(identity ? [identity] : [])
         ),
     dbSetContentMetadataIfMissing: (
         contentId: number,

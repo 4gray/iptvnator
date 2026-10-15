@@ -107,10 +107,13 @@ function prepareReplacement(
         return { ...entry, collectionItem: saved };
     });
     if (detached)
-        storage.saveRecentItemsToStorage({
-            ...allRecent,
-            [playlistId]: recent,
-        });
+        storage.saveRecentItemsToStorage(
+            {
+                ...allRecent,
+                [playlistId]: recent,
+            },
+            { userEdit: false }
+        );
 
     for (const storedKey of new Set([...keys, String(key)])) {
         snapshots[storedKey] = {

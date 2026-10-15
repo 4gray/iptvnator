@@ -67,6 +67,71 @@ describe('withFavorites', () => {
         });
     });
 
+    it('reports a conflict without mutating when every SQLite duplicate contradicts the detail identity', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (_id, _playlist, _type, identity) =>
+                identity ? null : { id: 1 }
+        );
+        await store.toggleFavorite(42, 'p1', 'movie', undefined, {
+            tmdbId: 100,
+        });
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'PORTALS.FAVORITE_IDENTITY_CONFLICT',
+            undefined,
+            { duration: 6000 }
+        );
+        expect(dataSource.addFavorite).not.toHaveBeenCalled();
+        expect(dataSource.removeFavorite).not.toHaveBeenCalled();
+    });
+
+    it('does not publish a late toggle into a different displayed duplicate identity', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        let resolveOld!: (value: { id: number }) => void;
+        const old = new Promise<{ id: number }>((resolve) => {
+            resolveOld = resolve;
+        });
+        dataSource.getContentByXtreamId.mockImplementation(
+            (_id, _playlist, _type, identity) =>
+                identity?.tmdbId === 100 ? old : Promise.resolve({ id: 2 })
+        );
+        const toggling = store.toggleFavorite(42, 'p1', 'movie', undefined, {
+            tmdbId: 100,
+        });
+        await store.checkFavoriteStatus(42, 'p1', 'movie', { tmdbId: 200 });
+        resolveOld({ id: 1 });
+        await toggling;
+        expect(dataSource.addFavorite).toHaveBeenCalledWith(
+            { id: 1, type: 'movie' },
+            'p1',
+            undefined
+        );
+        expect(store.isFavorite()).toBe(false);
+    });
+
+    it('resolves the displayed SQLite identity for status and toggle across conflicting duplicates', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (_id, _playlist, _type, identity) => ({
+                id: identity?.tmdbId === 100 ? 2 : 1,
+            })
+        );
+        dataSource.isFavorite.mockImplementation(async (ref) => ref.id === 2);
+        await store.checkFavoriteStatus(42, 'p1', 'movie', {
+            tmdbId: 100,
+            releaseYear: 1995,
+        });
+        expect(store.isFavorite()).toBe(true);
+        await store.toggleFavorite(42, 'p1', 'movie', undefined, {
+            tmdbId: 100,
+            releaseYear: 1995,
+        });
+        expect(dataSource.removeFavorite).toHaveBeenCalledWith(
+            { id: 2, type: 'movie' },
+            'p1'
+        );
+    });
+
     it('uses displayed detail identity for cold PWA status and toggle', async () => {
         dataSource.getContentByXtreamId.mockResolvedValue(null);
         dataSource.isFavorite.mockImplementation(

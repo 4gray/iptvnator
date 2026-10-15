@@ -50,30 +50,33 @@ export function enrichPwaContentMetadata(
     const allRecent = storage.getRecentItemsFromStorage();
     const recent = allRecent[playlistId];
     if (recent) {
-        storage.saveRecentItemsToStorage({
-            ...allRecent,
-            [playlistId]: recent.map((entry) => {
-                const saved =
-                    entry.collectionItem ?? snapshots[String(entry.id)];
-                if (
-                    entry.id !== key &&
-                    (!saved || itemCollectionKey(saved) !== key)
-                )
-                    return entry;
-                const resolved = saved
-                    ? mergeCollectionItem(saved, enriched)
-                    : enriched;
-                return {
-                    ...entry,
-                    ...(entry.collectionItem
-                        ? { collectionItem: resolved }
-                        : {}),
-                    ...(resolved.backdrop_url && !entry.backdropUrl
-                        ? { backdropUrl: resolved.backdrop_url }
-                        : {}),
-                };
-            }),
-        });
+        storage.saveRecentItemsToStorage(
+            {
+                ...allRecent,
+                [playlistId]: recent.map((entry) => {
+                    const saved =
+                        entry.collectionItem ?? snapshots[String(entry.id)];
+                    if (
+                        entry.id !== key &&
+                        (!saved || itemCollectionKey(saved) !== key)
+                    )
+                        return entry;
+                    const resolved = saved
+                        ? mergeCollectionItem(saved, enriched)
+                        : enriched;
+                    return {
+                        ...entry,
+                        ...(entry.collectionItem
+                            ? { collectionItem: resolved }
+                            : {}),
+                        ...(resolved.backdrop_url && !entry.backdropUrl
+                            ? { backdropUrl: resolved.backdrop_url }
+                            : {}),
+                    };
+                }),
+            },
+            { userEdit: false }
+        );
     }
     return enriched;
 }
@@ -118,27 +121,32 @@ function enrichColdRecent(
     const identity = { tmdb_id: patch.tmdbId, release_year: patch.releaseYear };
     const recent = allRecent[playlistId];
     if (!recent) return;
-    storage.saveRecentItemsToStorage({
-        ...allRecent,
-        [playlistId]: recent.map((entry) => {
-            const saved = entry.collectionItem ?? snapshots[String(entry.id)];
-            if (
-                !saved ||
-                itemCollectionKey(saved) !== key ||
-                !collectionSnapshotMatchesContent(saved, identity, true)
-            )
-                return entry;
-            const known = normalizeCollectionIdentity(saved);
-            return {
-                ...entry,
-                collectionItem: {
-                    ...saved,
-                    tmdb_id: known.tmdb_id ?? patch.tmdbId,
-                    release_year: known.release_year ?? patch.releaseYear,
-                    original_title: saved.original_title || patch.originalTitle,
-                    backdrop_url: saved.backdrop_url || patch.backdropUrl,
-                },
-            };
-        }),
-    });
+    storage.saveRecentItemsToStorage(
+        {
+            ...allRecent,
+            [playlistId]: recent.map((entry) => {
+                const saved =
+                    entry.collectionItem ?? snapshots[String(entry.id)];
+                if (
+                    !saved ||
+                    itemCollectionKey(saved) !== key ||
+                    !collectionSnapshotMatchesContent(saved, identity, true)
+                )
+                    return entry;
+                const known = normalizeCollectionIdentity(saved);
+                return {
+                    ...entry,
+                    collectionItem: {
+                        ...saved,
+                        tmdb_id: known.tmdb_id ?? patch.tmdbId,
+                        release_year: known.release_year ?? patch.releaseYear,
+                        original_title:
+                            saved.original_title || patch.originalTitle,
+                        backdrop_url: saved.backdrop_url || patch.backdropUrl,
+                    },
+                };
+            }),
+        },
+        { userEdit: false }
+    );
 }

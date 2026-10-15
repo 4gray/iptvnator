@@ -89,7 +89,11 @@ history and saved positions remain intact. Parental locks still gate display: an
 unresolved category cannot prove that it is unlocked, so those records remain
 stored but are withheld while locks apply. For duplicate category copies, ordinary
 reads choose an unlocked compatible row before resolving the catalog link; a
-locked earlier copy cannot hide a later unlocked copy. Fully confirming duplicates
+locked earlier copy cannot hide a later unlocked copy. Detail favorite status, mutations and Recent recording carry the displayed normalized
+TMDB/year through the worker lookup. That lookup excludes known conflicts and ranks
+full confirmation before sparse compatible duplicates; omitted identity keeps legacy
+lookup behavior. Async detail status ownership includes identity as well as typed provider
+ID, so a late toggle cannot update a different displayed replacement. Fully confirming duplicates
 rank before sparse compatible rows, with the catalog row ID breaking ties, so a
 confirmed return can refresh saved artwork in reads, completed imports and exports. Backup reads remain
 unfiltered.
@@ -237,7 +241,10 @@ and cannot undo later removals, reordering, history updates or playback progress
 A bounded per-playlist receipt remembers the imported keys still owned by the
 archive. Explicit removal shrinks that set atomically, requiring no extra quota
 space for a tombstone; a later re-add owns its current snapshot. Catalog hydration and
-detail/cache normalization never count as an explicit replacement. Remaining
+detail/cache normalization never count as an explicit replacement. Automatic Recent
+reads/enrichment cannot append remote history to an unconfirmed server restore target;
+they may only detach metadata for a legacy row already owned by that target. Actual
+Play, removals and reordering remain explicit user edits. Remaining
 metadata retries therefore preserve genuine user replacements without discarding
 parked archived identity after an ordinary read. Pending exports combine current
 applied lists with authoritative archived snapshots, dates and positions for

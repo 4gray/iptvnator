@@ -1,3 +1,4 @@
+import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -89,10 +90,17 @@ async function saveWithoutListRefresh(
     if (!Number.isFinite(id) || id <= 0) {
         return;
     }
+    const identity = playedContent
+        ? normalizeContentMetadataPatch({
+              tmdbId: playedContent.tmdbId ?? undefined,
+              releaseYear: playedContent.releaseYear ?? undefined,
+          })
+        : null;
     const content = await dataSource.getContentByXtreamId(
         id,
         playlistId,
-        contentType
+        contentType,
+        ...(!keysByXtreamId && identity ? [identity] : [])
     );
     const contentId = content?.id ?? (keysByXtreamId ? id : null);
     if (contentId != null) {

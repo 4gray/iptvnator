@@ -547,12 +547,14 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async getContentByXtreamId(
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch
     ): Promise<XtreamContentItem | null> {
         return this.dbService.getContentByXtreamId(
             xtreamId,
             playlistId,
-            contentType
+            contentType,
+            ...(identity ? [identity] : [])
         );
     }
 

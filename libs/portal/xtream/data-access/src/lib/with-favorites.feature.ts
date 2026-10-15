@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import {
     type ContentMetadataPatch,
+    normalizeContentMetadataPatch,
     XTREAM_FAVORITE_IDENTITY_CONFLICT,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -14,6 +15,16 @@ import {
 } from '@ngrx/signals';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
+
+const favoriteTargetKey = (
+    playlistId: string,
+    type: string,
+    id: number,
+    identity?: ContentMetadataPatch
+) => {
+    const patch = identity ? normalizeContentMetadataPatch(identity) : null;
+    return `${playlistId}:${type}:${id}:${patch?.tmdbId ?? ''}:${patch?.releaseYear ?? ''}`;
+};
 
 export const withFavorites = function () {
     const logger = createLogger('withFavorites');
@@ -44,7 +55,12 @@ export const withFavorites = function () {
                     ) {
                         ++request;
                         const normalizedXtreamId = Number(xtreamId);
-                        const targetKey = `${playlistId}:${contentType}:${normalizedXtreamId}`;
+                        const targetKey = favoriteTargetKey(
+                            playlistId,
+                            contentType,
+                            normalizedXtreamId,
+                            identity
+                        );
                         activeTarget = targetKey;
                         if (
                             !Number.isFinite(normalizedXtreamId) ||
@@ -57,7 +73,11 @@ export const withFavorites = function () {
                         const content = await dataSource.getContentByXtreamId(
                             normalizedXtreamId,
                             playlistId,
-                            contentType
+                            contentType,
+                            ...(runtime.supportsXtreamSqliteDataSource &&
+                            identity
+                                ? [identity]
+                                : [])
                         );
                         const contentId =
                             content?.id ??
@@ -66,6 +86,26 @@ export const withFavorites = function () {
                                 : null);
 
                         if (contentId == null) {
+                            // A typed identity filter can reject all existing copies.
+                            // Preserve the conflict feedback without mutating a contrary row.
+                            const candidate =
+                                identity &&
+                                runtime.supportsXtreamSqliteDataSource
+                                    ? await dataSource.getContentByXtreamId(
+                                          normalizedXtreamId,
+                                          playlistId,
+                                          contentType
+                                      )
+                                    : null;
+                            if (candidate && activeTarget === targetKey) {
+                                snackBar.open(
+                                    translate.instant(
+                                        'PORTALS.FAVORITE_IDENTITY_CONFLICT'
+                                    ),
+                                    undefined,
+                                    { duration: 6000 }
+                                );
+                            }
                             logger.error(
                                 'Content not found for xtream ID',
                                 normalizedXtreamId
@@ -127,7 +167,12 @@ export const withFavorites = function () {
                     ) {
                         const owner = ++request;
                         const normalizedXtreamId = Number(xtreamId);
-                        const targetKey = `${playlistId}:${contentType}:${normalizedXtreamId}`;
+                        const targetKey = favoriteTargetKey(
+                            playlistId,
+                            contentType,
+                            normalizedXtreamId,
+                            identity
+                        );
                         activeTarget = targetKey;
                         if (
                             !Number.isFinite(normalizedXtreamId) ||
@@ -141,7 +186,11 @@ export const withFavorites = function () {
                         const content = await dataSource.getContentByXtreamId(
                             normalizedXtreamId,
                             playlistId,
-                            contentType
+                            contentType,
+                            ...(runtime.supportsXtreamSqliteDataSource &&
+                            identity
+                                ? [identity]
+                                : [])
                         );
                         const contentId =
                             content?.id ??

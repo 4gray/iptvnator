@@ -1,3 +1,4 @@
+import { verifyCompatibleFavoriteActions } from './favorites-compatible-actions';
 import { verifyFavoriteRefresh } from './favorites-refresh';
 import { verifyFavoriteConflictLatch } from './favorites-conflict-latch';
 import assert from 'node:assert/strict';
@@ -51,7 +52,9 @@ async function main() {
     await addFavorite(db, 1, 'p');
     const [original] = await favorites();
     const scenario = process.argv[2];
-    if (scenario === 'conflict-latch') {
+    if (scenario === 'compatible-actions') {
+        await verifyCompatibleFavoriteActions(db);
+    } else if (scenario === 'conflict-latch') {
         await verifyFavoriteConflictLatch(db);
     } else if (scenario === 'conflict-migration') {
         await db.run(sql`ALTER TABLE favorites DROP COLUMN identity_conflict`);

@@ -427,7 +427,8 @@ export interface IXtreamDataSource {
     getContentByXtreamId(
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch
     ): Promise<XtreamContentItem | null>;
 
     /**

@@ -14,6 +14,7 @@ import {
     sourceRowByTitle,
     test,
     waitForXtreamWorkspaceReady,
+    xtreamMockServer,
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
 import { fetchXtreamVodFixture, getXtreamTitle } from './portal-mock-fixtures';
@@ -81,6 +82,25 @@ for (const identityKnown of [true, false]) {
         const credentials = { username: 'minimal', password: 'minimal' };
         const fixture = await fetchXtreamVodFixture(request, credentials);
         const item = fixture.items[0];
+        // Catalog evidence and the actual detail response describe the same current replacement.
+        const response = await request.get(
+            `${xtreamMockServer}/player_api.php`,
+            {
+                params: {
+                    ...credentials,
+                    action: 'get_vod_info',
+                    vod_id: String(item.stream_id),
+                },
+            }
+        );
+        expect(response.ok()).toBe(true);
+        const detail = await response.json();
+        const currentIdentity = {
+            tmdbId: Number(detail.info.tmdb_id),
+            releaseYear: Number(String(detail.info.releasedate).slice(0, 4)),
+        };
+        expect(currentIdentity.tmdbId).toBeGreaterThan(0);
+        expect(currentIdentity.releaseYear).toBeGreaterThan(1900);
         const title = getXtreamTitle(item);
         const sourceTitle = 'Favorite identity conflict';
         const oldTitle = 'Older saved movie';
@@ -106,7 +126,13 @@ for (const identityKnown of [true, false]) {
             // Seed an old snapshot and conflicting current metadata via the real
             // worker bridge. The subsequent save/removal runs through the UI.
             await app.mainWindow.evaluate(
-                async ({ playlistId, xtreamId, oldTitle, identityKnown }) => {
+                async ({
+                    playlistId,
+                    xtreamId,
+                    oldTitle,
+                    identityKnown,
+                    currentIdentity,
+                }) => {
                     const row = await window.electron.dbGetContentByXtreamId(
                         xtreamId,
                         playlistId,
@@ -149,10 +175,7 @@ for (const identityKnown of [true, false]) {
                     const metadata =
                         await window.electron.dbSetContentMetadataIfMissing(
                             row.id,
-                            {
-                                tmdbId: 12345,
-                                releaseYear: 2000,
-                            }
+                            currentIdentity
                         );
                     if (!metadata.success)
                         throw new Error('Could not set current movie identity');
@@ -162,6 +185,7 @@ for (const identityKnown of [true, false]) {
                     xtreamId: Number(item.stream_id),
                     oldTitle,
                     identityKnown,
+                    currentIdentity,
                 }
             );
             const [before] = await readSavedFavorites(
@@ -234,6 +258,10 @@ for (const identityKnown of [true, false]) {
                 playlistId
             );
             expect(saved.title).toBe(title);
+            expect(saved).toMatchObject({
+                tmdb_id: currentIdentity.tmdbId,
+                release_year: currentIdentity.releaseYear,
+            });
             expect(saved.id).not.toBeNull();
             expect(saved.favorite_id).not.toBe(before.favorite_id);
         } finally {
@@ -472,6 +500,116 @@ test('@critical @persistence @xtream @electron keeps known conflicts through spa
         expect(confirmed.catalog_status).toBe('present');
         expect(confirmed.favorite_id).toBe(before.favorite_id);
         expect(confirmed.added_at).toBe(before.added_at);
+    } finally {
+        if (app) await closeElectronApp(app);
+        await proxy.close();
+    }
+});
+
+test('@critical @persistence @xtream @electron detail hearts use the displayed compatible duplicate', async ({
+    dataDir,
+    request,
+}) => {
+    test.setTimeout(90_000);
+    await resetMockServers(request, ['xtream']);
+    const credentials = { username: 'minimal', password: 'minimal' };
+    const fixture = await fetchXtreamVodFixture(request, credentials);
+    const xtreamId = Number(fixture.items[0].stream_id);
+    const proxy = await createFavoritesCatalogProxy();
+    proxy.setMode({ kind: 'duplicate', xtreamId });
+    let app: LaunchedElectronApp | undefined;
+    try {
+        app = await launchElectronApp(dataDir);
+        await addXtreamPortal(app.mainWindow, {
+            ...credentials,
+            name: 'Compatible duplicate source',
+            serverUrl: proxy.origin,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        const playlistId = /\/xtreams\/([^/]+)/.exec(
+            new URL(app.mainWindow.url()).pathname
+        )?.[1];
+        if (!playlistId) throw new Error('Missing playlist route');
+        await app.mainWindow
+            .getByRole('link', { name: 'Movies', exact: true })
+            .click();
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        const compatibleId = await app.mainWindow.evaluate(
+            async ({ playlistId, xtreamId }) => {
+                const first = await window.electron.dbGetContentByXtreamId(
+                    xtreamId,
+                    playlistId,
+                    'movie'
+                );
+                const rows = await window.electron.dbSearchContent(
+                    playlistId,
+                    'Compatible duplicate movie',
+                    ['movie']
+                );
+                const compatible = rows.find(
+                    (row) => row.xtream_id === xtreamId
+                );
+                if (!first || !compatible || first.id === compatible.id)
+                    throw new Error('Missing distinct duplicate rows');
+                await window.electron.dbSetContentMetadataIfMissing(first.id, {
+                    tmdbId: 200,
+                    releaseYear: 2000,
+                });
+                await window.electron.dbSetContentMetadataIfMissing(
+                    compatible.id,
+                    { tmdbId: 100, releaseYear: 1995 }
+                );
+                await window.electron.dbRestoreXtreamFavorites(playlistId, [
+                    {
+                        xtreamId,
+                        contentType: 'movie',
+                        snapshot: {
+                            title: 'Saved original',
+                            tmdbId: 100,
+                            releaseYear: 1995,
+                        },
+                    },
+                ]);
+                await window.electron.dbSetAppState(
+                    `xtream-import-status:${playlistId}:movie`,
+                    'completed'
+                );
+                return compatible.id;
+            },
+            { playlistId, xtreamId }
+        );
+        await openWorkspaceSection(app.mainWindow, 'Global favorites');
+        await contentCardByTitle(
+            app.mainWindow,
+            'Compatible duplicate movie'
+        ).click();
+        const hero = app.mainWindow.locator('app-content-hero');
+        await expect(
+            hero.getByRole('button', {
+                name: 'Remove from favorites',
+                exact: true,
+            })
+        ).toBeVisible();
+        await hero
+            .getByRole('button', { name: 'Remove from favorites', exact: true })
+            .click();
+        expect(await readSavedFavorites(app.mainWindow, playlistId)).toEqual(
+            []
+        );
+        await hero
+            .getByRole('button', { name: 'Add to favorites', exact: true })
+            .click();
+        const [saved] = await readSavedFavorites(app.mainWindow, playlistId);
+        expect(saved).toMatchObject({
+            id: compatibleId,
+            tmdb_id: 100,
+            release_year: 1995,
+        });
+        app = await restartElectronApp(app, dataDir);
+        await openWorkspaceSection(app.mainWindow, 'Global favorites');
+        expect(
+            (await readSavedFavorites(app.mainWindow, playlistId))[0].id
+        ).toBe(compatibleId);
     } finally {
         if (app) await closeElectronApp(app);
         await proxy.close();

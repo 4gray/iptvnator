@@ -302,9 +302,8 @@ export class DatabaseService {
         restoreId?: string
     ): Promise<void> {
         if (favorites.length === 0) return;
-        const { assertXtreamFavoriteRestoreSupported } = await import(
-            './xtream-pending-favorites'
-        );
+        const { assertXtreamFavoriteRestoreSupported } =
+            await import('./xtream-pending-favorites');
         assertXtreamFavoriteRestoreSupported(window.electron);
         const result = await window.electron.dbRestoreXtreamFavorites(
             playlistId,
@@ -1055,17 +1054,32 @@ export class DatabaseService {
     async getContentByXtreamId(
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch
     ): Promise<XtreamContent | null> {
         if (typeof window.electron?.dbGetContentByXtreamId !== 'function') {
             return null;
         }
 
+        const normalized = normalizeContentMetadataPatch(identity);
+        const selector =
+            normalized &&
+            (normalized.tmdbId != null || normalized.releaseYear != null)
+                ? {
+                      ...(normalized.tmdbId != null
+                          ? { tmdbId: normalized.tmdbId }
+                          : {}),
+                      ...(normalized.releaseYear != null
+                          ? { releaseYear: normalized.releaseYear }
+                          : {}),
+                  }
+                : undefined;
         try {
             return await window.electron.dbGetContentByXtreamId(
                 xtreamId,
                 playlistId,
-                contentType
+                contentType,
+                ...(selector ? [selector] : [])
             );
         } catch (error) {
             console.error('Error getting content by xtream ID:', error);

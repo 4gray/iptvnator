@@ -1,5 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    PlaylistsService,
+    USER_DATA_STORAGE,
+    type UserDataStorage,
+} from '@iptvnator/services';
 import { PwaXtreamBackupStorage } from '@iptvnator/services/pwa-xtream-backup-storage';
 import { of } from 'rxjs';
 import { XtreamApiService } from '../services/xtream-api.service';
@@ -16,11 +21,14 @@ const read = (key: string) => JSON.parse(localStorage.getItem(key) ?? '{}');
 describe('PWA favorite action and detail identity', () => {
     let source: PwaXtreamDataSource;
     const api = { getStreams: jest.fn() };
-    const reload = () => {
+    const reload = (storage?: UserDataStorage) => {
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({
             providers: [
                 PwaXtreamDataSource,
+                ...(storage
+                    ? [{ provide: USER_DATA_STORAGE, useValue: storage }]
+                    : []),
                 { provide: XtreamApiService, useValue: api },
                 {
                     provide: PlaylistsService,
@@ -53,6 +61,178 @@ describe('PWA favorite action and detail identity', () => {
         jest.restoreAllMocks();
         localStorage.clear();
     });
+
+    it('detaches target-owned legacy Recent metadata while server confirmation is pending', async () => {
+        let allowed = false;
+        const storage = {
+            getItem: (key: string) => localStorage.getItem(key),
+            setItem: (key: string, value: string) =>
+                localStorage.setItem(key, value),
+            removeItem: (key: string) => localStorage.removeItem(key),
+            ready: async () => true,
+            flushed: async () => allowed || !read('xtream-favorites').p1,
+        };
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify({
+                p1: {
+                    'movie:42': {
+                        id: 42,
+                        xtream_id: 42,
+                        type: 'movie',
+                        title: 'Original',
+                        tmdb_id: 100,
+                    },
+                },
+            })
+        );
+        reload(storage);
+        const state = {
+            favoritesRestoreId: 'legacy-pending-recent',
+            hiddenCategories: [],
+            favorites: [{ contentType: 'movie' as const, xtreamId: 42 }],
+            recentlyViewed: [
+                {
+                    contentType: 'movie' as const,
+                    xtreamId: 42,
+                    viewedAt: '2020-01-01',
+                },
+            ],
+            playbackPositions: [],
+        };
+        await expect(source.restoreUserData('p1', state)).rejects.toThrow(
+            'did not take'
+        );
+        api.getStreams.mockResolvedValue([
+            {
+                stream_id: 42,
+                name: 'Replacement',
+                tmdb_id: 200,
+                category_id: '1',
+            },
+        ]);
+        await source.getContent('p1', credentials, 'movie');
+        await source.removeFavorite(
+            { id: 42, type: 'movie', identity: { tmdbId: 100 } },
+            'p1'
+        );
+        await source.addFavorite(
+            { id: 42, type: 'movie', identity: { tmdbId: 200 } },
+            'p1'
+        );
+        allowed = true;
+        await source.restoreUserData('p1', state);
+        const result = new PwaXtreamBackupStorage(storage).exportInto({
+            autoRefresh: false,
+            exportedId: 'p1',
+            portalType: 'xtream',
+            title: 'Source',
+            connection: credentials,
+            userState: state,
+        });
+        expect(result.userState.favorites[0].snapshot?.tmdbId).toBe(200);
+        expect(result.userState.recentlyViewed[0]).toMatchObject({
+            viewedAt: '2020-01-01',
+            collectionItem: { tmdb_id: 100 },
+        });
+    });
+
+    it.each([false, true])(
+        'automatic Recent hydration cannot expand an unconfirmed target (play=%s)',
+        async (play) => {
+            let injected = false;
+            const storage = {
+                getItem: (key: string) => localStorage.getItem(key),
+                setItem: (key: string, value: string) =>
+                    localStorage.setItem(key, value),
+                removeItem: (key: string) => localStorage.removeItem(key),
+                ready: async () => true,
+                flushed: async () => {
+                    const recent = read('xtream-recent-items');
+                    if (!injected && recent.p1?.length) {
+                        injected = true;
+                        recent.p1.push({
+                            id: 'movie:99',
+                            viewedAt: '2026-01-01',
+                            collectionItem: {
+                                id: 99,
+                                xtream_id: 99,
+                                type: 'movie',
+                                title: 'Remote old',
+                                tmdb_id: 999,
+                            },
+                        });
+                        localStorage.setItem(
+                            'xtream-recent-items',
+                            JSON.stringify(recent)
+                        );
+                    }
+                    return true;
+                },
+            };
+            reload(storage);
+            const state = {
+                favoritesRestoreId: 'recent-hydration',
+                hiddenCategories: [],
+                favorites: [
+                    {
+                        contentType: 'movie' as const,
+                        xtreamId: 42,
+                        snapshot: { title: 'Archived', tmdbId: 100 },
+                    },
+                ],
+                recentlyViewed: [
+                    {
+                        contentType: 'movie' as const,
+                        xtreamId: 42,
+                        viewedAt: '2020-01-01',
+                    },
+                ],
+                playbackPositions: [],
+            };
+            await expect(source.restoreUserData('p1', state)).rejects.toThrow(
+                'changed elsewhere'
+            );
+            api.getStreams.mockResolvedValue([
+                {
+                    stream_id: 42,
+                    name: 'Hydrated original',
+                    tmdb_id: 100,
+                    category_id: '1',
+                },
+                {
+                    stream_id: 99,
+                    name: 'Hydrated remote',
+                    tmdb_id: 999,
+                    category_id: '1',
+                },
+            ]);
+            await source.getContent('p1', credentials, 'movie');
+            await source.getRecentItems('p1');
+            const entry = {
+                autoRefresh: false,
+                exportedId: 'p1',
+                portalType: 'xtream' as const,
+                title: 'Source',
+                connection: credentials,
+                userState: state,
+            };
+            expect(
+                new PwaXtreamBackupStorage(storage)
+                    .exportInto(entry, state)
+                    .userState.recentlyViewed.map((item) => item.xtreamId)
+            ).toEqual([42]);
+            if (play)
+                await source.addRecentItem({ id: 99, type: 'movie' }, 'p1');
+            await source.restoreUserData('p1', state);
+            expect(
+                new PwaXtreamBackupStorage(storage)
+                    .exportInto(entry)
+                    .userState.recentlyViewed.map((item) => item.xtreamId)
+                    .sort()
+            ).toEqual(play ? [42, 99] : [42]);
+        }
+    );
 
     it.each([false, true])(
         'rejects sparse replacement hearts after a latched conflict (warm=%s)',

@@ -37,7 +37,7 @@ export class PwaCollectionStorage {
         if (migrated.some((id, index) => id !== playlistFavorites[index])) {
             allFavorites[playlistId] = [...new Set(migrated)];
             this.tryStorageMigration(() =>
-                this.saveFavoritesToStorage(allFavorites)
+                this.saveFavoritesToStorage(allFavorites, { userEdit: false })
             );
         }
         this.persistCollectionSnapshots(playlistId, contentById);
@@ -60,11 +60,15 @@ export class PwaCollectionStorage {
         }
     }
 
-    saveFavoritesToStorage(favorites: Record<string, CollectionKey[]>): void {
+    saveFavoritesToStorage(
+        favorites: Record<string, CollectionKey[]>,
+        options?: { userEdit?: boolean }
+    ): void {
         writeXtreamUserDataMap(
             this.storage,
             XTREAM_USER_DATA_KEYS.favorites,
-            favorites
+            favorites,
+            options
         );
     }
 
@@ -95,7 +99,10 @@ export class PwaCollectionStorage {
                         [key]: saved,
                     }).get(key),
                 saved.catalog_missing_reason !== 'identity_conflict' &&
-                    !(saved.catalog_status === 'missing' && saved.catalog_missing_reason !== 'absent')
+                    !(
+                        saved.catalog_status === 'missing' &&
+                        saved.catalog_missing_reason !== 'absent'
+                    )
             )
         );
     }
@@ -170,7 +177,7 @@ export class PwaCollectionStorage {
         ) {
             allRecent[playlistId] = migrated;
             this.tryStorageMigration(() =>
-                this.saveRecentItemsToStorage(allRecent)
+                this.saveRecentItemsToStorage(allRecent, { userEdit: false })
             );
         }
         this.persistCollectionSnapshots(
@@ -221,12 +228,14 @@ export class PwaCollectionStorage {
     }
 
     saveRecentItemsToStorage(
-        recentItems: Record<string, StoredRecentItem[]>
+        recentItems: Record<string, StoredRecentItem[]>,
+        options?: { userEdit?: boolean }
     ): void {
         writeXtreamUserDataMap(
             this.storage,
             XTREAM_USER_DATA_KEYS.recentItems,
-            recentItems
+            recentItems,
+            options
         );
     }
 

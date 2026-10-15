@@ -1,4 +1,7 @@
-import { applyExplicitRestoreListEdits } from './pwa-xtream-restore-edits';
+import {
+    applyExplicitRestoreListEdits,
+    fillRestoreHistoryMetadata,
+} from './pwa-xtream-restore-edits';
 
 /**
  * The PWA Xtream user-data maps in USER_DATA_STORAGE, each a JSON object
@@ -19,7 +22,8 @@ export const XTREAM_RESTORE_RECEIPTS = '__iptvnator_xtream_restore_receipts__';
 export function writeXtreamUserDataMap(
     storage: Pick<Storage, 'getItem' | 'setItem'>,
     key: string,
-    map: Record<string, unknown>
+    map: Record<string, unknown>,
+    options?: { userEdit?: boolean }
 ): void {
     const raw = storage.getItem(key);
     let previous: unknown;
@@ -31,7 +35,11 @@ export function writeXtreamUserDataMap(
     const stored = isRecord(previous) ? previous : {};
     const receipts = stored[XTREAM_RESTORE_RECEIPTS];
     const retained = isRecord(receipts) ? { ...receipts } : undefined;
-    if (retained && key === XTREAM_USER_DATA_KEYS.favorites) {
+    if (
+        options?.userEdit !== false &&
+        retained &&
+        key === XTREAM_USER_DATA_KEYS.favorites
+    ) {
         for (const [playlistId, value] of Object.entries(retained)) {
             if (!isRecord(value) || !Array.isArray(value['keys'])) continue;
             const before = new Set(
@@ -60,20 +68,30 @@ export function writeXtreamUserDataMap(
                 continue;
             retained[playlistId] = {
                 ...receipt,
-                serverList: applyExplicitRestoreListEdits(
-                    receipt['serverList'],
-                    Array.isArray(stored[playlistId])
-                        ? (stored[playlistId] as unknown[])
-                        : [],
-                    Array.isArray(map[playlistId])
-                        ? (map[playlistId] as unknown[])
-                        : [],
-                    key === XTREAM_USER_DATA_KEYS.favorites
-                        ? 'value'
-                        : key === XTREAM_USER_DATA_KEYS.recentItems
-                          ? 'id'
-                          : 'position'
-                ),
+                serverList:
+                    options?.userEdit === false
+                        ? key === XTREAM_USER_DATA_KEYS.recentItems
+                            ? fillRestoreHistoryMetadata(
+                                  receipt['serverList'],
+                                  Array.isArray(map[playlistId])
+                                      ? (map[playlistId] as unknown[])
+                                      : []
+                              )
+                            : receipt['serverList']
+                        : applyExplicitRestoreListEdits(
+                              receipt['serverList'],
+                              Array.isArray(stored[playlistId])
+                                  ? (stored[playlistId] as unknown[])
+                                  : [],
+                              Array.isArray(map[playlistId])
+                                  ? (map[playlistId] as unknown[])
+                                  : [],
+                              key === XTREAM_USER_DATA_KEYS.favorites
+                                  ? 'value'
+                                  : key === XTREAM_USER_DATA_KEYS.recentItems
+                                    ? 'id'
+                                    : 'position'
+                          ),
             };
         }
     }

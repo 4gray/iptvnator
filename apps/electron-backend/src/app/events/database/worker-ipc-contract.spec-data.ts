@@ -210,6 +210,16 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { xtreamId: 42, playlistId, contentType: 'movie' },
     },
     {
+        operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        args: [42, playlistId, 'movie', { tmdbId: 100, releaseYear: 1995 }],
+        payload: {
+            xtreamId: 42,
+            playlistId,
+            contentType: 'movie',
+            identity: { tmdbId: 100, releaseYear: 1995 },
+        },
+    },
+    {
         operation: 'DB_SET_CONTENT_METADATA_IF_MISSING',
         // Same object on both sides: the patch must cross the boundary
         // unreshaped, or the worker reads fields the caller never sent.

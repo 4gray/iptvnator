@@ -43,3 +43,18 @@ export function applyExplicitRestoreListEdits(
     }
     return result;
 }
+
+/** Automatic cache writes may detach a target-owned legacy row, never append remote history. */
+export function fillRestoreHistoryMetadata(
+    target: unknown[],
+    current: unknown[]
+): unknown[] {
+    const items = new Map(
+        current.filter(record).map((item) => [item['id'], item])
+    );
+    return target.map((item) => {
+        if (!record(item) || item['collectionItem'] != null) return item;
+        const copy = items.get(item['id'])?.['collectionItem'];
+        return record(copy) ? { ...item, collectionItem: copy } : item;
+    });
+}

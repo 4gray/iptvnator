@@ -19,6 +19,7 @@ describe('durable Xtream favorites against initialized SQLite', () => {
         'receipt',
         'conflict-latch',
         'conflict-migration',
+        'compatible-actions',
     ])(
         '%s preserves the saved favorite independently of catalog rows',
         (scenario) => {

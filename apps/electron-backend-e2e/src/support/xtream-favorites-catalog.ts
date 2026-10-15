@@ -12,7 +12,7 @@ import {
 
 export type FavoritesCatalogMode =
     | { kind: 'normal' | 'empty' | 'failure' | 'offline' }
-    | { kind: 'omit'; xtreamId: number };
+    | { kind: 'omit' | 'duplicate'; xtreamId: number };
 
 export interface FavoritesCatalogProxy {
     origin: string;
@@ -76,6 +76,47 @@ export async function createFavoritesCatalogProxy(): Promise<FavoritesCatalogPro
                                 Number(movie.stream_id) !== requestMode.xtreamId
                         )
                     );
+                }
+                if (requestMode.kind === 'duplicate') {
+                    if (action === 'get_vod_categories') {
+                        body = JSON.stringify([
+                            ...JSON.parse(body),
+                            {
+                                category_id: '987654',
+                                category_name: 'Compatible duplicate',
+                                parent_id: 0,
+                            },
+                        ]);
+                    } else if (action === 'get_vod_streams') {
+                        const movies = JSON.parse(body) as Record<
+                            string,
+                            unknown
+                        >[];
+                        const original = movies.find(
+                            (movie) =>
+                                Number(movie['stream_id']) ===
+                                requestMode.xtreamId
+                        );
+                        if (original)
+                            movies.push({
+                                ...original,
+                                category_id: '987654',
+                                name: 'Compatible duplicate movie',
+                            });
+                        body = JSON.stringify(movies);
+                    } else if (
+                        action === 'get_vod_info' &&
+                        Number(url.searchParams.get('vod_id')) ===
+                            requestMode.xtreamId
+                    ) {
+                        const detail = JSON.parse(body);
+                        Object.assign(detail.info, {
+                            tmdb_id: 100,
+                            tmdb: 100,
+                            releasedate: '1995-01-01',
+                        });
+                        body = JSON.stringify(detail);
+                    }
                 }
                 response.writeHead(upstream.status).end(body);
             } catch {

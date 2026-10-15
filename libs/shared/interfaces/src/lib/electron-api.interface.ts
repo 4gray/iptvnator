@@ -1167,7 +1167,8 @@ export interface ElectronBridgeApi {
     dbGetContentByXtreamId: (
         xtreamId: number,
         playlistId: string,
-        contentType?: ElectronBridgePortalContentType
+        contentType?: ElectronBridgePortalContentType,
+        identity?: ContentMetadataPatch
     ) => Promise<ElectronBridgeXtreamContent | null>;
     dbSetContentMetadataIfMissing: (
         contentId: number,

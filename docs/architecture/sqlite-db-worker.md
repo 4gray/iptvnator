@@ -668,7 +668,11 @@ links and independent typed provider identities plus display snapshots. Reads
 return the durable `favorite_id`, nullable catalog IDs and `catalog_status`;
 remove accepts `{ favoriteId }` and reorder accepts `favorite_id` without a
 catalog row. Legacy content-ID callers resolve playlist/type/provider identity,
-including duplicate category rows. Import completion reconciles links and saved
+including duplicate category rows. `DB_GET_CONTENT_BY_XTREAM_ID` accepts optional
+normalized TMDB/year evidence from the displayed detail or played item. It excludes
+known conflicting duplicates, ranks full confirmation first, and preserves legacy
+lookup behavior when evidence is omitted. Favorite status/actions use the selected
+internal row ID consistently. Import completion reconciles links and saved
 metadata; detail enrichment also updates the snapshot. Known identity conflicts
 remain unresolved. See [Xtream compatibility](./xtream-portal-compatibility.md#durable-electron-favorites).
 

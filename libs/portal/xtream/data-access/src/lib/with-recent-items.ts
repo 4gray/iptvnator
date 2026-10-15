@@ -114,11 +114,24 @@ export const withRecentItems = function () {
                                     return;
                                 }
 
+                                const identity = playedContent
+                                    ? normalizeContentMetadataPatch({
+                                          tmdbId:
+                                              playedContent.tmdbId ?? undefined,
+                                          releaseYear:
+                                              playedContent.releaseYear ??
+                                              undefined,
+                                      })
+                                    : null;
                                 const content =
                                     await dataSource.getContentByXtreamId(
                                         normalizedXtreamId,
                                         playlistId,
-                                        contentType
+                                        contentType,
+                                        ...(runtime.supportsXtreamSqliteDataSource &&
+                                        identity
+                                            ? [identity]
+                                            : [])
                                     );
                                 const contentId =
                                     content?.id ??
@@ -178,7 +191,12 @@ export const withRecentItems = function () {
                     const content = await dataSource.getContentByXtreamId(
                         normalizedXtreamId,
                         playlistId,
-                        contentType
+                        contentType,
+                        ...(runtime.supportsXtreamSqliteDataSource &&
+                        (normalized.tmdbId != null ||
+                            normalized.releaseYear != null)
+                            ? [normalized]
+                            : [])
                     );
                     const contentId =
                         content?.id ??

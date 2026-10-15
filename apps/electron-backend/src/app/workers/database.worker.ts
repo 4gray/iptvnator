@@ -610,12 +610,14 @@ async function executeRequest(
                 xtreamId: number;
                 playlistId: string;
                 contentType?: 'live' | 'movie' | 'series';
+                identity?: ContentMetadataPatch;
             };
             return getContentByXtreamId(
                 db,
                 payload.xtreamId,
                 payload.playlistId,
-                payload.contentType
+                payload.contentType,
+                payload.identity
             );
         }
 
