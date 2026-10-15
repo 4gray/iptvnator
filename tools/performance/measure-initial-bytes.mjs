@@ -1,7 +1,10 @@
 /**
  * Measures the bytes a browser fetches before the Angular app can bootstrap:
  * `index.html` itself plus every same-origin script, stylesheet and
- * `modulepreload` chunk it references. This is the J1 ("launch to usable")
+ * `modulepreload` chunk it references, and every chunk those modules import
+ * statically. Angular emits at most ten `modulepreload` hints, so a larger
+ * startup graph has chunks only the module imports name; the browser still
+ * fetches them before bootstrap. This is the J1 ("launch to usable")
  * counter `renderer.initialBytes` from docs/architecture/performance-journeys.md.
  *
  * The number is read from the built output, not estimated from source, so it
@@ -104,6 +107,23 @@ export function extractInitialResources(html) {
     return resources;
 }
 
+/**
+ * Relative specifiers of the static `import` and `export … from`
+ * declarations in an emitted ES module. A dynamic `import("…")` loads later
+ * and is not matched; bare and absolute specifiers never point into the build.
+ */
+export function extractStaticImports(source) {
+    const specifiers = new Set();
+    const patterns = [
+        /\bfrom\s*["'](\.{1,2}\/[^"'\s]+?\.m?js)["']/g,
+        /\bimport\s*["'](\.{1,2}\/[^"'\s]+?\.m?js)["']/g,
+    ];
+    for (const pattern of patterns) {
+        for (const match of source.matchAll(pattern)) specifiers.add(match[1]);
+    }
+    return [...specifiers];
+}
+
 async function sizeOf(filePath) {
     const stats = await stat(filePath);
     return stats.size;
@@ -141,18 +161,56 @@ export async function measureInitialBytes({ distDir, readSize = sizeOf }) {
         );
     }
 
+    // Follow the static import graph of every counted script. Each file
+    // counts once, whether index.html names it or only an import does.
+    const counted = new Set(resources.map((resource) => resource.path));
+    const queue = resources
+        .filter((resource) => /\.m?js$/.test(resource.path))
+        .map((resource) => resource.path);
+    const unresolved = [];
+    while (queue.length > 0) {
+        const importer = queue.shift();
+        const source = await readFile(path.join(distDir, importer), 'utf8');
+        for (const specifier of extractStaticImports(source)) {
+            const file = path.posix.normalize(
+                path.posix.join(path.posix.dirname(importer), specifier)
+            );
+            if (counted.has(file)) continue;
+            counted.add(file);
+            const absolute = path.join(distDir, file);
+            if (!existsSync(absolute)) {
+                unresolved.push(`${file} (imported by ${importer})`);
+                continue;
+            }
+            resources.push({
+                path: file,
+                url: file,
+                kind: 'staticImport',
+                bytes: await readSize(absolute),
+            });
+            queue.push(file);
+        }
+    }
+    if (unresolved.length > 0) {
+        throw new Error(
+            `Startup modules import files that are not in ${distDir}: ${unresolved.join(', ')}`
+        );
+    }
+
     const totals = {
         indexHtml: indexBytes,
         script: 0,
         stylesheet: 0,
         modulepreload: 0,
+        staticImport: 0,
     };
     for (const resource of resources) totals[resource.kind] += resource.bytes;
     const initialBytes =
         totals.indexHtml +
         totals.script +
         totals.stylesheet +
-        totals.modulepreload;
+        totals.modulepreload +
+        totals.staticImport;
 
     return {
         distDir,
@@ -201,6 +259,7 @@ export function formatReport(measurement) {
         `scripts        ${formatBytes(measurement.totals.script).padStart(11)}`,
         `stylesheets    ${formatBytes(measurement.totals.stylesheet).padStart(11)}`,
         `modulepreload  ${formatBytes(measurement.totals.modulepreload).padStart(11)}`,
+        `static imports ${formatBytes(measurement.totals.staticImport).padStart(11)}`,
         `${INITIAL_BYTES_COUNTER} = ${formatBytes(measurement.totals.initialBytes)} bytes (${measurement.resources.length} files + index.html)`,
     ];
     return lines.join('\n');

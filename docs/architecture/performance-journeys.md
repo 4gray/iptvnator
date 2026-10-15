@@ -1134,7 +1134,19 @@ The bytes a browser fetches before Angular can bootstrap, read from the built
 - `index.html` itself,
 - every same-origin `<script src>`, including `assets/app-config.js`,
 - every `<link rel="stylesheet">`,
-- every `<link rel="modulepreload">` chunk.
+- every `<link rel="modulepreload">` chunk,
+- every chunk those scripts import statically, transitively.
+
+The last item matters because Angular's builder emits at most ten
+`modulepreload` hints (`MODULE_PRELOAD_MAX`). A startup graph with more
+chunks than that leaves the rest for the browser to discover from `main.js`'s
+own `import` statements; it still fetches and parses them before bootstrap.
+Until #1939 the script counted only what `index.html` names, so once the
+graph passed ten chunks the counter silently stopped growing: an eager
+`MatSnackBar` import added on `master` brought Material's snack-bar and
+button back (about 95 KB) without the ratchet noticing. Dynamic `import()`
+targets are lazy and never count, and a statically imported file the build
+did not emit is an error, like a missing `index.html` reference.
 
 Manifest, icons, external URLs, commented-out tags and lazy chunks are not
 counted, so the value is the same for every language: a non-English launch
@@ -1190,9 +1202,11 @@ button chunk, ripple and the CDK a11y module left the initial bundle,
 Material module remains in it; merged with #1938 (the radio play control
 no longer a fab, so its theme tokens left the stylesheet), #1936 (one
 global kit layer replacing per-component overrides), #1929 (zoneless
-renderer, no zone.js polyfill) and #1903 (self-hosted server storage, which
-raised master's baseline by 7,245 bytes) the branch measures 1,187,983,
-which the baseline follows. Of the CDK, the overlay, scrolling and
+renderer, no zone.js polyfill), #1903 (self-hosted server storage, which
+raised master's baseline by 7,245 bytes) and #1934, whose Xtream favorites
+toasts now also go through `LazySnackBar`, the branch measures 1,196,205
+with the static-import rule below, which the baseline follows; the counter
+without that rule read 1,098,535 for the same build. Of the CDK, the overlay, scrolling and
 portal chunks (about 78 KB) stay through the `FullscreenOverlayContainer`
 provider in `app.config.ts`, whose token lives in the overlay chunk.
 
