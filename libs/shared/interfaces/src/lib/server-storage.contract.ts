@@ -36,6 +36,19 @@ export interface ServerInstanceInfo {
     readonly auth: 'none' | 'token';
 }
 
+/**
+ * `WWW-Authenticate` value of the access guard's 401. A provider error the
+ * proxy passes on never carries it, so a client can tell the two apart.
+ */
+export const SERVER_ACCESS_CHALLENGE = 'Bearer realm="iptvnator"';
+
+/**
+ * Sent with every `PUT /v1/playlists/:id`: the document's ETag before that
+ * write. A client that kept the stored payload (`keepPayload=1`) may cache
+ * its copy under the new ETag only if its payload came from this one.
+ */
+export const SERVER_REPLACED_ETAG_HEADER = 'X-Replaced-ETag';
+
 export interface ServerStorageStatusResponse {
     readonly playlists: number;
     readonly databaseBytes: number;
@@ -45,10 +58,30 @@ export interface ServerStorageStatusResponse {
 
 export interface ServerUserStateResponse {
     readonly entries: Record<ServerUserStateNamespace, Record<string, unknown>>;
+    /**
+     * Version tag of every entry. A write sends the tag it is based on
+     * (`If-Match: "<tag>"`, or `If-None-Match: *` for an entry the client
+     * saw absent); a stale tag gets `412` with the current entry.
+     */
+    readonly tags?: Record<ServerUserStateNamespace, Record<string, string>>;
+}
+
+/** Answer to a user-state write: the entry's new tag, `null` once deleted. */
+export interface ServerUserStateWriteResponse {
+    readonly tag: string | null;
+}
+
+/** The entry as the server has it, sent with a `412` conflict. */
+export interface ServerUserStateCurrent {
+    /** Absent when the entry does not exist. */
+    readonly value?: unknown;
+    readonly tag: string | null;
 }
 
 export interface ServerStorageErrorBody {
     readonly message: string;
     readonly status: number;
     readonly code?: string;
+    /** With `code: 'conflict'` (412): the user-state entry as it is now. */
+    readonly current?: ServerUserStateCurrent;
 }

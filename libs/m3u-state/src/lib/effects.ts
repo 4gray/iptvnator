@@ -89,9 +89,21 @@ export class PlaylistEffects {
                     this.store.select(selectActivePlaylistId)
                 ),
                 filter(([, , playlistId]) => !!playlistId),
-                switchMap(([, favorites, playlistId]) =>
-                    this.playlistsService.updateFavorites(playlistId, favorites)
-                ),
+                // The toggle, applied to the favorites as stored at write
+                // time: another device's changes to other channels stay, also
+                // when a conflict makes the write run again on a fresh read.
+                mergeMap(([{ channel }, favorites, playlistId]) => {
+                    const added = favorites.includes(channel.url);
+                    return this.playlistsService.transformPlaylistFavorites(
+                        playlistId,
+                        (current) => {
+                            const others = current.filter(
+                                (favorite) => favorite !== channel.url
+                            );
+                            return added ? [...others, channel.url] : others;
+                        }
+                    );
+                }),
                 tap(() => {
                     this.snackBar.open(
                         this.translate.instant('CHANNELS.FAVORITES_UPDATED'),
@@ -110,10 +122,13 @@ export class PlaylistEffects {
                 ofType(FavoritesActions.setFavorites),
                 withLatestFrom(this.store.select(selectActivePlaylistId)),
                 filter(([, playlistId]) => !!playlistId),
-                switchMap(([action, playlistId]) =>
-                    this.playlistsService.setFavorites(
+                // The new order, applied to the favorites as stored at write
+                // time: another device's additions stay, its removals hold.
+                mergeMap(([action, playlistId]) =>
+                    this.playlistsService.transformPlaylistFavorites(
                         playlistId,
-                        action.channelIds
+                        (current) =>
+                            reorderFavorites(current, action.channelIds)
                     )
                 )
             );
@@ -581,4 +596,18 @@ export class PlaylistEffects {
     private getGlobalEpgUrls(): string[] {
         return normalizeEpgUrls(this.settingsStore.getSettings().epgUrl ?? []);
     }
+}
+
+/**
+ * `current` in the order of `order`: entries `order` no longer has stay out
+ * of its part, entries it never had (added elsewhere) follow it.
+ */
+export function reorderFavorites<T>(
+    current: readonly T[],
+    order: readonly T[]
+): T[] {
+    const present = new Set(current);
+    const ordered = order.filter((id) => present.has(id));
+    const placed = new Set(ordered);
+    return [...ordered, ...current.filter((id) => !placed.has(id))];
 }

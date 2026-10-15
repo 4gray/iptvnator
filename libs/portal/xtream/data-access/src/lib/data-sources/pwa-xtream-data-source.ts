@@ -695,6 +695,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
 
     async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
+        await this.userDataRead();
         await this.getCollectionItemsWithHydration(
             playlistId,
             this.collectionStorage.getFavoritesFromStorage()[playlistId] || []
@@ -766,6 +767,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         contentId: XtreamCollectionRef,
         playlistId: string
     ): Promise<boolean> {
+        await this.userDataRead();
         const normalizedContentId = await this.resolveCollectionKey(
             playlistId,
             contentId
@@ -820,6 +822,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         contentXtreamId: number,
         contentType: 'vod' | 'episode'
     ): Promise<PlaybackPositionData | null> {
+        await this.userDataRead();
         const allPositions = this.getPlaybackPositionsFromStorage();
         const playlistPositions = allPositions[playlistId] || [];
 
@@ -836,6 +839,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         seriesXtreamId: number
     ): Promise<PlaybackPositionData[]> {
+        await this.userDataRead();
         const allPositions = this.getPlaybackPositionsFromStorage();
         const playlistPositions = allPositions[playlistId] || [];
 
@@ -850,6 +854,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         limit?: number
     ): Promise<PlaybackPositionData[]> {
+        await this.userDataRead();
         const allPositions = this.getPlaybackPositionsFromStorage();
         const playlistPositions = allPositions[playlistId] || [];
 
@@ -866,6 +871,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getAllPlaybackPositions(
         playlistId: string
     ): Promise<PlaybackPositionData[]> {
+        await this.userDataRead();
         const allPositions = this.getPlaybackPositionsFromStorage();
         return allPositions[playlistId] || [];
     }
@@ -941,6 +947,17 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         this.savePlaybackPositionsToStorage(allPositions);
     }
 
+    /**
+     * Server mode: favorites, history and positions show the server's data
+     * once its first read settled, which startup does not wait for beyond a
+     * few seconds. A read before it would show a new device empty lists.
+     * Whether a read succeeded (always true outside server mode); `fresh`
+     * reads again first, for a restore that replaces the current lists.
+     */
+    private async userDataRead(fresh = false): Promise<boolean> {
+        return (await this.userDataStorage.ready?.(fresh)) ?? true;
+    }
+
     private getPlaybackPositionsFromStorage(): Record<
         string,
         PlaybackPositionData[]
@@ -975,6 +992,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
 
     async getRecentItems(playlistId: string): Promise<XtreamContentItem[]> {
+        await this.userDataRead();
         await this.getCollectionItemsWithHydration(
             playlistId,
             (
@@ -1388,6 +1406,20 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         options?: XtreamOperationOptions
     ): Promise<void> {
         void options;
+        // Its lists replace the server's: before the server's are read they
+        // would merge into them instead. The restore stays parked.
+        if (!(await this.userDataRead(true))) {
+            throw new Error(
+                "The server's user data could not be read yet; the restore waits."
+            );
+        }
+        // This page's unsent writes for the playlist would join the
+        // replacement: they go first, or the restore waits.
+        if ((await this.userDataStorage.flushed?.(playlistId)) === false) {
+            throw new Error(
+                'Earlier changes to this playlist are not on the server yet; the restore waits.'
+            );
+        }
         // Restore favorites
         const favorites = this.collectionStorage.getFavoritesFromStorage();
         favorites[playlistId] = restoreState.favorites
@@ -1426,6 +1458,28 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             })
         );
         this.savePlaybackPositionsToStorage(playbackPositions);
+        // The lists as reads return them (deduplicated, normalized).
+        const restoredLists = () =>
+            JSON.stringify([
+                this.collectionStorage.getFavoritesFromStorage()[playlistId],
+                this.collectionStorage.getRecentItemsFromStorage()[playlistId],
+                this.getPlaybackPositionsFromStorage()[playlistId],
+            ]);
+        const restored = restoredLists();
+        // Server mode: done once the server took the lists, else it stays
+        // parked for the next open.
+        if ((await this.userDataStorage.flushed?.(playlistId)) === false) {
+            throw new Error(
+                'The server did not take the restored lists; the restore waits.'
+            );
+        }
+        // A conflict merges an edit another device made meanwhile into the
+        // lists: the restore replaces them, so it runs again on a fresh read.
+        if (restoredLists() !== restored) {
+            throw new Error(
+                'The lists changed elsewhere during the restore; it runs again.'
+            );
+        }
     }
 
     // =========================================================================

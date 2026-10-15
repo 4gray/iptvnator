@@ -606,3 +606,31 @@
         display: none;
     }
 }
+
+.server-state {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--app-selection-color);
+    background: var(--app-selection-surface);
+
+    &[data-state='offline'],
+    &[data-state='unauthorized'] {
+        color: var(--app-expiry-warn-text);
+        background: var(--app-expiry-warn-surface);
+    }
+}
+
+.setting-item__meta .server-detail {
+    color: var(--app-muted-color);
+    overflow-wrap: anywhere;
+}
+
+.setting-item__meta .server-detail--path {
+    font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+    font-weight: 500;
+    font-size: 0.78rem;
+}
