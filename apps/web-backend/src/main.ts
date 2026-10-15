@@ -4,7 +4,10 @@ import {
 } from '@iptvnator/shared/host-health';
 import { closeGracefully } from './app/graceful-shutdown';
 import { createWebBackendApp } from './app/web-backend-app';
-import { readServerStorageConfig } from './app/storage/storage-config';
+import {
+    readServerStorageConfig,
+    serverStorageConfigProblem,
+} from './app/storage/storage-config';
 import {
     openServerStorage,
     type ServerStorage,
@@ -20,6 +23,11 @@ async function start(): Promise<void> {
     }
 
     const config = readServerStorageConfig();
+    const problem = serverStorageConfigProblem(config);
+    if (problem) {
+        console.error(`[web-backend] ${problem}`);
+        process.exit(1);
+    }
     let storage: ServerStorage | null = null;
     if (config.enabled) {
         try {

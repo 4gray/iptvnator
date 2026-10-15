@@ -194,10 +194,11 @@ $_sizes: (
     color: var(--app-body-color);
 }
 
-/// A `mat-menu` panel; apply to the class given to `<mat-menu class>`.
+/// The `mat-menu` panel; `styles.scss` applies it to every menu.
 /// Items: 36px, 13px, 16px icons in the body colour; destructive items
-/// carry `app-menu-item--danger` and sit after a divider; a keyboard hint
-/// is a trailing `kbd.app-menu-item__kbd`.
+/// carry `app-menu-item--danger` and sit after a `<mat-divider>`; a
+/// keyboard hint is a trailing `kbd.app-menu-item__kbd`. A long list stays
+/// on screen and scrolls inside the panel.
 @mixin menu-panel {
     @include mat.menu-overrides(
         (
@@ -229,6 +230,8 @@ $_sizes: (
         )
     );
     min-width: 240px;
+    max-width: min(360px, calc(100vw - 24px));
+    max-height: min(480px, calc(100vh - 32px));
     border: 1px solid var(--app-line-strong);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 

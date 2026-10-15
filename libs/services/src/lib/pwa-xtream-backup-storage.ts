@@ -11,6 +11,7 @@ import { normalizeXtreamPendingRestoreState } from '@iptvnator/shared/interfaces
 import type { UserDataStorage } from './user-data-storage';
 import { XTREAM_USER_DATA_KEYS } from './xtream-user-data-keys';
 import { PwaXtreamRestoreProgress } from './pwa-xtream-restore-progress';
+import { preparePwaRestore, confirmPwaRestore } from './pwa-xtream-restore-ack';
 
 type StoredMap = Record<string, unknown>;
 type UserDataMap = keyof typeof XTREAM_USER_DATA_KEYS;
@@ -31,6 +32,10 @@ const CONTENT_TYPES: readonly unknown[] = ['live', 'movie', 'series'];
  */
 export class PwaXtreamBackupStorage {
     constructor(private readonly storage: UserDataStorage) {}
+
+    async ready(): Promise<void> {
+        await preparePwaRestore(this.storage);
+    }
 
     /**
      * The entry with the playlist's stored lists and snapshots filled in;
@@ -127,6 +132,8 @@ export class PwaXtreamBackupStorage {
         state: XtreamPendingRestoreState,
         entry?: XtreamPlaylistBackupEntry
     ): Promise<void> {
+        await this.ready();
+        await preparePwaRestore(this.storage, playlistId);
         // A user-supplied file: the field may be anything.
         const archived: unknown = entry?.userState.collectionItems;
         const snapshots = snapshotsByKey(
@@ -209,6 +216,10 @@ export class PwaXtreamBackupStorage {
             progress.pendingSnapshots(snapshots),
             progress.pendingSnapshots(required)
         );
+        const lists = () => ['favorites', 'recentItems', 'playbackPositions'].map(
+            name => this.listFor(name as UserDataMap, playlistId)
+        );
+        await confirmPwaRestore(this.storage, playlistId, lists);
     }
 
     private replaceLists(

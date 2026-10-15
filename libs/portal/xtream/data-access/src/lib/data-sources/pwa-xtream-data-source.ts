@@ -708,6 +708,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
 
     async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
+        await this.userDataRead();
         await this.getCollectionItemsWithHydration(
             playlistId,
             this.collectionStorage.getFavoritesFromStorage()[playlistId] || []
@@ -793,6 +794,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         contentId: XtreamCollectionRef,
         playlistId: string
     ): Promise<boolean> {
+        await this.userDataRead();
         const normalizedContentId = await this.resolveCollectionKey(
             playlistId,
             contentId
@@ -841,6 +843,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         contentXtreamId: number,
         contentType: 'vod' | 'episode'
     ): Promise<PlaybackPositionData | null> {
+        await this.userDataRead();
         return (await this.playbackPositions()).getPlaybackPosition(
             playlistId,
             contentXtreamId,
@@ -852,6 +855,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         seriesXtreamId: number
     ): Promise<PlaybackPositionData[]> {
+        await this.userDataRead();
         return (await this.playbackPositions()).getSeriesPlaybackPositions(
             playlistId,
             seriesXtreamId
@@ -862,6 +866,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         limit?: number
     ): Promise<PlaybackPositionData[]> {
+        await this.userDataRead();
         return (await this.playbackPositions()).getRecentPlaybackPositions(
             playlistId,
             limit
@@ -871,6 +876,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getAllPlaybackPositions(
         playlistId: string
     ): Promise<PlaybackPositionData[]> {
+        await this.userDataRead();
         return (await this.playbackPositions()).getAllPlaybackPositions(
             playlistId
         );
@@ -917,6 +923,17 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         );
     }
 
+    /**
+     * Server mode: favorites, history and positions show the server's data
+     * once its first read settled, which startup does not wait for beyond a
+     * few seconds. A read before it would show a new device empty lists.
+     * Whether a read succeeded (always true outside server mode); `fresh`
+     * reads again first, for a restore that replaces the current lists.
+     */
+    private async userDataRead(fresh = false): Promise<boolean> {
+        return (await this.userDataStorage.ready?.(fresh)) ?? true;
+    }
+
     private getPlaybackPositionsFromStorage(): Record<
         string,
         PlaybackPositionData[]
@@ -952,6 +969,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
 
     async getRecentItems(playlistId: string): Promise<XtreamContentItem[]> {
+        await this.userDataRead();
         await this.getCollectionItemsWithHydration(
             playlistId,
             (

@@ -139,6 +139,9 @@
             "@iptvnator/services/pwa-xtream-backup-storage": [
                 "libs/services/src/lib/pwa-xtream-backup-storage.ts"
             ],
+            "@iptvnator/services/server-storage": [
+                "libs/services/src/lib/server-storage/index.ts"
+            ],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
             ],

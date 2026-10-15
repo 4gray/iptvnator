@@ -41,14 +41,25 @@
     >
         {{ scopeLabel() }} <mat-icon>arrow_drop_down</mat-icon>
     </button>
-    <mat-menu #scopeMenu="matMenu" class="guide-toolbar__scope-menu">
+    <!-- Single-choice rows, as `appMenuItemRadio` renders them in
+         @iptvnator/ui/components, which depends on this library. -->
+    <mat-menu #scopeMenu="matMenu">
         @for (scope of scopes(); track scope.id) {
+            @let checked = scope.id === scopeId();
             <button
                 mat-menu-item
-                [class.is-selected]="scope.id === scopeId()"
+                role="menuitemradio"
+                [attr.aria-checked]="checked"
                 (click)="scopeChange.emit(scope.id)"
             >
-                {{ scope.label }}
+                <mat-icon
+                    class="app-menu-item-radio-check"
+                    aria-hidden="true"
+                    [style.visibility]="checked ? null : 'hidden'"
+                >
+                    check
+                </mat-icon>
+                <span>{{ scope.label }}</span>
             </button>
         }
     </mat-menu>

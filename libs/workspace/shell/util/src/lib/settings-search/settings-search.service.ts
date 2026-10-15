@@ -2,7 +2,10 @@ import { inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    ServerStorageStatusService,
+} from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
     watchEmbeddedMpvSupport,
@@ -30,6 +33,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class SettingsSearchService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly serverStorageStatus = inject(ServerStorageStatusService);
     private readonly vodSourceDiscovery = inject(VodSourceDiscoveryService);
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
@@ -61,6 +65,7 @@ export class SettingsSearchService {
             'embedded-mpv': !!this.embeddedMpvSupport()?.supported,
             'embedded-mpv-frame-copy':
                 !!this.embeddedMpvSupport()?.frameCopyAvailable,
+            'server-storage': this.serverStorageStatus.isActive(),
         };
     }
 

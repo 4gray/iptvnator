@@ -41,9 +41,25 @@ describe('Playwright web-backend launch', () => {
 
             expect(source).not.toMatch(/\bnx\b[^'"`\n]*web-backend/);
             expect(start).toBeGreaterThan(-1);
-            expect(
-                source.indexOf(launchCommand, start + launchCommand.length)
-            ).toBe(-1);
+            // One stateless backend, plus at most one storage-enabled one.
+            const second = source.indexOf(
+                `'${launchCommand}'`,
+                start + launchCommand.length
+            );
+            if (second !== -1) {
+                const storageEntry = source.slice(
+                    second,
+                    source.indexOf('url:', second)
+                );
+                expect(storageEntry).toContain(`IPTVNATOR_STORAGE: 'server'`);
+                expect(storageEntry).toContain('PORT: storageBackendPort,');
+                expect(
+                    source.indexOf(
+                        `'${launchCommand}'`,
+                        second + launchCommand.length
+                    )
+                ).toBe(-1);
+            }
 
             // WEB_BACKEND_PORT relocates the run; its default is the target's.
             const { PORT: port, ...fixedEnv } = serveEnv;

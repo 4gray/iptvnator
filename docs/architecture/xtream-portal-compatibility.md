@@ -109,6 +109,14 @@ unfiltered read; a failed favorites read fails export rather than producing an
 empty collection. New backup imports materialize favorites before waiting for
 an online catalog. Existing history, hidden-category and playback-position
 restore contracts remain separate.
+In server-storage mode the same shared import/replay boundary waits for a fresh
+user-data read and earlier writes, then confirms the restored lists and required
+snapshots with the server before consuming pending state. Restore receipts remain
+client metadata in the atomic cache blob, never server playlist entries. Hydration
+preserves them and shrinks favorite ownership on remote removals. Receipt-bearing
+writes reject browser quota failures rather than acknowledge only in memory; ordinary
+receipt-free server caches retain their existing memory fallback.
+
 Browser imports convert desktop favorite snapshots into typed collection-cache
 rows so saved titles and artwork remain visible offline. Browser exports include
 the normalized nested favorite snapshots as well as their optional collection

@@ -92,6 +92,9 @@ export class PlaylistBackupService {
                 'The parental lock store could not be read; the backup would omit its locks.'
             );
         }
+        if (!this.runtime.supportsXtreamSqliteDataSource) {
+            await this.pwaXtream.ready();
+        }
         const playlists = await firstValueFrom(
             this.playlistsService.getAllData()
         );

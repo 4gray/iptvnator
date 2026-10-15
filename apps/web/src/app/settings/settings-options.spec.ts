@@ -42,10 +42,12 @@ describe('buildSettingsSectionNavItems', () => {
         const supportedItems = buildSettingsSectionNavItems({
             supportsEpg: true,
             supportsRemoteControl: true,
+            supportsServerStorage: true,
         });
         const unsupportedItems = buildSettingsSectionNavItems({
             supportsEpg: false,
             supportsRemoteControl: false,
+            supportsServerStorage: false,
         });
 
         expect(supportedItems.map((item) => item.id)).toEqual(
@@ -65,6 +67,7 @@ describe('buildSettingsSectionNavItems', () => {
             buildSettingsSectionNavItems({
                 supportsEpg: true,
                 supportsRemoteControl: true,
+                supportsServerStorage: true,
             }).map((item) => item.id)
         );
         const renderableIds = collectRenderableSectionIds();
@@ -86,6 +89,7 @@ describe('buildSettingsSectionNavItems', () => {
             buildSettingsSectionNavItems({
                 supportsEpg: true,
                 supportsRemoteControl: true,
+                supportsServerStorage: true,
             }).map((item) => item.id)
         ).toEqual([
             'general',
@@ -95,6 +99,7 @@ describe('buildSettingsSectionNavItems', () => {
             'tmdb',
             'parental',
             'remote-control',
+            'server',
             'backup',
             'about',
         ]);
@@ -104,6 +109,7 @@ describe('buildSettingsSectionNavItems', () => {
         const items = buildSettingsSectionNavItems({
             supportsEpg: true,
             supportsRemoteControl: true,
+            supportsServerStorage: true,
         });
         const groupOf = (id: string) =>
             items.find((item) => item.id === id)?.group;
@@ -111,7 +117,24 @@ describe('buildSettingsSectionNavItems', () => {
         expect(groupOf('general')).toBe('app');
         expect(groupOf('tmdb')).toBe('library');
         expect(groupOf('remote-control')).toBe('devices');
+        expect(groupOf('server')).toBe('data');
         expect(groupOf('backup')).toBe('data');
         expect(groupOf('about')).toBeUndefined();
+    });
+
+    it('shows the server section only with server storage', () => {
+        const build = (supportsServerStorage: boolean) =>
+            buildSettingsSectionNavItems({
+                supportsEpg: false,
+                supportsRemoteControl: false,
+                supportsServerStorage,
+            }).find((item) => item.id === 'server');
+
+        expect(build(true)).toMatchObject({
+            visible: true,
+            group: 'data',
+            icon: 'dns',
+        });
+        expect(build(false)?.visible).toBe(false);
     });
 });
