@@ -1771,6 +1771,17 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 
 ### XMLTV source lifecycle
 
+The parser worker stages incoming channel and programme batches in
+connection-private, file-backed SQLite temporary tables. It publishes the new
+guide only after the stream and XML parser finish successfully with at least one
+channel. Source replacement, channel provenance/freshness, programmes and FTS
+updates commit in one transaction; an insert failure rolls back the entire
+replacement. A truncated stream, invalid XML, empty feed or worker terminated
+before publication leaves the previous guide available. Temporary rows disappear
+when the worker connection closes. Downloads do not hold the live database write lock, and the
+final commit reads bounded batches instead of loading the whole feed into JS
+memory. The existing source isolation and seven-day archive policy still apply.
+
 Electron treats `Settings.epgUrl` as the committed global source list. Removing
 an input is a draft edit; only a successful IndexedDB write authorizes source
 reconciliation. A storage write failure restores the previous in-memory EPG
