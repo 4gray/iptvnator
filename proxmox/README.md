@@ -13,9 +13,10 @@ small Debian container on Proxmox VE, without Docker:
   as a systemd service bound to `127.0.0.1`, with the same settings as the
   image. Running it again updates to the current image and keeps the settings
   and the data. It also works on another dedicated Debian 12/13 or Ubuntu
-  22.04+ container or VM: it serves IPTVnator as nginx's default site on port
-  80, replaces only Debian's untouched default site, and stops on a machine
-  whose nginx already serves something else there.
+  22.04+ container or VM: IPTVnator becomes nginx's default site on port 80.
+  It replaces Debian's default site only when that file is untouched, and stops
+  (leaving nginx as it was) when the default site was edited or nginx rejects
+  the new site, e.g. because another site is already `default_server`.
 
 ## Install
 
@@ -38,7 +39,7 @@ CTID=120 NET="ip=192.168.1.50/24,gw=192.168.1.1" IPTVNATOR_ACCESS_TOKEN=choose-a
 | --- | --- | --- |
 | `CTID` | next free id | Container id |
 | `CT_HOSTNAME` | `iptvnator` | Hostname |
-| `STORAGE` / `TEMPLATE_STORAGE` | first active container storage (`local-lvm`, `local-zfs`...) / `local` | Where the rootfs and the template go |
+| `STORAGE` / `TEMPLATE_STORAGE` | first active container storage (`local-lvm`, `local-zfs`...) / `local`, else the first active template storage (`local-btrfs`...) | Where the rootfs and the template go |
 | `BRIDGE` / `NET` | `vmbr0` / `ip=dhcp` | Network; `NET="ip=10.0.0.5/24,gw=10.0.0.1"` for a static address |
 | `DISK_GB` / `MEMORY_MB` / `SWAP_MB` / `CORES` | `4` / `1024` / `512` / `2` | Resources |
 | `CT_PASSWORD` | generated | Root password of the container (printed as soon as the container exists) |
@@ -60,9 +61,11 @@ image:
 pct exec <CTID> -- bash -c 'curl -fsSL https://raw.githubusercontent.com/4gray/iptvnator/master/proxmox/install.sh -o /root/iptvnator-install.sh && bash /root/iptvnator-install.sh'
 ```
 
-The settings check happens before the container is created. Each installer run
-keeps the settings of the previous one, and the database in `/var/lib/iptvnator`
-is never touched. To change a setting, run the installer with it; set it empty
+The settings are checked before the container is created and saved in it before
+anything is downloaded, so if an installation stops half-way,
+`pct exec <CTID> -- bash /root/iptvnator-install.sh` resumes it. Each installer
+run keeps the settings of the previous one, and the database in
+`/var/lib/iptvnator` is never touched. To change a setting, run the installer with it; set it empty
 to go back to the default:
 
 ```bash

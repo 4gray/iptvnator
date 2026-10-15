@@ -9,7 +9,8 @@
 #   CT_HOSTNAME       hostname                (default iptvnator)
 #   STORAGE           rootfs storage          (default: the first active storage for containers,
 #                                              e.g. local-lvm, local-zfs, local-btrfs)
-#   TEMPLATE_STORAGE  template storage        (default local)
+#   TEMPLATE_STORAGE  template storage        (default: local, else the first active
+#                                              storage for templates, e.g. local-btrfs)
 #   BRIDGE            network bridge          (default vmbr0)
 #   NET               net0 address settings   (default ip=dhcp; e.g. ip=192.168.1.50/24,gw=192.168.1.1)
 #   DISK_GB, MEMORY_MB, SWAP_MB, CORES        (default 4, 1024, 512, 2)
@@ -20,14 +21,15 @@
 #                     the container's update command downloads it from there again
 #   CLIENT_URL, PORT, IPTVNATOR_IMAGE, IPTVNATOR_IMAGE_TAG,
 #   IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS, IPTVNATOR_STORAGE, IPTVNATOR_ACCESS_TOKEN,
-#   IPTVNATOR_MAX_DOCUMENT_MB, IPTVNATOR_BACKEND_START_TIMEOUT, NODE_MAJOR
+#   IPTVNATOR_MAX_DOCUMENT_MB, IPTVNATOR_BACKEND_START_TIMEOUT, NODE_MAJOR,
+#   IPTVNATOR_SCRIPTS_BASE
 #                     passed through to install.sh when set (see its header)
 set -euo pipefail
 
 CTID="${CTID:-}"
 CT_HOSTNAME="${CT_HOSTNAME:-iptvnator}"
 STORAGE="${STORAGE:-}"
-TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-local}"
+TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-}"
 BRIDGE="${BRIDGE:-vmbr0}"
 NET="${NET:-ip=dhcp}"
 DISK_GB="${DISK_GB:-4}"
@@ -38,7 +40,8 @@ CT_PASSWORD="${CT_PASSWORD:-}"
 INSTALL_SCRIPT="${INSTALL_SCRIPT:-}"
 SCRIPTS_BASE="${SCRIPTS_BASE:-https://raw.githubusercontent.com/4gray/iptvnator/master/proxmox}"
 PASSTHROUGH=(CLIENT_URL PORT IPTVNATOR_IMAGE IPTVNATOR_IMAGE_TAG IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS
-    IPTVNATOR_STORAGE IPTVNATOR_ACCESS_TOKEN IPTVNATOR_MAX_DOCUMENT_MB IPTVNATOR_BACKEND_START_TIMEOUT NODE_MAJOR)
+    IPTVNATOR_STORAGE IPTVNATOR_ACCESS_TOKEN IPTVNATOR_MAX_DOCUMENT_MB IPTVNATOR_BACKEND_START_TIMEOUT NODE_MAJOR
+    IPTVNATOR_SCRIPTS_BASE)
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -47,19 +50,22 @@ die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 command -v pct >/dev/null 2>&1 || die "pct not found: run this on a Proxmox VE host"
 
 TMP="$(mktemp -d)"
-CREATED=""
+CREATED="" SAVED=""
 on_exit() {
     local status=$?
     rm -rf "$TMP"
-    if [ "$status" -ne 0 ] && [ -n "$CREATED" ]; then
-        cat >&2 <<MSG
-
-Container $CTID was created but the installation did not finish.
-  root password   $CT_PASSWORD
-  retry           pct exec $CTID -- bash /root/iptvnator-install.sh
-  remove          pct stop $CTID && pct destroy $CTID
-MSG
-    fi
+    [ "$status" -ne 0 ] && [ -n "$CREATED" ] || return 0
+    {
+        printf '\nContainer %s was created but the installation did not finish.\n' "$CTID"
+        printf '  root password   %s\n' "$CT_PASSWORD"
+        if [ -n "$SAVED" ]; then
+            # The settings are saved in the container: the installer alone resumes.
+            printf '  retry           pct exec %s -- bash /root/iptvnator-install.sh\n' "$CTID"
+        else
+            printf '  retry           remove it, then run this script again\n'
+        fi
+        printf '  remove          pct stop %s && pct destroy %s\n' "$CTID" "$CTID"
+    } >&2
 }
 trap on_exit EXIT
 
@@ -72,14 +78,24 @@ fi
 if [ -n "$INSTALL_SCRIPT" ]; then
     cp "$INSTALL_SCRIPT" "$TMP/install.sh"
 else
+    [[ "$SCRIPTS_BASE" =~ ^https://[^[:space:]\'\"]+$ ]] || die "SCRIPTS_BASE must be an https:// URL: the installer runs as root"
     log "Downloading install.sh from $SCRIPTS_BASE"
     curl -fsSL "$SCRIPTS_BASE/install.sh" -o "$TMP/install.sh"
 fi
+# Only the settings given here go to the container; install.sh applies its own
+# defaults to the rest. The update command downloads the installer again from
+# SCRIPTS_BASE when it came from there.
+INSTALL_ENV=()
+for name in "${PASSTHROUGH[@]}"; do
+    if [ -n "${!name+x}" ]; then INSTALL_ENV+=("$name=${!name}"); fi
+done
+[ -n "$INSTALL_SCRIPT" ] || INSTALL_ENV+=("IPTVNATOR_SCRIPTS_BASE=$SCRIPTS_BASE")
 (
     # shellcheck source=/dev/null
     source "$TMP/install.sh"
     # shellcheck disable=SC2034 # read by resolve_settings: no saved settings on the host
     ETC_DIR="$TMP/no-saved-settings"
+    for assignment in "${INSTALL_ENV[@]}"; do export "${assignment?}"; done
     resolve_settings
 ) || die "fix the setting above and run this script again"
 
@@ -101,6 +117,13 @@ fi
 if [ -z "$CT_PASSWORD" ]; then
     CT_PASSWORD="$(openssl rand -base64 12 | tr -d '/+=' | cut -c1-16)"
     GENERATED_PASSWORD=1
+fi
+
+if [ -z "$TEMPLATE_STORAGE" ]; then
+    TEMPLATE_STORAGE="$(pvesm status --content vztmpl --enabled 1 2>/dev/null | awk 'NR > 1 && $3 == "active" { if ($1 == "local") { print "local"; found = 1; exit } if (!first) first = $1 } END { if (!found && first) print first }')"
+    [ -n "$TEMPLATE_STORAGE" ] || die "no active storage for container templates on this host (pvesm status --content vztmpl)"
+elif ! pvesm status --content vztmpl --enabled 1 2>/dev/null | awk -v s="$TEMPLATE_STORAGE" 'NR > 1 && $1 == s { found = 1 } END { exit !found }'; then
+    die "storage '$TEMPLATE_STORAGE' cannot hold container templates here; available: $(pvesm status --content vztmpl --enabled 1 2>/dev/null | awk 'NR > 1 { printf "%s ", $1 }')"
 fi
 
 log "Looking for the latest Debian 12 template"
@@ -130,6 +153,12 @@ pct create "$CTID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE" \
 CREATED=1
 log "Container $CTID created, root password: $CT_PASSWORD"
 
+# Installer and settings go in before the network is up, so a failure later on
+# is resumed with the installer alone.
+pct push "$CTID" "$TMP/install.sh" /root/iptvnator-install.sh --perms 0700
+pct exec "$CTID" -- env "${INSTALL_ENV[@]}" bash /root/iptvnator-install.sh --save-settings
+SAVED=1
+
 log "Waiting for the container's network"
 for _ in $(seq 1 60); do
     if pct exec "$CTID" -- sh -c 'getent hosts deb.debian.org >/dev/null 2>&1'; then
@@ -139,23 +168,12 @@ for _ in $(seq 1 60); do
 done
 pct exec "$CTID" -- sh -c 'getent hosts deb.debian.org >/dev/null 2>&1' || die "the container has no network (DHCP? bridge $BRIDGE?)"
 
-pct push "$CTID" "$TMP/install.sh" /root/iptvnator-install.sh --perms 0755
-
 log "Installing IPTVnator inside the container (a few minutes)"
-# Only the settings given here; install.sh applies its own defaults to the rest.
-INSTALL_ENV=()
-for name in "${PASSTHROUGH[@]}"; do
-    if [ -n "${!name+x}" ]; then INSTALL_ENV+=("$name=${!name}"); fi
-done
-# Where the container's update command fetches the installer again.
-[ -n "$INSTALL_SCRIPT" ] || INSTALL_ENV+=("IPTVNATOR_SCRIPTS_BASE=$SCRIPTS_BASE")
-pct exec "$CTID" -- env "${INSTALL_ENV[@]}" bash /root/iptvnator-install.sh
+pct exec "$CTID" -- bash /root/iptvnator-install.sh
 
-if [ -n "$INSTALL_SCRIPT" ]; then
-    UPDATE="pct exec $CTID -- bash /root/iptvnator-install.sh"
-else
-    UPDATE="pct exec $CTID -- bash -c 'curl -fsSL $SCRIPTS_BASE/install.sh -o /root/iptvnator-install.sh && bash /root/iptvnator-install.sh'"
-fi
+UPDATE_BASE="$SCRIPTS_BASE"
+[ -z "$INSTALL_SCRIPT" ] || UPDATE_BASE="${IPTVNATOR_SCRIPTS_BASE:-https://raw.githubusercontent.com/4gray/iptvnator/master/proxmox}"
+UPDATE="pct exec $CTID -- bash -c 'curl -fsSL $UPDATE_BASE/install.sh -o /root/iptvnator-install.sh && bash /root/iptvnator-install.sh'"
 IP="$(pct exec "$CTID" -- hostname -I | awk '{print $1}')"
 cat <<MSG
 
