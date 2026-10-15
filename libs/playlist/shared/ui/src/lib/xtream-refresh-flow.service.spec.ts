@@ -78,6 +78,7 @@ describe('XtreamRefreshFlowService', () => {
     let confirmPromise: Promise<void> | undefined;
     let order: string[];
     let databaseService: {
+        restoreXtreamFavoriteSnapshots: jest.Mock;
         createOperationId: jest.Mock;
         deleteXtreamPlaylistContent: jest.Mock;
         updateXtreamPlaylistDetails: jest.Mock;
@@ -95,6 +96,10 @@ describe('XtreamRefreshFlowService', () => {
         order = [];
 
         databaseService = {
+            restoreXtreamFavoriteSnapshots: jest.fn(() => {
+                order.push('save-favorites');
+                return Promise.resolve();
+            }),
             createOperationId: jest.fn((prefix: string) => `${prefix}-op`),
             deleteXtreamPlaylistContent: jest.fn(() => {
                 order.push('delete');
@@ -153,6 +158,53 @@ describe('XtreamRefreshFlowService', () => {
     afterEach(() => {
         jest.restoreAllMocks();
         localStorage.clear();
+    });
+
+    it('converts legacy pending favorites before deleting or replacing the old catalog', async () => {
+        localStorage.setItem(
+            'xtream-restore-playlist-1',
+            JSON.stringify({
+                favorites: [{ contentType: 'movie', xtreamId: 7 }],
+                hiddenCategories: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+            })
+        );
+        service.confirmAndRefresh(
+            createPlaylistMeta(),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(
+            databaseService.restoreXtreamFavoriteSnapshots
+        ).toHaveBeenCalledWith(
+            'playlist-1',
+            [{ contentType: 'movie', xtreamId: 7 }],
+            undefined
+        );
+        expect(order.indexOf('save-favorites')).toBeLessThan(
+            order.indexOf('delete')
+        );
+    });
+
+    it('preserves legacy pending state and the catalog when durable conversion fails', async () => {
+        const pending = JSON.stringify({
+            favorites: [{ contentType: 'movie', xtreamId: 7 }],
+        });
+        localStorage.setItem('xtream-restore-playlist-1', pending);
+        databaseService.restoreXtreamFavoriteSnapshots.mockRejectedValue(
+            new Error('SQLite unavailable')
+        );
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        service.confirmAndRefresh(
+            createPlaylistMeta(),
+            createReporter().reporter
+        );
+        await confirmPromise;
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).not.toHaveBeenCalled();
+        expect(localStorage.getItem('xtream-restore-playlist-1')).toBe(pending);
     });
 
     it('ignores a confirmation that arrives while the playlist is already busy', async () => {

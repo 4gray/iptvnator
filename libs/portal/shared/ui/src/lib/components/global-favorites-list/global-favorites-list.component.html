@@ -34,8 +34,17 @@
             [isDraggable]="canDragDrop()"
             [logo]="ch.logo"
             [name]="ch.name"
+            [disabled]="isUnavailable(ch)"
+            [statusLabel]="
+                isUnavailable(ch)
+                    ? ((ch.catalogStatus === 'missing'
+                          ? 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
+                          : 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_UNKNOWN'
+                      ) | translate)
+                    : ''
+            "
             [selected]="activeUid() === ch.uid"
-            [showEpg]="showEpg() && ch.radio !== 'true'"
+            [showEpg]="!isUnavailable(ch) && showEpg() && ch.radio !== 'true'"
             [isRadio]="ch.radio === 'true'"
             [epgProgram]="ch.currentEpgProgram"
             [progressPercentage]="ch.progressPercentage"
@@ -47,16 +56,20 @@
             [showDetailsContextMenu]="hasChannelContextMenu(ch)"
             (clicked)="onChannelClick(ch)"
             (activated)="onChannelActivate(ch)"
-            (keyboardActivated)="playbackRequested.emit(ch)"
+            (keyboardActivated)="onPlaybackRequested(ch)"
             (favoriteToggled)="onFavoriteToggled(ch)"
             (contextMenuRequested)="onChannelContextMenu(ch, $event)"
         />
     }
 </div>
 
+<!-- A favorite whose catalog entry is missing keeps only the actions that
+     need no catalog: open in its playlist is gated by canOpenInPlaylist. -->
 <app-channel-context-menu
-    [showMapEpg]="supportsEpgMapping"
-    [showDetails]="!!contextMenuChannel()?.m3uChannel"
+    [showMapEpg]="supportsEpgMapping && !contextMenuUnavailable()"
+    [showDetails]="
+        !!contextMenuChannel()?.m3uChannel && !contextMenuUnavailable()
+    "
     [openInPlaylistName]="
         contextMenuCanOpenInPlaylist() ? contextMenuPlaylistName() : null
     "

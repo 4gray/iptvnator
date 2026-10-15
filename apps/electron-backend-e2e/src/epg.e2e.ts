@@ -105,17 +105,25 @@ test.describe('Electron EPG', () => {
         ['double', true],
         ['single', false],
     ] as const) {
-        test(`@epg @electron imports ${name} gzip with a .gz URL and HTTP gzip`, async ({
+        test(`@epg @electron imports ${name} gzip with UTF-8 across decompression chunks`, async ({
             dataDir,
         }) => {
-            const server = await createGzipEpgServer(
-                createCurrentXmltvFixture(
-                    'gzip-news',
-                    'Gzip News',
-                    'Gzip Bulletin'
-                ),
-                doubleGzip
+            const title = 'Été 日本 🎬 Новости';
+            const xml = createCurrentXmltvFixture(
+                'gzip-news',
+                'Gzip Новости 東京 📺',
+                title
             );
+            // Gunzip emits 16 KiB chunks. Put the first byte of É at the end
+            // of one chunk so the real parser worker must carry UTF-8 state.
+            const titleOffset = Buffer.byteLength(
+                xml.slice(0, xml.indexOf(title))
+            );
+            const padding = ' '.repeat(16 * 1024 - 1 - titleOffset - 7);
+            const paddedXml = xml.replace('<tv>', `<tv><!--${padding}-->`);
+            expect(Buffer.from(paddedXml)[16 * 1024 - 1]).toBe(0xc3);
+            expect(Buffer.from(paddedXml)[16 * 1024]).toBe(0x89);
+            const server = await createGzipEpgServer(paddedXml, doubleGzip);
             try {
                 const app = await launchElectronApp(dataDir);
                 try {
@@ -129,13 +137,13 @@ test.describe('Electron EPG', () => {
                         window.electron.getEpgChannelMetadata(['gzip-news'])
                     );
                     expect(metadata['gzip-news']).toMatchObject({
-                        displayName: 'Gzip News',
+                        displayName: 'Gzip Новости 東京 📺',
                     });
                     const programs = await app.mainWindow.evaluate(() =>
                         window.electron.getChannelPrograms('gzip-news')
                     );
                     expect(programs.map((program) => program.title)).toEqual([
-                        'Gzip Bulletin',
+                        title,
                     ]);
                 } finally {
                     await closeElectronApp(app);

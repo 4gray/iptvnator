@@ -136,11 +136,17 @@
             "@iptvnator/services/playlist-backup": [
                 "libs/services/src/lib/playlist-backup.service.ts"
             ],
+            "@iptvnator/services/pwa-xtream-backup-storage": [
+                "libs/services/src/lib/pwa-xtream-backup-storage.ts"
+            ],
             "@iptvnator/services/server-storage": [
                 "libs/services/src/lib/server-storage/index.ts"
             ],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
+            ],
+            "@iptvnator/shared/interfaces/xtream-restore-state": [
+                "libs/shared/interfaces/src/lib/xtream-restore-state.util.ts"
             ],
             "@iptvnator/shared/interfaces/ipc-commands": [
                 "libs/shared/interfaces/src/lib/ipc-commands.ts"

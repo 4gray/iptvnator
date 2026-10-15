@@ -1,3 +1,7 @@
+import type {
+    ContentMetadataPatch,
+    XtreamFavoriteCatalogStatus,
+} from '@iptvnator/shared/interfaces';
 /**
  * Unified interface for displaying favorites or recently-viewed items
  * from any source (M3U, Xtream, Stalker) in one list.
@@ -55,6 +59,11 @@ export interface UnifiedCollectionItem {
 
     /** Xtream DB content id — used for reorder / remove IPC */
     contentId?: number;
+    /** Durable favorite identity, usable even after its catalog row is gone. */
+    favoriteId?: number;
+    catalogStatus?: XtreamFavoriteCatalogStatus;
+    /** Identity of this saved row, even when a provider reuses its typed ID. */
+    xtreamIdentity?: Pick<ContentMetadataPatch, 'tmdbId' | 'releaseYear'>;
 
     /** Whether the Xtream provider has timeshift / archive enabled for this stream */
     tvArchive?: number | null;

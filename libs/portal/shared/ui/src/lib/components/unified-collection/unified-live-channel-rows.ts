@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { computed, Signal } from '@angular/core';
 import {
     deriveVisibleFavoriteChannels,
@@ -49,7 +50,10 @@ export function createUnifiedLiveChannelRows(options: {
             })
         ),
         fullscreenPanel: computed(() =>
-            all().filter((channel) => channel.radio !== 'true')
+            all().filter(
+                (channel) =>
+                    channel.radio !== 'true' && !isCatalogUnavailable(channel)
+            )
         ),
     };
 }
@@ -92,5 +96,7 @@ export function toUnifiedFavoriteChannel(
         addedAt: item.addedAt ?? new Date(0).toISOString(),
         position: item.position ?? 0,
         contentId: item.contentId,
+        favoriteId: item.favoriteId,
+        catalogStatus: item.catalogStatus,
     };
 }

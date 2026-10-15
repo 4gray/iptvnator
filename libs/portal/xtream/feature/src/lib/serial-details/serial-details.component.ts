@@ -36,6 +36,7 @@ import {
 } from '@iptvnator/ui/components';
 import {
     registerContentMetadataBackfill,
+    xtreamDetailContentMetadata,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -356,7 +357,8 @@ export class SerialDetailsComponent implements OnDestroy {
             this.route.snapshot.params['serialId'],
             playlist.id,
             'series',
-            this.selectedItem()?.info?.backdrop_path?.[0]
+            this.selectedItem()?.info?.backdrop_path?.[0],
+            xtreamDetailContentMetadata(this.selectedItem()?.info) ?? undefined
         );
     }
 

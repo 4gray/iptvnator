@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "已从收藏中移除",
         "ADDED_TO_FAVORITES": "已添加至收藏夹",
         "FAVORITES": "收藏",
+        "FAVORITE_IDENTITY_CONFLICT": "此来源替换了您保存的项目。请先从收藏夹中移除旧项目，再添加此项目。",
+        "FAVORITE_SAVE_FAILED": "无法保存此收藏。请重试。",
         "RECENTLY_VIEWED": "最近观看",
         "THIS_PLAYLIST": "本播放列表",
         "ALL_PLAYLISTS": "所有播放列表",
@@ -2050,6 +2052,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "当前目录中不存在",
+            "CATALOG_UNKNOWN": "目录状态未知",
             "TITLE": "全局收藏",
             "SUBTITLE": "来自所有播放列表的直播电视",
             "SEARCH_PLACEHOLDER": "搜索收藏…",

@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Eliminado de favoritos",
         "ADDED_TO_FAVORITES": "Añadido a favoritos",
         "FAVORITES": "Favoritos",
+        "FAVORITE_IDENTITY_CONFLICT": "Esta fuente ha sustituido un elemento guardado. Elimina la entrada anterior de Favoritos antes de añadir esta.",
+        "FAVORITE_SAVE_FAILED": "No se pudo guardar este favorito. Inténtalo de nuevo.",
         "RECENTLY_VIEWED": "Vistos recientemente",
         "THIS_PLAYLIST": "Esta lista de reproducción",
         "ALL_PLAYLISTS": "Todas las listas",
@@ -2050,6 +2052,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "No está en el catálogo actual",
+            "CATALOG_UNKNOWN": "Estado del catálogo desconocido",
             "TITLE": "Favoritos globales",
             "SUBTITLE": "TV en vivo de todas las listas",
             "SEARCH_PLACEHOLDER": "Buscar favoritos…",
