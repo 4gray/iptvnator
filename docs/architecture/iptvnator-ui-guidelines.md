@@ -154,6 +154,15 @@ tokens, so the retired `--mdc-*` names compile but do nothing;
 a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
 token directly and says why.
 
+Change what a Material button draws (label colour, padding) through its
+tokens, not plain properties on its host. Material's own rules, such as
+`.mat-mdc-button:not(:disabled)` for the colour, match a component's
+`.class[_ngcontent-…]` selector in specificity, so the stylesheet added last
+wins. Angular removes a component's stylesheet with its last instance and
+appends it again with the next one, so that order changes with navigation.
+`catalog-sort-menus.e2e.ts` moves each sheet last and checks that the Refine
+picker and the rating chip keep their look.
+
 ### Material off the startup path
 
 `renderer.initialBytes` ([performance journeys](performance-journeys.md#rendererinitialbytes))
@@ -1040,8 +1049,9 @@ and drive the season container's presenters.
 
 Every section below the hero (Episodes, Cast & crew, Similar) uses
 `app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular
-counter, a lead slot (the season pills or dropdown, a 30px pill) and an end
-slot (the list/grid toggle, rail arrows). Sections sit 56px apart, with 16px
+counter, a lead slot (the 30px season pills, or past four seasons the
+season dropdown, a small secondary button with a chevron) and an end slot
+(the list/grid toggle, rail arrows). Sections sit 56px apart, with 16px
 between a header and its content and 56px after the last one. The Episodes
 counter reads "N episodes · M watched". The list/grid switch is a segmented
 track whose checked segment is a neutral raised fill with heading ink; the
@@ -1235,8 +1245,15 @@ ui:form-field-defaults:validate` (in CI) reports a missing provider.
 A `mat-select` belongs inside a form. Its option panel is styled once in
 `m3-theme.scss` to match the kit menu (a bordered 10px panel, 36px rows at
 13px, the chosen row on the list-selection tokens). A picker in a toolbar is
-not a select: it is a secondary button with a chevron that opens an
-`app-menu`.
+not a select: it is a `mat-flat-button` with the `secondary-button` mixin and
+a trailing `expand_more` chevron (`iconPositionEnd`, `trigger-chevron`) that
+opens a `mat-menu`, as the Sources sort, the catalog Refine button, the
+programme guide's scope and the season dropdown do. Its label shows the
+current value where there is one; when the visible label is only the value,
+the accessible name adds what it picks ("Channels shown: Favorites"). An
+active picker (refinements applied) takes the selected-row tint. A panel
+header's icon actions use `ghost-icon-button`, as the category panel's
+search and sort do.
 
 The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
 vocabulary, so a field reads the same wherever it appears:

@@ -31,6 +31,9 @@ import { applyTheme, expectTextContrast } from './theme-contrast';
 //
 // The refine menu keeps its rating thresholds in a submenu, so it opens
 // whole below its button in a short window.
+//
+// Refine and the rating chip are Material buttons: their look comes from
+// button tokens, so it holds whichever stylesheet the page added last.
 // ---------------------------------------------------------------------------
 
 const locales = ['en', 'de', 'ru', 'hu'] as const;
@@ -391,6 +394,87 @@ test.describe('Electron catalog sort menus', () => {
             await page.keyboard.press('Escape');
             await expect(menu).toBeHidden();
             await expect(trigger).toBeFocused();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test("keeps the Refine picker and the rating chip's look whichever stylesheet the page added last", async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+
+        try {
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await page.setViewportSize({ width: 1280, height: 800 });
+            await openWorkspaceSection(page, 'Movies');
+            await expect(
+                page.locator('app-category-content-view mat-card').first()
+            ).toBeVisible({ timeout: 20_000 });
+            const menu = await openRefineMenu(page);
+            const thresholds = await openRatingSubmenu(page);
+            await thresholds
+                .getByRole('menuitemradio', { name: /\b7\b/ })
+                .click();
+            await expect(menu).toBeHidden();
+
+            const chip = page.locator(
+                'app-category-content-view .rating-refinement-chip'
+            );
+            const refine = page.locator(
+                'app-category-content-view .refine-action'
+            );
+            const look = async () => ({
+                chip: await chip.evaluate((element) => {
+                    const probe = document.createElement('span');
+                    probe.style.color = 'var(--mat-sys-primary)';
+                    element.parentElement?.append(probe);
+                    const primary = getComputedStyle(probe).color;
+                    probe.remove();
+                    const style = getComputedStyle(element);
+                    return {
+                        isPrimary: style.color === primary,
+                        padding: `${style.paddingLeft} ${style.paddingRight}`,
+                    };
+                }),
+                refine: await refine.evaluate((element) => {
+                    const style = getComputedStyle(element);
+                    return {
+                        height: Math.round(
+                            element.getBoundingClientRect().height
+                        ),
+                        radius: style.borderRadius,
+                        background: style.backgroundColor,
+                    };
+                }),
+            });
+            const expected = {
+                chip: { isPrimary: true, padding: '10px 10px' },
+                refine: { height: 32, radius: '8px' },
+            };
+
+            // Angular removes a component's stylesheet with its last instance
+            // and appends it again with the next one, so either Material's
+            // button sheet or the catalog view's may come last.
+            const moveLast = (needle: string) =>
+                page.evaluate((text) => {
+                    const sheets = [
+                        ...document.head.querySelectorAll('style'),
+                    ].filter((sheet) => sheet.textContent?.includes(text));
+                    for (const sheet of sheets) document.head.append(sheet);
+                    return sheets.length;
+                }, needle);
+
+            const initial = await look();
+            expect(initial).toMatchObject(expected);
+            expect(await moveLast('.mat-mdc-button:not(:disabled)')).toBe(1);
+            expect(await look(), 'Material button sheet last').toEqual(initial);
+            expect(await moveLast('rating-refinement-chip')).toBe(1);
+            expect(await look(), 'catalog view sheet last').toEqual(initial);
         } finally {
             await closeElectronApp(app);
         }

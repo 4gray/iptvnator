@@ -65,7 +65,7 @@
                     </div>
                     <button
                         type="button"
-                        mat-button
+                        mat-flat-button
                         class="refine-action"
                         [class.refine-action-active]="
                             activeRefinementCount() > 0
@@ -83,6 +83,12 @@
                                 activeRefinementCount()
                             }}</span>
                         }
+                        <mat-icon
+                            class="refine-action__chevron"
+                            iconPositionEnd
+                        >
+                            expand_more
+                        </mat-icon>
                     </button>
                     <mat-menu #refineMenu="matMenu" class="refine-menu">
                         @if (canSortContent()) {

@@ -1,18 +1,19 @@
 <div class="season-tabs" [attr.role]="useDropdown() ? null : 'tablist'">
     @if (useDropdown()) {
         <button
+            mat-flat-button
             class="season-tabs__dropdown"
             data-testid="season-dropdown"
             [matMenuTriggerFor]="seasonMenu"
             type="button"
         >
-            <span>
-                {{
-                    'PORTALS.SEASON_TAB'
-                        | translate: { number: selectedSeason() ?? '—' }
-                }}
-            </span>
-            <mat-icon>expand_more</mat-icon>
+            {{
+                'PORTALS.SEASON_TAB'
+                    | translate: { number: selectedSeason() ?? '—' }
+            }}
+            <mat-icon class="season-tabs__chevron" iconPositionEnd>
+                expand_more
+            </mat-icon>
         </button>
         <mat-menu #seasonMenu="matMenu" class="season-tabs-menu">
             @for (seasonKey of seasonKeys(); track seasonKey) {

@@ -33,13 +33,20 @@
         {{ 'EPG.GUIDE.NOW' | translate }}
     </button>
 
+    <!-- The name carries the value: "Channels shown: Favorites". -->
     <button
         type="button"
+        mat-flat-button
         class="guide-toolbar__scope"
         [matMenuTriggerFor]="scopeMenu"
-        [attr.aria-label]="'EPG.GUIDE.SCOPE' | translate"
+        [attr.aria-label]="
+            ('EPG.GUIDE.SCOPE' | translate) + ': ' + scopeLabel()
+        "
     >
-        {{ scopeLabel() }} <mat-icon>arrow_drop_down</mat-icon>
+        {{ scopeLabel() }}
+        <mat-icon class="guide-toolbar__scope-chevron" iconPositionEnd>
+            expand_more
+        </mat-icon>
     </button>
     <!-- Single-choice rows, as `appMenuItemRadio` renders them in
          @iptvnator/ui/components, which depends on this library. -->
