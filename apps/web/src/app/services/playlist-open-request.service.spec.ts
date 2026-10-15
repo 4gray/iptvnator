@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util';
 import type { ElectronBridgePlaylistOpenRequest } from '@iptvnator/shared/interfaces';
@@ -40,7 +40,7 @@ describe('PlaylistOpenRequestService', () => {
                 title: 'Playlist',
             }),
         };
-        snackBar = { open: jest.fn() };
+        snackBar = { open: jest.fn().mockResolvedValue(null) };
         bridge = {
             acknowledgePlaylistOpenRequest: jest
                 .fn()
@@ -59,7 +59,7 @@ describe('PlaylistOpenRequestService', () => {
             providers: [
                 PlaylistOpenRequestService,
                 { provide: PlaylistFileImportService, useValue: importService },
-                { provide: MatSnackBar, useValue: snackBar },
+                { provide: LazySnackBar, useValue: snackBar },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },
@@ -101,7 +101,9 @@ describe('PlaylistOpenRequestService', () => {
     // `send()` returns before the listener runs, so the main process holds the
     // request until this confirms a live renderer got it.
     it('acknowledges a request as soon as it arrives', async () => {
-        importService.importFromPath.mockReturnValue(new Promise(() => undefined));
+        importService.importFromPath.mockReturnValue(
+            new Promise(() => undefined)
+        );
 
         service.start();
         pushRequest(request('startup'));

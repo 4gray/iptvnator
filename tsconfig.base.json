@@ -133,6 +133,9 @@
                 "libs/shared/host-health/src/index.ts"
             ],
             "@iptvnator/services": ["libs/services/src/index.ts"],
+            "@iptvnator/services/lazy-snack-bar": [
+                "libs/services/src/lib/lazy-snack-bar/lazy-snack-bar.ts"
+            ],
             "@iptvnator/services/playlist-backup": [
                 "libs/services/src/lib/playlist-backup.service.ts"
             ],

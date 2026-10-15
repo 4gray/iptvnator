@@ -167,10 +167,10 @@ picker and the rating chip keep their look.
 
 `renderer.initialBytes` ([performance journeys](performance-journeys.md#rendererinitialbytes))
 counts every module an eager file imports, and the bundler keeps a module in
-one chunk, so one import of one export carries the whole module. Material
-therefore reaches the initial bundle only through the snack-bar, which root
-services inject (and with it `button`, the icon button and the CDK overlay).
-Everything else is lazy by these rules:
+one chunk, so one import of one export carries the whole module. No Material
+module is in the initial bundle; of the CDK only the overlay stays, because
+`app.config.ts` provides `FullscreenOverlayContainer` and that token lives
+in the overlay chunk. Everything else is lazy by these rules:
 
 - **Form-field defaults.** A component that renders `<mat-form-field>`
   adds `providers: [provideFormFieldDefaults()]`
@@ -186,11 +186,23 @@ Everything else is lazy by these rules:
   and the workspace shell actions do; `openConfirmDialog` returns a promise
   that settles once the dialog is open. A component in a lazy chunk injects
   `MatDialog` directly.
+- **Toasts from services created with the app.** A root service or the app
+  shell opens its snack-bars through `LazySnackBar`
+  (`@iptvnator/services/lazy-snack-bar`), whose `open` takes
+  `MatSnackBar.open`'s arguments and returns a promise of the ref, or of
+  `null` after a failed chunk load, which it logs without the message (a
+  toast can carry a playlist URL). `snack-bar.mjs` statically imports
+  Material's button, the icon button chunk, ripple and the CDK a11y module,
+  so one eager `MatSnackBar` injection put about 110 KB on the initial
+  path. A component in a lazy chunk injects `MatSnackBar` directly; the
+  initial-bytes ratchet fails on a new eager importer.
 - **Panels the shell mounts on every launch.** The EPG progress panel and the
   update notification are an eager host with `@defer (when visible)` around
   the view that imports Material; the startup status draws its spinner as
-  static markup copied from `mat-spinner`. A new always-mounted component
-  follows the same split.
+  static markup copied from `mat-spinner` and renders its Retry button in
+  `@defer (on immediate)` inside the failure branch, with a native button
+  as the placeholder and the error view so a retry never waits for the
+  chunk. A new always-mounted component follows the same split.
 - **Theme scope.** `m3-theme.scss` themes only the components in its
   `$material-components` list, through `meta.apply` for both the light theme
   and the dark colours. Add an entry with a new `@angular/material/<entry>`
