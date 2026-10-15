@@ -203,19 +203,18 @@ storage and EPG are enabled. Every file stays under 300 lines.
 
 ### 6.3 Client
 
-- **Seam (3b).** An EPG runtime backend interface carries the capability
-  flags and the methods `EpgRuntimeBridgeService` exposes today; an
-  injection token selects it at bootstrap. The Electron implementation is
-  today's bridge code. `RuntimeCapabilitiesService` reads its EPG getters
-  from the selected backend, so they stay synchronous and the default stays
-  identical. The interface goes to `@iptvnator/shared/interfaces`, next to
-  the `ElectronBridgeEpg*` types it is built from; the token and the
-  Electron implementation go to the `@iptvnator/services` main barrel,
-  which `RuntimeCapabilitiesService` lives in and `libs/epg/data-access`
-  already imports. `XtreamXmltvFallbackService`, `with-epg.feature`,
+- **Seam (3b).** The EPG runtime backend is the EPG subset of the bridge
+  API: `EpgRuntimeBackend`, a `Partial<Pick<ElectronBridgeApi, …>>` of the
+  methods `EpgRuntimeBridgeService` and `EpgSourceSettingsService` call
+  (including `reconcileEpgSources`), in `@iptvnator/shared/interfaces`. The
+  token `EPG_RUNTIME_BACKEND` in the `@iptvnator/services` main barrel
+  provides a getter for it; the default getter returns `window.electron`.
+  A capability stays "the method is present", now checked on the backend
+  instead of on `window.electron`, so every desktop flag keeps its value and
+  stays a synchronous getter. The server backend simply has no file picker
+  and no mapping methods. `XtreamXmltvFallbackService`, `with-epg.feature`,
   `epg-queue.service` and `portal-channels-list` stop calling
-  `window.electron` and use the bridge. `EpgSourceSettingsService` gets a
-  pluggable reconciler (Electron IPC by default).
+  `window.electron` and use the bridge.
 - **Server backend (3d)**, in the `@iptvnator/services/server-storage`
   sub-entry, provided by `provideServerStorage()` when the instance reports
   `features.epg` (remembered with the instance, so an offline start knows
@@ -233,9 +232,9 @@ storage and EPG are enabled. Every file stays under 300 lines.
     clears the current-programme and guide caches.
   - Source list: on settings load `SettingsStore.epgUrl` is replaced by
     `urls` from `GET /v1/epg/settings` (re-read when the tab becomes
-    visible); the server reconciler commits a changed list with
-    `PUT /v1/epg/settings`. The device copy of `epgUrl` is not used in
-    server mode.
+    visible); the server backend's `reconcileEpgSources` commits a changed
+    list with `PUT /v1/epg/settings`. The device copy of `epgUrl` is not
+    used in server mode.
 
 ## 7. HTTP API (`/v1/epg`, behind the access guard)
 
@@ -248,7 +247,7 @@ answers `{}` or `[]`.
 | Route | Body → answer | Bridge method |
 | --- | --- | --- |
 | `GET /v1/epg/settings` | → `{ urls, refreshTime }` | source list |
-| `PUT /v1/epg/settings` | `{ urls ≤ 50, refreshTime "HH:MM" }` → same; `400` on a non-`http(s)` URL, URL credentials, too many URLs or a bad time | reconcile |
+| `PUT /v1/epg/settings` | `{ urls? ≤ 50, refreshTime? "HH:MM" }` (an omitted field keeps its value) → the stored settings; `400` on a non-`http(s)` URL, URL userinfo, too many URLs or a bad time | `reconcileEpgSources`, refresh time |
 | `GET /v1/epg/status` | → `{ revision, refreshTime, timeZone, nextRunAt, sources: [{ url, owners, state, queuePosition?, stats?, lastAttemptAt?, lastSuccessAt?, channels?, programmes?, errorCode?, errorHost? }], totals: { programmes, databaseBytes } }` | freshness, progress |
 | `POST /v1/epg/import` | `{ urls?, force? }` → `202` + status | `fetchEpg`, `forceFetchEpg` |
 | `POST /v1/epg/clear` | `{ url? }` → `{ success }` | `clearEpgData`, `clearEpgDataForSource` |
@@ -369,7 +368,7 @@ settings. New strings are translated in all locales.
 | PR | Content | Depends on | Release note |
 | --- | --- | --- | --- |
 | 3a | Provider EPG in the PWA: `supportsProviderEpg`, Xtream and Stalker gates, E2E, docs (`stalker-epg.md`, Xtream compatibility, PWA limitations). | — | yes |
-| 3b-1 | Renderer seam: EPG runtime backend interface and token, capability flags from the backend, portal `window.electron` calls behind the bridge, pluggable source reconciler. No behavior change. | — | no |
+| 3b-1 | Renderer seam: `EpgRuntimeBackend` and `EPG_RUNTIME_BACKEND`, EPG capability flags checked on the backend, portal `window.electron` calls behind the bridge, `EpgSourceSettingsService` reconciling through the backend. No behavior change. | — | no |
 | 3b-2 | `@iptvnator/shared/epg-store`: pipeline and queries extracted (query service split), Electron on the library, streaming mode with a byte cap in `ValidatedHttpClient`. No behavior change. | #1941, #1946, #1947 (+#1800) merged | no |
 | 3c | Server EPG in `web-backend`: `epg.db`, registry, scheduler, import queue and worker, `/v1/epg`, `features.epg`, shutdown hook, Docker env and docs. `IPTVNATOR_EPG` defaults to `off`. | 3b-2 | no |
 | 3d | PWA server mode: `ServerEpgBackend`, poller, server source list, Settings → EPG server view, `/parse` header EPG URLs, i18n, `@server-epg` E2E, docs; `IPTVNATOR_EPG` defaults to `on`. | 3b-1, 3c | yes |
