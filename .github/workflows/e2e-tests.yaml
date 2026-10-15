@@ -40,9 +40,10 @@ jobs:
         name: Electron E2E on ${{ matrix.os }} (${{ matrix.shard }}/${{ matrix.shard-total }})
         runs-on: ${{ matrix.os }}
         # The sequential Electron suite is split into Playwright shards (one
-        # runner each, split by spec file). Measured on 2026-09-26, a third of
-        # the suite is 6-12 minutes of test time on top of 3-7 minutes of
-        # setup. macOS uses two shards because its runners are the scarcest:
+        # runner each, split by spec file). Windows uses four shards: with
+        # three, different shards reached the 30-minute job limit on slower
+        # runners, including setup, without test failures. Linux uses three.
+        # macOS uses two shards because its runners are the scarcest:
         # three macOS shards per run queued for 45-57 minutes on master. Half
         # of the suite is about 15 minutes of test time on macOS, so it gets
         # a longer timeout to leave room for retries.
@@ -59,9 +60,10 @@ jobs:
                     - { os: ubuntu-latest, shard: 3, shard-total: 3 }
                     - { os: macos-latest, shard: 1, shard-total: 2 }
                     - { os: macos-latest, shard: 2, shard-total: 2 }
-                    - { os: windows-latest, shard: 1, shard-total: 3 }
-                    - { os: windows-latest, shard: 2, shard-total: 3 }
-                    - { os: windows-latest, shard: 3, shard-total: 3 }
+                    - { os: windows-latest, shard: 1, shard-total: 4 }
+                    - { os: windows-latest, shard: 2, shard-total: 4 }
+                    - { os: windows-latest, shard: 3, shard-total: 4 }
+                    - { os: windows-latest, shard: 4, shard-total: 4 }
 
         steps:
             - uses: actions/checkout@v7
