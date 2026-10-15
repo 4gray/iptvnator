@@ -418,17 +418,24 @@ test('@critical @persistence @xtream @electron keeps known conflicts through spa
             'sources'
         );
         await openWorkspaceSection(app.mainWindow, 'Global favorites');
-        const card = contentCardByTitle(
-            app.mainWindow,
-            'Saved original before reuse'
-        );
+        expect(
+            (await readSavedFavorites(app.mainWindow, playlistId))[0]
+                .catalog_status
+        ).toBe('missing');
+        const card = app.mainWindow.getByRole('button', {
+            name: 'Saved original before reuse',
+            exact: true,
+        });
         await expect(card).toHaveAttribute('aria-disabled', 'true');
         await card.dispatchEvent('click');
         await expect(app.mainWindow.locator('app-content-hero')).toHaveCount(0);
         app = await restartElectronApp(app, dataDir);
         await openWorkspaceSection(app.mainWindow, 'Global favorites');
         await expect(
-            contentCardByTitle(app.mainWindow, 'Saved original before reuse')
+            app.mainWindow.getByRole('button', {
+                name: 'Saved original before reuse',
+                exact: true,
+            })
         ).toHaveAttribute('aria-disabled', 'true');
         const [after] = await readSavedFavorites(app.mainWindow, playlistId);
         expect(savedFavoriteIdentity([after])).toEqual(

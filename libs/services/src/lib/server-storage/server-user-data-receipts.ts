@@ -14,22 +14,18 @@ export function retainServerRestoreReceipts(
     const receipts = map[XTREAM_RESTORE_RECEIPTS];
     if (!record(receipts) || namespace !== XTREAM_USER_DATA_KEYS.favorites)
         return false;
-    map[XTREAM_RESTORE_RECEIPTS] = Object.fromEntries(
-        Object.entries(receipts).map(([id, receipt]) => {
-            if (!record(receipt) || !Array.isArray(receipt['keys']))
-                return [id, receipt];
-            const list = map[id];
-            return [
-                id,
-                {
-                    ...receipt,
-                    keys: receipt['keys'].filter(
-                        (key) => Array.isArray(list) && list.includes(key)
-                    ),
-                },
-            ];
-        })
-    );
+    const next = { ...receipts };
+    for (const [id, receipt] of Object.entries(receipts)) {
+        if (!record(receipt) || !Array.isArray(receipt['keys'])) continue;
+        const list = map[id];
+        next[id] = {
+            ...receipt,
+            keys: receipt['keys'].filter(
+                (key) => Array.isArray(list) && list.includes(key)
+            ),
+        };
+    }
+    map[XTREAM_RESTORE_RECEIPTS] = next;
     return true;
 }
 

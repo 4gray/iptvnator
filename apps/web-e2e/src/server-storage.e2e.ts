@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import type { Browser, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import {
@@ -169,5 +170,148 @@ test.describe('server storage @self-hosted @persistence', () => {
         await expect(page.locator('mat-dialog-container')).toHaveCount(0);
 
         await page.context().close();
+    });
+    test('durable Xtream backup snapshots survive server restore, another device and explicit removal', async ({
+        browser,
+        request,
+    }) => {
+        const first = await newServerPage(browser);
+        const second = await newServerPage(browser);
+        const playlistId = 'durable-server-favorite';
+        const manifest = {
+            kind: 'iptvnator-playlist-backup',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            includeSecrets: true,
+            playlists: [
+                {
+                    portalType: 'xtream',
+                    exportedId: playlistId,
+                    title: 'Server favorites',
+                    autoRefresh: false,
+                    connection: {
+                        serverUrl: 'https://offline.example.invalid',
+                        username: 'synthetic',
+                        password: 'synthetic',
+                    },
+                    userState: {
+                        hiddenCategories: [],
+                        favorites: [
+                            {
+                                xtreamId: 987655,
+                                contentType: 'movie',
+                                addedAt: '2020-01-01',
+                                position: 4,
+                                snapshot: {
+                                    title: 'Saved server original',
+                                    tmdbId: 100,
+                                    releaseYear: 2000,
+                                },
+                            },
+                        ],
+                        recentlyViewed: [],
+                        playbackPositions: [],
+                        collectionItems: [
+                            {
+                                id: 987655,
+                                xtream_id: 987655,
+                                type: 'movie',
+                                title: 'Wrong cache replacement',
+                                tmdb_id: 200,
+                                release_year: 2026,
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+        try {
+            await first.route(
+                (url) => url.pathname === '/xtream',
+                (route) => route.abort()
+            );
+            await second.route(
+                (url) => url.pathname === '/xtream',
+                (route) => route.abort()
+            );
+            await first.goto('/workspace/settings/backup');
+            const chooser = first.waitForEvent('filechooser');
+            await first
+                .getByRole('button', { name: 'Import', exact: true })
+                .click();
+            await (
+                await chooser
+            ).setFiles({
+                name: 'server-favorites.json',
+                mimeType: 'application/json',
+                buffer: Buffer.from(JSON.stringify(manifest)),
+            });
+            await expect(
+                first.getByText(/Backup import finished: .*0 failed/)
+            ).toBeVisible();
+            const entries = (
+                await (
+                    await request.get(`${STORAGE_BACKEND_URL}/v1/user-state`)
+                ).json()
+            ).entries;
+            expect(Object.keys(entries['xtream-favorites'])).toEqual([
+                playlistId,
+            ]);
+            expect(
+                entries['xtream-collection-items'][playlistId]['movie:987655']
+            ).toMatchObject({
+                title: 'Saved server original',
+                tmdb_id: 100,
+                release_year: 2000,
+            });
+            await second.goto('/workspace/global-favorites');
+            await expect(
+                second.getByRole('button', {
+                    name: 'Saved server original',
+                    exact: true,
+                })
+            ).toBeVisible();
+            await second.goto('/workspace/settings/backup');
+            const downloading = second.waitForEvent('download');
+            await second
+                .getByRole('button', { name: 'Export', exact: true })
+                .click();
+            const path = await (await downloading).path();
+            if (!path) throw new Error('Missing server backup');
+            const exported = JSON.parse(await readFile(path, 'utf8'));
+            expect(exported.playlists[0].userState.favorites[0]).toMatchObject(
+                manifest.playlists[0].userState.favorites[0]
+            );
+            await second.goto('/workspace/global-favorites');
+            await second
+                .getByRole('button', {
+                    name: 'Remove from favorites',
+                    exact: true,
+                })
+                .click();
+            await expect
+                .poll(
+                    async () =>
+                        (
+                            await (
+                                await request.get(
+                                    `${STORAGE_BACKEND_URL}/v1/user-state`
+                                )
+                            ).json()
+                        ).entries['xtream-favorites'][playlistId]
+                )
+                .toEqual([]);
+            await first.goto('/workspace/global-favorites');
+            await first.reload();
+            await expect(
+                first.getByRole('button', {
+                    name: 'Saved server original',
+                    exact: true,
+                })
+            ).toHaveCount(0);
+        } finally {
+            await first.context().close();
+            await second.context().close();
+        }
     });
 });
