@@ -1621,16 +1621,21 @@ detail 187 to 143 MB.
 
 ## Working a performance thread
 
-A performance thread is one agent session, one journey and one counter. The
-standing instruction for an agent on such a thread:
+A performance thread is one agent session, one journey and one counter.
+Performance work outside the journeys follows its own section of this
+document ([Compositing budget](#compositing-budget),
+[Charset parse benchmark](#charset-parse-benchmark)); the loop below still
+applies, with that section's measurement in place of the journey counter.
+The standing instruction for an agent on a journey thread:
 
 > Your job is to improve the measured journeys in this document. Every thread
 > targets one journey and one counter. Before changing code, reproduce the
 > slowness with the journey benchmark and record the baseline. Land small
-> PRs; put anything user-visible behind a kill switch; update
-> `tools/performance/journey-baselines.json` only downward and only with the
-> benchmark output as evidence. When a counter stops moving, say so and
-> propose the next bottleneck instead of padding the current thread.
+> PRs; put anything user-visible behind a kill switch; lower
+> `tools/performance/journey-baselines.json` only with the benchmark output
+> as evidence, and take a deliberate increase through the labelled exception
+> in [Ratchet](#ratchet). When a counter stops moving, say so and propose the
+> next bottleneck instead of padding the current thread.
 
 ### The loop
 
