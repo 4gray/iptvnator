@@ -285,6 +285,122 @@ describe('EpgEvents', () => {
         expect(secondResolved).toBe(true);
     });
 
+    it('starts a new fetch after a completed one terminates when forced', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://example.com/guide.xml';
+
+        const firstPromise = workerService.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+
+        let releaseTerminate!: () => void;
+        worker.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                releaseTerminate = resolve;
+            })
+        );
+
+        worker.emit('message', { type: 'READY' });
+        await flushPromises();
+        worker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+        await flushPromises();
+
+        // A forced refresh in the terminating window must not reuse the
+        // completed fetch (no completion update would follow), nor start a
+        // second worker while the first is still alive.
+        const forcedPromise = workerService.fetchEpgFromUrl(
+            url,
+            {},
+            { force: true }
+        );
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(1);
+
+        releaseTerminate();
+        await expect(firstPromise).resolves.toBeUndefined();
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(2);
+
+        const refetchWorker = mockWorkerInstances[1];
+        refetchWorker.emit('message', { type: 'READY' });
+        await flushPromises();
+        refetchWorker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 3 },
+        });
+        await expect(forcedPromise).resolves.toBeUndefined();
+    });
+
+    it('shares one pending refresh between concurrent forced requests', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://example.com/guide.xml';
+
+        const firstPromise = workerService.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+        worker.emit('message', { type: 'READY' });
+        await flushPromises();
+
+        const forcedA = workerService.fetchEpgFromUrl(url, {}, { force: true });
+        const forcedB = workerService.fetchEpgFromUrl(url, {}, { force: true });
+
+        worker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+        await expect(firstPromise).resolves.toBeUndefined();
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(2);
+
+        const refetchWorker = mockWorkerInstances[1];
+        refetchWorker.emit('message', { type: 'READY' });
+        await flushPromises();
+        refetchWorker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 3 },
+        });
+        await expect(Promise.all([forcedA, forcedB])).resolves.toEqual([
+            undefined,
+            undefined,
+        ]);
+        expect(mockWorkerInstances).toHaveLength(2);
+    });
+
+    it('does not re-import a source removed while a forced refresh waits', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://removed.example/guide.xml';
+        const { retireEpgSource } = await import('./epg-source-generation');
+        const progress = jest.spyOn(workerService, 'sendProgressToRenderer');
+
+        const firstPromise = workerService.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+        worker.emit('message', { type: 'READY' });
+        await flushPromises();
+
+        const forced = workerService.fetchEpgFromUrl(url, {}, { force: true });
+        retireEpgSource(url);
+
+        worker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+        await firstPromise.catch(() => undefined);
+        await expect(forced).resolves.toBeUndefined();
+        expect(mockWorkerInstances).toHaveLength(1);
+        expect(progress).toHaveBeenCalledWith(
+            url,
+            'cancelled',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            expect.any(Number)
+        );
+        progress.mockRestore();
+    });
+
     it('does not resolve clearEpgData until interrupted fetch workers have terminated', async () => {
         const workerService = new EpgWorkerService('[Test EPG]', 1000);
 
@@ -362,6 +478,51 @@ describe('EpgEvents', () => {
             ]);
         }
     );
+
+    describe('forced refresh vs the freshness window', () => {
+        const url = 'https://fresh.example/guide.xml';
+
+        function mockFreshSource(): void {
+            const fresh = [{ updatedAt: new Date().toISOString() }];
+            getDatabase.mockResolvedValue({
+                select: () => ({
+                    from: () => ({
+                        where: () => ({ limit: async () => fresh }),
+                    }),
+                }),
+            });
+        }
+
+        it('skips a source fetched within the freshness window', async () => {
+            mockFreshSource();
+            const { handleFetchEpg } = await import('./epg-fetch.service');
+            const { epgWorkerService } = await import('./epg-worker.service');
+            const fetch = jest
+                .spyOn(epgWorkerService, 'fetchEpgFromUrl')
+                .mockResolvedValue(undefined);
+            const result = await handleFetchEpg([url]);
+            expect(fetch).not.toHaveBeenCalled();
+            expect(result.skipped).toEqual([url]);
+            fetch.mockRestore();
+        });
+
+        it('EPG_FORCE_FETCH re-downloads a source that is still fresh', async () => {
+            mockFreshSource();
+            const { ipcMain } = jest.requireMock('electron');
+            const { epgWorkerService } = await import('./epg-worker.service');
+            const fetch = jest
+                .spyOn(epgWorkerService, 'fetchEpgFromUrl')
+                .mockResolvedValue(undefined);
+            EpgEvents.bootstrapEpgEvents();
+            const [, forceFetch] = ipcMain.handle.mock.calls.find(
+                ([channel]: [string]) => channel === 'EPG_FORCE_FETCH'
+            );
+            await forceFetch({}, { url, options: {} });
+            expect(fetch).toHaveBeenCalledTimes(1);
+            expect(fetch).toHaveBeenCalledWith(url, {}, { force: true });
+            fetch.mockRestore();
+        });
+    });
 
     it('does not start a queued source removed while an earlier source imports', async () => {
         getDatabase.mockRejectedValue(new Error('force stale for test'));
