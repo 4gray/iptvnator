@@ -97,19 +97,7 @@ export class EpgWorkerService {
         const clear = this.globalClear ?? this.inFlightSourceClears.get(url);
         if (clear) {
             await clear.catch(() => undefined);
-            if (generation !== epgSourceGeneration(url)) {
-                this.sendProgressToRenderer(
-                    url,
-                    'cancelled',
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    generation
-                );
-                return;
-            }
+            if (this.cancelIfRetired(url, generation)) return;
             return this.fetchEpgFromUrl(url, options, force);
         }
         // A second request for an URL that is already being fetched must not
@@ -121,6 +109,17 @@ export class EpgWorkerService {
         // must keep awaiting that termination window.
         const inFlight = this.inFlightFetches.get(url);
         if (inFlight) {
+            if (
+                force &&
+                this.workerFetches.has(url) &&
+                !this.workers.has(url)
+            ) {
+                // Terminal progress has already been delivered. Sharing this
+                // shutdown-only promise would strand the new request at queued.
+                await inFlight.catch(() => undefined);
+                if (this.cancelIfRetired(url, generation)) return;
+                return this.fetchEpgFromUrl(url, options, force);
+            }
             epgLogger.log(this.loggerLabel, 'Reusing in-flight EPG fetch');
             return inFlight;
         }
@@ -152,11 +151,44 @@ export class EpgWorkerService {
     localSourceAuthorizer: EpgLocalSourceAuthorizer =
         DENY_ALL_EPG_LOCAL_SOURCES;
 
+    private cancelIfRetired(url: string, generation: number): boolean {
+        if (generation === epgSourceGeneration(url)) return false;
+        this.sendProgressToRenderer(
+            url,
+            'cancelled',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            generation
+        );
+        return true;
+    }
+
     private async startFetch(
         url: string,
         options: ElectronBridgeTrustOptions,
         generation: number
     ): Promise<void> {
+        // A prior terminal fetch can settle even after its shutdown failed.
+        // Retry that shutdown before admitting another SQLite writer.
+        const shutdown = this.runtime.drainTerminations();
+        if (shutdown) {
+            try {
+                await shutdown;
+            } catch (error) {
+                if (this.cancelIfRetired(url, generation)) return;
+                this.sendProgressToRenderer(
+                    url,
+                    'error',
+                    undefined,
+                    error instanceof Error ? error.message : String(error)
+                );
+                throw error;
+            }
+            if (this.cancelIfRetired(url, generation)) return;
+        }
         // The renderer's options must not be able to unlock the worker's
         // local branch: the flag is set here, only for an allowed path.
         const { allowLocalFile: _rendererFlag, ...trustOptions } =
@@ -173,19 +205,7 @@ export class EpgWorkerService {
             // The prompt can stay open for a while; a source retired
             // meanwhile (settings save, reconciliation) must end as
             // cancelled rather than start an import the clear then awaits.
-            if (generation !== epgSourceGeneration(url)) {
-                this.sendProgressToRenderer(
-                    url,
-                    'cancelled',
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    generation
-                );
-                return;
-            }
+            if (this.cancelIfRetired(url, generation)) return;
             if (!allowed) {
                 epgLogger.log(
                     this.loggerLabel,

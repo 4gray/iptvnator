@@ -352,7 +352,7 @@ describe('EpgEvents', () => {
             .find(([name]) => name === 'EPG_FORCE_FETCH');
         if (!registration) throw new Error('Missing force refresh IPC handler');
         const handler = registration[1];
-        const options = { allowInsecureTls: true };
+        const options = { trustedInsecureTlsHosts: ['fresh.example'] };
         const request = handler({}, { url: ` ${url} `, options });
         await flushPromises();
         const worker = mockWorkerInstances[0];
@@ -995,4 +995,44 @@ describe('EpgEvents', () => {
         await fetch;
         expect(service.hasFetchedUrl(url)).toBe(false);
     });
+    it.each(['EPG_COMPLETE', 'EPG_ERROR'])(
+        'refresh after %s waits for termination and starts one replacement with terminal progress',
+        async (type) => {
+            const { handleFetchEpg } = await import('./epg-fetch.service');
+            const { epgWorkerService: service } =
+                await import('./epg-worker.service');
+            const url = 'https://settling.example/epg';
+            const progress = jest.spyOn(service, 'sendProgressToRenderer');
+            const first = handleFetchEpg([url], {}, true);
+            const worker = mockWorkerInstances[0];
+            let finish!: () => void;
+            worker.terminate.mockReturnValue(
+                new Promise<void>((resolve) => {
+                    finish = resolve;
+                })
+            );
+            worker.emit('message', { type, error: 'old import failed' });
+            const options = { trustedInsecureTlsHosts: ['settling.example'] };
+            const refresh = handleFetchEpg([url], options, true);
+            const duplicate = handleFetchEpg([url], options, true);
+            expect(mockWorkerInstances).toHaveLength(1);
+            finish();
+            await first;
+            await flushPromises();
+            const replacement = mockWorkerInstances[1];
+            if (replacement) {
+                replacement.emit('message', { type: 'READY' });
+                replacement.emit('message', { type: 'EPG_COMPLETE' });
+            }
+            expect(await refresh).toMatchObject({ success: true });
+            expect(await duplicate).toMatchObject({ success: true });
+            expect(mockWorkerInstances).toHaveLength(2);
+            expect(replacement.postMessage).toHaveBeenCalledWith({
+                type: 'FETCH_EPG',
+                url,
+                options,
+            });
+            expect(progress.mock.calls.at(-1)?.[1]).toBe('complete');
+        }
+    );
 });

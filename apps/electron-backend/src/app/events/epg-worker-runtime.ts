@@ -24,6 +24,13 @@ export class EpgWorkerRuntime {
         );
     }
 
+    /** No replacement writer may overtake a pending or failed shutdown. */
+    drainTerminations(): Promise<void> | undefined {
+        return this.unterminatedWorkers.size
+            ? this.stopAllWorkers([])
+            : undefined;
+    }
+
     private requestTermination(worker: Worker): Promise<void> {
         const pending = this.terminations.get(worker);
         if (pending) return pending;

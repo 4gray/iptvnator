@@ -1822,7 +1822,11 @@ A late local-file approval cannot restart a retired import or delay cache cleari
 Explicit Refresh bypasses both persisted 12-hour freshness and the session cache;
 normal background fetches retain those shortcuts. Refresh still shares an active
 same-source fetch and preserves trust options, local-file authorization and source
-retirement checks.
+retirement checks. Once that fetch has emitted completion or failure, a new
+Refresh waits for its worker shutdown and starts a replacement instead of reusing
+its terminal result. Concurrent retries share the replacement; a clear during
+shutdown retires it. Failed worker shutdown must succeed before another import
+can write, and a failed retry reports an error rather than leaving progress queued.
 
 Every removed source emits generation-scoped cancellation before cleanup starts,
 including retained actionable errors whose workers have already finished. Retired

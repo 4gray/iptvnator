@@ -38,7 +38,7 @@ jest.mock('../workers/worker-runtime-paths', () => ({
         mockResolveWorkerRuntimeBootstrap(...args),
 }));
 
-import { retireEpgSource } from './epg-source-generation';
+import { epgSourceGeneration, retireEpgSource } from './epg-source-generation';
 import { EpgWorkerService } from './epg-worker.service';
 
 describe('EpgWorkerService worker lifecycle', () => {
@@ -384,5 +384,119 @@ describe('EpgWorkerService worker lifecycle', () => {
                 'Worker exited unexpectedly'
             );
         });
+    });
+    it('refuses a replacement while a completed worker still cannot terminate', async () => {
+        const progress = jest.spyOn(service, 'sendProgressToRenderer');
+        const first = service.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+        worker.terminate.mockRejectedValue(new Error('still running'));
+        worker.emit('message', { type: 'EPG_COMPLETE' });
+        await first;
+        const retry = service.fetchEpgFromUrl(url, {}, true).then(
+            () => 'started',
+            (error: Error) => error.message
+        );
+        await new Promise((resolve) => setImmediate(resolve));
+        for (const replacement of mockWorkerInstances.slice(1))
+            replacement.emit('message', { type: 'EPG_COMPLETE' });
+        expect(await retry).toBe('still running');
+        expect(mockWorkerInstances).toHaveLength(1);
+        expect(progress.mock.calls.at(-1)?.[1]).toBe('error');
+        worker.terminate.mockResolvedValue(0);
+        const next = service.fetchEpgFromUrl(url, {}, true);
+        await new Promise((resolve) => setImmediate(resolve));
+        mockWorkerInstances[1].emit('message', { type: 'EPG_COMPLETE' });
+        await next;
+        expect(mockWorkerInstances).toHaveLength(2);
+    });
+
+    it.each([
+        ['EPG_COMPLETE', 'all'],
+        ['EPG_COMPLETE', 'source'],
+        ['EPG_ERROR', 'all'],
+        ['EPG_ERROR', 'source'],
+    ] as const)(
+        'does not revive a forced replacement retired during %s shutdown by %s clear',
+        async (type, clearKind) => {
+            const progress = jest.spyOn(service, 'sendProgressToRenderer');
+            const first = service.fetchEpgFromUrl(url).catch(() => undefined);
+            const worker = mockWorkerInstances[0];
+            let finish!: () => void;
+            worker.terminate.mockReturnValue(
+                new Promise<void>((resolve) => {
+                    finish = resolve;
+                })
+            );
+            worker.emit('message', { type, error: 'old error' });
+            const retry = service.fetchEpgFromUrl(url, {}, true);
+            const generation = epgSourceGeneration(url);
+            const clear =
+                clearKind === 'all'
+                    ? service.clearEpgData()
+                    : service.clearEpgDataForSource(url);
+            finish();
+            await first;
+            await new Promise((resolve) => setImmediate(resolve));
+            expect(mockWorkerInstances).toHaveLength(2);
+            mockWorkerInstances[1].emit('message', { type: 'READY' });
+            mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
+            await Promise.all([retry, clear]);
+            expect(mockWorkerInstances[1].postMessage).toHaveBeenCalledWith(
+                clearKind === 'all'
+                    ? { type: 'CLEAR_EPG' }
+                    : { type: 'CLEAR_EPG_SOURCE', sourceUrl: url }
+            );
+            expect(progress.mock.calls.at(-1)?.[1]).toBe('cancelled');
+            expect(progress.mock.calls.at(-1)?.[7]).toBe(generation);
+        }
+    );
+
+    it('shares a local permission prompt between simultaneous forced imports', async () => {
+        let approve!: (allowed: boolean) => void;
+        const ensureAllowed = jest.fn(
+            () =>
+                new Promise<boolean>((resolve) => {
+                    approve = resolve;
+                })
+        );
+        service.localSourceAuthorizer = { ensureAllowed, authorize: jest.fn() };
+        const localUrl = '/tmp/force-prompt.xml';
+        const first = service.fetchEpgFromUrl(localUrl, {}, true);
+        const duplicate = service.fetchEpgFromUrl(localUrl, {}, true);
+        expect(ensureAllowed).toHaveBeenCalledTimes(1);
+        expect(mockWorkerInstances).toHaveLength(0);
+        approve(true);
+        await new Promise((resolve) => setImmediate(resolve));
+        mockWorkerInstances[0].emit('message', { type: 'EPG_COMPLETE' });
+        await Promise.all([first, duplicate]);
+        expect(mockWorkerInstances).toHaveLength(1);
+    });
+
+    it('does not let another source bypass a pending retry of a failed shutdown', async () => {
+        const first = service.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+        worker.terminate.mockRejectedValueOnce(new Error('shutdown failed'));
+        worker.emit('message', { type: 'EPG_COMPLETE' });
+        await first;
+        let finish!: () => void;
+        worker.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                finish = resolve;
+            })
+        );
+        const retry = service.fetchEpgFromUrl(url, {}, true);
+        const other = service.fetchEpgFromUrl(
+            'https://other.example/epg',
+            {},
+            true
+        );
+        const beforeExit = mockWorkerInstances.length;
+        finish();
+        await new Promise((resolve) => setImmediate(resolve));
+        for (const replacement of mockWorkerInstances.slice(1))
+            replacement.emit('message', { type: 'EPG_COMPLETE' });
+        await Promise.all([retry, other]);
+        expect(beforeExit).toBe(1);
+        expect(mockWorkerInstances).toHaveLength(3);
     });
 });
