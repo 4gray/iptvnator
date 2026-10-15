@@ -11,12 +11,14 @@
 #   TEMPLATE_STORAGE  template storage        (default local)
 #   BRIDGE            network bridge          (default vmbr0)
 #   NET               net0 address settings   (default ip=dhcp; e.g. ip=192.168.1.50/24,gw=192.168.1.1)
-#   DISK_GB, MEMORY_MB, SWAP_MB, CORES        (default 4, 512, 512, 2)
+#   DISK_GB, MEMORY_MB, SWAP_MB, CORES        (default 4, 1024, 512, 2)
 #   CT_PASSWORD       root password           (default: generated and printed)
 #   INSTALL_SCRIPT    local path to install.sh (default: downloaded from SCRIPTS_BASE)
 #   SCRIPTS_BASE      where install.sh is downloaded from
-#   CLIENT_URL, PORT, IPTVNATOR_IMAGE_TAG, IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS
-#                     passed through to install.sh (see its header)
+#   CLIENT_URL, PORT, IPTVNATOR_IMAGE_TAG, IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS,
+#   IPTVNATOR_STORAGE, IPTVNATOR_ACCESS_TOKEN, IPTVNATOR_MAX_DOCUMENT_MB,
+#   IPTVNATOR_BACKEND_START_TIMEOUT
+#                     passed through to install.sh when set (see its header)
 set -euo pipefail
 
 CTID="${CTID:-}"
@@ -26,7 +28,7 @@ TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-local}"
 BRIDGE="${BRIDGE:-vmbr0}"
 NET="${NET:-ip=dhcp}"
 DISK_GB="${DISK_GB:-4}"
-MEMORY_MB="${MEMORY_MB:-512}"
+MEMORY_MB="${MEMORY_MB:-1024}"
 SWAP_MB="${SWAP_MB:-512}"
 CORES="${CORES:-2}"
 CT_PASSWORD="${CT_PASSWORD:-}"
@@ -94,12 +96,13 @@ fi
 pct push "$CTID" "$TMP/install.sh" /root/iptvnator-install.sh --perms 0755
 
 log "Installing IPTVnator inside the container (a few minutes)"
-pct exec "$CTID" -- env \
-    CLIENT_URL="${CLIENT_URL:-}" \
-    PORT="${PORT:-3000}" \
-    IPTVNATOR_IMAGE_TAG="${IPTVNATOR_IMAGE_TAG:-latest}" \
-    IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS="${IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS:-0}" \
-    bash /root/iptvnator-install.sh
+# Only the settings given here; install.sh applies its own defaults to the rest.
+INSTALL_ENV=()
+for name in CLIENT_URL PORT IPTVNATOR_IMAGE IPTVNATOR_IMAGE_TAG IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS \
+    IPTVNATOR_STORAGE IPTVNATOR_ACCESS_TOKEN IPTVNATOR_MAX_DOCUMENT_MB IPTVNATOR_BACKEND_START_TIMEOUT NODE_MAJOR; do
+    if [ -n "${!name+x}" ]; then INSTALL_ENV+=("$name=${!name}"); fi
+done
+pct exec "$CTID" -- env "${INSTALL_ENV[@]}" bash /root/iptvnator-install.sh
 
 IP="$(pct exec "$CTID" -- hostname -I | awk '{print $1}')"
 cat <<MSG
@@ -107,6 +110,8 @@ cat <<MSG
 Done. IPTVnator runs in container $CTID:  http://${IP:-<container-ip>}/
   root password   ${CT_PASSWORD}$( [ -n "${GENERATED_PASSWORD:-}" ] && printf '  (generated: note it down)' )
   console         pct enter $CTID
-  update          pct exec $CTID -- bash /root/iptvnator-install.sh
+  update          pct exec $CTID -- bash /root/iptvnator-install.sh   (settings and data are kept)
+  a setting       pct exec $CTID -- env IPTVNATOR_ACCESS_TOKEN=... bash /root/iptvnator-install.sh
+  data            /var/lib/iptvnator in the container (server storage database)
   remove          pct stop $CTID && pct destroy $CTID
 MSG
