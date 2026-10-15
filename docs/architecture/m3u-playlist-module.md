@@ -1180,6 +1180,11 @@ retried as plain XML. Source errors and consumer cancellation terminate the
 whole decoding chain. The decoder does not recursively unpack file layers or
 change XML parsing, source reconciliation, or database persistence contracts.
 
+After all decompression stages, the parser worker uses a single UTF-8 stream
+decoder per import. It retains incomplete multibyte characters across chunks
+and flushes before finishing SAX parsing, preserving channel IDs and programme
+text in both remote and local feeds without buffering the whole guide.
+
 ### Local XMLTV files
 
 An EPG source is not necessarily a URL. Settings → EPG and the playlist
