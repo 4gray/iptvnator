@@ -46,7 +46,7 @@ CTID=120 NET="ip=192.168.1.50/24,gw=192.168.1.1" IPTVNATOR_ACCESS_TOKEN=choose-a
 | `CLIENT_URL` | `http://<container ip>` | Browser origins the backend accepts (comma-separated); set the public URL behind a reverse proxy |
 | `PORT` | `3000` | Backend port (loopback only) |
 | `IPTVNATOR_IMAGE_TAG` | `latest` | Image tag: `latest` (every merge on master), `stable`, or a version such as `0.25.0` |
-| `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS` | `0` | `1` when your IPTV provider is on your LAN (the backend refuses private addresses otherwise) |
+| `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS` | `0` | `1` when your IPTV provider is on your LAN (the backend refuses private addresses otherwise); its streams then play only when the app is opened on a LAN address, because Chrome blocks a page on a public address from loading from private ones |
 | `IPTVNATOR_STORAGE` | `server` | `server`: one library on the container, shared by every browser (see below); `none`: each browser keeps its own |
 | `IPTVNATOR_ACCESS_TOKEN` | unset | Each browser asks for this token once before it shows anything; every backend route then requires it. Needs `IPTVNATOR_STORAGE=server`; at least 8 characters among letters, digits and `. _ ~ + / = -` (e.g. `openssl rand -base64 32`) |
 | `IPTVNATOR_MAX_DOCUMENT_MB` | `64` | Largest stored playlist; nginx's `client_max_body_size` follows it |

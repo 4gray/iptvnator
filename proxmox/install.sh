@@ -357,11 +357,15 @@ UNIT
         had_default=1
     fi
     [ ! -f "$available/iptvnator" ] || cp -p "$available/iptvnator" "$available/iptvnator.previous"
+    # IPv6 only when the kernel has it: nginx refuses to start on [::]:80 otherwise
+    # (a host booted with ipv6.disable=1).
+    local listen6="    # no IPv6 on this system"
+    [ ! -e /proc/net/if_inet6 ] || listen6="    listen  [::]:80 default_server;"
     # Same server block as docker/nginx.conf, with the port rendered in.
     cat > "$available/iptvnator" <<NGINX
 server {
     listen       80 default_server;
-    listen  [::]:80 default_server;
+$listen6
     server_name  _;
 
     root   $WEB_ROOT;
@@ -402,7 +406,7 @@ NGINX
             rm -f "$enabled/iptvnator" "$available/iptvnator"
         fi
         [ "$had_default" = 0 ] || ln -sf "$available/default" "$enabled/default"
-        die "nginx rejected the configuration (does another site already listen on port 80 as default_server?); the previous configuration is back"
+        die "nginx rejected the configuration (its message is above; another site that is already default_server on port 80 is the usual cause); the previous configuration is back"
     fi
     rm -f "$available/iptvnator.previous"
 }
