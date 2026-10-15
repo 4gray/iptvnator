@@ -97,7 +97,8 @@ export async function checkEpgFreshness(
  */
 export async function handleFetchEpg(
     urls: string[],
-    options: ElectronBridgeTrustOptions = {}
+    options: ElectronBridgeTrustOptions = {},
+    force = false
 ): Promise<EpgFetchResult> {
     const validUrls = urls
         .filter((url) => url?.trim())
@@ -110,10 +111,16 @@ export async function handleFetchEpg(
         return { success: false, message: 'No valid URLs provided' };
     }
 
-    const { staleUrls, freshUrls } = await checkEpgFreshness(
-        validUrls,
-        EPG_FRESHNESS_MAX_AGE_HOURS
+    const clear = epgWorkerService.waitForGlobalClear();
+    if (clear) await clear;
+    const currentUrls = validUrls.filter(
+        (url) => generations.get(url) === epgSourceGeneration(url)
     );
+    if (currentUrls.length === 0) return { success: true, skipped: [] };
+
+    const { staleUrls, freshUrls } = force
+        ? { staleUrls: currentUrls, freshUrls: [] }
+        : await checkEpgFreshness(currentUrls, EPG_FRESHNESS_MAX_AGE_HOURS);
 
     if (staleUrls.length === 0) {
         return {
@@ -129,7 +136,7 @@ export async function handleFetchEpg(
     const urlsToFetch = staleUrls.filter(
         (url) =>
             generations.get(url) === epgSourceGeneration(url) &&
-            !epgWorkerService.hasFetchedUrl(url)
+            (force || !epgWorkerService.hasFetchedUrl(url))
     );
 
     if (urlsToFetch.length === 0) {
@@ -166,7 +173,7 @@ export async function handleFetchEpg(
                 );
                 continue;
             }
-            await epgWorkerService.fetchEpgFromUrl(url, options);
+            await epgWorkerService.fetchEpgFromUrl(url, options, force);
         } catch (error) {
             epgLogger.error(loggerLabel, 'Error fetching EPG source:', error);
             errors.push(error instanceof Error ? error.message : String(error));

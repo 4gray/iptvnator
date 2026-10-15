@@ -1811,6 +1811,19 @@ Same-URL clears are serialized and replacement imports await the outstanding
 clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
 also awaits the in-flight fetch promise when an error/timeout has already removed
 the worker from the lookup but its termination is still pending.
+Clear All retires every import generation, including queued batches, pending
+freshness reads and local-file permission prompts. It gates new imports, stops
+writers and awaits their actual exit (including imports already settling after
+an error) before starting the database clear worker. Failed shutdown rejects the
+clear and remains retryable. Existing source clears finish before the global
+clear; later source clears and fetches wait behind it. Overlapping global clears
+share the same operation while retiring requests queued since the earlier call.
+A late local-file approval cannot restart a retired import or delay cache clearing.
+Explicit Refresh bypasses both persisted 12-hour freshness and the session cache;
+normal background fetches retain those shortcuts. Refresh still shares an active
+same-source fetch and preserves trust options, local-file authorization and source
+retirement checks.
+
 Every removed source emits generation-scoped cancellation before cleanup starts,
 including retained actionable errors whose workers have already finished. Retired
 queued/running imports also cancel their own generation. Retry waits for source
