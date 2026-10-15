@@ -270,7 +270,7 @@ describe('AllChannelsViewComponent', () => {
 
     it('stores viewport coordinates for the context menu and opens the dialog for that channel', async () => {
         const openMenuSpy = jest
-            .spyOn(component.contextMenuTrigger(), 'openMenu')
+            .spyOn(component.channelContextMenu(), 'open')
             .mockImplementation();
 
         component.onChannelContextMenu(primaryChannel, {
@@ -280,11 +280,9 @@ describe('AllChannelsViewComponent', () => {
         await Promise.resolve();
 
         expect(component.contextMenuChannel()).toBe(primaryChannel);
-        expect(component.contextMenuPosition()).toEqual({
-            x: '144px',
-            y: '188px',
-        });
-        expect(openMenuSpy).toHaveBeenCalled();
+        expect(openMenuSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ clientX: 144, clientY: 188 })
+        );
 
         component.openChannelDetails();
 

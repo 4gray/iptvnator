@@ -63,47 +63,19 @@
     }
 </div>
 
-<div
-    aria-hidden="true"
-    class="channel-context-menu-anchor"
-    [style.left]="contextMenuPosition().x"
-    [style.top]="contextMenuPosition().y"
-    [matMenuTriggerFor]="channelContextMenu"
-    #contextMenuTrigger="matMenuTrigger"
-></div>
-
-<mat-menu #channelContextMenu="matMenu">
-    @if (supportsEpgMapping && !contextMenuUnavailable()) {
-        <button mat-menu-item (click)="openEpgMapping()">
-            <mat-icon>settings_remote</mat-icon>
-            <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
-        </button>
-    }
-    @if (contextMenuChannel()?.m3uChannel && !contextMenuUnavailable()) {
-        <button mat-menu-item (click)="openChannelDetails()">
-            <mat-icon>info</mat-icon>
-            <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
-        </button>
-    }
-    @if (contextMenuCanOpenInPlaylist()) {
-        <button
-            mat-menu-item
-            data-testid="channel-open-in-playlist"
-            (click)="openContextMenuChannelInPlaylist()"
-        >
-            <mat-icon>open_in_new</mat-icon>
-            <span>{{
-                'PORTALS.VIEW_IN_PORTAL_TOOLTIP'
-                    | translate: { name: contextMenuPlaylistName() }
-            }}</span>
-        </button>
-    }
-    @if (mode() === 'recent') {
-        <button mat-menu-item (click)="removeContextMenuChannel()">
-            <mat-icon>delete</mat-icon>
-            <span>
-                {{ 'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate }}
-            </span>
-        </button>
-    }
-</mat-menu>
+<!-- A favorite whose catalog entry is missing keeps only the actions that
+     need no catalog: open in its playlist is gated by canOpenInPlaylist. -->
+<app-channel-context-menu
+    [showMapEpg]="supportsEpgMapping && !contextMenuUnavailable()"
+    [showDetails]="
+        !!contextMenuChannel()?.m3uChannel && !contextMenuUnavailable()
+    "
+    [openInPlaylistName]="
+        contextMenuCanOpenInPlaylist() ? contextMenuPlaylistName() : null
+    "
+    [showRemoveFromHistory]="mode() === 'recent'"
+    (mapEpg)="openEpgMapping()"
+    (details)="openChannelDetails()"
+    (openInPlaylist)="openContextMenuChannelInPlaylist()"
+    (removeFromHistory)="removeContextMenuChannel()"
+/>

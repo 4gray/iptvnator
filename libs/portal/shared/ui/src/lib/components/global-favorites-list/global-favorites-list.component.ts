@@ -1,5 +1,8 @@
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
-import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
+import {
+    ChannelContextMenuComponent,
+    ChannelScrollFocusDirective,
+} from '@iptvnator/ui/components';
 import {
     CdkDragDrop,
     DragDropModule,
@@ -17,7 +20,6 @@ import {
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import {
     ChannelDetailsDialogComponent,
     ChannelListItemComponent,
@@ -57,11 +59,11 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     styleUrl: './global-favorites-list.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
         DragDropModule,
         MatIconModule,
-        MatMenuModule,
         TranslateModule,
     ],
 })
@@ -72,8 +74,9 @@ export class GlobalFavoritesListComponent {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
 
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );
@@ -113,10 +116,6 @@ export class GlobalFavoritesListComponent {
     readonly contextMenuPlaylistName = computed(() =>
         playlistDisplayLabel(this.contextMenuChannel()?.playlistName)
     );
-    readonly contextMenuPosition = signal({
-        x: '0px',
-        y: '0px',
-    });
 
     readonly isCustomSort = computed(() => this.sortMode() === 'custom');
     readonly canDragDrop = computed(
@@ -197,19 +196,7 @@ export class GlobalFavoritesListComponent {
         event: MouseEvent
     ): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     hasChannelContextMenu(channel: UnifiedFavoriteChannel): boolean {
@@ -235,7 +222,7 @@ export class GlobalFavoritesListComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         this.openInPlaylistRequested.emit(channel);
     }
 
@@ -245,7 +232,7 @@ export class GlobalFavoritesListComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const stalkerId = this.stalkerItemId(item);
         const channelKey = item.m3uChannel
             ? resolveChannelEpgLookupKey(item.m3uChannel)
@@ -308,7 +295,7 @@ export class GlobalFavoritesListComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         this.dialog.open(ChannelDetailsDialogComponent, {
             data: channel,
             maxWidth: '720px',
@@ -322,7 +309,7 @@ export class GlobalFavoritesListComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         this.removeRequested.emit(channel);
     }
 
