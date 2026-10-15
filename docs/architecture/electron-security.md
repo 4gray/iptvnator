@@ -70,6 +70,9 @@ left (macOS) to the renderer on the push-only channel `WINDOW:BACK_REQUESTED`
 values and returns an unsubscribe. There is no renderer → main surface and no
 `ipcMain` handler: the renderer decides whether Back runs, and the main
 process never navigates the window. Forward commands are not forwarded.
+On Linux the Browser Back key is consumed in the window's
+`before-input-event` and sent once per press on the same channel, because
+Electron there raises `app-command` for both its keydown and keyup.
 Electron's Chromium would also traverse history on an unprevented mouse Back
 press, even to entries from before a reload (which reloads the app), so the
 renderer prevents every mouse Back press while it subscribes.

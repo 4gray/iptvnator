@@ -358,8 +358,13 @@ the app.
   preload's `onWindowBackRequested` passes only those two values on. The
   renderer subscribes only when
   `RuntimeCapabilitiesService.supportsWindowBackGestures` reports the
-  subscription, so an older preload forwards nothing. `browser-forward` and `swipe` right are not forwarded.
-  `swipe` needs macOS's "Swipe between pages" set to two or three fingers.
+  subscription, so an older preload forwards nothing. `browser-forward` and
+  `swipe` right are not forwarded. `swipe` needs macOS's "Swipe between
+  pages" set to two or three fingers. On Linux Electron raises `app-command`
+  for the keydown and the keyup of the Browser Back key alike, so the main
+  process takes that key in `before-input-event` instead (Back once per
+  press, the key never reaches the page) and leaves `app-command` to mouse
+  Back buttons.
 - **One press, two events.** In Electron on Windows and Linux a mouse Back
   press also reaches the window as `app-command`: with the release on
   Windows, on press on Linux, and before or after the renderer sees the

@@ -6,6 +6,9 @@ import {
 /** `app-command` for mouse Back buttons and the Browser Back key. */
 const APP_COMMAND_BACK = 'browser-backward';
 
+/** DOM `key` of the keyboard Browser Back key. */
+const BROWSER_BACK_KEY = 'BrowserBack';
+
 /**
  * The `swipe` direction that means Back: NSEvent `deltaX > 0`, which WebKit
  * and VS Code map to Back as well.
@@ -21,7 +24,10 @@ const SWIPE_BACK = 'left';
  * Stalker inline details are not history entries, so Forward would skip
  * them.
  */
-export function attachWindowBackGestures(win: Electron.BrowserWindow): void {
+export function attachWindowBackGestures(
+    win: Electron.BrowserWindow,
+    platform: NodeJS.Platform = process.platform
+): void {
     const requestBack = (source: ElectronBridgeBackGestureSource): void => {
         if (win.isDestroyed() || win.webContents.isDestroyed()) return;
         win.webContents.send(WINDOW_BACK_REQUESTED, source);
@@ -33,4 +39,20 @@ export function attachWindowBackGestures(win: Electron.BrowserWindow): void {
     win.on('swipe', (_event, direction) => {
         if (direction === SWIPE_BACK) requestBack('swipe');
     });
+
+    if (platform === 'linux') {
+        // On Linux Electron raises `app-command` for every unhandled event
+        // of the Browser Back key, keydown and keyup alike
+        // (`NativeWindowViews::HandleKeyboardEvent`), so one press would go
+        // back twice. The key is taken here instead: Back once per press,
+        // and a consumed key never reaches that handler. Mouse Back buttons
+        // still arrive as `app-command`.
+        win.webContents.on('before-input-event', (event, input) => {
+            if (input.key !== BROWSER_BACK_KEY) return;
+            event.preventDefault();
+            if (input.type === 'keyDown' && !input.isAutoRepeat) {
+                requestBack('app-command');
+            }
+        });
+    }
 }
