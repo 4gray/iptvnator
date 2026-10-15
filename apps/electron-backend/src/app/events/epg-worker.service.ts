@@ -283,10 +283,7 @@ export class EpgWorkerService {
                 erroredWorkerLabel: 'errored clear',
                 onComplete: async (worker) => {
                     this.fetchedUrls.clear();
-                    await this.runtime.terminateWorker(
-                        worker,
-                        'completed clear'
-                    );
+                    await this.runtime.stopAllWorkers([worker]);
                 },
             });
         });
@@ -357,10 +354,7 @@ export class EpgWorkerService {
                     'EPG data cleared for source via worker'
                 );
                 this.fetchedUrls.delete(normalizedSourceUrl);
-                await this.runtime.terminateWorker(
-                    worker,
-                    'completed source clear'
-                );
+                await this.runtime.stopAllWorkers([worker]);
             },
         });
     }

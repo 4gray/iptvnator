@@ -329,6 +329,94 @@ describe('EpgEvents', () => {
         });
     });
 
+    it.each(['EPG_CLEAR_ALL', 'EPG_CLEAR_SOURCE'])(
+        '%s rejects a completed worker shutdown failure and recovers after retry',
+        async (channel) => {
+            const { ipcMain } = await import('electron');
+            EpgEvents.bootstrapEpgEvents();
+            const registrations = [
+                ...(ipcMain.handle as jest.Mock).mock.calls,
+            ].reverse();
+            const clearHandler = registrations.find(
+                ([name]) => name === channel
+            )?.[1];
+            const fetchHandler = registrations.find(
+                ([name]) => name === 'EPG_FORCE_FETCH'
+            )?.[1];
+            if (!clearHandler || !fetchHandler)
+                throw new Error('Missing EPG IPC handlers');
+            const sourceUrl = 'https://clear-shutdown.example/epg';
+            const clear = () => clearHandler({}, { sourceUrl });
+            const fetch = () => fetchHandler({}, { url: sourceUrl });
+            let settled = false;
+            const first = clear().then(
+                (result: unknown) => {
+                    settled = true;
+                    return result;
+                },
+                (error: Error) => {
+                    settled = true;
+                    return error;
+                }
+            );
+            await flushPromises();
+            const worker = mockWorkerInstances[0];
+            const failure = new Error('clear worker still running');
+            let rejectStop!: (error: Error) => void;
+            worker.terminate.mockRejectedValue(failure).mockImplementationOnce(
+                () =>
+                    new Promise<void>((_resolve, reject) => {
+                        rejectStop = reject;
+                    })
+            );
+            worker.emit('message', { type: 'READY' });
+            worker.emit('message', { type: 'CLEAR_COMPLETE' });
+            await flushPromises();
+            expect(settled).toBe(false);
+            rejectStop(failure);
+            const firstResult = await first;
+            // Failure remains tracked: neither import nor another clear may
+            // create a writer while the original clear worker cannot stop.
+            const blockedFetch = await fetch();
+            const blockedClear = await clear().catch((error: Error) => error);
+            const beforeRecovery = mockWorkerInstances.length;
+            worker.terminate.mockResolvedValue(0);
+            let recovered = false;
+            const retry = clear().then((result: unknown) => {
+                recovered = true;
+                return result;
+            });
+            await flushPromises();
+            const replacement = mockWorkerInstances[1];
+            let finishStop!: () => void;
+            replacement.terminate.mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finishStop = resolve;
+                    })
+            );
+            replacement.emit('message', { type: 'READY' });
+            replacement.emit('message', { type: 'CLEAR_COMPLETE' });
+            await flushPromises();
+            expect(recovered).toBe(false);
+            finishStop();
+            expect(await retry).toEqual({ success: true });
+            const afterRecovery = fetch();
+            await flushPromises();
+            mockWorkerInstances[2].emit('message', { type: 'EPG_COMPLETE' });
+            expect(await afterRecovery).toMatchObject({ success: true });
+            expect(firstResult).toBe(failure);
+            expect(blockedFetch).toMatchObject({
+                success: false,
+                message: failure.message,
+            });
+            expect(blockedClear).toBe(failure);
+            expect(beforeRecovery).toBe(1);
+            expect(worker.terminate).toHaveBeenCalledTimes(4);
+            expect(mockWorkerInstances).toHaveLength(3);
+        }
+    );
+
     it('force refresh bypasses persisted freshness and session cache with trust options', async () => {
         const { ipcMain } = await import('electron');
         const { epgWorkerService: service } =

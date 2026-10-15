@@ -1815,7 +1815,11 @@ Clear All retires every import generation, including queued batches, pending
 freshness reads and local-file permission prompts. It gates new imports, stops
 writers and awaits their actual exit (including imports already settling after
 an error) before starting the database clear worker. Failed shutdown rejects the
-clear and remains retryable. Existing source clears finish before the global
+clear and remains retryable. A `CLEAR_COMPLETE` message confirms the database
+operation only: both global and source-clear IPC wait for confirmed worker
+shutdown before acknowledging success. If that shutdown fails, the clear rejects
+and the retained worker must stop successfully before a retry or import can start.
+Existing source clears finish before the global
 clear; later source clears and fetches wait behind it. Overlapping global clears
 share the same operation while retiring requests queued since the earlier call.
 A late local-file approval cannot restart a retired import or delay cache clearing.
