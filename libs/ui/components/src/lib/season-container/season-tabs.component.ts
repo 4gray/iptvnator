@@ -5,6 +5,7 @@ import {
     input,
     output,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { TranslateModule } from '@ngx-translate/core';
@@ -36,6 +37,7 @@ export type SeasonCountLoadState = 'loading' | 'unloaded';
     styleUrls: ['./season-tabs.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        MatButtonModule,
         MatIcon,
         MatMenuModule,
         MenuItemRadioCheckDirective,

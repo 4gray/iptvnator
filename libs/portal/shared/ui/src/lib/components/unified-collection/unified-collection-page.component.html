@@ -58,7 +58,10 @@
                     ('WORKSPACE.SORT_LABEL' | translate) +
                     (favSortLabelKey() | translate)
                 "
-                [attr.aria-label]="'WORKSPACE.SORT_LABEL' | translate"
+                [attr.aria-label]="
+                    ('WORKSPACE.SORT_LABEL' | translate) +
+                    (favSortLabelKey() | translate)
+                "
             >
                 <mat-icon>sort_by_alpha</mat-icon>
             </button>

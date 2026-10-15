@@ -361,6 +361,35 @@ describe('UnifiedCollectionPageComponent', () => {
         }
     );
 
+    it('names the favorites sort button with the current order', async () => {
+        const favorite = {
+            uid: 'm3u::playlist-1::https://example.com/one.m3u8',
+            name: 'Favorite One',
+            contentType: 'live',
+            sourceType: 'm3u',
+            playlistId: 'playlist-1',
+            playlistName: 'Playlist One',
+            streamUrl: 'https://example.com/one.m3u8',
+        } satisfies UnifiedCollectionItem;
+        favoritesData.getFavorites.mockResolvedValueOnce([favorite]);
+
+        fixture.componentRef.setInput('mode', 'favorites');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.isLoading.set(false);
+        fixture.componentInstance.selectedContentType.set('live');
+        fixture.componentInstance.allItems.set([favorite]);
+        fixture.detectChanges();
+
+        const button = fixture.nativeElement.querySelector(
+            '.favorites-sort-button'
+        ) as HTMLButtonElement;
+        // No translations are loaded, so the keys are the rendered text.
+        expect(button.getAttribute('aria-label')).toBe(
+            `WORKSPACE.SORT_LABEL${fixture.componentInstance.favSortLabelKey()}`
+        );
+    });
+
     it('uses compact loading rows when the runtime has no EPG support', () => {
         fixture.detectChanges();
 

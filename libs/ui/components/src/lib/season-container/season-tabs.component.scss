@@ -1,3 +1,5 @@
+@use '../../../../styles/app-controls' as controls;
+
 :host {
     display: block;
     min-width: 0;
@@ -9,7 +11,9 @@
     flex-wrap: wrap;
     gap: 4px;
 
-    // Season pills and the dropdown share the section header's 30px pill.
+    // Season pills share the section header's 30px row; past four seasons
+    // the kit's toolbar picker (a small secondary button with a chevron)
+    // opens the season menu instead.
     &__pill {
         display: inline-flex;
         align-items: center;
@@ -45,29 +49,11 @@
     }
 
     &__dropdown {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 30px;
-        padding: 0 10px 0 12px;
-        border: 1px solid
-            color-mix(in srgb, var(--app-on-surface) 14%, transparent);
-        border-radius: 999px;
-        box-sizing: border-box;
-        background: var(--app-widget-bg);
-        color: var(--text-primary, #fff);
-        font-size: 13px;
-        font-weight: 500;
-        font-family: inherit;
-        cursor: pointer;
+        @include controls.secondary-button(sm);
+    }
 
-        > mat-icon {
-            width: 16px;
-            height: 16px;
-            font-size: 16px;
-            line-height: 16px;
-            color: var(--text-secondary, rgba(255, 255, 255, 0.7));
-        }
+    &__chevron {
+        @include controls.trigger-chevron;
     }
 
     &__done {
