@@ -42,7 +42,7 @@ REGISTRY=https://registry-1.docker.io
 AUTH=https://auth.docker.io
 BACKEND_URL=/api
 # Saved between runs: installer settings in install.env, backend ones in backend.env.
-INSTALL_KEYS=(IPTVNATOR_IMAGE IPTVNATOR_IMAGE_TAG NODE_MAJOR IPTVNATOR_BACKEND_START_TIMEOUT)
+INSTALL_KEYS=(IPTVNATOR_IMAGE IPTVNATOR_IMAGE_TAG NODE_MAJOR IPTVNATOR_BACKEND_START_TIMEOUT IPTVNATOR_SCRIPTS_BASE)
 BACKEND_KEYS=(PORT CLIENT_URL IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS IPTVNATOR_STORAGE IPTVNATOR_ACCESS_TOKEN IPTVNATOR_MAX_DOCUMENT_MB)
 
 IMAGE="${IPTVNATOR_IMAGE:-4gray/iptvnator}"
@@ -62,10 +62,14 @@ die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 # load_saved <file> <keys...>: a key that is unset in the environment takes its
 # saved value. The file is parsed, never sourced.
 load_saved() {
-    local file="$1" key value
+    local file="$1" line key value
     shift
     [ -f "$file" ] || return 0
-    while IFS='=' read -r key value; do
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="${line%$'\r'}"
+        case "$line" in *=*) ;; *) continue ;; esac
+        key="${line%%=*}"
+        value="${line#*=}" # everything after the first '=': base64 tokens end in '='
         case " $* " in *" $key "*) ;; *) continue ;; esac
         if [ -z "${!key+x}" ]; then
             printf -v "$key" '%s' "$value"
@@ -87,6 +91,7 @@ resolve_settings() {
     STORAGE="${IPTVNATOR_STORAGE:-server}"
     TOKEN="${IPTVNATOR_ACCESS_TOKEN:-}"
     MAX_DOCUMENT_MB="${IPTVNATOR_MAX_DOCUMENT_MB:-64}"
+    SCRIPTS_BASE="${IPTVNATOR_SCRIPTS_BASE:-}"
 
     local name value
     for name in PORT MAX_DOCUMENT_MB START_TIMEOUT NODE_MAJOR; do
@@ -102,6 +107,7 @@ resolve_settings() {
     [[ "$CLIENT_URL" =~ ^[^[:space:]]*$ ]] || die "CLIENT_URL must not contain spaces (comma-separate several origins)"
     [[ "$TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]] || die "IPTVNATOR_IMAGE_TAG is not a valid tag: '$TAG'"
     [[ "$IMAGE" =~ ^[a-z0-9]+([._/-][a-z0-9]+)*$ ]] || die "IPTVNATOR_IMAGE is not a Docker Hub image name: '$IMAGE'"
+    [ -z "$SCRIPTS_BASE" ] || [[ "$SCRIPTS_BASE" =~ ^https://[^[:space:]\'\"]+$ ]] || die "IPTVNATOR_SCRIPTS_BASE must be an https:// URL"
 }
 
 # --------------------------------------------------------------- packages
@@ -112,14 +118,27 @@ install_packages() {
     apt-get install -y -q --no-install-recommends ca-certificates curl gnupg jq nginx tar gzip zstd
 }
 
+# Sets NODE_BIN to a Node.js 22+ the iptvnator service user can run: a system one
+# (not nvm/volta/fnm under /root or /home), else NodeSource's /usr/bin/node.
 install_node() {
-    if command -v node >/dev/null 2>&1 && node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)'; then
-        log "Node.js $(node --version) already installed"
-        return
-    fi
+    local candidate
+    candidate="$(command -v node 2>/dev/null || true)"
+    [ -z "$candidate" ] || candidate="$(readlink -f "$candidate")"
+    case "$candidate" in
+        "" | /root/* | /home/*) ;;
+        *)
+            if "$candidate" -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)' 2>/dev/null; then
+                NODE_BIN="$candidate"
+                log "Node.js $("$NODE_BIN" --version) already installed ($NODE_BIN)"
+                return
+            fi
+            ;;
+    esac
     log "Installing Node.js ${NODE_MAJOR} from NodeSource"
     curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
     apt-get install -y -q nodejs
+    NODE_BIN=/usr/bin/node
+    [ -x "$NODE_BIN" ] || die "NodeSource did not install $NODE_BIN"
 }
 
 # ------------------------------------------------------------ image pull
@@ -156,7 +175,13 @@ fetch_image() {
     while read -r -u 3 layer layer_media; do
         [ -n "$layer" ] || continue
         log "Layer ${layer:7:12}"
-        # The registry answers with a redirect to a CDN; curl drops the token on the cross-host hop.
+        # A token lasts 300 s and a slow link needs longer for the whole image: one per
+        # layer (token requests do not count as pulls). The registry answers with a
+        # redirect to a CDN; curl drops the token on the cross-host hop.
+        token="$(registry_token)"
+        if [ -z "$token" ] || [ "$token" = null ]; then
+            die "could not get a Docker Hub token"
+        fi
         curl -fsSL --retry 5 --retry-delay 3 -H "Authorization: Bearer $token" "$REGISTRY/v2/$IMAGE/blobs/$layer" -o "$blob"
         local decompress="-z"
         [[ "$layer_media" == *zstd* ]] && decompress="--zstd"
@@ -196,7 +221,8 @@ deploy_image() {
     fetch_image "$tmp/rootfs"
     [ -f "$tmp/rootfs/usr/share/nginx/html/index.html" ] || die "unexpected image layout: no /usr/share/nginx/html/index.html"
     [ -f "$tmp/rootfs/opt/iptvnator/web-backend/main.cjs" ] || die "unexpected image layout: no /opt/iptvnator/web-backend/main.cjs"
-    mkdir -p "$APP_DIR" "$ETC_DIR" "$(dirname "$WEB_ROOT")"
+    install -d -m 0755 "$APP_DIR" "$(dirname "$WEB_ROOT")"
+    install -d -m 0755 "$ETC_DIR"
     replace_dir "$tmp/rootfs/usr/share/nginx/html" "$WEB_ROOT"
     replace_dir "$tmp/rootfs/opt/iptvnator/web-backend" "$APP_DIR/web-backend"
     chown -R root:root "$WEB_ROOT" "$APP_DIR/web-backend"
@@ -212,26 +238,30 @@ configure() {
 
     log "Configuring the backend (port $PORT, storage $STORAGE, CLIENT_URL=$CLIENT_URL)"
     id -u iptvnator >/dev/null 2>&1 || useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin iptvnator
-    mkdir -p "$ETC_DIR"
+    runuser -u iptvnator -- "$NODE_BIN" --version >/dev/null 2>&1 || die "the iptvnator user cannot run $NODE_BIN"
+    install -d -m 0755 "$ETC_DIR"
     {
         printf 'IPTVNATOR_IMAGE=%s\n' "$IMAGE"
         printf 'IPTVNATOR_IMAGE_TAG=%s\n' "$TAG"
         printf 'NODE_MAJOR=%s\n' "$NODE_MAJOR"
         printf 'IPTVNATOR_BACKEND_START_TIMEOUT=%s\n' "$START_TIMEOUT"
+        [ -z "$SCRIPTS_BASE" ] || printf 'IPTVNATOR_SCRIPTS_BASE=%s\n' "$SCRIPTS_BASE"
     } > "$ETC_DIR/install.env"
-    # Written to a new file and moved: the access token never sits in a readable file.
-    umask 027
-    {
-        printf 'PORT=%s\n' "$PORT"
-        printf 'CLIENT_URL=%s\n' "$CLIENT_URL"
-        printf 'IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=%s\n' "$ALLOW_PRIVATE"
-        printf 'IPTVNATOR_STORAGE=%s\n' "$STORAGE"
-        printf 'IPTVNATOR_DATA_DIR=%s\n' "$DATA_DIR"
-        printf 'IPTVNATOR_MAX_DOCUMENT_MB=%s\n' "$MAX_DOCUMENT_MB"
-        [ -z "$TOKEN" ] || printf 'IPTVNATOR_ACCESS_TOKEN=%s\n' "$TOKEN"
-        printf 'NODE_ENV=production\n'
-    } > "$ETC_DIR/backend.env.new"
-    umask 022
+    # Created private in a subshell, then opened to the service group and moved in
+    # place: the access token never sits in a world-readable file.
+    (
+        umask 077
+        {
+            printf 'PORT=%s\n' "$PORT"
+            printf 'CLIENT_URL=%s\n' "$CLIENT_URL"
+            printf 'IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=%s\n' "$ALLOW_PRIVATE"
+            printf 'IPTVNATOR_STORAGE=%s\n' "$STORAGE"
+            printf 'IPTVNATOR_DATA_DIR=%s\n' "$DATA_DIR"
+            printf 'IPTVNATOR_MAX_DOCUMENT_MB=%s\n' "$MAX_DOCUMENT_MB"
+            [ -z "$TOKEN" ] || printf 'IPTVNATOR_ACCESS_TOKEN=%s\n' "$TOKEN"
+            printf 'NODE_ENV=production\n'
+        } > "$ETC_DIR/backend.env.new"
+    )
     chown root:iptvnator "$ETC_DIR/backend.env.new"
     chmod 640 "$ETC_DIR/backend.env.new"
     mv "$ETC_DIR/backend.env.new" "$ETC_DIR/backend.env"
@@ -266,7 +296,7 @@ Group=iptvnator
 EnvironmentFile=$ETC_DIR/backend.env
 Environment=NODE_OPTIONS=--require=$APP_DIR/bind-loopback.cjs
 WorkingDirectory=$APP_DIR/web-backend
-ExecStart=$(command -v node) $APP_DIR/web-backend/main.cjs
+ExecStart=$NODE_BIN $APP_DIR/web-backend/main.cjs
 Restart=always
 RestartSec=3
 # $DATA_DIR, writable by the service only: the server storage database
@@ -283,8 +313,19 @@ PrivateDevices=true
 WantedBy=multi-user.target
 UNIT
 
+    # IPTVnator becomes nginx's default site on port 80: the installer is meant for a
+    # dedicated container or VM. Debian's stock default site is replaced, never an
+    # edited one, and a configuration nginx rejects is rolled back.
+    local available=/etc/nginx/sites-available enabled=/etc/nginx/sites-enabled had_default=0
+    if [ -e "$enabled/default" ]; then
+        if [ "$(readlink -f "$enabled/default")" != "$available/default" ] || ! stock_default_site "$available/default"; then
+            die "nginx's default site was changed on this machine; this installer serves IPTVnator as the default site on port 80 and is meant for a dedicated container or VM"
+        fi
+        had_default=1
+    fi
+    [ ! -f "$available/iptvnator" ] || cp -p "$available/iptvnator" "$available/iptvnator.previous"
     # Same server block as docker/nginx.conf, with the port rendered in.
-    cat > /etc/nginx/sites-available/iptvnator <<NGINX
+    cat > "$available/iptvnator" <<NGINX
 server {
     listen       80 default_server;
     listen  [::]:80 default_server;
@@ -319,9 +360,25 @@ server {
     }
 }
 NGINX
-    ln -sf /etc/nginx/sites-available/iptvnator /etc/nginx/sites-enabled/iptvnator
-    rm -f /etc/nginx/sites-enabled/default
-    nginx -t
+    ln -sf "$available/iptvnator" "$enabled/iptvnator"
+    rm -f "$enabled/default"
+    if ! nginx -t; then
+        if [ -f "$available/iptvnator.previous" ]; then
+            mv "$available/iptvnator.previous" "$available/iptvnator"
+        else
+            rm -f "$enabled/iptvnator" "$available/iptvnator"
+        fi
+        [ "$had_default" = 0 ] || ln -sf "$available/default" "$enabled/default"
+        die "nginx rejected the configuration (does another site already listen on port 80 as default_server?); the previous configuration is back"
+    fi
+    rm -f "$available/iptvnator.previous"
+}
+
+# True when Debian's default site is the file nginx-common shipped (its conffile checksum).
+stock_default_site() {
+    local file="$1" sum
+    sum="$(dpkg-query -W -f='${Conffiles}\n' nginx-common 2>/dev/null | awk -v f="$file" '$1 == f { print $2; exit }')"
+    [ -n "$sum" ] && [ "$(md5sum < "$file" | cut -d' ' -f1)" = "$sum" ]
 }
 
 start_services() {
@@ -330,11 +387,17 @@ start_services() {
     systemctl enable --now nginx >/dev/null
     systemctl reload nginx
     systemctl enable "$SERVICE" >/dev/null
-    systemctl restart "$SERVICE"
+    systemctl stop "$SERVICE" 2>/dev/null || true
+    # The backend shares the machine's loopback (Docker gives it its own): refuse a
+    # port another program holds, or that program would answer the health check.
+    if command -v ss >/dev/null 2>&1 && [ -n "$(ss -Hltn "sport = :$PORT" 2>/dev/null)" ]; then
+        die "port $PORT is already used by another program; choose another one with PORT=..."
+    fi
+    systemctl start "$SERVICE"
     # With server storage the backend migrates its database before it listens.
     local _ restarts
     for _ in $(seq 1 "$START_TIMEOUT"); do
-        if curl -fsS "http://127.0.0.1/api/health" >/dev/null 2>&1; then
+        if curl -fsS "http://127.0.0.1/api/health" 2>/dev/null | jq -e '.service == "iptvnator-web-backend"' >/dev/null 2>&1; then
             log "Backend healthy"
             return
         fi
@@ -369,12 +432,25 @@ IPTVnator is ready:  http://${ip:-<container-ip>}/
   backend    systemctl status $SERVICE   (port $PORT, 127.0.0.1 only)
   storage    $( [ "$STORAGE" = server ] && printf 'server: %s/databases/iptvnator.db, shared by every browser' "$DATA_DIR" || printf 'none: each browser keeps its own data' )
   access     $( [ -n "$TOKEN" ] && printf 'token required (IPTVNATOR_ACCESS_TOKEN)' || printf 'open to anyone who reaches port 80' )
-  settings   run this script again with the variable set, e.g. IPTVNATOR_ACCESS_TOKEN=...
-  update     run this script again (settings and data are kept)
+  update     $(update_command)
+             (settings and data are kept; put e.g. IPTVNATOR_ACCESS_TOKEN=... before
+             the last bash to change a setting)
 MSG
 }
 
+# The update fetches the current installer first, so fixes reach existing installs.
+update_command() {
+    local self=/root/iptvnator-install.sh
+    [ ! -f "$0" ] || self="$(readlink -f "$0")"
+    if [ -n "$SCRIPTS_BASE" ]; then
+        printf "bash -c 'curl -fsSL %s/install.sh -o %s && bash %s'" "$SCRIPTS_BASE" "$self" "$self"
+    else
+        printf 'bash %s' "$self"
+    fi
+}
+
 main() {
+    umask 022 # the service user must read what is installed, whatever root's umask
     [ "$(id -u)" -eq 0 ] || die "run this script as root"
     command -v apt-get >/dev/null 2>&1 || die "this script needs a Debian or Ubuntu system"
     resolve_settings
@@ -387,6 +463,7 @@ main() {
     summary
 }
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+# Run unless sourced (tests source it for its functions); also through bash -c "$(curl ...)".
+if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then
     main "$@"
 fi
