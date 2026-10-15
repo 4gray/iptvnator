@@ -451,6 +451,27 @@ test.describe('Electron EPG', () => {
                 `${new URL(epgServer.resourceUrl).hostname}/guide.xml`
             );
 
+            // Refresh must replace even freshly imported data; the normal
+            // twelve-hour freshness shortcut applies only to automatic fetches.
+            await expect(
+                app.mainWindow.locator('.epg-progress-panel .status-complete')
+            ).toHaveCount(1);
+            epgServer.setBody(
+                epgFixtureXml.replace('Guide Bulletin', 'Updated Bulletin')
+            );
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
+            await expect
+                .poll(() =>
+                    app.mainWindow.evaluate(async () =>
+                        (
+                            await window.electron.getChannelPrograms(
+                                'guide-news'
+                            )
+                        ).map((program) => program.title)
+                    )
+                )
+                .toEqual(['Updated Bulletin']);
+
             await saveSettings(app.mainWindow);
 
             await app.mainWindow.getByTestId('epg-source-remove').click();
@@ -471,6 +492,79 @@ test.describe('Electron EPG', () => {
         } finally {
             await closeElectronApp(app);
             await epgServer.close();
+        }
+    });
+
+    test('@epg @electron clear all cancels the active import and queued sources', async ({
+        dataDir,
+    }) => {
+        let queuedRequests = 0;
+        let streamClosed = false;
+        const server = createServer((request, response) => {
+            response.writeHead(200, { 'Content-Type': 'application/xml' });
+            if (request.url === '/queued.xml') {
+                queuedRequests++;
+                response.end(epgFixtureXml);
+                return;
+            }
+            response.on('close', () => {
+                streamClosed = true;
+            });
+            // Flush a real SQLite batch, then hold the connection open so
+            // Clear All runs while the parser can still write more data.
+            response.write(
+                '<?xml version="1.0"?><tv>' +
+                    Array.from(
+                        { length: 100 },
+                        (_, index) =>
+                            `<channel id="active-${index}"><display-name>Active ${index}</display-name></channel>`
+                    ).join('')
+            );
+        });
+        await new Promise<void>((resolve, reject) => {
+            server.once('error', reject);
+            server.listen(0, '127.0.0.1', resolve);
+        });
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+            throw new Error('Expected a TCP fixture address');
+        }
+        const origin = `http://127.0.0.1:${address.port}`;
+        const app = await launchElectronApp(dataDir);
+        let fetch: Promise<unknown> | undefined;
+        try {
+            fetch = app.mainWindow.evaluate(
+                (urls) => window.electron.fetchEpg(urls),
+                [`${origin}/active.xml`, `${origin}/queued.xml`]
+            );
+            // Attach a rejection handler immediately; the original promise
+            // is still awaited below so a transport failure cannot pass.
+            void fetch.catch(() => undefined);
+            await expect
+                .poll(() => getEpgChannelCount(app.mainWindow), {
+                    timeout: 30000,
+                })
+                .toBe(100);
+            const cleared = await app.mainWindow.evaluate(() =>
+                window.electron.clearEpgData()
+            );
+            expect(cleared.success).toBe(true);
+            await fetch;
+            await expect.poll(() => streamClosed).toBe(true);
+            expect(queuedRequests).toBe(0);
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(0);
+            expect(
+                await app.mainWindow.evaluate(() =>
+                    window.electron.getChannelPrograms('guide-news')
+                )
+            ).toEqual([]);
+        } finally {
+            await closeElectronApp(app);
+            await fetch?.catch(() => undefined);
+            server.closeAllConnections();
+            await new Promise<void>((resolve, reject) =>
+                server.close((error) => (error ? reject(error) : resolve()))
+            );
         }
     });
 
