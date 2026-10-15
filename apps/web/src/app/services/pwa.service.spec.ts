@@ -20,6 +20,11 @@ import {
     getStalkerRequestErrorStatus,
     isStalkerProbeTimeout,
 } from '@iptvnator/portal/stalker/data-access';
+import {
+    clearServerAccessToken,
+    ServerStorageStatusService,
+    writeServerAccessToken,
+} from '@iptvnator/services';
 import { PwaService } from './pwa.service';
 
 describe('PwaService', () => {
@@ -353,6 +358,103 @@ describe('PwaService', () => {
         globalThis.fetch = originalFetch;
     });
 
+    it('sends a stored server token only while server mode runs', async () => {
+        writeServerAccessToken('kept-token', 'i');
+        const originalFetch = globalThis.fetch;
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            headers: new Headers(),
+            json: async () => ({ js: [] }),
+        } as unknown as Response);
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const call = async () => {
+            const outcome = (
+                service.sendIpcEvent(STALKER_REQUEST, {
+                    url: 'http://portal.example/portal.php',
+                    macAddress: '00:1A:79:AA:BB:CC',
+                    params: { action: 'get_genres' },
+                    silent: true,
+                }) as Promise<unknown>
+            ).catch((error: unknown) => error);
+            await Promise.resolve();
+            for (const request of http.match((candidate) =>
+                candidate.url.endsWith('/provider-targets')
+            )) {
+                request.flush({ targetId: 'target-1' });
+            }
+            await outcome;
+        };
+
+        try {
+            // A token kept from another backend: server mode is not active.
+            await call();
+            expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty(
+                'Authorization'
+            );
+
+            TestBed.inject(ServerStorageStatusService).activate(
+                {
+                    service: 'iptvnator',
+                    apiVersion: 1,
+                    instanceId: 'i',
+                    storage: 'server',
+                    auth: 'token',
+                },
+                () => undefined
+            );
+            await call();
+            expect(fetchMock.mock.calls[1][1].headers).toMatchObject({
+                Authorization: 'Bearer kept-token',
+            });
+        } finally {
+            globalThis.fetch = originalFetch;
+            clearServerAccessToken();
+        }
+    });
+
+    it('asks for a new server token when the access guard refuses a Stalker call', async () => {
+        const status = TestBed.inject(ServerStorageStatusService);
+        status.activate(
+            {
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: 'i',
+                storage: 'server',
+                auth: 'token',
+            },
+            () => undefined
+        );
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            status: 401,
+            statusText: 'Unauthorized',
+            headers: new Headers({
+                'WWW-Authenticate': 'Bearer realm="iptvnator"',
+            }),
+            json: async () => ({ code: 'unauthorized' }),
+        } as unknown as Response) as unknown as typeof fetch;
+
+        const outcome = (
+            service.sendIpcEvent(STALKER_REQUEST, {
+                url: 'http://portal.example/portal.php',
+                macAddress: '00:1A:79:AA:BB:CC',
+                params: { action: 'get_genres' },
+                silent: true,
+            }) as Promise<unknown>
+        ).catch((error: unknown) => error);
+        await Promise.resolve();
+        http.expectOne((candidate) =>
+            candidate.url.endsWith('/provider-targets')
+        ).flush({ targetId: 'target-1' });
+        await outcome;
+
+        expect(status.state()).toBe('unauthorized');
+        globalThis.fetch = originalFetch;
+    });
+
     it('sends Stalker credentials as /stalker control params, including the serial', async () => {
         // JSDOM ships no fetch; install one for the proxy call.
         const fetchMock = jest.fn().mockResolvedValue({
@@ -540,6 +642,118 @@ describe('PwaService', () => {
         } finally {
             jest.useRealTimers();
             delete globalWithFetch.fetch;
+        }
+    });
+
+    it('sends the server token to the backend only, also with BACKEND_URL=/', async () => {
+        writeServerAccessToken('kept-token', 'i');
+        TestBed.inject(ServerStorageStatusService).activate(
+            {
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: 'i',
+                storage: 'server',
+                auth: 'token',
+            },
+            () => undefined
+        );
+        window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: '/' };
+        const atRoot = TestBed.runInInjectionContext(() => new PwaService());
+        delete window.__IPTVNATOR_CONFIG__;
+        const originalFetch = globalThis.fetch;
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            json: async () => ({ reset: true }),
+        } as unknown as Response);
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+        const reset = () =>
+            atRoot.sendIpcEvent(CONNECTIVITY_GUARD_RESET, {
+                url: 'http://portal.example:8080/portal.php',
+            });
+
+        try {
+            await reset();
+            // Not `//connectivity-guard/reset`: that is another host.
+            expect(fetchMock.mock.calls[0][0]).toBe(
+                '/connectivity-guard/reset'
+            );
+            expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
+                Authorization: 'Bearer kept-token',
+            });
+
+            atRoot.corsProxyUrl = 'https://elsewhere.example';
+            await reset();
+            expect(fetchMock.mock.calls[1][1].headers).not.toHaveProperty(
+                'Authorization'
+            );
+        } finally {
+            globalThis.fetch = originalFetch;
+            clearServerAccessToken();
+        }
+    });
+
+    it('reports a backend outage seen by its raw fetches', async () => {
+        const status = TestBed.inject(ServerStorageStatusService);
+        const activate = () =>
+            status.activate(
+                {
+                    service: 'iptvnator',
+                    apiVersion: 1,
+                    instanceId: 'i',
+                    storage: 'server',
+                    auth: 'none',
+                },
+                () => undefined
+            );
+        const originalFetch = globalThis.fetch;
+        const reset = () =>
+            (
+                service.sendIpcEvent(CONNECTIVITY_GUARD_RESET, {
+                    url: 'http://portal.example:8080/portal.php',
+                }) as Promise<unknown>
+            ).catch(() => undefined);
+        const answer = (code: number, contentType: string) =>
+            ({
+                ok: false,
+                status: code,
+                headers: new Headers({ 'content-type': contentType }),
+                json: async () => ({}),
+            }) as unknown as Response;
+
+        try {
+            activate();
+            // The backend's own JSON error: it answered.
+            globalThis.fetch = jest
+                .fn()
+                .mockResolvedValue(
+                    answer(502, 'application/json')
+                ) as unknown as typeof fetch;
+            await reset();
+            expect(status.state()).toBe('online');
+
+            // A gateway's page in front of a backend that is down.
+            globalThis.fetch = jest
+                .fn()
+                .mockResolvedValue(
+                    answer(502, 'text/html')
+                ) as unknown as typeof fetch;
+            await reset();
+            expect(status.state()).toBe('offline');
+            expect(status.isVerified()).toBe(false);
+
+            // No answer at all.
+            activate();
+            globalThis.fetch = jest
+                .fn()
+                .mockRejectedValue(
+                    new TypeError('Failed to fetch')
+                ) as unknown as typeof fetch;
+            await reset();
+            expect(status.state()).toBe('offline');
+        } finally {
+            globalThis.fetch = originalFetch;
         }
     });
 

@@ -11,6 +11,7 @@ import {
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
+import { provideRouter, Router } from '@angular/router';
 import { AppStartupStatusComponent } from './app-startup-status.component';
 
 describe('AppStartupStatusComponent', () => {
@@ -19,6 +20,7 @@ describe('AppStartupStatusComponent', () => {
             imports: [AppStartupStatusComponent, TranslateModule.forRoot()],
             deferBlockBehavior: DeferBlockBehavior.Manual,
             providers: [
+                provideRouter([{ path: 'server-sign-in', children: [] }]),
                 provideMockStore({
                     selectors: [
                         { selector: selectPlaylistsLoadingFlag, value: false },
@@ -52,6 +54,23 @@ describe('AppStartupStatusComponent', () => {
         store.refreshState();
         fixture.detectChanges();
         expect(fixture.componentInstance.complete()).toBe(true);
+    });
+
+    it('shows the server sign-in page although sources could not load', async () => {
+        TestBed.inject(MockStore).overrideSelector(
+            selectPlaylistsLoadFailed,
+            true
+        );
+        const fixture = TestBed.createComponent(AppStartupStatusComponent);
+        fixture.componentRef.setInput('routeReady', true);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.complete()).toBe(false);
+
+        await TestBed.inject(Router).navigateByUrl('/server-sign-in');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.complete()).toBe(true);
+        expect(fixture.nativeElement.querySelector('section')).toBeNull();
     });
 
     function createFailedFixture() {

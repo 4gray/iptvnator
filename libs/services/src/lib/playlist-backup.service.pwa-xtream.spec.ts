@@ -269,6 +269,46 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
 
             await expect(service.exportBackup()).rejects.toThrow('denied');
         });
+
+        it('waits for server user data before it reads the lists', async () => {
+            // Server mode: the maps hold the server's data once it was read.
+            const ready = jest.fn(async () => {
+                seed();
+                return true;
+            });
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, value),
+                    removeItem: (key) => localStorage.removeItem(key),
+                    ready,
+                }),
+            });
+
+            const { manifest } = await service.exportBackup();
+
+            // A fresh read: another device may have changed them since.
+            expect(ready).toHaveBeenCalledWith(true);
+            expect(ready).toHaveBeenCalledTimes(1);
+            expect(xtreamEntry(manifest).userState.favorites).not.toEqual([]);
+        });
+
+        it('refuses to export server user data it could not read', async () => {
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: () => null,
+                    setItem: jest.fn(),
+                    removeItem: jest.fn(),
+                    ready: async () => false,
+                }),
+            });
+
+            await expect(service.exportBackup()).rejects.toThrow(
+                /user data could not be read/
+            );
+        });
     });
 
     describe('import', () => {
@@ -467,6 +507,130 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
                 pendingRestore(service).getOrThrow('xtream-1')
             ).not.toBeNull();
             // That replay carries no titles, so they are merged regardless.
+            expect(read(KEYS.collectionItems)).toEqual({
+                'xtream-1': { 'movie:501': heat, 'series:77': legacyShow },
+            });
+        });
+
+        it('keeps the restore parked until server user data was read', async () => {
+            const manifest = await exportSeeded();
+            localStorage.clear();
+            localStorage.setItem(
+                KEYS.favorites,
+                JSON.stringify({ 'xtream-1': ['live:1'] })
+            );
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, value),
+                    removeItem: (key) => localStorage.removeItem(key),
+                    ready: async () => false,
+                }),
+            });
+
+            const summary = await service.importBackup(xtreamOnly(manifest));
+
+            expect(summary.failed).toBe(1);
+            // Nothing merged into lists the server may still replace.
+            expect(read(KEYS.favorites)).toEqual({ 'xtream-1': ['live:1'] });
+            expect(
+                pendingRestore(service).getOrThrow('xtream-1')
+            ).not.toBeNull();
+        });
+
+        it('keeps the restore parked when a conflict merged other lists in', async () => {
+            const manifest = await exportSeeded();
+            localStorage.clear();
+            // Taken, but merged with an edit another device made meanwhile.
+            const flushed = jest
+                .fn()
+                .mockResolvedValueOnce(true)
+                .mockImplementation(async () => {
+                    const map = JSON.parse(
+                        localStorage.getItem(KEYS.favorites) ?? '{}'
+                    );
+                    map['xtream-1'] = [...map['xtream-1'], 'live:9'];
+                    localStorage.setItem(KEYS.favorites, JSON.stringify(map));
+                    return true;
+                });
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, value),
+                    removeItem: (key) => localStorage.removeItem(key),
+                    ready: async () => true,
+                    flushed,
+                }),
+            });
+
+            const summary = await service.importBackup(xtreamOnly(manifest));
+
+            expect(summary.failed).toBe(1);
+            expect(summary.errors[0]).toContain('changed elsewhere');
+            expect(
+                pendingRestore(service).getOrThrow('xtream-1')
+            ).not.toBeNull();
+        });
+
+        it('replaces nothing while earlier changes to the playlist are unsent', async () => {
+            const manifest = await exportSeeded();
+            localStorage.clear();
+            localStorage.setItem(
+                KEYS.favorites,
+                JSON.stringify({ 'xtream-1': ['live:1'] })
+            );
+            // A write of this page for the playlist that the server refused.
+            const flushed = jest.fn().mockResolvedValueOnce(false);
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, value),
+                    removeItem: (key) => localStorage.removeItem(key),
+                    ready: async () => true,
+                    flushed,
+                }),
+            });
+
+            const summary = await service.importBackup(xtreamOnly(manifest));
+
+            expect(summary.failed).toBe(1);
+            // Its edits would have joined the replacement lists.
+            expect(read(KEYS.favorites)).toEqual({ 'xtream-1': ['live:1'] });
+            expect(
+                pendingRestore(service).getOrThrow('xtream-1')
+            ).not.toBeNull();
+        });
+
+        it('keeps the restore parked until the server took the lists', async () => {
+            const manifest = await exportSeeded();
+            localStorage.clear();
+            // Nothing unsent before; the restored lists are refused.
+            const flushed = jest
+                .fn()
+                .mockResolvedValueOnce(true)
+                .mockResolvedValue(false);
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState({
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, value),
+                    removeItem: (key) => localStorage.removeItem(key),
+                    ready: async () => true,
+                    flushed,
+                }),
+            });
+
+            const summary = await service.importBackup(xtreamOnly(manifest));
+
+            expect(flushed).toHaveBeenCalledWith('xtream-1');
+            expect(summary.failed).toBe(1);
+            expect(
+                pendingRestore(service).getOrThrow('xtream-1')
+            ).not.toBeNull();
+            // Titles are merged regardless: the replay carries none.
             expect(read(KEYS.collectionItems)).toEqual({
                 'xtream-1': { 'movie:501': heat, 'series:77': legacyShow },
             });

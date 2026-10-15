@@ -56,3 +56,6 @@ export * from './lib/detail-ui/vod-more-menu.component';
 export * from './lib/detail-ui/vod-more-menu.model';
 export * from './lib/detail-ui/series-hero.state';
 export * from './lib/detail-ui/hero-trailer-backdrop.component';
+export * from './lib/dialog-shell/dialog-shell.component';
+export * from './lib/dialog-shell/dialog-shell.directives';
+export * from './lib/dialog-shell/dialog-size';

@@ -32,6 +32,22 @@ export class PwaXtreamBackupStateService {
     private readonly storage = inject(USER_DATA_STORAGE);
 
     /**
+     * Before an export or a restore: in server mode the maps show the
+     * server's data only after the first read, which may still run or have
+     * failed at start. An export would write unread lists as empty, and a
+     * restore's replacement lists would merge into the server's instead.
+     */
+    async ready(): Promise<void> {
+        // Read again: another device may have changed them since this
+        // page's first read, and a restore must replace the current lists.
+        if ((await this.storage.ready?.(true)) === false) {
+            throw new Error(
+                "The server's user data could not be read yet; try again once the server answers."
+            );
+        }
+    }
+
+    /**
      * The entry with the playlist's stored lists and snapshots filled in;
      * hidden categories and pins, which the browser build does not track,
      * stay as `entry` has them. An unreadable store fails the export: restore
@@ -103,13 +119,28 @@ export class PwaXtreamBackupStateService {
         state: XtreamPendingRestoreState,
         entry: XtreamPlaylistBackupEntry
     ): Promise<void> {
+        await this.ready();
         // A user-supplied file: the field may be anything.
         const archived: unknown = entry.userState.collectionItems;
         const snapshots = snapshotsByKey(
             Array.isArray(archived) ? archived : []
         );
+        // The lists replace what the server has now: this page's own unsent
+        // writes for the playlist would join them, so they go first or the
+        // restore waits (titles merged regardless, as below).
+        if ((await this.storage.flushed?.(playlistId)) === false) {
+            try {
+                this.mergeSnapshots(playlistId, snapshots);
+            } catch {
+                // The unsent writes are the failure to report.
+            }
+            throw new Error(
+                'Earlier changes to this playlist are not on the server yet; the restore waits.'
+            );
+        }
+        let written: Map<UserDataMap, unknown[]>;
         try {
-            this.replaceLists(playlistId, state);
+            written = this.replaceLists(playlistId, state);
         } catch (error) {
             if (!isQuotaExceeded(error)) {
                 try {
@@ -120,17 +151,46 @@ export class PwaXtreamBackupStateService {
             }
             throw error;
         }
+        // Server mode: the lists count once the server took them; a refused
+        // one keeps the restore parked (titles merged regardless, as above).
+        const saved = (await this.storage.flushed?.(playlistId)) !== false;
+        // A conflict merges an edit another device made meanwhile into the
+        // lists: the backup replaces them, so it waits and runs again on a
+        // fresh read.
+        const replaced =
+            saved &&
+            [...written].every(
+                ([name, list]) =>
+                    JSON.stringify(this.listFor(name, playlistId)) ===
+                    JSON.stringify(list)
+            );
         this.mergeSnapshots(playlistId, snapshots);
+        if (!saved) {
+            throw new Error(
+                'The server did not take the restored lists; the restore waits.'
+            );
+        }
+        if (!replaced) {
+            throw new Error(
+                'The lists changed elsewhere during the restore; it runs again.'
+            );
+        }
     }
 
+    /** The lists it wrote, by map. */
     private replaceLists(
         playlistId: string,
         state: XtreamPendingRestoreState
-    ): void {
+    ): Map<UserDataMap, unknown[]> {
+        const written = new Map<UserDataMap, unknown[]>();
+        const write = (name: UserDataMap, list: unknown[]) => {
+            this.writeFor(name, playlistId, list);
+            written.set(name, list);
+        };
         const favorites = state.favorites
             .map((item) => typedKey(item.contentType, item.xtreamId))
             .filter((key): key is string => key !== null);
-        this.writeFor('favorites', playlistId, [...new Set(favorites)]);
+        write('favorites', [...new Set(favorites)]);
 
         const recent: StoredMap[] = [];
         for (const item of state.recentlyViewed) {
@@ -143,18 +203,18 @@ export class PwaXtreamBackupStateService {
                 });
             }
         }
-        this.writeFor('recentItems', playlistId, recent);
+        write('recentItems', recent);
 
         const now = new Date().toISOString();
-        this.writeFor(
+        write(
             'playbackPositions',
-            playlistId,
             state.playbackPositions.filter(isPlaybackPosition).map((item) => ({
                 ...item,
                 playlistId,
                 updatedAt: item.updatedAt ?? now,
             }))
         );
+        return written;
     }
 
     /**

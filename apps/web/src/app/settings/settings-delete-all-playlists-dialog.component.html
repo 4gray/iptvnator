@@ -9,6 +9,14 @@
                 | translate: { count: dialogData.summary.total }
         }}
     </p>
+    @if (clearsServer()) {
+        <p
+            class="settings-delete-dialog__lead"
+            data-test-id="delete-all-server-warning"
+        >
+            {{ 'SERVER_STORAGE.DELETE_ALL_WARNING' | translate }}
+        </p>
+    }
 
     <section class="settings-delete-dialog__section">
         <h3 class="settings-delete-dialog__section-title">

@@ -66,6 +66,13 @@ export const SETTINGS_SECTION_DEFINITIONS: readonly SettingsSectionDefinition[] 
             group: 'devices',
         },
         {
+            id: 'server',
+            navLabelKey: 'SETTINGS.NAV_SERVER',
+            icon: 'dns',
+            requires: ['server-storage'],
+            group: 'data',
+        },
+        {
             id: 'backup',
             navLabelKey: 'SETTINGS.NAV_BACKUP',
             icon: 'backup',
