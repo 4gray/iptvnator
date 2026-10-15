@@ -1480,6 +1480,7 @@
             "FILTER_AVAILABLE": "Beschikbaar",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Alle talen",
+            "LANGUAGE": "Taal",
             "SAME_AS_ABOVE": "zelfde als hierboven",
             "SHOWING_OF_TOTAL": "{{visible}} van {{total}}"
         },

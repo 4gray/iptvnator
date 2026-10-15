@@ -460,6 +460,35 @@ describe('SeasonContainerComponent', () => {
         ).not.toBeNull();
     });
 
+    it('keeps only the season tabs in the tab list, with Back to playing beside it', () => {
+        fixture.componentRef.setInput('playingEpisodeId', 101);
+        setRequiredInputs({
+            '1': [createEpisode()],
+            '2': [createEpisode({ id: '201', season: 2 })],
+        });
+        fixture.detectChanges();
+        (
+            fixture.nativeElement.querySelectorAll(
+                '.season-tabs__pill'
+            )[1] as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+
+        const tablists = fixture.nativeElement.querySelectorAll(
+            'app-season-tabs [role="tablist"]'
+        ) as NodeListOf<HTMLElement>;
+        expect(tablists).toHaveLength(1);
+        expect(
+            Array.from(tablists[0].children).map((child) =>
+                child.getAttribute('role')
+            )
+        ).toEqual(['tab', 'tab']);
+        const backToPlaying = fixture.nativeElement.querySelector(
+            '[data-testid="back-to-playing"]'
+        ) as HTMLElement;
+        expect(backToPlaying.closest('[role="tablist"]')).toBeNull();
+    });
+
     it('marks the inline-playing episode as playing and current', () => {
         fixture.componentRef.setInput('playingEpisodeId', 101);
         setRequiredInputs({ '1': [createEpisode()] });

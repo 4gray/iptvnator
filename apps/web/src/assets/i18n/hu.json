@@ -1480,6 +1480,7 @@
             "FILTER_AVAILABLE": "Elérhető",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Minden nyelv",
+            "LANGUAGE": "Nyelv",
             "SAME_AS_ABOVE": "ugyanaz, mint fent",
             "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
         },

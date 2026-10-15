@@ -1480,6 +1480,7 @@
             "FILTER_AVAILABLE": "Kullanılabilir",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Tüm diller",
+            "LANGUAGE": "Dil",
             "SAME_AS_ABOVE": "üsttekiyle aynı",
             "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
         },
