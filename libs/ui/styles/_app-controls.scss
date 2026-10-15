@@ -302,6 +302,12 @@ $_segment-text-size: 12.5px;
 /// height).
 @mixin segmented-track {
     display: inline-flex;
+    // Never wider than its container: when the segments do not fit (four
+    // translated season names in the fullscreen episode panel, a narrow
+    // window), they wrap inside the track instead of being clipped.
+    flex-wrap: wrap;
+    box-sizing: border-box;
+    max-width: 100%;
     gap: 1px;
     padding: 2px;
     border: 1px solid var(--app-line-strong);

@@ -25,7 +25,10 @@ import { applyTheme, expectTextContrast } from './theme-contrast';
 // switch and the playlist switcher's type filter. In a header row it is 32px
 // tall (26px segments in a 2px-padded, 1px-bordered track); the switcher
 // panel keeps 30px segments. Unchosen labels must stay legible in both
-// themes: the muted colour read about 2.9:1 on the track.
+// themes: the muted colour read about 2.9:1 on the track. A control never
+// grows past its container: squeezed, its segments wrap inside the track
+// rather than being clipped (four translated season names in the fullscreen
+// episode panel).
 // ---------------------------------------------------------------------------
 
 async function frame(locator: Locator) {
@@ -35,6 +38,23 @@ async function frame(locator: Locator) {
             height: Math.round(element.getBoundingClientRect().height),
             radius: style.borderRadius,
         };
+    });
+}
+
+/** Labels of the segments that stick out of the control's own frame. */
+async function segmentsOutside(control: Locator): Promise<string[]> {
+    return control.evaluate((element) => {
+        const frame = element.getBoundingClientRect();
+        return Array.from(element.children)
+            .filter((segment) => {
+                const rect = segment.getBoundingClientRect();
+                return (
+                    rect.left < frame.left - 0.5 ||
+                    rect.right > frame.right + 0.5 ||
+                    rect.bottom > frame.bottom + 0.5
+                );
+            })
+            .map((segment) => segment.textContent?.trim() ?? '');
     });
 }
 
@@ -68,10 +88,11 @@ test.describe('Electron segmented controls', () => {
                 resourcePath: '/segmented.m3u',
             }
         );
-        const app = await launchElectronApp(dataDir);
-        const page = app.mainWindow;
+        let app: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
 
         try {
+            app = await launchElectronApp(dataDir);
+            const page = app.mainWindow;
             await page.route('https://example.com/**', (route) =>
                 route.abort()
             );
@@ -111,6 +132,30 @@ test.describe('Electron segmented controls', () => {
                     '.mat-button-toggle:not(.mat-button-toggle-checked)'
                 ),
             ]);
+
+            // Squeezed below its segments' width, the track wraps them and
+            // stays inside the tabs' host.
+            await tablist.evaluate((element) => {
+                (
+                    element.closest('app-season-tabs') as HTMLElement
+                ).style.width = '140px';
+            });
+            expect(await segmentsOutside(tablist)).toEqual([]);
+            expect(
+                await tablist.evaluate(
+                    (element) =>
+                        element.getBoundingClientRect().right <=
+                        (
+                            element.closest('app-season-tabs') as HTMLElement
+                        ).getBoundingClientRect().right +
+                            0.5
+                )
+            ).toBe(true);
+            await tablist.evaluate((element) => {
+                (
+                    element.closest('app-season-tabs') as HTMLElement
+                ).style.width = '';
+            });
             await addCurrentDetailToFavorites(page);
             await goBackFromDetail(page);
 
@@ -142,6 +187,14 @@ test.describe('Electron segmented controls', () => {
                 contentToggle.locator(unchosen),
                 scopeToggle.locator(unchosen),
             ]);
+            // A Material group wraps its toggles the same way.
+            await scopeToggle.evaluate((element) => {
+                (element as HTMLElement).style.width = '120px';
+            });
+            expect(await segmentsOutside(scopeToggle)).toEqual([]);
+            await scopeToggle.evaluate((element) => {
+                (element as HTMLElement).style.width = '';
+            });
 
             await page.getByTestId('playlist-switcher-trigger').click();
             const types = page.locator(
@@ -157,7 +210,8 @@ test.describe('Electron segmented controls', () => {
             ]);
             await page.keyboard.press('Escape');
         } finally {
-            await closeElectronApp(app);
+            if (app) await closeElectronApp(app);
+            await m3u.close();
         }
     });
 });
