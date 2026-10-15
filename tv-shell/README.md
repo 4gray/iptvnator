@@ -38,7 +38,9 @@ APK
 - **Shell settings** (long-press Menu): interface size (960 / 1280 / 1600 px),
   preferred external player, data reset, diagnostics (WebView version, screen).
 - Data (playlists, favourites, positions) is stored by the PWA in the WebView
-  (IndexedDB / localStorage) and survives restarts and updates.
+  (IndexedDB / localStorage) and survives restarts and updates. The embedded
+  backend has no server storage: it answers the PWA's `/api/v1/instance` probe
+  with 404, the answer of a backend without it.
 
 Inherited PWA limits: no EPG/XMLTV, no downloads, no embedded MPV (desktop-only
 features in IPTVnator).
