@@ -49,7 +49,12 @@ and the history fallback on the list Back returns to.
 
 The header Back is route-level in both states: it emits `backClicked`
 whether or not inline playback is active, so the arrow keeps one meaning and
-the list is one click away while watching. Only Escape unwinds one level: watch
+the list is one click away while watching. The platform Back gestures (the
+mouse Back button, Alt+← / Cmd+[, and Electron's `app-command` and trackpad
+swipe; see "Platform gestures" in
+[Header Back](./workspace-shell.md#header-back)) run the same target, so they
+leave the page in watch too, except while the player is fullscreen, where
+they do nothing. Only Escape unwinds one level: watch
 emits `closePlayerRequested`, browse emits `backClicked`. Hosts retain their
 existing route/inline/collection return behavior. The now-playing bar carries
 no second arrow; its "Close player" button is the pointer counterpart of the
@@ -94,7 +99,9 @@ handler as the header Back.
   so the correct detail host still opens without switching playlist context.
 - Dashboard `Global Favorites` and `Recently Watched` widgets hand off Xtream and
   Stalker movies/series into the matching global collection route with detail
-  pre-opened.
+  pre-opened. Unavailable favorites instead open the all-playlists collection
+  filtered to that content type, with no detail handoff, so an active different
+  playlist cannot hide the saved entry.
 - The dashboard hero CTA and the Continue Watching cards' explicit "Resume
   episode" ⋮ action for Xtream and Stalker series carry a one-shot
   season/episode resume target. The collection-owned detail consumes it after
@@ -333,6 +340,10 @@ Dashboard behavior to preserve:
   Xtream movie/series items into `/workspace/global-favorites` or
   `/workspace/global-recent` with collection detail pre-opened from navigation
   state.
+- Global detail handoffs carry `All playlists` scope in collection view state.
+  The active playlist stays unchanged, but availability is checked against
+  the target favorite's current row even when it belongs to another source.
+  Missing or removed favorites still cannot reopen through stale history.
 - When a series recent (Xtream, or a Stalker row that
   `resolvePortalActivityWatchKind` answers `series` for) has a saved episode
   position, the dashboard hero and Continue Watching card should include that

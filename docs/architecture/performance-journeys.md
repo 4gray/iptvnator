@@ -1134,7 +1134,22 @@ The bytes a browser fetches before Angular can bootstrap, read from the built
 - `index.html` itself,
 - every same-origin `<script src>`, including `assets/app-config.js`,
 - every `<link rel="stylesheet">`,
-- every `<link rel="modulepreload">` chunk.
+- every `<link rel="modulepreload">` chunk,
+- every chunk those scripts import statically, transitively.
+
+The last item matters because Angular's builder emits at most ten
+`modulepreload` hints (`MODULE_PRELOAD_MAX`). A startup graph with more
+chunks than that leaves the rest for the browser to discover from `main.js`'s
+own `import` statements; it still fetches and parses them before bootstrap.
+Until #1939 the script counted only what `index.html` names, so once the
+graph passed ten chunks the counter silently stopped growing: an eager
+`MatSnackBar` import added on `master` brought Material's snack-bar and
+button back (about 95 KB) without the ratchet noticing. The script parses
+each module (TypeScript's parser), so only real `import`/`export … from`
+declarations count, never text in a string or comment; dynamic `import()`
+targets are lazy and never count; imports count once per request URL, as the
+`index.html` references do; and a statically imported file the build did not
+emit is an error, like a missing `index.html` reference.
 
 Manifest, icons, external URLs, commented-out tags and lazy chunks are not
 counted, so the value is the same for every language: a non-English launch
@@ -1175,15 +1190,28 @@ lazy route or dialog. Angular Material therefore stays off the startup path by
 construction, with the rules and guards in the
 [UI guidelines](iptvnator-ui-guidelines.md#material-off-the-startup-path):
 form-field defaults are provided per component (#1928), services created with
-the app resolve `MatDialog` through `LazyMatDialog`, the panels the shell
-mounts on every launch defer their Material views, the theme emits tokens only
-for imported components, and the app does not provide the animations module,
-which nothing used (Material 22 animates with CSS). Together these lowered the
-counter from 1,596,201 to 1,344,067 bytes (-252,134, 15.8%) on a local
-production build at the branch point (#1931); the baseline follows the
-measurement of the branch merged with `master`, 1,345,807. The snack-bar stays: root
-services inject it, and with it Material's button, the icon button chunk and
-the CDK overlay (about 190 KB) remain initial.
+the app resolve `MatDialog` through `LazyMatDialog` and open toasts through
+`LazySnackBar`, the panels the shell mounts on every launch defer their
+Material views, the theme emits tokens only for imported components, and the
+app does not provide the animations module, which nothing used (Material 22
+animates with CSS). Together these lowered the counter from 1,596,201 to
+1,344,067 bytes (-252,134, 15.8%) on a local production build at the branch
+point (#1931); the baseline follows the measurement of the branch merged with
+`master`, 1,345,807. The snack-bar followed in #1939: with the last seven
+eager `MatSnackBar` injections moved to `LazySnackBar` and the startup
+status deferring its Retry button, the snack-bar, Material's button, the icon
+button chunk, ripple and the CDK a11y module left the initial bundle,
+1,349,048 to 1,237,440 bytes (-111,608, 8.3%) on a local build, and no
+Material module remains in it; merged with #1938 (the radio play control
+no longer a fab, so its theme tokens left the stylesheet), #1936 (one
+global kit layer replacing per-component overrides), #1929 (zoneless
+renderer, no zone.js polyfill), #1903 (self-hosted server storage, which
+raised master's baseline by 7,245 bytes) and #1934, whose Xtream favorites
+toasts now also go through `LazySnackBar`, the branch measures 1,196,205
+with the static-import rule below, which the baseline follows; the counter
+without that rule read 1,098,535 for the same build. Of the CDK, the overlay, scrolling and
+portal chunks (about 78 KB) stay through the `FullscreenOverlayContainer`
+provider in `app.config.ts`, whose token lives in the overlay chunk.
 
 `--summary` writes the journey summary shape (`journeys.<journey>.counters`)
 that the ratchet checker consumes. `--dist <dir>` points the script at another

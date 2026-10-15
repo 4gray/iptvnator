@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonToggleGroup } from '@angular/material/button-toggle';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -25,6 +26,7 @@ import {
     liveSidebarStateStorageKey,
 } from '@iptvnator/portal/shared/util';
 import {
+    UnifiedCollectionDataService,
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
@@ -143,6 +145,7 @@ describe('UnifiedCollectionPageComponent', () => {
     const playlistsLoaded = signal(false);
     const playlists = signal<PlaylistMeta[]>([]);
     const favoritesData = {
+        isXtreamFavorite: jest.fn().mockResolvedValue(true),
         addFavorite: jest.fn().mockResolvedValue(undefined),
         getFavorites: jest.fn().mockResolvedValue([]),
         clearFavorites: jest.fn().mockResolvedValue(undefined),
@@ -158,6 +161,7 @@ describe('UnifiedCollectionPageComponent', () => {
     const dialogService = {
         openConfirmDialog: jest.fn(),
     };
+    const snackBar = { open: jest.fn() };
     const workspaceViewCommands = {
         registerCommand: jest.fn(),
     };
@@ -251,6 +255,7 @@ describe('UnifiedCollectionPageComponent', () => {
                 TranslateModule.forRoot(),
             ],
             providers: [
+                { provide: MatSnackBar, useValue: snackBar },
                 {
                     provide: ActivatedRoute,
                     useValue: route,
@@ -321,6 +326,68 @@ describe('UnifiedCollectionPageComponent', () => {
         fixture = TestBed.createComponent(UnifiedCollectionPageComponent);
         fixture.componentRef.setInput('mode', 'favorites');
         fixture.componentRef.setInput('defaultScope', 'all');
+    });
+
+    it.each([
+        [
+            'XTREAM_FAVORITE_IDENTITY_CONFLICT',
+            'PORTALS.FAVORITE_IDENTITY_CONFLICT',
+        ],
+        ['SQLite write failed', 'PORTALS.FAVORITE_SAVE_FAILED'],
+    ])(
+        'reports %s without filling the recent favorite heart',
+        async (error, message) => {
+            fixture.componentRef.setInput('mode', 'recent');
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::source::live:7',
+                name: 'Recent channel',
+                sourceType: 'xtream',
+                contentType: 'live',
+                playlistId: 'source',
+                playlistName: 'Source',
+                contentId: 42,
+            };
+            favoritesData.addFavorite.mockRejectedValueOnce(new Error(error));
+            await expect(
+                fixture.componentInstance.onFavoriteToggled(item)
+            ).resolves.toBeUndefined();
+            expect(snackBar.open).toHaveBeenCalledWith(message, undefined, {
+                duration: 6000,
+            });
+            const data = fixture.debugElement.injector.get(
+                UnifiedCollectionDataService
+            );
+            expect(data.favoriteUidSet().has(item.uid)).toBe(false);
+        }
+    );
+
+    it('names the favorites sort button with the current order', async () => {
+        const favorite = {
+            uid: 'm3u::playlist-1::https://example.com/one.m3u8',
+            name: 'Favorite One',
+            contentType: 'live',
+            sourceType: 'm3u',
+            playlistId: 'playlist-1',
+            playlistName: 'Playlist One',
+            streamUrl: 'https://example.com/one.m3u8',
+        } satisfies UnifiedCollectionItem;
+        favoritesData.getFavorites.mockResolvedValueOnce([favorite]);
+
+        fixture.componentRef.setInput('mode', 'favorites');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.isLoading.set(false);
+        fixture.componentInstance.selectedContentType.set('live');
+        fixture.componentInstance.allItems.set([favorite]);
+        fixture.detectChanges();
+
+        const button = fixture.nativeElement.querySelector(
+            '.favorites-sort-button'
+        ) as HTMLButtonElement;
+        // No translations are loaded, so the keys are the rendered text.
+        expect(button.getAttribute('aria-label')).toBe(
+            `WORKSPACE.SORT_LABEL${fixture.componentInstance.favSortLabelKey()}`
+        );
     });
 
     it('uses compact loading rows when the runtime has no EPG support', () => {
@@ -877,6 +944,7 @@ describe('UnifiedCollectionPageComponent', () => {
                 ['/workspace', 'global-favorites'],
                 {
                     state: {
+                        [COLLECTION_VIEW_STATE_KEY]: { scope: 'all' },
                         [OPEN_COLLECTION_DETAIL_STATE_KEY]: {
                             item: expect.objectContaining({ xtreamId: 103 }),
                             seriesResume,
@@ -1000,6 +1068,7 @@ describe('UnifiedCollectionPageComponent', () => {
             ['/workspace', 'global-recent'],
             {
                 state: {
+                    [COLLECTION_VIEW_STATE_KEY]: { scope: 'all' },
                     [OPEN_COLLECTION_DETAIL_STATE_KEY]: {
                         item: expect.objectContaining({
                             uid: item.uid,

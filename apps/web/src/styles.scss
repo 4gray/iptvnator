@@ -254,9 +254,10 @@ body.dark-theme {
     app-region: no-drag;
 }
 
-// UI-kit menu panel: `<mat-menu class="app-menu">`. The panel renders in the
-// overlay container, outside every component view, so the rule is global.
-.mat-mdc-menu-panel.app-menu {
+// UI-kit menu panel for every `mat-menu`. The panel renders in the overlay
+// container, outside every component view, so the rule is global; the pane
+// prefix outranks Material's single-class panel rules, which load later.
+.cdk-overlay-pane .mat-mdc-menu-panel {
     @include controls.menu-panel;
 }
 

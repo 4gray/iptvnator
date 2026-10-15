@@ -31,6 +31,7 @@ import { WorkspaceShellHeaderService } from './services/workspace-shell-header.s
 import { WorkspaceShellRouteStateService } from './services/workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
+import { WorkspaceBackGesturesService } from '../workspace-back-gestures/workspace-back-gestures.service';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 import { WorkspaceLiveCategoriesPopoverService } from '../workspace-live-categories-popover/workspace-live-categories-popover.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
@@ -65,6 +66,9 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
         WorkspaceShellXtreamImportService,
         WorkspaceShellCommandPaletteService,
         WorkspaceKeyboardShortcutsService,
+        // Mouse Back, the Back chord and the Electron window gestures; the
+        // shortcuts service creates it for the chord.
+        WorkspaceBackGesturesService,
         // The live layouts inside the router outlet open the folded categories
         // rail through this token; see `LiveCategoriesPopover`.
         {

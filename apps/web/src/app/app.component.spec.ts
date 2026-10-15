@@ -1,6 +1,6 @@
 import { EventEmitter } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -85,7 +85,7 @@ describe('AppComponent', () => {
     let epgService: EpgService;
     let router: Router;
     let settingsService: MockSettingsService;
-    let snackBar: MatSnackBar;
+    let snackBar: LazySnackBar;
     let store: MockStore;
     let translateService: TranslateService;
     let runtimeCapabilities: Partial<RuntimeCapabilitiesService>;
@@ -148,8 +148,8 @@ describe('AppComponent', () => {
                     provide: WorkspaceShellContextDrawerService,
                     useValue: { isOpen: () => false },
                 },
-                MockProvider(MatSnackBar, {
-                    open: jest.fn(),
+                MockProvider(LazySnackBar, {
+                    open: jest.fn().mockResolvedValue(null),
                 }),
                 MockProvider(TranslateService, {
                     instant: jest.fn((key: string) => key),
@@ -192,7 +192,7 @@ describe('AppComponent', () => {
         settingsService = TestBed.inject(
             SettingsService
         ) as unknown as MockSettingsService;
-        snackBar = TestBed.inject(MatSnackBar);
+        snackBar = TestBed.inject(LazySnackBar);
         store = TestBed.inject(MockStore);
         translateService = TestBed.inject(TranslateService);
         component = fixture.componentInstance;

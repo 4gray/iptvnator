@@ -59,7 +59,7 @@ describe('PlaylistsService', () => {
                 ...overrides,
             },
             snackBar: {
-                open: jest.fn(),
+                open: jest.fn().mockResolvedValue(null),
             },
             translateService: {
                 instant: jest.fn((key: string) => key),

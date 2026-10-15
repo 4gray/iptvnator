@@ -210,6 +210,16 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { xtreamId: 42, playlistId, contentType: 'movie' },
     },
     {
+        operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        args: [42, playlistId, 'movie', { tmdbId: 100, releaseYear: 1995 }],
+        payload: {
+            xtreamId: 42,
+            playlistId,
+            contentType: 'movie',
+            identity: { tmdbId: 100, releaseYear: 1995 },
+        },
+    },
+    {
         operation: 'DB_SET_CONTENT_METADATA_IF_MISSING',
         // Same object on both sides: the patch must cross the boundary
         // unreshaped, or the worker reads fields the caller never sent.
@@ -260,6 +270,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         forwardsEvents: true,
     },
     {
+        operation: 'DB_RESTORE_XTREAM_FAVORITES',
+        args: [playlistId, favorites, 'restore-1'],
+        payload: { playlistId, favorites, restoreId: 'restore-1' },
+    },
+    {
         operation: 'DB_ADD_FAVORITE',
         args: [12, playlistId, 'https://image.example/backdrop.jpg'],
         payload: {
@@ -277,6 +292,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_IS_FAVORITE',
         args: [12, playlistId],
         payload: { contentId: 12, playlistId },
+    },
+    {
+        operation: 'DB_GET_FAVORITES_FOR_BACKUP',
+        args: [playlistId],
+        payload: { playlistId },
     },
     {
         operation: 'DB_GET_FAVORITES',

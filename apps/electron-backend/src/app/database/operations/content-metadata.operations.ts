@@ -5,6 +5,12 @@ import {
     ContentMetadataPatch,
     normalizeContentMetadataPatch,
 } from '@iptvnator/shared/interfaces';
+import {
+    favoriteMatchesContentId,
+    reconcileFavoriteIdentity,
+    favoriteSnapshotFromContent,
+    favoriteSnapshotMatchesContent,
+} from './favorite-catalog';
 import type { AppDatabase } from '../database.types';
 
 /**
@@ -104,6 +110,21 @@ export async function persistContentMetadataIfMissing(
             )
         )
         .where(and(eq(schema.content.id, contentId), anyAbsent));
+
+    reconcileFavoriteIdentity(db, favoriteMatchesContentId(contentId, false));
+
+    // Favorites own their metadata beyond the lifetime of this catalog row.
+    // Once enrichment confirms identity, capture the complete returned snapshot,
+    // including title/artwork that arrived before the confirming metadata.
+    await db
+        .update(schema.favorites)
+        .set(favoriteSnapshotFromContent(contentId))
+        .where(
+            and(
+                favoriteMatchesContentId(contentId),
+                sql`EXISTS (SELECT 1 FROM content WHERE id = ${contentId} AND ${favoriteSnapshotMatchesContent()})`
+            )
+        );
 }
 
 export async function setContentMetadataIfMissing(

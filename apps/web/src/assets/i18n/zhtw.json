@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "已從最愛中移除",
         "ADDED_TO_FAVORITES": "已新增至最愛",
         "FAVORITES": "我的最愛",
+        "FAVORITE_IDENTITY_CONFLICT": "此來源替換了您儲存的項目。請先從收藏中移除舊項目，再新增此項目。",
+        "FAVORITE_SAVE_FAILED": "無法儲存此收藏。請重試。",
         "RECENTLY_VIEWED": "最近觀看",
         "THIS_PLAYLIST": "此播放清單",
         "ALL_PLAYLISTS": "所有播放清單",
@@ -2034,6 +2036,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "切換應用程式視窗全螢幕",
                 "ZOOM_IN_OUT": "放大或縮小應用程式",
                 "RESET_ZOOM": "重設應用程式縮放",
+                "GO_BACK": "返回上一頁",
                 "TOGGLE_SIDEBAR": "切換側邊欄",
                 "M3U_CHANNEL_NUMBER": "按數字選擇 M3U 頻道",
                 "PLAY_PAUSE": "播放或暫停嵌入式 MPV 播放",
@@ -2050,6 +2053,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "目前目錄中不存在",
+            "CATALOG_UNKNOWN": "目錄狀態未知",
             "TITLE": "全域我的最愛",
             "SUBTITLE": "來自所有播放清單的直播電視",
             "SEARCH_PLACEHOLDER": "搜尋我的最愛...",

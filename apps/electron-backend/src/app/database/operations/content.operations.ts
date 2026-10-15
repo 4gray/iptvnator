@@ -1,3 +1,6 @@
+import { selectContentFields } from './content-fields';
+export { getContentByXtreamId } from './content-identity-lookup';
+import { reconcileFavoriteIdentity } from './favorite-catalog';
 import { and, asc, desc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import {
@@ -649,23 +652,6 @@ function getRecentlyAddedContentTypes(
     return ['movie', 'series'];
 }
 
-function selectContentFields() {
-    return {
-        id: schema.content.id,
-        category_id: schema.content.categoryId,
-        title: schema.content.title,
-        rating: schema.content.rating,
-        added: schema.content.added,
-        poster_url: schema.content.posterUrl,
-        epg_channel_id: schema.content.epgChannelId,
-        tv_archive: schema.content.tvArchive,
-        tv_archive_duration: schema.content.tvArchiveDuration,
-        direct_source: schema.content.directSource,
-        xtream_id: schema.content.xtreamId,
-        type: schema.content.type,
-    };
-}
-
 export async function hasContent(
     db: AppDatabase,
     playlistId: string,
@@ -1013,6 +999,14 @@ export async function clearXtreamImportCache(
             : { success: true };
     }
 
+    reconcileFavoriteIdentity(
+        db,
+        and(
+            eq(schema.favorites.playlistId, playlistId),
+            eq(schema.favorites.type, type)
+        )
+    );
+
     // Count and delete stay scoped to the captured ids, not to the
     // playlist/type predicate, so a category a concurrent import creates
     // between the read and the delete survives.
@@ -1032,34 +1026,6 @@ export async function clearXtreamImportCache(
               })
           )
         : deleteXtreamCacheRows(db, contentRowCounts, categoryIds);
-}
-
-export async function getContentByXtreamId(
-    db: AppDatabase,
-    xtreamId: number,
-    playlistId: string,
-    contentType?: 'live' | 'movie' | 'series'
-) {
-    const conditions = [
-        eq(schema.content.xtreamId, xtreamId),
-        eq(schema.categories.playlistId, playlistId),
-    ];
-
-    if (contentType) {
-        conditions.push(eq(schema.content.type, contentType));
-    }
-
-    const result = await db
-        .select(selectContentFields())
-        .from(schema.content)
-        .innerJoin(
-            schema.categories,
-            eq(schema.content.categoryId, schema.categories.id)
-        )
-        .where(and(...conditions))
-        .limit(1);
-
-    return result[0] || null;
 }
 
 export async function searchContent(

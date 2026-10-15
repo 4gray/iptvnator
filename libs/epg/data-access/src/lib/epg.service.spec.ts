@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, of, skip } from 'rxjs';
 import {
@@ -35,7 +35,7 @@ describe('EpgService', () => {
             supportsProgramLookup: false,
         };
         snackBar = {
-            open: jest.fn(),
+            open: jest.fn().mockResolvedValue(null),
         };
         settingsStore = {
             loadSettings: jest.fn().mockResolvedValue(undefined),
@@ -72,7 +72,7 @@ describe('EpgService', () => {
                     useValue: epgBridge,
                 },
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: snackBar,
                 },
                 {

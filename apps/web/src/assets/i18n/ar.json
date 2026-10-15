@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "تمت الإزالة من المفضلة",
         "ADDED_TO_FAVORITES": "تمت الإضافة للمفضلة",
         "FAVORITES": "المفضلة",
+        "FAVORITE_IDENTITY_CONFLICT": "استبدل هذا المصدر عنصراً حفظته. احذف الإدخال القديم من المفضلة قبل إضافة هذا العنصر.",
+        "FAVORITE_SAVE_FAILED": "تعذر حفظ هذا العنصر في المفضلة. يرجى المحاولة مرة أخرى.",
         "RECENTLY_VIEWED": "تمت مشاهدتها مؤخرًا",
         "THIS_PLAYLIST": "قائمة التشغيل هذه",
         "ALL_PLAYLISTS": "جميع قوائم التشغيل",
@@ -2034,6 +2036,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "تبديل ملء الشاشة لنافذة التطبيق",
                 "ZOOM_IN_OUT": "تكبير التطبيق أو تصغيره",
                 "RESET_ZOOM": "إعادة ضبط تكبير التطبيق",
+                "GO_BACK": "العودة إلى الصفحة السابقة",
                 "TOGGLE_SIDEBAR": "تبديل الشريط الجانبي",
                 "M3U_CHANNEL_NUMBER": "اختيار قناة M3U حسب الرقم",
                 "PLAY_PAUSE": "تشغيل أو إيقاف تشغيل Embedded MPV مؤقتًا",
@@ -2050,6 +2053,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "غير موجود في الكتالوج الحالي",
+            "CATALOG_UNKNOWN": "حالة الكتالوج غير معروفة",
             "TITLE": "المفضلة العامة",
             "SUBTITLE": "البث المباشر من جميع قوائم التشغيل",
             "SEARCH_PLACEHOLDER": "البحث في المفضلة...",
