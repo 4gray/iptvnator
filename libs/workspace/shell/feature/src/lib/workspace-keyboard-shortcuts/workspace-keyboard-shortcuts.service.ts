@@ -10,7 +10,10 @@ import {
     resolveZoomShortcutAction,
 } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { WorkspaceBackGesturesService } from '../workspace-back-gestures/workspace-back-gestures.service';
+import {
+    WorkspaceBackGestureResult,
+    WorkspaceBackGesturesService,
+} from '../workspace-back-gestures/workspace-back-gestures.service';
 import {
     WorkspaceKeyboardShortcutsDialogComponent,
     WorkspaceKeyboardShortcutsDialogData,
@@ -35,6 +38,11 @@ export class WorkspaceKeyboardShortcutsService {
         this.handleKeydown(event);
     private readonly onDocumentKeydownCapture = (event: KeyboardEvent): void =>
         this.handleBackShortcut(event);
+    /** The first press of the held Back chord; its repeats follow it. */
+    private heldBackChord: WorkspaceBackGestureResult | null = null;
+    private readonly onDocumentKeyup = (): void => {
+        this.heldBackChord = null;
+    };
 
     private dialogRef: MatDialogRef<
         WorkspaceKeyboardShortcutsDialogComponent,
@@ -49,11 +57,17 @@ export class WorkspaceKeyboardShortcutsService {
                 this.onDocumentKeydownCapture,
                 true
             );
+            document.addEventListener('keyup', this.onDocumentKeyup, true);
             this.destroyRef.onDestroy(() => {
                 document.removeEventListener('keydown', this.onDocumentKeydown);
                 document.removeEventListener(
                     'keydown',
                     this.onDocumentKeydownCapture,
+                    true
+                );
+                document.removeEventListener(
+                    'keyup',
+                    this.onDocumentKeyup,
                     true
                 );
             });
@@ -122,9 +136,11 @@ export class WorkspaceKeyboardShortcutsService {
      * player cannot also read it as a plain arrow. While a dialog, menu, the
      * phone drawer or a fullscreen player is up the chord is swallowed but
      * still reaches them. Not while typing, where Alt/Option arrows move by
-     * word. A held chord runs Back once; its repeats are swallowed, so the
-     * browser does not step on them either. Without a Back the chord stays
-     * the browser's.
+     * word. A held chord runs Back once: its repeats follow the first press
+     * until a key is released, so after a press that ran Back they are
+     * swallowed even when the page it reached has no Back left, and the
+     * browser cannot step again. Without a Back the chord stays the
+     * browser's.
      */
     private handleBackShortcut(event: KeyboardEvent): void {
         if (
@@ -137,9 +153,13 @@ export class WorkspaceKeyboardShortcutsService {
             return;
         }
 
-        const result = event.repeat
-            ? this.backGestures.peek()
-            : this.backGestures.goBack('keyboard');
+        let result: WorkspaceBackGestureResult;
+        if (event.repeat) {
+            result = this.heldBackChord ?? 'none';
+        } else {
+            result = this.backGestures.goBack('keyboard');
+            this.heldBackChord = result;
+        }
         if (result === 'none') {
             return;
         }

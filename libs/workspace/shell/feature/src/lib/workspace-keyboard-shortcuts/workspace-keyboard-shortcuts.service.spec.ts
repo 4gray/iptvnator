@@ -16,7 +16,7 @@ describe('WorkspaceKeyboardShortcutsService', () => {
         >;
     };
     let runtime: { isElectron: boolean };
-    let backGestures: { peek: jest.Mock; goBack: jest.Mock };
+    let backGestures: { goBack: jest.Mock };
     let service: WorkspaceKeyboardShortcutsService;
 
     function openedDialogData(): WorkspaceKeyboardShortcutsDialogData {
@@ -36,7 +36,6 @@ describe('WorkspaceKeyboardShortcutsService', () => {
         };
         runtime = { isElectron: true };
         backGestures = {
-            peek: jest.fn(() => 'back'),
             goBack: jest.fn(() => 'back'),
         };
 
@@ -205,13 +204,58 @@ describe('WorkspaceKeyboardShortcutsService', () => {
             const event = press({ key: 'ArrowLeft', altKey: true }, input);
 
             expect(backGestures.goBack).not.toHaveBeenCalled();
-            expect(backGestures.peek).not.toHaveBeenCalled();
             expect(event.defaultPrevented).toBe(false);
             input.remove();
         });
 
-        it('runs Back once for a held chord and swallows its repeats', () => {
+        it('runs Back once for a held chord and swallows its repeats until keyup', () => {
             setPlatform('Windows');
+            const repeat = () =>
+                press({ key: 'ArrowLeft', altKey: true, repeat: true });
+            const pageListener = jest.fn();
+            document.body.addEventListener('keydown', pageListener);
+
+            press({ key: 'ArrowLeft', altKey: true });
+            // Back reached the first in-app page: there is no Back left, but
+            // the browser must still not take a step of its own.
+            backGestures.goBack.mockReturnValue('none');
+            const repeats = [repeat(), repeat()];
+
+            expect(backGestures.goBack).toHaveBeenCalledTimes(1);
+            expect(repeats.map((event) => event.defaultPrevented)).toEqual([
+                true,
+                true,
+            ]);
+            expect(pageListener).not.toHaveBeenCalled();
+
+            document.dispatchEvent(
+                new KeyboardEvent('keyup', { key: 'ArrowLeft', bubbles: true })
+            );
+            expect(repeat().defaultPrevented).toBe(false);
+            document.body.removeEventListener('keydown', pageListener);
+        });
+
+        it('leaves the repeats of a chord that had no Back to the browser', () => {
+            setPlatform('Windows');
+            backGestures.goBack.mockReturnValue('none');
+
+            press({ key: 'ArrowLeft', altKey: true });
+            backGestures.goBack.mockReturnValue('back');
+            const repeat = press({
+                key: 'ArrowLeft',
+                altKey: true,
+                repeat: true,
+            });
+
+            expect(backGestures.goBack).toHaveBeenCalledTimes(1);
+            expect(repeat.defaultPrevented).toBe(false);
+        });
+
+        it('keeps a blocked chord blocked while it is held', () => {
+            setPlatform('Windows');
+            backGestures.goBack.mockReturnValue('blocked');
+            const dialogListener = jest.fn();
+            document.body.addEventListener('keydown', dialogListener);
 
             press({ key: 'ArrowLeft', altKey: true });
             const repeat = press({
@@ -221,16 +265,9 @@ describe('WorkspaceKeyboardShortcutsService', () => {
             });
 
             expect(backGestures.goBack).toHaveBeenCalledTimes(1);
-            expect(backGestures.peek).toHaveBeenCalledTimes(1);
             expect(repeat.defaultPrevented).toBe(true);
-
-            backGestures.peek.mockReturnValue('none');
-            const lastRepeat = press({
-                key: 'ArrowLeft',
-                altKey: true,
-                repeat: true,
-            });
-            expect(lastRepeat.defaultPrevented).toBe(false);
+            expect(dialogListener).toHaveBeenCalledTimes(2);
+            document.body.removeEventListener('keydown', dialogListener);
         });
 
         it('ignores other arrows, modifiers and a chord another handler consumed', () => {

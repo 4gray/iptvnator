@@ -348,8 +348,9 @@ the app.
   list, guide or player does not also read it as a plain arrow; a blocked
   chord is prevented but still reaches the dialog or menu. It is ignored
   while typing (Alt and Option arrows edit text). A held chord runs Back
-  once; its repeats are swallowed unless the result would be `none`, so the
-  browser does not step on them either.
+  once: its repeats follow its first press until a key is released, so after
+  a press that ran Back they are swallowed even when the page it reached has
+  no Back left, and the browser cannot step on them.
 - **Electron.** `attachWindowBackGestures()`
   (`apps/electron-backend/src/app/services/window-back-gestures.ts`) forwards
   the two window events over the main → renderer push channel
