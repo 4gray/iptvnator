@@ -184,7 +184,9 @@ storage and EPG are enabled. Every file stays under 300 lines.
   (`epg-import.worker.ts`, second esbuild entry, `resourceLimits`
   `maxOldGenerationSizeMb: 512`) with its own `epg.db` connection, fed by
   `ValidatedHttpClient` in streaming mode. Stall timeout 5 min without
-  progress, wall clock 60 min, decompressed cap from config. A failed or
+  progress (suspended once the import starts its publish transaction,
+  which sends no progress), wall clock 60 min, decompressed cap from
+  config. A failed or
   cancelled import publishes nothing; old data stays. After the nightly run:
   prune programmes that stopped more than seven days ago, then
   `incremental_vacuum`.
@@ -281,9 +283,9 @@ a device setting applied in the renderer.
 | Xtream / Stalker provider EPG (lists, panels, favorites, dashboard) | on | on (3a) | on |
 | Xtream XMLTV fallback | on | off | on (3d, via the bridge) |
 | M3U channel-list programme line, player EPG panel, guide, search | on | off | on |
-| Settings → EPG | device list | hidden | server list + refresh time + per-source status |
-| Playlist info → EPG sources, Refresh | on | shown, Refresh disabled | on |
-| EPG import progress panel | push | — | polling |
+| Settings → EPG | device list | display settings only (time offset, view mode), from 3a | server list and refresh time (saved with Save), "On the server" source list, display settings |
+| Playlist info → EPG sources, Refresh | on | shown, Refresh disabled | on, `http(s)` URLs only |
+| EPG import progress panel | push | — | polling, imports started on this device only |
 | Local XMLTV file picker | on | — | off |
 | "Map EPG channel" | on | off | off until 3e |
 
@@ -294,8 +296,12 @@ true, so `supportsEpg` is true; file picker and mapping are false.
 IPC or the PWA backend proxy).
 
 Settings → EPG in server mode labels the list as shared by every device of
-the server and shows the refresh time and, per source, state, last import,
-channel and programme counts and errors. The desktop error actions "Trust
+the server; the refresh time is part of the settings form and is saved with
+the list by the Save bar. Below the list, "On the server" shows every
+imported source, playlist-owned ones included, with state, last import,
+channel and programme counts and errors; the inline status chips on URL
+rows use 24 h freshness in server mode. "Clear EPG data" clears and
+re-imports every source. The desktop error actions "Trust
 private network source" and "Trust certificate" are replaced by a hint
 naming `IPTVNATOR_EPG_ALLOW_PRIVATE_NETWORKS` or `NODE_EXTRA_CA_CERTS`.
 Display offset, EPG view mode and `preferUploadedEpgOverXtream` stay device
@@ -367,7 +373,7 @@ settings. New strings are translated in all locales.
 
 | PR | Content | Depends on | Release note |
 | --- | --- | --- | --- |
-| 3a | Provider EPG in the PWA: `supportsProviderEpg`, Xtream and Stalker gates, E2E, docs (`stalker-epg.md`, Xtream compatibility, PWA limitations). | — | yes |
+| 3a | Provider EPG in the PWA: `supportsProviderEpg`, Xtream and Stalker gates, Settings → EPG display settings in the PWA, a browser check of Xtream catch-up (archive actions hidden in the PWA if it does not play), E2E, docs (`stalker-epg.md`, Xtream compatibility, PWA limitations). | — | yes |
 | 3b-1 | Renderer seam: `EpgRuntimeBackend` and `EPG_RUNTIME_BACKEND`, EPG capability flags checked on the backend, portal `window.electron` calls behind the bridge, `EpgSourceSettingsService` reconciling through the backend. No behavior change. | — | no |
 | 3b-2 | `@iptvnator/shared/epg-store`: pipeline and queries extracted (query service split), Electron on the library, streaming mode with a byte cap in `ValidatedHttpClient`. No behavior change. | #1941, #1946, #1947 (+#1800) merged | no |
 | 3c | Server EPG in `web-backend`: `epg.db`, registry, scheduler, import queue and worker, `/v1/epg`, `features.epg`, shutdown hook, Docker env and docs. `IPTVNATOR_EPG` defaults to `off`. | 3b-2 | no |

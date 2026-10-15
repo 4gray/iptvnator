@@ -119,21 +119,35 @@ export const EPG_RUNTIME_BACKEND = new InjectionToken<EpgRuntimeBackendResolver>
 );
 ```
 
-- `RuntimeCapabilitiesService` checks every `supportsEpg*` flag with
-  `typeof resolver()?.[method] === 'function'` instead of
+- The EPG flags live in `libs/services/src/lib/epg-runtime-capabilities.ts`
+  and check `typeof resolver()?.[method] === 'function'` instead of
   `hasElectronMethod`; the method lists per flag stay as they are.
-- `EpgRuntimeBridgeService` and `EpgSourceSettingsService` call methods on
-  `inject(EPG_RUNTIME_BACKEND)()` instead of `window.electron`.
+  `RuntimeCapabilitiesService` keeps its `supportsEpg*` getters as thin
+  delegates, so no consumer changes.
+- `isElectronRuntime()` (main barrel) answers "Electron?" without an
+  injector: `main.ts`'s probe builds `RuntimeCapabilitiesService` with `new`
+  before Angular starts, which an `inject()` field would break.
+- `EpgRuntimeBridgeService` and `EpgSourceSettingsService` keep the
+  resolver and call it per use (`this.backend()?.method(...)`); nobody
+  caches the backend object. 3d provides a resolver that creates the server
+  backend lazily on its first call (a DI cycle with `ServerStorageSession`
+  otherwise).
 - `supportsProviderEpg` (3a) is a separate getter on
   `RuntimeCapabilitiesService` and does not use this token.
 
 ### B. `@iptvnator/shared/epg-store` (3b-2; used by 3c)
 
-`libs/shared/epg-store`, Node only, tags `scope:shared`,
-`domain:shared-runtime`, `type:data-access`. Public API (`src/index.ts`):
+`libs/shared/epg-store`, Nx project `shared-epg-store`, Node only, tags
+`scope:shared`, `domain:shared-runtime`, `type:data-access`; a
+`no-restricted-imports` rule keeps renderer projects from importing it (Nx
+tags cannot, since `services` and `database` share them). The epg_* DDL
+lives in `libs/shared/database/src/lib/epg-schema-sql.ts`, used by both
+`connection.ts` and `ensureEpgSchema`. Public API (`src/index.ts`):
 
 ```ts
 import type BetterSqlite3 from 'better-sqlite3';
+import type { RunResult } from 'better-sqlite3';
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import type { Readable } from 'node:stream';
 import type {
     ElectronBridgeCurrentProgramsOptions,
@@ -156,6 +170,8 @@ export interface EpgSourceResponse {
     readonly requestUrl: string;
     readonly finalUrl: string;          // after redirects
     readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+    /** Electron's local files: gzip is detected from the first bytes only. */
+    readonly kind?: 'http' | 'file';
 }
 export type EpgSourceOpener = (
     url: string,
@@ -182,9 +198,18 @@ export interface RunEpgImportOptions {
     readonly openSource: EpgSourceOpener;   // its errors propagate unchanged
     readonly signal: AbortSignal;
     readonly onProgress?: (stats: EpgImportStats) => void;
+    /**
+     * Called once right before the synchronous publish transaction, which
+     * sends no progress; a stall watcher suspends its timer here.
+     */
+    readonly onPublishStart?: () => void;
     readonly maxDecompressedBytes?: number;
 }
-/** Stages, then publishes atomically (#1941); nothing is published on throw. */
+/**
+ * Stages, then publishes atomically (#1941); nothing is published on throw.
+ * Raises only the four codes above itself; zlib (`Z_*`), transport, opener
+ * and SQLite errors pass through unchanged. Never sets pragmas or closes `db`.
+ */
 export function runEpgImport(options: RunEpgImportOptions): Promise<EpgImportStats>;
 
 // Maintenance
@@ -197,7 +222,12 @@ export function pruneEpgPrograms(
 ): number;
 
 // Queries
-export type EpgDrizzle = /* drizzle(better-sqlite3) over the epg_* schema */;
+/** Structural, so any drizzle instance over the epg_* tables fits. */
+export type EpgDrizzle = Pick<
+    BaseSQLiteDatabase<'sync', RunResult>,
+    'select' | 'selectDistinct' | 'all'
+>;
+/** Loads drizzle's better-sqlite3 driver only when called. */
 export function createEpgDrizzle(db: BetterSqlite3.Database): EpgDrizzle;
 export interface EpgQueries {
     getChannelPrograms(channelId: string, options?: { sourceUrls?: string[] }): Promise<EpgProgram[]>;
@@ -210,10 +240,26 @@ export interface EpgQueries {
 }
 export function createEpgQueries(options: {
     readonly getDb: () => EpgDrizzle | Promise<EpgDrizzle>;
-    /** Manual mappings (Electron; server from 3e): channel key → EPG channel id. */
+    /**
+     * Manual mappings (Electron; server from 3e): channel key → EPG channel
+     * id. A rejection falls back to unmapped ids, except for coverage.
+     */
     readonly resolveMappings?: (keys: string[]) => Promise<Map<string, string>>;
 }): EpgQueries;
+
+// Also exported: epgLogger, isEpgSourceFresh, EPG_FRESHNESS_MAX_AGE_HOURS;
+// `@iptvnator/shared/epg-store/testing` exports seedEpgSource.
 ```
+
+3b-2 also gives `ValidatedHttpClient` (web-backend) a streaming mode for 3c:
+`stream(url, { maxBytes, timeout?, signal?, headers?, params?, onConnect? })`
+resolves at the final 2xx headers with
+`WebBackendHttpStream { stream, requestUrl, finalUrl, headers, status }`,
+body not decompressed. Failures before headers are `ProviderRequestError`
+as in `get()`; the stream fails with `ProviderBodyTooLargeError`
+(`code === PROVIDER_BODY_TOO_LARGE_CODE`, `'ERR_PROVIDER_BODY_TOO_LARGE'`,
+exported from `provider-response.ts`) past `maxBytes` wire bytes, or with
+`ECONNABORTED` after `timeout` of socket inactivity.
 
 Electron keeps its worker entry, fetch orchestration, generation fences,
 error classification (private network, TLS) and IPC; they call this API.
@@ -363,6 +409,25 @@ export interface ServerInstanceFeatures {
 | `IPTVNATOR_EPG_ALLOW_PRIVATE_NETWORKS` | `1`/`true` | off; `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1` implies it |
 | `IPTVNATOR_EPG_MAX_MB` | positive integer | `1024` (decompressed per source) |
 | `TZ` | IANA zone | container default (UTC); the schedule uses it |
+
+## Product decisions from the plan review (2026-10-15)
+
+- 3a shows Settings → EPG in the PWA with only the display settings (EPG
+  time offset and view mode) when provider EPG is available; the XMLTV
+  source part stays hidden without XMLTV capabilities.
+- 3a checks Xtream catch-up (timeshift URL) in the browser players against
+  a real provider; if it does not play, archive actions are hidden in the
+  PWA until a separate task fixes them.
+- 3a's loading skeleton follows the per-source EPG rule (no row jump).
+- 3d saves the daily refresh time through the Settings Save bar together
+  with the URL list (one `PUT /v1/epg/settings`).
+- 3d shows a separate "On the server" list of every imported source
+  (including playlist-owned ones) below the URL list; inline status chips
+  on URL rows stay and use 24 h freshness in server mode.
+- 3d's import progress panel shows only imports started on this device.
+- 3d: "Clear EPG data" re-imports every source; playlist info accepts only
+  http(s) EPG URLs in server mode; an offline start shows an empty list
+  with the offline banner.
 
 ## Decisions to keep in mind
 
