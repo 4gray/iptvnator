@@ -4,6 +4,7 @@ import {
     Playlist,
     PlaylistBackupManifestV1,
     XtreamPlaylistBackupEntry,
+    XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import {
     createPlaylistBackupService,
@@ -103,7 +104,10 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
     }
 
     function read(key: string, storage: UserDataStorage = localStorage) {
-        return JSON.parse(storage.getItem(key) ?? 'null');
+        const parsed = JSON.parse(storage.getItem(key) ?? 'null');
+        if (parsed && typeof parsed === 'object')
+            delete parsed['__iptvnator_xtream_restore_receipts__'];
+        return parsed;
     }
 
     function pendingRestore(service: object) {
@@ -153,14 +157,52 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
     }
 
     describe('export', () => {
+        it('exports numeric-string identity from legacy browser snapshots', async () => {
+            seed();
+            const snapshots = read(KEYS.collectionItems);
+            Object.assign(snapshots['xtream-1']['movie:501'], {
+                tmdb_id: '949',
+                release_year: '1995',
+                added_at: '2026-01-02',
+                position: 3,
+            });
+            localStorage.setItem(
+                KEYS.collectionItems,
+                JSON.stringify(snapshots)
+            );
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+            });
+            const manifest = (await service.exportBackup()).manifest;
+            expect(xtreamEntry(manifest).userState.favorites[0]).toMatchObject({
+                contentType: 'movie',
+                xtreamId: 501,
+                addedAt: '2026-01-02',
+                position: 3,
+                snapshot: { title: heat.title, tmdbId: 949, releaseYear: 1995 },
+            });
+        });
+
         it('writes each playlist its own favorites, history, positions and snapshots', async () => {
             const manifest = await exportSeeded();
 
             expect(xtreamEntry(manifest).userState).toEqual({
                 hiddenCategories: [],
                 favorites: [
-                    { contentType: 'movie', xtreamId: 501 },
-                    { contentType: 'series', xtreamId: 77 },
+                    {
+                        contentType: 'movie',
+                        xtreamId: 501,
+                        snapshot: {
+                            title: heat.title,
+                            posterUrl: heat.poster_url,
+                            backdropUrl: heat.backdrop_url,
+                        },
+                    },
+                    {
+                        contentType: 'series',
+                        xtreamId: 77,
+                        snapshot: { title: legacyShow.title },
+                    },
                 ],
                 // One row per title, its newest view.
                 recentlyViewed: [
@@ -312,6 +354,60 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
     });
 
     describe('import', () => {
+        it('preserves desktop favorite snapshots offline and includes them in browser re-exports', async () => {
+            const manifest = await exportSeeded();
+            const entry = xtreamEntry(manifest);
+            const favorites = [
+                {
+                    contentType: 'movie' as const,
+                    xtreamId: 501,
+                    addedAt: '2026-01-02',
+                    position: 3,
+                    snapshot: {
+                        title: 'Offline desktop movie',
+                        posterUrl: 'https://img.example.com/saved.jpg',
+                        backdropUrl: 'https://img.example.com/saved-wide.jpg',
+                        tmdbId: 949,
+                        releaseYear: 1995,
+                        originalTitle: 'Original movie title',
+                    },
+                },
+            ];
+            entry.userState = {
+                hiddenCategories: [],
+                favorites,
+                recentlyViewed: [],
+                playbackPositions: [],
+            };
+            localStorage.clear();
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+            });
+            expect(
+                await service.importBackup(xtreamOnly(manifest))
+            ).toMatchObject({ merged: 1, failed: 0 });
+            expect(
+                read(KEYS.collectionItems)?.['xtream-1']?.['movie:501']
+            ).toMatchObject({
+                id: 501,
+                xtream_id: 501,
+                type: 'movie',
+                title: favorites[0].snapshot.title,
+                poster_url: favorites[0].snapshot.posterUrl,
+                backdrop_url: favorites[0].snapshot.backdropUrl,
+                tmdb_id: 949,
+                release_year: 1995,
+                original_title: 'Original movie title',
+            });
+            const { manifest: reexport } = await service.exportBackup();
+            expect(xtreamEntry(reexport).userState.favorites).toEqual(
+                favorites
+            );
+            expect(
+                xtreamEntry(reexport).userState.collectionItems
+            ).toHaveLength(1);
+        });
+
         it('restores every list under the id the playlist is imported as', async () => {
             const manifest = await exportSeeded();
             localStorage.clear();
@@ -350,6 +446,7 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
                         id: 'movie:501',
                         viewedAt: '2026-07-03T10:00:00.000Z',
                         backdropUrl: 'https://img.example.com/heat-still.jpg',
+                        collectionItem: heat,
                     },
                 ],
             });
@@ -390,9 +487,15 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
 
             const { manifest: again } = await reexport.exportBackup();
 
-            expect(xtreamEntry(again).userState).toEqual(
-                xtreamEntry(manifest).userState
-            );
+            const original = xtreamEntry(manifest).userState;
+            expect(xtreamEntry(again).userState).toEqual({
+                ...original,
+                recentlyViewed: original.recentlyViewed.map((item) =>
+                    item.contentType === 'movie' && item.xtreamId === 501
+                        ? { ...item, collectionItem: heat }
+                        : item
+                ),
+            });
             expect(xtreamEntry(again, 'xtream-2').userState).toEqual(
                 xtreamEntry(manifest, 'xtream-2').userState
             );
@@ -401,6 +504,9 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
         it('leaves snapshots alone for an archive without any, and skips damaged ones', async () => {
             const manifest = await exportSeeded();
             const entry = xtreamEntry(manifest);
+            entry.userState.favorites = entry.userState.favorites.map(
+                ({ contentType, xtreamId }) => ({ contentType, xtreamId })
+            );
             const before = read(KEYS.collectionItems);
             const service = createPlaylistBackupService({
                 playlistsService: playlistsService([existingXtreamPlaylist]),
@@ -506,7 +612,7 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(
                 pendingRestore(service).getOrThrow('xtream-1')
             ).not.toBeNull();
-            // That replay carries no titles, so they are merged regardless.
+            // Cache-only rows are not carried by pending state, so preserve them here too.
             expect(read(KEYS.collectionItems)).toEqual({
                 'xtream-1': { 'movie:501': heat, 'series:77': legacyShow },
             });
@@ -665,8 +771,126 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             expect(summary.errors[0]).toContain('denied');
         });
 
-        it('still restores the lists when the snapshots exceed the quota', async () => {
+        it('keeps durable favorite snapshots parked when their write exceeds the quota', async () => {
             const manifest = await exportSeeded();
+            localStorage.clear();
+            const storage = createBrowserBackedStorage();
+            storage.setItem.mockImplementation((key: string, value: string) => {
+                if (key === KEYS.collectionItems)
+                    throw new DOMException('full', 'QuotaExceededError');
+                localStorage.setItem(key, value);
+            });
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState(storage),
+            });
+            const summary = await service.importBackup(xtreamOnly(manifest));
+            expect(summary.failed).toBe(1);
+            expect(
+                pendingRestore(service).getOrThrow('xtream-1')
+            ).toMatchObject({
+                favorites: xtreamEntry(manifest).userState.favorites,
+            });
+            const { manifest: reexport } = await service.exportBackup();
+            expect(xtreamEntry(reexport).userState.favorites).toEqual(
+                xtreamEntry(manifest).userState.favorites
+            );
+        });
+
+        it('keeps explicit removals when a required snapshot write is retried', async () => {
+            const manifest = await exportSeeded();
+            localStorage.clear();
+            const storage = createBrowserBackedStorage();
+            let full = true;
+            storage.setItem.mockImplementation((key: string, value: string) => {
+                if (full && key === KEYS.collectionItems)
+                    throw new DOMException('full', 'QuotaExceededError');
+                localStorage.setItem(key, value);
+            });
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState(storage),
+            });
+            expect(
+                (await service.importBackup(xtreamOnly(manifest))).failed
+            ).toBe(1);
+            // The application has already exposed these successfully written lists.
+            const favorites = JSON.parse(
+                storage.getItem(KEYS.favorites) ?? '{}'
+            );
+            favorites['xtream-1'] = [];
+            storage.setItem(KEYS.favorites, JSON.stringify(favorites));
+            const { manifest: duringRetry } = await service.exportBackup();
+            expect(xtreamEntry(duringRetry).userState.favorites).toEqual([]);
+            const parked = pendingRestore(service).getOrThrow(
+                'xtream-1'
+            ) as XtreamPendingRestoreState;
+            full = false;
+            await createPwaXtreamBackupState(storage).restore(
+                'xtream-1',
+                parked
+            );
+            expect(read(KEYS.favorites)['xtream-1']).toEqual([]);
+        });
+
+        it('parks old browser availability evidence before a snapshot quota failure', async () => {
+            const manifest = await exportSeeded();
+            const entry = xtreamEntry(manifest);
+            const item = entry.userState.collectionItems?.find(
+                (item) => item.xtream_id === 501
+            );
+            if (!item) throw new Error('Missing browser snapshot fixture');
+            Object.assign(item, {
+                catalog_status: 'missing',
+                catalog_missing_reason: 'identity_conflict',
+            });
+            localStorage.clear();
+            const storage = createBrowserBackedStorage();
+            storage.setItem.mockImplementation((key: string, value: string) => {
+                if (key === KEYS.collectionItems)
+                    throw new DOMException('full', 'QuotaExceededError');
+                localStorage.setItem(key, value);
+            });
+            const service = createPlaylistBackupService({
+                playlistsService: playlistsService([existingXtreamPlaylist]),
+                pwaXtream: createPwaXtreamBackupState(storage),
+            });
+            expect(
+                (await service.importBackup(xtreamOnly(manifest))).failed
+            ).toBe(1);
+            const parked = pendingRestore(service).getOrThrow(
+                'xtream-1'
+            ) as XtreamPendingRestoreState;
+            expect(
+                parked.favorites.find((item) => item.xtreamId === 501)?.snapshot
+            ).toMatchObject({
+                title: heat.title,
+                catalogStatus: 'missing',
+                catalogMissingReason: 'identity_conflict',
+            });
+            const { manifest: exported } = await service.exportBackup();
+            expect(
+                xtreamEntry(exported).userState.favorites.find(
+                    (item) => item.xtreamId === 501
+                )?.snapshot
+            ).toMatchObject({
+                catalogStatus: 'missing',
+                catalogMissingReason: 'identity_conflict',
+            });
+        });
+
+        it('still restores legacy lists when their optional cache exceeds the quota', async () => {
+            const manifest = await exportSeeded();
+            // Old browser archives carry only optional collectionItems, not durable snapshots.
+            for (const entry of manifest.playlists) {
+                if (entry.portalType === 'xtream')
+                    entry.userState.favorites = entry.userState.favorites.map(
+                        ({ contentType, xtreamId }) => ({
+                            contentType,
+                            xtreamId,
+                        })
+                    );
+            }
             localStorage.clear();
             const storage = createBrowserBackedStorage();
             storage.setItem.mockImplementation((key: string, value: string) => {
@@ -722,6 +946,10 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
 
         async function importInto(budget: number) {
             const manifest = await exportSeeded();
+            const entry = xtreamEntry(manifest);
+            entry.userState.favorites = entry.userState.favorites.map(
+                ({ contentType, xtreamId }) => ({ contentType, xtreamId })
+            );
             const quota = quotaStorage(budget);
             const service = createPlaylistBackupService({
                 playlistsService: playlistsService([existingXtreamPlaylist]),
@@ -743,7 +971,12 @@ describe('PlaylistBackupService Xtream user state in the PWA', () => {
             const { summary, data } = await importInto(await listsSize());
 
             expect(summary.failed).toBe(0);
-            expect(JSON.parse(data.get(KEYS.favorites) ?? '{}')).toEqual({
+            expect(
+                read(KEYS.favorites, {
+                    ...localStorage,
+                    getItem: (key: string) => data.get(key) ?? null,
+                })
+            ).toEqual({
                 'xtream-1': ['movie:501', 'series:77'],
             });
             expect(data.has(KEYS.collectionItems)).toBe(false);

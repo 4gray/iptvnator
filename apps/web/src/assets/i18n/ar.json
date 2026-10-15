@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "تمت الإزالة من المفضلة",
         "ADDED_TO_FAVORITES": "تمت الإضافة للمفضلة",
         "FAVORITES": "المفضلة",
+        "FAVORITE_IDENTITY_CONFLICT": "استبدل هذا المصدر عنصراً حفظته. احذف الإدخال القديم من المفضلة قبل إضافة هذا العنصر.",
+        "FAVORITE_SAVE_FAILED": "تعذر حفظ هذا العنصر في المفضلة. يرجى المحاولة مرة أخرى.",
         "RECENTLY_VIEWED": "تمت مشاهدتها مؤخرًا",
         "THIS_PLAYLIST": "قائمة التشغيل هذه",
         "ALL_PLAYLISTS": "جميع قوائم التشغيل",
@@ -2050,6 +2052,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "غير موجود في الكتالوج الحالي",
+            "CATALOG_UNKNOWN": "حالة الكتالوج غير معروفة",
             "TITLE": "المفضلة العامة",
             "SUBTITLE": "البث المباشر من جميع قوائم التشغيل",
             "SEARCH_PLACEHOLDER": "البحث في المفضلة...",

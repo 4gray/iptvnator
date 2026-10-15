@@ -81,6 +81,7 @@ export * from './lib/xtream-live-stream.interface';
 export * from './lib/xtream-response.interface';
 export * from './lib/xtream-portal.utils';
 export * from './lib/xtream-restore-state.util';
+export * from './lib/xtream-favorite.interface';
 export * from './lib/xtream-server-timezone.util';
 export * from './lib/xtream-recently-added.utils';
 export * from './lib/xtream-performance-marker.interface';

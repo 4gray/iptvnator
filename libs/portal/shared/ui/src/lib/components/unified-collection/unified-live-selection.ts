@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, WritableSignal } from '@angular/core';
 import {
     ResolvedLiveCollectionDetail,
@@ -161,6 +162,7 @@ export function createUnifiedLiveSelection(options: {
         isAutoOpen = false,
         startPlayback = false
     ): Promise<void> {
+        if (isCatalogUnavailable(item)) return;
         const activeDetail = options.activeDetail();
         // The row is on screen only when it is both the highlight and the
         // resolved item: while a replacement resolves, `activeUid` already

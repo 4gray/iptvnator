@@ -271,14 +271,3 @@
     color: $text-tertiary;
     white-space: nowrap;
 }
-
-// CDK menus render outside the component, so the scope menu needs a piercing
-// rule rather than component-scoped styling.
-::ng-deep .guide-toolbar__scope-menu {
-    max-height: 60vh;
-
-    .is-selected {
-        color: var(--app-selection-color);
-        font-weight: 600;
-    }
-}

@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Usunięto z ulubionych",
         "ADDED_TO_FAVORITES": "Dodano do ulubionych",
         "FAVORITES": "Ulubione",
+        "FAVORITE_IDENTITY_CONFLICT": "To źródło zastąpiło zapisany element. Usuń starszy wpis z ulubionych przed dodaniem nowego.",
+        "FAVORITE_SAVE_FAILED": "Nie udało się zapisać ulubionego. Spróbuj ponownie.",
         "RECENTLY_VIEWED": "Ostatnio oglądane",
         "THIS_PLAYLIST": "Ta lista odtwarzania",
         "ALL_PLAYLISTS": "Wszystkie listy odtwarzania",
@@ -2050,6 +2052,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Brak w bieżącym katalogu",
+            "CATALOG_UNKNOWN": "Nieznany stan katalogu",
             "TITLE": "Globalne ulubione",
             "SUBTITLE": "Telewizja na żywo ze wszystkich list odtwarzania",
             "SEARCH_PLACEHOLDER": "Szukaj ulubionych...",

@@ -12,10 +12,14 @@ import {
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
+import { UnifiedCollectionDataService } from './unified-collection-data.service';
+import { UnifiedRecentDataService } from './unified-recent-data.service';
 
 describe('UnifiedFavoritesDataService', () => {
     let service: UnifiedFavoritesDataService;
     let electronApi: {
+        dbGetPlaylist: jest.Mock;
+        dbRestoreXtreamFavorites: jest.Mock;
         dbAddFavorite: jest.Mock;
         dbAddRecentItem: jest.Mock;
         dbClearPlaylistRecentItems: jest.Mock;
@@ -32,11 +36,13 @@ describe('UnifiedFavoritesDataService', () => {
         dbRemoveRecentItemsBatch: jest.Mock;
     };
     let databaseService: {
+        isFavorite: jest.Mock;
         getAllGlobalFavorites: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getFavorites: jest.Mock;
     };
     let xtreamDataSource: {
+        isFavorite: jest.Mock;
         addFavorite: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getFavorites: jest.Mock;
@@ -108,6 +114,8 @@ describe('UnifiedFavoritesDataService', () => {
 
     beforeEach(() => {
         electronApi = {
+            dbGetPlaylist: jest.fn(),
+            dbRestoreXtreamFavorites: jest.fn(),
             dbAddFavorite: jest.fn().mockResolvedValue({ success: true }),
             dbAddRecentItem: jest.fn(),
             dbClearPlaylistRecentItems: jest.fn(),
@@ -160,11 +168,13 @@ describe('UnifiedFavoritesDataService', () => {
             ),
         };
         databaseService = {
+            isFavorite: jest.fn().mockResolvedValue(true),
             getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getFavorites: jest.fn().mockResolvedValue([]),
         };
         xtreamDataSource = {
+            isFavorite: jest.fn().mockResolvedValue(true),
             addFavorite: jest.fn().mockResolvedValue(undefined),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getFavorites: jest.fn().mockResolvedValue([]),
@@ -198,6 +208,11 @@ describe('UnifiedFavoritesDataService', () => {
         TestBed.configureTestingModule({
             providers: [
                 UnifiedFavoritesDataService,
+                UnifiedCollectionDataService,
+                {
+                    provide: UnifiedRecentDataService,
+                    useValue: { getRecentItems: jest.fn() },
+                },
                 {
                     provide: Store,
                     useValue: store,
@@ -224,6 +239,55 @@ describe('UnifiedFavoritesDataService', () => {
         });
 
         service = TestBed.inject(UnifiedFavoritesDataService);
+    });
+
+    it('keeps an unavailable Xtream favorite readable and removable without a catalog row', async () => {
+        databaseService.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: null,
+                category_id: null,
+                favorite_id: 77,
+                catalog_status: 'missing',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream One',
+                xtream_id: 101,
+                title: 'ABC',
+                type: 'movie',
+                poster_url: 'abc.png',
+                position: 3,
+            },
+        ]);
+
+        const [item] = await service.getFavorites('all');
+        expect(item).toEqual(
+            expect.objectContaining({
+                name: 'ABC',
+                favoriteId: 77,
+                catalogStatus: 'missing',
+                contentId: undefined,
+                posterUrl: 'abc.png',
+                position: 3,
+            })
+        );
+        await service.removeFavorite(item);
+        expect(electronApi.dbRemoveFavorite).toHaveBeenCalledWith(
+            { favoriteId: 77 },
+            'xtream-1'
+        );
+        await service.reorder([item], {
+            scope: 'playlist',
+            playlistId: 'xtream-1',
+            portalType: 'xtream',
+        });
+        expect(electronApi.dbReorderGlobalFavorites).toHaveBeenCalledWith([
+            { favorite_id: 77, playlist_id: 'xtream-1', position: 0 },
+        ]);
+        electronApi.dbRemoveFavorite.mockClear();
+        await service.clearFavorites([item]);
+        expect(electronApi.dbRemoveFavorite).toHaveBeenCalledWith(
+            { favoriteId: 77 },
+            'xtream-1'
+        );
     });
 
     it('maps global Xtream favorites across live, movie, and series content types', async () => {
@@ -626,6 +690,124 @@ describe('UnifiedFavoritesDataService', () => {
             'xtream-1',
             'live.png'
         );
+    });
+
+    it('keeps a recent item heart empty when SQLite rejects its saved identity', async () => {
+        const item: UnifiedCollectionItem = {
+            uid: 'xtream::xtream-1::movie:101',
+            name: 'Replacement movie',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            xtreamId: 101,
+            contentId: 42,
+        };
+        electronApi.dbAddFavorite.mockResolvedValue({
+            success: false,
+            error: 'XTREAM_FAVORITE_IDENTITY_CONFLICT',
+        });
+        const collection = TestBed.inject(UnifiedCollectionDataService);
+        await expect(collection.toggleFavorite(item)).rejects.toThrow(
+            'XTREAM_FAVORITE_IDENTITY_CONFLICT'
+        );
+        expect(collection.favoriteUidSet().has(item.uid)).toBe(false);
+        electronApi.dbAddFavorite.mockResolvedValue({ success: true });
+        await collection.toggleFavorite(item);
+        expect(collection.favoriteUidSet().has(item.uid)).toBe(true);
+    });
+
+    it.each([undefined, 99])(
+        'checks the recent row identity against a saved favorite resolved to %s before setting its heart',
+        async (savedContentId) => {
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::xtream-1::movie:101',
+                name: 'Replacement movie',
+                contentType: 'movie',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream One',
+                xtreamId: 101,
+                contentId: 42,
+            };
+            jest.spyOn(service, 'getFavorites').mockResolvedValue([
+                {
+                    ...item,
+                    name: 'Older favorite',
+                    contentId: savedContentId,
+                    favoriteId: 5,
+                },
+            ]);
+            jest.spyOn(
+                TestBed.inject(UnifiedRecentDataService),
+                'getRecentItems'
+            ).mockResolvedValue([item]);
+            databaseService.isFavorite.mockResolvedValue(false);
+            electronApi.dbAddFavorite.mockResolvedValue({
+                success: false,
+                error: 'XTREAM_FAVORITE_IDENTITY_CONFLICT',
+            });
+            const collection = TestBed.inject(UnifiedCollectionDataService);
+            const request = { mode: 'recent', scope: 'all' } as const;
+            await collection.load(request);
+            expect(collection.favoriteUidSet().has(item.uid)).toBe(false);
+            expect(databaseService.isFavorite).toHaveBeenCalledWith(
+                42,
+                'xtream-1'
+            );
+            await expect(collection.toggleFavorite(item)).rejects.toThrow(
+                'XTREAM_FAVORITE_IDENTITY_CONFLICT'
+            );
+            expect(electronApi.dbRemoveFavorite).not.toHaveBeenCalled();
+            await collection.load(request);
+            expect(collection.favoriteUidSet().has(item.uid)).toBe(false);
+            databaseService.isFavorite.mockResolvedValue(true);
+            await collection.load(request);
+            expect(collection.favoriteUidSet().has(item.uid)).toBe(true);
+        }
+    );
+
+    it('passes the rendered PWA identity to status, add and stale-heart removal', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        const item: UnifiedCollectionItem = {
+            uid: 'xtream::xtream-1::movie:101',
+            name: 'Replacement',
+            sourceType: 'xtream',
+            contentType: 'movie',
+            playlistId: 'xtream-1',
+            playlistName: 'Test',
+            contentId: 101,
+            xtreamId: 101,
+            xtreamIdentity: { tmdbId: 200, releaseYear: 2026 },
+        };
+        const ref = { id: 101, type: 'movie', identity: item.xtreamIdentity };
+        await service.isXtreamFavorite(item);
+        expect(xtreamDataSource.isFavorite).toHaveBeenCalledWith(
+            ref,
+            'xtream-1'
+        );
+        await service.addFavorite(item);
+        expect(xtreamDataSource.addFavorite).toHaveBeenCalledWith(
+            ref,
+            'xtream-1',
+            undefined
+        );
+        xtreamDataSource.removeFavorite.mockRejectedValue(
+            new Error('XTREAM_FAVORITE_IDENTITY_CONFLICT')
+        );
+        const collection = TestBed.inject(UnifiedCollectionDataService);
+        collection.favoriteUidSet.set(new Set([item.uid]));
+        await expect(collection.toggleFavorite(item)).rejects.toThrow(
+            'XTREAM_FAVORITE_IDENTITY_CONFLICT'
+        );
+        expect(xtreamDataSource.removeFavorite).toHaveBeenCalledWith(
+            ref,
+            'xtream-1'
+        );
+        expect(collection.favoriteUidSet().has(item.uid)).toBe(true);
     });
 
     it('uses the Xtream id as the favorite key in PWA when cached content is cold', async () => {

@@ -254,6 +254,18 @@ context panel use, out of that barrel for the same reason, and
 22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
 barrel.
 
+`@iptvnator/services/pwa-xtream-backup-storage` exposes the framework-free browser
+backup persistence implementation without re-exporting it from the eager services
+barrel. The injected backup service wraps it; deferred restore loads it through a
+local dynamic-import module with the data source's storage. Its map keys live in
+a separate pure module so it does not import the Angular storage token at runtime.
+Electron favorites likewise load their
+legacy pending-conversion helper only when a favorites operation needs it.
+Those lazy helpers value-import the pure normalizer through
+`@iptvnator/shared/interfaces/xtream-restore-state`; their remaining contracts
+use type-only imports so a deferred conversion does not load the interfaces
+barrel's Angular/IndexedDB dependencies.
+
 The web app's root shell (`app.component.ts`, `app.config.ts` and the services
 they construct) is on the renderer's initial path, where a barrel costs its
 whole library: esbuild keeps every Angular component module a barrel

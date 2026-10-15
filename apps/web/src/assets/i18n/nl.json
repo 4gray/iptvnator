@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Uit favorieten verwijderd",
         "ADDED_TO_FAVORITES": "Toegevoegd aan favorieten",
         "FAVORITES": "Favorieten",
+        "FAVORITE_IDENTITY_CONFLICT": "Deze bron heeft een opgeslagen item vervangen. Verwijder het oude item uit Favorieten voordat je dit toevoegt.",
+        "FAVORITE_SAVE_FAILED": "Deze favoriet kon niet worden opgeslagen. Probeer het opnieuw.",
         "RECENTLY_VIEWED": "Recent bekeken",
         "THIS_PLAYLIST": "Deze afspeellijst",
         "ALL_PLAYLISTS": "Alle afspeellijsten",
@@ -2050,6 +2052,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Niet in de huidige catalogus",
+            "CATALOG_UNKNOWN": "Catalogusstatus onbekend",
             "TITLE": "Algemene favorieten",
             "SUBTITLE": "Live tv uit alle afspeellijsten",
             "SEARCH_PLACEHOLDER": "Zoek favorieten...",

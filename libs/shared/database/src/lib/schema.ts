@@ -170,17 +170,34 @@ export const favorites = sqliteTable(
     'favorites',
     {
         id: integer('id').primaryKey({ autoIncrement: true }),
-        contentId: integer('content_id')
-            .notNull()
-            .references(() => content.id, { onDelete: 'cascade' }),
+        contentId: integer('content_id').references(() => content.id, {
+            onDelete: 'set null',
+        }),
         playlistId: text('playlist_id')
             .notNull()
             .references(() => playlists.id, { onDelete: 'cascade' }),
+        xtreamId: integer('xtream_id').notNull(),
+        type: text('type', { enum: ['live', 'movie', 'series'] }).notNull(),
+        title: text('title').notNull(),
+        posterUrl: text('poster_url'),
+        backdropUrl: text('backdrop_url'),
+        tmdbId: integer('tmdb_id'),
+        releaseYear: integer('release_year'),
+        originalTitle: text('original_title'),
+        /** A known reused provider identity cannot be authorized by a sparse refresh. */
+        identityConflict: integer('identity_conflict', { mode: 'boolean' })
+            .notNull()
+            .default(false),
         addedAt: text('added_at').default(sql`CURRENT_TIMESTAMP`),
         /** Display order position in the global favorites list (lower = first) */
         position: integer('position').default(0),
     },
     (table) => ({
+        identityUnique: uniqueIndex('favorites_playlist_type_xtream_unique').on(
+            table.playlistId,
+            table.type,
+            table.xtreamId
+        ),
         contentPlaylistUnique: uniqueIndex(
             'favorites_content_playlist_unique'
         ).on(table.contentId, table.playlistId),
