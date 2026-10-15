@@ -20,7 +20,16 @@
     <div class="grid-container">
         @for (item of filteredItems(); track trackByUid($index, item)) {
             <app-content-card
-                [allowPostersOnly]="!hasActiveSearch()"
+                [allowPostersOnly]="!hasActiveSearch() && !isUnavailable(item)"
+                [disabled]="isUnavailable(item)"
+                [statusLabel]="
+                    isUnavailable(item)
+                        ? ((item.catalogStatus === 'missing'
+                              ? 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
+                              : 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_UNKNOWN'
+                          ) | translate)
+                        : ''
+                "
                 [posterUrl]="item.posterUrl ?? ''"
                 [title]="item.name"
                 [type]="item.contentType"

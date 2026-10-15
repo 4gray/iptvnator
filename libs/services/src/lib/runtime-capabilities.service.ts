@@ -212,6 +212,7 @@ export class RuntimeCapabilitiesService {
             'dbSetAppState',
             'dbSearchContent',
             'dbGetFavorites',
+            'dbGetFavoritesForBackup',
             'dbAddFavorite',
             'dbRemoveFavorite',
             'dbIsFavorite',
@@ -223,6 +224,7 @@ export class RuntimeCapabilitiesService {
             ...playbackPositionStorageMethods,
             'dbDeleteXtreamContent',
             'dbRestoreXtreamUserData',
+            'dbRestoreXtreamFavorites',
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
@@ -274,6 +276,8 @@ export class RuntimeCapabilitiesService {
 
     get supportsPortalActivityStorage(): boolean {
         return [
+            'dbGetPlaylist',
+            'dbRestoreXtreamFavorites',
             'dbGetRecentlyViewed',
             'dbClearRecentlyViewed',
             'dbGetAllGlobalFavorites',

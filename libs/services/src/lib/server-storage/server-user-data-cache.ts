@@ -1,3 +1,8 @@
+import { XTREAM_RESTORE_RECEIPTS } from '../xtream-user-data-keys';
+import {
+    retainServerRestoreReceipts,
+    forgetServerRestoreReceipts,
+} from './server-user-data-receipts';
 import {
     SERVER_USER_STATE_NAMESPACES,
     type ServerUserStateNamespace,
@@ -47,6 +52,13 @@ export class UserDataCache {
 
     /** `null` empties the namespace. */
     write(namespace: ServerUserStateNamespace, value: string | null): void {
+        let carriesReceipt = false;
+        if (value !== null) {
+            const map = parseMap(value);
+            carriesReceipt = XTREAM_RESTORE_RECEIPTS in map;
+            if (retainServerRestoreReceipts(map, namespace))
+                value = JSON.stringify(map);
+        }
         try {
             const key = cacheKey(this.instanceId, namespace);
             if (value === null) {
@@ -55,7 +67,9 @@ export class UserDataCache {
                 this.local.setItem(key, value);
             }
             this.overflow.delete(namespace);
-        } catch {
+        } catch (error) {
+            // A memory-only receipt could replay a removed favorite after reload.
+            if (carriesReceipt) throw error;
             this.overflow.set(namespace, value ?? '{}');
         }
     }
@@ -98,8 +112,9 @@ export class UserDataCache {
             const map = this.map(namespace);
             if (playlistId === undefined) {
                 this.write(namespace, null);
-            } else if (playlistId in map) {
+            } else {
                 delete map[playlistId];
+                forgetServerRestoreReceipts(map, playlistId);
                 this.write(namespace, JSON.stringify(map));
             }
         }

@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "お気に入りから削除されました",
         "ADDED_TO_FAVORITES": "お気に入りに追加されました",
         "FAVORITES": "お気に入り",
+        "FAVORITE_IDENTITY_CONFLICT": "この配信元は保存済みの項目を別の項目に置き換えました。新しい項目を追加する前に、お気に入りから古い項目を削除してください。",
+        "FAVORITE_SAVE_FAILED": "お気に入りを保存できませんでした。もう一度お試しください。",
         "RECENTLY_VIEWED": "最近表示した項目",
         "THIS_PLAYLIST": "このプレイリスト",
         "ALL_PLAYLISTS": "すべてのプレイリスト",
@@ -2050,6 +2052,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "現在のカタログにありません",
+            "CATALOG_UNKNOWN": "カタログの状態は不明です",
             "TITLE": "グローバルお気に入り",
             "SUBTITLE": "すべてのプレイリストのライブTV",
             "SEARCH_PLACEHOLDER": "お気に入りを検索...",

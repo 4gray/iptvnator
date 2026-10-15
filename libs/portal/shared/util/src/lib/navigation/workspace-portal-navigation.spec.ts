@@ -109,6 +109,7 @@ describe('workspace-portal-navigation', () => {
         expect(navigation).toEqual({
             link: ['/workspace', 'global-favorites'],
             state: {
+                collectionViewState: { scope: 'all' },
                 openCollectionDetailItem: {
                     item: expect.objectContaining({
                         uid: 'stalker::stalker-1::movie-7',
@@ -179,6 +180,7 @@ describe('workspace-portal-navigation', () => {
         expect(navigation).toEqual({
             link: ['/workspace', 'global-recent'],
             state: {
+                collectionViewState: { scope: 'all' },
                 openCollectionDetailItem: {
                     item: expect.objectContaining({
                         contentType: 'series',

@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Eltávolítva a kedvencek közül",
         "ADDED_TO_FAVORITES": "Hozzáadva a kedvencekhez",
         "FAVORITES": "Kedvencek",
+        "FAVORITE_IDENTITY_CONFLICT": "Ez a forrás lecserélt egy mentett elemet. Az új hozzáadása előtt távolítsd el a régit a kedvencekből.",
+        "FAVORITE_SAVE_FAILED": "Nem sikerült menteni a kedvencet. Próbáld újra.",
         "RECENTLY_VIEWED": "Legutóbb megtekintett",
         "THIS_PLAYLIST": "Ez a lejátszási lista",
         "ALL_PLAYLISTS": "Összes lejátszási lista",
@@ -2050,6 +2052,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Nincs a jelenlegi katalógusban",
+            "CATALOG_UNKNOWN": "A katalógus állapota ismeretlen",
             "TITLE": "Összesített kedvencek",
             "SUBTITLE": "Élő csatornák az összes lejátszási listából",
             "SEARCH_PLACEHOLDER": "Keresés a kedvencek között…",

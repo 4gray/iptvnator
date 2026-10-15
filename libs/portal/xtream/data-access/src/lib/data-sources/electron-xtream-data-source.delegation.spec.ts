@@ -19,6 +19,23 @@ describe('ElectronXtreamDataSource (delegation)', () => {
         harness = setupElectronXtreamDataSource();
     });
 
+    it('forwards detail identity while selecting the native duplicate', async () => {
+        harness.dbService.getContentByXtreamId.mockResolvedValue({ id: 2 });
+        const identity = { tmdbId: 100, releaseYear: 1995 };
+        await harness.dataSource.getContentByXtreamId(
+            42,
+            playlistId,
+            'movie',
+            identity
+        );
+        expect(harness.dbService.getContentByXtreamId).toHaveBeenCalledWith(
+            42,
+            playlistId,
+            'movie',
+            identity
+        );
+    });
+
     describe('playlist operations', () => {
         it('reads playlists from the DB by id', async () => {
             const playlist = { _id: playlistId, title: 'My Portal' };

@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Removido dos favoritos",
         "ADDED_TO_FAVORITES": "Adicionado aos favoritos",
         "FAVORITES": "Favoritos",
+        "FAVORITE_IDENTITY_CONFLICT": "Esta fonte substituiu um item guardado. Remova a entrada antiga dos favoritos antes de adicionar esta.",
+        "FAVORITE_SAVE_FAILED": "Não foi possível guardar este favorito. Tente novamente.",
         "RECENTLY_VIEWED": "Visualizados recentemente",
         "THIS_PLAYLIST": "Esta playlist",
         "ALL_PLAYLISTS": "Todas as playlists",
@@ -2050,6 +2052,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Não está no catálogo atual",
+            "CATALOG_UNKNOWN": "Estado do catálogo desconhecido",
             "TITLE": "Favoritos globais",
             "SUBTITLE": "TV ao vivo de todas as playlists",
             "SEARCH_PLACEHOLDER": "Pesquisar favoritos...",

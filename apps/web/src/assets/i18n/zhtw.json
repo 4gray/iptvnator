@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "已從最愛中移除",
         "ADDED_TO_FAVORITES": "已新增至最愛",
         "FAVORITES": "我的最愛",
+        "FAVORITE_IDENTITY_CONFLICT": "此來源替換了您儲存的項目。請先從收藏中移除舊項目，再新增此項目。",
+        "FAVORITE_SAVE_FAILED": "無法儲存此收藏。請重試。",
         "RECENTLY_VIEWED": "最近觀看",
         "THIS_PLAYLIST": "此播放清單",
         "ALL_PLAYLISTS": "所有播放清單",
@@ -2050,6 +2052,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "目前目錄中不存在",
+            "CATALOG_UNKNOWN": "目錄狀態未知",
             "TITLE": "全域我的最愛",
             "SUBTITLE": "來自所有播放清單的直播電視",
             "SEARCH_PLACEHOLDER": "搜尋我的最愛...",
