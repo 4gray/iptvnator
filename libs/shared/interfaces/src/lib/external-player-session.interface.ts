@@ -92,6 +92,11 @@ export interface ExternalPlayerSession {
     contentInfo?: PlayerContentInfo;
     startedAt: string;
     updatedAt: string;
+    /**
+     * Order in which sessions began in this app run. Unlike `startedAt` it
+     * tells apart launches made in the same millisecond.
+     */
+    launchOrder?: number;
     /** Raw failure detail; the dock translates `errorCode` instead. */
     error?: string;
     errorCode?: ExternalPlayerErrorCode;

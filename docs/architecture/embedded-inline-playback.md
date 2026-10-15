@@ -157,6 +157,14 @@ Contracts:
 - Hosts provide hero chips/meta/actions as `*appDetailTags` / `*appDetailMeta` /
   `*appDetailActions` templates; the shell stamps them into the hero and again
   into the About block. Degradation stays "missing → not rendered".
+- Provider stand-ins count as missing: `N/A` (any case), a lone `-`, and a
+  `0` IMDb/Kinopoisk score are dropped where provider rows are mapped, by
+  `readProviderText` / `readProviderRating`
+  (`libs/shared/interfaces/src/lib/provider-metadata.util.ts`) — in
+  `createStalkerInfo()`, the `vod-details-adapters.ts` normalizers and the
+  Xtream store's detail selection. Templates keep plain `@if` guards; do not
+  teach them the placeholder list. Widen the list only with evidence of a
+  provider sending the new stand-in.
 - The shell never wraps the `[detail-player]` slot in a conditional; the
   host's `@if (inlinePlayback())` is the only creator/destroyer of the
   player subtree, so shell state changes cannot recreate the `<video>`.
@@ -1029,6 +1037,61 @@ is also idempotent: it returns the closed snapshot without invoking the saved
 closer, and a later process error cannot revive it as a visible failure. Reused
 MPV commands use the socket captured for their exact child, so a delayed close
 cannot send `quit` to a replacement process through a newer global socket.
+Every reused MPV command carries a `request_id` and waits, within the same 2 s
+IPC bound, for mpv's matching newline-delimited reply; event lines and replies
+to other requests on that connection are skipped. An error reply or a missing
+reply fails the handoff exactly like a socket error: the reused child is torn
+down and a fresh launch follows. `loadfile` marks the content as possibly
+changed and moves ownership of the child to the attempted session from the
+moment it is written, whatever mpv replies, and stops the previous session's
+position poll there, including a read already awaiting mpv, so an exit or a
+stale Stop for the previous session during
+the reply wait settles the right session and no poll can save the new stream's
+position under the old content; a child that exited while its reply was in
+flight is returned as the session its exit handler settled, never reported as
+opened and never replaced by a fresh launch under that terminal session.
+MPV launches run one at a time. A reused launch waits for mpv's replies and a
+failed one for its teardown and fallback spawn, so a launch that arrives
+meanwhile, such as a quick channel switch, starts only once the previous one
+has settled and acts on the player that one left behind; two launches never
+act on the same child. Each launch begins its session at once, so the newest
+launch is the active session; the renderer lets a `launching` update take the
+dock only when that launch did not start before the current one, by the
+session's `launchOrder` (which separates launches in the same millisecond) or
+else its `startedAt`, so an older launch still settling cannot pull the dock
+back. Only the newest queued launch
+runs: an older
+one that comes up while a newer one waits behind it settles closed without
+reaching mpv or taking the dock. Stop on a launch still waiting in the queue
+cancels it and every launch queued before it; on the newest queued launch it
+also closes, through their own closers, the in-flight launch and the session
+owning the stored player at that moment (read from the per-child mapping, which
+a failed attempt hands back to the previous owner during its teardown), so
+their exact-child, retry and settle rules apply. Because launches run one at a
+time, nothing else acts on a reused child while an attempt is in flight, so
+that attempt's own Stop always reaches its child until the attempt settles,
+whatever the per-child mapping names (the previous owner before `loadfile` or
+during a failed attempt's teardown, possibly closed already); after it settles,
+ownership decides as before, except that a Stop of that attempt which could
+not confirm the exit keeps the right to retry that exact child. These rules apply
+and nothing starts playing after Stop. Those targets are fixed at the first
+Stop, so a retried Stop never reaches a player started later, and a late Stop
+for an older queued launch cancels only that launch. The cancelled launch
+settles only once its own Stop has: if the exit cannot be confirmed it stays a
+closable error, so Stop can be retried. App shutdown cancels the whole queue.
+A queued launch that finds the teardown gate closed, because the launch before
+it could not confirm its child's exit, restores the session that still owns
+that child, preferring the last launch that started (with reuse off its
+detached child is not stored anywhere else); if that is not possible, it stays
+a closable error so Stop can still tear the child down. Stopping the stored player, when reuse is disabled or
+the app quits, cancels an in-flight reuse attempt: it dispatches no further
+commands, never falls back to a fresh reusable player, also after waiting for
+a failed child's exit, and settles its own session as closed once the child's
+exit is confirmed, or as a closable error when it is not. No `seek` follows
+`loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
+travels as the per-file `start` option. The `loadfile` reply only acknowledges
+the command; a stream that later fails to open is reported through the reused
+child's output and exit, not through the reply.
 If Stop is observed before a pending MPV content command or VLC enqueue command
 is dispatched, that command is skipped. A source handoff also fails closed
 while a live session has no closer (`canClose: false`); renderer Dismiss is not
@@ -1142,8 +1205,13 @@ External MPV/VLC integration is split across focused main-process modules:
   session tracking, trace logging, renderer notifications, playback-position
   forwarding, and user-facing start errors.
 - `apps/electron-backend/src/app/events/mpv-session.service.ts` owns fresh MPV
-  launches and progress polling; `mpv-reusable-process.ts` owns the tracked
-  child, captured socket, remapping, retryable close, and reuse handoff.
+  launches; `mpv-position-polling.ts` owns progress polling over the IPC socket
+  and `mpv-output-errors.ts` the child's stdout/stderr error reporting;
+  `mpv-reusable-process.ts` owns the tracked
+  child, captured socket, remapping, retryable close, and reuse handoff;
+  `mpv-ipc-command.ts` owns the bounded request/reply IPC command the reuse
+  handoff and its quit use; `mpv-launch-queue.ts` runs MPV launches one at a
+  time and owns queued-launch cancellation and Stop.
 - `apps/electron-backend/src/app/events/vlc-session.service.ts` owns fresh VLC
   launches and progress polling; `vlc-reusable-process.ts` owns the tracked
   child, RC-port remapping, retryable close, and reuse handoff, while

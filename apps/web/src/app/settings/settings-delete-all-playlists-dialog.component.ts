@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import { ServerStorageStatusService } from '@iptvnator/services';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 
 export interface SettingsDeleteAllPlaylistsDialogData {
@@ -43,6 +44,8 @@ type SettingsDeleteSummaryItem = {
 export class SettingsDeleteAllPlaylistsDialogComponent {
     readonly dialogData =
         inject<SettingsDeleteAllPlaylistsDialogData>(MAT_DIALOG_DATA);
+    /** Self-hosted server storage: the playlists go for every device. */
+    readonly clearsServer = inject(ServerStorageStatusService).isActive;
 
     readonly summaryItems = computed<SettingsDeleteSummaryItem[]>(() => [
         {

@@ -1,12 +1,8 @@
-import { Injector } from '@angular/core';
 import {
-    RuntimeCapabilitiesService,
-    injectTranslationTick,
-} from '@iptvnator/services';
-import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
-import { foldSearchText, sourceHealthType } from '@iptvnator/shared/interfaces';
-import { SourceHealthIndicatorComponent } from '../source-health/source-health-indicator.component';
-import { DatePipe, DOCUMENT } from '@angular/common';
+    CdkConnectedOverlay,
+    CdkOverlayOrigin,
+    ConnectedPosition,
+} from '@angular/cdk/overlay';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -19,562 +15,173 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { MatIconButton } from '@angular/material/button';
-import { MatRippleModule } from '@angular/material/core';
-import { MatDialog } from '@angular/material/dialog';
-import { MatDivider } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatMenu, MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTooltip } from '@angular/material/tooltip';
-import { Store } from '@ngrx/store';
+import { TranslateService } from '@ngx-translate/core';
 import { normalizeDateLocale } from '@iptvnator/pipes';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { DialogService } from '@iptvnator/ui/components';
-import { PlaylistActions } from '@iptvnator/m3u-state';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import { SourceStatusService } from '@iptvnator/portal/shared/data-access';
 import {
-    PlaylistDeleteActionService,
-    PortalStatus,
-    PortalStatusService,
-} from '@iptvnator/services';
-import {
-    getPlaylistSourceIcon,
-    isPortalAccountPlaylist,
-    PlaylistMeta,
-} from '@iptvnator/shared/interfaces';
-import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
-import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
+    PlaylistContextFacade,
+    sourceDisplayName,
+    sourceMetaParts,
+} from '@iptvnator/playlist/shared/util';
+import { injectTranslationTick } from '@iptvnator/services';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { SourceTileComponent } from '../source-row/source-tile.component';
+import { PlaylistSwitcherOpenService } from './playlist-switcher-open.service';
+import { PlaylistSwitcherPanelComponent } from './playlist-switcher-panel.component';
 
-type PlaylistFilterType = 'm3u' | 'stalker' | 'xtream';
+/** Below the trigger's left edge, 8px down; above it when there is no room. */
+const POSITIONS: ConnectedPosition[] = [
+    {
+        originX: 'start',
+        originY: 'bottom',
+        overlayX: 'start',
+        overlayY: 'top',
+        offsetY: 8,
+    },
+    {
+        originX: 'start',
+        originY: 'top',
+        overlayX: 'start',
+        overlayY: 'bottom',
+        offsetY: -8,
+    },
+];
+/** The popover keeps this far from the window's bottom edge. */
+const VIEWPORT_MARGIN = 12;
 
-const SEARCH_QUERY_STORAGE_KEY = 'playlist-switcher:search-query';
-const PLAYLIST_TYPE_FILTER_STORAGE_KEY = 'playlist-switcher:type-filters';
-const DEFAULT_PLAYLIST_TYPE_FILTERS: Record<PlaylistFilterType, boolean> = {
-    m3u: true,
-    stalker: true,
-    xtream: true,
-};
-
+/**
+ * The toolbar playlist switcher: a trigger showing the active source and a
+ * popover (`app-playlist-switcher-panel`) in a CDK overlay, so row menus
+ * open above it rather than inside its scrolling list. Opens on click and
+ * on ⌘P / Ctrl+P; Escape closes it and returns focus to the trigger.
+ */
 @Component({
     selector: 'app-playlist-switcher',
+    imports: [
+        CdkConnectedOverlay,
+        CdkOverlayOrigin,
+        MatIcon,
+        PlaylistSwitcherPanelComponent,
+        SourceTileComponent,
+    ],
     templateUrl: './playlist-switcher.component.html',
     styleUrls: ['./playlist-switcher.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [
-        SourceHealthIndicatorComponent,
-        DatePipe,
-        FormsModule,
-        MatDivider,
-        MatIcon,
-        MatIconButton,
-        MatInputModule,
-        MatMenuModule,
-        MatRippleModule,
-        MatTooltip,
-        TranslatePipe,
-    ],
+    host: { '(window:resize)': 'onWindowResize()' },
 })
 export class PlaylistSwitcherComponent {
-    private readonly document = inject(DOCUMENT);
-    private readonly destroyRef = inject(DestroyRef);
     private readonly playlistContext = inject(PlaylistContextFacade);
-    private readonly portalStatusService = inject(PortalStatusService);
+    private readonly statusService = inject(SourceStatusService);
     private readonly translate = inject(TranslateService);
-    private readonly refreshAction = inject(PlaylistRefreshActionService);
-    private readonly dialog = inject(MatDialog);
-    private readonly dialogService = inject(DialogService);
-    private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly store = inject(Store);
-    private focusSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private readonly languageTick = injectTranslationTick();
-
-    readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly healthInjector = inject(Injector);
-    readonly sourceHealthType = sourceHealthType;
-    recheckSource(playlist: PlaylistMeta): void {
-        void this.healthInjector.get(SourceHealthService).recheck(playlist);
-    }
+    private readonly trigger =
+        viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
 
     readonly currentTitle = input.required<string>();
+    /** Shown under the name while no source is active ("3 sources"). */
     readonly subtitle = input<string>('');
-    readonly showPlaylistInfo = input(false);
-    readonly showAccountInfo = input(false);
-    readonly showAddPlaylist = input(false);
-    readonly canRefreshActivePlaylist = input(false);
-    readonly isRefreshingActivePlaylist = input(false);
     readonly playlistSelected = output<string>();
-    readonly playlistInfoRequested = output<void>();
-    readonly accountInfoRequested = output<void>();
     readonly accountInfoForPlaylistRequested = output<PlaylistMeta>();
     readonly addPlaylistRequested = output<void>();
-    readonly refreshPlaylistRequested = output<void>();
 
-    onRefreshClick(event: Event): void {
-        event.stopPropagation();
-        event.preventDefault();
-        this.refreshPlaylistRequested.emit();
-    }
-
-    readonly menuTrigger = viewChild.required<MatMenuTrigger>('menuTrigger');
-    readonly playlistMenu = viewChild.required<MatMenu>('playlistMenu');
-    readonly triggerElement =
-        viewChild.required<ElementRef<HTMLElement>>('triggerElement');
-    readonly searchInput =
-        viewChild<ElementRef<HTMLInputElement>>('searchInput');
-
-    readonly isMenuOpen = signal(false);
-    readonly searchQuery = signal(this.readPersistedSearchQuery());
-    readonly playlistTypeFilters = signal(this.readPersistedTypeFilters());
-    readonly searchExpanded = signal(false);
-    private static readonly SEARCH_AUTO_VISIBLE_THRESHOLD = 5;
-
-    readonly playlists = this.playlistContext.playlists;
-    readonly allPlaylistsLoaded = this.playlistContext.allPlaylistsLoaded;
+    readonly positions = POSITIONS;
+    readonly isOpen = signal(false);
+    readonly maxHeight = signal<string | null>(null);
     readonly activePlaylistId = this.playlistContext.resolvedPlaylistId;
     readonly activePlaylist = this.playlistContext.activePlaylist;
-    readonly filteredPlaylists = computed(() => {
-        const query = foldSearchText(this.searchQuery()).trim();
-        const filters = this.playlistTypeFilters();
-        const allPlaylists = this.playlists();
-        const filteredByType = allPlaylists.filter((playlist) => {
-            const playlistType = this.getPlaylistFilterType(playlist);
-            return filters[playlistType];
-        });
-        const filtered = query
-            ? filteredByType.filter(
-                  (playlist) =>
-                      foldSearchText(playlist.title ?? '').includes(query) ||
-                      foldSearchText(playlist.filename ?? '').includes(query)
-              )
-            : filteredByType;
 
-        return [...filtered].sort(
-            (a, b) =>
-                new Date(b.importDate ?? 0).getTime() -
-                new Date(a.importDate ?? 0).getTime()
-        );
-    });
+    /** The active source's name; never its URL or a credential. */
     readonly displayTitle = computed(() => {
         this.languageTick();
         if (!this.activePlaylistId()) {
             return this.translate.instant('HOME.PLAYLISTS.SELECT_PLAYLIST');
         }
-
+        const active = this.activePlaylist();
         return (
-            this.currentTitle() ||
-            this.activePlaylist()?.title ||
-            this.activePlaylist()?.filename ||
-            this.activePlaylist()?.url ||
-            this.activePlaylist()?.portalUrl ||
+            (active ? sourceDisplayName(active) : this.currentTitle()) ||
             this.translate.instant('HOME.PLAYLISTS.UNTITLED_PLAYLIST')
         );
     });
-
-    readonly availablePlaylistTypes = computed(() => {
-        const types = new Set<PlaylistFilterType>();
-        for (const playlist of this.playlists()) {
-            types.add(this.getPlaylistFilterType(playlist));
-        }
-        return types;
-    });
-    readonly showTypeFilters = computed(
-        () => this.availablePlaylistTypes().size > 1
-    );
-    readonly hasSearchToggle = computed(
-        () =>
-            this.playlists().length <=
-            PlaylistSwitcherComponent.SEARCH_AUTO_VISIBLE_THRESHOLD
-    );
-    readonly showSearchField = computed(
-        () => !this.hasSearchToggle() || this.searchExpanded()
-    );
-
-    readonly portalStatuses = signal<Map<string, PortalStatus>>(new Map());
-
-    /**
-     * Tracks the in-flight check round so we can cancel pending writes when
-     * the menu closes (avoiding zombie writes from a slow portal landing
-     * after the user has moved on). Status caching itself lives in
-     * PortalStatusService so it's shared across components.
-     */
-    private portalStatusAbortController: AbortController | null = null;
-    readonly currentLocale = computed(() => {
+    /** "Stalker", "M3U · 3,220 channels", or the header's source count. */
+    readonly triggerSubtitle = computed(() => {
         this.languageTick();
-        return normalizeDateLocale(
-            this.translate.currentLang || this.translate.defaultLang
-        );
+        const active = this.activePlaylist();
+        if (!active) {
+            return this.subtitle();
+        }
+        return sourceMetaParts(
+            active,
+            {
+                translate: (key, params) => this.translate.instant(key, params),
+                locale: normalizeDateLocale(
+                    this.translate.currentLang || this.translate.defaultLang
+                ),
+                now: Date.now(),
+            },
+            true
+        )
+            .filter((part) => part.kind === 'type' || part.kind === 'channels')
+            .map((part) => part.text)
+            .join(' · ');
+    });
+    readonly activeStatus = computed(() => {
+        const active = this.activePlaylist();
+        return active ? this.statusService.statusOf(active) : null;
     });
 
     constructor() {
-        this.destroyRef.onDestroy(() => {
-            this.clearMenuOverlayWidth();
-            this.clearSearchFocusTimeout();
-            this.cancelPortalStatusChecks();
+        const openService = inject(PlaylistSwitcherOpenService);
+        const unregister = openService.register();
+        const requests = openService.openRequests.subscribe(() => this.open());
+        inject(DestroyRef).onDestroy(() => {
+            unregister();
+            requests.unsubscribe();
         });
     }
 
-    onMenuOpened(): void {
-        this.isMenuOpen.set(true);
-        this.syncMenuOverlayWidthToTrigger();
-        if (this.showSearchField()) {
-            this.focusSearchField();
-        }
-        if (!this.runtime.supportsSourceHealth)
-            void this.checkPortalStatuses(this.playlists());
-    }
-
-    onMenuClosed(): void {
-        this.isMenuOpen.set(false);
-        this.clearMenuOverlayWidth();
-        this.clearSearchFocusTimeout();
-        this.cancelPortalStatusChecks();
-        if (this.hasSearchToggle()) {
-            this.searchExpanded.set(false);
+    toggle(): void {
+        if (this.isOpen()) {
+            this.close();
+        } else {
+            this.open();
         }
     }
 
-    toggleSearchField(event?: Event): void {
-        event?.stopPropagation();
-        const next = !this.searchExpanded();
-        this.searchExpanded.set(next);
-        if (next) {
-            this.focusSearchField();
+    open(): void {
+        this.fitToViewport();
+        this.isOpen.set(true);
+    }
+
+    /** A window resized while the popover is open refits it. */
+    onWindowResize(): void {
+        if (this.isOpen()) {
+            this.fitToViewport();
         }
     }
 
-    setSearchQuery(value: string): void {
-        this.searchQuery.set(value);
-        this.writePersistedSearchQuery(value);
+    /** Caps the popover to the room below the trigger; only its list scrolls. */
+    private fitToViewport(): void {
+        const bottom =
+            this.trigger().nativeElement.getBoundingClientRect().bottom;
+        this.maxHeight.set(
+            `${Math.max(240, window.innerHeight - bottom - 8 - VIEWPORT_MARGIN)}px`
+        );
     }
 
-    togglePlaylistTypeFilter(type: PlaylistFilterType, event?: Event): void {
-        event?.stopPropagation();
-        const current = this.playlistTypeFilters();
-        const next = {
-            ...current,
-            [type]: !current[type],
-        };
-
-        if (!next.m3u && !next.stalker && !next.xtream) {
+    /** Closes the popover; focus goes back to the trigger. */
+    close(): void {
+        if (!this.isOpen()) {
             return;
         }
-
-        this.playlistTypeFilters.set(next);
-        this.writePersistedTypeFilters(next);
+        this.isOpen.set(false);
+        this.trigger().nativeElement.focus();
     }
 
-    isTypeFilterSelected(type: PlaylistFilterType): boolean {
-        return this.playlistTypeFilters()[type];
-    }
-
-    selectPlaylist(playlist: PlaylistMeta): void {
-        this.menuTrigger().closeMenu();
-        this.playlistContext.selectPlaylist(playlist);
-        this.playlistSelected.emit(playlist._id);
-    }
-
-    requestPlaylistInfo(): void {
-        this.menuTrigger().closeMenu();
-        this.playlistInfoRequested.emit();
-    }
-
-    requestAccountInfo(): void {
-        this.menuTrigger().closeMenu();
-        this.accountInfoRequested.emit();
-    }
-
-    requestAddPlaylist(): void {
-        this.menuTrigger().closeMenu();
-        this.addPlaylistRequested.emit();
-    }
-
-    hasType(type: PlaylistFilterType): boolean {
-        return this.availablePlaylistTypes().has(type);
-    }
-
-    canRefreshPlaylist(playlist: PlaylistMeta): boolean {
-        return this.refreshAction.canRefresh(playlist);
-    }
-
-    openPlaylistInfoFor(playlist: PlaylistMeta, event?: Event): void {
-        event?.stopPropagation();
-        this.menuTrigger().closeMenu();
-        this.dialog.open(PlaylistInfoComponent, { data: playlist });
-    }
-
-    hasAccountInfo(playlist: PlaylistMeta): boolean {
-        return isPortalAccountPlaylist(playlist);
-    }
-
-    requestAccountInfoFor(playlist: PlaylistMeta, event?: Event): void {
-        event?.stopPropagation();
-        this.menuTrigger().closeMenu();
-        this.accountInfoForPlaylistRequested.emit(playlist);
-    }
-
-    refreshPlaylistFor(playlist: PlaylistMeta, event?: Event): void {
-        event?.stopPropagation();
-        this.menuTrigger().closeMenu();
-        this.refreshAction.refresh(playlist);
-    }
-
-    removePlaylistFor(playlist: PlaylistMeta, event?: Event): void {
-        event?.stopPropagation();
-        this.menuTrigger().closeMenu();
-        this.dialogService.openConfirmDialog({
-            title: this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.TITLE'),
-            message: this.translate.instant(
-                'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
-            ),
-            confirmLabel: this.translate.instant('HOME.PLAYLISTS.REMOVE'),
-            tone: 'destructive',
-            onConfirm: () => this.removePlaylistConfirmed(playlist),
-        });
-    }
-
-    private async removePlaylistConfirmed(
-        playlist: PlaylistMeta
-    ): Promise<void> {
-        const deleted =
-            await this.playlistDeleteAction.deletePlaylist(playlist);
-
-        if (!deleted) {
-            return;
-        }
-
-        this.store.dispatch(
-            PlaylistActions.playlistRemovalCommitted({
-                playlistId: playlist._id,
-            })
-        );
-        this.snackBar.open(
-            this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS'),
-            undefined,
-            { duration: 2000 }
-        );
-    }
-
-    getPlaylistIcon(playlist: PlaylistMeta): string {
-        return getPlaylistSourceIcon(playlist);
-    }
-
-    getPlaylistMetaLabel(playlist: PlaylistMeta): string {
-        if (playlist.macAddress) {
-            return this.translate.instant('WORKSPACE.SHELL.STALKER_PORTAL');
-        }
-        if (playlist.serverUrl) {
-            return this.translate.instant('WORKSPACE.SHELL.XTREAM_CODE');
-        }
-        return this.translate.instant('HOME.PLAYLISTS.CHANNELS_COUNT', {
-            count: playlist.count ?? 0,
-        });
-    }
-
-    getStatusClass(playlistId: string): string {
-        const status = this.portalStatuses().get(playlistId);
-        // No entry yet means we haven't checked (or are mid-flight without a
-        // 'checking' write). Render no status class instead of misleading the
-        // user with the red 'unavailable' dot.
-        if (!status) {
-            return '';
-        }
-        return this.portalStatusService.getStatusClass(status);
-    }
-
-    isSelected(playlist: PlaylistMeta): boolean {
-        return this.activePlaylistId() === playlist._id;
-    }
-
-    private getPlaylistFilterType(playlist: PlaylistMeta): PlaylistFilterType {
-        if (playlist.macAddress) {
-            return 'stalker';
-        }
-        if (playlist.serverUrl) {
-            return 'xtream';
-        }
-        return 'm3u';
-    }
-
-    private async checkPortalStatuses(playlists: PlaylistMeta[]) {
-        // Cancel any prior in-flight round so its results can't overwrite the
-        // new round (e.g. user closes + reopens the menu rapidly).
-        this.cancelPortalStatusChecks();
-        const controller = new AbortController();
-        this.portalStatusAbortController = controller;
-
-        const xtreamPlaylists = playlists.filter(
-            (
-                playlist
-            ): playlist is PlaylistMeta & {
-                serverUrl: string;
-                username: string;
-                password: string;
-            } =>
-                Boolean(
-                    playlist.serverUrl && playlist.username && playlist.password
-                )
-        );
-        if (xtreamPlaylists.length === 0) {
-            return;
-        }
-
-        // Hydrate from the shared service cache + mark uncached portals as
-        // 'checking' in a single signal write so the UI flips from blank →
-        // cached/checking dots in one render, not one per playlist.
-        const next = new Map(this.portalStatuses());
-        const toFetch: (PlaylistMeta & {
-            serverUrl: string;
-            username: string;
-            password: string;
-        })[] = [];
-        for (const playlist of xtreamPlaylists) {
-            const cached = this.portalStatusService.getCachedStatus(
-                playlist.serverUrl,
-                playlist.username,
-                playlist.password
-            );
-            if (cached !== null) {
-                next.set(playlist._id, cached);
-            } else {
-                next.set(playlist._id, 'checking');
-                toFetch.push(playlist);
-            }
-        }
-        this.portalStatuses.set(next);
-
-        if (toFetch.length === 0) {
-            return;
-        }
-
-        // Stream results: each portal's dot updates as soon as ITS request
-        // resolves, independent of the slowest one. Replaces the prior
-        // Promise.all that blocked all dots on the tail latency.
-        await Promise.all(
-            toFetch.map(async (playlist) => {
-                let status: PortalStatus;
-                try {
-                    status = await this.portalStatusService.checkPortalStatus(
-                        playlist.serverUrl,
-                        playlist.username,
-                        playlist.password
-                    );
-                } catch {
-                    status = 'unavailable';
-                }
-
-                if (controller.signal.aborted) {
-                    return;
-                }
-
-                this.portalStatuses.update((current) => {
-                    const updated = new Map(current);
-                    updated.set(playlist._id, status);
-                    return updated;
-                });
-            })
-        );
-    }
-
-    private cancelPortalStatusChecks(): void {
-        if (this.portalStatusAbortController) {
-            this.portalStatusAbortController.abort();
-            this.portalStatusAbortController = null;
-        }
-    }
-
-    private syncMenuOverlayWidthToTrigger(): void {
-        const triggerWidth = Math.round(
-            this.triggerElement().nativeElement.getBoundingClientRect().width
-        );
-        const overlayWidth = Math.max(triggerWidth, 400);
-        this.document.documentElement.style.setProperty(
-            '--playlist-switcher-overlay-width',
-            `${overlayWidth}px`
-        );
-    }
-
-    private clearMenuOverlayWidth(): void {
-        this.document.documentElement.style.removeProperty(
-            '--playlist-switcher-overlay-width'
-        );
-    }
-
-    private focusSearchField(): void {
-        this.clearSearchFocusTimeout();
-        this.focusSearchTimeoutId = setTimeout(() => {
-            const input = this.searchInput()?.nativeElement;
-            if (!input) {
-                return;
-            }
-            input.focus();
-            input.select();
-            this.focusSearchTimeoutId = null;
-        }, 0);
-    }
-
-    private clearSearchFocusTimeout(): void {
-        if (this.focusSearchTimeoutId !== null) {
-            clearTimeout(this.focusSearchTimeoutId);
-            this.focusSearchTimeoutId = null;
-        }
-    }
-
-    private readPersistedSearchQuery(): string {
-        try {
-            return localStorage.getItem(SEARCH_QUERY_STORAGE_KEY) ?? '';
-        } catch {
-            return '';
-        }
-    }
-
-    private writePersistedSearchQuery(value: string): void {
-        try {
-            localStorage.setItem(SEARCH_QUERY_STORAGE_KEY, value);
-        } catch {
-            // Ignore storage write failures.
-        }
-    }
-
-    private readPersistedTypeFilters(): Record<PlaylistFilterType, boolean> {
-        try {
-            const raw = localStorage.getItem(PLAYLIST_TYPE_FILTER_STORAGE_KEY);
-            if (!raw) {
-                return { ...DEFAULT_PLAYLIST_TYPE_FILTERS };
-            }
-
-            const parsed = JSON.parse(raw) as Partial<
-                Record<PlaylistFilterType, boolean>
-            >;
-            const next = {
-                m3u: parsed.m3u !== false,
-                stalker: parsed.stalker !== false,
-                xtream: parsed.xtream !== false,
-            };
-
-            if (!next.m3u && !next.stalker && !next.xtream) {
-                return { ...DEFAULT_PLAYLIST_TYPE_FILTERS };
-            }
-
-            return next;
-        } catch {
-            return { ...DEFAULT_PLAYLIST_TYPE_FILTERS };
-        }
-    }
-
-    private writePersistedTypeFilters(
-        filters: Record<PlaylistFilterType, boolean>
-    ): void {
-        try {
-            localStorage.setItem(
-                PLAYLIST_TYPE_FILTER_STORAGE_KEY,
-                JSON.stringify(filters)
-            );
-        } catch {
-            // Ignore storage write failures.
+    onOverlayKeydown(event: KeyboardEvent): void {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            this.close();
         }
     }
 }

@@ -1,7 +1,9 @@
 import { inject, Injectable, Provider } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import type { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { PORTAL_SHELL_ACTIONS } from '@iptvnator/portal/shared/util/tokens';
+import { LazyMatDialog } from '@iptvnator/ui/components/lazy-dialog';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspaceAccountInfoData,
@@ -10,22 +12,24 @@ import {
     WorkspaceStalkerAccountInfoData,
 } from '@iptvnator/workspace/shell/util';
 
+/**
+ * Created with the app (the shell's keyboard shortcuts reach it from the
+ * root), so every dialog it opens, and Material's dialog service itself,
+ * is imported on first use.
+ */
 @Injectable({ providedIn: 'root' })
 export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
-    private readonly dialog = inject(MatDialog);
+    private readonly lazyDialog = inject(LazyMatDialog);
     private readonly router = inject(Router);
 
     openAddPlaylistDialog(type?: WorkspacePlaylistType): void {
-        void import('@iptvnator/playlist/import/feature').then(
-            ({ AddPlaylistDialogComponent }) => {
-                this.dialog.open(AddPlaylistDialogComponent, {
-                    // Width sized for the 5-card method picker plus the
-                    // selected method's form below. Matches the v0.22
-                    // mockup; falls back to viewport-clamped width on
-                    // narrow screens so the grid can collapse via the
-                    // SCSS responsive breakpoints.
-                    width: '780px',
-                    maxWidth: '92vw',
+        this.openDialog(
+            import('@iptvnator/playlist/import/feature'),
+            (dialog, { AddPlaylistDialogComponent }) => {
+                dialog.open(AddPlaylistDialogComponent, {
+                    // The method-card grid collapses through its own
+                    // breakpoints inside the large preset.
+                    ...dialogSize('lg'),
                     data: type ? { type } : {},
                 });
             }
@@ -44,9 +48,10 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
     }
 
     openAccountInfo(data: WorkspaceAccountInfoData): void {
-        void import('@iptvnator/portal/xtream/feature').then(
-            ({ AccountInfoComponent }) => {
-                this.dialog.open(AccountInfoComponent, {
+        this.openDialog(
+            import('@iptvnator/portal/xtream/feature'),
+            (dialog, { AccountInfoComponent }) => {
+                dialog.open(AccountInfoComponent, {
                     width: '80%',
                     maxWidth: '1200px',
                     maxHeight: '90vh',
@@ -57,15 +62,26 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
     }
 
     openStalkerAccountInfo(data: WorkspaceStalkerAccountInfoData): void {
-        void import('@iptvnator/portal/stalker/feature').then(
-            ({ StalkerAccountInfoComponent }) => {
-                this.dialog.open(StalkerAccountInfoComponent, {
+        this.openDialog(
+            import('@iptvnator/portal/stalker/feature'),
+            (dialog, { StalkerAccountInfoComponent }) => {
+                dialog.open(StalkerAccountInfoComponent, {
                     width: '80%',
                     maxWidth: '1200px',
                     maxHeight: '90vh',
                     data,
                 });
             }
+        );
+    }
+
+    /** Opens once both the dialog service and the component's chunk are in. */
+    private openDialog<T>(
+        load: Promise<T>,
+        open: (dialog: MatDialog, module: T) => void
+    ): void {
+        void Promise.all([this.lazyDialog.resolve(), load]).then(
+            ([dialog, module]) => open(dialog, module)
         );
     }
 }

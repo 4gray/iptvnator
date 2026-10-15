@@ -26,6 +26,24 @@ describe('grid list rating helpers', () => {
         ).toBe('7.2');
     });
 
+    it('shows no badge for a provider stand-in or an unrated zero', () => {
+        for (const value of ['N/A', 'n/a', '-', '0', '0.0', 0]) {
+            expect(formatGridRating(value)).toBeUndefined();
+        }
+    });
+
+    it('falls back to the generic rating when imdb rating is a stand-in', () => {
+        expect(
+            resolveGridRating({
+                rating: '6.5',
+                rating_imdb: 'N/A',
+            })
+        ).toBe('6.5');
+        expect(resolveGridRating({ rating: '0', rating_imdb: '-' })).toBe(
+            undefined
+        );
+    });
+
     it('falls back to the generic rating when imdb rating is blank', () => {
         expect(
             resolveGridRating({

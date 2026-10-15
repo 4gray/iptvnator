@@ -18,9 +18,12 @@ The Docker image runs the browser PWA, not the Electron desktop application.
 That means:
 
 - EPG/XMLTV panels and multi-EPG views are not available in the self-hosted PWA.
-- Playlist metadata is stored in the browser through IndexedDB, and Xtream user
-  data is stored by the PWA data source in localStorage. The PWA does not use
-  the Electron SQLite database or DB worker.
+- With server storage (the image default) playlists, M3U favorites and
+  history, and Xtream favorites, recently viewed items and playback positions
+  live on the server, and every browser that opens the instance shares them.
+  Settings, parental locks, the global favorites order and UI preferences stay
+  per browser. With `IPTVNATOR_STORAGE=none` each browser keeps its own data
+  in IndexedDB and localStorage.
 - Docker cannot launch local desktop players or Embedded MPV. If a stream does
   not play inline in the browser, use the in-app copy URL action and open the
   stream manually in an external player such as MPV, VLC, or IINA.
@@ -98,6 +101,11 @@ safe local defaults shown below.
 | `PORT`                                   | `3000`                  | Internal Express backend port. nginx proxy config is rendered from the template to match it at startup.                                      |
 | `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS` | `0`                     | Set to `1` or `true` only for trusted local/LAN deployments that intentionally proxy private network IPTV or mock endpoints.                 |
 | `NODE_EXTRA_CA_CERTS`                    | unset                   | Optional Node.js CA bundle path for providers using private certificate authorities. Mount the CA file into the container and set this path. |
+| `IPTVNATOR_STORAGE`                      | `server` in the image   | `server` opens the server storage database under `IPTVNATOR_DATA_DIR` and its `/api/v1` routes; `none` keeps the backend stateless.          |
+| `IPTVNATOR_DATA_DIR`                     | `/data` in the image    | Data root; the database is `<root>/databases/iptvnator.db`. Mount a volume here.                                                             |
+| `IPTVNATOR_ACCESS_TOKEN`                 | unset                   | When set, every route except `/`, `/health`, `/config.js` and `/v1/instance` requires `Authorization: Bearer <token>`, proxy routes included. Each browser asks for the token once and keeps it. Needs `IPTVNATOR_STORAGE=server`; the backend refuses to start otherwise. |
+| `IPTVNATOR_MAX_DOCUMENT_MB`              | `64`                    | Largest playlist document the backend accepts. Keep the nginx `client_max_body_size` in step.                                                |
+| `IPTVNATOR_BACKEND_START_TIMEOUT`        | `300`                   | Seconds the entrypoint waits for the backend's `/health` before giving up. Database migrations run before the backend listens.              |
 
 The web backend proxy accepts only `http` and `https` provider URLs. The PWA
 first registers provider URLs through `/provider-targets`, then uses the
@@ -126,6 +134,27 @@ proxies `/api/*` to the internal backend. The Dockerfile and compose file both
 define a health check against `/api/health`. If nginx or the backend exits
 after startup, the entrypoint exits the container so Docker Compose can apply
 the `restart: unless-stopped` policy.
+
+## Server Storage
+
+The image opens a server storage database on the `/data` volume
+(`IPTVNATOR_STORAGE=server`, `IPTVNATOR_DATA_DIR=/data`) and serves its API
+under `/api/v1`. The PWA finds it on start and keeps playlists, favorites,
+history and playback positions there, so every phone, TV and computer that
+opens the instance sees the same library. Settings → Server shows the
+connection, the database size and path, and exports a backup.
+
+The first browser that opens an instance with an empty database offers to
+move the playlists it already kept, with their Xtream favorites and
+progress; nothing is deleted from the browser. Later browsers can merge
+theirs from Settings → Server.
+
+Provider credentials are stored unencrypted in that database, as the
+desktop app does. Do not expose an instance with server storage to the
+internet without authentication. Set `IPTVNATOR_ACCESS_TOKEN` to require a
+token: each browser then asks for it once on a sign-in page. Back up the
+volume like any database: stop the container, or copy
+`databases/iptvnator.db` together with its `-wal` file.
 
 ## IPv6, VPNs, And Connection Fallback
 

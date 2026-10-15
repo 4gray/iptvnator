@@ -89,7 +89,10 @@ The shell is intentionally split into four persistent regions:
        recently viewed. The routed global-search rail link is Electron-only
        because its data source is the SQLite worker bridge.
     2. Provider-aware context links derived from the active or current playlist.
-    3. Settings remains a persistent footer shortcut in the rail.
+    3. Settings remains a persistent footer shortcut in the rail. In
+       [server storage mode](pwa-self-hosted.md#server-storage-mode) a server
+       status shortcut sits above it: its dot shows online, offline or
+       sign-in needed, and it opens Settings → Server.
     4. No brand mark: it only repeated the first workspace link (Dashboard,
        or Sources when the dashboard is off).
 2. Top header:
@@ -103,7 +106,9 @@ The shell is intentionally split into four persistent regions:
     6. Downloads shortcut in Electron.
 3. Main body:
     1. Optional left context panel.
-    2. Main router outlet content.
+    2. Main router outlet content. In server storage mode an offline banner
+       with Retry takes the first row of `.workspace-content-frame`, above
+       the scroller, so full-height pages keep their height.
 4. Optional footer:
     1. External playback session bar when a docked session is visible.
 
@@ -127,6 +132,58 @@ synthesized mask, unlike any content layer) may span half the content area,
 and the backdrop-filtered controls must really be composited, so the check
 cannot pass on a page with nothing to clip.
 
+### Layout slides
+
+When a route change adds or removes the context panel, the content frame
+moves by the panel's width (323 px on desktop), and when Back or the phone
+drawer toggle appears or leaves, the header controls after it move by the
+slot's width (44 px). Both happen in the frame that swaps the page, so they
+used to be one jump: a layout shift of 0.233 in the open-source journey,
+0.222 of it the content frame (see
+[performance journeys](./performance-journeys.md#j2-open-source-open-a-source-to-a-browsable-list)).
+
+`LayoutSlideDirective` (`workspace-shell/layout-slide.directive.ts`) turns
+these jumps into a 180 ms slide, the duration of the context panel's own
+width transition. The new layout applies at once; each target starts
+translated back to the position it had and animates its transform to none
+(FLIP), so nothing waits for the animation and Chromium records no layout
+shift for a transform. The shell's `.workspace-body` slides
+`.workspace-content-frame` when `showContextPanel` changes; the header slides
+the drawer toggle, switcher, search and action groups when its leading
+navigation (Back, drawer toggle) changes.
+
+1. **Previous positions.** `offsetLeft` values, which ignore transforms, are
+   recorded after every render in which the slide key or the record key
+   changed (the header's record key covers the other inputs that move its
+   controls: settings route, no playlists, parental lock, shortcuts) and
+   when the host or a target resizes (window resize, a context panel folding
+   or being dragged wider). A slide therefore starts where the target was
+   last laid out, and a target that has no recorded position or did not move
+   is left alone.
+2. **The uncovered strip.** The frame is narrower beside the panel than
+   without it, so the side it moves away from would show the body colour
+   during the slide. While a slide runs the target carries
+   `layout-slide-active` and the uncovered widths as `--layout-slide-start`
+   and `--layout-slide-end`; the frame's stylesheet extends the content
+   surface over that strip with an `::after` below the scroller.
+3. **Back fades in** over the same 180 ms, so the switcher still sliding away
+   from its slot does not draw over the arrow.
+4. **Reduced motion.** Under `prefers-reduced-motion` there is no animation:
+   the jump (and its layout shift) remains.
+5. **Compositing.** While it runs, each slid target is its own composited
+   layer (`ActiveTransformAnimation`): the frame at its width plus the
+   covered strip (1220×664 CSS pixels at 1280×720), the header controls a
+   few small ones. No synthesized clip mask appears, because no ancestor of
+   the frame clips with a radius ([content surface
+   corner](#content-surface-corner)), and the layers go away when the slide
+   ends: `perf:compositing` reads the same layer and mask counts on every
+   route as before the slides (#1895).
+6. **Not covered.** A slide does not change what the route renders. Going
+   back from a portal to the dashboard used to lay the new dashboard out
+   below the old page before the old page left, a shift a slide cannot
+   hide. That was the route swap, fixed at its cause (see
+   [Route swaps](#route-swaps)).
+
 `WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
 kept as a thin template-facing API and delegates ownership to component-scoped
 services:
@@ -144,11 +201,51 @@ services:
 5. `WorkspaceShellCommandPaletteService` owns command-palette dialog lifecycle
    and recent-command recording.
 6. `WorkspaceShellXtreamImportService` owns Xtream import/refresh overlay
-   state and labels.
+   state and labels. Remote import phases and refresh preparation of the
+   shown playlist (of any playlist on the dashboard) show the overlay at
+   once. A session that has only read the saved catalog (`loading-cached`,
+   `isImporting` still false) shows it only after
+   `XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS` (300 ms), so a warm open goes from
+   the skeleton to the page without flashing the overlay, while a slow or
+   stuck cache read still blocks and stays cancellable.
 
 When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
 for the template unless the template contract itself intentionally changes.
+
+### Route swaps
+
+The router's activation runs in one task, outside change detection:
+deactivation destroys the old routed view, then activation creates the new
+one and inserts its host element into `main.workspace-content` at once.
+`WorkspaceShellRouteStateService.currentUrl` is set on `NavigationEnd`, which
+the router emits synchronously after activation, so the shell's state does
+not lag the outlet. The shell re-renders (the context panel leaves, the
+content frame slides) in the next change detection. With event coalescing
+that runs in the next `requestAnimationFrame`, before that frame paints.
+
+The app does not provide `provideAnimations()`. Nothing uses
+`@angular/animations` triggers (Material animates with CSS), and that
+package's renderer queues every DOM removal until the end of the next change
+detection, while insertions apply at once. Leaving a portal section for the
+dashboard therefore inserted the dashboard below the still-present portal
+page, and the old page left only in the coalesced tick. In between, Chromium
+laid out the document with both pages, the dashboard at y=720 in a 720 px
+window, and scored the swap as one layout shift: 0.337 at 1280 px, 0.394 at
+900 px, 0.723 at 420 px (measured with a `layout-shift` observer in the
+`electron-performance` build). With the default DOM renderer the old page is
+removed in the same microtask, before the new one is inserted, and the swap
+records no shift. `app.config.spec.ts` keeps the animations renderer out, and
+`workspace-route-swap.e2e.ts` asserts that no mutation checkpoint holds both
+pages and that neither the dashboard nor the content pane shifts.
+
+Destroy hooks therefore run with the view's DOM already detached; the
+[UI guidelines](./iptvnator-ui-guidelines.md) ("No animations module") say
+how hooks record geometry and focus instead.
+
+Do not add `provideAnimations()` or `provideAnimationsAsync()` back; animate
+with CSS. A leave animation (`animate.leave` included) delays its element's
+removal in the same way, so a routed page must not carry one.
 
 ## Header Back
 
@@ -215,9 +312,10 @@ return logic (`backClicked`).
 
 When there is nowhere to go, the slot is empty rather than a disabled arrow.
 Sessions often start on a page that never navigates (an M3U playlist or live
-TV), where a disabled arrow would stay for the whole session. The cost is one
-shift of the switcher and search when Back first appears or leaves, which
-happens only at the start of the history and together with a route change.
+TV), where a disabled arrow would stay for the whole session. When Back first
+appears or leaves, which happens only at the start of the history and together
+with a route change, the switcher and search slide by the slot's width instead
+of jumping (see [Layout slides](#layout-slides)).
 There is no Forward button: Stalker inline details are store state, not
 history entries, so Forward would skip them.
 
@@ -263,7 +361,10 @@ Xtream and Stalker category panels preserve provider/server category order by
 default. The panel header exposes a sort menu next to category search with
 `Server sorting`, `A-Z`, and `Z-A`; when alphabetical sorting is active,
 synthetic "all categories" entries stay pinned before sorted provider
-categories.
+categories. Search and sort render disabled while the categories load (beside
+the disabled Manage categories button), so the header row has its final width
+under the skeleton instead of growing by two buttons when the list arrives;
+they are hidden only once a load ended with no categories.
 
 On live sections the category panel can be folded away independently of the
 channels list; the folded panel is reachable as a popover from the channels
@@ -817,6 +918,9 @@ Toolchain notes for the Electron 43 baseline:
    Those dependencies require standalone PRs so their dedicated package,
    worker, playback, and diagnostic-contract validation cannot be hidden by an
    unrelated grouped update.
+   Electron majors are ignored: Electron 44 ships no `linux-armv7l` binary,
+   and the release still packages armv7l AppImage, DEB and Snap builds. Remove
+   the ignore together with those targets when 32-bit ARM support is dropped.
 4. Electron 42 and newer download their development binary on the first
    Electron command instead of during package `postinstall`, so `electron`
    must not remain in pnpm's `onlyBuiltDependencies` allowlist. The first local

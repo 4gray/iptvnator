@@ -9,6 +9,7 @@ import { existsSync, mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import {
+    IPTVNATOR_DATA_DIR_ENV,
     IPTVNATOR_E2E_DATA_DIR_ENV,
     getElectronConfigDirectory,
     getElectronUserDataPath,
@@ -20,12 +21,15 @@ import {
 describe('path-utils', () => {
     let tempRoot: string;
     let originalEnvValue: string | undefined;
+    let originalDataDirValue: string | undefined;
 
     beforeEach(() => {
         tempRoot = mkdtempSync(join(tmpdir(), 'iptvnator-path-utils-'));
         homedirMock.mockReturnValue(join(tempRoot, 'home'));
         originalEnvValue = process.env[IPTVNATOR_E2E_DATA_DIR_ENV];
         delete process.env[IPTVNATOR_E2E_DATA_DIR_ENV];
+        originalDataDirValue = process.env[IPTVNATOR_DATA_DIR_ENV];
+        delete process.env[IPTVNATOR_DATA_DIR_ENV];
     });
 
     afterEach(() => {
@@ -34,7 +38,39 @@ describe('path-utils', () => {
         } else {
             process.env[IPTVNATOR_E2E_DATA_DIR_ENV] = originalEnvValue;
         }
+        if (originalDataDirValue === undefined) {
+            delete process.env[IPTVNATOR_DATA_DIR_ENV];
+        } else {
+            process.env[IPTVNATOR_DATA_DIR_ENV] = originalDataDirValue;
+        }
         rmSync(tempRoot, { force: true, recursive: true });
+    });
+
+    it('uses and creates IPTVNATOR_DATA_DIR as the data root', () => {
+        const dataDir = join(tempRoot, 'volume');
+        process.env[IPTVNATOR_DATA_DIR_ENV] = ` ${dataDir} `;
+
+        expect(getIptvnatorDataRoot()).toBe(dataDir);
+        expect(existsSync(dataDir)).toBe(true);
+        expect(getIptvnatorDatabasePath()).toBe(
+            join(dataDir, 'databases', 'iptvnator.db')
+        );
+    });
+
+    it('lets the E2E override win over IPTVNATOR_DATA_DIR', () => {
+        const e2eDir = join(tempRoot, 'e2e');
+        process.env[IPTVNATOR_E2E_DATA_DIR_ENV] = e2eDir;
+        process.env[IPTVNATOR_DATA_DIR_ENV] = join(tempRoot, 'volume');
+
+        expect(getIptvnatorDataRoot()).toBe(e2eDir);
+    });
+
+    it('ignores a blank IPTVNATOR_DATA_DIR', () => {
+        process.env[IPTVNATOR_DATA_DIR_ENV] = '   ';
+
+        expect(getIptvnatorDataRoot()).toBe(
+            join(tempRoot, 'home', '.iptvnator')
+        );
     });
 
     it('uses and creates the E2E data dir override when the env variable is set', () => {

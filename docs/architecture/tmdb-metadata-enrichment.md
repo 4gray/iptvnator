@@ -832,8 +832,10 @@ Contracts worth keeping:
   credits and no recommendations carries none of them and reads as
   un-enriched. Since the column is never overwritten, getting this wrong is
   unfixable after the fact — a real provider date arriving later cannot
-  correct it. The same marker is what `trustedReleaseYear` (the
-  recommendations exclusion index) must consult if it ever reads this column.
+  correct it. Stalker entries never reach this column, but the same marker
+  rides in their stored `info`, and `trustedReleaseYear` (the recommendations
+  exclusion index) reads it first: a date TMDB supplied does not gate the
+  exact tier. `createStalkerInfo()` keeps the marker through re-normalization.
 - **The id is stored unvetted.** Every consumer reaches TMDB through
   `TmdbEnrichmentService`, whose `detailsForProviderId` runs
   `assessProviderId` and lets the title search take over when the years

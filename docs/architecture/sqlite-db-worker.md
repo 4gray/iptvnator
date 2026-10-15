@@ -550,7 +550,9 @@ Xtream-only row shape:
    as `Café` can still reach rows stored as either `Café` or `Cafe` before the
    worker's accent-insensitive ranking step. Existing databases rebuild this
    index once through the `migration:content-title-fts-trigram:v1` app-state
-   marker before legacy content cleanup/normalization migrations run; fresh
+   marker before legacy content cleanup/normalization migrations run (the
+   diacritics rebuild records that marker too, so it is never rebuilt twice;
+   see [VOD multi-source](vod-multi-source.md#short-titles-and-unicode)); fresh
    inserts, deletes, and title updates stay synchronized through SQLite triggers.
 2. `source_type = "m3u"` rows come from M3U playlist payloads stored in
    `playlists.payload`. The worker uses SQL `payload LIKE` against channel
@@ -615,6 +617,17 @@ Xtream-only row shape:
 11. `DB_DELETE_ALL_PLAYLISTS`
 12. `DB_GET_APP_STATE`
 13. `DB_SET_APP_STATE`
+
+`DB_UPSERT_APP_PLAYLIST(S)` write whole documents: the row built by the shared
+codec (`buildPlaylistRow` in `libs/shared/database`) replaces the stored one.
+`playlistConflictUpdate` sets every optional column the document leaves empty
+(an empty string or a missing key) to NULL instead of skipping it, because
+`parseAppPlaylist` prefers a column over the payload and would otherwise bring
+a cleared User-Agent, Referrer, Origin, credential, EPG list or file path back.
+Only `date_created` is kept from the first insert. Callers must send the full
+document (`PlaylistsService` reads, patches and writes the whole row); a
+column-only change goes through `DB_UPDATE_PLAYLIST`. The self-hosted web
+backend's playlist repository uses the same conflict update.
 
 `DB_GET_APP_PLAYLIST_METAS` is the preferred path for summary surfaces such as
 the workspace sidebar and dashboard source rail. It selects playlist metadata

@@ -3,6 +3,7 @@
     "CLEAR": "Wissen",
     "CLEAR_SEARCH": "Zoekopdracht wissen",
     "CLOSE": "Sluiten",
+    "CLOSE_DIALOG": "Dialoogvenster sluiten",
     "REMOVE": "Verwijderen",
     "BACK": "Terug",
     "SHOW_MORE": "Meer",
@@ -260,7 +261,10 @@
             "NAME_DESC": "Naam (Z-A)",
             "NEWEST": "Datum toegevoegd (Nieuwste eerst)",
             "OLDEST": "Datum toegevoegd (Oudste eerst)",
-            "CUSTOM_ORDER": "Aangepaste volgorde (slepen en neerzetten)"
+            "CUSTOM_ORDER": "Aangepaste volgorde (slepen en neerzetten)",
+            "UPDATED": "Laatst bijgewerkt",
+            "CHANNELS": "Meeste zenders",
+            "FAILING_FIRST": "Niet-reagerende eerst"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (lokaal, URL, tekst)",
@@ -312,6 +316,24 @@
         "NAV_REMOTE": "Afstandsbediening",
         "NAV_DATA": "Gegevens",
         "NAV_BACKUP": "Back-up en gegevens",
+        "NAV_SERVER": "Server",
+        "SERVER_DESCRIPTION": "Afspeellijsten, favorieten en kijkvoortgang worden op deze server bewaard en gedeeld met elk apparaat dat hem opent.",
+        "SERVER_CONNECTION": "Verbinding",
+        "SERVER_CONNECTION_DESCRIPTION": "De IPTVnator-server waarop deze app opslaat.",
+        "SERVER_CONNECTED": "Verbonden",
+        "SERVER_OFFLINE": "Niet bereikbaar",
+        "SERVER_STORAGE": "Opslag",
+        "SERVER_STORAGE_DESCRIPTION": "Alles staat in één databasebestand op de server. Exporteer een back-up om ergens anders een kopie te bewaren.",
+        "SERVER_STORAGE_SUMMARY": "{{playlists}} afspeellijsten · {{size}}",
+        "SERVER_EXPORT_BACKUP": "Back-up exporteren",
+        "SERVER_IMPORT_BROWSER": "Afspeellijsten in deze browser",
+        "SERVER_IMPORT_BROWSER_DESCRIPTION": "Afspeellijsten die in deze browser zijn opgeslagen voordat hij de server gebruikte. Verplaats ze zodat elk apparaat ze ziet; afspeellijsten die de server al heeft, worden samengevoegd.",
+        "SERVER_IMPORT_BROWSER_COUNT": "{{count}} afspeellijsten staan alleen in deze browser.",
+        "SERVER_ACCESS": "Toegang",
+        "SERVER_ACCESS_DESCRIPTION": "Wie de bibliotheek van deze server kan openen.",
+        "SERVER_ACCESS_OPEN": "Iedereen die dit adres kan bereiken, kan hem gebruiken. Stel IPTVNATOR_ACCESS_TOKEN in op de server om een token te vereisen.",
+        "SERVER_ACCESS_TOKEN": "Deze server vereist een toegangstoken.",
+        "SERVER_SIGN_OUT": "Afmelden",
         "NAV_ABOUT": "Over",
         "NAV_GROUP_APP": "App",
         "NAV_GROUP_LIBRARY": "Bibliotheek",
@@ -589,6 +611,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "Nieuwere versie",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "Er zijn geen releasenotes voor {{version}} gevonden op GitHub. De release is mogelijk verwijderd of nog niet gepubliceerd.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "De releasenotes konden niet worden geladen.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "De updatemelding kon niet worden getoond. Controleer op updates in de app-instellingen.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "Releasenotes zijn niet beschikbaar in deze build.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "Releasepagina openen",
         "APP_UPDATE_CHANNEL": "Updatekanaal",
@@ -637,6 +660,32 @@
             "PIN_CHANGED_TOAST": "Pincode gewijzigd",
             "LOCKED_TOAST": "Vergrendeld"
         }
+    },
+    "SERVER_STORAGE": {
+        "WRITE_FAILED": "Opslaan op de server is mislukt. Controleer de verbinding en probeer het opnieuw.",
+        "TOO_LARGE": "Deze afspeellijst is groter dan de server accepteert.",
+        "MIGRATION_TITLE": "{{count}} afspeellijsten gevonden in deze browser",
+        "MIGRATION_DESCRIPTION": "Ze staan alleen in deze browser. Verplaats ze naar de server zodat elk apparaat dat dit adres opent ze ziet. Er wordt niets uit deze browser verwijderd.",
+        "MIGRATION_LATER_HINT": "Je kunt dit later doen via Instellingen → Server.",
+        "MIGRATION_NOT_NOW": "Niet nu",
+        "MIGRATION_MOVE": "Naar server verplaatsen",
+        "MIGRATION_DONE": "Verplaatst: {{imported}}, samengevoegd: {{merged}}, mislukt: {{failed}}.",
+        "MIGRATION_FAILED": "Verplaatsen is mislukt. Je afspeellijsten staan nog in deze browser; probeer het opnieuw via Instellingen → Server.",
+        "MIGRATION_RELOAD": "Opnieuw laden",
+        "SIGN_IN_TITLE": "Toegangstoken vereist",
+        "SIGN_IN_DESCRIPTION": "Deze IPTVnator-server vraagt om een toegangstoken voordat hij je afspeellijsten toont.",
+        "SIGN_IN_TOKEN_LABEL": "Toegangstoken",
+        "SIGN_IN_HINT": "Je vindt het in de instelling IPTVNATOR_ACCESS_TOKEN van de server.",
+        "SIGN_IN_REJECTED": "Token geweigerd. Controleer het en probeer het opnieuw.",
+        "SIGN_IN_UNREACHABLE": "De server is niet bereikbaar. Controleer de verbinding en probeer het opnieuw.",
+        "SIGN_IN_STORAGE": "Deze browser laat IPTVnator het token niet bewaren. Sta sitegegevens voor deze pagina toe en probeer het opnieuw.",
+        "SIGN_IN_CONTINUE": "Doorgaan",
+        "STATUS_ONLINE": "Server verbonden",
+        "STATUS_OFFLINE": "Server niet bereikbaar",
+        "STATUS_UNAUTHORIZED": "Server vraagt om een toegangstoken",
+        "OFFLINE_BANNER": "Server niet bereikbaar. Wijzigingen kunnen pas worden opgeslagen als hij weer bereikbaar is.",
+        "RETRY": "Opnieuw proberen",
+        "DELETE_ALL_WARNING": "Hiermee worden de afspeellijsten voor alle apparaten van de server verwijderd."
     },
     "THEMES": {
         "DARK_THEME": "Donker",
@@ -980,6 +1029,7 @@
         },
         "FETCH_SUCCESS": "TV-Gids bijgewerkt",
         "IMPORT_PROGRESS": "EPG-import",
+        "IMPORT_PANEL_UNAVAILABLE": "Het EPG-importpaneel kon niet worden geladen. Herstart de app om de importvoortgang te zien; de status van elke bron blijft in de EPG-instellingen.",
         "CHANNELS": "kanalen",
         "PROGRAMS": "programma's",
         "LOADING": "Laden",
@@ -1904,7 +1954,29 @@
             "STALKER_PLAYLISTS": "Stalker-afspeellijsten",
             "ALL_PLAYLISTS": "Alle afspeellijsten",
             "PLAYLIST_COUNT_ONE": "1 afspeellijst",
-            "PLAYLIST_COUNT_OTHER": "{{count}} afspeellijsten"
+            "PLAYLIST_COUNT_OTHER": "{{count}} afspeellijsten",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · bestand",
+                "ADDED": "toegevoegd {{date}}",
+                "UPDATED": "bijgewerkt {{date}}",
+                "UNREACHABLE": "Reageert niet",
+                "UNREACHABLE_FOR": "Reageert niet · {{duration}}",
+                "EXPIRED": "Verlopen",
+                "EDIT": "Bewerken…",
+                "COPY_URL": "URL kopiëren",
+                "OPEN": "Openen",
+                "CHANNELS_ONE": "1 zender"
+            },
+            "STATUS": "Bereikbaarheid",
+            "STATUS_ANY": "Alle",
+            "STATUS_OK": "Reageren",
+            "STATUS_BAD": "Reageren niet",
+            "NO_MATCHES": "Geen afspeellijsten voldoen aan deze filters",
+            "RESET_FILTERS": "Filters wissen",
+            "REMOVED": "‘{{name}}’ verwijderd",
+            "REMOVED_SWITCHED": "‘{{name}}’ verwijderd, overgeschakeld naar ‘{{next}}’",
+            "REMOVE_FAILED": "‘{{name}}’ kon niet worden verwijderd",
+            "ADD_SOURCE": "Bron toevoegen"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorieën",
@@ -1973,7 +2045,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Selectie in opdrachtpalet verplaatsen",
                 "COMMAND_PALETTE_RUN": "Geselecteerd item in opdrachtpalet uitvoeren",
                 "CLOSE_DIALOGS": "Dialoogvenster sluiten of overlay verbergen",
-                "DOWNLOADS_OPEN_ITEM": "Gefocust downloaditem in de bibliotheek openen"
+                "DOWNLOADS_OPEN_ITEM": "Gefocust downloaditem in de bibliotheek openen",
+                "OPEN_PLAYLIST_SWITCHER": "Afspeellijst wisselen"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1996,6 +2069,15 @@
             "NO_PLAYLISTS_BODY": "Voeg een afspeellijst toe en uw kijkgeschiedenis verschijnt hier.",
             "NO_ITEMS_TITLE": "Nog niets bekeken",
             "NO_ITEMS_BODY": "Begin iets uit uw bibliotheek te kijken en het verschijnt hier."
+        },
+        "SWITCHER": {
+            "SEARCH": "Afspeellijst zoeken…",
+            "RECENT": "Onlangs geopend",
+            "NO_MATCHES": "Niets gevonden",
+            "ALL_SOURCES": "Alle bronnen",
+            "HINT_SELECT": "kiezen",
+            "HINT_OPEN": "openen",
+            "HINT_CLOSE": "sluiten"
         }
     },
     "LOADING": "Laden",

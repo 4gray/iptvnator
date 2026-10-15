@@ -20,6 +20,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { UpdateChannelOption } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 interface SettingsUpdateStatusChip {
     readonly labelKey: string;
@@ -28,6 +29,7 @@ interface SettingsUpdateStatusChip {
 
 @Component({
     selector: 'app-settings-about-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         MatButtonModule,
         MatFormFieldModule,

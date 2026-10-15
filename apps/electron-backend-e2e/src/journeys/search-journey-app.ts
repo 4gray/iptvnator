@@ -60,7 +60,7 @@ export const SEARCH_JOURNEY_PORTAL_NAME = 'Journey search portal';
  * matches 170 series titles, more than the first page of 100.
  */
 export const SEARCH_JOURNEY_QUERY = 'system';
-/** Well below the shell's 350 ms input debounce, like steady typing. */
+/** Well below the shell's 300 ms input debounce, like steady typing. */
 export const SEARCH_JOURNEY_KEY_DELAY_MS = 100;
 const QUIET_MS = 1_000;
 const QUIET_POLL_MS = 100;

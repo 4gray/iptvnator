@@ -447,7 +447,7 @@ describe('AddPlaylistDialogComponent actions', () => {
 
     function primaryLabel(root: HTMLElement): string | undefined {
         const buttons = root.querySelectorAll<HTMLButtonElement>(
-            '.apd-actions__decision button'
+            '[appDialogFooter] button'
         );
         return buttons[buttons.length - 1]?.textContent?.trim();
     }

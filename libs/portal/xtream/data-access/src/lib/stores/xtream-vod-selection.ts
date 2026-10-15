@@ -1,4 +1,5 @@
 import {
+    getXtreamVodInfo,
     XtreamVodDetails,
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
@@ -6,6 +7,7 @@ import {
     resolveXtreamVodPlaybackSource,
     XtreamVodPlaybackItem,
 } from '../services/xtream-vod-playback-source';
+import { stripXtreamVodInfoPlaceholders } from './xtream-detail-metadata';
 
 export type XtreamVodSelection = XtreamVodDetails & {
     [key: string]: unknown;
@@ -35,11 +37,13 @@ export function buildXtreamVodSelection(
         resolveXtreamVodPlaybackSource(
             catalogItem as unknown as XtreamVodPlaybackItem
         );
+    const info = getXtreamVodInfo(vodDetails);
 
     return {
         ...catalogItem,
         ...recoveredCatalogItem,
         ...vodDetails,
+        ...(info ? { info: stripXtreamVodInfoPlaceholders(info) } : {}),
         stream_id: playbackSource?.streamId ?? Number(vodId),
         container_extension: playbackSource?.containerExtension ?? null,
         xtream_id:

@@ -178,7 +178,7 @@ class SearchCompletionFakePage {
         }
         this.searchGateObserved =
             /searchParams\.get\((['"])q\1\)/u.test(source) &&
-            source.includes('app-playlist-item') &&
+            source.includes('app-source-row') &&
             source.includes('no-results-state');
         if (this.searchGateObserved) {
             this.searchResultsApplied = true;

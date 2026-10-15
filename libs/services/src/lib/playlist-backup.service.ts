@@ -4,7 +4,9 @@ import { PlaylistsService } from './playlists.service';
 import { SettingsStore } from './settings-store.service';
 import { DatabaseService } from './database-electron.service';
 import { VodSourcePinService } from './vod-source-pin.service';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { PlaybackPositionService } from './playback-position.service';
+import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import { ParentalLockService } from './parental-lock/parental-lock.service';
 import { removesParentalLocks } from './parental-lock/parental-lock-store.util';
@@ -62,9 +64,6 @@ export class PlaylistBackupError extends Error {
 
 type PlaylistPortalType = 'm3u' | 'xtream' | 'stalker';
 
-type XtreamContentType = XtreamBackupContentType;
-type XtreamCategoryType = XtreamBackupCategoryType;
-
 @Injectable({
     providedIn: 'root',
 })
@@ -78,6 +77,8 @@ export class PlaylistBackupService {
         XtreamPendingRestoreService
     );
     private readonly parentalLock = inject(ParentalLockService);
+    private readonly pwaXtream = inject(PwaXtreamBackupStateService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private backupImportTail?: Promise<void>;
 
     async exportBackup(): Promise<PlaylistBackupExportPayload> {
@@ -89,6 +90,9 @@ export class PlaylistBackupService {
             throw new Error(
                 'The parental lock store could not be read; the backup would omit its locks.'
             );
+        }
+        if (!this.runtime.supportsXtreamSqliteDataSource) {
+            await this.pwaXtream.ready();
         }
         const playlists = await firstValueFrom(
             this.playlistsService.getAllData()
@@ -332,7 +336,9 @@ export class PlaylistBackupService {
             };
         }
         // An unavailable pin store is no opinion, never an authoritative [].
-        if (!this.hasElectronApi()) return entry;
+        // Same choice as XTREAM_DATA_SOURCE: user state lives where it reads.
+        if (!this.runtime.supportsXtreamSqliteDataSource)
+            return this.pwaXtream.exportInto(entry);
 
         const [
             liveCategories,
@@ -370,7 +376,7 @@ export class PlaylistBackupService {
                 ...this.optionalLockedXtreamCategories(playlist._id),
                 favorites: favorites.map((item) => ({
                     xtreamId: item.xtream_id,
-                    contentType: item.type as XtreamContentType,
+                    contentType: item.type as XtreamBackupContentType,
                     ...(item.added_at ? { addedAt: item.added_at } : {}),
                     ...(item.position !== undefined
                         ? { position: item.position }
@@ -378,7 +384,7 @@ export class PlaylistBackupService {
                 })),
                 recentlyViewed: recent.map((item) => ({
                     xtreamId: item.xtream_id,
-                    contentType: item.type as XtreamContentType,
+                    contentType: item.type as XtreamBackupContentType,
                     viewedAt: item.viewed_at ?? new Date().toISOString(),
                 })),
                 playbackPositions: playbackPositions.map((item) => ({
@@ -933,21 +939,20 @@ export class PlaylistBackupService {
             );
         }
 
-        if (!this.hasElectronApi()) {
-            return;
-        }
-
-        this.playbackPositionService.assertSupportsAtomicReplacement();
-
-        if (!(await this.hasCompletedOfflineCache(playlistId))) {
-            return;
+        // Browser storage has no catalog cache to wait for: apply at once.
+        const sqlite = this.runtime.supportsXtreamSqliteDataSource;
+        if (sqlite) {
+            this.playbackPositionService.assertSupportsAtomicReplacement();
+            if (!(await this.hasCompletedOfflineCache(playlistId))) return;
         }
 
         const restoreResult = await this.pendingRestoreService.applyAndConsume(
             playlistId,
             restoreSnapshot,
-            (pendingState) =>
-                this.applyXtreamRestoreState(playlistId, pendingState)
+            async (state) =>
+                sqlite
+                    ? this.applyXtreamRestoreState(playlistId, state)
+                    : this.pwaXtream.restore(playlistId, state, entry)
         );
         if (restoreResult !== 'consumed') {
             throw new PlaylistBackupError(
@@ -1213,9 +1218,9 @@ export class PlaylistBackupService {
         categories: Array<{
             hidden: boolean;
             xtream_id: number;
-            type: XtreamCategoryType;
+            type: XtreamBackupCategoryType;
         }>,
-        categoryType: XtreamCategoryType
+        categoryType: XtreamBackupCategoryType
     ): XtreamPendingRestoreState['hiddenCategories'] {
         return categories
             .filter((category) => category.hidden)
@@ -1358,9 +1363,5 @@ export class PlaylistBackupService {
 
     private getErrorMessage(error: unknown): string {
         return error instanceof Error ? error.message : String(error);
-    }
-
-    private hasElectronApi(): boolean {
-        return !!(window as Window & { electron?: unknown }).electron;
     }
 }

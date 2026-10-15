@@ -182,57 +182,49 @@ describe('PlaylistBackupService export → import round-trip', () => {
         return entry;
     }
 
-    it.each([true, false])(
-        'preserves a fresh pending import on re-export (Electron: %s)',
-        async (electron) => {
-            const state = seedState();
-            state.xtreamFavorites.push({
-                xtream_id: 501,
-                type: 'series',
-                position: 1,
-            });
-            const collaborators = createStatefulBackupCollaborators(state);
-            const service = createPlaylistBackupService(collaborators);
-            const original = await service.exportBackup();
-            const originalState = xtreamEntry(original.manifest).userState;
-            expect(originalState.sourcePins).toHaveLength(1);
-            state.xtreamCategories = [];
-            state.xtreamFavorites = [];
-            state.xtreamRecent = [];
-            state.playbackPositions = [];
-            state.sourcePins = [];
-            collaborators.databaseService.getXtreamImportStatus = async () =>
-                'idle';
-            if (!electron) delete electronWindow.electron;
+    // The browser build applies an import at once (see the PWA Xtream spec),
+    // so only the desktop leaves one pending while its catalog downloads.
+    it('preserves a fresh pending import on re-export', async () => {
+        const state = seedState();
+        state.xtreamFavorites.push({
+            xtream_id: 501,
+            type: 'series',
+            position: 1,
+        });
+        const collaborators = createStatefulBackupCollaborators(state);
+        const service = createPlaylistBackupService(collaborators);
+        const original = await service.exportBackup();
+        const originalState = xtreamEntry(original.manifest).userState;
+        expect(originalState.sourcePins).toHaveLength(1);
+        state.xtreamCategories = [];
+        state.xtreamFavorites = [];
+        state.xtreamRecent = [];
+        state.playbackPositions = [];
+        state.sourcePins = [];
+        collaborators.databaseService.getXtreamImportStatus = async () =>
+            'idle';
 
-            const summary = await service.importBackup(original.json);
-            expect(summary.failed).toBe(0);
-            const snapshot =
-                collaborators.pendingRestoreService.getSnapshotOrThrow(
-                    'xtream-1'
-                );
-            expect(snapshot).not.toBeNull();
-            // Pending state must remain exportable even while catalog/storage
-            // reads are unavailable; it is already the complete restore input.
-            jest.spyOn(
-                collaborators.databaseService,
-                'getFavorites'
-            ).mockRejectedValue(new Error('Catalog unavailable'));
-            jest.spyOn(
-                collaborators.playbackPositionService,
-                'getAllPlaybackPositionsOrThrow'
-            ).mockRejectedValue(new Error('Position storage unavailable'));
-            const exported = await service.exportBackup();
-            expect(xtreamEntry(exported.manifest).userState).toEqual(
-                originalState
-            );
-            expect(
-                collaborators.pendingRestoreService.getSnapshotOrThrow(
-                    'xtream-1'
-                )
-            ).toEqual(snapshot);
-        }
-    );
+        const summary = await service.importBackup(original.json);
+        expect(summary.failed).toBe(0);
+        const snapshot =
+            collaborators.pendingRestoreService.getSnapshotOrThrow('xtream-1');
+        expect(snapshot).not.toBeNull();
+        // Pending state must remain exportable even while catalog/storage
+        // reads are unavailable; it is already the complete restore input.
+        jest.spyOn(
+            collaborators.databaseService,
+            'getFavorites'
+        ).mockRejectedValue(new Error('Catalog unavailable'));
+        jest.spyOn(
+            collaborators.playbackPositionService,
+            'getAllPlaybackPositionsOrThrow'
+        ).mockRejectedValue(new Error('Position storage unavailable'));
+        const exported = await service.exportBackup();
+        expect(xtreamEntry(exported.manifest).userState).toEqual(originalState);
+        expect(
+            collaborators.pendingRestoreService.getSnapshotOrThrow('xtream-1')
+        ).toEqual(snapshot);
+    });
 
     it.each([true, false])(
         'honors empty pending collections and optional source pins (present: %s)',

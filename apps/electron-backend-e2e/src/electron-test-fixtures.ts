@@ -33,6 +33,10 @@ import {
     type ElectronExitConfirmationOptions,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
+import {
+    waitForXtreamImportCompleted,
+    xtreamPlaylistIdFromUrl,
+} from './xtream-import-wait';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -1069,7 +1073,10 @@ export async function importM3uPlaylistFromUrl(
         playlistUrl
     );
     if (userAgent !== undefined) {
-        await setInputValue(dialog.getByRole('textbox', { name: 'User agent', exact: true }), userAgent);
+        await setInputValue(
+            dialog.getByRole('textbox', { name: 'User agent', exact: true }),
+            userAgent
+        );
     }
     await dialog.getByRole('button', { name: /Add playlist/i }).click();
     await dialog.waitFor({ state: 'detached' });
@@ -1183,7 +1190,10 @@ export async function createMutableTextServer(
             return;
         }
 
-        if (options.requiredUserAgent && req.headers['user-agent'] !== options.requiredUserAgent) {
+        if (
+            options.requiredUserAgent &&
+            req.headers['user-agent'] !== options.requiredUserAgent
+        ) {
             res.writeHead(403);
             res.end('User-Agent required');
             return;
@@ -1465,20 +1475,23 @@ export async function clickCategoryByNameExact(
 }
 
 export function sourceRowByTitle(page: Page, title: string): Locator {
-    return page.locator('app-playlist-item').filter({
+    return page.locator('app-workspace-sources app-source-row').filter({
         hasText: flexibleTextPattern(title),
     });
 }
 
 export async function getVisibleSourceTitles(page: Page): Promise<string[]> {
-    return page.locator('app-playlist-item').evaluateAll((elements) =>
-        elements
-            .map((element) => {
-                const titleElement = element.querySelector('.playlist-title');
-                return titleElement?.textContent?.trim() ?? '';
-            })
-            .filter((title) => title.length > 0)
-    );
+    return page
+        .locator('app-workspace-sources app-source-row')
+        .evaluateAll((elements) =>
+            elements
+                .map((element) => {
+                    const titleElement =
+                        element.querySelector('.source-row__name');
+                    return titleElement?.textContent?.trim() ?? '';
+                })
+                .filter((title) => title.length > 0)
+        );
 }
 
 export async function selectSourceTypeFilter(
@@ -1493,8 +1506,10 @@ export async function selectSourceSort(
     sortLabel:
         | 'Date added (Newest first)'
         | 'Date added (Oldest first)'
+        | 'Last updated'
         | 'Name (A-Z)'
         | 'Name (Z-A)'
+        | 'Most channels'
         | 'Custom order'
 ): Promise<void> {
     const sortTrigger = page.locator('app-workspace-sources .sort-trigger');
@@ -1519,10 +1534,10 @@ export async function dragSourceBefore(
     sourceTitle: string,
     targetTitle: string
 ): Promise<void> {
-    const source = sourceRowByTitle(page, sourceTitle).locator('.drag-icon');
-    const target = sourceRowByTitle(page, targetTitle).locator(
-        '.playlist-item'
+    const source = sourceRowByTitle(page, sourceTitle).locator(
+        '.source-row__handle'
     );
+    const target = sourceRowByTitle(page, targetTitle).locator('.source-row');
 
     await expect(source.first()).toBeVisible();
     await expect(target.first()).toBeVisible();
@@ -1556,15 +1571,18 @@ export async function openSourceEditor(
     const row = sourceRowByTitle(page, title).first();
 
     await expect(row).toBeVisible();
-    await row.locator('.edit-btn').click();
+    await row.hover();
+    await row.locator('.source-row__edit').click();
     const dialog = page.locator('mat-dialog-container').last();
 
     await expect(dialog).toBeVisible();
     // Material applies its initial focus after the opening transition.
     await dialog.evaluate(async (element) => {
-        await Promise.all(element.getAnimations({ subtree: true }).map((animation) =>
-            animation.finished.catch(() => undefined)
-        ));
+        await Promise.all(
+            element
+                .getAnimations({ subtree: true })
+                .map((animation) => animation.finished.catch(() => undefined))
+        );
     });
     return dialog;
 }
@@ -1674,12 +1692,24 @@ export async function expectSourceDialogValues(
     }
 }
 
+/**
+ * Deletes a source from its ⋯ menu. The row leaves at once; the delete
+ * itself runs when the Undo toast closes, so this waits for the toast to go
+ * before the caller checks persisted state.
+ */
 export async function deleteSource(page: Page, title: string): Promise<void> {
     const row = sourceRowByTitle(page, title).first();
 
     await expect(row).toBeVisible();
-    await row.locator('.delete-btn').click();
-    await confirmDialog(page, 'Remove playlist');
+    await row.hover();
+    await row.locator('.source-row__more').click();
+    await page
+        .locator('.cdk-overlay-pane [mat-menu-item]')
+        .filter({ hasText: 'Remove playlist' })
+        .click();
+    const toast = page.locator('mat-snack-bar-container.app-toast');
+    await expect(toast).toContainText('Removed');
+    await expect(toast).toBeHidden({ timeout: 15000 });
 }
 
 export async function refreshSource(
@@ -1693,7 +1723,8 @@ export async function refreshSource(
     const row = sourceRowByTitle(page, title).first();
 
     await expect(row).toBeVisible();
-    await row.locator('.refresh-btn').click();
+    await row.hover();
+    await row.locator('.source-row__refresh').click();
 
     if (confirm) {
         await confirmDialog(page, 'Refresh playlist');
@@ -1707,10 +1738,10 @@ export async function waitForSourceRowIdle(
     const row = sourceRowByTitle(page, title).first();
 
     await expect(row).toBeVisible();
-    await expect(row.locator('.busy-state__message')).toHaveCount(0, {
+    await expect(row.locator('.source-row__busy')).toHaveCount(0, {
         timeout: 60000,
     });
-    await expect(row.locator('.action-spinner')).toHaveCount(0, {
+    await expect(row.locator('mat-spinner')).toHaveCount(0, {
         timeout: 60000,
     });
 }
@@ -1769,7 +1800,13 @@ export async function waitForXtreamImportToFinish(page: Page): Promise<void> {
     try {
         await overlay.waitFor({ state: 'visible', timeout: 5000 });
     } catch {
-        // The overlay may already be gone by the time the test reaches this point.
+        // The overlay may already be gone, or not shown yet: it appears only
+        // once the portal has answered, so the import status decides below.
+    }
+
+    const playlistId = xtreamPlaylistIdFromUrl(page.url());
+    if (playlistId) {
+        await waitForXtreamImportCompleted(page, playlistId);
     }
 
     await expect(overlay).toHaveCount(0, { timeout: 30000 });

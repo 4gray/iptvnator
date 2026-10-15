@@ -3,6 +3,7 @@
     "CLEAR": "지우기",
     "CLEAR_SEARCH": "검색 지우기",
     "CLOSE": "닫기",
+    "CLOSE_DIALOG": "대화 상자 닫기",
     "REMOVE": "제거",
     "BACK": "뒤로",
     "SHOW_MORE": "더 보기",
@@ -260,7 +261,10 @@
             "NAME_DESC": "이름 (Z-A)",
             "NEWEST": "추가 날짜 (최신순)",
             "OLDEST": "추가 날짜 (오래된순)",
-            "CUSTOM_ORDER": "사용자 지정 순서(드래그 앤 드롭)"
+            "CUSTOM_ORDER": "사용자 지정 순서(드래그 앤 드롭)",
+            "UPDATED": "최근 업데이트",
+            "CHANNELS": "채널 많은 순",
+            "FAILING_FIRST": "응답 없는 항목 먼저"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (로컬, URL, 텍스트)",
@@ -312,6 +316,24 @@
         "NAV_REMOTE": "원격",
         "NAV_DATA": "데이터",
         "NAV_BACKUP": "백업 및 데이터",
+        "NAV_SERVER": "서버",
+        "SERVER_DESCRIPTION": "플레이리스트, 즐겨찾기, 시청 진행 상황이 이 서버에 저장되며 이 서버를 여는 모든 기기에서 공유됩니다.",
+        "SERVER_CONNECTION": "연결",
+        "SERVER_CONNECTION_DESCRIPTION": "이 앱이 데이터를 저장하는 IPTVnator 서버입니다.",
+        "SERVER_CONNECTED": "연결됨",
+        "SERVER_OFFLINE": "사용할 수 없음",
+        "SERVER_STORAGE": "저장소",
+        "SERVER_STORAGE_DESCRIPTION": "모든 데이터는 서버의 데이터베이스 파일 하나에 보관됩니다. 다른 곳에 사본을 두려면 백업을 내보내세요.",
+        "SERVER_STORAGE_SUMMARY": "플레이리스트 {{playlists}}개 · {{size}}",
+        "SERVER_EXPORT_BACKUP": "백업 내보내기",
+        "SERVER_IMPORT_BROWSER": "이 브라우저의 플레이리스트",
+        "SERVER_IMPORT_BROWSER_DESCRIPTION": "서버를 사용하기 전에 이 브라우저에 저장된 플레이리스트입니다. 옮기면 모든 기기에서 볼 수 있으며, 서버에 이미 있는 플레이리스트는 병합됩니다.",
+        "SERVER_IMPORT_BROWSER_COUNT": "플레이리스트 {{count}}개가 이 브라우저에만 저장되어 있습니다.",
+        "SERVER_ACCESS": "접근",
+        "SERVER_ACCESS_DESCRIPTION": "이 서버의 라이브러리를 열 수 있는 사람.",
+        "SERVER_ACCESS_OPEN": "이 주소에 접속할 수 있는 누구나 사용할 수 있습니다. 토큰을 요구하려면 서버에 IPTVNATOR_ACCESS_TOKEN을 설정하세요.",
+        "SERVER_ACCESS_TOKEN": "이 서버는 액세스 토큰이 필요합니다.",
+        "SERVER_SIGN_OUT": "로그아웃",
         "NAV_ABOUT": "정보",
         "NAV_GROUP_APP": "앱",
         "NAV_GROUP_LIBRARY": "라이브러리",
@@ -589,6 +611,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "이후 릴리스",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "GitHub에서 {{version}}의 릴리스 노트를 찾을 수 없습니다. 릴리스가 삭제되었거나 아직 게시되지 않았을 수 있습니다.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "릴리스 노트를 불러올 수 없습니다.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "업데이트 알림을 표시할 수 없습니다. 앱 설정에서 업데이트를 확인하세요.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "이 빌드에서는 릴리스 노트를 사용할 수 없습니다.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "릴리스 페이지 열기",
         "APP_UPDATE_CHANNEL": "업데이트 채널",
@@ -637,6 +660,32 @@
             "PIN_CHANGED_TOAST": "PIN이 변경되었습니다",
             "LOCKED_TOAST": "잠겼습니다"
         }
+    },
+    "SERVER_STORAGE": {
+        "WRITE_FAILED": "서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
+        "TOO_LARGE": "이 플레이리스트는 서버가 허용하는 크기보다 큽니다.",
+        "MIGRATION_TITLE": "이 브라우저에서 플레이리스트 {{count}}개를 찾았습니다",
+        "MIGRATION_DESCRIPTION": "이 브라우저에만 저장되어 있습니다. 서버로 옮기면 이 주소를 여는 모든 기기에서 볼 수 있습니다. 이 브라우저에서는 아무것도 삭제되지 않습니다.",
+        "MIGRATION_LATER_HINT": "나중에 설정 → 서버에서 할 수 있습니다.",
+        "MIGRATION_NOT_NOW": "나중에",
+        "MIGRATION_MOVE": "서버로 옮기기",
+        "MIGRATION_DONE": "이동 {{imported}}개, 병합 {{merged}}개, 실패 {{failed}}개.",
+        "MIGRATION_FAILED": "옮기지 못했습니다. 플레이리스트는 이 브라우저에 그대로 있습니다. 설정 → 서버에서 다시 시도하세요.",
+        "MIGRATION_RELOAD": "새로고침",
+        "SIGN_IN_TITLE": "액세스 토큰 필요",
+        "SIGN_IN_DESCRIPTION": "이 IPTVnator 서버는 플레이리스트를 보여 주기 전에 액세스 토큰을 요청합니다.",
+        "SIGN_IN_TOKEN_LABEL": "액세스 토큰",
+        "SIGN_IN_HINT": "서버의 IPTVNATOR_ACCESS_TOKEN 설정에서 확인할 수 있습니다.",
+        "SIGN_IN_REJECTED": "토큰이 거부되었습니다. 확인하고 다시 시도하세요.",
+        "SIGN_IN_UNREACHABLE": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
+        "SIGN_IN_STORAGE": "이 브라우저에서는 IPTVnator가 토큰을 저장할 수 없습니다. 이 페이지의 사이트 데이터를 허용하고 다시 시도하세요.",
+        "SIGN_IN_CONTINUE": "계속",
+        "STATUS_ONLINE": "서버 연결됨",
+        "STATUS_OFFLINE": "서버를 사용할 수 없음",
+        "STATUS_UNAUTHORIZED": "서버에 액세스 토큰이 필요함",
+        "OFFLINE_BANNER": "서버를 사용할 수 없습니다. 서버가 다시 연결될 때까지 변경 사항을 저장할 수 없습니다.",
+        "RETRY": "다시 시도",
+        "DELETE_ALL_WARNING": "모든 기기에서 서버의 플레이리스트가 삭제됩니다."
     },
     "THEMES": {
         "DARK_THEME": "어둡게",
@@ -980,6 +1029,7 @@
         },
         "FETCH_SUCCESS": "EPG를 성공적으로 가져왔습니다",
         "IMPORT_PROGRESS": "EPG 가져오기",
+        "IMPORT_PANEL_UNAVAILABLE": "EPG 가져오기 패널을 불러올 수 없습니다. 가져오기 진행 상황을 보려면 앱을 다시 시작하세요. 각 소스의 상태는 EPG 설정에서 확인할 수 있습니다.",
         "CHANNELS": "채널",
         "PROGRAMS": "프로그램",
         "LOADING": "불러오는 중",
@@ -1904,7 +1954,29 @@
             "STALKER_PLAYLISTS": "Stalker 재생목록",
             "ALL_PLAYLISTS": "모든 재생목록",
             "PLAYLIST_COUNT_ONE": "1개 재생목록",
-            "PLAYLIST_COUNT_OTHER": "{{count}}개 재생목록"
+            "PLAYLIST_COUNT_OTHER": "{{count}}개 재생목록",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · 파일",
+                "ADDED": "{{date}} 추가됨",
+                "UPDATED": "{{date}} 업데이트됨",
+                "UNREACHABLE": "응답 없음",
+                "UNREACHABLE_FOR": "응답 없음 · {{duration}}",
+                "EXPIRED": "만료됨",
+                "EDIT": "편집…",
+                "COPY_URL": "URL 복사",
+                "OPEN": "열기",
+                "CHANNELS_ONE": "채널 1개"
+            },
+            "STATUS": "상태",
+            "STATUS_ANY": "전체",
+            "STATUS_OK": "응답함",
+            "STATUS_BAD": "응답 없음",
+            "NO_MATCHES": "이 필터와 일치하는 재생목록이 없습니다",
+            "RESET_FILTERS": "필터 초기화",
+            "REMOVED": "'{{name}}' 삭제됨",
+            "REMOVED_SWITCHED": "'{{name}}' 삭제됨, '{{next}}'(으)로 전환됨",
+            "REMOVE_FAILED": "'{{name}}'을(를) 삭제할 수 없습니다",
+            "ADD_SOURCE": "소스 추가"
         },
         "CONTEXT": {
             "CATEGORIES": "카테고리",
@@ -1973,7 +2045,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "명령 팔레트 선택 이동",
                 "COMMAND_PALETTE_RUN": "선택한 명령 팔레트 항목 실행",
                 "CLOSE_DIALOGS": "대화상자 닫기 또는 오버레이 해제",
-                "DOWNLOADS_OPEN_ITEM": "포커스된 다운로드 항목을 라이브러리에서 열기"
+                "DOWNLOADS_OPEN_ITEM": "포커스된 다운로드 항목을 라이브러리에서 열기",
+                "OPEN_PLAYLIST_SWITCHER": "재생목록 전환"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1996,6 +2069,15 @@
             "NO_PLAYLISTS_BODY": "플레이리스트를 추가하면 시청 기록이 여기에 표시됩니다.",
             "NO_ITEMS_TITLE": "아직 시청 기록이 없습니다",
             "NO_ITEMS_BODY": "라이브러리의 콘텐츠를 시청하기 시작하면 여기에 표시됩니다."
+        },
+        "SWITCHER": {
+            "SEARCH": "재생목록 찾기…",
+            "RECENT": "최근",
+            "NO_MATCHES": "찾은 항목 없음",
+            "ALL_SOURCES": "모든 소스",
+            "HINT_SELECT": "선택",
+            "HINT_OPEN": "열기",
+            "HINT_CLOSE": "닫기"
         }
     },
     "LOADING": "로드 중",

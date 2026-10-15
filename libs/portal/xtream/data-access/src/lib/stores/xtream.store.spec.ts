@@ -345,6 +345,39 @@ describe('XtreamStore VOD details recovery', () => {
         expect(store.isLoadingDetails()).toBe(false);
     });
 
+    it('publishes series details without provider stand-ins', async () => {
+        const xtreamApiService = {
+            getSeriesInfo: jest.fn().mockResolvedValue({
+                info: {
+                    name: 'Placeholder Series',
+                    plot: 'N/A',
+                    rating: '0',
+                    releaseDate: 'N/A',
+                },
+                seasons: [],
+                episodes: {},
+            }),
+            getVodInfo: jest.fn(),
+            getVodStream: jest.fn(),
+        };
+        const store = configureStore(xtreamApiService);
+
+        store.fetchSerialDetailsWithMetadata({
+            categoryId: 7,
+            serialId: '99',
+        });
+        await waitForCondition(() => store.selectedItem() !== null);
+
+        expect(
+            (store.selectedItem() as { info: Record<string, unknown> }).info
+        ).toEqual({
+            name: 'Placeholder Series',
+            plot: '',
+            rating: '',
+            releaseDate: '',
+        });
+    });
+
     it('clears the previous series while a reused-route request is pending or fails', async () => {
         const nextDetails = createDeferred<never>();
         const xtreamApiService = {

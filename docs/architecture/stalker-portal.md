@@ -242,7 +242,12 @@ barrier and row reservation before its persisted-source preflight; contention
 or unavailable PWA locking declines repair without discovery, while an acquired
 reservation stays held through its conditional row transform. The reservation
 blocks every new authentication (including a URL edit with the same normalized
-fingerprint) and repair, and drains any work already in flight.
+fingerprint) and repair, and drains any work already in flight. Delete All
+drains the playlist writes queued before it, then takes the exclusive reset;
+later writes wait for the delete before they join their playlist's queue, so
+no queue holds work blocked on the reset, except a write under a reservation
+this tab holds (`holdsPlaylistAuthority`), which joins at once since the
+reset waits for that reservation.
 When Save follows a lazy repair in the same tab, Edit publishes its local
 authentication owner first, drains that repair through the actual Web Lock
 request completion, and only then requests the row reservation itself. Repair
@@ -421,6 +426,23 @@ Failure-handling rule:
 - Failed category or content requests must degrade into empty/error UI state,
   not `undefined` collections or renderer exceptions. The workspace Stalker
   context panel and live layout rely on this guarantee.
+
+Detail metadata rule:
+
+- `createStalkerInfo()` (`stalker-vod.utils.ts`) is the mapping both detail
+  templates read: the series view binds `info` directly and the shared VOD
+  view reads it through `normalizeStalkerVod()`. Each field takes the first
+  usable candidate, and portal stand-ins (`N/A`, `-`, an unrated `0` score)
+  become `''` there — see the placeholder rule in
+  [Embedded Inline Playback](./embedded-inline-playback.md). It runs before
+  TMDB enrichment, which keeps a non-empty provider rating and release date,
+  so a surviving stand-in would also block the TMDB value.
+- It also runs AFTER enrichment: the series view re-normalizes the store item
+  on every render, so it carries every `tmdb_*` field over. The key list
+  (`TMDB_ENRICHMENT_KEYS`) is typed as a `Record` over `StalkerVodInfo`'s
+  `tmdb_*` keys, so a new enrichment field fails to compile until it is listed
+  there instead of silently vanishing from the view (as the genre and country
+  Discover chips once did).
 
 ## Stalker Identity Policy
 

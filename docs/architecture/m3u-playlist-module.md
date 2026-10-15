@@ -633,6 +633,19 @@ channel-list-container/
 - `PlaylistsService.updatePlaylistMeta()` persists `hiddenGroupTitles` into the
   stored playlist payload, and M3U refresh/update flows preserve the existing
   value when refreshed playlist data omits the field.
+- Electron loads the playlist store from `DB_GET_APP_PLAYLIST_METAS`, which
+  reads columns only, so `hiddenGroupTitles` is absent from the store after a
+  restart. `M3uWorkspaceRouteSession` copies it from the full playlist read into
+  the store (`updatePlaylistMeta` with `persist: false`) before publishing the
+  channels, unless the store value changed while that read was queued (#1894).
+  A restored or deep-linked route can finish that read before the startup
+  inventory, which waits for settings and EPG reconciliation, publishes the
+  playlist; the hydration then waits for the entity, since `updateOne` drops an
+  update for a missing one. The startup screen keeps the router outlet hidden
+  until that inventory is published, and the hydration runs in the same store
+  update, so the rail never renders a hidden group. A save's meta write joins
+  the per-playlist queue that `getPlaylist()` reads through, so a reopened
+  route reads the saved value.
 - The groups route keeps the manage action reachable even when every group is
   hidden by separating "playlist has no groups" from "no visible/search-matching
   groups" empty states.
@@ -1843,6 +1856,15 @@ shared data access. Electron checks Xtream account info, Stalker account/profile
 facts through the existing session, and the first 64 KiB of M3U URL responses.
 An M3U success describes the playlist URL, not every channel. Local files and
 text imports have no network indicator. PWA retains its existing Xtream path.
+Lists read one status per source through `SourceStatusService`, which falls
+back to the last conclusive result kept by `SourceHealthHistoryService`
+(localStorage, by playlist ID: state, check time, the start of a failing
+run, the check's cause and a 32-bit fingerprint of the checked connection;
+no URL or credential). A result kept for an edited address or account is
+ignored, and the next check starts the history over. Deleting a source or
+resetting the library clears its entry. The Sources page keeps every
+library source checked while it is open (`keepSourcesChecked`), so a status
+filter never hides the sources it is waiting for. See the [UI guidelines](iptvnator-ui-guidelines.md#network-source-indicators-electron).
 
 Checks are demand-driven, never a startup readiness barrier: four at a time,
 two per origin, shared between surfaces. Known results remain visible during

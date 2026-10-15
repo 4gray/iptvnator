@@ -3,6 +3,7 @@
     "CLEAR": "Borrar",
     "CLEAR_SEARCH": "Borrar búsqueda",
     "CLOSE": "Cerrar",
+    "CLOSE_DIALOG": "Cerrar el diálogo",
     "REMOVE": "Quitar",
     "BACK": "Atrás",
     "SHOW_MORE": "Más",
@@ -260,7 +261,10 @@
             "NAME_DESC": "Nombre (Z-A)",
             "NEWEST": "Fecha de adición (más recientes primero)",
             "OLDEST": "Fecha de adición (más antiguas primero)",
-            "CUSTOM_ORDER": "Orden personalizado (arrastrar y soltar)"
+            "CUSTOM_ORDER": "Orden personalizado (arrastrar y soltar)",
+            "UPDATED": "Última actualización",
+            "CHANNELS": "Más canales",
+            "FAILING_FIRST": "Primero las que no responden"
         },
         "PLAYLIST_TYPES": {
             "M3U": "M3U (local, url, texto)",
@@ -312,6 +316,24 @@
         "NAV_REMOTE": "Remoto",
         "NAV_DATA": "Datos",
         "NAV_BACKUP": "Copia de seguridad y datos",
+        "NAV_SERVER": "Servidor",
+        "SERVER_DESCRIPTION": "Las listas de reproducción, los favoritos y el progreso de visualización se guardan en este servidor y los comparten todos los dispositivos que lo abren.",
+        "SERVER_CONNECTION": "Conexión",
+        "SERVER_CONNECTION_DESCRIPTION": "El servidor de IPTVnator en el que guarda esta aplicación.",
+        "SERVER_CONNECTED": "Conectado",
+        "SERVER_OFFLINE": "No disponible",
+        "SERVER_STORAGE": "Almacenamiento",
+        "SERVER_STORAGE_DESCRIPTION": "Todo se guarda en un único archivo de base de datos en el servidor. Exporte una copia de seguridad para conservar una copia en otro lugar.",
+        "SERVER_STORAGE_SUMMARY": "{{playlists}} listas de reproducción · {{size}}",
+        "SERVER_EXPORT_BACKUP": "Exportar copia",
+        "SERVER_IMPORT_BROWSER": "Listas en este navegador",
+        "SERVER_IMPORT_BROWSER_DESCRIPTION": "Listas de reproducción guardadas en este navegador antes de que usara el servidor. Muévalas para que todos los dispositivos las vean; las que el servidor ya tiene se combinan.",
+        "SERVER_IMPORT_BROWSER_COUNT": "{{count}} listas de reproducción solo están guardadas en este navegador.",
+        "SERVER_ACCESS": "Acceso",
+        "SERVER_ACCESS_DESCRIPTION": "Quién puede abrir la biblioteca de este servidor.",
+        "SERVER_ACCESS_OPEN": "Cualquiera que llegue a esta dirección puede usarlo. Defina IPTVNATOR_ACCESS_TOKEN en el servidor para exigir un token.",
+        "SERVER_ACCESS_TOKEN": "Este servidor requiere un token de acceso.",
+        "SERVER_SIGN_OUT": "Cerrar sesión",
         "NAV_ABOUT": "Acerca de",
         "NAV_GROUP_APP": "Aplicación",
         "NAV_GROUP_LIBRARY": "Biblioteca",
@@ -589,6 +611,7 @@
         "APP_UPDATE_RELEASE_NOTES_NEWER": "Versión más reciente",
         "APP_UPDATE_RELEASE_NOTES_NOT_FOUND": "No se encontraron notas de la versión {{version}} en GitHub. Es posible que la versión se haya eliminado o aún no esté publicada.",
         "APP_UPDATE_RELEASE_NOTES_LOAD_FAILED": "No se pudieron cargar las notas de la versión.",
+        "APP_UPDATE_PANEL_UNAVAILABLE": "No se pudo mostrar la notificación de actualización. Busca actualizaciones en los ajustes de la aplicación.",
         "APP_UPDATE_RELEASE_NOTES_UNAVAILABLE": "Las notas de la versión no están disponibles en esta compilación.",
         "APP_UPDATE_OPEN_RELEASES_PAGE": "Abrir página de versiones",
         "APP_UPDATE_CHANNEL": "Canal de actualizaciones",
@@ -637,6 +660,32 @@
             "PIN_CHANGED_TOAST": "PIN cambiado",
             "LOCKED_TOAST": "Bloqueado"
         }
+    },
+    "SERVER_STORAGE": {
+        "WRITE_FAILED": "No se pudo guardar en el servidor. Compruebe la conexión e inténtelo de nuevo.",
+        "TOO_LARGE": "Esta lista de reproducción supera el tamaño que acepta el servidor.",
+        "MIGRATION_TITLE": "Se encontraron {{count}} listas de reproducción en este navegador",
+        "MIGRATION_DESCRIPTION": "Solo están guardadas en este navegador. Muévalas al servidor para que las vean todos los dispositivos que abren esta dirección. No se borra nada de este navegador.",
+        "MIGRATION_LATER_HINT": "Puede hacerlo más tarde en Ajustes → Servidor.",
+        "MIGRATION_NOT_NOW": "Ahora no",
+        "MIGRATION_MOVE": "Mover al servidor",
+        "MIGRATION_DONE": "Movidas: {{imported}}, combinadas: {{merged}}, fallidas: {{failed}}.",
+        "MIGRATION_FAILED": "No se pudieron mover. Sus listas siguen en este navegador; inténtelo de nuevo en Ajustes → Servidor.",
+        "MIGRATION_RELOAD": "Recargar",
+        "SIGN_IN_TITLE": "Se necesita un token de acceso",
+        "SIGN_IN_DESCRIPTION": "Este servidor de IPTVnator pide un token de acceso antes de mostrar sus listas de reproducción.",
+        "SIGN_IN_TOKEN_LABEL": "Token de acceso",
+        "SIGN_IN_HINT": "Lo encontrará en el ajuste IPTVNATOR_ACCESS_TOKEN del servidor.",
+        "SIGN_IN_REJECTED": "Token rechazado. Compruébelo e inténtelo de nuevo.",
+        "SIGN_IN_UNREACHABLE": "No se puede contactar con el servidor. Compruebe la conexión e inténtelo de nuevo.",
+        "SIGN_IN_STORAGE": "Este navegador no permite que IPTVnator guarde el token. Permita los datos del sitio para esta página e inténtelo de nuevo.",
+        "SIGN_IN_CONTINUE": "Continuar",
+        "STATUS_ONLINE": "Servidor conectado",
+        "STATUS_OFFLINE": "Servidor no disponible",
+        "STATUS_UNAUTHORIZED": "El servidor necesita un token de acceso",
+        "OFFLINE_BANNER": "Servidor no disponible. Los cambios no se pueden guardar hasta que vuelva.",
+        "RETRY": "Reintentar",
+        "DELETE_ALL_WARNING": "Esto elimina las listas de reproducción del servidor para todos los dispositivos."
     },
     "THEMES": {
         "DARK_THEME": "Oscuro",
@@ -980,6 +1029,7 @@
         },
         "FETCH_SUCCESS": "EPG obtenida correctamente",
         "IMPORT_PROGRESS": "Importación de EPG",
+        "IMPORT_PANEL_UNAVAILABLE": "No se pudo cargar el panel de importación de EPG. Reinicia la aplicación para ver el progreso de la importación; el estado de cada fuente sigue en los ajustes de EPG.",
         "CHANNELS": "canales",
         "PROGRAMS": "programas",
         "LOADING": "Cargando",
@@ -1904,7 +1954,29 @@
             "STALKER_PLAYLISTS": "Listas Stalker",
             "ALL_PLAYLISTS": "Todas las listas",
             "PLAYLIST_COUNT_ONE": "1 lista de reproducción",
-            "PLAYLIST_COUNT_OTHER": "{{count}} listas de reproducción"
+            "PLAYLIST_COUNT_OTHER": "{{count}} listas de reproducción",
+            "ROW": {
+                "TYPE_M3U_FILE": "M3U · archivo",
+                "ADDED": "añadido el {{date}}",
+                "UPDATED": "actualizado el {{date}}",
+                "UNREACHABLE": "No responde",
+                "UNREACHABLE_FOR": "No responde · {{duration}}",
+                "EXPIRED": "Caducada",
+                "EDIT": "Editar…",
+                "COPY_URL": "Copiar URL",
+                "OPEN": "Abrir",
+                "CHANNELS_ONE": "1 canal"
+            },
+            "STATUS": "Estado",
+            "STATUS_ANY": "Cualquiera",
+            "STATUS_OK": "Responden",
+            "STATUS_BAD": "No responden",
+            "NO_MATCHES": "Ninguna lista coincide con estos filtros",
+            "RESET_FILTERS": "Restablecer filtros",
+            "REMOVED": "Se eliminó «{{name}}»",
+            "REMOVED_SWITCHED": "Se eliminó «{{name}}» y se cambió a «{{next}}»",
+            "REMOVE_FAILED": "No se pudo eliminar «{{name}}»",
+            "ADD_SOURCE": "Añadir una fuente"
         },
         "CONTEXT": {
             "CATEGORIES": "Categorías",
@@ -1973,7 +2045,8 @@
                 "COMMAND_PALETTE_NAVIGATION": "Mover la selección de la paleta de comandos",
                 "COMMAND_PALETTE_RUN": "Ejecutar el elemento seleccionado de la paleta de comandos",
                 "CLOSE_DIALOGS": "Cerrar diálogo o descartar superposición",
-                "DOWNLOADS_OPEN_ITEM": "Abrir en la biblioteca el elemento de descarga enfocado"
+                "DOWNLOADS_OPEN_ITEM": "Abrir en la biblioteca el elemento de descarga enfocado",
+                "OPEN_PLAYLIST_SWITCHER": "Cambiar de lista"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -1996,6 +2069,15 @@
             "NO_PLAYLISTS_BODY": "Añade una lista de reproducción y tu historial de visualización aparecerá aquí.",
             "NO_ITEMS_TITLE": "Aún no has visto nada",
             "NO_ITEMS_BODY": "Empieza a ver cualquier contenido de tu biblioteca y aparecerá aquí."
+        },
+        "SWITCHER": {
+            "SEARCH": "Buscar una lista…",
+            "RECENT": "Recientes",
+            "NO_MATCHES": "No se encontró nada",
+            "ALL_SOURCES": "Todas las fuentes",
+            "HINT_SELECT": "elegir",
+            "HINT_OPEN": "abrir",
+            "HINT_CLOSE": "cerrar"
         }
     },
     "LOADING": "Cargando",
