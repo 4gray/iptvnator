@@ -702,7 +702,8 @@ describe('PWA Xtream collection identity', () => {
                 source.addFavorite({ id: 42, type: 'movie' }, 'p1')
             ).rejects.toThrow('XTREAM_FAVORITE_IDENTITY_CONFLICT');
             expect((await source.getFavorites('p1'))[0].title).toBe('Original');
-            await source.removeFavorite({ id: 42, type: 'movie' }, 'p1');
+            // Explicit removal carries the original saved identity, as the Favorites row does.
+            await source.removeFavorite({ id: 42, type: 'movie', identity: { tmdbId: 100 } }, 'p1');
             const setItem = Storage.prototype.setItem;
             const quota = jest
                 .spyOn(Storage.prototype, 'setItem')

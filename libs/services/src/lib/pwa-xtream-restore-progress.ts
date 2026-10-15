@@ -15,6 +15,8 @@ type StoredMap = Record<string, unknown>;
 interface Receipt {
     id: string;
     keys?: string[];
+    /** Desired replacement until server acknowledgement; explicit page edits update it. */
+    serverList?: unknown[];
 }
 const record = (value: unknown): value is StoredMap =>
     !!value && typeof value === 'object' && !Array.isArray(value);
@@ -39,13 +41,17 @@ export class PwaXtreamRestoreProgress {
 
     writeList(name: ListName, list: unknown[]): void {
         const map = this.read(name);
-        if (this.receipt(map, name === 'favorites')) return;
+        const previousReceipt = this.receipt(map, name === 'favorites');
+        if (previousReceipt && !previousReceipt.serverList) return;
+        if (previousReceipt?.serverList) list = previousReceipt.serverList;
         const previous = map[XTREAM_RESTORE_RECEIPTS];
-        const receipt: Receipt = { id: this.id };
-        if (name === 'favorites')
+        const receipt: Receipt = previousReceipt ?? { id: this.id };
+        if (name === 'favorites' && !previousReceipt)
             receipt.keys = list.filter(
                 (key): key is string => typeof key === 'string'
             );
+
+        if (this.storage.flushed) receipt.serverList = list;
 
         this.storage.setItem(
             XTREAM_USER_DATA_KEYS[name],
@@ -58,6 +64,57 @@ export class PwaXtreamRestoreProgress {
                 },
             })
         );
+    }
+
+    /** Export the still-unconfirmed target, rather than a server-conflicted merged list. */
+    serverListFor(name: ListName): unknown[] | undefined {
+        return this.receipt(this.read(name), name === 'favorites')?.serverList;
+    }
+
+    async confirmServer(): Promise<void> {
+        if (!this.storage.flushed) return;
+        if (!(await this.storage.flushed(this.playlistId)))
+            throw new Error(
+                'The server did not take the restored lists; the restore waits.'
+            );
+        const updates: { name: ListName; map: StoredMap; receipt: Receipt }[] =
+            [];
+        for (const name of [
+            'favorites',
+            'recentItems',
+            'playbackPositions',
+        ] as const) {
+            const map = this.read(name);
+            const receipt = this.receipt(map, name === 'favorites');
+            if (!receipt)
+                throw new Error(
+                    'The lists changed elsewhere during the restore; its progress is missing.'
+                );
+            if (!receipt.serverList) continue;
+            if (
+                JSON.stringify(map[this.playlistId] ?? []) !==
+                JSON.stringify(receipt.serverList)
+            )
+                throw new Error(
+                    'The lists changed elsewhere during the restore; it runs again.'
+                );
+            updates.push({ name, map, receipt });
+        }
+        // All targets are confirmed before compacting any local receipt. A failed write stays pending.
+        for (const { name, map, receipt } of updates) {
+            const { serverList, ...confirmed } = receipt;
+            void serverList;
+            this.storage.setItem(
+                XTREAM_USER_DATA_KEYS[name],
+                JSON.stringify({
+                    ...map,
+                    [XTREAM_RESTORE_RECEIPTS]: {
+                        ...(map[XTREAM_RESTORE_RECEIPTS] as StoredMap),
+                        [this.playlistId]: confirmed,
+                    },
+                })
+            );
+        }
     }
 
     /** Only explicit favorite edits can supersede parked metadata; cache writes cannot. */
@@ -130,8 +187,16 @@ export class PwaXtreamRestoreProgress {
                 saved['keys'].some((key) => typeof key !== 'string'))
         )
             throw new Error('Stored favorites restore receipt is unreadable.');
+        if (
+            saved['serverList'] !== undefined &&
+            !Array.isArray(saved['serverList'])
+        )
+            throw new Error('Stored server restore target is unreadable.');
         return {
             id: this.id,
+            ...(Array.isArray(saved['serverList'])
+                ? { serverList: saved['serverList'] }
+                : {}),
             keys: Array.isArray(saved['keys'])
                 ? saved['keys'].filter(
                       (key): key is string => typeof key === 'string'

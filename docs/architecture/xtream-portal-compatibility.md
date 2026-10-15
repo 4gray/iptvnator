@@ -113,7 +113,11 @@ In server-storage mode the same shared import/replay boundary waits for a fresh
 user-data read and earlier writes, then confirms the restored lists and required
 snapshots with the server before consuming pending state. Restore receipts remain
 client metadata in the atomic cache blob, never server playlist entries. Hydration
-preserves them and shrinks favorite ownership on remote removals. Receipt-bearing
+preserves them and shrinks favorite ownership on remote removals. Local write completion is separate from server confirmation: an unconfirmed receipt
+retains its replacement target until the server accepts it. Retry and pending export use
+that target, rather than a conflict-merged list. Explicit favorite/history/position edits
+update the target atomically with their list and receipt, preserving removals and re-adds.
+Only confirmed receipts may shrink ownership from later remote removals. Receipt-bearing
 writes reject browser quota failures rather than acknowledge only in memory; ordinary
 receipt-free server caches retain their existing memory fallback.
 
@@ -133,7 +137,9 @@ favorite date/order or an independent Recent snapshot's identity. Browser snapsh
 record whether missing status came from absence or a known identity conflict.
 A sparse returning typed row clears proven absence while retaining the saved
 presentation and identity. It cannot clear a known conflict or an older missing
-status whose cause is unknown; those still require identity confirmation. This
+status whose cause is unknown; those still require identity confirmation. Favorite-status checks and stale detail-heart
+mutations use the same retained-conflict rule; explicit removal with the saved original
+identity remains available from Favorites. This
 evidence survives reload and browser backup/restore for Favorites and Recent.
 Favorite snapshot backups include allowlisted availability evidence in pending
 state too, so retrying a failed snapshot write cannot enable a known conflict.

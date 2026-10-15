@@ -1272,7 +1272,8 @@ describe('PwaXtreamDataSource', () => {
             ).resolves.toBeUndefined();
 
             merge = true;
-            await expect(source.restoreUserData('p1', state)).rejects.toThrow(
+            // A new import gets a new receipt; completed replays intentionally preserve later edits.
+            await expect(source.restoreUserData('p1', { ...(state as object), favoritesRestoreId: 'new-conflicting-import' } as never)).rejects.toThrow(
                 /changed elsewhere/
             );
         });

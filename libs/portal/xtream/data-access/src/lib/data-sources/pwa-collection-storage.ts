@@ -94,7 +94,8 @@ export class PwaCollectionStorage {
                     this.resolveItems(playlistId, [key], true, {
                         [key]: saved,
                     }).get(key),
-                true
+                saved.catalog_missing_reason !== 'identity_conflict' &&
+                    !(saved.catalog_status === 'missing' && saved.catalog_missing_reason !== 'absent')
             )
         );
     }

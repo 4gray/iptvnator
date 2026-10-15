@@ -22,7 +22,11 @@ it('keeps atomic restore receipts local across server reads, edits and reload', 
     new PwaXtreamRestoreProgress(storage, 'p1', state).writeList('favorites', [
         'movie:5',
     ]);
+    const remaining = new PwaXtreamRestoreProgress(storage, 'p1', state);
+    remaining.writeList('recentItems', []);
+    remaining.writeList('playbackPositions', []);
     await storage.flush();
+    await new PwaXtreamRestoreProgress(storage, 'p1', state).confirmServer();
     expect(Object.keys(server.state['xtream-favorites'])).toEqual(['p1']);
     await storage.hydrate();
     expect(

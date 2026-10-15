@@ -54,6 +54,45 @@ describe('PWA favorite action and detail identity', () => {
         localStorage.clear();
     });
 
+    it.each([false, true])(
+        'rejects sparse replacement hearts after a latched conflict (warm=%s)',
+        async (warm) => {
+            const saved = {
+                id: 42,
+                xtream_id: 42,
+                type: 'movie',
+                title: 'Original',
+                tmdb_id: 100,
+                release_year: 1995,
+                catalog_status: 'missing',
+                catalog_missing_reason: 'identity_conflict',
+            };
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ p1: ['movie:42'] })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({ p1: { 'movie:42': saved } })
+            );
+            if (warm) await source.getContent('p1', credentials, 'movie');
+            const ref = { id: 42, type: 'movie' as const };
+            expect(await source.isFavorite(ref, 'p1')).toBe(false);
+            await expect(source.addFavorite(ref, 'p1')).rejects.toThrow(
+                'XTREAM_FAVORITE_IDENTITY_CONFLICT'
+            );
+            await expect(source.removeFavorite(ref, 'p1')).rejects.toThrow(
+                'XTREAM_FAVORITE_IDENTITY_CONFLICT'
+            );
+            expect(read('xtream-favorites').p1).toEqual(['movie:42']);
+            await source.removeFavorite(
+                { ...ref, identity: { tmdbId: 100, releaseYear: 1995 } },
+                'p1'
+            );
+            expect(read('xtream-favorites').p1).toEqual([]);
+        }
+    );
+
     it('keeps a PWA removal and replacement through pending snapshot replay', async () => {
         const state = {
             favoritesRestoreId: 'backup-1',

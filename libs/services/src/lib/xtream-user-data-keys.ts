@@ -1,3 +1,5 @@
+import { applyExplicitRestoreListEdits } from './pwa-xtream-restore-edits';
+
 /**
  * The PWA Xtream user-data maps in USER_DATA_STORAGE, each a JSON object
  * keyed by playlist id. Shared with the playlist backup, which reads and
@@ -48,6 +50,29 @@ export function writeXtreamUserDataMap(
                 ...value,
                 keys: value['keys'].filter(
                     (id) => !before.has(id) || after.has(id)
+                ),
+            };
+        }
+    }
+    if (retained) {
+        for (const [playlistId, receipt] of Object.entries(retained)) {
+            if (!isRecord(receipt) || !Array.isArray(receipt['serverList']))
+                continue;
+            retained[playlistId] = {
+                ...receipt,
+                serverList: applyExplicitRestoreListEdits(
+                    receipt['serverList'],
+                    Array.isArray(stored[playlistId])
+                        ? (stored[playlistId] as unknown[])
+                        : [],
+                    Array.isArray(map[playlistId])
+                        ? (map[playlistId] as unknown[])
+                        : [],
+                    key === XTREAM_USER_DATA_KEYS.favorites
+                        ? 'value'
+                        : key === XTREAM_USER_DATA_KEYS.recentItems
+                          ? 'id'
+                          : 'position'
                 ),
             };
         }

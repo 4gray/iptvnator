@@ -767,7 +767,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         const expected = collectionRefIdentity(contentId);
         if (
-            expected &&
             this.collectionStorage.hasFavoriteIdentityConflict(
                 playlistId,
                 normalizedContentId,

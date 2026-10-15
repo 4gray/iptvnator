@@ -11,7 +11,7 @@ import { normalizeXtreamPendingRestoreState } from '@iptvnator/shared/interfaces
 import type { UserDataStorage } from './user-data-storage';
 import { XTREAM_USER_DATA_KEYS } from './xtream-user-data-keys';
 import { PwaXtreamRestoreProgress } from './pwa-xtream-restore-progress';
-import { preparePwaRestore, confirmPwaRestore } from './pwa-xtream-restore-ack';
+import { preparePwaRestore } from './pwa-xtream-restore-ack';
 
 type StoredMap = Record<string, unknown>;
 type UserDataMap = keyof typeof XTREAM_USER_DATA_KEYS;
@@ -49,12 +49,18 @@ export class PwaXtreamBackupStorage {
         pending?: XtreamPendingRestoreState
     ): XtreamPlaylistBackupEntry {
         const playlistId = entry.exportedId;
+        const progress = pending
+            ? new PwaXtreamRestoreProgress(this.storage, playlistId, pending)
+            : undefined;
+        const listFor = (
+            name: 'favorites' | 'recentItems' | 'playbackPositions'
+        ) => progress?.serverListFor(name) ?? this.listFor(name, playlistId);
         const stored = this.readMap('collectionItems')[playlistId];
         const snapshots = isRecord(stored) ? stored : {};
         const byKey = snapshotsByKey(Object.values(snapshots));
 
         const favorites = new Map<string, XtreamBackupFavoriteItem>();
-        for (const key of this.listFor('favorites', playlistId)) {
+        for (const key of listFor('favorites')) {
             const ref = resolveKey(key, snapshots);
             if (ref)
                 favorites.set(
@@ -65,7 +71,7 @@ export class PwaXtreamBackupStorage {
 
         // Newest view wins, artwork included, as in the data source.
         const recent = new Map<string, XtreamBackupRecentlyViewedItem>();
-        for (const item of this.listFor('recentItems', playlistId)) {
+        for (const item of listFor('recentItems')) {
             if (!isRecord(item)) continue;
             const ref = resolveKey(item['id'], snapshots);
             const viewedAt = item['viewedAt'];
@@ -99,19 +105,13 @@ export class PwaXtreamBackupStorage {
                 ...entry.userState,
                 favorites: [...favorites.values()],
                 recentlyViewed: [...recent.values()],
-                playbackPositions: this.listFor('playbackPositions', playlistId)
+                playbackPositions: listFor('playbackPositions')
                     .filter(isPlaybackPosition)
                     .map((position) => ({ ...position })),
                 ...(collectionItems.length > 0 ? { collectionItems } : {}),
             },
         };
-        return pending
-            ? new PwaXtreamRestoreProgress(
-                  this.storage,
-                  playlistId,
-                  pending
-              ).exportInto(exported)
-            : exported;
+        return progress ? progress.exportInto(exported) : exported;
     }
 
     /**
@@ -216,10 +216,7 @@ export class PwaXtreamBackupStorage {
             progress.pendingSnapshots(snapshots),
             progress.pendingSnapshots(required)
         );
-        const lists = () => ['favorites', 'recentItems', 'playbackPositions'].map(
-            name => this.listFor(name as UserDataMap, playlistId)
-        );
-        await confirmPwaRestore(this.storage, playlistId, lists);
+        await progress.confirmServer();
     }
 
     private replaceLists(

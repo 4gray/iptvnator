@@ -16,20 +16,3 @@ export async function preparePwaRestore(
         );
     }
 }
-
-/** A restore stays parked until the server accepted its lists without a merged conflict. */
-export async function confirmPwaRestore(
-    storage: UserDataStorage,
-    playlistId: string,
-    lists: () => unknown[]
-): Promise<void> {
-    const expected = JSON.stringify(lists());
-    if ((await storage.flushed?.(playlistId)) === false)
-        throw new Error(
-            'The server did not take the restored lists; the restore waits.'
-        );
-    if (JSON.stringify(lists()) !== expected)
-        throw new Error(
-            'The lists changed elsewhere during the restore; it runs again.'
-        );
-}

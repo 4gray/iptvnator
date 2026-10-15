@@ -16,7 +16,12 @@ export function retainServerRestoreReceipts(
         return false;
     const next = { ...receipts };
     for (const [id, receipt] of Object.entries(receipts)) {
-        if (!record(receipt) || !Array.isArray(receipt['keys'])) continue;
+        if (
+            !record(receipt) ||
+            !Array.isArray(receipt['keys']) ||
+            receipt['serverList'] !== undefined
+        )
+            continue;
         const list = map[id];
         next[id] = {
             ...receipt,

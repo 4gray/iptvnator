@@ -932,3 +932,127 @@ test('@xtream @collections unavailable watched series retain history without req
     ).toBeVisible();
     expect(requests).toBe(0);
 });
+
+test('@xtream @collections sparse detail hearts cannot delete a retained conflicting favorite', async ({
+    page,
+    request,
+}) => {
+    const response = await request.get(`${MOCK_SERVER}/player_api.php`, {
+        params: {
+            username: DEFAULT_USERNAME,
+            password: DEFAULT_PASSWORD,
+            action: 'get_vod_streams',
+        },
+    });
+    const movie = (await response.json())[0];
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const original = new URL(route.request().url());
+        const action = original.searchParams.get('action');
+        if (action !== 'get_vod_streams' && action !== 'get_vod_info')
+            return route.fallback();
+        const url = new URL(`${MOCK_SERVER}/xtream`);
+        original.searchParams.forEach((value, key) => {
+            if (key !== 'targetId') url.searchParams.set(key, value);
+        });
+        const response = await route.fetch({ url: url.toString() });
+        const body = await response.json();
+        if (action === 'get_vod_streams') {
+            for (const row of body.payload) {
+                delete row.tmdb_id;
+                delete row.tmdb;
+                delete row.release_year;
+                delete row.release_date;
+            }
+        } else {
+            Object.assign(body.payload.info, {
+                tmdb_id: null,
+                tmdb: null,
+                release_year: null,
+                releasedate: null,
+                release_date: null,
+            });
+        }
+        await route.fulfill({ response, json: body });
+    });
+    await addXtreamPortal(page, { name: 'Sparse detail conflict' });
+    const portal = new URL(page.url()).pathname;
+    const rawId = /\/xtreams\/([^/]+)/.exec(portal)?.[1];
+    if (!rawId) throw new Error('Missing playlist ID');
+    const id = decodeURIComponent(rawId);
+    await page.evaluate(
+        ({ id, movie }) => {
+            const key = `movie:${movie.stream_id}`;
+            localStorage.setItem(
+                'xtream-favorites',
+                JSON.stringify({ [id]: [key] })
+            );
+            localStorage.setItem(
+                'xtream-collection-items',
+                JSON.stringify({
+                    [id]: {
+                        [key]: {
+                            id: movie.stream_id,
+                            xtream_id: movie.stream_id,
+                            type: 'movie',
+                            title: 'Older saved original',
+                            tmdb_id: 100,
+                            release_year: 1995,
+                            catalog_status: 'missing',
+                            catalog_missing_reason: 'identity_conflict',
+                        },
+                    },
+                })
+            );
+        },
+        { id, movie }
+    );
+    await page.reload();
+    await page
+        .locator(`[data-category-id="${movie.category_id}"]`)
+        .first()
+        .click();
+    await page.getByText(movie.name, { exact: true }).first().click();
+    const add = page
+        .getByRole('button', { name: 'Add to favorites', exact: true })
+        .first();
+    await expect(add).toBeVisible();
+    await add.click();
+    await expect(
+        page.getByText(
+            'This source replaced an item you saved. Remove the older entry from Favorites before adding this one.',
+            { exact: true }
+        )
+    ).toBeVisible();
+    expect(
+        await page.evaluate(
+            (id) =>
+                JSON.parse(
+                    localStorage.getItem('xtream-collection-items') ?? '{}'
+                )[id][
+                    Object.keys(
+                        JSON.parse(
+                            localStorage.getItem('xtream-collection-items') ??
+                                '{}'
+                        )[id]
+                    )[0]
+                ].tmdb_id,
+            id
+        )
+    ).toBe(100);
+    await page.goto('/workspace/global-favorites');
+    await expect(
+        page.getByRole('button', { name: 'Older saved original', exact: true })
+    ).toBeVisible();
+    await page
+        .getByRole('button', { name: 'Remove from favorites', exact: true })
+        .click();
+    expect(
+        await page.evaluate(
+            (id) =>
+                JSON.parse(localStorage.getItem('xtream-favorites') ?? '{}')[
+                    id
+                ],
+            id
+        )
+    ).toEqual([]);
+});
