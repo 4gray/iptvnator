@@ -353,6 +353,12 @@ test.describe('Electron catalog sort menus', () => {
             const trigger = page.locator(
                 'app-category-content-view .refine-action'
             );
+            // Keyboard only: park the pointer away from where the menu opens.
+            // Chromium hovers whatever lands under a resting pointer after a
+            // layout change, and Material opens a submenu on hover. With 36px
+            // rows the rating row sat under the CI runners' resting cursor, the
+            // thresholds opened on their own, and ArrowUp moved inside them.
+            await page.mouse.move(0, 0);
             await trigger.focus();
             await page.keyboard.press('Enter');
             const menu = refineMenuPanel(page);

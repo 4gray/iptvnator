@@ -64,10 +64,10 @@ the subsystem's document.
 **Consequences.**
 
 - Material upgrades can change behaviour. Seen in v22: the menu panel has no
-  max-height; a submenu is offset by the parent's first direct
-  `mat-menu-item`, so a trigger that follows `role="group"` rows is wrapped
-  in `<div role="none">`; overlay panes are `position: static` inside the
-  bounding box.
+  max-height (the kit panel adds one); a submenu is offset by the parent's
+  first direct `mat-menu-item`, so a trigger that follows `role="group"` rows
+  is wrapped in `<div role="none">`; overlay panes are `position: static`
+  inside the bounding box.
 - Keep E2E coverage on menus and dialogs.
 
 ## Canonical References
@@ -294,18 +294,20 @@ selection blue on its own tint is 3.3:1) and the selection colour in dark.
 
 ## Single-Choice Menus And Status Chips
 
-A `<mat-menu class="app-menu">` gets the kit panel from one global rule in
-`styles.scss` (`menu-panel` in `libs/ui/styles/_app-controls.scss`): a
-bordered 10px panel with 6px padding, 36px rows at 13px with 16px icons, the
-checked row on the list-selection tokens, a destructive row marked
-`app-menu-item--danger` after a divider, and a shortcut hint in a trailing
-`kbd.app-menu-item__kbd`. The panel renders in the overlay container, outside
-every component view, so a component never copies the mixin into its own
-stylesheet.
+Every `mat-menu` gets the kit panel from one global rule in `styles.scss`
+(`menu-panel` in `libs/ui/styles/_app-controls.scss`): a bordered 10px panel
+with 6px padding, 240–360px wide, 36px rows at 13px with 16px icons, the
+checked row on the list-selection tokens, and at most 480px tall (less in a
+short window), so a long list scrolls inside the panel. A destructive row
+carries `app-menu-item--danger` and sits after a `<mat-divider>`; a shortcut
+hint is a trailing `kbd.app-menu-item__kbd`. The panel renders in the overlay
+container, outside every component view, so a component neither copies the
+mixin nor styles its own panel; a section caption inside a menu uses the
+kit's 11px uppercase label, as the catalog refine menu does.
 
-A `mat-menu` that picks one value, such as a sort order or a rating
-threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
-`@iptvnator/ui/components`:
+A `mat-menu` that picks one value, such as a sort order, a rating threshold,
+a season or a guide scope, uses `appMenuItemRadio` and
+`appMenuItemRadioCheck` from `@iptvnator/ui/components`:
 
 ```html
 <button mat-menu-item [appMenuItemRadio]="mode() === option.mode">
@@ -323,14 +325,19 @@ threshold, uses `appMenuItemRadio` and `appMenuItemRadioCheck` from
   therefore shifted that row's label. In a button, put a trailing icon after
   the label with `iconPositionEnd`.
 - A semantic icon, if any, comes after the check slot.
+- `@iptvnator/ui/epg` sits below `@iptvnator/ui/components` in the
+  dependency graph, so the guide toolbar's scope menu spells the same markup
+  out: `role="menuitemradio"` on the item, `aria-checked`, and an
+  `app-menu-item-radio-check` icon hidden while unchecked.
 - A menu with several groups, such as the catalog refine menu, wraps each
   group in `role="group"`. The group is named by its section title, and
   `role="separator"` sits between groups.
-- Keep a menu short enough to open whole below its trigger in a 600px-tall
-  window. Material 22 sets no max-height on a menu panel: a taller menu is
-  pushed up over its own trigger, then clipped. Move a secondary group into
-  a submenu whose row shows the active value, as the refine menu does with
-  its rating thresholds.
+- Keep a menu of actions or groups short enough to open whole below its
+  trigger in a 600px-tall window. The kit panel caps every menu at 480px
+  (less in a short window) and scrolls past that, which suits a long list
+  of peers such as seasons or guide scopes, but a scrolled-off action is
+  easy to miss. Move a secondary group into a submenu whose row shows the
+  active value, as the refine menu does with its rating thresholds.
 - Material offsets a submenu by the `offsetTop` of the parent menu's first
   direct `mat-menu-item`. When the earlier rows sit inside a `role="group"`,
   that first direct item is the submenu trigger itself, and the submenu
