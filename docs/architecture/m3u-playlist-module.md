@@ -1827,6 +1827,11 @@ Refresh waits for its worker shutdown and starts a replacement instead of reusin
 its terminal result. Concurrent retries share the replacement; a clear during
 shutdown retires it. Failed worker shutdown must succeed before another import
 can write, and a failed retry reports an error rather than leaving progress queued.
+Fetch admission checks shutdown after local-file authorization, immediately before
+creating the worker. Source clears apply the same strict shutdown barrier even
+when the previous import or clear has already settled. Both paths recheck after
+every wait, so a newly pending shutdown cannot be bypassed while another worker
+is stopping; generation retirement still cancels imports waiting at this barrier.
 
 Every removed source emits generation-scoped cancellation before cleanup starts,
 including retained actionable errors whose workers have already finished. Retired

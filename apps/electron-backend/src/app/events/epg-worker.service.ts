@@ -171,24 +171,6 @@ export class EpgWorkerService {
         options: ElectronBridgeTrustOptions,
         generation: number
     ): Promise<void> {
-        // A prior terminal fetch can settle even after its shutdown failed.
-        // Retry that shutdown before admitting another SQLite writer.
-        const shutdown = this.runtime.drainTerminations();
-        if (shutdown) {
-            try {
-                await shutdown;
-            } catch (error) {
-                if (this.cancelIfRetired(url, generation)) return;
-                this.sendProgressToRenderer(
-                    url,
-                    'error',
-                    undefined,
-                    error instanceof Error ? error.message : String(error)
-                );
-                throw error;
-            }
-            if (this.cancelIfRetired(url, generation)) return;
-        }
         // The renderer's options must not be able to unlock the worker's
         // local branch: the flag is set here, only for an allowed path.
         const { allowLocalFile: _rendererFlag, ...trustOptions } =
@@ -223,6 +205,25 @@ export class EpgWorkerService {
                 throw new Error(EPG_LOCAL_SOURCE_REFUSED_MESSAGE);
             }
             workerOptions = { ...trustOptions, allowLocalFile: true };
+        }
+        // A prior terminal fetch can settle even after its shutdown failed.
+        // Retry that shutdown before admitting another SQLite writer.
+        let shutdown = this.runtime.drainTerminations();
+        while (shutdown) {
+            try {
+                await shutdown;
+            } catch (error) {
+                if (this.cancelIfRetired(url, generation)) return;
+                this.sendProgressToRenderer(
+                    url,
+                    'error',
+                    undefined,
+                    error instanceof Error ? error.message : String(error)
+                );
+                throw error;
+            }
+            if (this.cancelIfRetired(url, generation)) return;
+            shutdown = this.runtime.drainTerminations();
         }
         const workerFetch = runEpgFetch(url, workerOptions, {
             runtime: this.runtime,
@@ -320,6 +321,13 @@ export class EpgWorkerService {
         if (inFlight) await inFlight.catch(() => undefined);
         this.inFlightFetches.delete(normalizedSourceUrl);
 
+        // A settled fetch/clear can still own a failed shutdown. Recheck after
+        // each wait so another termination cannot be overtaken by this writer.
+        let shutdown = this.runtime.drainTerminations();
+        while (shutdown) {
+            await shutdown;
+            shutdown = this.runtime.drainTerminations();
+        }
         return this.runtime.runClearWorker({
             timeoutLabel: 'EPG source clear',
             exitLabel: 'Source clear worker',
