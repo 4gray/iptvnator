@@ -1189,9 +1189,10 @@ button chunk, ripple and the CDK a11y module left the initial bundle,
 1,349,048 to 1,237,440 bytes (-111,608, 8.3%) on a local build, and no
 Material module remains in it; merged with #1938 (the radio play control
 no longer a fab, so its theme tokens left the stylesheet), #1936 (one
-global kit layer replacing per-component overrides) and #1929 (zoneless
-renderer, no zone.js polyfill) the branch measures 1,178,109, which the
-baseline follows. Of the CDK, the overlay, scrolling and
+global kit layer replacing per-component overrides), #1929 (zoneless
+renderer, no zone.js polyfill) and #1903 (self-hosted server storage, which
+raised master's baseline by 7,245 bytes) the branch measures 1,187,983,
+which the baseline follows. Of the CDK, the overlay, scrolling and
 portal chunks (about 78 KB) stay through the `FullscreenOverlayContainer`
 provider in `app.config.ts`, whose token lives in the overlay chunk.
 
