@@ -2036,6 +2036,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "تبديل ملء الشاشة لنافذة التطبيق",
                 "ZOOM_IN_OUT": "تكبير التطبيق أو تصغيره",
                 "RESET_ZOOM": "إعادة ضبط تكبير التطبيق",
+                "GO_BACK": "العودة إلى الصفحة السابقة",
                 "TOGGLE_SIDEBAR": "تبديل الشريط الجانبي",
                 "M3U_CHANNEL_NUMBER": "اختيار قناة M3U حسب الرقم",
                 "PLAY_PAUSE": "تشغيل أو إيقاف تشغيل Embedded MPV مؤقتًا",

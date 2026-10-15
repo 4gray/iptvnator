@@ -49,7 +49,12 @@ and the history fallback on the list Back returns to.
 
 The header Back is route-level in both states: it emits `backClicked`
 whether or not inline playback is active, so the arrow keeps one meaning and
-the list is one click away while watching. Only Escape unwinds one level: watch
+the list is one click away while watching. The platform Back gestures (the
+mouse Back button, Alt+← / Cmd+[, and Electron's `app-command` and trackpad
+swipe; see "Platform gestures" in
+[Header Back](./workspace-shell.md#header-back)) run the same target, so they
+leave the page in watch too, except while the player is fullscreen, where
+they do nothing. Only Escape unwinds one level: watch
 emits `closePlayerRequested`, browse emits `backClicked`. Hosts retain their
 existing route/inline/collection return behavior. The now-playing bar carries
 no second arrow; its "Close player" button is the pointer counterpart of the

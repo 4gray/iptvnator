@@ -15,6 +15,7 @@ import {
     ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
     ANNOUNCE_PLAYLIST_OPEN_LISTENER,
     OPEN_FILE,
+    WINDOW_BACK_REQUESTED,
     WINDOW_GET_ZOOM_LEVEL,
     WINDOW_ZOOM_LEVEL_APPLIED,
 } from '@iptvnator/shared/interfaces/ipc-commands';
@@ -45,6 +46,7 @@ import type {
     EmbeddedMpvSupport,
     ElectronBridgeApi,
     ElectronBridgeAppUpdateReleaseNotesRequest,
+    ElectronBridgeBackGestureSource,
     ElectronBridgeAppUpdateStatus,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
@@ -446,6 +448,21 @@ const electronApi: ElectronBridgeApi = {
         ) => callback(state);
         ipcRenderer.on(WINDOW_STATE_CHANGED, handler);
         return () => ipcRenderer.off(WINDOW_STATE_CHANGED, handler);
+    },
+    onWindowBackRequested: (
+        callback: (source: ElectronBridgeBackGestureSource) => void
+    ) => {
+        // Only the two known sources cross the bridge.
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            source: unknown
+        ) => {
+            if (source === 'app-command' || source === 'swipe') {
+                callback(source);
+            }
+        };
+        ipcRenderer.on(WINDOW_BACK_REQUESTED, handler);
+        return () => ipcRenderer.off(WINDOW_BACK_REQUESTED, handler);
     },
     setWindowCloseGuard: (active: boolean) =>
         ipcRenderer.invoke(WINDOW_SET_CLOSE_GUARD, active),
