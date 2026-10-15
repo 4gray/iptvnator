@@ -20,6 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parse } from 'parse5';
+import ts from 'typescript';
 
 export const DEFAULT_DIST_DIR = 'dist/apps/web';
 export const INITIAL_BYTES_COUNTER = 'renderer.initialBytes';
@@ -109,17 +110,31 @@ export function extractInitialResources(html) {
 
 /**
  * Relative specifiers of the static `import` and `export … from`
- * declarations in an emitted ES module. A dynamic `import("…")` loads later
- * and is not matched; bare and absolute specifiers never point into the build.
+ * declarations in an emitted ES module, read from a parsed syntax tree, so
+ * text that only looks like an import (a string, template literal or comment)
+ * never counts. Static declarations are top-level statements only; a dynamic
+ * `import("…")` loads later and is an expression, not a declaration. Bare
+ * and absolute specifiers never point into the build.
  */
 export function extractStaticImports(source) {
+    const tree = ts.createSourceFile(
+        'module.js',
+        source,
+        ts.ScriptTarget.Latest,
+        false,
+        ts.ScriptKind.JS
+    );
     const specifiers = new Set();
-    const patterns = [
-        /\bfrom\s*["'](\.{1,2}\/[^"'\s]+?\.m?js)["']/g,
-        /\bimport\s*["'](\.{1,2}\/[^"'\s]+?\.m?js)["']/g,
-    ];
-    for (const pattern of patterns) {
-        for (const match of source.matchAll(pattern)) specifiers.add(match[1]);
+    for (const statement of tree.statements) {
+        if (
+            (ts.isImportDeclaration(statement) ||
+                ts.isExportDeclaration(statement)) &&
+            statement.moduleSpecifier &&
+            ts.isStringLiteral(statement.moduleSpecifier) &&
+            /^\.{1,2}\//.test(statement.moduleSpecifier.text)
+        ) {
+            specifiers.add(statement.moduleSpecifier.text);
+        }
     }
     return [...specifiers];
 }
@@ -161,34 +176,44 @@ export async function measureInitialBytes({ distDir, readSize = sizeOf }) {
         );
     }
 
-    // Follow the static import graph of every counted script. Each file
-    // counts once, whether index.html names it or only an import does.
-    const counted = new Set(resources.map((resource) => resource.path));
+    // Follow the static import graph of every counted script. Like the
+    // index.html references, imports count once per request URL: the browser
+    // fetches `chunk.js?v=1` and `chunk.js` as two modules. A file's own
+    // imports are read once, whichever URL loaded it.
+    const countedUrls = new Set(resources.map((resource) => resource.url));
+    const scanned = new Set();
     const queue = resources
         .filter((resource) => /\.m?js$/.test(resource.path))
-        .map((resource) => resource.path);
+        .map(({ url, path: file }) => ({ url, file }));
     const unresolved = [];
     while (queue.length > 0) {
         const importer = queue.shift();
-        const source = await readFile(path.join(distDir, importer), 'utf8');
+        if (scanned.has(importer.file)) continue;
+        scanned.add(importer.file);
+        const source = await readFile(
+            path.join(distDir, importer.file),
+            'utf8'
+        );
+        const base = path.posix.dirname(importer.url.replace(/\?.*$/, ''));
         for (const specifier of extractStaticImports(source)) {
-            const file = path.posix.normalize(
-                path.posix.join(path.posix.dirname(importer), specifier)
-            );
-            if (counted.has(file)) continue;
-            counted.add(file);
+            const url = path.posix
+                .normalize(path.posix.join(base, specifier))
+                .replace(/#.*$/, '');
+            if (countedUrls.has(url)) continue;
+            countedUrls.add(url);
+            const file = url.replace(/\?.*$/, '');
             const absolute = path.join(distDir, file);
             if (!existsSync(absolute)) {
-                unresolved.push(`${file} (imported by ${importer})`);
+                unresolved.push(`${file} (imported by ${importer.file})`);
                 continue;
             }
             resources.push({
                 path: file,
-                url: file,
+                url,
                 kind: 'staticImport',
                 bytes: await readSize(absolute),
             });
-            queue.push(file);
+            queue.push({ url, file });
         }
     }
     if (unresolved.length > 0) {

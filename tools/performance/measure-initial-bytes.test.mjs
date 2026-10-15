@@ -256,7 +256,7 @@ test('extracts static import and re-export specifiers, not dynamic imports', () 
         'import{a as b}from"./chunk-A.js";import"./chunk-B.js";' +
         'export{c}from"./sub/chunk-C.js";export*from"../chunk-D.js";' +
         'const l=()=>import("./chunk-LAZY.js");import"@angular/core";' +
-        'const t="from \'./not-a-file.css\'";import\n  { e } from \'./chunk-E.mjs\';';
+        "const t=\"from './not-a-file.css'\";import\n  { e } from './chunk-E.mjs';";
     assert.deepEqual(extractStaticImports(source).sort(), [
         '../chunk-D.js',
         './chunk-A.js',
@@ -292,6 +292,49 @@ test('counts chunks that only a static import names, beyond the preload hints', 
     assert.equal(
         measurement.totals.staticImport,
         size('chunk-unhinted.js') + size('chunk-deep.js')
+    );
+});
+
+test('import-like text in strings, templates and comments never counts', async () => {
+    const distDir = await workDirWith('import-lookalikes', {
+        'index.html': '<script src="main.js" type="module"></script>',
+        'main.js': [
+            'const a=\'import "./chunk-string.js"\';',
+            'const b=`export{x}from"./chunk-template.js"`;',
+            '/* import"./chunk-comment.js" */',
+            '// import { y } from "./chunk-line-comment.js";',
+            'export const main=1;',
+        ].join('\n'),
+    });
+    const measurement = await measureInitialBytes({ distDir });
+    assert.equal(measurement.totals.staticImport, 0);
+    assert.deepEqual(
+        measurement.resources.map((resource) => resource.path),
+        ['main.js']
+    );
+});
+
+test('counts an import once per request URL, like index.html references', async () => {
+    // The preload and the import name the same file under different URLs,
+    // so the browser fetches two modules.
+    const distDir = await workDirWith('url-dedupe', {
+        'index.html':
+            '<link rel="modulepreload" href="chunk-a.js?v=1"><script src="main.js" type="module"></script>',
+        'main.js': 'import"./chunk-a.js";import"./chunk-a.js";',
+        'chunk-a.js': 'export const a=1;',
+    });
+    const measurement = await measureInitialBytes({ distDir });
+    assert.deepEqual(
+        measurement.resources.map(({ url, kind }) => [url, kind]),
+        [
+            ['chunk-a.js?v=1', 'modulepreload'],
+            ['main.js', 'script'],
+            ['chunk-a.js', 'staticImport'],
+        ]
+    );
+    assert.equal(
+        measurement.totals.staticImport,
+        Buffer.byteLength(GRAPH_FILES['chunk-a.js'])
     );
 });
 

@@ -1144,9 +1144,12 @@ own `import` statements; it still fetches and parses them before bootstrap.
 Until #1939 the script counted only what `index.html` names, so once the
 graph passed ten chunks the counter silently stopped growing: an eager
 `MatSnackBar` import added on `master` brought Material's snack-bar and
-button back (about 95 KB) without the ratchet noticing. Dynamic `import()`
-targets are lazy and never count, and a statically imported file the build
-did not emit is an error, like a missing `index.html` reference.
+button back (about 95 KB) without the ratchet noticing. The script parses
+each module (TypeScript's parser), so only real `import`/`export … from`
+declarations count, never text in a string or comment; dynamic `import()`
+targets are lazy and never count; imports count once per request URL, as the
+`index.html` references do; and a statically imported file the build did not
+emit is an error, like a missing `index.html` reference.
 
 Manifest, icons, external URLs, commented-out tags and lazy chunks are not
 counted, so the value is the same for every language: a non-English launch
