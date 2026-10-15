@@ -1819,6 +1819,14 @@ clear and remains retryable. Existing source clears finish before the global
 clear; later source clears and fetches wait behind it. Overlapping global clears
 share the same operation while retiring requests queued since the earlier call.
 A late local-file approval cannot restart a retired import or delay cache clearing.
+All imports share one admission queue across IPC requests and ordinary batches,
+including Refresh All's separate per-source requests. A worker keeps the slot until
+its import and termination settle; failures release the slot, while the strict
+shutdown barrier still prevents a new writer after an unconfirmed exit. Same-URL
+requests share their queued or active import. Local-file authorization happens
+before admission, so an open prompt holds no import slot. Each queued request
+retains its original generation: source cleanup and Clear All retire it before
+admission, without waiting for queued work or pending prompts to finish.
 Explicit Refresh bypasses both persisted 12-hour freshness and the session cache;
 normal background fetches retain those shortcuts. Refresh still shares an active
 same-source fetch and preserves trust options, local-file authorization and source

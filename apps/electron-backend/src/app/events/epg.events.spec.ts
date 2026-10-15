@@ -369,6 +369,50 @@ describe('EpgEvents', () => {
         });
     });
 
+    it('serializes separate forced IPC requests with a normal batch', async () => {
+        const { ipcMain } = await import('electron');
+        const { handleFetchEpg } = await import('./epg-fetch.service');
+        getDatabase.mockResolvedValue({
+            select: () => ({
+                from: () => ({ where: () => ({ limit: async () => [] }) }),
+            }),
+        });
+        EpgEvents.bootstrapEpgEvents();
+        const handler = [...(ipcMain.handle as jest.Mock).mock.calls]
+            .reverse()
+            .find(([name]) => name === 'EPG_FORCE_FETCH')?.[1];
+        if (!handler) throw new Error('Missing force refresh IPC handler');
+        const first = handler({}, { url: 'https://first/epg' });
+        const second = handler({}, { url: 'https://second/epg' });
+        const normal = handleFetchEpg([
+            'https://normal/one',
+            'https://normal/two',
+        ]);
+        await flushPromises();
+        const beforeCompletion = mockWorkerInstances.length;
+        // Complete one writer at a time; newly admitted workers are observable
+        // only after the prior writer's promise/termination have settled.
+        for (let index = 0; index < 4; index++) {
+            const worker = mockWorkerInstances[index];
+            if (!worker) throw new Error('Expected queued import to start');
+            worker.emit('message', { type: 'READY' });
+            worker.emit('message', { type: 'EPG_COMPLETE' });
+            await flushPromises();
+        }
+        await Promise.all([first, second, normal]);
+        expect(beforeCompletion).toBe(1);
+        expect(
+            mockWorkerInstances.map(
+                (worker) => worker.postMessage.mock.calls[0][0].url
+            )
+        ).toEqual([
+            'https://first/epg',
+            'https://second/epg',
+            'https://normal/one',
+            'https://normal/two',
+        ]);
+    });
+
     it.each([
         ['exit', 1],
         ['error', new Error('terminated worker')],

@@ -342,23 +342,18 @@ describe('EpgWorkerService worker lifecycle', () => {
             expect(mockWorkerInstances).toHaveLength(1);
         });
 
-        it('spawns separate workers for different URLs fetched concurrently', async () => {
+        it('queues different URLs until the previous import terminates', async () => {
             const otherUrl = 'https://example.org/other-guide.xml';
             const firstPromise = service.fetchEpgFromUrl(url);
             const secondPromise = service.fetchEpgFromUrl(otherUrl);
 
+            expect(mockWorkerInstances).toHaveLength(1);
+            mockWorkerInstances[0].emit('message', { type: 'EPG_COMPLETE' });
+            await firstPromise;
+            await new Promise((resolve) => setImmediate(resolve));
             expect(mockWorkerInstances).toHaveLength(2);
-
-            for (const worker of mockWorkerInstances) {
-                worker.emit('message', { type: 'READY' });
-                worker.emit('message', {
-                    type: 'EPG_COMPLETE',
-                    stats: { totalChannels: 1, totalPrograms: 1 },
-                });
-            }
-
-            await expect(firstPromise).resolves.toBeUndefined();
-            await expect(secondPromise).resolves.toBeUndefined();
+            mockWorkerInstances[1].emit('message', { type: 'EPG_COMPLETE' });
+            await secondPromise;
         });
 
         it('skips already fetched URLs until they are invalidated', async () => {
@@ -493,9 +488,12 @@ describe('EpgWorkerService worker lifecycle', () => {
         const beforeExit = mockWorkerInstances.length;
         finish();
         await new Promise((resolve) => setImmediate(resolve));
-        for (const replacement of mockWorkerInstances.slice(1))
-            replacement.emit('message', { type: 'EPG_COMPLETE' });
-        await Promise.all([retry, other]);
+        expect(mockWorkerInstances).toHaveLength(2);
+        mockWorkerInstances[1].emit('message', { type: 'EPG_COMPLETE' });
+        await retry;
+        await new Promise((resolve) => setImmediate(resolve));
+        mockWorkerInstances[2].emit('message', { type: 'EPG_COMPLETE' });
+        await other;
         expect(beforeExit).toBe(1);
         expect(mockWorkerInstances).toHaveLength(3);
     });
@@ -605,8 +603,10 @@ describe('EpgWorkerService worker lifecycle', () => {
     it.each(['fetch', 'clear'])(
         'rechecks a newer shutdown before admitting a %s worker after an earlier shutdown',
         async (kind) => {
-            const first = service.fetchEpgFromUrl(url);
-            const second = service.fetchEpgFromUrl(
+            // Different source clears can overlap; their shutdowns must still
+            // fence every later writer, even though imports are serialized.
+            const first = service.clearEpgDataForSource(url);
+            const second = service.clearEpgDataForSource(
                 'https://second-running.example/epg'
             );
             let finishFirst!: () => void;
@@ -621,12 +621,12 @@ describe('EpgWorkerService worker lifecycle', () => {
                     finishSecond = resolve;
                 })
             );
-            mockWorkerInstances[0].emit('message', { type: 'EPG_COMPLETE' });
+            mockWorkerInstances[0].emit('message', { type: 'CLEAR_COMPLETE' });
             const admitted =
                 kind === 'fetch'
                     ? service.fetchEpgFromUrl('https://next.example/epg')
-                    : service.clearEpgDataForSource(url);
-            mockWorkerInstances[1].emit('message', { type: 'EPG_COMPLETE' });
+                    : service.clearEpgDataForSource('https://next.example/epg');
+            mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
             finishFirst();
             await first;
             await new Promise((resolve) => setImmediate(resolve));
@@ -788,7 +788,9 @@ describe('EpgWorkerService worker lifecycle', () => {
         expect(afterFailedStop).toBe(1);
         expect(duringRetry).toBe(beforeRetry);
         expect(mockWorkerInstances).toHaveLength(3);
-        expect(worker.terminate).toHaveBeenCalledTimes(3);
+        // The retired active import also retries shutdown at its timeout
+        // before releasing the queue to the blocked request and later retry.
+        expect(worker.terminate).toHaveBeenCalledTimes(4);
     });
 
     it('shares an active source-clear shutdown with an overlapping global clear', async () => {

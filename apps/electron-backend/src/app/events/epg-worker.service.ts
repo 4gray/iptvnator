@@ -8,6 +8,7 @@ import {
 import { BrowserWindow } from 'electron';
 import { EpgWorkerRuntime } from './epg-worker-runtime';
 import { runEpgFetch } from './epg-fetch-operation';
+import { EpgFetchQueue } from './epg-fetch-queue';
 import {
     DENY_ALL_EPG_LOCAL_SOURCES,
     EPG_LOCAL_SOURCE_REFUSED_MESSAGE,
@@ -30,6 +31,7 @@ export interface EpgProgressStats {
 
 export class EpgWorkerService {
     private readonly fetchedUrls = new Set<string>();
+    private readonly fetchQueue = new EpgFetchQueue();
     private readonly workers = new Map<string, Worker>();
     private readonly inFlightFetches = new Map<string, Promise<void>>();
     private readonly inFlightSourceClears = new Map<string, Promise<void>>();
@@ -206,6 +208,17 @@ export class EpgWorkerService {
             }
             workerOptions = { ...trustOptions, allowLocalFile: true };
         }
+        return this.fetchQueue.run(() =>
+            this.startWorkerFetch(url, workerOptions, generation)
+        );
+    }
+
+    private async startWorkerFetch(
+        url: string,
+        workerOptions: ElectronBridgeTrustOptions,
+        generation: number
+    ): Promise<void> {
+        if (this.cancelIfRetired(url, generation)) return;
         // A prior terminal fetch can settle even after its shutdown failed.
         // Retry that shutdown before admitting another SQLite writer.
         let shutdown = this.runtime.drainTerminations();
