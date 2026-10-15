@@ -52,14 +52,18 @@ describe('CategoryViewComponent rail scrolling', () => {
         return { container, scrollTo };
     }
 
-    it('does not scroll when the selected category is already fully visible', async () => {
+    it('only stops any in-flight scroll when the selected category is already fully visible', async () => {
         const { scrollTo } = mockRailGeometry([150, 250, 350]);
 
         fixture.componentRef.setInput('selectedCategoryId', '2');
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(scrollTo).not.toHaveBeenCalled();
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+        expect(scrollTo).toHaveBeenCalledWith({
+            behavior: 'auto',
+            top: 500,
+        });
     });
 
     it('centres the selected category when it is off-screen', async () => {

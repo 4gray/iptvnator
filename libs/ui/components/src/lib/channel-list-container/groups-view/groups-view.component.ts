@@ -292,10 +292,14 @@ export class GroupsViewComponent {
             // Track the rows too: while they are still rendering there is
             // no selected row to reveal, and their arrival must retry.
             this.filteredGroups();
-            if (
-                selectedGroupKey == null ||
-                selectedGroupKey === revealedGroupKey
-            ) {
+            if (selectedGroupKey == null) {
+                // A cleared selection must not leave its reveal behind:
+                // when the same group is selected again (e.g. a search
+                // that matched nothing is cleared) it is revealed afresh.
+                revealedGroupKey = null;
+                return;
+            }
+            if (selectedGroupKey === revealedGroupKey) {
                 return;
             }
 
@@ -325,6 +329,13 @@ export class GroupsViewComponent {
                 selectedRect.top >= containerRect.top &&
                 selectedRect.bottom <= containerRect.bottom
             ) {
+                // Fully visible — but an earlier reveal may still be
+                // smooth-scrolling towards the previous selection; stop
+                // it here so it cannot carry this row out of view.
+                container.scrollTo?.({
+                    behavior: 'auto',
+                    top: container.scrollTop,
+                });
                 return;
             }
 

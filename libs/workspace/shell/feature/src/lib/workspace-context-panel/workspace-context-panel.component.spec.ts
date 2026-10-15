@@ -369,14 +369,14 @@ describe('WorkspaceContextPanelComponent', () => {
     });
 
     it.each([
-        // Alpha's row is already fully visible: clicking it must not move
-        // the rail at all.
-        { id: 7, name: 'Alpha', top: null },
+        // Alpha's row is already fully visible: clicking it only stops
+        // any in-flight scroll at the current position (scrollTop 500).
+        { id: 7, name: 'Alpha', scroll: { behavior: 'auto', top: 500 } },
         // Zulu's row is below the fold: it is centred into view.
-        { id: 8, name: 'Zulu', top: 2420 },
+        { id: 8, name: 'Zulu', scroll: { behavior: 'smooth', top: 2420 } },
     ])(
         'reveals the selected local category $name when provider IDs collide after sorting',
-        async ({ id, name, top }) => {
+        async ({ id, name, scroll }) => {
             fixture.componentRef.setInput('section', 'live');
             xtreamSelectedTypeContentState.set('ready');
             // SQLite IDs drive selection; provider IDs can belong to another row.
@@ -417,14 +417,7 @@ describe('WorkspaceContextPanelComponent', () => {
             await fixture.whenStable();
 
             expect(selected.getAttribute('aria-current')).toBe('true');
-            if (top === null) {
-                expect(container.scrollTo).not.toHaveBeenCalled();
-            } else {
-                expect(container.scrollTo).toHaveBeenCalledWith({
-                    behavior: 'smooth',
-                    top,
-                });
-            }
+            expect(container.scrollTo).toHaveBeenCalledWith(scroll);
         }
     );
 

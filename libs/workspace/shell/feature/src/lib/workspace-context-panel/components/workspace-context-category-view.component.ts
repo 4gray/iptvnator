@@ -88,10 +88,14 @@ export class WorkspaceContextCategoryViewComponent {
             // Track the rows too: while they are still loading there is no
             // selected row to reveal, and their arrival must retry.
             this.items();
-            if (
-                selectedCategory == null ||
-                selectedCategory === revealedSelection
-            ) {
+            if (selectedCategory == null) {
+                // A cleared selection must not leave its reveal behind:
+                // when the same category is selected again (e.g. a search
+                // that matched nothing is cleared) it is revealed afresh.
+                revealedSelection = undefined;
+                return;
+            }
+            if (selectedCategory === revealedSelection) {
                 return;
             }
 
@@ -114,6 +118,13 @@ export class WorkspaceContextCategoryViewComponent {
                 selectedRect.top >= containerRect.top &&
                 selectedRect.bottom <= containerRect.bottom
             ) {
+                // Fully visible — but an earlier reveal may still be
+                // smooth-scrolling towards the previous selection; stop
+                // it here so it cannot carry this row out of view.
+                container.scrollTo?.({
+                    behavior: 'auto',
+                    top: container.scrollTop,
+                });
                 return;
             }
 

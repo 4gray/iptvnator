@@ -865,7 +865,7 @@ describe('GroupsViewComponent', () => {
             return { container, rows };
         }
 
-        it('does not scroll when the clicked group is already fully visible', async () => {
+        it('only stops any in-flight scroll when the clicked group is already fully visible', async () => {
             fixture.detectChanges();
             await fixture.whenStable();
             const { rows } = mockRailGeometry([150, 250, 350, 450]);
@@ -875,7 +875,46 @@ describe('GroupsViewComponent', () => {
             fixture.detectChanges();
             await fixture.whenStable();
 
-            expect(scrollToMock()).not.toHaveBeenCalled();
+            expect(scrollToMock()).toHaveBeenCalledTimes(1);
+            expect(scrollToMock()).toHaveBeenCalledWith({
+                behavior: 'auto',
+                top: 500,
+            });
+        });
+
+        it('reveals the group again after the selection clears and returns (search with no matches, then cleared)', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const { container, rows } = mockRailGeometry([
+                150, 250, 350, 2200,
+            ]);
+            const key = rows[3].dataset['groupKey'] as string;
+            scrollToMock().mockClear();
+
+            component.selectGroup(key);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(scrollToMock()).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                top: 2420,
+            });
+
+            // A search with no matches clears the selection and the rows;
+            // the rail's scroll position collapses with them.
+            scrollToMock().mockClear();
+            component.selectedGroupKey.set(null);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            container.scrollTop = 0;
+
+            component.selectGroup(key);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(scrollToMock()).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                top: 1920,
+            });
         });
 
         it('centres the selected group when it is off-screen', async () => {
