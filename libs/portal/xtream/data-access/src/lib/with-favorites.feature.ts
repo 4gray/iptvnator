@@ -1,6 +1,6 @@
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { inject } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import {
     type ContentMetadataPatch,
@@ -37,7 +37,9 @@ export const withFavorites = function () {
                 store,
                 dataSource = inject(XTREAM_DATA_SOURCE),
                 runtime = inject(RuntimeCapabilitiesService),
-                snackBar = inject(MatSnackBar),
+                // The store exists from startup: a static MatSnackBar import
+                // would put Material's snack-bar and button on the initial path.
+                snackBar = inject(LazySnackBar),
                 translate = inject(TranslateService)
             ) => {
                 let request = 0;
@@ -98,7 +100,7 @@ export const withFavorites = function () {
                                       )
                                     : null;
                             if (candidate && activeTarget === targetKey) {
-                                snackBar.open(
+                                void snackBar.open(
                                     translate.instant(
                                         'PORTALS.FAVORITE_IDENTITY_CONFLICT'
                                     ),
@@ -147,7 +149,7 @@ export const withFavorites = function () {
                                         XTREAM_FAVORITE_IDENTITY_CONFLICT
                                         ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
                                         : 'PORTALS.FAVORITE_SAVE_FAILED';
-                                snackBar.open(
+                                void snackBar.open(
                                     translate.instant(key),
                                     undefined,
                                     { duration: 6000 }
