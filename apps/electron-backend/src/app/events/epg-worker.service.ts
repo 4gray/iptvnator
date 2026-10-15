@@ -313,7 +313,7 @@ export class EpgWorkerService {
         const inFlight = this.workerFetches.get(normalizedSourceUrl);
         const runningWorker = this.workers.get(normalizedSourceUrl);
         if (runningWorker) {
-            await runningWorker.terminate();
+            await this.runtime.stopAllWorkers([runningWorker]);
             this.workers.delete(normalizedSourceUrl);
         }
         // Error/timeout handlers may already have removed the worker from the

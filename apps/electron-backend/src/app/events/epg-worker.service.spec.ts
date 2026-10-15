@@ -691,4 +691,139 @@ describe('EpgWorkerService worker lifecycle', () => {
             expect(progress.mock.calls.at(-1)?.[7]).toBe(generation);
         }
     );
+    it('blocks another source until the active source-clear writer has stopped', async () => {
+        const progress = jest.spyOn(service, 'sendProgressToRenderer');
+        const first = service.fetchEpgFromUrl(url);
+        const generation = epgSourceGeneration(url);
+        const worker = mockWorkerInstances[0];
+        let finish!: () => void;
+        worker.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                finish = () => {
+                    worker.emit('exit', 1);
+                    resolve();
+                };
+            })
+        );
+        const clear = service.clearEpgDataForSource(url);
+        const other = service.fetchEpgFromUrl(
+            'https://other-source.example/epg'
+        );
+        await new Promise((resolve) => setImmediate(resolve));
+        const beforeExit = mockWorkerInstances.length;
+        finish();
+        await first;
+        await new Promise((resolve) => setImmediate(resolve));
+        for (const next of mockWorkerInstances.slice(1)) {
+            next.emit('message', { type: 'READY' });
+            next.emit('message', {
+                type:
+                    next.postMessage.mock.calls[0][0].type === 'FETCH_EPG'
+                        ? 'EPG_COMPLETE'
+                        : 'CLEAR_COMPLETE',
+            });
+        }
+        await Promise.all([clear, other]);
+        expect(beforeExit).toBe(1);
+        expect(mockWorkerInstances).toHaveLength(3);
+        expect(worker.terminate).toHaveBeenCalledTimes(1);
+        expect(progress).toHaveBeenCalledWith(
+            url,
+            'cancelled',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            generation
+        );
+    });
+
+    it('blocks another source after direct source shutdown fails and permits a successful retry', async () => {
+        const first = service.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+        worker.terminate.mockRejectedValue(new Error('still running'));
+        const failedClear = service
+            .clearEpgDataForSource(url)
+            .catch((error: Error) => error.message);
+        await failedClear;
+        const otherUrl = 'https://retry-other-source.example/epg';
+        const other = service.fetchEpgFromUrl(otherUrl).then(
+            () => 'started',
+            (error: Error) => error.message
+        );
+        await new Promise((resolve) => setImmediate(resolve));
+        const afterFailedStop = mockWorkerInstances.length;
+        for (const next of mockWorkerInstances.slice(1))
+            next.emit('message', { type: 'EPG_COMPLETE' });
+        const blockedResult = await other;
+        let finish!: () => void;
+        worker.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                finish = () => {
+                    worker.emit('exit', 1);
+                    resolve();
+                };
+            })
+        );
+        const beforeRetry = mockWorkerInstances.length;
+        const clear = service.clearEpgDataForSource(url);
+        const retry = service.fetchEpgFromUrl(otherUrl, {}, true);
+        await new Promise((resolve) => setImmediate(resolve));
+        const duringRetry = mockWorkerInstances.length;
+        finish();
+        await first;
+        await new Promise((resolve) => setImmediate(resolve));
+        for (const next of mockWorkerInstances.slice(beforeRetry)) {
+            next.emit('message', { type: 'READY' });
+            next.emit('message', {
+                type:
+                    next.postMessage.mock.calls[0][0].type === 'FETCH_EPG'
+                        ? 'EPG_COMPLETE'
+                        : 'CLEAR_COMPLETE',
+            });
+        }
+        await Promise.all([clear, retry]);
+        expect(blockedResult).toBe('still running');
+        expect(afterFailedStop).toBe(1);
+        expect(duringRetry).toBe(beforeRetry);
+        expect(mockWorkerInstances).toHaveLength(3);
+        expect(worker.terminate).toHaveBeenCalledTimes(3);
+    });
+
+    it('shares an active source-clear shutdown with an overlapping global clear', async () => {
+        const first = service.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+        let finish!: () => void;
+        worker.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                finish = () => {
+                    worker.emit('exit', 1);
+                    resolve();
+                };
+            })
+        );
+        const source = service.clearEpgDataForSource(url);
+        const global = service.clearEpgData();
+        await new Promise((resolve) => setImmediate(resolve));
+        const terminationCalls = worker.terminate.mock.calls.length;
+        finish();
+        await first;
+        await new Promise((resolve) => setImmediate(resolve));
+        mockWorkerInstances[1].emit('message', { type: 'READY' });
+        mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
+        await source;
+        await new Promise((resolve) => setImmediate(resolve));
+        mockWorkerInstances[2].emit('message', { type: 'READY' });
+        mockWorkerInstances[2].emit('message', { type: 'CLEAR_COMPLETE' });
+        await global;
+        expect(terminationCalls).toBe(1);
+        expect(mockWorkerInstances[1].postMessage).toHaveBeenCalledWith({
+            type: 'CLEAR_EPG_SOURCE',
+            sourceUrl: url,
+        });
+        expect(mockWorkerInstances[2].postMessage).toHaveBeenCalledWith({
+            type: 'CLEAR_EPG',
+        });
+    });
 });

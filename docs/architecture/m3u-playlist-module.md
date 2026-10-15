@@ -1832,6 +1832,9 @@ creating the worker. Source clears apply the same strict shutdown barrier even
 when the previous import or clear has already settled. Both paths recheck after
 every wait, so a newly pending shutdown cannot be bypassed while another worker
 is stopping; generation retirement still cancels imports waiting at this barrier.
+Stopping an active import for source cleanup also enters the shared runtime
+shutdown registry. Imports of other sources therefore wait for that stop or fail
+if it cannot complete, while overlapping source/global clears share its promise.
 
 Every removed source emits generation-scoped cancellation before cleanup starts,
 including retained actionable errors whose workers have already finished. Retired
