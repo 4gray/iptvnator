@@ -58,7 +58,12 @@ When detail enrichment confirms the remaining identity fields, it immediately
 copies the returning title, artwork and metadata into the saved snapshot without
 waiting for another import. Blank catalog fields retain their saved values.
 Conflicting known TMDB IDs or release years prevent automatic reconnection;
-changed provider IDs never reconnect by title.
+changed provider IDs never reconnect by title. Electron persists known conflicts in
+`favorites.identity_conflict`, separately from catalog absence. Completed imports,
+detail enrichment and destructive cache refresh reconcile this evidence; only a
+candidate confirming every saved TMDB/year clears it. Sparse returns remain compatible
+when no conflict was observed. Backup snapshots carry known conflicts across runtimes,
+and explicit favorite removal/re-add starts independent ownership.
 Adding a conflicting replacement returns an explicit failure and retains the
 older favorite. Detail and recent-collection toggles stay inactive and explain
 that the older entry must be removed from Favorites before the replacement can
@@ -77,7 +82,10 @@ unavailable closes its active detail and invalidates pending selection work,
 including a retained player during a channel switch. Unresolved records are not
 promoted to dashboard hero slides, including Continue Watching and the most-recent fallback.
 Unavailable live candidates are excluded before EPG lookup, candidate limits and
-slot reservation; EPG cards retain availability and cannot borrow cached programmes. Parental locks still gate display: an
+slot reservation; Recent rail projections and EPG cards retain availability and cannot
+borrow cached programmes. Unavailable series are excluded before continuation candidate
+selection, so watched/season-zero positions cannot schedule replacement episode requests;
+history and saved positions remain intact. Parental locks still gate display: an
 unresolved category cannot prove that it is unlocked, so those records remain
 stored but are withheld while locks apply. For duplicate category copies, ordinary
 reads choose an unlocked compatible row before resolving the catalog link; a

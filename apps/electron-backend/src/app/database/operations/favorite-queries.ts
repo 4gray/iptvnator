@@ -48,6 +48,9 @@ export function selectFavoriteRows(
                 added_at: schema.favorites.addedAt,
                 position: schema.favorites.position,
                 catalog_status: favoriteCatalogStatus(),
+                catalog_missing_reason: sql<
+                    'identity_conflict' | null
+                >`CASE WHEN ${schema.favorites.identityConflict} = 1 AND ${schema.content.id} IS NULL THEN 'identity_conflict' ELSE NULL END`,
             })
             .from(schema.favorites)
             .leftJoin(

@@ -89,7 +89,7 @@ export interface XtreamContentItem {
     /** Last confirmed availability of a persisted collection snapshot. */
     catalog_status?: XtreamFavoriteCatalogStatus;
     /** PWA evidence: absence may recover sparsely; a known conflict needs confirmation. */
-    catalog_missing_reason?: 'absent' | 'identity_conflict';
+    catalog_missing_reason?: 'absent' | 'identity_conflict' | null;
 
     // XtreamItem compatibility fields (optional for search/navigation)
     num?: number;

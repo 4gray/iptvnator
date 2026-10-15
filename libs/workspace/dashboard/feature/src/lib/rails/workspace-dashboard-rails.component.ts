@@ -475,6 +475,7 @@ export class WorkspaceDashboardRailsComponent {
         );
         return {
             id: this.recentCardId(item),
+            catalogStatus: item.catalogStatus,
             title: item.title,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),

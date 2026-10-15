@@ -64,7 +64,10 @@ Favorites whose owning playlist was already missing remain stored. The rebuild
 temporarily disables foreign-key enforcement outside its transaction, permits
 only those pre-existing playlist violations by favorite ID, and rolls back if
 it introduces another violation. The original enforcement setting is restored
-on both success and failure.
+on both success and failure. The additive `identity_conflict` column also upgrades
+already-durable tables without rebuilding them. Its default is false; catalog
+reconciliation persists known negative identity evidence independently of missing rows,
+and full saved identity confirmation clears it. Repeated initialization preserves it.
 Historical upgrade tests include tagged 0.19–0.24 schemas, duplicate categories,
 orphaned favorites, repeated startup and forced rollbacks. Keep snapshot
 migration before content deduplication so the originally favorited row's

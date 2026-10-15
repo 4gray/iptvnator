@@ -1,3 +1,4 @@
+import { reconcileFavoriteIdentity } from './favorite-catalog';
 import { restoreXtreamFavorites } from './favorite-restore';
 export { restoreXtreamFavorites } from './favorite-restore';
 import { and, eq, inArray } from 'drizzle-orm';
@@ -163,6 +164,7 @@ export async function deleteXtreamContent(
     hiddenCategories: XtreamBackupHiddenCategory[];
 }> {
     await checkpointOperation(control);
+    reconcileFavoriteIdentity(db, eq(schema.favorites.playlistId, playlistId));
     await db
         .update(schema.appState)
         .set({ value: 'idle' })

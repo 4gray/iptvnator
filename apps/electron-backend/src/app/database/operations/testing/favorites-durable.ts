@@ -1,3 +1,5 @@
+import { verifyFavoriteRefresh } from './favorites-refresh';
+import { verifyFavoriteConflictLatch } from './favorites-conflict-latch';
 import assert from 'node:assert/strict';
 import { verifyFavoriteSnapshot } from './favorites-snapshot';
 import { verifyUnlockedFavoriteDuplicate } from './favorites-locked-duplicate';
@@ -49,53 +51,28 @@ async function main() {
     await addFavorite(db, 1, 'p');
     const [original] = await favorites();
     const scenario = process.argv[2];
-    if (scenario === 'refresh') {
-        await persistContentMetadataIfMissing(db, 1, {
-            tmdbId: 123,
-            releaseYear: 2001,
-        });
-        const removed = await deleteXtreamContent(db, 'p');
-        await catalog(2, 8, 'DEF');
-        await restoreXtreamUserData(db, 'p', removed.favorites, []);
-        await status('completed');
-        const [saved] = await favorites();
-        assert(saved, 'ABC must remain after only DEF is imported');
-        assert.equal(saved.title, 'ABC');
-        assert.equal(saved.tmdb_id, 123);
-        assert.equal(saved.release_year, 2001);
-        assert.equal(saved.id, null);
+    if (scenario === 'conflict-latch') {
+        await verifyFavoriteConflictLatch(db);
+    } else if (scenario === 'conflict-migration') {
+        await db.run(sql`ALTER TABLE favorites DROP COLUMN identity_conflict`);
+        closeDatabase();
+        const upgraded = await initDatabase();
+        const [saved] = await getFavorites(upgraded, 'p');
         assert.equal(saved.favorite_id, original.favorite_id);
-        assert.equal(saved.catalog_status, 'missing');
-        assert.deepEqual(
-            removed.favorites,
-            [],
-            'refresh must not replay canonical favorites'
-        );
-        assert.equal((await getAllGlobalFavorites(db))[0].title, 'ABC');
-        await deleteXtreamContent(db, 'p');
-        await catalog(3, 7, 'ABC renamed', 'movie', 'p', {
-            posterUrl: '',
-            backdropUrl: '',
-        });
-        await status('completed');
-        const [returned] = await favorites();
-        assert.equal(returned.id, 3);
-        assert.equal(returned.favorite_id, original.favorite_id);
-        assert.equal(returned.catalog_status, 'present');
-        assert.equal(returned.poster_url, original.poster_url);
+        assert.equal(saved.added_at, original.added_at);
         assert.equal(
-            (await db.select().from(schema.favorites))[0].posterUrl,
-            original.poster_url
+            (await upgraded.select().from(schema.favorites))[0]
+                .identityConflict,
+            false
         );
+        closeDatabase();
+        const restarted = await initDatabase();
         assert.equal(
-            (await db.select().from(schema.favorites))[0].contentId,
-            3
+            (await getFavorites(restarted, 'p'))[0].favorite_id,
+            original.favorite_id
         );
-        assert(await isFavorite(db, 3, 'p'));
-        await addFavorite(db, 3, 'p');
-        assert.equal((await favorites()).length, 1);
-        await removeFavorite(db, 3, 'p');
-        assert.deepEqual(await favorites(), []);
+    } else if (scenario === 'refresh') {
+        await verifyFavoriteRefresh(db, original);
     } else if (scenario === 'empty') {
         await deleteXtreamContent(db, 'p');
         for (const value of ['idle', 'importing', 'failed', 'cancelled']) {

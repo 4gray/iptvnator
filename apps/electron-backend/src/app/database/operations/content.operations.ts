@@ -1,3 +1,4 @@
+import { reconcileFavoriteIdentity } from './favorite-catalog';
 import { and, asc, desc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import {
@@ -1012,6 +1013,8 @@ export async function clearXtreamImportCache(
               )
             : { success: true };
     }
+
+    reconcileFavoriteIdentity(db, and(eq(schema.favorites.playlistId, playlistId), eq(schema.favorites.type, type)));
 
     // Count and delete stay scoped to the captured ids, not to the
     // playlist/type predicate, so a category a concurrent import creates

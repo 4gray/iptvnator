@@ -184,6 +184,10 @@ export const favorites = sqliteTable(
         tmdbId: integer('tmdb_id'),
         releaseYear: integer('release_year'),
         originalTitle: text('original_title'),
+        /** A known reused provider identity cannot be authorized by a sparse refresh. */
+        identityConflict: integer('identity_conflict', { mode: 'boolean' })
+            .notNull()
+            .default(false),
         addedAt: text('added_at').default(sql`CURRENT_TIMESTAMP`),
         /** Display order position in the global favorites list (lower = first) */
         position: integer('position').default(0),

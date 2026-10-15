@@ -16,6 +16,13 @@ export function toXtreamBackupFavorite(
             ? {
                   snapshot: {
                       title: item.title,
+                      ...(item.catalog_missing_reason === 'identity_conflict'
+                          ? {
+                                catalogStatus: 'missing' as const,
+                                catalogMissingReason:
+                                    'identity_conflict' as const,
+                            }
+                          : {}),
                       ...(item.poster_url != null
                           ? { posterUrl: item.poster_url }
                           : {}),

@@ -1649,6 +1649,46 @@ describe('DashboardDataService', () => {
             ]);
         });
 
+        it('does not request continuation episodes for retained unavailable history', async () => {
+            Object.defineProperty(window, 'electron', {
+                value: undefined,
+                configurable: true,
+            });
+            const rows = [
+                {
+                    ...recentRow(
+                        1,
+                        'Missing series',
+                        'series',
+                        200,
+                        '2026-10-04'
+                    ),
+                    catalog_status: 'missing',
+                },
+                {
+                    ...recentRow(
+                        2,
+                        'Unknown series',
+                        'series',
+                        300,
+                        '2026-10-03'
+                    ),
+                    catalog_status: 'unknown',
+                },
+            ];
+            xtreamDataSourceMock.getRecentItems.mockImplementation(
+                async (playlistId: string) =>
+                    playlistId === PLAYLIST ? rows : []
+            );
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                episodePosition(201, 200, 1887, 1942, '2026-10-04'),
+                episodePosition(301, 300, 1887, 1942, '2026-10-03'),
+            ]);
+            await loadDashboard();
+            expect(service.globalRecentVodItems()).toHaveLength(2);
+            expect(seriesEpisodesMock.request).not.toHaveBeenCalled();
+        });
+
         it('lists only the titles the user has not finished', async () => {
             dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
                 recentRow(

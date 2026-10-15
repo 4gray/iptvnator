@@ -816,3 +816,119 @@ test('@xtream @collections importing partial favorite identity rejects conflicti
     expect(saved.snapshot.releaseYear).toBeUndefined();
     expect(saved.snapshot.posterUrl).not.toBe('/replacement.jpg');
 });
+
+test('@xtream @collections unavailable watched series retain history without requesting replacement episodes', async ({
+    page,
+}) => {
+    await addXtreamPortal(page, { name: 'Unavailable series discovery' });
+    const rawId = /\/xtreams\/([^/]+)/.exec(new URL(page.url()).pathname)?.[1];
+    if (!rawId) throw new Error('Missing playlist ID');
+    const id = decodeURIComponent(rawId);
+    await page.goto('/workspace/global-recent');
+    await page.evaluate((id) => {
+        const items = [
+            {
+                id: 987651,
+                xtream_id: 987651,
+                type: 'series',
+                title: 'Retained missing series',
+                catalog_status: 'missing',
+                catalog_missing_reason: 'identity_conflict',
+                tmdb_id: 100,
+            },
+            {
+                id: 987652,
+                xtream_id: 987652,
+                type: 'series',
+                title: 'Retained unknown series',
+                catalog_status: 'unknown',
+                tmdb_id: 200,
+            },
+        ];
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({
+                [id]: items.map((item) => ({
+                    id: `series:${item.id}`,
+                    viewedAt: '2026-10-15',
+                    collectionItem: item,
+                })),
+            })
+        );
+        localStorage.setItem(
+            'xtream-collection-items',
+            JSON.stringify({
+                [id]: Object.fromEntries(
+                    items.map((item) => [`series:${item.id}`, item])
+                ),
+            })
+        );
+        localStorage.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({
+                [id]: items.map((item) => ({
+                    playlistId: id,
+                    contentXtreamId: item.id + 10,
+                    seriesXtreamId: item.id,
+                    contentType: 'episode',
+                    seasonNumber: 1,
+                    episodeNumber: 1,
+                    positionSeconds: 990,
+                    durationSeconds: 1000,
+                    updatedAt: '2026-10-15',
+                })),
+            })
+        );
+    }, id);
+    let requests = 0;
+    page.on('request', (request) => {
+        if (
+            new URL(request.url()).searchParams.get('action') ===
+            'get_series_info'
+        )
+            requests++;
+    });
+    await page.reload();
+    for (const title of [
+        'Retained missing series',
+        'Retained unknown series',
+    ]) {
+        await expect(
+            page.getByRole('button', { name: title, exact: true })
+        ).toHaveAttribute('aria-disabled', 'true');
+    }
+    await page.goto('/workspace/dashboard');
+    await expect(
+        page.locator('[data-test-id="dashboard-page-heading"]')
+    ).toBeVisible();
+    await expect(
+        page.locator('[data-test-id="dashboard-hero-skeleton"]')
+    ).toHaveCount(0);
+    await expect(
+        page
+            .locator('lib-workspace-dashboard-rails')
+            .getByText('Retained missing series', { exact: true })
+            .first()
+    ).toBeVisible();
+    await expect(page.locator('lib-dashboard-hero')).not.toContainText(
+        'Retained missing series'
+    );
+    expect(requests).toBe(0);
+    expect(
+        await page.evaluate(
+            (id) =>
+                JSON.parse(
+                    localStorage.getItem('xtream-playback-positions') ?? '{}'
+                )[id].length,
+            id
+        )
+    ).toBe(2);
+    await page.goto('/workspace/global-recent');
+    await expect(
+        page.getByRole('button', {
+            name: 'Retained missing series',
+            exact: true,
+        })
+    ).toBeVisible();
+    expect(requests).toBe(0);
+});

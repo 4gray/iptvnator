@@ -572,6 +572,7 @@ export interface ElectronBridgeXtreamFavorite extends Omit<
     category_id: number | null;
     favorite_id?: number;
     catalog_status?: import('./xtream-favorite.interface').XtreamFavoriteCatalogStatus;
+    catalog_missing_reason?: 'absent' | 'identity_conflict' | null;
     tmdb_id?: number | null;
     release_year?: number | null;
     original_title?: string | null;

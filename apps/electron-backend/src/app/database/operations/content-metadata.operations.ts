@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     favoriteMatchesContentId,
+    reconcileFavoriteIdentity,
     favoriteSnapshotFromContent,
     favoriteSnapshotMatchesContent,
 } from './favorite-catalog';
@@ -109,6 +110,8 @@ export async function persistContentMetadataIfMissing(
             )
         )
         .where(and(eq(schema.content.id, contentId), anyAbsent));
+
+    reconcileFavoriteIdentity(db, favoriteMatchesContentId(contentId, false));
 
     // Favorites own their metadata beyond the lifetime of this catalog row.
     // Once enrichment confirms identity, capture the complete returned snapshot,

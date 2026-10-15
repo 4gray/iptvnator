@@ -5,6 +5,7 @@ import {
     normalizeContentMetadataPatch,
     type XtreamBackupFavoriteItem,
 } from '@iptvnator/shared/interfaces';
+import { reconcileFavoriteIdentity } from './favorite-catalog';
 import type { AppDatabase } from '../database.types';
 import {
     checkpointOperation,
@@ -94,6 +95,8 @@ function favoriteValue(
         xtreamId: item.xtreamId,
         type: item.contentType,
         contentId: content?.id ?? null,
+        identityConflict:
+            item.snapshot?.catalogMissingReason === 'identity_conflict',
         title:
             item.snapshot?.title?.trim() ||
             snapshotContent?.title ||
@@ -146,6 +149,10 @@ export async function restoreXtreamFavorites(
                 })
                 .run();
         }
+        reconcileFavoriteIdentity(
+            tx,
+            eq(schema.favorites.playlistId, playlistId)
+        );
         tx.insert(schema.appState).values({ key, value: 'completed' }).run();
     });
     await reportOperationProgress(control, {

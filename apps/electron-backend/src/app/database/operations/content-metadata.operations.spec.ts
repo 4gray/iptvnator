@@ -32,7 +32,7 @@ import type { AppDatabase } from '../database.types';
 import { setContentMetadataIfMissing } from './content-metadata.operations';
 
 function createDbMock() {
-    const where = jest.fn().mockResolvedValue(undefined);
+    const where = jest.fn().mockReturnValue({ run: jest.fn() });
     const set = jest.fn().mockReturnValue({ where });
     const update = jest.fn().mockReturnValue({ set });
 
@@ -75,7 +75,7 @@ describe('content-metadata.operations', () => {
             })
         ).resolves.toEqual({ success: true });
 
-        expect(update).toHaveBeenCalledTimes(2);
+        expect(update).toHaveBeenCalledTimes(3);
         expect(update).toHaveBeenNthCalledWith(2, schema.favorites);
         expect(update).toHaveBeenCalledWith(schema.content);
 
@@ -167,7 +167,7 @@ describe('content-metadata.operations', () => {
             backdropUrl: 'https://example.com/backdrop.jpg',
         });
 
-        expect(update).toHaveBeenCalledTimes(2);
+        expect(update).toHaveBeenCalledTimes(3);
         expect(update).toHaveBeenNthCalledWith(2, schema.favorites);
         expect(update).toHaveBeenCalledWith(schema.content);
         expect(update).not.toHaveBeenCalledWith(

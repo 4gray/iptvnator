@@ -11,6 +11,9 @@ export function resolvedFavoriteContentId(includeLocked: boolean) {
           AND candidate.type = ${schema.favorites.type}
           AND owner.playlist_id = ${schema.favorites.playlistId}
           ${!includeLocked && isParentalLockActive() ? sql`AND owner.locked = 0` : sql``}
+          AND (${schema.favorites.identityConflict} = 0 OR (
+            (${schema.favorites.tmdbId} IS NULL OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
+            AND (${schema.favorites.releaseYear} IS NULL OR ${schema.favorites.releaseYear} = candidate.release_year)))
           AND (
             (${schema.favorites.tmdbId} IS NULL OR candidate.tmdb_id IS NULL
                 OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
@@ -92,6 +95,16 @@ export async function reconcileCompletedFavoriteCatalog(
     const match = /^xtream-import-status:(.+):(live|movie|series)$/.exec(key);
     if (!match) return;
     db.transaction((tx) => {
+        reconcileFavoriteIdentity(
+            tx,
+            and(
+                eq(schema.favorites.playlistId, match[1]),
+                eq(
+                    schema.favorites.type,
+                    match[2] as 'live' | 'movie' | 'series'
+                )
+            )
+        );
         tx.update(schema.favorites)
             .set({ contentId: resolvedFavoriteContentId(true) })
             .where(
@@ -122,7 +135,8 @@ export async function reconcileCompletedFavoriteCatalog(
 
 /** Every duplicate category row represents the same typed provider identity. */
 export function favoriteMatchesContentId(
-    contentId: number | ReturnType<typeof sql.placeholder>
+    contentId: number | ReturnType<typeof sql.placeholder>,
+    checkIdentity = true
 ) {
     return sql`EXISTS (SELECT 1 FROM content candidate
         INNER JOIN categories owner ON owner.id = candidate.category_id
@@ -130,6 +144,37 @@ export function favoriteMatchesContentId(
           AND owner.playlist_id = ${schema.favorites.playlistId}
           AND candidate.type = ${schema.favorites.type}
           AND candidate.xtream_id = ${schema.favorites.xtreamId}
+          ${
+              checkIdentity
+                  ? sql`AND (${schema.favorites.identityConflict} = 0 OR (
+              (${schema.favorites.tmdbId} IS NULL OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
+              AND (${schema.favorites.releaseYear} IS NULL OR ${schema.favorites.releaseYear} = candidate.release_year)))
           AND (${schema.favorites.tmdbId} IS NULL OR candidate.tmdb_id IS NULL OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
-          AND (${schema.favorites.releaseYear} IS NULL OR candidate.release_year IS NULL OR ${schema.favorites.releaseYear} = candidate.release_year))`;
+          AND (${schema.favorites.releaseYear} IS NULL OR candidate.release_year IS NULL OR ${schema.favorites.releaseYear} = candidate.release_year)`
+                  : sql``
+          })`;
+}
+
+/** Full confirmation outranks conflicting duplicates; absence/partial evidence retains the latch. */
+export function reconcileFavoriteIdentity(db: AppDatabase, scope?: SQL) {
+    const candidate = (
+        evidence: SQL
+    ) => sql`EXISTS (SELECT 1 FROM content candidate
+        INNER JOIN categories owner ON owner.id = candidate.category_id
+        WHERE candidate.xtream_id = ${schema.favorites.xtreamId}
+          AND candidate.type = ${schema.favorites.type}
+          AND owner.playlist_id = ${schema.favorites.playlistId} AND (${evidence}))`;
+    const confirmed =
+        candidate(sql`(${schema.favorites.tmdbId} IS NULL OR ${schema.favorites.tmdbId} = candidate.tmdb_id)
+        AND (${schema.favorites.releaseYear} IS NULL OR ${schema.favorites.releaseYear} = candidate.release_year)`);
+    const conflicting =
+        candidate(sql`(${schema.favorites.tmdbId} IS NOT NULL AND candidate.tmdb_id IS NOT NULL AND ${schema.favorites.tmdbId} != candidate.tmdb_id)
+        OR (${schema.favorites.releaseYear} IS NOT NULL AND candidate.release_year IS NOT NULL AND ${schema.favorites.releaseYear} != candidate.release_year)`);
+    db.update(schema.favorites)
+        .set({
+            identityConflict: sql`CASE
+        WHEN ${confirmed} THEN 0 WHEN ${conflicting} THEN 1 ELSE ${schema.favorites.identityConflict} END`,
+        })
+        .where(scope)
+        .run();
 }

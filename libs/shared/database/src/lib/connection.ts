@@ -375,6 +375,7 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE playlists ADD COLUMN disabled_epg_urls TEXT`,
     // v1.2.0 -> v1.3.0: Add position column to favorites for global favorites ordering
     `ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0`,
+    `ALTER TABLE favorites ADD COLUMN identity_conflict INTEGER NOT NULL DEFAULT 0`,
     // v1.4.0 -> v1.5.0: Preserve Xtream live metadata required for EPG/catch-up
     `ALTER TABLE content ADD COLUMN epg_channel_id TEXT`,
     `ALTER TABLE content ADD COLUMN tv_archive INTEGER`,

@@ -104,7 +104,7 @@ function createDeleteHarness() {
             transaction,
             update: jest.fn(() => ({
                 set: jest.fn(() => ({
-                    where: jest.fn().mockResolvedValue(undefined),
+                    where: jest.fn().mockReturnValue({ run: jest.fn() }),
                 })),
             })),
         } as unknown as AppDatabase,
@@ -277,7 +277,7 @@ describe('Xtream delete performance phases', () => {
             select: jest.fn(() => ({ from })),
             update: jest.fn(() => ({
                 set: jest.fn(() => ({
-                    where: jest.fn().mockResolvedValue(undefined),
+                    where: jest.fn().mockReturnValue({ run: jest.fn() }),
                 })),
             })),
         } as unknown as AppDatabase;

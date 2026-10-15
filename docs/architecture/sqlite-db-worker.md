@@ -659,6 +659,10 @@ is unavailable or the SQLite playlist migration has not completed.
 8. `DB_RESTORE_XTREAM_FAVORITES`
 9. `DB_GET_FAVORITES_FOR_BACKUP`
 
+Xtream favorites persist known provider-ID conflicts in `identity_conflict`; a later
+sparse refresh cannot clear them. Full saved TMDB/year confirmation may clear the flag,
+while absence alone does not set it. The flag is migrated on existing durable tables
+and included as identity-conflict evidence in backup snapshots.
 Xtream favorites survive catalog/category deletion through nullable `content_id`
 links and independent typed provider identities plus display snapshots. Reads
 return the durable `favorite_id`, nullable catalog IDs and `catalog_status`;

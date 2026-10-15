@@ -19,6 +19,7 @@ import {
 import { fetchXtreamVodFixture, getXtreamTitle } from './portal-mock-fixtures';
 import {
     createFavoritesCatalogProxy,
+    refreshFavoriteCatalog,
     readSavedFavorites,
     savedFavoriteIdentity,
 } from './support/xtream-favorites-catalog';
@@ -346,5 +347,126 @@ test('@persistence @xtream @electron retains a late-confirmed snapshot through c
         ]);
     } finally {
         if (app) await closeElectronApp(app);
+    }
+});
+
+test('@critical @persistence @xtream @electron keeps known conflicts through sparse refresh and restart', async ({
+    dataDir,
+    request,
+}) => {
+    test.setTimeout(90_000);
+    await resetMockServers(request, ['xtream']);
+    const credentials = { username: 'minimal', password: 'minimal' };
+    const fixture = await fetchXtreamVodFixture(request, credentials);
+    const xtreamId = Number(fixture.items[0].stream_id);
+    const proxy = await createFavoritesCatalogProxy();
+    const sourceTitle = 'Conflict latch source';
+    let app: LaunchedElectronApp | undefined;
+    try {
+        app = await launchElectronApp(dataDir);
+        await addXtreamPortal(app.mainWindow, {
+            ...credentials,
+            name: sourceTitle,
+            serverUrl: proxy.origin,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        const playlistId = /\/xtreams\/([^/]+)/.exec(
+            new URL(app.mainWindow.url()).pathname
+        )?.[1];
+        if (!playlistId) throw new Error('Expected playlist route');
+        await app.mainWindow
+            .getByRole('link', { name: 'Movies', exact: true })
+            .click();
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        await app.mainWindow.evaluate(
+            async ({ playlistId, xtreamId }) => {
+                const row = await window.electron.dbGetContentByXtreamId(
+                    xtreamId,
+                    playlistId,
+                    'movie'
+                );
+                if (!row) throw new Error('Missing imported movie');
+                await window.electron.dbRestoreXtreamFavorites(playlistId, [
+                    {
+                        xtreamId,
+                        contentType: 'movie',
+                        addedAt: '2020-01-01',
+                        position: 4,
+                        snapshot: {
+                            title: 'Saved original before reuse',
+                            tmdbId: 100,
+                            releaseYear: 2000,
+                        },
+                    },
+                ]);
+                await window.electron.dbSetContentMetadataIfMissing(row.id, {
+                    tmdbId: 200,
+                });
+            },
+            { playlistId, xtreamId }
+        );
+        const [before] = await readSavedFavorites(app.mainWindow, playlistId);
+        expect(before).toMatchObject({
+            title: 'Saved original before reuse',
+            id: null,
+        });
+        await refreshFavoriteCatalog(
+            app.mainWindow,
+            proxy,
+            playlistId,
+            sourceTitle,
+            'sources'
+        );
+        await openWorkspaceSection(app.mainWindow, 'Global favorites');
+        const card = contentCardByTitle(
+            app.mainWindow,
+            'Saved original before reuse'
+        );
+        await expect(card).toHaveAttribute('aria-disabled', 'true');
+        await card.dispatchEvent('click');
+        await expect(app.mainWindow.locator('app-content-hero')).toHaveCount(0);
+        app = await restartElectronApp(app, dataDir);
+        await openWorkspaceSection(app.mainWindow, 'Global favorites');
+        await expect(
+            contentCardByTitle(app.mainWindow, 'Saved original before reuse')
+        ).toHaveAttribute('aria-disabled', 'true');
+        const [after] = await readSavedFavorites(app.mainWindow, playlistId);
+        expect(savedFavoriteIdentity([after])).toEqual(
+            savedFavoriteIdentity([before])
+        );
+        expect(after.catalog_status).toBe('missing');
+        await app.mainWindow.evaluate(
+            async ({ playlistId, xtreamId }) => {
+                const row = await window.electron.dbGetContentByXtreamId(
+                    xtreamId,
+                    playlistId,
+                    'movie'
+                );
+                if (!row) throw new Error('Missing sparse movie');
+                await window.electron.dbSetContentMetadataIfMissing(row.id, {
+                    tmdbId: 100,
+                });
+                if (
+                    (await window.electron.dbGetFavorites(playlistId))[0]
+                        .catalog_status !== 'missing'
+                )
+                    throw new Error('Partial confirmation cleared conflict');
+                await window.electron.dbSetContentMetadataIfMissing(row.id, {
+                    releaseYear: 2000,
+                });
+            },
+            { playlistId, xtreamId }
+        );
+        await openWorkspaceSection(app.mainWindow, 'Global favorites');
+        const [confirmed] = await readSavedFavorites(
+            app.mainWindow,
+            playlistId
+        );
+        expect(confirmed.catalog_status).toBe('present');
+        expect(confirmed.favorite_id).toBe(before.favorite_id);
+        expect(confirmed.added_at).toBe(before.added_at);
+    } finally {
+        if (app) await closeElectronApp(app);
+        await proxy.close();
     }
 });

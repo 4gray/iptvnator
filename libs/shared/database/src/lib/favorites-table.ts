@@ -13,6 +13,7 @@ export function favoritesTableSql(name = 'favorites'): string {
       tmdb_id INTEGER,
       release_year INTEGER,
       original_title TEXT,
+      identity_conflict INTEGER NOT NULL DEFAULT 0,
       added_at TEXT DEFAULT (datetime('now')),
       position INTEGER DEFAULT 0,
       FOREIGN KEY (content_id) REFERENCES content(id) ON DELETE SET NULL,
