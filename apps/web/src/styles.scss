@@ -239,12 +239,19 @@ body.dark-theme {
     overflow-x: hidden !important;
 }
 
-// Modal overlays blur the page behind their backdrop. The CDK gives a dialog
-// the dark backdrop class by default; menus, selects and popovers open over
+// Modal overlays tint and blur the page behind their backdrop, on the same
+// token as the switcher popover. The CDK gives a dialog the dark backdrop
+// class by default; menus, selects and popovers open over
 // `cdk-overlay-transparent-backdrop`, which sits at opacity 0 and stays a
 // plain layer without a filter of its own.
 .cdk-overlay-dark-backdrop {
-    backdrop-filter: blur(4px);
+    background: var(--app-popover-backdrop);
+    backdrop-filter: blur(6px);
+}
+
+// Dialog surfaces may overlap the frameless title bar's drag region.
+.mat-mdc-dialog-surface {
+    app-region: no-drag;
 }
 
 // UI-kit menu panel: `<mat-menu class="app-menu">`. The panel renders in the
@@ -258,20 +265,7 @@ body.dark-theme {
 // halo peeking out behind the rounded corners.
 .workspace-command-palette-overlay .mat-mdc-dialog-surface {
     background: transparent;
-    box-shadow: none;
-    border-radius: 14px;
-    padding: 0;
-    overflow: visible;
-}
-
-.workspace-shortcuts-overlay,
-.workspace-shortcuts-overlay .mat-mdc-dialog-surface,
-.workspace-shortcuts-overlay .mat-mdc-dialog-container {
-    app-region: no-drag;
-}
-
-.workspace-shortcuts-overlay .mat-mdc-dialog-surface {
-    background: transparent;
+    border: 0;
     box-shadow: none;
     border-radius: 14px;
     padding: 0;
