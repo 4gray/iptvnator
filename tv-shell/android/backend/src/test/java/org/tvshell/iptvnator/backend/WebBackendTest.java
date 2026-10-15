@@ -55,6 +55,10 @@ public class WebBackendTest {
         WebBackend.Response config = backend.handle("GET", "/config.js", null, null);
         assertTrue("config js", config.bodyText().contains("\"BACKEND_URL\":\"/api\""));
         assertEquals("404", 404, Integer.valueOf(backend.handle("GET", "/nope", null, null).status));
+        // The PWA probes /v1/instance at start-up; a 404 means "a backend without
+        // server storage", so it keeps its data in the WebView (IndexedDB).
+        assertEquals("no server storage", 404, Integer.valueOf(backend.handle("GET", "/v1/instance", null, null).status));
+        assertEquals("no storage routes", 404, Integer.valueOf(backend.handle("GET", "/v1/playlists", null, null).status));
         assertEquals("parse-xml unsupported", 501, Integer.valueOf(backend.handle("GET", "/parse-xml", query("targetId", "x"), null).status));
     }
 
