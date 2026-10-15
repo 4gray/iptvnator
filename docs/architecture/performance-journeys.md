@@ -1228,7 +1228,9 @@ that file:
   `journeys.<journey>.counters` and a wall-clock entry (one with
   `toleranceRatio`) only from `journeys.<journey>.wallClock`, so a value in
   the wrong section also counts as missing;
-- a measurement below its baseline passes and prints a "tighten" hint;
+- a measurement below its baseline passes and prints a "tighten" hint,
+  except for an entry with `"autoTighten": false`, whose band one low run
+  does not move;
 - a measured counter without a baseline is noted, not failed;
 - checking nothing fails: an empty baselines file, or `--only` naming an
   entry that does not exist, cannot exit 0;
