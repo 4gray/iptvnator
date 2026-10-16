@@ -8,9 +8,13 @@ import { handleWorkerRequest } from './worker-events.utils';
 handleWorkerRequest('DB_GET_RECENTLY_VIEWED', () => ({}));
 handleWorkerRequest('DB_CLEAR_RECENTLY_VIEWED', () => ({}));
 
-handleWorkerRequest('DB_GET_RECENT_ITEMS', (playlistId: string) => ({
-    playlistId,
-}));
+handleWorkerRequest(
+    'DB_GET_RECENT_ITEMS',
+    (playlistId: string, options?: { all?: boolean }) => ({
+        playlistId,
+        ...(options?.all === true ? { all: true } : {}),
+    })
+);
 
 handleWorkerRequest(
     'DB_ADD_RECENT_ITEM',

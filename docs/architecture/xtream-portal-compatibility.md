@@ -304,7 +304,10 @@ in startup projections without parsing large M3U payloads, and backups preserve
 it, including an explicit empty array.
 
 `XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
-fetching their category/content arrays before deleting their old cache. Its
+fetching their category/content arrays before deleting their old cache. Recovery
+reads the complete source history before parking the snapshot, not the ordinary
+100-entry browsing projection. The optional `dbGetRecentItems` `{ all: true }`
+request crosses preload/main/worker; ordinary reads remain capped at 100. Its
 read-only progress signal reports the current type, network/local phase and
 worker save counts. The editor stays modal and uses the same shared
 `ImportProgressComponent` as the workspace scanning overlay; disable-only edits

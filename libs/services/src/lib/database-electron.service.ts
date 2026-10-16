@@ -932,14 +932,13 @@ export class DatabaseService {
         }
     }
 
-    /**
-     * Get recently viewed items for a specific playlist
-     */
-    /** Recovery snapshots must fail instead of treating an unreadable history as empty. */
+    /** Recovery snapshots must read all history or fail, never silently truncate it. */
     async getRecentItemsOrThrow(playlistId: string): Promise<XtreamContent[]> {
         if (typeof window.electron?.dbGetRecentItems !== 'function')
             throw new Error('History storage unavailable.');
-        const rows = await window.electron.dbGetRecentItems(playlistId);
+        const rows = await window.electron.dbGetRecentItems(playlistId, {
+            all: true,
+        });
         if (!Array.isArray(rows))
             throw new Error('History storage returned invalid data.');
         return rows;
