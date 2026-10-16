@@ -30,7 +30,7 @@ import {
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
-import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
+import { createLogger, PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import { isDashChannel } from '@iptvnator/shared/m3u-utils';
 import { M3uSeries } from '@iptvnator/shared/m3u-utils/series';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
@@ -101,6 +101,7 @@ function resumeOffsetOf(
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class M3uSeriesDetailRouteComponent {
+    private readonly logger = createLogger('M3uSeriesDetail');
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
@@ -374,8 +375,9 @@ export class M3uSeriesDetailRouteComponent {
                     }),
                     true
                 )
-                .catch((error) =>
-                    console.warn('External episode launch failed', error)
+                .catch((error: unknown) =>
+                    // The error can carry the configured player path.
+                    this.logger.warn('External episode launch failed', error)
                 );
             return;
         }

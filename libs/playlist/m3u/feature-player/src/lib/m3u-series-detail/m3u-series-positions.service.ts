@@ -1,4 +1,5 @@
 import { Injectable, OnDestroy, inject, signal } from '@angular/core';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import {
@@ -30,6 +31,7 @@ const PROGRESS_SAVE_INTERVAL_MS = 15_000;
  */
 @Injectable()
 export class M3uSeriesPositionsService implements OnDestroy {
+    private readonly logger = createLogger('M3uSeriesPositions');
     private readonly bridge = inject(PlaybackPositionService);
 
     /**
@@ -267,7 +269,7 @@ export class M3uSeriesPositionsService implements OnDestroy {
                 );
             }
         } catch (error) {
-            console.warn('Failed to apply the watched toggle', error);
+            this.logger.warn('Failed to apply the watched toggle', error);
         }
 
         await this.load(playlistId, seriesId);
