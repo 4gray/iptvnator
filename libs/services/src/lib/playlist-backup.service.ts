@@ -207,6 +207,9 @@ export class PlaylistBackupService {
                 await firstValueFrom(
                     this.playlistsService.addPlaylist(nextPlaylist)
                 );
+                // The playlist exists even if a later user-state restore fails.
+                // Reserve its ID so another entry cannot overwrite it.
+                existingIds.add(targetId);
 
                 if (entry.portalType === 'xtream') {
                     await this.restoreXtreamEntry(targetId, entry);
@@ -221,7 +224,6 @@ export class PlaylistBackupService {
                     summary.merged += 1;
                 } else {
                     summary.imported += 1;
-                    existingIds.add(targetId);
                 }
             } catch (error) {
                 summary.failed += 1;
