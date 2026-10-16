@@ -100,6 +100,13 @@ const GUIDES = [
     slug: 'tmdb-metadata-guide',
     screenshots: ['blog/guides/screenshots/guide-tmdb-settings-dark.png'],
   },
+  {
+    slug: 'self-hosted-server-storage-guide',
+    screenshots: [
+      'blog/guides/screenshots/guide-server-settings-dark.png',
+      'blog/guides/screenshots/guide-server-migration-dark.png',
+    ],
+  },
 ];
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');
