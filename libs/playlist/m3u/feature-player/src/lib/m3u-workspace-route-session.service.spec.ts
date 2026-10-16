@@ -442,6 +442,31 @@ describe('M3uWorkspaceRouteSession', () => {
         expect(playlistsService.getPlaylist).toHaveBeenCalledTimes(1);
     });
 
+    it('retries a failed read when moving between loaded sections', async () => {
+        playlistsService.getPlaylist
+            .mockReturnValueOnce(
+                throwError(() => new Error('Playlist loading failed'))
+            )
+            .mockReturnValue(
+                of({ playlist: { items: [PRIMARY_CHANNEL] } } as Playlist)
+            );
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        router.url = `/workspace/playlists/${PLAYLIST_ID}/vod`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        await flushEffects();
+
+        expect(playlistsService.getPlaylist).toHaveBeenCalledTimes(2);
+        expect(store.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setChannels({
+                channels: [PRIMARY_CHANNEL],
+                playlistId: PLAYLIST_ID,
+            })
+        );
+    });
+
     it('still publishes a load when the section changes while it is in flight', async () => {
         // All channels and Movies share one load. Moving between them while
         // it is in flight starts no new request, so dropping the response

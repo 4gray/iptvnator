@@ -39,6 +39,8 @@ export class M3uWorkspaceRouteSession {
     private currentPlaylistId: string | null = null;
     private currentSection: string | null = null;
     private loadRequestId = 0;
+    /** The last read of the current playlist failed: the next loaded section retries it. */
+    private lastLoadFailed = false;
     private pendingHiddenGroupsHydration: Subscription | null = null;
 
     constructor() {
@@ -101,11 +103,16 @@ export class M3uWorkspaceRouteSession {
             return;
         }
 
-        if (!playlistChanged && !enteringLoadedSection) {
+        if (
+            !playlistChanged &&
+            !enteringLoadedSection &&
+            !this.lastLoadFailed
+        ) {
             return;
         }
 
         const requestId = ++this.loadRequestId;
+        this.lastLoadFailed = false;
         this.store.dispatch(
             ChannelActions.setChannelsLoading({ loading: true })
         );
@@ -163,6 +170,7 @@ export class M3uWorkspaceRouteSession {
                 return;
             }
 
+            this.lastLoadFailed = true;
             this.store.dispatch(ChannelActions.setChannels({ channels: [] }));
             this.store.dispatch(
                 FavoritesActions.hydrateFavorites({ channelIds: [] })
