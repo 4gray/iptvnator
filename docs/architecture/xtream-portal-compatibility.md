@@ -376,7 +376,12 @@ fetching their category/content arrays before deleting their old cache. Its
 read-only progress signal reports the current type, network/local phase and
 worker save counts. The editor stays modal and uses the same shared
 `ImportProgressComponent` as the workspace scanning overlay; disable-only edits
-do not show scanning. This path does not advertise cancellation it cannot perform. Cache
+do not show scanning. This path does not advertise cancellation it cannot perform.
+Checkboxes and section selection share the sidebar's Movies → Live TV → Series
+order. After a successful edit-time scan, navigate to the first newly enabled
+type in that order; a single newly enabled type always opens itself. Initial
+imports and manual refreshes choose the first enabled type in the same order.
+Failed scans and disable-only edits do not trigger the edit-time navigation. Cache
 delete carries an optional type scope through the worker bridge, snapshots all
 history/hidden-category state, and deletes only the requested catalogs. Ordinary
 Refresh supplies the source's enabled types. Disabled catalog rows remain intact;

@@ -47,7 +47,11 @@ verify download preservation using a development-profile download instead.
 - Edit that source to enable Movies. Saving shows the scanning popup and loads
   Movies without refreshing Live TV. The popup identifies Movies, shows remote
   loading and local save progress, then closes when done. Repeat with Series;
-  already enabled types should not refresh. Reopen Edit to confirm the selection.
+  already enabled types should not refresh. When scanning finishes, the newly
+  enabled section should open automatically. Reopen Edit to confirm the selection
+  and checkbox order: Movies, Live TV, Series.
+- Enable multiple types at once. The first newly enabled type in Movies → Live TV
+  → Series order opens after scanning, regardless of checkbox click order.
 - Favorite a movie, play it to create history/progress, and optionally download
   it. Disable Movies. It disappears from browsing/search, but its Favorites and
   history entries remain visible with a disabled-type status and remain usable.

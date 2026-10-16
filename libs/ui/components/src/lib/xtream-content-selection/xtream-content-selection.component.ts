@@ -8,6 +8,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     normalizeXtreamContentTypes,
+    XTREAM_CONTENT_TYPES,
     XtreamContentType,
 } from '@iptvnator/shared/interfaces';
 
@@ -50,13 +51,16 @@ import {
     ],
 })
 export class XtreamContentSelectionComponent {
-    readonly selected = input<XtreamContentType[]>(['live', 'movie', 'series']);
+    readonly selected = input<XtreamContentType[]>([...XTREAM_CONTENT_TYPES]);
     readonly selectedChange = output<XtreamContentType[]>();
-    readonly options: { type: XtreamContentType; label: string }[] = [
-        { type: 'live', label: 'PORTALS.LIVE_TV' },
-        { type: 'movie', label: 'PORTALS.MOVIES' },
-        { type: 'series', label: 'PORTALS.SERIES' },
-    ];
+    readonly options = XTREAM_CONTENT_TYPES.map((type) => ({
+        type,
+        label: {
+            movie: 'PORTALS.MOVIES',
+            live: 'PORTALS.LIVE_TV',
+            series: 'PORTALS.SERIES',
+        }[type],
+    }));
 
     toggle(type: XtreamContentType, checked: boolean): void {
         this.selectedChange.emit(

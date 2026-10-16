@@ -1,4 +1,5 @@
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { Router } from '@angular/router';
 import {
     Component,
     DestroyRef,
@@ -45,6 +46,7 @@ import {
     normalizeStalkerMacAddress,
     normalizeXtreamContentTypes,
     newlyEnabledXtreamTypes,
+    getXtreamContentRoute,
     Playlist,
     PlaylistMeta,
     PlaylistMetaUpdate,
@@ -416,6 +418,25 @@ export class PlaylistInfoComponent {
                 { duration: 3000 }
             );
             this.dialogRef?.close();
+            const target =
+                isXtream && this.runtime.supportsXtreamSqliteDataSource
+                    ? getXtreamContentRoute(
+                          newlyEnabledXtreamTypes(
+                              this.playlist.xtreamContentTypes,
+                              normalizedPlaylist.xtreamContentTypes
+                          )
+                      )
+                    : null;
+            if (target) {
+                await this.injector
+                    .get(Router)
+                    .navigate([
+                        '/workspace',
+                        'xtreams',
+                        this.playlist._id,
+                        target,
+                    ]);
+            }
         } catch (error) {
             console.error('Error updating playlist:', error);
             const sourceError =

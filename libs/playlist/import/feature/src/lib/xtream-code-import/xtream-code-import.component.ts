@@ -35,6 +35,7 @@ import {
     extractXtreamCredentialsFromUrl,
     normalizeXtreamServerUrl,
     XtreamContentType,
+    XTREAM_CONTENT_TYPES,
     Playlist,
 } from '@iptvnator/shared/interfaces';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
@@ -104,7 +105,7 @@ export class XtreamCodeImportComponent {
         ]),
         importDate: new FormControl(new Date().toISOString()),
         xtreamContentTypes: new FormControl<XtreamContentType[]>(
-            ['live', 'movie', 'series'],
+            [...XTREAM_CONTENT_TYPES],
             { nonNullable: true }
         ),
     });
@@ -144,7 +145,7 @@ export class XtreamCodeImportComponent {
             userAgent: '',
             serverUrl: '',
             importDate: new Date().toISOString(),
-            xtreamContentTypes: ['live', 'movie', 'series'],
+            xtreamContentTypes: [...XTREAM_CONTENT_TYPES],
         });
     }
 

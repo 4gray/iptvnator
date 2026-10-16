@@ -551,6 +551,7 @@ describe('PlaylistRefreshActionService', () => {
             '/workspace',
             'xtreams',
             item._id,
+            'vod',
         ]);
         expect(executionOrder).toEqual([
             'setItem',

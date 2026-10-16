@@ -107,8 +107,12 @@ test('desktop shows scanning for newly enabled Movies and Series and preserves a
             'get_live_streams',
         ]);
 
+        await expect(page).toHaveURL(/\/live(?:\?.*)?$/);
         await openSources(page);
         let dialog = await openSourceEditor(page, 'Selective Xtream');
+        await expect(
+            dialog.locator('app-xtream-content-selection mat-checkbox')
+        ).toHaveText(['Movies', 'Live TV', 'Series']);
         await expect(
             dialog.getByTestId('xtream-load-live').getByRole('checkbox')
         ).toBeChecked();
@@ -142,6 +146,7 @@ test('desktop shows scanning for newly enabled Movies and Series and preserves a
                     .poll(() => recorder.actions.includes(next.streams))
                     .toBeTruthy();
                 await expect(scanning).toBeVisible();
+                await expect(page).toHaveURL(/\/workspace\/sources$/);
                 await expect(
                     dialog.getByRole('heading', {
                         name: 'Syncing playlist',
@@ -172,6 +177,10 @@ test('desktop shows scanning for newly enabled Movies and Series and preserves a
                 next.categories,
                 next.streams,
             ]);
+            await expect(page).toHaveURL(
+                next.type === 'movie' ? /\/vod(?:\?.*)?$/ : /\/series(?:\?.*)?$/
+            );
+            await openSources(page);
             if (next.type === 'movie')
                 dialog = await openSourceEditor(page, 'Selective Xtream');
         }
@@ -248,6 +257,26 @@ test('desktop shows scanning for newly enabled Movies and Series and preserves a
             ).not.toBeChecked();
         }
         expect(catalogActions(recorder.actions)).toEqual([]);
+
+        // Click Live before Movies to prove display priority, not click order,
+        // chooses the section when several catalogs are newly enabled together.
+        await dialog
+            .getByTestId('xtream-load-live')
+            .getByRole('checkbox')
+            .check();
+        await dialog
+            .getByTestId('xtream-load-movie')
+            .getByRole('checkbox')
+            .check();
+        recorder.actions.length = 0;
+        await saveSourceDialog(page, dialog);
+        await expect(page).toHaveURL(/\/vod(?:\?.*)?$/);
+        expect(catalogActions(recorder.actions)).toEqual([
+            'get_vod_categories',
+            'get_vod_streams',
+            'get_live_categories',
+            'get_live_streams',
+        ]);
     } finally {
         await closeElectronApp(app);
         await recorder.close();
