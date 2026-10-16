@@ -1,4 +1,9 @@
-import { extractYear, tmdbPosterUrl } from '@iptvnator/services';
+import {
+    extractYear,
+    groupTitleMatchesByKey,
+    pickTitleMatch,
+    tmdbPosterUrl,
+} from '@iptvnator/services';
 import type { CatalogTitleLookup, TmdbSearchResult } from '@iptvnator/services';
 import {
     CatalogTitleMatch,
@@ -47,7 +52,10 @@ export type RecommendationCandidate = Omit<
  * gating that key on a title-derived 2049 would fail to exclude the very
  * film the user just watched (TMDB calls it 2017). Only Stalker rows
  * carry a real date (`info.releasedate`); everything else yields `null`,
- * which keeps the exact tier excluding unconditionally.
+ * which keeps the exact tier excluding unconditionally. So does a date the
+ * TMDB merge filled in itself (`tmdb_supplied_release_date`): it is the
+ * year of whatever TMDB matched, and a namesake match would otherwise stop
+ * the watched title from excluding itself.
  *
  * The base tier is different by construction — its key exists only
  * because a trailing year was stripped off — so it keeps using that year.
@@ -58,6 +66,9 @@ export function trustedReleaseYear(
     const info = (
         item.stalker_item as { info?: Record<string, unknown> } | undefined
     )?.info;
+    if (info?.['tmdb_supplied_release_date'] === true) {
+        return null;
+    }
     const releaseDate = info?.['releasedate'];
     return typeof releaseDate === 'string' ? extractYear(releaseDate) : null;
 }
@@ -222,4 +233,39 @@ export function toCandidates(
             };
         })
         .filter((entry) => entry.tmdbId > 0 && entry.title !== '');
+}
+
+/**
+ * The rail's cards: each candidate with the catalog row it resolves to.
+ * Title collisions are resolved HERE rather than before matching: two
+ * candidates that resolve to the same catalog row would render as
+ * duplicate cards opening the same item, while same-titled remakes
+ * resolve to different rows and both belong on the rail. Pure, so the
+ * service can rebuild the rail from the matches the parental lock does
+ * not withhold whenever the lock changes.
+ */
+export function buildRecommendationItems(
+    candidates: readonly RecommendationCandidate[],
+    matches: readonly CatalogTitleMatch[],
+    limit: number
+): DashboardRecommendationItem[] {
+    const grouped = groupTitleMatchesByKey(matches);
+    const items: DashboardRecommendationItem[] = [];
+    const claimedRows = new Set<string>();
+    for (const candidate of candidates) {
+        const match = pickTitleMatch(candidateLookup(candidate), grouped);
+        if (!match) {
+            continue;
+        }
+        const rowKey = `${match.playlistId}:${match.type}:${match.xtreamId}`;
+        if (claimedRows.has(rowKey)) {
+            continue;
+        }
+        claimedRows.add(rowKey);
+        items.push({ ...candidate, match });
+        if (items.length === limit) {
+            break;
+        }
+    }
+    return items;
 }

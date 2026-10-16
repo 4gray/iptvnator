@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { ParentalLockService } from '@iptvnator/services';
 import {
     unambiguousCategoryLanguage,
     type VodSourceCandidate,
@@ -43,6 +44,7 @@ export interface VodSourceDiscoveryResult {
 @Injectable({ providedIn: 'root' })
 export class VodSourceDiscoveryService {
     private readonly logger = createLogger('VodSourceDiscovery');
+    private readonly parentalLock = inject(ParentalLockService);
 
     get isAvailable(): boolean {
         return (
@@ -59,7 +61,14 @@ export class VodSourceDiscoveryService {
             matchKind: 'title-year',
         };
 
-        if (!this.isAvailable || !request.title?.trim()) {
+        // The worker withholds locked rows through its own lock state and
+        // index; while the lock withholds everything (store unreadable, or
+        // a bridge without the worker filter) neither can be trusted.
+        if (
+            !this.isAvailable ||
+            !request.title?.trim() ||
+            this.parentalLock.withholdsEverything()
+        ) {
             return empty;
         }
 

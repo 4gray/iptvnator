@@ -42,6 +42,44 @@ describe('GlobalFavoritesListComponent', () => {
         fixture = TestBed.createComponent(GlobalFavoritesListComponent);
     });
 
+    it('keeps only history removal in the context menu of an unavailable live Recent row', async () => {
+        const item = buildChannel('gone', 'Gone channel', {
+            sourceType: 'xtream',
+            xtreamId: 42,
+            catalogStatus: 'missing',
+        });
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.componentRef.setInput('channels', [item]);
+        Object.defineProperty(fixture.componentInstance, 'supportsEpgMapping', {
+            value: true,
+        });
+        fixture.detectChanges();
+        expect(fixture.componentInstance.hasChannelContextMenu(item)).toBe(
+            true
+        );
+        const remove = jest.spyOn(
+            fixture.componentInstance.removeRequested,
+            'emit'
+        );
+        const row = fixture.nativeElement.querySelector(
+            'app-channel-list-item .channel-list-item'
+        ) as HTMLElement | null;
+        if (!row) throw new Error('Expected live Recent row');
+        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+        await Promise.resolve();
+        fixture.detectChanges();
+        const actions =
+            document.querySelectorAll<HTMLElement>('[role="menuitem"]');
+        expect(actions).toHaveLength(1);
+        expect(actions[0].textContent).toContain(
+            'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY'
+        );
+        actions[0].click();
+        expect(remove).toHaveBeenCalledWith(
+            expect.objectContaining({ uid: item.uid })
+        );
+    });
+
     it('renders filled favorite stars in favorites mode', () => {
         fixture.componentRef.setInput('channels', [buildChannel('b', 'Beta')]);
         fixture.detectChanges();
@@ -58,10 +96,7 @@ describe('GlobalFavoritesListComponent', () => {
 
     it('renders favorite state from the supplied favorite ids in recent mode', () => {
         fixture.componentRef.setInput('mode', 'recent');
-        fixture.componentRef.setInput(
-            'favoriteUids',
-            new Set<string>(['b'])
-        );
+        fixture.componentRef.setInput('favoriteUids', new Set<string>(['b']));
         fixture.componentRef.setInput('channels', [
             buildChannel('a', 'Alpha'),
             buildChannel('b', 'Beta'),
@@ -156,7 +191,7 @@ describe('GlobalFavoritesListComponent', () => {
         fixture.detectChanges();
 
         const openMenuSpy = jest
-            .spyOn(fixture.componentInstance.contextMenuTrigger(), 'openMenu')
+            .spyOn(fixture.componentInstance.channelContextMenu(), 'open')
             .mockImplementation();
 
         fixture.componentInstance.onChannelContextMenu(
@@ -168,11 +203,9 @@ describe('GlobalFavoritesListComponent', () => {
         );
         await Promise.resolve();
 
-        expect(fixture.componentInstance.contextMenuPosition()).toEqual({
-            x: '24px',
-            y: '32px',
-        });
-        expect(openMenuSpy).toHaveBeenCalled();
+        expect(openMenuSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ clientX: 24, clientY: 32 })
+        );
 
         fixture.componentInstance.openChannelDetails();
 
@@ -180,8 +213,8 @@ describe('GlobalFavoritesListComponent', () => {
             ChannelDetailsDialogComponent,
             expect.objectContaining({
                 data: channel,
-                maxWidth: '720px',
-                width: 'calc(100vw - 32px)',
+                maxWidth: 'calc(100vw - 32px)',
+                width: '760px',
             })
         );
     });
@@ -195,8 +228,8 @@ describe('GlobalFavoritesListComponent', () => {
         fixture.detectChanges();
 
         jest.spyOn(
-            fixture.componentInstance.contextMenuTrigger(),
-            'openMenu'
+            fixture.componentInstance.channelContextMenu(),
+            'open'
         ).mockImplementation();
 
         fixture.componentInstance.onChannelContextMenu(
@@ -231,8 +264,8 @@ describe('GlobalFavoritesListComponent', () => {
         expect(fixture.componentInstance.hasChannelContextMenu(row)).toBe(true);
 
         jest.spyOn(
-            fixture.componentInstance.contextMenuTrigger(),
-            'openMenu'
+            fixture.componentInstance.channelContextMenu(),
+            'open'
         ).mockImplementation();
         fixture.componentInstance.onChannelContextMenu(
             fixture.componentInstance.enrichedChannels()[0],
@@ -246,6 +279,75 @@ describe('GlobalFavoritesListComponent', () => {
         fixture.componentInstance.openChannelDetails();
 
         expect(dialog.open).not.toHaveBeenCalled();
+    });
+    it('offers "open in playlist" for rows whose playlist target resolves', async () => {
+        const row = buildChannel('a', 'Alpha', {
+            playlistName: 'http://user:secret@panel.example.com/get.php',
+        });
+        const requested = jest.fn();
+        fixture.componentInstance.openInPlaylistRequested.subscribe(requested);
+        fixture.componentRef.setInput('channels', [row]);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.hasChannelContextMenu(row)).toBe(true);
+        const closeMenu = jest
+            .spyOn(fixture.componentInstance.channelContextMenu(), 'close')
+            .mockImplementation();
+        jest.spyOn(
+            fixture.componentInstance.channelContextMenu(),
+            'open'
+        ).mockImplementation();
+
+        fixture.componentInstance.onChannelContextMenu(
+            fixture.componentInstance.enrichedChannels()[0],
+            { clientX: 24, clientY: 32 } as MouseEvent
+        );
+        await Promise.resolve();
+
+        expect(fixture.componentInstance.contextMenuCanOpenInPlaylist()).toBe(
+            true
+        );
+        // Credential-bearing stored names collapse to the host.
+        expect(fixture.componentInstance.contextMenuPlaylistName()).toBe(
+            'panel.example.com'
+        );
+
+        fixture.componentInstance.openContextMenuChannelInPlaylist();
+
+        expect(closeMenu).toHaveBeenCalled();
+        expect(requested).toHaveBeenCalledWith(
+            expect.objectContaining({ uid: row.uid })
+        );
+    });
+
+    it('hides "open in playlist" for Stalker radio rows and never emits for them', async () => {
+        const row = buildChannel('s', 'Stalker', {
+            sourceType: 'stalker',
+            streamUrl: undefined,
+            stalkerId: '30',
+            stalkerCmd: 'ffmpeg http://stalker/30',
+            radio: 'true',
+        });
+        const requested = jest.fn();
+        fixture.componentInstance.openInPlaylistRequested.subscribe(requested);
+        fixture.componentRef.setInput('channels', [row]);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.canOpenInPlaylist(row)).toBe(false);
+        // Favorites mode, no EPG mapping support, no M3U metadata: nothing
+        // else earns the row a context menu either.
+        expect(fixture.componentInstance.hasChannelContextMenu(row)).toBe(
+            false
+        );
+
+        fixture.componentInstance.contextMenuChannel.set(
+            fixture.componentInstance.enrichedChannels()[0]
+        );
+        expect(fixture.componentInstance.contextMenuCanOpenInPlaylist()).toBe(
+            false
+        );
+        fixture.componentInstance.openContextMenuChannelInPlaylist();
+        expect(requested).not.toHaveBeenCalled();
     });
 });
 

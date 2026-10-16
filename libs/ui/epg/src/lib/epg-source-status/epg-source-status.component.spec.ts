@@ -7,10 +7,15 @@ import {
 } from '@iptvnator/epg/data-access';
 import { EpgSourceStatusComponent } from './epg-source-status.component';
 
+/** Writable double for the bridge's read-only capability getters. */
+type EpgBridgeStub = {
+    -readonly [K in keyof EpgRuntimeBridgeService]?: EpgRuntimeBridgeService[K];
+};
+
 describe('EpgSourceStatusComponent', () => {
     let fixture: ComponentFixture<EpgSourceStatusComponent>;
     let component: EpgSourceStatusComponent;
-    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let epgBridge: EpgBridgeStub;
     const imports = signal([]);
 
     beforeEach(async () => {

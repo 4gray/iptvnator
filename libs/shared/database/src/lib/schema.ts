@@ -52,8 +52,9 @@ export const playlists = sqliteTable('playlists', {
     position: integer('position'),
     favorites: text('favorites'),
     recentlyViewed: text('recently_viewed'),
-    payload: text('payload'),
     lastUsage: text('last_usage'),
+    // Last on purpose: see PLAYLISTS_COLUMNS in connection.ts.
+    payload: text('payload'),
 });
 
 // App key-value state table (e.g. one-time migration flags)
@@ -75,6 +76,11 @@ export const categories = sqliteTable(
         type: text('type', { enum: ['live', 'movies', 'series'] }).notNull(),
         xtreamId: integer('xtream_id').notNull(),
         hidden: integer('hidden', { mode: 'boolean' }).default(false),
+        // Parental lock index: derived from the renderer's lock store (the
+        // source of truth, keyed by provider category id) and re-stamped by
+        // DB_SET_CATEGORY_LOCKS. While the lock is active every content read
+        // in the worker filters on it — see parental-lock-state.ts.
+        locked: integer('locked', { mode: 'boolean' }).default(false),
     },
     (table) => ({
         playlistIdx: index('idx_categories_playlist').on(table.playlistId),
@@ -164,17 +170,34 @@ export const favorites = sqliteTable(
     'favorites',
     {
         id: integer('id').primaryKey({ autoIncrement: true }),
-        contentId: integer('content_id')
-            .notNull()
-            .references(() => content.id, { onDelete: 'cascade' }),
+        contentId: integer('content_id').references(() => content.id, {
+            onDelete: 'set null',
+        }),
         playlistId: text('playlist_id')
             .notNull()
             .references(() => playlists.id, { onDelete: 'cascade' }),
+        xtreamId: integer('xtream_id').notNull(),
+        type: text('type', { enum: ['live', 'movie', 'series'] }).notNull(),
+        title: text('title').notNull(),
+        posterUrl: text('poster_url'),
+        backdropUrl: text('backdrop_url'),
+        tmdbId: integer('tmdb_id'),
+        releaseYear: integer('release_year'),
+        originalTitle: text('original_title'),
+        /** A known reused provider identity cannot be authorized by a sparse refresh. */
+        identityConflict: integer('identity_conflict', { mode: 'boolean' })
+            .notNull()
+            .default(false),
         addedAt: text('added_at').default(sql`CURRENT_TIMESTAMP`),
         /** Display order position in the global favorites list (lower = first) */
         position: integer('position').default(0),
     },
     (table) => ({
+        identityUnique: uniqueIndex('favorites_playlist_type_xtream_unique').on(
+            table.playlistId,
+            table.type,
+            table.xtreamId
+        ),
         contentPlaylistUnique: uniqueIndex(
             'favorites_content_playlist_unique'
         ).on(table.contentId, table.playlistId),

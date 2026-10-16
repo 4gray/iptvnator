@@ -205,7 +205,7 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
 
         it('a click while a menu is open dismisses it instead of pausing', () => {
             jest.useFakeTimers();
-            component.toggleMenu('speed');
+            component.toggleMenu('settings');
             expect(component.anyMenuOpen()).toBe(true);
 
             surface.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -216,7 +216,7 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
         });
 
         it('an outside pointerdown closes open menus', () => {
-            component.toggleMenu('audio');
+            component.toggleMenu('settings');
             expect(component.anyMenuOpen()).toBe(true);
 
             document.body.dispatchEvent(
@@ -230,7 +230,7 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
             const popoverChild = document.createElement('button');
             controlsRoot.appendChild(popoverChild);
             document.body.appendChild(controlsRoot);
-            component.toggleMenu('audio');
+            component.toggleMenu('settings');
 
             popoverChild.dispatchEvent(
                 new MouseEvent('pointerdown', { bubbles: true })
@@ -278,9 +278,7 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
                 fullscreenElement = target;
                 document.dispatchEvent(new Event('fullscreenchange'));
             });
-            (target as HTMLElement & { requestFullscreen: jest.Mock })[
-                'requestFullscreen'
-            ] = requestTargetFullscreen;
+            target.requestFullscreen = requestTargetFullscreen;
             fixture.componentRef.setInput('fullscreenTarget', target);
             fixture.detectChanges();
 
@@ -352,7 +350,7 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
         );
 
         it('Escape closes an open menu', () => {
-            component.toggleMenu('subtitle');
+            component.toggleMenu('settings');
             expect(component.anyMenuOpen()).toBe(true);
 
             pressKey('Escape');

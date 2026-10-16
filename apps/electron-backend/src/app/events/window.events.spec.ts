@@ -5,10 +5,26 @@ const mockHandlers = new Map<
     (event: unknown, ...args: unknown[]) => unknown
 >();
 const mockFromWebContents = jest.fn();
+const mockReadPersistedZoomLevel = jest.fn();
+const mockMarkZoomLevelApplied = jest.fn();
+
+jest.mock('../services/window-zoom-level', () => ({
+    readPersistedZoomLevel: () => mockReadPersistedZoomLevel(),
+    markZoomLevelApplied: (contents: unknown) =>
+        mockMarkZoomLevelApplied(contents),
+}));
 
 jest.mock('electron', () => ({
     ipcMain: {
         handle: jest.fn(
+            (
+                channel: string,
+                handler: (event: unknown, ...args: unknown[]) => unknown
+            ) => {
+                mockHandlers.set(channel, handler);
+            }
+        ),
+        on: jest.fn(
             (
                 channel: string,
                 handler: (event: unknown, ...args: unknown[]) => unknown
@@ -90,9 +106,11 @@ describe('WindowEvents', () => {
         expect([...mockHandlers.keys()].sort()).toEqual([
             'WINDOW:CLOSE',
             'WINDOW:GET_STATE',
+            'WINDOW:GET_ZOOM_LEVEL',
             'WINDOW:MINIMIZE',
             'WINDOW:TOGGLE_FULLSCREEN',
             'WINDOW:TOGGLE_MAXIMIZE',
+            'WINDOW:ZOOM_LEVEL_APPLIED',
         ]);
     });
 
@@ -440,5 +458,45 @@ describe('WindowEvents', () => {
         mockHandlers.get('WINDOW:MINIMIZE')!(fakeEvent);
 
         expect(win.minimize).not.toHaveBeenCalled();
+    });
+});
+
+describe('zoom level IPC', () => {
+    beforeEach(() => {
+        mockReadPersistedZoomLevel.mockReset();
+        mockMarkZoomLevelApplied.mockReset();
+    });
+
+    it('answers the preload synchronously without taking ownership yet', () => {
+        mockReadPersistedZoomLevel.mockReturnValue(1.5);
+        const event: { sender: unknown; returnValue?: unknown } = {
+            sender: {},
+        };
+
+        mockHandlers.get('WINDOW:GET_ZOOM_LEVEL')?.(event);
+
+        expect(event.returnValue).toBe(1.5);
+        // Ownership waits for the applied acknowledgement: until then the
+        // sender's getZoomLevel() is still Chromium's per-URL default.
+        expect(mockMarkZoomLevelApplied).not.toHaveBeenCalled();
+    });
+
+    it('answers null when nothing usable is stored', () => {
+        mockReadPersistedZoomLevel.mockReturnValue(null);
+        const event: { sender: unknown; returnValue?: unknown } = {
+            sender: {},
+        };
+
+        mockHandlers.get('WINDOW:GET_ZOOM_LEVEL')?.(event);
+
+        expect(event.returnValue).toBeNull();
+    });
+
+    it('marks the sender as owning the level once the preload applied it', () => {
+        const sender = { id: 7 };
+
+        mockHandlers.get('WINDOW:ZOOM_LEVEL_APPLIED')?.({ sender });
+
+        expect(mockMarkZoomLevelApplied).toHaveBeenCalledWith(sender);
     });
 });

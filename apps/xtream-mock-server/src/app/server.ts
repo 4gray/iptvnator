@@ -7,7 +7,12 @@ import express, {
     type Response,
 } from 'express';
 import { installLiveFormatFixture } from './live-format-fixture.js';
+import { resolveXtreamMockPortString } from './mock-port.js';
 import { resetAll } from './data-store.js';
+import {
+    resetDroppingEpisodes,
+    streamDroppingEpisode,
+} from './dropping-episode.js';
 import { renderMarketingAssetSvg } from './generators/marketing.generator.js';
 import { installPerformanceControlRoutes } from './performance-control-routes.js';
 import {
@@ -50,7 +55,8 @@ https://example.channels/path-to-file/3.m3u8
 https://example.channels/path-to-file/4.m3u8
 `;
 const HLS_STUB = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
-const DEFAULT_PORT = 3211;
+/** EPG-fixture users whose timeshift URLs play the local MPEG-TS clip. */
+const TIMESHIFT_CLIP_USERS = new Set(['epg', 'epglong']);
 // Loopback by default: the fixtures serve fabricated but unauthenticated
 // content, so they should not be reachable from other hosts unless a dev
 // explicitly opts in with HOST=0.0.0.0 (e.g. to point a phone or STB at them).
@@ -95,6 +101,7 @@ export function createXtreamMockApp(
             return;
         }
         resetAll();
+        resetDroppingEpisodes();
         response.json({ status: 'reset' });
     });
     app.get('/playlist.m3u', (_request, response) => {
@@ -129,7 +136,7 @@ export function createXtreamMockApp(
 export function parseXtreamMockServerEnvironment(
     environment: NodeJS.ProcessEnv
 ): XtreamMockServerOptions {
-    const rawPort = environment['PORT'] ?? String(DEFAULT_PORT);
+    const rawPort = resolveXtreamMockPortString(environment);
     if (!/^\d+$/.test(rawPort)) {
         throw new Error('Xtream mock port must be an integer');
     }
@@ -219,7 +226,7 @@ function dispatchProxyAction(request: Request, response: Response): void {
 /** XMLTV for the marketing live channels; see `demo-xmltv.ts`. */
 function installDemoGuideRoute(app: express.Express): void {
     app.get('/demo/guide.xml', (request, response) => {
-        const origin = `${request.protocol}://${request.get('host') ?? `localhost:${DEFAULT_PORT}`}`;
+        const origin = `${request.protocol}://${request.get('host') ?? `localhost:${resolveXtreamMockPortString(process.env)}`}`;
         response
             .type('application/xml')
             .set('Cache-Control', 'no-store')
@@ -314,6 +321,10 @@ function installStreamRoutes(
             );
             return;
         }
+        if (fixture === 'dropping-episode') {
+            streamDroppingEpisode(request, response);
+            return;
+        }
         response.redirect(HLS_STUB);
     };
     app.get('/live/:username/:password/:streamId.m3u8', streamResponse);
@@ -323,7 +334,7 @@ function installStreamRoutes(
     app.all(
         '/timeshift/:username/:password/:duration/:start/:streamId.ts',
         (request, response) => {
-            if (request.params['username'] === 'epg') {
+            if (TIMESHIFT_CLIP_USERS.has(request.params['username'])) {
                 response
                     .type('video/mp2t')
                     .send(

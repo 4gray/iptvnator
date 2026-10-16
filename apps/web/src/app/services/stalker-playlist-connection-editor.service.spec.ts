@@ -48,6 +48,7 @@ describe('AppStalkerPlaylistConnectionEditorService', () => {
         title: 'Stalker Portal',
         count: 0,
         importDate: '2026-08-08T00:00:00.000Z',
+        autoRefresh: false,
         portalUrl: 'https://portal.example.com/c',
         macAddress: '00:1A:79:AA:BB:CC',
         username: 'subscriber',

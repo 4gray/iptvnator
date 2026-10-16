@@ -33,7 +33,7 @@ describe('LivePanelsController', () => {
 
     async function settle(): Promise<void> {
         TestBed.flushEffects();
-        await new Promise((resolve) => queueMicrotask(resolve));
+        await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
     }
 
     beforeEach(() => {

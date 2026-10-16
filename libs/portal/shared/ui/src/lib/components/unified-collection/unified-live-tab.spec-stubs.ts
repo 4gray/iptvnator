@@ -59,13 +59,16 @@ export class StubGlobalFavoritesListComponent {
     readonly channelsReordered = output<UnifiedFavoriteChannel[]>();
     readonly favoriteToggled = output<UnifiedFavoriteChannel>();
     readonly removeRequested = output<UnifiedFavoriteChannel>();
+    readonly openInPlaylistRequested = output<UnifiedFavoriteChannel>();
 }
 
 // Matches both live-panel selectors so the host's timeline ↔ list swap can be
 // asserted by tag name; both branches share the identical contract.
 @Component({
     selector: 'app-epg-timeline, app-epg-list-view',
-    template: '<div class="stub-epg-timeline"></div>',
+    // The real panels project `[epgToolbarAction]` into their toolbar.
+    template:
+        '<div class="stub-epg-timeline"><ng-content select="[epgToolbarAction]" /></div>',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StubEpgTimelineComponent {
@@ -98,6 +101,7 @@ export class StubAudioPlayerComponent {
     readonly icon = input('');
     readonly url = input.required<string>();
     readonly channelName = input('');
+    readonly playbackSessionKey = input<string | null>(null);
 }
 
 @Component({
@@ -111,6 +115,7 @@ export class StubWebPlayerViewComponent {
     readonly title = input('');
     readonly playback = input<ResolvedPortalPlayback | null>(null);
     readonly playerOverride = input<VideoPlayer | null>(null);
+    readonly timelineSegments = input<unknown>(null);
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly recordingStopped = output<RecordingStoppedEvent>();

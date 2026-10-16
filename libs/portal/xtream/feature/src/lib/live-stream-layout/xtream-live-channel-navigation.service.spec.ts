@@ -15,6 +15,7 @@ import {
 } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { XtreamLiveChannelNavigationService } from './xtream-live-channel-navigation.service';
@@ -22,6 +23,7 @@ import { XtreamLiveChannelNavigationService } from './xtream-live-channel-naviga
 const first = { xtream_id: 1, category_id: '10', title: 'Zulu' };
 const second = { xtream_id: 2, category_id: '10', title: 'Alpha' };
 const other = { xtream_id: 3, category_id: '20', title: 'Other' };
+const turkish = { xtream_id: 4, category_id: '10', title: 'İnşaat TV' };
 
 @Component({
     template: '',
@@ -47,9 +49,11 @@ describe('XtreamLiveChannelNavigationService', () => {
             (item) =>
                 (!selectedCategoryId() ||
                     Number(item.category_id) === selectedCategoryId()) &&
-                item.title
-                    .toLowerCase()
-                    .includes(categorySearchTerm().toLowerCase())
+                // Mirrors the real store's withSelection filter, which
+                // folds the term (issue #609).
+                foldSearchText(item.title).includes(
+                    foldSearchText(categorySearchTerm())
+                )
         )
     );
     const store = {
@@ -116,6 +120,19 @@ describe('XtreamLiveChannelNavigationService', () => {
         });
         service = TestBed.inject(XtreamLiveChannelNavigationService);
         TestBed.flushEffects();
+    });
+
+    it('lists the dotted capital İ for a lower-case route query, like the sidebar (issue #609)', () => {
+        // The rendered sidebar and this playback-order source must agree on
+        // what the query matches, or capture() records a queue that does not
+        // contain the row the user just clicked.
+        liveStreams.set([first, second, other, turkish]);
+
+        query.next(convertToParamMap({ q: 'inş' }));
+        expect(service.displayedChannels()).toEqual([turkish]);
+
+        query.next(convertToParamMap({ q: 'İNŞ' }));
+        expect(service.displayedChannels()).toEqual([turkish]);
     });
 
     it('captures the displayed sort and keeps it after category, search, and sort changes', () => {

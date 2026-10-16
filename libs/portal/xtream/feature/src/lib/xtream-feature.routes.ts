@@ -1,4 +1,5 @@
 import { Route } from '@angular/router';
+import { parentalLockXtreamCategoryGuard } from './parental-lock-category.guard';
 import { provideXtreamCatalogFacade } from './xtream-catalog-facade.service';
 import { provideXtreamWorkspaceRouteSession } from './xtream-workspace-route-session.service';
 
@@ -85,6 +86,9 @@ export function createXtreamRoutes(): Route[] {
                         },
                         {
                             path: 'live/:categoryId',
+                            canActivate: [
+                                parentalLockXtreamCategoryGuard('live'),
+                            ],
                             loadComponent: loadLiveStreamLayoutComponent,
                         },
                         {
@@ -98,11 +102,17 @@ export function createXtreamRoutes(): Route[] {
                                 },
                                 {
                                     path: ':categoryId',
+                                    canActivate: [
+                                        parentalLockXtreamCategoryGuard('vod'),
+                                    ],
                                     loadComponent:
                                         loadCategoryContentViewComponent,
                                 },
                                 {
                                     path: ':categoryId/:vodId',
+                                    canActivate: [
+                                        parentalLockXtreamCategoryGuard('vod'),
+                                    ],
                                     loadComponent: loadVodDetailsRouteComponent,
                                 },
                             ],
@@ -118,11 +128,21 @@ export function createXtreamRoutes(): Route[] {
                                 },
                                 {
                                     path: ':categoryId',
+                                    canActivate: [
+                                        parentalLockXtreamCategoryGuard(
+                                            'series'
+                                        ),
+                                    ],
                                     loadComponent:
                                         loadCategoryContentViewComponent,
                                 },
                                 {
                                     path: ':categoryId/:serialId',
+                                    canActivate: [
+                                        parentalLockXtreamCategoryGuard(
+                                            'series'
+                                        ),
+                                    ],
                                     loadComponent: loadSerialDetailsComponent,
                                 },
                             ],

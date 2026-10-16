@@ -1,8 +1,8 @@
 import { computed, DestroyRef, inject, Injectable } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     WorkspaceHeaderContextService,
@@ -10,8 +10,10 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     DownloadsService,
+    ParentalLockService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     CommandBuilderActions,
@@ -25,8 +27,7 @@ import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.s
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
-
-export type { WorkspaceHeaderBulkAction } from './helpers/workspace-shell-constants';
+import { PlaylistSwitcherOpenService } from '@iptvnator/playlist/shared/ui';
 
 @Injectable()
 export class WorkspaceShellFacade {
@@ -40,16 +41,15 @@ export class WorkspaceShellFacade {
     );
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly downloadsService = inject(DownloadsService);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
     private readonly search = inject(WorkspaceShellSearchService);
     private readonly header = inject(WorkspaceShellHeaderService);
     private readonly xtreamImport = inject(WorkspaceShellXtreamImportService);
     readonly headerContext = inject(WorkspaceHeaderContextService);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     // Root-provided; optional keeps standalone unit tests light. While the phone context drawer is modal, opening the command
     // palette over it would stack two competing focus-trapped surfaces.
     private readonly contextDrawer = inject(
@@ -58,6 +58,8 @@ export class WorkspaceShellFacade {
             optional: true,
         }
     );
+    private readonly playlistSwitcher = inject(PlaylistSwitcherOpenService);
+    private readonly dialog = inject(MatDialog);
     private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
         if (!(event.ctrlKey || event.metaKey)) {
             return;
@@ -67,9 +69,23 @@ export class WorkspaceShellFacade {
             return;
         }
 
-        if (event.key.toLowerCase() === 'k') {
+        const key = event.key.toLowerCase();
+        if (key === 'k') {
             event.preventDefault();
             this.openCommandPalette();
+        } else if (
+            key === 'p' &&
+            !event.shiftKey &&
+            !event.altKey &&
+            this.playlistSwitcher.available &&
+            // An open dialog keeps the focus: the switcher would take it out
+            // of the dialog, and give it back to the toolbar behind it.
+            this.dialog.openDialogs.length === 0
+        ) {
+            // ⌘K stays the command palette; ⌘P is the playlist switcher (and
+            // no longer prints the page in the browser build).
+            event.preventDefault();
+            this.playlistSwitcher.request();
         }
     };
 
@@ -82,9 +98,7 @@ export class WorkspaceShellFacade {
     readonly currentUrl = this.routeState.currentUrl;
     readonly currentRoute = this.routeState.currentRoute;
     readonly showDashboard = this.routeState.showDashboard;
-    readonly brandLink = this.routeState.brandLink;
-    readonly brandTooltipKey = this.routeState.brandTooltipKey;
-    readonly brandAriaLabelKey = this.routeState.brandAriaLabelKey;
+    readonly backTarget = this.backNavigation.target;
     readonly currentContext = this.routeState.currentContext;
     readonly currentSection = this.routeState.currentSection;
     readonly commandPaletteCommands = computed<WorkspaceResolvedCommandItem[]>(
@@ -118,6 +132,12 @@ export class WorkspaceShellFacade {
     readonly searchScopeLabel = this.search.searchScopeLabel;
     readonly searchStatusLabel = this.search.searchStatusLabel;
     readonly railProviderClass = this.routeState.railProviderClass;
+    readonly parentalLockState = computed<'off' | 'locked' | 'unlocked'>(() => {
+        if (!this.parentalLock.enabled()) {
+            return 'off';
+        }
+        return this.parentalLock.unlocked() ? 'unlocked' : 'locked';
+    });
     readonly primaryContextLinks = this.routeState.primaryContextLinks;
     readonly secondaryContextLinks = this.routeState.secondaryContextLinks;
     readonly isDownloadsView = this.routeState.isDownloadsView;
@@ -125,8 +145,6 @@ export class WorkspaceShellFacade {
     readonly canOpenPlaylistInfo = this.header.canOpenPlaylistInfo;
     readonly canOpenAccountInfo = this.header.canOpenAccountInfo;
     readonly canRefreshPlaylist = this.header.canRefreshPlaylist;
-    readonly isRefreshingPlaylist = this.header.isRefreshingPlaylist;
-    readonly headerBulkAction = this.header.headerBulkAction;
     readonly headerSidebarToggle = this.header.headerSidebarToggle;
     readonly playlistSubtitle = this.header.playlistSubtitle;
     readonly activeDownloadsCount = computed(() =>
@@ -202,12 +220,12 @@ export class WorkspaceShellFacade {
         );
     }
 
-    runHeaderBulkAction(): Promise<void> {
-        return this.header.runHeaderBulkAction();
-    }
-
     toggleLiveSidebar(): void {
         this.header.toggleLiveSidebar();
+    }
+
+    goBack(): void {
+        this.backNavigation.goBack();
     }
 
     navigateToGlobalFavorites(): void {
@@ -246,6 +264,14 @@ export class WorkspaceShellFacade {
         this.header.refreshCurrentPlaylist();
     }
 
+    toggleParentalLock(): void {
+        if (this.parentalLock.unlocked()) {
+            this.parentalLock.lock();
+            return;
+        }
+        void this.parentalLock.requestUnlock();
+    }
+
     private makeCommandBuilderContext(): CommandBuilderContext {
         return {
             route: this.currentRoute(),
@@ -258,6 +284,7 @@ export class WorkspaceShellFacade {
             canRefreshPlaylist: this.canRefreshPlaylist(),
             supportsDownloads: this.supportsDownloads,
             showDashboard: this.showDashboard(),
+            parentalLockState: this.parentalLockState(),
             translate: (key, params) => this.translateText(key, params),
             router: this.router,
             actions: this.commandBuilderActions,
@@ -276,6 +303,10 @@ export class WorkspaceShellFacade {
         openDownloadsShortcut: () => this.openDownloadsShortcut(),
         openAddPlaylistDialog: (kind) =>
             this.header.openAddPlaylistDialog(kind),
+        lockParentalLock: () => this.parentalLock.lock(),
+        unlockParentalLock: () => {
+            void this.parentalLock.requestUnlock();
+        },
     };
 
     private translateText(

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore } from '@ngrx/signals';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { ElectronBridgeApi, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerPortal } from './with-stalker-portal.feature';
@@ -48,7 +48,7 @@ describe('withStalkerPortal', () => {
             value: {
                 dbCreatePlaylist,
                 dbGetPlaylist,
-            } as Window['electron'],
+            } satisfies Partial<ElectronBridgeApi>,
             configurable: true,
         });
 
@@ -138,5 +138,4 @@ describe('withStalkerPortal', () => {
         expect(dbGetPlaylist).not.toHaveBeenCalled();
         expect(dbCreatePlaylist).not.toHaveBeenCalled();
     });
-
 });

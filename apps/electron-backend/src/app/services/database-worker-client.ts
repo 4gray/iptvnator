@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
+import { getParentalLockActive } from './parental-lock-state';
 import { Worker } from 'worker_threads';
 import type {
     DbOperationEvent,
@@ -10,10 +11,16 @@ import type {
 } from '../workers/database-worker.types';
 import {
     isDbTraceEnabled,
+    performanceCounters,
     roundTraceDuration,
     summarizeForTrace,
     trace,
 } from './debug-trace';
+import { PERFORMANCE_COUNTER } from './performance-counters';
+import {
+    DB_WORKER_SQL_STATEMENTS_MESSAGE_TYPE,
+    readSqlStatementsMessageCount,
+} from '../workers/database-worker-sql-statement-count';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 
 type PendingRequest = {
@@ -80,6 +87,19 @@ export class DatabaseWorkerClient {
                 operation,
                 payload,
             });
+        });
+    }
+
+    /**
+     * Flips the worker's parental lock filter. Awaits readiness so the
+     * message is never lost to a worker that has not started, and is posted
+     * on the request port so later reads observe it in order.
+     */
+    async setParentalLockState(active: boolean): Promise<void> {
+        await this.ensureWorker();
+        this.worker?.postMessage({
+            type: 'parental-lock',
+            active: active === true,
         });
     }
 
@@ -157,6 +177,10 @@ export class DatabaseWorkerClient {
             this.worker = new Worker(workerURL, {
                 workerData: {
                     nativeModuleSearchPaths: bootstrap.nativeModuleSearchPaths,
+                    // Seeded here rather than requested afterwards, so a
+                    // restarted worker never answers a read unfiltered while
+                    // the lock state is still in flight.
+                    parentalLockActive: getParentalLockActive(),
                 },
             });
         } catch (error) {
@@ -201,6 +225,17 @@ export class DatabaseWorkerClient {
         }
 
         if (message.type === 'performance-cancel-received') {
+            return;
+        }
+
+        if (message.type === DB_WORKER_SQL_STATEMENTS_MESSAGE_TYPE) {
+            const count = readSqlStatementsMessageCount(message);
+            if (count !== null) {
+                performanceCounters.increment(
+                    PERFORMANCE_COUNTER.SQL_STATEMENTS,
+                    count
+                );
+            }
             return;
         }
 

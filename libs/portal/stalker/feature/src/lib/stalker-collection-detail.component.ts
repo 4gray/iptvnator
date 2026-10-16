@@ -25,6 +25,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    SeriesResumeTarget,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -44,6 +45,7 @@ import {
 import { Playlist, VodDetailsItem } from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
+import { STALKER_SERIES_RESUME_TARGET } from './stalker-series-view/stalker-series-resume';
 import {
     resolveStalkerCollectionDetailMode,
     resolveStalkerCollectionItem,
@@ -87,6 +89,12 @@ import {
                 (inlineExternalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "
+                (externalPlayRequested)="
+                    playback.vodDetailActions.openExternal($event)
+                "
+                (resetProgressRequested)="
+                    playback.vodDetailActions.resetProgress($event)
+                "
             />
         } @else {
             <app-portal-detail-shell
@@ -100,6 +108,14 @@ import {
         {
             provide: VIEW_IN_PORTAL_HANDOFF,
             useExisting: forwardRef(() => StalkerCollectionDetailComponent),
+        },
+        {
+            // The nested series view reads the one-shot resume handoff
+            // through this token, like the Xtream detail injector does.
+            provide: STALKER_SERIES_RESUME_TARGET,
+            useFactory: (host: StalkerCollectionDetailComponent) =>
+                host.seriesResume,
+            deps: [forwardRef(() => StalkerCollectionDetailComponent)],
         },
     ],
     styles: [
@@ -115,6 +131,7 @@ import {
 })
 export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     readonly item = input<UnifiedCollectionItem | null>(null);
+    readonly seriesResume = input<SeriesResumeTarget | null>(null);
     readonly closeRequested = output<void>();
 
     private readonly playlistsService = inject(PlaylistsService);
@@ -141,6 +158,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
         stalkerStore: this.stalkerStore,
         playbackPositions: this.playbackPositions,
         portalPlayer: this.portalPlayer,
+        externalPlayback: this.externalPlayback,
         snackBar: this.snackBar,
         translateService: this.translateService,
         logger: this.logger,
@@ -195,6 +213,11 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
             const playbackOwnerKey = this.playbackSessionKey();
             untracked(() => {
                 if (playbackOwnerKey !== this.currentPlaybackOwnerKey) {
+                    // A start the left item still resolves no longer
+                    // applies; a return to it must not find Play held.
+                    this.playback.retirePendingStart(
+                        this.currentPlaybackOwnerKey
+                    );
                     this.currentPlaybackOwnerKey = playbackOwnerKey;
                     this.closeInlinePlayer();
                 }
@@ -235,6 +258,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     }
 
     ngOnDestroy(): void {
+        ++this.initRequestId;
         restoreStalkerCollectionStoreState(
             this.stalkerStore,
             this.originalState

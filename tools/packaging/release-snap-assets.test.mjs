@@ -1731,6 +1731,7 @@ test('publish workflow installs the source verifier and binds the release tag re
     assert.equal(Object.hasOwn(publishJob.env ?? {}, 'GH_TOKEN'), false);
     assert.deepEqual(selectStep.env, {
         GH_TOKEN: '${{ github.token }}',
+        RELEASE_ID: '${{ steps.resolve-release.outputs.release-id }}',
     });
     assert.deepEqual(downloadStep.env, {
         GH_TOKEN: '${{ github.token }}',

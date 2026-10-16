@@ -17,6 +17,13 @@ export interface XtreamSerieDetails {
      * the provider's `seasons[].overview` is empty or URL-only junk.
      */
     tmdb_season_overviews?: Record<string, string>;
+    /**
+     * Populated by lazy TMDB season enrichment; absent in raw provider
+     * responses. Keyed like `tmdb_season_overviews`. Full image URLs of
+     * each season's own TMDB poster, the first choice for the season
+     * cover in the detail view and the fullscreen episode panel.
+     */
+    tmdb_season_posters?: Record<string, string>;
 }
 
 export interface XtreamSerieInfo {

@@ -45,8 +45,14 @@ export class ControlsVolumeInteractions {
         this.deps.volume.hoverLeave();
     }
 
-    buttonClick(event?: Event): void {
+    /**
+     * With the slider rendered inline next to the button (wide dock), there
+     * is no popover to open first: the button is plainly a mute toggle for
+     * every pointer type.
+     */
+    buttonClick(event?: Event, options: { inlineSlider?: boolean } = {}): void {
         if (
+            !options.inlineSlider &&
             this.deps.wasTouchInteraction(event) &&
             !this.deps.menus.volumeOpen()
         ) {

@@ -1,14 +1,13 @@
-import {
-    signal,
-    WritableSignal,
-} from '@angular/core';
+import { signal, WritableSignal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
 import { PlaylistsService } from '@iptvnator/services';
 import {
     createStalkerVodItem,
+    firstProviderText,
     isStalkerSeriesFlag,
     isStalkerSeriesItem,
+    readProviderRating,
     StalkerVodDetails,
     StalkerVodInfo,
     VodDetailsItem,
@@ -42,10 +41,7 @@ export interface StalkerFavoriteToggleOptions {
         item: Record<string, unknown>,
         onComplete?: () => void
     ) => void;
-    removeFromFavorites: (
-        favoriteId: string,
-        onComplete?: () => void
-    ) => void;
+    removeFromFavorites: (favoriteId: string, onComplete?: () => void) => void;
     onComplete?: () => void;
 }
 
@@ -97,6 +93,44 @@ export function normalizeStalkerEntityId(value: unknown): string {
     return String(value).trim();
 }
 
+/**
+ * The first candidate that actually carries an identity.
+ *
+ * Portals send `id` and `stream_id` inconsistently, and a BLANK one is not
+ * an absent one: `a ?? b` keeps `''` and would store a row with no provider
+ * identity, which then cannot be selected, played or found again. Every
+ * reader normalizes with {@link normalizeStalkerEntityId}, so blank and
+ * whitespace-only values are equivalent to missing here too.
+ *
+ * Numbers keep their type so a numeric provider id survives round-trips;
+ * non-finite ones are not identities and are skipped rather than stringified
+ * into `"NaN"`. Callers own the PREFERENCE order — favorites read
+ * `stream_id` first, the channel cache reads `id` first — this only skips the
+ * empty ones.
+ */
+export function firstNonBlankStalkerId(
+    ...values: unknown[]
+): string | number | undefined {
+    for (const value of values) {
+        if (typeof value === 'number') {
+            if (Number.isFinite(value)) {
+                return value;
+            }
+            continue;
+        }
+        const text = normalizeStalkerEntityId(value);
+        if (text) {
+            return text;
+        }
+    }
+    return undefined;
+}
+
+/** {@link firstNonBlankStalkerId} as the normalized text every reader compares. */
+export function firstNonBlankStalkerIdText(...values: unknown[]): string {
+    return normalizeStalkerEntityId(firstNonBlankStalkerId(...values));
+}
+
 export function normalizeStalkerEntityIdAsNumber(
     value: unknown
 ): number | null {
@@ -114,50 +148,84 @@ function toStringOrFallback(value: unknown, fallback = ''): string {
     return String(value);
 }
 
-function toOptionalString(value: unknown): string | undefined {
-    if (value === null || value === undefined || value === '') {
-        return undefined;
-    }
-    return String(value);
-}
-
+/**
+ * Maps a raw portal row (or an already-built selection, on re-normalization)
+ * to the `info` both Stalker detail templates render.
+ *
+ * Portals send `"N/A"`, `"-"` or an unrated `"0"` score where they have
+ * nothing, so every field reads the first USABLE candidate and falls back to
+ * `''`, which is how this shape spells "absent". The series view binds
+ * `info` directly, and TMDB enrichment keeps any non-empty provider rating
+ * and release date, so a stand-in surviving this point would be rendered
+ * AND would block the TMDB value that should have replaced it.
+ */
 export function createStalkerInfo(item: StalkerVodSource): StalkerVodInfo {
     const info = item.info ?? {};
+    const text = (...values: unknown[]) => firstProviderText(...values) ?? '';
+    const rating = (primary: unknown, fallback: unknown) =>
+        readProviderRating(primary) ?? readProviderRating(fallback) ?? '';
 
     return {
-        name: toStringOrFallback(
-            info.name ?? info.o_name ?? item.o_name ?? item.name ?? item.title,
-            'Unknown'
+        name:
+            firstProviderText(
+                info.name,
+                info.o_name,
+                item.o_name,
+                item.name,
+                item.title
+            ) ?? 'Unknown',
+        o_name: firstProviderText(info.o_name, item.o_name),
+        movie_image: text(
+            info.movie_image,
+            item.cover,
+            item.screenshot_uri,
+            item.logo
         ),
-        o_name: toOptionalString(info.o_name ?? item.o_name),
-        movie_image: toStringOrFallback(
-            info.movie_image ?? item.cover ?? item.screenshot_uri ?? item.logo
-        ),
-        description: toStringOrFallback(info.description ?? item.description),
-        actors: toStringOrFallback(info.actors ?? item.actors),
-        director: toStringOrFallback(info.director ?? item.director),
-        releasedate: toStringOrFallback(
-            info.releasedate ?? item.releasedate ?? item.year
-        ),
-        genre: toStringOrFallback(info.genre ?? item.genre ?? item.genres_str),
-        rating_imdb: toStringOrFallback(info.rating_imdb ?? item.rating_imdb),
-        rating_kinopoisk: toStringOrFallback(
-            info.rating_kinopoisk ?? item.rating_kinopoisk
-        ),
-        // TMDB enrichment fields must survive re-normalization — detail
-        // views normalize the selected item on every render
-        ...(info.tmdb_id ? { tmdb_id: info.tmdb_id } : {}),
-        ...(info.tmdb_cast ? { tmdb_cast: info.tmdb_cast } : {}),
-        ...(info.tmdb_directors
-            ? { tmdb_directors: info.tmdb_directors }
-            : {}),
-        ...(info.tmdb_status ? { tmdb_status: info.tmdb_status } : {}),
-        ...(info.tmdb_backdrop ? { tmdb_backdrop: info.tmdb_backdrop } : {}),
-        ...(info.tmdb_trailer ? { tmdb_trailer: info.tmdb_trailer } : {}),
-        ...(info.tmdb_recommendations
-            ? { tmdb_recommendations: info.tmdb_recommendations }
-            : {}),
+        description: text(info.description, item.description),
+        actors: text(info.actors, item.actors),
+        director: text(info.director, item.director),
+        releasedate: text(info.releasedate, item.releasedate, item.year),
+        genre: text(info.genre, item.genre, item.genres_str),
+        rating_imdb: rating(info.rating_imdb, item.rating_imdb),
+        rating_kinopoisk: rating(info.rating_kinopoisk, item.rating_kinopoisk),
+        ...pickTmdbEnrichment(info),
     };
+}
+
+type TmdbEnrichmentKey = Extract<keyof StalkerVodInfo, `tmdb_${string}`>;
+
+/**
+ * Every TMDB enrichment field of {@link StalkerVodInfo}. A `Record` over the
+ * `tmdb_*` keys, so adding one to the interface fails to compile until it is
+ * listed here: detail views re-normalize the selected item on every render,
+ * and a field this list missed would vanish right after enrichment.
+ */
+const TMDB_ENRICHMENT_KEYS: Record<TmdbEnrichmentKey, true> = {
+    tmdb_id: true,
+    tmdb_cast: true,
+    tmdb_directors: true,
+    tmdb_status: true,
+    tmdb_backdrop: true,
+    tmdb_trailer: true,
+    tmdb_recommendations: true,
+    tmdb_genres: true,
+    tmdb_countries: true,
+    tmdb_media_type: true,
+    tmdb_supplied_release_date: true,
+};
+
+function pickTmdbEnrichment(
+    info: Partial<StalkerVodInfo>
+): Partial<Pick<StalkerVodInfo, TmdbEnrichmentKey>> {
+    const picked: Record<string, unknown> = {};
+    for (const key of Object.keys(
+        TMDB_ENRICHMENT_KEYS
+    ) as TmdbEnrichmentKey[]) {
+        if (info[key]) {
+            picked[key] = info[key];
+        }
+    }
+    return picked;
 }
 
 /**
@@ -175,7 +243,7 @@ export function buildStalkerSelectedVodItem(
     forceSeries = false
 ): StalkerSelectedVodItem {
     return {
-        id: toStringOrFallback(item.id ?? item.stream_id),
+        id: firstNonBlankStalkerIdText(item.id, item.stream_id),
         cmd: toStringOrFallback(item.cmd),
         series: item.series,
         has_files: item.has_files,
@@ -187,9 +255,7 @@ export function buildStalkerSelectedVodItem(
                 : undefined,
         video_id: item.video_id,
         category_id:
-            typeof item.category_id === 'string'
-                ? item.category_id
-                : undefined,
+            typeof item.category_id === 'string' ? item.category_id : undefined,
         info: createStalkerInfo(item),
     };
 }
@@ -222,11 +288,10 @@ export function normalizeStalkerFavoriteItem(
             cmd: toStringOrFallback(
                 (item as StalkerVodSource).cmd ?? source.cmd
             ),
-            id: toStringOrFallback(item.stream_id ?? item.id ?? source.id),
+            id: firstNonBlankStalkerIdText(item.stream_id, item.id, source.id),
             series: (item as StalkerVodSource).series ?? source.series,
             is_series: normalizedIsSeries ? true : undefined,
-            video_id:
-                (item as StalkerVodSource).video_id ?? source.video_id,
+            video_id: (item as StalkerVodSource).video_id ?? source.video_id,
             category_id:
                 typeof (item as StalkerVodSource).category_id === 'string'
                     ? (item as StalkerVodSource).category_id
@@ -356,8 +421,7 @@ export function createPortalCollectionResource<T>(
                 refreshVersion: getRefreshVersion(),
             };
         },
-        stream: ({ params }) =>
-            streamFactory(playlistService, params.portalId),
+        stream: ({ params }) => streamFactory(playlistService, params.portalId),
     });
 }
 

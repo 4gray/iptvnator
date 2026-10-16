@@ -14,20 +14,22 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { SettingsStore } from '@iptvnator/services';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import {
+    foldSearchText,
     Channel,
     EpgProgram,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
+import { ChannelContextMenuComponent } from '../channel-context-menu/channel-context-menu.component';
 import {
     PlaylistChannelSortMode,
-    getPlaylistChannelSortModeLabel,
+    getPlaylistChannelSortModeLabelKey,
     persistPlaylistChannelSortMode,
     restorePlaylistChannelSortMode,
     sortPlaylistChannelItems,
@@ -37,6 +39,10 @@ import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '../../menu-item-radio/menu-item-radio.directive';
 
 const ALL_CHANNELS_SORT_STORAGE_KEY = 'm3u-all-channels-sort-mode';
 
@@ -48,12 +54,15 @@ export type { ChannelEpgMetadata } from '../epg-enrichment.util';
     styleUrls: ['./all-channels-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
         MatButtonModule,
         MatIconModule,
         MatMenuModule,
         MatTooltipModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         ScrollingModule,
         TranslatePipe,
     ],
@@ -64,8 +73,9 @@ export class AllChannelsViewComponent {
     private readonly settingsStore = inject(SettingsStore);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
 
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
 
     /** All channels (will be filtered by search) */
     readonly channels = input.required<Channel[]>();
@@ -111,15 +121,11 @@ export class AllChannelsViewComponent {
     readonly sidebarToggleRequested = output<void>();
 
     readonly contextMenuChannel = signal<Channel | null>(null);
-    readonly contextMenuPosition = signal({
-        x: '0px',
-        y: '0px',
-    });
     readonly allChannelsSortMode = signal<PlaylistChannelSortMode>(
         restorePlaylistChannelSortMode(ALL_CHANNELS_SORT_STORAGE_KEY)
     );
-    readonly allChannelsSortLabel = computed(() =>
-        getPlaylistChannelSortModeLabel(this.allChannelsSortMode())
+    readonly allChannelsSortLabelKey = computed(() =>
+        getPlaylistChannelSortModeLabelKey(this.allChannelsSortMode())
     );
 
     /**
@@ -127,10 +133,12 @@ export class AllChannelsViewComponent {
      * reference when there is no search term, so large lists avoid cloning.
      */
     readonly filteredChannels = computed(() => {
-        const term = this.searchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.searchTerm().trim());
         const channels = this.channels();
         const filteredChannels = term
-            ? channels.filter((ch) => ch.name?.toLowerCase().includes(term))
+            ? channels.filter((ch) =>
+                  foldSearchText(ch.name ?? '').includes(term)
+              )
             : channels;
 
         return sortPlaylistChannelItems(
@@ -200,19 +208,7 @@ export class AllChannelsViewComponent {
 
     onChannelContextMenu(channel: Channel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     openChannelDetails(): void {
@@ -221,12 +217,8 @@ export class AllChannelsViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
-        });
+        this.channelContextMenu().close();
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     openEpgMapping(): void {
@@ -235,7 +227,7 @@ export class AllChannelsViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const channelKey = resolveChannelEpgLookupKey(channel);
         if (!channelKey) {
             return;

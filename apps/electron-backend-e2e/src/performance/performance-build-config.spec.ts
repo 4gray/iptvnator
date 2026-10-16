@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { join } from 'node:path';
 
+import { JOURNEY_CD_TICK_COUNTER_KEY } from './journey-renderer-probe';
+
 interface TargetConfiguration {
     configurations?: Record<string, Record<string, unknown>>;
     dependsOn?: unknown;
@@ -40,7 +42,7 @@ function readProject(relativePath: string): ProjectConfiguration {
 }
 
 function readResolvedWebBuildTask(): NxGraphTask | undefined {
-    const environment = {
+    const environment: NodeJS.ProcessEnv = {
         ...process.env,
         FORCE_COLOR: '0',
         NX_DAEMON: 'false',
@@ -88,8 +90,21 @@ test('the performance harness target runs only Node performance specs', () => {
     assert.equal(target.options?.['cwd'], 'apps/electron-backend-e2e');
     assert.equal(
         target.options?.['command'],
-        'pnpm exec tsx --test src/performance/*.spec.ts'
+        'tsx --test "src/performance/*.spec.ts"'
     );
+});
+
+// A nested `pnpm exec` under `pnpm nx` can run from the workspace root instead
+// of the target cwd (an older global pnpm with version switching disabled), so
+// cwd-relative globs, specs and configs are not found. run-commands already
+// puts node_modules/.bin on PATH.
+test('electron-backend-e2e command targets call binaries without pnpm exec', () => {
+    for (const [name, target] of Object.entries(e2eProject.targets)) {
+        const command = target.options?.['command'];
+        if (typeof command !== 'string') continue;
+
+        assert.doesNotMatch(command, /\bpnpm exec\b/, name);
+    }
 });
 
 test('the web performance build keeps production renderer behavior with profiling source maps', () => {
@@ -103,11 +118,124 @@ test('the web performance build keeps production renderer behavior with profilin
     assert.equal(performance['serviceWorker'], false);
     assert.deepEqual(performance['optimization'], production['optimization']);
     assert.equal(performance['outputHashing'], production['outputHashing']);
-    assert.deepEqual(
-        performance['fileReplacements'],
-        production['fileReplacements']
-    );
+    // The only difference is the environment: production values plus the
+    // change-detection tick counter the journeys read.
+    assert.deepEqual(performance['fileReplacements'], [
+        {
+            replace: 'apps/web/src/environments/environment.ts',
+            with: 'apps/web/src/environments/environment.performance.ts',
+        },
+    ]);
+    assert.deepEqual(production['fileReplacements'], [
+        {
+            replace: 'apps/web/src/environments/environment.ts',
+            with: 'apps/web/src/environments/environment.prod.ts',
+        },
+    ]);
     assert.equal(performance['sourceMap'], true);
+});
+
+test('only the web performance build installs the tick counter the journeys read', () => {
+    const environments = join(workspaceRoot, 'apps/web/src/environments');
+    const performanceEnvironment = readFileSync(
+        join(environments, 'environment.performance.ts'),
+        'utf8'
+    );
+    assert.match(
+        performanceEnvironment,
+        /export \{ AppConfig \} from '\.\/environment\.prod';/
+    );
+    assert.match(
+        performanceEnvironment,
+        /installChangeDetectionTickCounter\(\);/
+    );
+    assert.match(
+        readFileSync(
+            join(environments, 'change-detection-tick-counter.ts'),
+            'utf8'
+        ),
+        new RegExp(
+            `CHANGE_DETECTION_TICK_COUNTER_KEY = '${JOURNEY_CD_TICK_COUNTER_KEY}'`
+        )
+    );
+    // No other configuration may reference the performance environment.
+    for (const [name, configuration] of Object.entries(
+        webProject.targets['build'].configurations ?? {}
+    )) {
+        if (name === 'electron-performance') continue;
+        assert.doesNotMatch(
+            JSON.stringify(configuration['fileReplacements'] ?? []),
+            /environment\.performance/,
+            name
+        );
+    }
+});
+
+// @ngrx/store-devtools must not reach the production, PWA or performance
+// bundles (renderer.initialBytes): the default providers file is empty and
+// only the development configurations swap in the devtools.
+test('only development web builds provide the NgRx store devtools', () => {
+    const environments = join(workspaceRoot, 'apps/web/src/environments');
+    const devtoolsReplacement = {
+        replace: 'apps/web/src/environments/store-devtools.providers.ts',
+        with: 'apps/web/src/environments/store-devtools.providers.dev.ts',
+    };
+    const developmentConfigurations = new Set(['development', 'electron-e2e']);
+
+    assert.match(
+        readFileSync(join(environments, 'store-devtools.providers.ts'), 'utf8'),
+        /export const storeDevtoolsProviders: EnvironmentProviders\[\] = \[\];/
+    );
+    // The replacement must still provide them, or development builds would
+    // lose the devtools while this test passed.
+    assert.match(
+        readFileSync(
+            join(environments, 'store-devtools.providers.dev.ts'),
+            'utf8'
+        ),
+        /storeDevtoolsProviders: EnvironmentProviders\[\] = \[\s*provideStoreDevtools\(/
+    );
+    assert.doesNotMatch(
+        readFileSync(
+            join(workspaceRoot, 'apps/web/src/app/app.config.ts'),
+            'utf8'
+        ),
+        /@ngrx\/store-devtools/
+    );
+    for (const [name, configuration] of Object.entries(
+        webProject.targets['build'].configurations ?? {}
+    )) {
+        const replacements = (configuration['fileReplacements'] ??
+            []) as unknown[];
+        if (developmentConfigurations.has(name)) {
+            assert.deepEqual(replacements[0], devtoolsReplacement, name);
+        } else {
+            assert.doesNotMatch(
+                JSON.stringify(replacements),
+                /store-devtools/,
+                name
+            );
+        }
+    }
+});
+
+// Plan item C6: the renderer runs zoneless. A zone.js polyfill or a zone
+// provider would bring back a tick after every macrotask and make the
+// change-detection tick counters racy again.
+test('the web app bootstraps zoneless without the zone.js polyfill', () => {
+    const build = webProject.targets['build'];
+    const configurations = Object.entries(build.configurations ?? {});
+
+    assert.equal(build.options?.['polyfills'], undefined);
+    for (const [name, configuration] of configurations) {
+        assert.equal(configuration['polyfills'], undefined, name);
+    }
+    const appConfig = readFileSync(
+        join(workspaceRoot, 'apps/web/src/app/app.config.ts'),
+        'utf8'
+    );
+    assert.match(appConfig, /provideZonelessChangeDetection\(\)/);
+    assert.doesNotMatch(appConfig, /provideZoneChangeDetection/);
 });
 
 test('the resolved web build cache output is the renderer directory', () => {
@@ -242,7 +370,7 @@ test('the cancellation benchmark command is pinned to its Playwright test file',
 
     assert.equal(
         target.options?.['command'],
-        'pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-refresh-cancellation.performance.ts'
+        'playwright test --config=playwright.performance.config.ts src/m3u-refresh-cancellation.performance.ts'
     );
 });
 
@@ -283,7 +411,7 @@ test('the initial M3U import benchmark command is pinned to its Playwright test 
 
     assert.equal(
         target.options?.['command'],
-        'pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-import.performance.ts'
+        'playwright test --config=playwright.performance.config.ts src/m3u-import.performance.ts'
     );
 });
 

@@ -79,11 +79,26 @@ describe('extractYear', () => {
 
 describe('lookup keys', () => {
     it('builds stable search and details keys', () => {
-        expect(buildSearchLookupKey('the matrix', 1999)).toBe(
-            'title:the matrix|year:1999|v2'
+        expect(buildSearchLookupKey('The Matrix', 1999)).toBe(
+            'title:the matrix|year:1999|v4'
         );
-        expect(buildSearchLookupKey('the matrix', null)).toBe(
-            'title:the matrix|year:|v2'
+        expect(buildSearchLookupKey('The Matrix', null)).toBe(
+            'title:the matrix|year:|v4'
+        );
+    });
+
+    it('keys search rows by the wire spelling, not the folded key', () => {
+        // "Леика" and "Лейка" fold to one comparison key but are different
+        // searches with different answers; a verdict cached for one must
+        // never be read back for the other.
+        expect(buildSearchLookupKey('Лейка', 2026)).toBe(
+            'title:лейка|year:2026|v4'
+        );
+        expect(buildSearchLookupKey('Леика', 2026)).not.toBe(
+            buildSearchLookupKey('Лейка', 2026)
+        );
+        expect(buildSearchLookupKey('THE BOYS', 2019)).toBe(
+            buildSearchLookupKey('The Boys', 2019)
         );
         expect(buildDetailsLookupKey(603)).toBe('id:603|v2');
     });
@@ -92,34 +107,70 @@ describe('lookup keys', () => {
 describe('buildSearchTitleVariants', () => {
     it('orders original title before display title', () => {
         expect(buildSearchTitleVariants('Пацаны', 'The Boys')).toEqual([
-            'the boys',
-            'пацаны',
+            { query: 'The Boys', normalized: 'the boys' },
+            { query: 'Пацаны', normalized: 'пацаны' },
         ]);
     });
 
     it('adds a language-prefix-stripped fallback variant', () => {
         expect(buildSearchTitleVariants('DE Batman', null)).toEqual([
-            'de batman',
-            'batman',
+            { query: 'DE Batman', normalized: 'de batman' },
+            { query: 'Batman', normalized: 'batman' },
         ]);
-        expect(
-            buildSearchTitleVariants('English The Godfather', null)
-        ).toEqual(['english the godfather', 'the godfather']);
+        expect(buildSearchTitleVariants('English The Godfather', null)).toEqual(
+            [
+                {
+                    query: 'English The Godfather',
+                    normalized: 'english the godfather',
+                },
+                { query: 'The Godfather', normalized: 'the godfather' },
+            ]
+        );
     });
 
     it('keeps titles that merely look like prefixed ones as the primary variant', () => {
         // "It Follows" must be searched as-is first; the stripped variant
         // is only a fallback
-        expect(buildSearchTitleVariants('It Follows', null)[0]).toBe(
-            'it follows'
-        );
+        expect(buildSearchTitleVariants('It Follows', null)[0]).toEqual({
+            query: 'It Follows',
+            normalized: 'it follows',
+        });
     });
 
-    it('deduplicates and drops empty values', () => {
+    it('sends the provider spelling to the search but compares on the folded key', () => {
+        // The folded key rewrites "й" as "и"; TMDB finds nothing for it.
+        expect(buildSearchTitleVariants('Лейка (10 серий)', null)).toEqual([
+            { query: 'Лейка', normalized: 'леика' },
+        ]);
+        // Arabic hamza forms fold into a space inside the word
+        expect(buildSearchTitleVariants('إيمان', null)).toEqual([
+            { query: 'إيمان', normalized: 'ا يمان' },
+        ]);
+    });
+
+    it('deduplicates by the wire spelling and drops empty values', () => {
         expect(buildSearchTitleVariants('The Boys', 'The Boys')).toEqual([
-            'the boys',
+            { query: 'The Boys', normalized: 'the boys' },
+        ]);
+        // Case alone is not a different search
+        expect(buildSearchTitleVariants('the boys', 'The Boys')).toEqual([
+            { query: 'The Boys', normalized: 'the boys' },
         ]);
         expect(buildSearchTitleVariants('', null)).toEqual([]);
+    });
+
+    it('keeps spellings that fold to one key but differ on the wire', () => {
+        // A misspelled original title must not swallow the display title.
+        // Take a pair where only the display spelling is the one TMDB
+        // indexes: only the second variant can find it.
+        expect(buildSearchTitleVariants('Лейка', 'Леика')).toEqual([
+            { query: 'Леика', normalized: 'леика' },
+            { query: 'Лейка', normalized: 'леика' },
+        ]);
+        expect(buildSearchTitleVariants('Amelie', 'Amélie')).toEqual([
+            { query: 'Amélie', normalized: 'amelie' },
+            { query: 'Amelie', normalized: 'amelie' },
+        ]);
     });
 });
 
@@ -276,6 +327,84 @@ describe('pickConfidentMatch', () => {
                 'tv'
             )
         ).toBe(theBoys);
+    });
+
+    it('prefers an exact-year series over an older, more popular namesake', () => {
+        // Regression: TMDB returns titles in the REQUEST language, so an
+        // unrelated older foreign series (2018, 26 votes) came back under the
+        // same localized name as the catalog's own 2026 series (4 votes). The
+        // older row is admitted only by the running-season tolerance and used
+        // to win the popularity tiebreak. Titles here are stand-ins.
+        const translatedNamesake: TmdbSearchResult = {
+            id: 1,
+            name: 'Nightfall',
+            original_name: 'Yoru no Tobari',
+            first_air_date: '2018-12-14',
+            vote_count: 26,
+            popularity: 3.4,
+        };
+        const localSeries: TmdbSearchResult = {
+            id: 2,
+            name: 'Nightfall',
+            original_name: 'Nightfall',
+            first_air_date: '2026-07-24',
+            vote_count: 4,
+            popularity: 2.4,
+        };
+
+        expect(
+            pickConfidentMatch(
+                [localSeries, translatedNamesake],
+                { title: 'Nightfall (12 episodes)', year: 2026 },
+                'tv'
+            )
+        ).toBe(localSeries);
+    });
+
+    it('still falls back to an older series when nothing matches the year', () => {
+        const theBoys: TmdbSearchResult = {
+            id: 76479,
+            name: 'The Boys',
+            first_air_date: '2019-07-26',
+            vote_count: 12000,
+        };
+        const unrelatedOlder: TmdbSearchResult = {
+            id: 999,
+            name: 'The Boys',
+            first_air_date: '2010-01-01',
+            vote_count: 5,
+        };
+
+        expect(
+            pickConfidentMatch(
+                [unrelatedOlder, theBoys],
+                { title: 'The Boys s05', year: 2026 },
+                'tv'
+            )
+        ).toBe(theBoys);
+    });
+
+    it('prefers the exact release year over one off by one', () => {
+        const exact: TmdbSearchResult = {
+            id: 1,
+            title: 'The Matrix',
+            release_date: '1999-03-31',
+            vote_count: 10,
+        };
+        const adjacent: TmdbSearchResult = {
+            id: 2,
+            title: 'The Matrix',
+            release_date: '1998-03-31',
+            vote_count: 9000,
+        };
+
+        expect(
+            pickConfidentMatch(
+                [adjacent, exact],
+                { title: 'The Matrix', year: 1999 },
+                'movie'
+            )
+        ).toBe(exact);
     });
 
     it('still rejects movies with a year that differs by more than one', () => {

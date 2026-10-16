@@ -108,21 +108,18 @@ describe('PlayerControlsComponent capability contract', () => {
         return event.defaultPrevented;
     }
 
-    it('keeps narrow-player popovers outside clipping scroll containers', () => {
+    it('lets the compact action cluster wrap instead of clipping or scrolling', () => {
         const narrowActionsRule =
             PLAYER_CONTROLS_STYLE_SOURCE.match(
                 /\.player-controls__actions\s*\{([\s\S]*?)\}/g
             )?.at(-1) ?? '';
 
         expect(PLAYER_CONTROLS_STYLE_SOURCE).toContain(
-            '@container player-controls (max-width: 640px)'
+            '@container player-controls (max-width: 719px)'
         );
         expect(narrowActionsRule).toContain('flex-wrap: wrap');
         expect(narrowActionsRule).toContain('overflow: visible');
         expect(narrowActionsRule).not.toContain('overflow-x: auto');
-        expect(PLAYER_CONTROLS_STYLE_SOURCE).toMatch(
-            /\.player-controls__actions \.player-controls__popover-anchor\s*\{\s*position:\s*static;/
-        );
     });
 
     it('routes shortcuts to the player the user interacted with most recently', () => {
@@ -236,8 +233,8 @@ describe('PlayerControlsComponent capability contract', () => {
             ],
         });
         fixture.detectChanges();
-        component.toggleMenu('audio');
-        expect(component.menus.audioOpen()).toBe(true);
+        component.settings.open('audio');
+        expect(component.menus.settingsOpen()).toBe(true);
 
         fake.state.set({
             ...createEmptyControlsState(),
@@ -251,8 +248,8 @@ describe('PlayerControlsComponent capability contract', () => {
             playbackSpeed: true,
         });
         fixture.detectChanges();
-        component.toggleMenu('speed');
-        expect(component.menus.speedOpen()).toBe(true);
+        component.settings.open('speed');
+        expect(component.menus.settingsOpen()).toBe(true);
 
         fake.capabilities.set({ ...DEFAULT_PLAYER_CAPABILITIES });
         fixture.detectChanges();
@@ -292,16 +289,16 @@ describe('PlayerControlsComponent capability contract', () => {
 
         const root = fixture.nativeElement as HTMLElement;
         const trigger = root.querySelector<HTMLButtonElement>(
-            '[data-test-id="player-controls-quality"]'
+            '[data-test-id="player-controls-settings-button"]'
         );
         expect(trigger).not.toBeNull();
         trigger?.click();
         fixture.detectChanges();
-        expect(component.menus.qualityOpen()).toBe(true);
+        expect(component.menus.settingsOpen()).toBe(true);
 
         const entries = Array.from(
             root.querySelectorAll<HTMLButtonElement>(
-                '.player-controls__track-popover .player-controls__track'
+                '[data-test-id="player-settings-quality"] .player-settings__option'
             )
         );
         expect(entries.map((entry) => entry.textContent?.trim())).toEqual([
@@ -314,9 +311,9 @@ describe('PlayerControlsComponent capability contract', () => {
         entries[2].click();
         fixture.detectChanges();
         expect(fake.commands.setQualityLevel).toHaveBeenCalledWith(1);
-        expect(component.menus.qualityOpen()).toBe(false);
+        // The panel stays open so the next level can be compared in place.
+        expect(component.menus.settingsOpen()).toBe(true);
 
-        component.toggleMenu('quality');
         fake.state.set({
             ...createEmptyControlsState(),
             qualityLevels: [{ id: 0, label: '1080p', selected: false }],
@@ -324,7 +321,9 @@ describe('PlayerControlsComponent capability contract', () => {
         fixture.detectChanges();
         expect(component.anyMenuOpen()).toBe(false);
         expect(
-            root.querySelector('[data-test-id="player-controls-quality"]')
+            root.querySelector(
+                '[data-test-id="player-controls-settings-button"]'
+            )
         ).toBeNull();
     });
 
@@ -348,7 +347,7 @@ describe('PlayerControlsComponent capability contract', () => {
 
         const root = fixture.nativeElement as HTMLElement;
         expect(
-            root.querySelector('.player-controls__timeline > input')
+            root.querySelector('.player-controls__slider--timeline')
         ).toBeNull();
         expect(
             root.querySelector('.player-controls__live-badge')

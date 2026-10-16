@@ -1,10 +1,28 @@
 import { inject } from '@angular/core';
 import { Router, Routes } from '@angular/router';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
+import {
+    serverAccessGuard,
+    serverSignInGuard,
+} from './server-storage/server-access.guard';
 import { settingsUnsavedChangesGuard } from './settings/settings-unsaved-changes.guard';
 
-const settingsReadyResolver = () => inject(SettingsStore).loadSettings();
+// The workspace activates only once settings AND the parental lock state
+// (PIN, lock store) are known: before that the lock reads as off and a
+// slower IndexedDB read would let the catalogs admit protected rows.
+const settingsReadyResolver = async () => {
+    const settingsStore = inject(SettingsStore);
+    const parentalLock = inject(ParentalLockService);
+    await Promise.all([
+        settingsStore.loadSettings(),
+        parentalLock.initialize(),
+    ]);
+};
 
 const workspaceEntryRedirect = async () =>
     inject(WorkspaceStartupPreferencesService).resolveInitialWorkspacePath();
@@ -63,9 +81,7 @@ export const routes: Routes = [
     },
     {
         path: 'workspace',
-        data: {
-            layout: 'workspace',
-        },
+        canActivate: [serverAccessGuard],
         resolve: {
             settingsReady: settingsReadyResolver,
         },
@@ -195,6 +211,14 @@ export const routes: Routes = [
                 ],
             },
         ],
+    },
+    {
+        path: 'server-sign-in',
+        canActivate: [serverSignInGuard],
+        loadComponent: () =>
+            import('./server-storage/server-sign-in.component').then(
+                (c) => c.ServerSignInComponent
+            ),
     },
     {
         path: 'settings',

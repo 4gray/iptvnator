@@ -7,3 +7,8 @@ setupZonelessTestEnv({
     errorOnUnknownElements: true,
     errorOnUnknownProperties: true,
 });
+
+// jsdom lacks structuredClone; Electron's renderer, the only runtime that
+// reads playlists from SQLite, has it.
+globalThis.structuredClone ??= <T>(value: T): T =>
+    JSON.parse(JSON.stringify(value)) as T;

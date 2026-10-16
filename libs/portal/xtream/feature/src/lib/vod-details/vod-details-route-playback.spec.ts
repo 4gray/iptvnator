@@ -185,7 +185,7 @@ describe('VodDetailsRouteComponent — playback actions', () => {
             component.multiSource,
             'markRouteSourceActive'
         );
-        const beginPlayback = jest.spyOn(component.msUi, 'beginPlayback');
+        const beginPlayback = jest.spyOn(component['msUi'], 'beginPlayback');
 
         await component.playVod({
             movie_data: {
@@ -325,7 +325,9 @@ describe('VodDetailsRouteComponent — playback actions', () => {
 
     it('guards Restart and provider actions before external IPC settles', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
-        stubs.openResolvedPlayback.mockReturnValue(new Promise(() => undefined));
+        stubs.openResolvedPlayback.mockReturnValue(
+            new Promise(() => undefined)
+        );
         const component = fixture.componentInstance;
         const item = {
             movie_data: {
@@ -725,6 +727,40 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         ).resolves.toBe(2538);
     });
 
+    it('launches the pinned copy, from its own resume point, in the forced player', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        withActiveSource('playlist-1', 650020);
+        Object.defineProperty(component['msUi'], 'primaryIsPinnedCopy', {
+            configurable: true,
+            value: () => true,
+        });
+        const pinnedPlay = jest
+            .spyOn(component.multiSource, 'playPinnedSource')
+            .mockResolvedValue('played');
+        const routePlay = jest.spyOn(component, 'playVod');
+
+        await component.openInExternalPlayer(
+            {
+                movie_data: {
+                    stream_id: 650020,
+                    name: 'Example',
+                    container_extension: 'mp4',
+                },
+            } as never,
+            'mpv'
+        );
+
+        // The menu's launch and the primary button must agree on the copy
+        // and on where it resumes: the route copy's own position says
+        // nothing about the pinned one.
+        expect(pinnedPlay).toHaveBeenCalledWith(
+            component['msUi'].resumeSecondsFor,
+            { player: 'mpv', replacePlaying: true }
+        );
+        expect(routePlay).not.toHaveBeenCalled();
+    });
+
     it('restarts the pinned copy, not the route copy', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
         const component = fixture.componentInstance;
@@ -748,8 +784,10 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         } as never);
 
         expect(pinnedPlay).toHaveBeenCalled();
-        // Restart means zero, whichever copy it starts.
-        const resumeFor = pinnedPlay.mock.calls[0][0];
+        // Restart means zero, whichever copy it starts — including the
+        // pinned copy that is playing right now.
+        const [resumeFor, options] = pinnedPlay.mock.calls[0];
         await expect(resumeFor?.({} as never)).resolves.toBe(0);
+        expect(options).toEqual({ replacePlaying: true });
     });
 });

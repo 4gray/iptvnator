@@ -16,6 +16,7 @@ import {
     extractStalkerItemTitle,
     extractStalkerItemTmdbHints,
     extractStalkerItemType,
+    isStalkerSeriesItem,
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
 
@@ -23,12 +24,6 @@ import {
 
 export function normalizeActivityType(value: string): PortalActivityType {
     return value === 'live' || value === 'series' ? value : 'movie';
-}
-
-export function getActivityTypeLabelKey(type: PortalActivityType): string {
-    if (type === 'live') return 'WORKSPACE.DASHBOARD.TYPE_LIVE';
-    if (type === 'series') return 'WORKSPACE.DASHBOARD.TYPE_SERIES';
-    return 'WORKSPACE.DASHBOARD.TYPE_MOVIE';
 }
 
 // ────── Xtream DB → ViewModel ──────
@@ -65,13 +60,15 @@ export function mapDbFavoriteToItem(
     item: DbGlobalFavoriteItem
 ): PortalFavoriteItem {
     return {
-        id: item.id,
+        id: item.id ?? `favorite:${item.favorite_id}`,
+        favorite_id: item.favorite_id,
+        catalogStatus: item.catalog_status,
         title: item.title,
         type: normalizeActivityType(item.type),
         playlist_id: item.playlist_id,
         playlist_name: item.playlist_name,
         added_at: normalizeStalkerDate(item.added_at),
-        category_id: item.category_id,
+        category_id: item.category_id ?? '',
         xtream_id: item.xtream_id,
         poster_url: item.poster_url,
         backdrop_url: item.backdrop_url ?? undefined,
@@ -146,6 +143,11 @@ export function buildStalkerFavoriteItems(
                     backdrop_url: extractStalkerItemTmdbHints(raw).backdropUrl,
                     source: 'stalker' as const,
                     stalker_item: item,
+                    // Same split as the recent-items mapper: routing type
+                    // vs. per-episode progress model.
+                    ...(isStalkerSeriesItem(raw)
+                        ? { watch_kind: 'series' as const }
+                        : {}),
                 } as PortalFavoriteItem;
             });
 

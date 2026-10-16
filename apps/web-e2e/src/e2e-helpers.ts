@@ -7,6 +7,47 @@ import type {
 import { expect } from './fixtures';
 import sharp from 'sharp';
 
+/**
+ * Move keyboard focus to the next (or previous) tabbable element the way a
+ * user of that browser does.
+ *
+ * Safari's default keyboard preference makes plain Tab visit only text fields
+ * and links; buttons are reached with Option+Tab, or with plain Tab once
+ * "Press Tab to highlight each item on a webpage" is enabled. Playwright's
+ * WebKit emulates that default, so a plain `Tab` from a focused channel pane
+ * lands on the sidebar search field instead of the first row button — the
+ * app's focus order is intact, Safari simply skips the button. Pressing
+ * Option+Tab there keeps the assertion about the app's DOM order rather than
+ * about Safari's preference; Chromium and Firefox treat Alt+Tab as a plain
+ * Tab, but they get the unmodified key so their run stays a literal user Tab.
+ */
+/**
+ * Material slide toggles render `aria-checked` after Angular's next change
+ * detection, later than Playwright's `check()` looks, which then reports
+ * that the click changed nothing. Click when needed and wait for the state.
+ */
+export async function setSwitch(
+    toggle: Locator,
+    checked: boolean
+): Promise<void> {
+    if ((await toggle.isChecked()) !== checked) {
+        await toggle.click();
+    }
+    await expect(toggle).toBeChecked({ checked });
+}
+
+export async function pressTab(
+    page: Page,
+    browserName: string,
+    direction: 'forward' | 'backward' = 'forward'
+): Promise<void> {
+    const modifiers = [
+        ...(browserName === 'webkit' ? ['Alt'] : []),
+        ...(direction === 'backward' ? ['Shift'] : []),
+    ];
+    await page.keyboard.press([...modifiers, 'Tab'].join('+'));
+}
+
 export async function setInputValue(
     input: Locator,
     value: string
@@ -202,7 +243,7 @@ export async function rasterizedBorderContrast(
     return ratios[Math.floor(ratios.length / 2)];
 }
 
-/** Check the shared series UI under a provider host before testing watched state. */
+/** Check the shared series UI under the Stalker host before testing watched state. */
 export async function expectSeriesSurfacesInBothThemes(
     page: Page,
     testInfo: TestInfo
@@ -218,37 +259,51 @@ export async function expectSeriesSurfacesInBothThemes(
         const shell = page.locator('app-portal-detail-shell');
         await expect
             .poll(() =>
-                rasterizedBorderContrast(shell.locator('.favorite-btn').first())
+                rasterizedBorderContrast(
+                    shell
+                        .locator('[data-testid="series-favorite-toggle"]')
+                        .first()
+                )
             )
             .toBeGreaterThan(1.1);
-        for (const selector of ['.episode-card', 'mat-button-toggle-group']) {
-            await expect
-                .poll(
-                    async () =>
-                        (await surfaceContrast(shell.locator(selector).first()))
-                            .border
-                )
-                .toBeGreaterThan(1.15);
-        }
-        await page
-            .getByRole('radio', { name: 'List view', exact: true })
-            .click();
-        await expect
-            .poll(
-                async () =>
-                    (
-                        await surfaceContrast(
-                            shell.locator('.episode-list-item').first()
-                        )
-                    ).border
-            )
-            .toBeGreaterThan(1.15);
+        // The modeled Stalker series carry neither stills (every episode
+        // repeats the series poster) nor plots: the season renders bare
+        // 44px rows without thumbnails, and there is no grid form to offer.
+        const rows = shell.locator('app-episode-item');
+        await expect(rows.first()).toBeVisible();
+        expect(await rows.count()).toBeGreaterThan(0);
+        await expect(
+            shell.locator('app-episode-item:not(.episode-item--bare)')
+        ).toHaveCount(0);
+        await expect(shell.locator('.episode-item__thumb')).toHaveCount(0);
+        await expect(shell.locator('mat-button-toggle-group')).toHaveCount(0);
+        expect(
+            Math.round((await rows.first().boundingBox())?.height ?? 0)
+        ).toBe(44);
         await shell.screenshot({
-            path: testInfo.outputPath(`stalker-series-list-${theme}.png`),
+            path: testInfo.outputPath(`stalker-series-bare-${theme}.png`),
             animations: 'disabled',
         });
-        await page
-            .getByRole('radio', { name: 'Grid view', exact: true })
-            .click();
     }
+}
+
+/** Opens the series "…" menu (if closed) and returns the row with that test id. */
+export async function seriesMenuRow(page: Page, rowTestId: string) {
+    const row = page.locator(`[data-test-id="${rowTestId}"]`);
+    if (!(await row.isVisible().catch(() => false))) {
+        await page.locator('[data-testid="series-more-menu"]').click();
+    }
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    return row;
+}
+
+/** Closes an open series menu without choosing a row. */
+export async function closeSeriesMenu(page: Page): Promise<void> {
+    // The panel, not the backdrop: a backdrop locator can match a second
+    // overlay and then fail the strict check, leaving the menu open.
+    const panel = page.locator('[data-test-id="vod-more-menu"]');
+    if (await panel.isVisible().catch(() => false)) {
+        await page.keyboard.press('Escape');
+    }
+    await expect(panel).toBeHidden({ timeout: 10_000 });
 }

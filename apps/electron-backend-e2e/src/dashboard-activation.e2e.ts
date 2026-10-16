@@ -18,12 +18,22 @@ import {
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
 import {
+    fetchXtreamEpgFixture,
     fetchXtreamLiveFixture,
     fetchXtreamSeriesFixture,
     fetchXtreamVodFixture,
     getXtreamTitle,
     pickDistinctTitles,
 } from './portal-mock-fixtures';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
+import {
+    addCurrentDetailToFavorites,
+    goBackFromDetail,
+    toggleFavoriteForChannel,
+} from './dashboard-e2e-flows';
 
 test.describe('Dashboard Activation', () => {
     test('opens live favorites in the collection route and movies/series in global collection detail views from the dashboard', async ({
@@ -47,7 +57,35 @@ test.describe('Dashboard Activation', () => {
             liveFixture.items,
             getXtreamTitle
         );
+        // The mock's guide for the channel favourited below (its first live
+        // stream). The programme on air is read off the full guide at
+        // assertion time: the mock cuts its slots from the second the guide
+        // was generated, so the "current" listing of a fixture fetched in
+        // that same second is the slot that ended just then.
+        const epgFixture = await fetchXtreamEpgFixture(
+            request,
+            xtreamCredentials
+        );
+        expect(getXtreamTitle(epgFixture.stream)).toBe(liveTitle);
+        const liveNowTitle = () => {
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            const index = epgFixture.fullEpg.findIndex(
+                (listing) =>
+                    listing.startTimestamp <= nowSeconds &&
+                    nowSeconds < listing.stopTimestamp
+            );
+            expect(index).toBeGreaterThanOrEqual(0);
+            // Tolerate a slot boundary passing between the app's answer and
+            // this assertion.
+            const titles = epgFixture.fullEpg
+                .slice(index, index + 2)
+                .map((listing) =>
+                    listing.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                );
+            return new RegExp(titles.join('|'));
+        };
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await addXtreamPortal(app.mainWindow, {
@@ -71,7 +109,10 @@ test.describe('Dashboard Activation', () => {
             );
             const movieTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
-            await playCurrentDetail(app.mainWindow);
+            // Recorded as recently viewed once it has really played.
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playCurrentDetail(app.mainWindow)
+            );
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow
@@ -83,7 +124,9 @@ test.describe('Dashboard Activation', () => {
             );
             const seriesTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
-            await playFirstSeriesEpisode(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playFirstSeriesEpisode(app.mainWindow)
+            );
 
             await goToDashboard(app.mainWindow);
 
@@ -139,11 +182,22 @@ test.describe('Dashboard Activation', () => {
                 app.mainWindow,
                 'dashboard-live-favorites-rail'
             );
-            await dashboardRailCardByTitle(
-                app.mainWindow,
-                'dashboard-live-favorites-rail',
-                liveTitle
-            ).click();
+            // An Xtream card has no XMLTV key: its "now on air" line comes
+            // from the portal, asked for lazily once the card is on screen.
+            await expect(
+                dashboardRailCardByTitle(
+                    app.mainWindow,
+                    'dashboard-live-favorites-rail',
+                    liveTitle
+                ).locator('.rail__channel-now')
+            ).toContainText(liveNowTitle(), { timeout: 30000 });
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                dashboardRailCardByTitle(
+                    app.mainWindow,
+                    'dashboard-live-favorites-rail',
+                    liveTitle
+                ).click()
+            );
             await app.mainWindow.waitForURL(
                 /\/workspace\/xtreams\/[^/]+\/favorites$/
             );
@@ -167,6 +221,14 @@ test.describe('Dashboard Activation', () => {
                 app.mainWindow,
                 'dashboard-recent-live-rail'
             );
+            // Same channel, same key: the recent card shares the answer.
+            await expect(
+                dashboardRailCardByTitle(
+                    app.mainWindow,
+                    'dashboard-recent-live-rail',
+                    liveTitle
+                ).locator('.rail__channel-now')
+            ).toContainText(liveNowTitle(), { timeout: 30000 });
             await dashboardRailCardByTitle(
                 app.mainWindow,
                 'dashboard-recent-live-rail',
@@ -248,41 +310,6 @@ function dashboardRailCardByTitle(
         .first();
 }
 
-async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: browse uses the sticky Back, watch uses the
-    // now-playing bar's direct Back (the sticky watch action is Close player).
-    const backButton = page
-        .locator('app-portal-detail-shell')
-        .first()
-        .getByRole('button', { name: 'Back', exact: true });
-
-    await expect(backButton).toBeVisible({ timeout: 20000 });
-    try {
-        await backButton.click({ timeout: 5000 });
-    } catch {
-        await backButton.evaluate((button: HTMLButtonElement) =>
-            button.click()
-        );
-    }
-}
-
-// By accessible name, not class: the Xtream movie detail's favorite control is
-// an icon-only button that carries its label in aria-label, while series and
-// Stalker details still use the labeled variant. This matches both.
-async function addCurrentDetailToFavorites(page: Page): Promise<void> {
-    const addButton = page
-        .getByRole('button', { name: /add to favorites/i })
-        .first();
-
-    await expect(addButton).toBeVisible({ timeout: 20000 });
-    await addButton.click();
-    await expect(
-        page.getByRole('button', { name: /remove from favorites/i }).first()
-    ).toBeVisible({
-        timeout: 20000,
-    });
-}
-
 async function expectInlineCollectionDetail(
     page: Page,
     params: {
@@ -293,9 +320,9 @@ async function expectInlineCollectionDetail(
     await expectPathname(page, params.pathname);
     await expect(page.locator('app-workspace-context-panel')).toHaveCount(0);
     await expect(page.locator('app-content-hero')).toContainText(params.title);
-    await expect(
-        page.locator('app-portal-detail-shell .shell__back-button').first()
-    ).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId('workspace-header-back')).toBeVisible({
+        timeout: 20000,
+    });
 }
 
 async function playCurrentDetail(page: Page): Promise<void> {
@@ -328,21 +355,4 @@ async function playFirstSeriesEpisode(page: Page): Promise<void> {
     await episodeCard.scrollIntoViewIfNeeded();
     await expect(episodeCard).toBeVisible({ timeout: 20000 });
     await episodeCard.click();
-}
-
-async function toggleFavoriteForChannel(
-    page: Page,
-    title: string
-): Promise<void> {
-    const item = page
-        .locator('[data-test-id="channel-item"]')
-        .filter({ hasText: title })
-        .first();
-
-    await expect(item).toBeVisible({ timeout: 20000 });
-    await item.hover();
-    await item.locator('.favorite-button').first().click();
-    await expect(item.locator('.favorite-button mat-icon').first()).toHaveText(
-        /star/
-    );
 }

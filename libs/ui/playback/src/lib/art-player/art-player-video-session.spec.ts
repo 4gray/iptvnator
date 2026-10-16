@@ -29,7 +29,9 @@ describe('ArtPlayerVideoSession', () => {
         player.currentTime = 45;
         player.duration = 120;
         player.emit('video:timeupdate');
-        expect(times).toEqual([{ currentTime: 45, duration: 120 }]);
+        expect(times).toEqual([
+            { currentTime: 45, duration: 120, playing: false },
+        ]);
 
         Object.defineProperty(player.video, 'error', {
             configurable: true,
@@ -70,7 +72,7 @@ describe('ArtPlayerVideoSession', () => {
 
     it('uses the source-resolved duration for time updates', () => {
         const player = createPlayer();
-        const times: Array<{ currentTime: number; duration: number }> = [];
+        const times: unknown[] = [];
         player.currentTime = 45;
         player.duration = Number.POSITIVE_INFINITY;
         const session = new ArtPlayerVideoSession({
@@ -87,7 +89,9 @@ describe('ArtPlayerVideoSession', () => {
 
         player.emit('video:timeupdate');
 
-        expect(times).toEqual([{ currentTime: 45, duration: 135 }]);
+        expect(times).toEqual([
+            { currentTime: 45, duration: 135, playing: false },
+        ]);
     });
 
     it('removes native and ArtPlayer listeners exactly on destroy', () => {
@@ -128,7 +132,7 @@ describe('ArtPlayerVideoSession', () => {
 });
 
 function createSession(
-    player: MockArtplayer,
+    player: MockArtplayer & Artplayer,
     persistSharedVolume: boolean
 ): ArtPlayerVideoSession {
     return new ArtPlayerVideoSession({

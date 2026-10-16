@@ -29,7 +29,6 @@ export const playlistReducers = [
         };
     }),
     on(
-        PlaylistActions.removePlaylist,
         PlaylistActions.playlistRemovalCommitted,
         (state, action): PlaylistState => {
             const playlists = playlistsAdapter.removeOne(

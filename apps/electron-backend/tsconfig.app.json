@@ -3,7 +3,9 @@
     "compilerOptions": {
         "outDir": "../../dist/out-tsc",
         "types": ["node"],
-        "importHelpers": false
+        "importHelpers": false,
+        "target": "ES2022",
+        "useDefineForClassFields": false
     },
     "files": ["../../global.d.ts"],
     "exclude": [

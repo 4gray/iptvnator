@@ -1,6 +1,10 @@
-import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
+import {
+    ChannelContextMenuComponent,
+    ChannelScrollFocusDirective,
+} from '@iptvnator/ui/components';
 import { NgTemplateOutlet } from '@angular/common';
 import {
+    DestroyRef,
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
@@ -24,7 +28,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -36,12 +39,16 @@ import {
     ResizableDirective,
 } from '@iptvnator/ui/components';
 import {
+    ParentalLockService,
     PlaylistsService,
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    injectTranslationTick,
 } from '@iptvnator/services';
+import { isStalkerPlaybackRequestLockCurrent } from './stalker-live-lock-guard';
 import {
+    foldSearchText,
     buildStalkerEpgMappingKey,
     Channel,
     EpgItem,
@@ -95,6 +102,7 @@ import {
     StalkerItvChannel,
     StalkerStore,
     normalizeStalkerEntityId,
+    stalkerCategoryLabelText,
 } from '@iptvnator/portal/stalker/data-access';
 import {
     PanelSearchWindow,
@@ -123,6 +131,8 @@ interface StalkerPlaybackResolutionOwner {
     readonly sourceId: string;
     readonly contentType: string;
     readonly channelId: string;
+    /** `ParentalLockService.version` when the request was issued. */
+    readonly lockVersion: number;
 }
 
 /** Channels rendered per "page" when the full list is served from the cache. */
@@ -132,18 +142,21 @@ function matchesStalkerChannelTerm(
     item: StalkerItvChannel,
     term: string
 ): boolean {
-    return `${item.o_name ?? ''} ${item.name ?? ''}`
-        .toLowerCase()
-        .includes(term);
+    return foldSearchText(`${item.o_name ?? ''} ${item.name ?? ''}`).includes(
+        term
+    );
 }
 
 import { StalkerLiveNavigation } from './stalker-live-navigation';
+import { StalkerLiveAutoOpen } from './stalker-live-auto-open';
+import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session.service';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: ['./stalker-live-stream-layout.component.scss'],
     imports: [
+        ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         AudioPlayerComponent,
         ChannelListItemComponent,
@@ -152,7 +165,6 @@ import { StalkerLiveNavigation } from './stalker-live-navigation';
         EpgTimelineComponent,
         MatButtonModule,
         MatIconModule,
-        MatMenuModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
         NgTemplateOutlet,
@@ -177,6 +189,7 @@ export class StalkerLiveStreamLayoutComponent
     implements OnDestroy, FullscreenChannelPanelHost
 {
     readonly stalkerStore = inject(StalkerStore);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly playlistService = inject(PlaylistsService);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly dialog = inject(MatDialog);
@@ -187,11 +200,25 @@ export class StalkerLiveStreamLayoutComponent
     private readonly streamHeaders = inject(ElectronStreamHeadersService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
+    private readonly routeSession = inject(StalkerWorkspaceRouteSession, {
+        optional: true,
+    });
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
     private readonly logger = createLogger('StalkerLiveStream');
-    readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
+    private readonly languageTick = injectTranslationTick();
+    /**
+     * The portal's genre name, or the store's every-item entry translated
+     * in the current language: the tick re-runs this after a switch.
+     */
+    readonly selectedCategoryTitle = computed(() => {
+        this.languageTick();
+        return stalkerCategoryLabelText(
+            this.stalkerStore.getSelectedCategoryLabel(),
+            (key) => this.translate.instant(key)
+        );
+    });
 
     /** Channels */
     readonly isRadioMode = computed(
@@ -203,7 +230,7 @@ export class StalkerLiveStreamLayoutComponent
         this.isRadioMode() ? this.radioChannels() : this.itvChannels()
     );
     readonly searchTerm = computed(() =>
-        this.stalkerStore.searchPhrase().trim().toLowerCase()
+        foldSearchText(this.stalkerStore.searchPhrase().trim())
     );
     /** Full-list mode: the complete channel list is cached, so search covers everything. */
     readonly isFullListMode = computed(
@@ -339,10 +366,10 @@ export class StalkerLiveStreamLayoutComponent
     protected readonly normalizeStalkerEntityId = normalizeStalkerEntityId;
 
     /** Context menu (Map EPG) */
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
     readonly contextMenuChannel = signal<StalkerItvChannel | null>(null);
-    readonly contextMenuPosition = signal({ x: '0px', y: '0px' });
     readonly isElectron = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
@@ -606,6 +633,17 @@ export class StalkerLiveStreamLayoutComponent
             this.isLoadingMore() ||
             this.stalkerStore.isPaginatedContentLoading(),
     });
+    /** Arrival handoff: select and play `openStalkerLiveItemId` (see the class). */
+    readonly autoOpen = new StalkerLiveAutoOpen({
+        store: this.stalkerStore,
+        router: inject(Router, { optional: true }),
+        destroyRef: inject(DestroyRef),
+        sidebar: this.liveSidebarStateService,
+        routeReady: () => this.routeSession?.isReady() ?? true,
+        play: (item) => {
+            void this.playChannel(item, true);
+        },
+    });
     private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
@@ -625,6 +663,22 @@ export class StalkerLiveStreamLayoutComponent
             30_000
         );
 
+        // The parental lock clears the store selection from outside this
+        // layout when the playing channel's genre is withheld
+        // (ParentalLockEnforcementService). The template mounts the player
+        // only with a selection, so the playback held here is dropped too
+        // instead of resurfacing with the next selection.
+        effect(() => {
+            if (this.stalkerStore.selectedItem()) {
+                return;
+            }
+            untracked(() => {
+                if (this.activePlayback()) {
+                    this.clearActivePlayback();
+                }
+            });
+        });
+
         // Load favorites for current playlist
         const playlistId = this.stalkerStore.currentPlaylist()?._id;
         if (playlistId) {
@@ -640,6 +694,8 @@ export class StalkerLiveStreamLayoutComponent
                             );
                         }
                     });
+                    // OnPush: the Map changed outside any template event.
+                    this.cdr.markForCheck();
                 });
         }
 
@@ -896,6 +952,7 @@ export class StalkerLiveStreamLayoutComponent
             this.stalkerStore.currentPlaylist()?._id
         );
         const contentType = this.stalkerStore.selectedContentType();
+        const lockVersion = this.parentalLock.version();
         const isRadioMode = this.isRadioMode();
         const deferSelection = !isRadioMode && this.usesEmbeddedPlayer();
         // Inline video retains its stream during resolution. Keep selection,
@@ -913,10 +970,10 @@ export class StalkerLiveStreamLayoutComponent
         try {
             const playback = await this.resolvePlaybackForChannel(
                 item,
-                { sourceId, contentType, channelId },
+                { sourceId, contentType, channelId, lockVersion },
                 isRadioMode
             );
-            const owner = { sourceId, contentType, channelId };
+            const owner = { sourceId, contentType, channelId, lockVersion };
             if (
                 !this.isPlaybackRequestCurrent(
                     requestId,
@@ -978,7 +1035,7 @@ export class StalkerLiveStreamLayoutComponent
             if (
                 !this.isPlaybackRequestCurrent(
                     requestId,
-                    { sourceId, contentType, channelId },
+                    { sourceId, contentType, channelId, lockVersion },
                     expectedSelectedId
                 )
             ) {
@@ -1028,6 +1085,13 @@ export class StalkerLiveStreamLayoutComponent
     ): boolean {
         return (
             requestId === this.playbackRequestId &&
+            // A relock while the stream resolved: the deferred selection
+            // means the enforcement service had nothing to clear yet.
+            isStalkerPlaybackRequestLockCurrent(
+                owner.lockVersion,
+                this.parentalLock.version(),
+                this.parentalLock.active()
+            ) &&
             this.selectedChannelId() === expectedSelectedId &&
             normalizeStalkerEntityId(
                 this.stalkerStore.currentPlaylist()?._id
@@ -1099,7 +1163,7 @@ export class StalkerLiveStreamLayoutComponent
      * instance shows the sidebar's windowed rows.
      */
     channelsForList(panelSearchTerm?: Signal<string>): StalkerItvChannel[] {
-        const term = panelSearchTerm?.().trim().toLowerCase() ?? '';
+        const term = foldSearchText(panelSearchTerm?.().trim() ?? '');
         if (!term) {
             if (!panelSearchTerm) {
                 return this.visibleChannels();
@@ -1212,19 +1276,7 @@ export class StalkerLiveStreamLayoutComponent
 
     onChannelContextMenu(channel: StalkerItvChannel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     async openEpgMapping(): Promise<void> {
@@ -1233,7 +1285,7 @@ export class StalkerLiveStreamLayoutComponent
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const playlistId = this.stalkerStore.currentPlaylist()?._id;
         const channelId = normalizeStalkerEntityId(channel.id);
         if (!playlistId || !channelId) {
@@ -1776,7 +1828,7 @@ export class StalkerLiveStreamLayoutComponent
                       matchesStalkerChannelTerm(item, this.searchTerm())
                   )
                 : this.filteredChannels();
-        const query = term().trim().toLowerCase();
+        const query = foldSearchText(term().trim());
         return query
             ? this.searchableChannels().filter((item) =>
                   matchesStalkerChannelTerm(item, query)

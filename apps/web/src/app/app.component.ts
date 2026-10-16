@@ -1,13 +1,12 @@
 import {
     Component,
     effect,
-    HostBinding,
     inject,
     OnInit,
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
@@ -21,11 +20,14 @@ import {
     WORKSPACE_SHELL_ACTIONS,
 } from '@iptvnator/workspace/shell/util';
 import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
-import { WindowControlsComponent } from '@iptvnator/ui/components';
+// File-level entry: the @iptvnator/ui/components barrel would put the whole
+// library (channel lists, EPG, forms, date-fns) on the initial path.
+import { WindowControlsComponent } from '@iptvnator/ui/components/window-controls';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { filter, take } from 'rxjs';
 import {
     DataService,
+    ParentalLockService,
     RuntimeCapabilitiesService,
     SettingsStore,
     EpgSourceSettingsService,
@@ -38,19 +40,21 @@ import {
     Theme,
     createDevLogger,
 } from '@iptvnator/shared/interfaces';
+import { AppDateLocaleService } from './app-date-locales';
 import { SettingsService } from './services/settings.service';
+import { ParentalLockEnforcementService } from './services/parental-lock-enforcement.service';
 import { PlaybackKeepAwakeService } from './services/playback-keep-awake.service';
 import { PlaylistOpenRequestService } from './services/playlist-open-request.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 import { AppStartupStatusComponent } from './app-startup-status.component';
+import { syncDocumentLanguage } from './services/document-language';
 
 const debugAppComponent = createDevLogger('AppComponent');
 
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         AppStartupStatusComponent,
         AppUpdateNotificationPanelComponent,
@@ -61,17 +65,15 @@ const debugAppComponent = createDevLogger('AppComponent');
 })
 export class AppComponent implements OnInit {
     readonly routeReady = signal(false);
-    @HostBinding('class.macos-platform') get isMacOS() {
-        return this.runtime.isMacOS;
-    }
     get usesCustomWindowControls() {
         return this.runtime.usesCustomWindowControls;
     }
     private actions$ = inject(Actions);
     private dataService = inject(DataService);
+    private readonly dateLocales = inject(AppDateLocaleService);
     private epgBridge = inject(EpgRuntimeBridgeService);
     private epgService = inject(EpgService);
-    private snackBar = inject(MatSnackBar);
+    private snackBar = inject(LazySnackBar);
     private router = inject(Router);
     private store = inject(Store);
     private translate = inject(TranslateService);
@@ -79,6 +81,10 @@ export class AppComponent implements OnInit {
     private settingsStore = inject(SettingsStore);
     private readonly epgSources = inject(EpgSourceSettingsService);
     private playbackKeepAwake = inject(PlaybackKeepAwakeService);
+    private readonly parentalLock = inject(ParentalLockService);
+    private readonly parentalLockEnforcement = inject(
+        ParentalLockEnforcementService
+    );
     private playlistOpenRequests = inject(PlaylistOpenRequestService);
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
@@ -88,6 +94,8 @@ export class AppComponent implements OnInit {
     private readonly DEFAULT_LANG = Language.ENGLISH;
 
     constructor() {
+        syncDocumentLanguage();
+
         // Body-level class (like 'dark-theme') so layout adjustments also
         // reach content rendered outside app-root, e.g. cdk-overlay content.
         if (this.runtime.usesCustomWindowControls) {
@@ -103,6 +111,11 @@ export class AppComponent implements OnInit {
         // Keep the display awake while a built-in player is playing video
         // (Electron powerSaveBlocker / PWA Screen Wake Lock, issue #1095).
         this.playbackKeepAwake.start();
+
+        // Parental lock: load the PIN hash and lock store, then keep the
+        // in-memory catalogs in step with lock/unlock (issue #285).
+        void this.parentalLock.initialize();
+        this.parentalLockEnforcement.start();
 
         effect(() => {
             const size = this.settingsStore.coverSize?.() ?? 'medium';
@@ -149,7 +162,9 @@ export class AppComponent implements OnInit {
                     // Only specific Electron settings (MPV/VLC paths) are sent when changed in settings component
 
                     const resolvedLang = settings.language ?? this.DEFAULT_LANG;
-                    this.translate.use(resolvedLang);
+                    // The switch re-renders every date with the new locale;
+                    // its data is a lazy chunk that must be registered first.
+                    void this.dateLocales.use(resolvedLang);
                     // Mirror the active language to localStorage so the next
                     // cold start can read it synchronously in app.config.ts's
                     // getInitialLanguage() and avoid the English-then-localized
@@ -230,7 +245,7 @@ export class AppComponent implements OnInit {
                 );
                 // Show snackbar if all EPG sources are fresh (no stale URLs)
                 if (result.staleUrls.length === 0) {
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.translate.instant('EPG.UP_TO_DATE'),
                         this.translate.instant('CLOSE'),
                         { duration: 3000 }

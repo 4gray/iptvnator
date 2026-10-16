@@ -5,6 +5,7 @@ import {
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
 import {
+    ParentalLockService,
     SettingsStore,
     StreamProbeService,
     VodSourcePinService,
@@ -42,6 +43,7 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
     const playbackLive = signal(false);
     const playbackStartBlocked = signal(false);
     const vodAutoFailover = signal(false);
+    const lockVersion = signal(0);
     const startPlayback = jest.fn();
     const discovery = { isAvailable: true, discover: jest.fn() };
     const resolver = { resolve: jest.fn() };
@@ -77,6 +79,7 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
         movie.set(null);
         playbackStartBlocked.set(false);
         vodAutoFailover.set(false);
+        lockVersion.set(0);
         discovery.isAvailable = true;
         discovery.discover.mockResolvedValue({
             sources: [],
@@ -96,6 +99,10 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
                 { provide: VodSourcePinService, useValue: pins },
                 { provide: StreamProbeService, useValue: probes },
                 { provide: SettingsStore, useValue: { vodAutoFailover } },
+                {
+                    provide: ParentalLockService,
+                    useValue: { version: lockVersion },
+                },
             ],
         });
 
@@ -129,6 +136,33 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
         movie.set(MOVIE_B);
         await flushEffects();
         expect(discovery.discover).toHaveBeenCalledTimes(2);
+    });
+
+    it('drops the discovered sources and rediscovers when the lock version changes', async () => {
+        discovery.discover.mockResolvedValue({
+            sources: [ALT_TWO],
+            matchKind: 'title-year',
+        });
+        movie.set(MOVIE_A);
+        await flushEffects();
+        expect(service.sources().some((row) => row.id === ALT_TWO.id)).toBe(
+            true
+        );
+
+        // Lock now: ALT_TWO's category may be locked; the worker answers
+        // the rediscovery under the new lock state.
+        discovery.discover.mockResolvedValue({
+            sources: [],
+            matchKind: 'title-year',
+        });
+        lockVersion.set(1);
+        await flushEffects();
+
+        expect(discovery.discover).toHaveBeenCalledTimes(2);
+        expect(service.sources().some((row) => row.id === ALT_TWO.id)).toBe(
+            false
+        );
+        await expect(service.play(ALT_TWO.id)).resolves.toBe(false);
     });
 
     it('rediscovers the same movie once enrichment describes it better', async () => {

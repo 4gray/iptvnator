@@ -31,6 +31,7 @@ import {
     waitForM3uCatalog,
     workspaceRoot,
 } from './electron-test-fixtures';
+import { startAndConfirmPlayback } from './playable-stream-fixture';
 
 /**
  * DASH + ClearKey playback in the real Electron runtime — the only automated
@@ -192,7 +193,9 @@ async function importDashPlaylistFromText(
     const dialog = app.mainWindow.locator('mat-dialog-container').last();
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
     await dialog.locator('textarea').fill(playlist);
-    await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await dialog.waitFor({ state: 'detached' });
     await waitForM3uCatalog(app.mainWindow);
 }
@@ -541,7 +544,8 @@ for (const configuredPlayer of ['videojs', 'mpv', 'artplayer']) {
                 buildDashPlaylist(fixtureServer.origin)
             );
             const channel = channelItemByTitle(page, 'ClearKey DASH').first();
-            await channel.click();
+            // Recent history records the channel once it has really played.
+            await startAndConfirmPlayback(page, () => channel.click());
             await channel.locator('.favorite-button').click();
             await expect(
                 channel.locator('.favorite-button mat-icon')
@@ -884,7 +888,12 @@ test('@electron @dash ClearKey DASH filters DRM fallback and reports external la
         await expect(mpvFallback).toHaveClass(
             /web-player-diagnostic__player-card--primary/
         );
-        await expect(dock).toContainText('E2E player launch failed');
+        // A failure without an error code shows the translated generic
+        // status; the raw main-process detail stays available as a tooltip.
+        await expect(dock).toContainText('External player error');
+        await expect(
+            dock.locator('.external-playback-dock__status-text')
+        ).toHaveAttribute('title', 'E2E player launch failed');
         await expect(
             dock.getByRole('button', { name: 'Dismiss' })
         ).toBeVisible();

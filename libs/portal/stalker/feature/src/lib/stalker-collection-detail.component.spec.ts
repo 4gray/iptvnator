@@ -79,6 +79,12 @@ class StubStalkerInlineDetailComponent {
     readonly inlinePlaybackClosed = output<void>();
     readonly streamUrlCopied = output<void>();
     readonly inlineExternalFallbackRequested = output<unknown>();
+    readonly externalPlayRequested = output<{
+        item: VodDetailsItem;
+        player: 'mpv' | 'vlc';
+        positionSeconds: number | null;
+    }>();
+    readonly resetProgressRequested = output<VodDetailsItem>();
 }
 
 describe('StalkerCollectionDetailComponent', () => {
@@ -275,6 +281,26 @@ describe('StalkerCollectionDetailComponent', () => {
         fixture?.destroy();
     });
 
+    it('does not repoint the portal after a pending collection load outlives its view', async () => {
+        const pending = new Subject<Playlist>();
+        playlistsService.getPlaylistById.mockReturnValue(pending);
+        fixture.componentRef.setInput('item', buildCollectionItem({}));
+        fixture.detectChanges();
+        TestBed.tick();
+        expect(playlistsService.getPlaylistById).toHaveBeenCalled();
+
+        fixture.destroy();
+        const destination = { ...playlist, _id: 'destination' };
+        await stalkerStore.setCurrentPlaylist(destination);
+        stalkerStore.setSelectedItem({ id: 'destination-item' });
+        pending.next(playlist);
+        pending.complete();
+        for (let i = 0; i < 10; i++) await Promise.resolve();
+
+        expect(currentPlaylist()).toBe(destination);
+        expect(selectedItem()).toEqual({ id: 'destination-item' });
+    });
+
     it('opens legacy VOD is_series favorites through the lazy VOD-series flow', async () => {
         fixture.componentRef.setInput(
             'item',
@@ -411,16 +437,7 @@ describe('StalkerCollectionDetailComponent', () => {
     });
 
     it('plays regular VOD collection details inline for embedded players instead of using the legacy play wrapper', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: {
-                name: 'Collection Movie',
-                movie_image: 'movie.jpg',
-            },
-        };
+        const sourceItem = createSourceItem();
         const playback: ResolvedPortalPlayback = {
             streamUrl: 'https://streams.example.test/movie.mp4',
             title: 'Collection Movie',
@@ -488,7 +505,10 @@ describe('StalkerCollectionDetailComponent', () => {
 
         fixture.componentRef.setInput('item', itemB);
         await settleDetail(fixture);
-        pendingA.resolve({ streamUrl: 'https://streams.test/a.mp4' });
+        pendingA.resolve({
+            streamUrl: 'https://streams.test/a.mp4',
+            title: 'Movie A',
+        });
         await settleDetail(fixture);
 
         expect(fixture.componentInstance.inlinePlayback()).toBeNull();
@@ -504,11 +524,15 @@ describe('StalkerCollectionDetailComponent', () => {
         fixture.componentInstance.onVodPlay(
             createStalkerVodItem(itemB.stalkerItem as never, itemB.playlistId)
         );
-        pendingB.resolve({ streamUrl: 'https://streams.test/b.mp4' });
+        pendingB.resolve({
+            streamUrl: 'https://streams.test/b.mp4',
+            title: 'Movie B',
+        });
         await settleDetail(fixture);
 
         expect(fixture.componentInstance.inlinePlayback()).toEqual({
             streamUrl: 'https://streams.test/b.mp4',
+            title: 'Movie B',
         });
     });
 
@@ -570,23 +594,21 @@ describe('StalkerCollectionDetailComponent', () => {
             stalkerItem: { ...(item.stalkerItem as object) },
         });
         await settleDetail(fixture);
-        pending.resolve({ streamUrl: 'https://streams.test/a.mp4' });
+        pending.resolve({
+            streamUrl: 'https://streams.test/a.mp4',
+            title: 'Movie A',
+        });
         await settleDetail(fixture);
 
         expect(fixture.componentInstance.inlinePlayback()).toEqual({
             streamUrl: 'https://streams.test/a.mp4',
+            title: 'Movie A',
         });
         expect(snackBar.open).not.toHaveBeenCalled();
     });
 
     it('marks a collection movie watched under its owning playlist', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         fixture.componentRef.setInput(
             'item',
             buildCollectionItem({
@@ -626,14 +648,47 @@ describe('StalkerCollectionDetailComponent', () => {
         );
     });
 
+    it('routes the menu launch and reset through the collection actions', async () => {
+        const sourceItem = createSourceItem();
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: sourceItem,
+            })
+        );
+        await settleDetail(fixture);
+        await settleDetail(fixture);
+        const detail = fixture.debugElement.query(
+            By.directive(StubStalkerInlineDetailComponent)
+        ).componentInstance as StubStalkerInlineDetailComponent;
+        const item = createStalkerVodItem(sourceItem, playlist._id);
+
+        stalkerStore.resolveVodPlayback.mockResolvedValue({
+            streamUrl: 'http://cdn/1701.mp4',
+            title: 'Movie',
+        });
+        detail.externalPlayRequested.emit({
+            item,
+            player: 'vlc',
+            positionSeconds: null,
+        });
+        await settleDetail(fixture);
+        expect(portalPlayer.openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({ streamUrl: 'http://cdn/1701.mp4' }),
+            'vlc'
+        );
+
+        detail.resetProgressRequested.emit(item);
+        await settleDetail(fixture);
+        expect(
+            playbackPositions.clearPlaybackPositionOrThrow
+        ).toHaveBeenCalledWith('stalker-1', 1701, 'vod');
+    });
+
     it('blocks the watched toggle while a collection Play is still resolving', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         let resolve!: (value: ResolvedPortalPlayback) => void;
         stalkerStore.resolveVodPlayback.mockReturnValueOnce(
             new Promise<ResolvedPortalPlayback>((resolvePromise) => {
@@ -675,13 +730,7 @@ describe('StalkerCollectionDetailComponent', () => {
     });
 
     it('does not carry a pending collection start over to the next item', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         let resolve!: (value: ResolvedPortalPlayback) => void;
         stalkerStore.resolveVodPlayback.mockReturnValueOnce(
             new Promise<ResolvedPortalPlayback>((resolvePromise) => {
@@ -729,13 +778,7 @@ describe('StalkerCollectionDetailComponent', () => {
     });
 
     it('mirrors an external player position into the collection row', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         playbackPositions.getPlaybackPosition.mockResolvedValueOnce({
             playlistId: 'stalker-1',
             contentXtreamId: 1701,
@@ -787,13 +830,7 @@ describe('StalkerCollectionDetailComponent', () => {
                 resolveRead = resolve;
             })
         );
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         fixture.componentRef.setInput(
             'item',
             buildCollectionItem({
@@ -834,9 +871,6 @@ describe('StalkerCollectionDetailComponent', () => {
     });
 
     it('does not load VOD playback position when the playlist id is missing', async () => {
-        const playlistsService = TestBed.inject(PlaylistsService) as {
-            getPlaylistById: jest.Mock;
-        };
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 ...playlist,
@@ -944,6 +978,27 @@ function buildVodSource(id: string, title: string) {
         category_id: 'vod',
         cmd: `/media/file_${id}.mpg`,
         info: { name: title },
+    };
+}
+
+/** Regular (non-series) Stalker VOD item as the collection grid hands it over. */
+function createSourceItem() {
+    return {
+        id: '1701',
+        title: 'Collection Movie',
+        category_id: 'vod',
+        cmd: '/media/file_1701.mpg',
+        info: {
+            name: 'Collection Movie',
+            movie_image: 'movie.jpg',
+            description: '',
+            actors: '',
+            director: '',
+            releasedate: '',
+            genre: '',
+            rating_imdb: '',
+            rating_kinopoisk: '',
+        },
     };
 }
 

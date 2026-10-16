@@ -25,7 +25,7 @@ const MISCLASSIFIED = {
     portalUrl: 'http://ministra.example/server/load.php',
     macAddress: '00:1A:79:AA:BB:CC',
     isFullStalkerPortal: false,
-} as PlaylistMeta;
+} as PlaylistMeta & { portalUrl: string };
 
 async function flushMicrotasks(): Promise<void> {
     for (let i = 0; i < 4; i += 1) {

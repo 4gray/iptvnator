@@ -279,7 +279,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             fixture.detectChanges();
             liveSidebarService.expand('portal');
             fixture.detectChanges();
-            await new Promise((resolve) => queueMicrotask(resolve));
+            await new Promise<void>((resolve) =>
+                queueMicrotask(() => resolve())
+            );
 
             // The panel offered no control (categories not loaded), so the
             // rail itself takes focus.
@@ -296,7 +298,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             fixture.detectChanges();
             liveSidebarService.expand('portal');
             fixture.detectChanges();
-            await new Promise((resolve) => queueMicrotask(resolve));
+            await new Promise<void>((resolve) =>
+                queueMicrotask(() => resolve())
+            );
 
             expect(document.activeElement).toBe(control);
         });

@@ -10,11 +10,9 @@ import {
     inject,
     input,
     output,
-    viewChild,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
-import { TranslateModule } from '@ngx-translate/core';
+import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
 import { ContentHeroComponent } from '../content-hero/content-hero.component';
 import { ContentAboutComponent } from './content-about.component';
 import {
@@ -32,24 +30,20 @@ import {
  * About block below the episodes slot.
  *
  * The shell owns the page scroll, the browse↔watch animation, Escape
- * handling, and never conditionally wraps the `[detail-player]` slot — the
- * host's own `@if (inlinePlayback())` is the only thing that creates or
- * destroys the player, so shell state changes cannot recreate it.
+ * handling and the page's Back action, which the workspace header renders in
+ * its leading slot (route-level in both states; closing the player is the
+ * player's own Close button and Escape). It never conditionally wraps the
+ * `[detail-player]` slot — the host's own `@if (inlinePlayback())` is the
+ * only thing that creates or destroys the player, so shell state changes
+ * cannot recreate it.
  */
 @Component({
     selector: 'app-portal-detail-shell',
     standalone: true,
-    imports: [
-        ContentHeroComponent,
-        ContentAboutComponent,
-        NgTemplateOutlet,
-        MatIconModule,
-        TranslateModule,
-    ],
+    imports: [ContentHeroComponent, ContentAboutComponent, NgTemplateOutlet],
     templateUrl: './portal-detail-shell.component.html',
     styleUrls: ['./portal-detail-shell.component.scss'],
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
         tabindex: '0',
         role: 'region',
@@ -65,13 +59,19 @@ import {
 export class PortalDetailShellComponent {
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly injector = inject(Injector);
-    private readonly backButton =
-        viewChild<ElementRef<HTMLButtonElement>>('backButton');
 
     readonly title = input<string>();
+    /** "Movie · playlist name" eyebrow above the hero title. */
+    readonly kindLabel = input<string | null>(null);
     readonly description = input<string>();
     readonly posterUrl = input<string>();
     readonly backdropUrl = input<string>();
+    /** 0–100 watched share shown as the hero's resume bar. */
+    readonly progress = input<number | null>(null);
+    /** Trailer embed to play muted behind the hero, when the setting is on. */
+    readonly trailerBackdropUrl = input<string | null>(null);
+    /** Stable identity of the shown title; see `ContentHeroComponent.contentKey`. */
+    readonly contentKey = input<string | null>(null);
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
     readonly backLabel = input<string>();
@@ -80,8 +80,9 @@ export class PortalDetailShellComponent {
     /** True while inline playback is active — flips the layout to watch state. */
     readonly playbackActive = input(false);
 
+    /** The header's Back in either state, or Escape in browse. */
     readonly backClicked = output<void>();
-    /** Emitted by the sticky control or Escape during inline playback. */
+    /** Emitted by Escape during inline playback. */
     readonly closePlayerRequested = output<void>();
 
     protected readonly tagsTemplate = contentChild(DetailTagsTemplateDirective);
@@ -93,6 +94,12 @@ export class PortalDetailShellComponent {
     readonly isWatch = computed(() => this.playbackActive());
 
     constructor() {
+        registerWorkspaceBack({
+            available: this.backAvailable,
+            label: computed(() => this.backLabel() || null),
+            escapeShortcut: computed(() => !this.isWatch()),
+            run: () => this.backClicked.emit(),
+        });
         afterNextRender(() => {
             const element = this.host.nativeElement;
             const active = element.ownerDocument.activeElement;
@@ -198,10 +205,11 @@ export class PortalDetailShellComponent {
         )
             return;
         event.preventDefault();
-        this.onBack();
+        this.unwind();
     }
 
-    onBack(): void {
+    /** One level per Escape: watch closes the player, browse leaves the page. */
+    private unwind(): void {
         if (!this.playbackActive()) {
             if (this.backAvailable()) this.backClicked.emit();
             return;
@@ -210,15 +218,15 @@ export class PortalDetailShellComponent {
         afterNextRender(
             () => {
                 const element = this.host.nativeElement;
+                // The page keeps focus, so the next Escape still unwinds it
+                // and the arrow keys still scroll it.
                 if (
                     element.isConnected &&
                     !element.closest('[inert]') &&
                     element.ownerDocument.activeElement ===
                         element.ownerDocument.body
                 ) {
-                    (this.backButton()?.nativeElement ?? element).focus({
-                        preventScroll: true,
-                    });
+                    element.focus({ preventScroll: true });
                 }
             },
             { injector: this.injector }

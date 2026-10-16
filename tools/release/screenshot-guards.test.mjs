@@ -26,6 +26,7 @@ import {
     snapshotDatabaseState,
     stubbedResponseFor,
     DEFAULT_SHOT_GROUP,
+    KNOWN_ACTIONS,
     FICTIONAL_STALKER_MAC,
     outputDirectoryFor,
     shotGroup,
@@ -79,6 +80,35 @@ describe('frame guard MAC allowlist', () => {
 describe('manifest validation', () => {
     it('accepts the committed manifest shape', () => {
         assert.deepEqual(validateManifest(validManifest()), []);
+    });
+
+    it('accepts the committed screenshots.manifest.json', () => {
+        const manifest = JSON.parse(
+            readFileSync(new URL('./screenshots.manifest.json', import.meta.url), 'utf8')
+        );
+
+        assert.deepEqual(validateManifest(manifest), []);
+    });
+
+    it('knows exactly the setup actions the capture navigation dispatches', () => {
+        // The dispatcher is TypeScript and cannot be imported here, so read
+        // the action tables' keys from source: an action added on one side
+        // only would fail the manifest check or the capture run.
+        const dir = new URL('./', import.meta.url);
+        const dispatched = readdirSync(dir)
+            .filter((name) => /^capture-navigation-.+-actions\.ts$/.test(name))
+            .flatMap((name) => {
+                const source = readFileSync(new URL(name, dir), 'utf8');
+                const table = source.match(
+                    /_ACTIONS: Readonly<Record<string, CaptureAction>> = \{([^}]*)\}/
+                );
+                assert.ok(table, `${name} exports no action table`);
+                return [...table[1].matchAll(/'([a-z0-9-]+)':/g)].map(
+                    ([, action]) => action
+                );
+            });
+
+        assert.deepEqual([...dispatched].sort(), [...KNOWN_ACTIONS].sort());
     });
 
     it('rejects unknown setup actions, bad slugs and duplicates', () => {

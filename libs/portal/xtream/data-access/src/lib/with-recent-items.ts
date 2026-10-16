@@ -7,7 +7,11 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { firstValueFrom, pipe, switchMap, tap } from 'rxjs';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import {
     buildPlaylistRecentItems,
     ContentMetadataPatch,
@@ -15,8 +19,11 @@ import {
     Playlist,
     PortalRecentItem,
 } from '@iptvnator/shared/interfaces';
-import { createLogger } from '@iptvnator/portal/shared/util';
-import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
+import {
+    XTREAM_DATA_SOURCE,
+    type XtreamPlayedContent,
+} from './data-sources/xtream-data-source.interface';
 
 export interface RecentlyViewedItem extends PortalRecentItem {
     /** @deprecated Redundant — always equals `id`. Retained for compat. */
@@ -78,13 +85,15 @@ export const withRecentItems = function () {
                 store,
                 dbService = inject(DatabaseService),
                 playlistsService = inject(PlaylistsService),
-                dataSource = inject(XTREAM_DATA_SOURCE)
+                dataSource = inject(XTREAM_DATA_SOURCE),
+                runtime = inject(RuntimeCapabilitiesService)
             ) => ({
                 addRecentItem: rxMethod<{
                     xtreamId: number | string;
                     contentType: 'live' | 'movie' | 'series';
                     playlist: Signal<{ id: string } | null | undefined>;
                     backdropUrl?: string;
+                    playedContent?: XtreamPlayedContent;
                 }>(
                     pipe(
                         switchMap(
@@ -93,6 +102,7 @@ export const withRecentItems = function () {
                                 contentType,
                                 playlist,
                                 backdropUrl,
+                                playedContent,
                             }) => {
                                 const playlistId = playlist()?.id;
                                 const normalizedXtreamId = Number(xtreamId);
@@ -104,23 +114,39 @@ export const withRecentItems = function () {
                                     return;
                                 }
 
+                                const identity = playedContent
+                                    ? normalizeContentMetadataPatch({
+                                          tmdbId:
+                                              playedContent.tmdbId ?? undefined,
+                                          releaseYear:
+                                              playedContent.releaseYear ??
+                                              undefined,
+                                      })
+                                    : null;
                                 const content =
                                     await dataSource.getContentByXtreamId(
                                         normalizedXtreamId,
                                         playlistId,
-                                        contentType
+                                        contentType,
+                                        ...(runtime.supportsXtreamSqliteDataSource &&
+                                        identity
+                                            ? [identity]
+                                            : [])
                                     );
                                 const contentId =
                                     content?.id ??
-                                    (!window.electron
+                                    (!runtime.supportsXtreamSqliteDataSource
                                         ? normalizedXtreamId
                                         : null);
 
                                 if (contentId != null) {
                                     await dataSource.addRecentItem(
-                                        contentId,
+                                        { id: contentId, type: contentType },
                                         playlistId,
-                                        backdropUrl
+                                        backdropUrl,
+                                        ...(playedContent
+                                            ? ([playedContent] as const)
+                                            : [])
                                     );
 
                                     // Reload after add/update so re-watched items
@@ -165,14 +191,22 @@ export const withRecentItems = function () {
                     const content = await dataSource.getContentByXtreamId(
                         normalizedXtreamId,
                         playlistId,
-                        contentType
+                        contentType,
+                        ...(runtime.supportsXtreamSqliteDataSource &&
+                        (normalized.tmdbId != null ||
+                            normalized.releaseYear != null)
+                            ? [normalized]
+                            : [])
                     );
-                    if (!content) {
-                        return;
-                    }
+                    const contentId =
+                        content?.id ??
+                        (!runtime.supportsXtreamSqliteDataSource
+                            ? normalizedXtreamId
+                            : null);
+                    if (contentId == null) return;
 
                     await dataSource.setContentMetadataIfMissing(
-                        content.id,
+                        { id: contentId, type: contentType },
                         playlistId,
                         normalized
                     );
@@ -180,36 +214,35 @@ export const withRecentItems = function () {
                 clearRecentItems: rxMethod<{ id: string }>(
                     pipe(
                         switchMap(async (playlist) => {
-                            if (window.electron) {
-                                await dbService.clearPlaylistRecentItems(
-                                    playlist.id
-                                );
-                            } else {
-                                await dataSource.clearRecentItems(playlist.id);
-                            }
+                            await dataSource.clearRecentItems(playlist.id);
                             patchState(store, { recentItems: [] });
                         })
                     )
                 ),
                 removeRecentItem: rxMethod<{
                     itemId: number;
+                    contentType?: 'live' | 'movie' | 'series';
                     playlistId: string;
                 }>(
                     pipe(
-                        switchMap(async ({ itemId, playlistId }) => {
-                            await dataSource.removeRecentItem(
-                                itemId,
-                                playlistId
-                            );
-                            // Reload recent items to update UI
-                            const items =
-                                await dataSource.getRecentItems(playlistId);
-                            patchState(store, {
-                                recentItems: items.map((item) =>
-                                    mapDbRecentItem(item, playlistId)
-                                ),
-                            });
-                        })
+                        switchMap(
+                            async ({ itemId, playlistId, contentType }) => {
+                                await dataSource.removeRecentItem(
+                                    contentType
+                                        ? { id: itemId, type: contentType }
+                                        : itemId,
+                                    playlistId
+                                );
+                                // Reload recent items to update UI
+                                const items =
+                                    await dataSource.getRecentItems(playlistId);
+                                patchState(store, {
+                                    recentItems: items.map((item) =>
+                                        mapDbRecentItem(item, playlistId)
+                                    ),
+                                });
+                            }
+                        )
                     )
                 ),
                 async loadGlobalRecentItems() {

@@ -126,6 +126,7 @@ describe('worker cancellation while performance capture arms', () => {
         }));
         jest.doMock('./database.worker-connection', () => ({
             closeWorkerDatabase: jest.fn(),
+            flushWorkerSqlStatementCount: jest.fn(),
             getWorkerDatabase: jest.fn().mockResolvedValue({}),
         }));
         jest.doMock('../database/operations/content.operations', () => ({
@@ -219,6 +220,7 @@ describe('worker cancellation while performance capture arms', () => {
         }));
         jest.doMock('./database.worker-connection', () => ({
             closeWorkerDatabase: jest.fn(),
+            flushWorkerSqlStatementCount: jest.fn(),
             getWorkerDatabase: jest.fn().mockResolvedValue({}),
         }));
         jest.doMock('../database/operations/content.operations', () => ({
@@ -288,6 +290,7 @@ describe('worker cancellation while performance capture arms', () => {
         }));
         jest.doMock('./database.worker-connection', () => ({
             closeWorkerDatabase: jest.fn(),
+            flushWorkerSqlStatementCount: jest.fn(),
             getWorkerDatabase: jest.fn().mockResolvedValue({}),
         }));
         jest.doMock('../database/operations/playlist.operations', () => ({
@@ -353,6 +356,7 @@ describe('database worker performance control messages', () => {
         }));
         jest.doMock('./database.worker-connection', () => ({
             closeWorkerDatabase: jest.fn(),
+            flushWorkerSqlStatementCount: jest.fn(),
             getWorkerDatabase,
         }));
         jest.doMock('./database-worker-post-gc-heap', () => ({

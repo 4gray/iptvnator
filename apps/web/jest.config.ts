@@ -21,6 +21,10 @@ const collectCoverageFrom = [
 export default {
   ...nxPreset,
   ...angularEsmPreset,
+  // See jest.preset.js: CI persists the transform cache from this directory.
+  ...(process.env.JEST_CACHE_DIRECTORY
+    ? { cacheDirectory: process.env.JEST_CACHE_DIRECTORY }
+    : {}),
   displayName: 'web',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   coverageDirectory: '../../coverage/apps/web',
@@ -39,6 +43,7 @@ export default {
     tslib: 'tslib/tslib.es6.js',
     '^iptv-playlist-parser$':
       '<rootDir>/src/test-stubs/iptv-playlist-parser.mjs',
+    '^@package$': '<rootDir>/src/test-stubs/package.mjs',
     '^shaka-player$': '<rootDir>/src/test-stubs/shaka-player.js',
     '^video.js$': '<rootDir>/src/test-stubs/video-js.js',
     '^rxjs': '<rootDir>/../../node_modules/rxjs/dist/bundles/rxjs.umd.js',

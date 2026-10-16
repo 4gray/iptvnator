@@ -109,16 +109,55 @@ errs towards contacting the host:
 | Trip        | 2 consecutive host-level failures within an inclusive 120 s window     |
 | Open for    | 30 s (`OPEN_DURATION_MS`), matching the repo's other cooldowns         |
 | Half-open   | exactly ONE trial request; the rest keep fast-failing until it settles |
-| Reset       | any HTTP response — 200, 404, even 502 — the host answered             |
+| Reset       | any HTTP response — 200, 404, even 502; an accepted TCP connection clears the streak but not an open breaker |
 | Key         | `URL.origin` — scheme, host **and** port (see below)                   |
 | Kill switch | `IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` (read per call)               |
 
 **Host-level failure** means an error with no HTTP response whose code is one of
 `ETIMEDOUT`, `ECONNABORTED`, `ENOTFOUND`, `EAI_AGAIN`, `ECONNREFUSED`,
-`EHOSTUNREACH`, `ENETUNREACH`. `ECONNRESET` is deliberately excluded: a reset
-mid-transfer happens on hosts that are very much alive. Cancelled requests
-(`ERR_CANCELED`) and SSRF-policy refusals are `inconclusive` — they say nothing
-about reachability and only release the half-open slot.
+`EHOSTUNREACH`, `ENETUNREACH` — observed **before the TCP connection was
+established**. `ECONNRESET` is deliberately excluded: a reset mid-transfer
+happens on hosts that are very much alive. Cancelled requests (`ERR_CANCELED`)
+and SSRF-policy refusals are `inconclusive` — they say nothing about
+reachability and only release the half-open slot.
+
+**A timeout after the handshake is a slow host, not a dead one.** axios raises
+the same `ECONNABORTED` whether the SYN went unanswered or the panel accepted
+the connection and then thought for longer than the request budget (a heavy
+`get_vod_info` on a busy home server). Only the former is what the guard
+exists for; tripping on the latter turned "slow" into thirty seconds of
+"portal is not responding" for every request, which is how users described
+it. Each transport therefore reports whether the connection was established —
+Electron through `ValidatedAxiosRequestConfig.onConnect` (the request gets its
+own agent, observed via `observeAgentSocketConnections`, instead of the shared
+keep-alive `globalAgent`; a pooled socket that is already connected counts as
+connected), the web backend through `WebBackendHttpGetOptions.onConnect`,
+honoured by `ProviderAxiosTransport`, which owns the `ClientRequest` — and
+the accepted connection is credited THE MOMENT IT HAPPENS
+(`reportGuardedHostConnected` / `reportProviderRequestConnected` from the
+connect hook call `HostConnectivityGuard.reportConnected`, which clears the
+failure streak but deliberately closes no open or half-open breaker: whether a
+host that accepts a connection also answers is exactly what the trial exists
+to find out, so the trial keeps its slot until it settles), and
+`classifyHostRequestFailure(error, { connected })` then reads the eventual
+host-level code as `inconclusive`. Two things hang on that
+ordering. Clearing at connect time is what keeps an unanswered SYN, an
+accepted-but-slow request and another unanswered SYN from adding up to a
+trip, since the middle request proved the host alive in between. Crediting it
+at connect time rather than when the timeout settles is what keeps a request
+that connected and then hung for 30 s from reopening a breaker that later
+requests opened in the meantime — by then its evidence is older than theirs.
+Such a request still costs its full timeout; the guard only stops charging it
+to the host. Electron does not install the observer while an environment
+proxy applies to the request — decided by the very resolution axios performs
+(`proxy-from-env`, the same pinned package: `<protocol>_proxy` / `all_proxy`
+in either case, `no_proxy` exemptions honoured, so a LAN portal listed there
+keeps its observer): through a proxy the socket connects to the proxy, whose
+handshake proves nothing about the portal, so those requests keep reporting
+their timeouts as host-level exactly as before. Regression coverage:
+`apps/electron-backend/src/app/util/host-connectivity-guard.slow-host.spec.ts`
+(real loopback sockets) and the Xtream mock's `silent` scenario, whose
+`get_vod_info` / `get_series_info` accept the connection and never answer.
 
 **A failure is only charged to the endpoint that produced it.** Reaching any
 later hop _proves_ the guarded endpoint answered — the first hop is always the

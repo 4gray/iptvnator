@@ -28,6 +28,7 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     applyChannelNameStrip,
     getM3uArchiveDays,
+    getM3uCatchupWindowEndSeconds,
     extractDrmFromRaw,
     isDashChannel,
     isDashStreamUrl,
@@ -86,7 +87,6 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
-    isWorkspaceLayoutRoute,
     LiveEpgPanelState,
     LiveLayoutSidebarStateService,
     persistLiveEpgPanelState,
@@ -102,6 +102,7 @@ import {
 } from '@iptvnator/portal/shared/ui';
 import {
     AudioPlayerComponent,
+    buildCatchupTimelineSegments,
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
     type FullscreenChannelPanelHost,
@@ -114,12 +115,14 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
 import {
     DataService,
+    ParentalLockService,
     PlaylistsService,
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
     Channel,
     createDevLogger,
@@ -227,7 +230,7 @@ function isInsideScrollableRegion(
         { provide: EPG_GUIDE_SOURCE, useExisting: M3uEpgGuideSourceService },
     ],
     templateUrl: './video-player.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './video-player.component.scss',
 })
 export class VideoPlayerComponent
@@ -237,10 +240,12 @@ export class VideoPlayerComponent
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly dataService = inject(DataService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly historyGate = inject(PlaybackHistoryGate);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
@@ -416,6 +421,17 @@ export class VideoPlayerComponent
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
     });
+    /** Catch-up programmes from `utc` up to `lutc` as seek-bar segments. */
+    readonly catchupTimelineSegments = computed(() => {
+        const playbackUrl = this.activePlaybackUrl();
+        return playbackUrl
+            ? buildCatchupTimelineSegments(
+                  this.epgPrograms(),
+                  this.activeEpgProgramOrNull(),
+                  getM3uCatchupWindowEndSeconds(playbackUrl) ?? undefined
+              )
+            : null;
+    });
     // Shared helper skips blank strings (`tvg-rec=""` is a common default that
     // `??` would not fall through), so a channel with only `timeshift`/
     // `catchup-days` still gets its real window instead of 0 (unbounded).
@@ -485,7 +501,17 @@ export class VideoPlayerComponent
             epgParams: '',
         } as Channel;
     });
-    readonly embeddedPlayback = computed<ResolvedPortalPlayback | null>(() => {
+    /**
+     * Compared by value: it also reads the playlist meta, which changes while
+     * a channel plays (the recently viewed write, a favourite toggle). A new
+     * but identical object would hand the player a new source and restart
+     * the stream.
+     */
+    readonly embeddedPlayback = computed<ResolvedPortalPlayback | null>(
+        () => this.resolveEmbeddedPlayback(),
+        { equal: (a, b) => JSON.stringify(a) === JSON.stringify(b) }
+    );
+    private resolveEmbeddedPlayback(): ResolvedPortalPlayback | null {
         const activeChannel = this.activeChannel();
         const playbackTarget = this.playbackChannel();
 
@@ -528,7 +554,7 @@ export class VideoPlayerComponent
             // — extract lazily so they work without a re-import.
             drm: playbackTarget.drm ?? extractDrmFromRaw(playbackTarget.raw),
         };
-    });
+    }
     readonly sidebarStorageKey = computed(() =>
         this.activeView() === 'groups'
             ? M3U_GROUPS_SIDEBAR_STORAGE_KEY
@@ -686,13 +712,12 @@ export class VideoPlayerComponent
     );
 
     /** Selected video player options */
-    playerSettings: Partial<Settings> = {
+    readonly playerSettings = signal<Partial<Settings>>({
         player: VideoPlayer.VideoJs,
-    };
+    });
 
     readonly isDesktop = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
@@ -704,8 +729,8 @@ export class VideoPlayerComponent
     );
 
     /** Channel number input state */
-    channelNumberInput = '';
-    showChannelNumberOverlay = false;
+    readonly channelNumberInput = signal('');
+    readonly showChannelNumberOverlay = signal(false);
     private channelNumberTimeout?: number;
 
     /**
@@ -768,9 +793,9 @@ export class VideoPlayerComponent
 
         // React to settings changes
         effect(() => {
-            this.playerSettings = {
+            this.playerSettings.set({
                 player: this.settingsStore.player(),
-            };
+            });
         });
 
         // Keep "now" fresh so EPG state re-evaluates over time.
@@ -836,13 +861,17 @@ export class VideoPlayerComponent
                 return;
             }
 
-            const nextKey = `${playlistId}::${activeChannel.url}`;
+            // Channel identity too: two rows of one URL are separate
+            // attempts, confirmed under their own session keys.
+            const nextKey = `${playlistId}::${activeChannel.id}::${activeChannel.url}`;
             if (this.lastRecordedRecentKey === nextKey) {
                 return;
             }
 
             this.lastRecordedRecentKey = nextKey;
-            void this.persistRecentlyViewedChannel(playlistId, activeChannel);
+            untracked(() =>
+                this.recordRecentlyViewedChannel(playlistId, activeChannel)
+            );
         });
 
         effect(() => {
@@ -1160,10 +1189,10 @@ export class VideoPlayerComponent
     applySettings(): void {
         this.storage.get(STORE_KEY.Settings).subscribe((settings: unknown) => {
             if (settings && Object.keys(settings as Settings).length > 0) {
-                this.playerSettings = {
+                this.playerSettings.set({
                     player:
                         (settings as Settings).player || VideoPlayer.VideoJs,
-                };
+                });
             }
         });
     }
@@ -1195,6 +1224,32 @@ export class VideoPlayerComponent
         return Math.max(
             M3U_SIDEBAR_MIN_WIDTH,
             Math.min(M3U_SIDEBAR_MAX_WIDTH, width)
+        );
+    }
+
+    /**
+     * Inline playback (video, radio, movie detail) records the channel only
+     * once it has really played, so a stream that fails right away never
+     * reaches history or the dashboard hero. MPV/VLC cannot report that for
+     * a live stream, so they keep recording on selection.
+     */
+    private recordRecentlyViewedChannel(
+        playlistId: string,
+        channel: Channel
+    ): void {
+        const record = () =>
+            void this.persistRecentlyViewedChannel(playlistId, channel);
+        if (channel.radio !== 'true' && !this.shouldShowInlinePlayer(channel)) {
+            record();
+            return;
+        }
+
+        this.historyGate.defer(
+            {
+                sessionKey: this.playbackSessionKey(),
+                streamUrls: [channel.url],
+            },
+            record
         );
     }
 
@@ -1415,12 +1470,14 @@ export class VideoPlayerComponent
         }
 
         // Add digit to current input
-        this.channelNumberInput += digit;
-        this.showChannelNumberOverlay = true;
+        this.channelNumberInput.update((input) => input + digit);
+        this.showChannelNumberOverlay.set(true);
 
         // Set timeout to switch channel after 2 seconds of no input
         this.channelNumberTimeout = window.setTimeout(() => {
-            this.switchToChannelByNumber(parseInt(this.channelNumberInput, 10));
+            this.switchToChannelByNumber(
+                parseInt(this.channelNumberInput(), 10)
+            );
             this.clearChannelNumberInput();
         }, 2000);
     }
@@ -1437,8 +1494,19 @@ export class VideoPlayerComponent
                 )
             )
             .subscribe((channel) => {
+                // The number indexes the full list; a channel of a locked
+                // group is not zapped to (the enforcement service would
+                // reset it anyway, after playback had started).
+                const playlistId = this.activePlaylistMeta()?._id;
                 if (
                     channel &&
+                    !(
+                        playlistId &&
+                        this.parentalLock.isM3uGroupLocked(
+                            playlistId,
+                            channel.group?.title ?? ''
+                        )
+                    ) &&
                     (!this.isLivePlayerFullscreen() ||
                         this.keepsInlinePlayer(channel))
                 ) {
@@ -1479,8 +1547,8 @@ export class VideoPlayerComponent
      * Clear channel number input and hide overlay
      */
     clearChannelNumberInput(): void {
-        this.channelNumberInput = '';
-        this.showChannelNumberOverlay = false;
+        this.channelNumberInput.set('');
+        this.showChannelNumberOverlay.set(false);
         if (this.channelNumberTimeout) {
             clearTimeout(this.channelNumberTimeout);
             this.channelNumberTimeout = undefined;
@@ -1595,7 +1663,7 @@ export class VideoPlayerComponent
             return true;
         }
 
-        const player = this.playerSettings.player;
+        const player = this.playerSettings().player;
         return (
             !this.isExternalPlayer(player) && player !== VideoPlayer.EmbeddedMpv
         );
@@ -1617,7 +1685,7 @@ export class VideoPlayerComponent
             return true;
         }
 
-        return !this.isExternalPlayer(this.playerSettings.player);
+        return !this.isExternalPlayer(this.playerSettings().player);
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
@@ -1680,7 +1748,7 @@ export class VideoPlayerComponent
     }
 
     private registerHeaderShortcut(): void {
-        if (!this.isWorkspaceLayout || !this.supportsEpg) {
+        if (!this.supportsEpg) {
             return;
         }
 

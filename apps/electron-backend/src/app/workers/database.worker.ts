@@ -1,9 +1,14 @@
+import type {
+    ElectronBridgeFavoriteReorderUpdate,
+    XtreamFavoriteRemovalRef,
+} from '@iptvnator/shared/interfaces';
 import { migrateAppPlaylists } from '../database/operations/playlist-migration.operations';
 import {
     closeWorkerDatabase,
+    flushWorkerSqlStatementCount,
     getWorkerDatabase,
 } from './database.worker-connection';
-import { parentPort } from 'worker_threads';
+import { parentPort, workerData } from 'worker_threads';
 import type {
     ContentMetadataPatch,
     VodSourcePin,
@@ -25,12 +30,15 @@ import {
     getCategories,
     hasCategories,
     saveCategories,
+    setCategoryLocks,
     updateCategoryVisibility,
 } from '../database/operations/category.operations';
+import { setParentalLockActive } from '../database/parental-lock-state';
 import {
     addFavorite,
     getAllGlobalFavorites,
     getFavorites,
+    getFavoritesForBackup,
     getGlobalFavorites,
     isFavorite,
     removeFavorite,
@@ -49,6 +57,7 @@ import {
 import { setContentMetadataIfMissing } from '../database/operations/content-metadata.operations';
 import {
     clearAllPlaybackPositions,
+    replaceAllPlaybackPositions,
     clearPlaybackPosition,
     clearPlaybackPositionsBatch,
     getAllPlaybackPositions,
@@ -107,6 +116,7 @@ import {
 import {
     deleteXtreamContent,
     restoreXtreamUserData,
+    restoreXtreamFavorites,
 } from '../database/operations/xtream.operations';
 import {
     armWorkerPerformanceCapture,
@@ -133,6 +143,12 @@ import {
 } from './operation-progress-throttle';
 
 const loggerLabel = '[DB Worker]';
+// Seeded by the main process so a (re)started worker is locked before its
+// first read; DB_SET_PARENTAL_LOCK_STATE updates it afterwards.
+setParentalLockActive(
+    (workerData as { parentalLockActive?: unknown } | undefined)
+        ?.parentalLockActive === true
+);
 const batchDelayMs = Number.parseInt(
     process.env['IPTVNATOR_DB_WORKER_BATCH_DELAY_MS'] ?? '0',
     10
@@ -210,6 +226,7 @@ function serializeError(error: unknown) {
 }
 
 function postMessage(message: DbWorkerMessage): void {
+    flushWorkerSqlStatementCount();
     parentPort?.postMessage(message);
 }
 
@@ -440,6 +457,7 @@ async function executeRequest(
                 }>;
                 type: 'live' | 'movies' | 'series';
                 hiddenCategoryXtreamIds?: number[];
+                lockedCategoryXtreamIds?: number[];
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -449,6 +467,7 @@ async function executeRequest(
                 payload.categories,
                 payload.type,
                 payload.hiddenCategoryXtreamIds,
+                payload.lockedCategoryXtreamIds,
                 capturePhase
             );
         }
@@ -470,6 +489,20 @@ async function executeRequest(
                 db,
                 payload.categoryIds,
                 payload.hidden
+            );
+        }
+
+        case 'DB_SET_CATEGORY_LOCKS': {
+            const payload = message.payload as {
+                playlistId: string;
+                type: 'live' | 'movies' | 'series';
+                lockedXtreamIds: number[];
+            };
+            return setCategoryLocks(
+                db,
+                payload.playlistId,
+                payload.type,
+                payload.lockedXtreamIds
             );
         }
 
@@ -577,12 +610,14 @@ async function executeRequest(
                 xtreamId: number;
                 playlistId: string;
                 contentType?: 'live' | 'movie' | 'series';
+                identity?: ContentMetadataPatch;
             };
             return getContentByXtreamId(
                 db,
                 payload.xtreamId,
                 payload.playlistId,
-                payload.contentType
+                payload.contentType,
+                payload.identity
             );
         }
 
@@ -1019,6 +1054,20 @@ async function executeRequest(
             );
         }
 
+        case 'DB_RESTORE_XTREAM_FAVORITES': {
+            const { playlistId, favorites, restoreId } = message.payload as {
+                playlistId: string;
+                favorites: XtreamBackupFavoriteItem[];
+                restoreId?: string;
+            };
+            return restoreXtreamFavorites(
+                db,
+                playlistId,
+                favorites,
+                undefined,
+                restoreId
+            );
+        }
         case 'DB_ADD_FAVORITE': {
             const payload = message.payload as {
                 contentId: number;
@@ -1032,7 +1081,7 @@ async function executeRequest(
 
         case 'DB_REMOVE_FAVORITE': {
             const payload = message.payload as {
-                contentId: number;
+                contentId: XtreamFavoriteRemovalRef;
                 playlistId: string;
             };
             return removeFavorite(db, payload.contentId, payload.playlistId);
@@ -1046,6 +1095,10 @@ async function executeRequest(
             return isFavorite(db, payload.contentId, payload.playlistId);
         }
 
+        case 'DB_GET_FAVORITES_FOR_BACKUP': {
+            const { playlistId } = message.payload as { playlistId: string };
+            return getFavoritesForBackup(db, playlistId);
+        }
         case 'DB_GET_FAVORITES': {
             const payload = message.payload as { playlistId: string };
             return getFavorites(db, payload.playlistId);
@@ -1059,11 +1112,7 @@ async function executeRequest(
 
         case 'DB_REORDER_GLOBAL_FAVORITES': {
             const payload = message.payload as {
-                updates: {
-                    content_id: number;
-                    playlist_id: string;
-                    position: number;
-                }[];
+                updates: ElectronBridgeFavoriteReorderUpdate[];
             };
             return reorderGlobalFavorites(db, payload.updates);
         }
@@ -1175,6 +1224,18 @@ async function executeRequest(
             return getAllPlaybackPositions(db, payload.playlistId);
         }
 
+        case 'DB_REPLACE_ALL_PLAYBACK_POSITIONS': {
+            const payload = message.payload as {
+                playlistId: string;
+                items: Parameters<typeof replaceAllPlaybackPositions>[2];
+            };
+            return replaceAllPlaybackPositions(
+                db,
+                payload.playlistId,
+                payload.items
+            );
+        }
+
         case 'DB_CLEAR_ALL_PLAYBACK_POSITIONS': {
             const payload = message.payload as { playlistId: string };
             return clearAllPlaybackPositions(db, payload.playlistId);
@@ -1243,6 +1304,11 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             message,
             activePerformanceCaptures.size === 0
         );
+        return;
+    }
+
+    if (message.type === 'parental-lock') {
+        setParentalLockActive(message.active === true);
         return;
     }
 

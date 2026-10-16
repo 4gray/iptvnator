@@ -4,11 +4,14 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, take } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import {
+    ParentalLockService,
     DatabaseService,
     DbOperationEvent,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     SettingsDeleteAllPlaylistsDialogComponent,
@@ -24,12 +27,15 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 @Injectable()
 export class SettingsPlaylistResetFacade {
     private readonly databaseService = inject(DatabaseService);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly matDialog = inject(MatDialog);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+    /** The language can be switched on this page while a removal runs. */
+    private readonly languageTick = injectTranslationTick();
 
     readonly isRemovingAllPlaylists = signal(false);
     readonly removeAllProgress = signal<DbOperationEvent | null>(null);
@@ -46,13 +52,14 @@ export class SettingsPlaylistResetFacade {
         () => !this.isRemovingAllPlaylists() && this.deleteSummary().total > 0
     );
 
-    readonly removeAllProgressLabel = computed(() =>
-        buildRemoveAllProgressLabel({
+    readonly removeAllProgressLabel = computed(() => {
+        this.languageTick();
+        return buildRemoveAllProgressLabel({
             isRemovingAllPlaylists: this.isRemovingAllPlaylists(),
             progress: this.removeAllProgress(),
             translate: (key, params) => this.translate.instant(key, params),
-        })
-    );
+        });
+    });
 
     /**
      * Asks for confirmation in a dedicated dialog before wiping every
@@ -69,13 +76,12 @@ export class SettingsPlaylistResetFacade {
                 SettingsDeleteAllPlaylistsDialogData,
                 boolean
             >(SettingsDeleteAllPlaylistsDialogComponent, {
+                ...dialogSize('md'),
                 autoFocus: false,
                 data: {
                     summary: this.deleteSummary(),
                 },
-                maxWidth: 'calc(100vw - 32px)',
                 restoreFocus: true,
-                width: '460px',
             })
             .afterClosed()
             .pipe(take(1))
@@ -106,6 +112,12 @@ export class SettingsPlaylistResetFacade {
 
             if (!deleted) {
                 throw new Error('Delete all playlists returned success=false');
+            }
+            // The playlists are gone; their locks must not linger in the
+            // lock store (the deletion itself already succeeded, so a failed
+            // clear is only logged).
+            if (!(await this.parentalLock.clearAllLocks())) {
+                console.warn('Clearing the parental locks failed.');
             }
 
             this.store.dispatch(PlaylistActions.removeAllPlaylists());

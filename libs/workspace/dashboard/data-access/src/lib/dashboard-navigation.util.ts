@@ -5,6 +5,7 @@ import {
     PortalAddedItem,
     PortalFavoriteItem,
     PortalRecentItem,
+    resolvePortalActivityWatchKind,
 } from '@iptvnator/shared/interfaces';
 import {
     buildStalkerDetailNavigationTarget,
@@ -92,7 +93,7 @@ export function getRecentItemDetailNavigationState(
 
 /**
  * Full navigation target carrying the one-shot resume handoff, or null when
- * the item/position cannot produce one (non-Xtream, non-series, watched or
+ * the item/position cannot produce one (M3U, non-series, watched or
  * coordinate-less rows). Powers the card's explicit "Resume episode" action.
  */
 export function getRecentItemResumeNavigation(
@@ -127,9 +128,12 @@ function buildRecentSeriesIdentityTarget(
     item: PortalRecentItem,
     playbackPosition?: PlaybackPositionData | null
 ): SeriesResumeTarget | null {
+    // Watch kind, not `type`: a Stalker embedded-VOD row routes as a movie
+    // yet resumes an episode (the detail decides the mode from the stored
+    // item, so the collection item keeps its routing type).
     if (
-        item.type !== 'series' ||
-        item.source !== 'xtream' ||
+        resolvePortalActivityWatchKind(item) !== 'series' ||
+        (item.source !== 'xtream' && item.source !== 'stalker') ||
         playbackPosition?.contentType !== 'episode'
     ) {
         return null;

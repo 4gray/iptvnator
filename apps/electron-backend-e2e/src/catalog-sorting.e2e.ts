@@ -361,10 +361,10 @@ const largeXtreamCredentials = {
 
 async function setLiveSortMode(
     page: Page,
-    label: 'Server Order' | 'Name A-Z' | 'Name Z-A'
+    label: 'Server order' | 'Name A-Z' | 'Name Z-A'
 ): Promise<void> {
     await page.getByRole('button', { name: 'Sort channels' }).click();
-    await page.getByRole('menuitem', { name: label, exact: true }).click();
+    await page.getByRole('menuitemradio', { name: label, exact: true }).click();
 }
 
 async function setContentSortMode(
@@ -376,7 +376,7 @@ async function setContentSortMode(
         | 'Name Z-A'
 ): Promise<void> {
     await page.getByRole('button', { name: 'Refine', exact: true }).click();
-    await page.getByRole('menuitem', { name: label, exact: true }).click();
+    await page.getByRole('menuitemradio', { name: label, exact: true }).click();
 }
 
 async function expectVisibleChannelTitles(
@@ -590,12 +590,9 @@ async function firstVisibleGridTitle(page: Page): Promise<string> {
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: browse uses the sticky Back, watch uses the
-    // now-playing bar's direct Back (the sticky watch action is Close player).
-    const backButton = page
-        .locator('app-portal-detail-shell')
-        .first()
-        .getByRole('button', { name: 'Back', exact: true });
+    // Return to the list: the header's Back is route-level in browse and
+    // watch alike (closing the player is the bar's own Close button).
+    const backButton = page.getByTestId('workspace-header-back');
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     try {

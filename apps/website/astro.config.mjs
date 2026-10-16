@@ -4,16 +4,9 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import mdx from '@astrojs/mdx';
 
-/**
- * Repository version for the download pages' offline fallback
- * (`src/lib/downloads.ts`). Read from the workspace root through the file
- * system and injected as a build-time constant: importing the root
- * `package.json` from inside the project trips the Nx module-boundaries rule
- * ("external resources cannot be imported using a relative path"), and a
- * value fixed at build time is what the fallback needs anyway.
- */
+/** Published version for offline downloads; independent of the nightly base. */
 const { version } = JSON.parse(
-  readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('./released-version.json', import.meta.url), 'utf8'),
 );
 
 // Tailwind (v3) is applied via apps/website/postcss.config.mjs — the
@@ -26,7 +19,7 @@ export default defineConfig({
   integrations: [sitemap(), mdx()],
   vite: {
     define: {
-      __IPTVNATOR_VERSION__: JSON.stringify(version),
+      __IPTVNATOR_RELEASED_VERSION__: JSON.stringify(version),
     },
   },
 });

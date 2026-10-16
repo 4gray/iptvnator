@@ -59,6 +59,24 @@ export function resolveM3uCatchupUrl(
     });
 }
 
+/**
+ * End of an M3U catch-up URL's archive window in epoch seconds: its `lutc`
+ * parameter, the moment `resolveM3uCatchupUrl` built it. The stream runs
+ * from the programme's start (`utc`) up to then. Null without the param.
+ */
+export function getM3uCatchupWindowEndSeconds(
+    playbackUrl: string | null | undefined
+): number | null {
+    try {
+        const lutc = Number(
+            new URL(playbackUrl ?? '').searchParams.get('lutc') ?? ''
+        );
+        return Number.isFinite(lutc) && lutc > 0 ? lutc : null;
+    } catch {
+        return null;
+    }
+}
+
 function getM3uCatchupSupportMode(
     channel: Channel | null | undefined
 ): CatchupSupportMode {

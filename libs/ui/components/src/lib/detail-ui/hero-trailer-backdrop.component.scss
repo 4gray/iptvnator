@@ -1,0 +1,30 @@
+:host {
+    position: absolute;
+    inset: 0;
+    display: block;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 600ms ease;
+
+    &.is-playing {
+        opacity: 1;
+    }
+}
+
+// A 16:9 frame that covers the hero whatever its aspect: oversized and
+// centred, like `object-fit: cover` for an iframe.
+.trailer-backdrop__frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, calc(100vh * 16 / 9));
+    height: max(100%, calc(100vw * 9 / 16));
+    transform: translate(-50%, -50%);
+    border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host {
+        transition: none;
+    }
+}

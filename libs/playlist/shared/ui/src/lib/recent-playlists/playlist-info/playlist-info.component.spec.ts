@@ -19,6 +19,8 @@ import {
     STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
 } from './stalker-playlist-connection-editor.token';
 
+const EXPORT_FILE_TYPE = 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE';
+
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
     let fixture: ComponentFixture<PlaylistInfoComponent>;
@@ -73,6 +75,7 @@ describe('PlaylistInfoComponent', () => {
         autoRefresh: false,
         url: 'https://example.com/playlist.m3u',
     } as Playlist & { id: string };
+    const metaBase = { count: 1, importDate: '2026-04-01', autoRefresh: false };
 
     beforeEach(async () => {
         playlistsService = {
@@ -213,6 +216,7 @@ describe('PlaylistInfoComponent', () => {
         createComponent();
 
         const updatedPlaylist = {
+            ...metaBase,
             _id: 'playlist-1',
             title: 'Updated Xtream',
             serverUrl: 'http://new.example:8080',
@@ -251,6 +255,7 @@ describe('PlaylistInfoComponent', () => {
         createComponent();
 
         await component.saveChanges({
+            ...metaBase,
             _id: 'playlist-1',
             title: 'Updated Xtream',
             serverUrl:
@@ -262,6 +267,7 @@ describe('PlaylistInfoComponent', () => {
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({
                 playlist: {
+                    ...metaBase,
                     _id: 'playlist-1',
                     title: 'Updated Xtream',
                     serverUrl: 'http://new.example:8080/live',
@@ -289,6 +295,7 @@ describe('PlaylistInfoComponent', () => {
         createComponent();
 
         await component.saveChanges({
+            ...metaBase,
             _id: 'playlist-1',
             title: 'Updated Xtream',
             serverUrl:
@@ -314,14 +321,14 @@ describe('PlaylistInfoComponent', () => {
         window.electron = {
             saveFileDialog: jest.fn().mockResolvedValue('/tmp/export.m3u8'),
             writeFile: jest.fn().mockResolvedValue({ success: true }),
-        } as typeof window.electron;
+        } as Partial<typeof window.electron> as typeof window.electron;
         createComponent();
 
         await component.exportPlaylist();
 
         expect(window.electron.saveFileDialog).toHaveBeenCalledWith(
             'My Playlist.m3u8',
-            [{ name: 'Playlist', extensions: ['m3u8', 'm3u'] }]
+            [{ name: EXPORT_FILE_TYPE, extensions: ['m3u8', 'm3u'] }]
         );
         expect(window.electron.writeFile).toHaveBeenCalledWith(
             '/tmp/export.m3u8',

@@ -1,10 +1,11 @@
+import { PlaylistSwitcherOpenService } from '@iptvnator/playlist/shared/ui';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import {
     PlaylistRefreshActionService,
     type XtreamRefreshPreparationState,
@@ -19,7 +20,6 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     DownloadsService,
-    PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -31,6 +31,7 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { RecentCommandsService } from '../../recent-commands';
 import { WorkspacePlayerCommandsContributor } from '../../workspace-player-commands';
+import { XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS } from './helpers/workspace-shell-constants';
 import { WorkspaceShellFacade } from './workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
@@ -59,6 +60,7 @@ class MockXtreamStore {
         category_name?: string;
         name?: string;
     } | null>(null);
+    readonly selectedCategoryId = signal<number | null>(null);
     readonly vodStreams = signal<unknown[]>([{ id: 1 }]);
     readonly liveStreams = signal<unknown[]>([{ id: 2 }]);
     readonly serialStreams = signal<unknown[]>([{ id: 3 }]);
@@ -72,7 +74,10 @@ class MockXtreamStore {
 
 class MockStalkerStore {
     readonly searchPhrase = signal('');
-    readonly getSelectedCategoryName = signal('All Items');
+    readonly getSelectedCategoryLabel = signal({
+        name: 'All Items',
+        labelKey: null,
+    });
     readonly itvFullListActive = signal(false);
 
     setSearchPhrase = jest.fn((term: string) => this.searchPhrase.set(term));
@@ -105,6 +110,13 @@ describe('WorkspaceShellFacade', () => {
         serverUrl?: string;
         macAddress?: string;
     };
+    const createPlaylistMeta = (_id: string, title: string): PlaylistMeta => ({
+        _id,
+        title,
+        count: 0,
+        importDate: '2026-01-01T00:00:00.000Z',
+        autoRefresh: false,
+    });
 
     let facade: WorkspaceShellFacade;
     let searchSync: WorkspaceShellSearchSyncService;
@@ -123,17 +135,13 @@ describe('WorkspaceShellFacade', () => {
     let navigationTrigger: 'imperative' | 'popstate';
     let router: {
         url: string;
-        events: ReturnType<typeof of>;
+        events: Observable<NavigationEnd>;
         navigate: jest.Mock;
         navigateByUrl: jest.Mock;
         parseUrl: jest.Mock;
         createUrlTree: jest.Mock;
         isActive: jest.Mock;
         lastSuccessfulNavigation: () => { trigger: string };
-    };
-    let playlistsService: {
-        clearPortalRecentlyViewed: jest.Mock;
-        clearM3uRecentlyViewed: jest.Mock;
     };
     let workspaceActions: {
         openAddPlaylistDialog: jest.Mock;
@@ -173,15 +181,29 @@ describe('WorkspaceShellFacade', () => {
             supportsDownloads: true,
         };
 
-        activePlaylistSignal = signal({
-            _id: 'pl-1',
+        activePlaylistSignal = signal<PlaylistSignalMeta | null>({
+            ...createPlaylistMeta('pl-1', 'Playlist A'),
             serverUrl: 'http://example.com',
-            title: 'Playlist A',
-            recentlyViewed: ['recent-1'],
+            recentlyViewed: [
+                {
+                    source: 'm3u',
+                    id: 'recent-1',
+                    url: 'https://example.com/recent-1.m3u8',
+                    title: 'Recent 1',
+                    category_id: 'live',
+                    added_at: '2026-01-01T00:00:00.000Z',
+                },
+            ],
         });
-        playlistsSignal = signal([
-            { _id: 'pl-1', serverUrl: 'http://example.com' },
-            { _id: 'pl-2', macAddress: '00:11:22:33' },
+        playlistsSignal = signal<PlaylistSignalMeta[]>([
+            {
+                ...createPlaylistMeta('pl-1', 'Playlist A'),
+                serverUrl: 'http://example.com',
+            },
+            {
+                ...createPlaylistMeta('pl-2', 'Playlist B'),
+                macAddress: '00:11:22:33',
+            },
         ]);
         downloadsActiveCountSignal = signal(0);
         refreshPreparationSignal = signal<XtreamRefreshPreparationState | null>(
@@ -203,14 +225,6 @@ describe('WorkspaceShellFacade', () => {
             createUrlTree: jest.fn(),
             isActive: jest.fn(),
             lastSuccessfulNavigation: () => ({ trigger: navigationTrigger }),
-        };
-        playlistsService = {
-            clearPortalRecentlyViewed: jest
-                .fn()
-                .mockReturnValue(of({ recentlyViewed: [] })),
-            clearM3uRecentlyViewed: jest
-                .fn()
-                .mockReturnValue(of({ recentlyViewed: [] })),
         };
         workspaceActions = {
             openAddPlaylistDialog: jest.fn(),
@@ -308,10 +322,6 @@ describe('WorkspaceShellFacade', () => {
                     useValue: runtime,
                 },
                 {
-                    provide: PlaylistsService,
-                    useValue: playlistsService,
-                },
-                {
                     provide: DownloadsService,
                     useValue: {
                         activeCount: downloadsActiveCountSignal,
@@ -320,6 +330,7 @@ describe('WorkspaceShellFacade', () => {
                 {
                     provide: MatDialog,
                     useValue: {
+                        openDialogs: [],
                         open: jest.fn().mockReturnValue({
                             afterClosed: () => of(undefined),
                         }),
@@ -345,7 +356,7 @@ describe('WorkspaceShellFacade', () => {
                                     'WORKSPACE.SHELL.XTREAM_IMPORT_PROGRESS' &&
                                 params
                             ) {
-                                return `${params.type} imported: ${params.current} / ${params.total}`;
+                                return `${params['type']} imported: ${params['current']} / ${params['total']}`;
                             }
 
                             if (
@@ -353,7 +364,7 @@ describe('WorkspaceShellFacade', () => {
                                     'WORKSPACE.SHELL.XTREAM_REFRESH_PROGRESS' &&
                                 params
                             ) {
-                                return `Local records processed: ${params.current} / ${params.total}`;
+                                return `Local records processed: ${params['current']} / ${params['total']}`;
                             }
 
                             return key;
@@ -495,16 +506,31 @@ describe('WorkspaceShellFacade', () => {
         expect(facade.showXtreamImportOverlay()).toBe(true);
     });
 
-    it('keeps a cache-only Xtream import session blocking and cancellable', () => {
-        const xtreamStore = TestBed.inject(
-            XtreamStore
-        ) as unknown as MockXtreamStore;
-        const xtreamImport = TestBed.inject(WorkspaceShellXtreamImportService);
-        xtreamStore.activeImportSessionId.set('xtream-import-session');
+    it('keeps a slow cache-only Xtream import session blocking and cancellable', () => {
+        jest.useFakeTimers();
+        try {
+            const xtreamStore = TestBed.inject(
+                XtreamStore
+            ) as unknown as MockXtreamStore;
+            const xtreamImport = TestBed.inject(
+                WorkspaceShellXtreamImportService
+            );
+            xtreamStore.activeImportSessionId.set('xtream-import-session');
+            TestBed.tick();
 
-        expect(xtreamStore.isImporting()).toBe(false);
-        expect(facade.showXtreamImportOverlay()).toBe(true);
-        expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+            // A saved-catalog read waits out the show delay so a quick one
+            // never flashes the overlay, but stays cancellable meanwhile.
+            expect(xtreamStore.isImporting()).toBe(false);
+            expect(facade.showXtreamImportOverlay()).toBe(false);
+            expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+
+            jest.advanceTimersByTime(XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS);
+
+            expect(facade.showXtreamImportOverlay()).toBe(true);
+            expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('shows the Xtream overlay during refresh preparation on the dashboard', () => {
@@ -626,26 +652,6 @@ describe('WorkspaceShellFacade', () => {
         ]);
     });
 
-    it('clears stalker recent items and refreshes the route', async () => {
-        facade.currentUrl.set('/workspace/stalker/pl-1/recent');
-        router.navigateByUrl.mockClear();
-
-        await facade.runHeaderBulkAction();
-
-        expect(playlistsService.clearPortalRecentlyViewed).toHaveBeenCalledWith(
-            'pl-1'
-        );
-        expect(storeDispatch).toHaveBeenCalled();
-        expect(router.navigateByUrl).toHaveBeenCalledWith(
-            expect.stringMatching(
-                /^\/workspace\/stalker\/pl-1\/recent\?refresh=/
-            ),
-            {
-                replaceUrl: true,
-            }
-        );
-    });
-
     it('exposes loaded-only status for stalker itv searches', () => {
         facade.currentUrl.set('/workspace/stalker/pl-1/itv?q=cnn');
         searchSync.syncSearchFromRoute();
@@ -682,6 +688,27 @@ describe('WorkspaceShellFacade', () => {
         // stations — surface the same "loaded only" hint as degraded ITV.
         expect(facade.searchStatusLabel()).toBe(
             'WORKSPACE.SHELL.SEARCH_STATUS_LOADED_ONLY'
+        );
+    });
+
+    it('scopes Xtream search to the translated every-item label without a category', () => {
+        const xtreamStore = TestBed.inject(
+            XtreamStore
+        ) as unknown as MockXtreamStore;
+
+        facade.currentUrl.set('/workspace/xtreams/pl-1/vod?q=neo');
+        searchSync.syncSearchFromRoute();
+        TestBed.flushEffects();
+
+        expect(facade.searchScopeLabel()).toBe(
+            'WORKSPACE.SHELL.RAIL_MOVIES / PORTALS.ALL_ITEMS'
+        );
+
+        xtreamStore.selectedCategoryId.set(7);
+        xtreamStore.getSelectedCategory.set({ name: 'Drama' });
+
+        expect(facade.searchScopeLabel()).toBe(
+            'WORKSPACE.SHELL.RAIL_MOVIES / Drama'
         );
     });
 
@@ -756,7 +783,6 @@ describe('WorkspaceShellFacade', () => {
                 exact: true,
             },
         ]);
-        expect(facade.brandLink()).toBe('/workspace/sources');
     });
 
     it('hides the Electron-only global search rail link in the web runtime', () => {
@@ -1103,6 +1129,43 @@ describe('WorkspaceShellFacade', () => {
         expect(dialog.open).toHaveBeenCalledTimes(1);
     });
 
+    it('opens the playlist switcher on Ctrl/Cmd+P when one is on screen', () => {
+        const switcher = TestBed.inject(PlaylistSwitcherOpenService);
+        const opened = jest.fn();
+        const subscription = switcher.openRequests.subscribe(opened);
+        const press = () => {
+            const event = new KeyboardEvent('keydown', {
+                key: 'p',
+                ctrlKey: true,
+                cancelable: true,
+            });
+            document.dispatchEvent(event);
+            return event;
+        };
+
+        // Settings hides the switcher: the key keeps its default there.
+        expect(press().defaultPrevented).toBe(false);
+        expect(opened).not.toHaveBeenCalled();
+
+        const unregister = switcher.register();
+        expect(press().defaultPrevented).toBe(true);
+        expect(opened).toHaveBeenCalledTimes(1);
+
+        // An open dialog keeps the key and the focus.
+        const dialogs = (
+            TestBed.inject(MatDialog) as unknown as {
+                openDialogs: unknown[];
+            }
+        ).openDialogs;
+        dialogs.push({});
+        expect(press().defaultPrevented).toBe(false);
+        expect(opened).toHaveBeenCalledTimes(1);
+        dialogs.length = 0;
+
+        unregister();
+        subscription.unsubscribe();
+    });
+
     it('records the executed command id after the palette closes with a selection', () => {
         const dialog = TestBed.inject(MatDialog) as unknown as {
             open: jest.Mock;
@@ -1152,7 +1215,7 @@ describe('WorkspaceShellFacade', () => {
         expect(dialog.open).not.toHaveBeenCalled();
 
         resolveSupport();
-        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(dialog.open).toHaveBeenCalledTimes(1);
     });

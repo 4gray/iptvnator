@@ -5,6 +5,7 @@ import {
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
 import {
+    ParentalLockService,
     SettingsStore,
     StreamProbeService,
     VodSourcePinService,
@@ -42,6 +43,7 @@ describe('VodMultiSourceHostService', () => {
     const playbackLive = signal(false);
     const playbackStartBlocked = signal(false);
     const vodAutoFailover = signal(false);
+    const lockVersion = signal(0);
     const startPlayback = jest.fn();
     const discovery = { isAvailable: true, discover: jest.fn() };
     const resolver = { resolve: jest.fn() };
@@ -91,6 +93,7 @@ describe('VodMultiSourceHostService', () => {
         movie.set(null);
         playbackStartBlocked.set(false);
         vodAutoFailover.set(false);
+        lockVersion.set(0);
         discovery.isAvailable = true;
         discovery.discover.mockResolvedValue({
             sources: [],
@@ -110,6 +113,10 @@ describe('VodMultiSourceHostService', () => {
                 { provide: VodSourcePinService, useValue: pins },
                 { provide: StreamProbeService, useValue: probes },
                 { provide: SettingsStore, useValue: { vodAutoFailover } },
+                {
+                    provide: ParentalLockService,
+                    useValue: { version: lockVersion },
+                },
             ],
         });
 
@@ -168,9 +175,11 @@ describe('VodMultiSourceHostService', () => {
             { startTime: 2538 }
         );
         expect(startPlayback).toHaveBeenCalledTimes(1);
+        // No forced player: the host picks inline or external itself.
         expect(startPlayback).toHaveBeenCalledWith(
             expect.objectContaining({ startTime: 2538 }),
-            expect.any(Function)
+            expect.any(Function),
+            undefined
         );
     });
 
@@ -430,7 +439,10 @@ describe('VodMultiSourceHostService', () => {
         const alts = [2, 3, 4, 5, 6].map(alternative);
         await loadMovie(alts);
 
-        const gates = new Map<string, ReturnType<typeof createDeferred>>();
+        const gates = new Map<
+            string,
+            ReturnType<typeof createDeferred<null>>
+        >();
         resolver.resolve.mockImplementation((candidate) => {
             const gate = createDeferred<null>();
             gates.set((candidate as VodSourceCandidate).id, gate);
@@ -461,7 +473,10 @@ describe('VodMultiSourceHostService', () => {
         const alts = [2, 3, 4, 5, 6, 7].map(alternative);
         await loadMovie(alts);
 
-        const gates = new Map<string, ReturnType<typeof createDeferred>>();
+        const gates = new Map<
+            string,
+            ReturnType<typeof createDeferred<null>>
+        >();
         resolver.resolve.mockImplementation((candidate) => {
             const gate = createDeferred<null>();
             gates.set((candidate as VodSourceCandidate).id, gate);

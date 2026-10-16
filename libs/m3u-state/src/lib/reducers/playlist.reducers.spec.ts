@@ -127,7 +127,7 @@ describe('playlistReducers', () => {
                         stalkerTimeslot: 3,
                         stalkerAccountInfo: {
                             login: 'subscriber',
-                            status: 'active',
+                            status: 1,
                         },
                     },
                 },
@@ -153,7 +153,7 @@ describe('playlistReducers', () => {
                 stalkerTimeslot: 3,
                 stalkerAccountInfo: {
                     login: 'subscriber',
-                    status: 'active',
+                    status: 1,
                 },
             })
         );

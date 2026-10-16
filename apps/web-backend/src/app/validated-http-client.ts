@@ -17,6 +17,13 @@ export interface WebBackendHttpGetOptions {
     readonly responseType?: 'arraybuffer';
     readonly timeout?: number;
     readonly signal?: AbortSignal;
+    /**
+     * Called once a hop's TCP connection is established. The host guard uses
+     * it to tell a provider that never accepted the connection from one that
+     * accepted it and then went silent. Honoured by the transport, which owns
+     * the `ClientRequest` (see `ProviderAxiosTransport`).
+     */
+    readonly onConnect?: () => void;
 }
 
 export type ProviderTransportOptions = Omit<

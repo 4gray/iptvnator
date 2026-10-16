@@ -16,18 +16,23 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { merge } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/services';
 import {
     EmbeddedMpvAudioTrack,
     RecordingStartMetadata,
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { sameTimelineSegments } from '../player-controls/chapter-timeline-segments';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
-import type { PlayerMediaTitle } from '../player-controls/player-controls.model';
+import type {
+    PlayerMediaTitle,
+    PlayerUpNextItem,
+    PlayerTimelineSegment,
+} from '../player-controls/player-controls.model';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { embeddedMpvTimelineSegments } from './embedded-mpv-chapter-segments';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvDockPanelComponent } from './embedded-mpv-dock-panel.component';
 import { EmbeddedMpvDockPanelState } from './embedded-mpv-dock-panels';
@@ -53,6 +58,7 @@ import {
     subtitleTrackLabel,
     volumeIcon,
 } from './embedded-mpv-format.utils';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 
@@ -82,13 +88,15 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Catch-up programmes drawn as track segments; they outrank chapters. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the root. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
@@ -106,14 +114,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      * otherwise labels keep the previous language (or the raw key when the
      * component mounts before the translation file finishes loading).
      */
-    private readonly translationsTick = toSignal(
-        merge(
-            this.translate.onLangChange,
-            this.translate.onTranslationChange,
-            this.translate.onDefaultLangChange
-        ),
-        { initialValue: null }
-    );
+    private readonly translationsTick = injectTranslationTick();
     readonly controller = inject(EmbeddedMpvSessionController);
     readonly sharedControls = inject(EmbeddedMpvControlsAdapter);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
@@ -136,6 +137,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     readonly support = this.controller.support;
     readonly session = this.controller.session;
+    /** Catch-up programmes first, else the file's chapters; see the helper. */
+    readonly controlsTimelineSegments = computed(
+        () =>
+            embeddedMpvTimelineSegments(this.timelineSegments(), this.session()),
+        { equal: sameTimelineSegments }
+    );
     readonly stalled = this.controller.stalled;
 
     readonly volume = signal(readStoredVolume());
@@ -217,7 +224,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
         if (session?.status === 'error') {
             return (
-                session.error ??
+                session.error ||
                 this.translate.instant('EMBEDDED_MPV.PLAYER.PLAYBACK_FAILED')
             );
         }
@@ -231,7 +238,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
         if (!this.isSupported()) {
             return (
-                this.support()?.reason ??
+                this.support()?.reason ||
                 this.translate.instant('EMBEDDED_MPV.PLAYER.NOT_AVAILABLE')
             );
         }
@@ -563,6 +570,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 this.timeUpdate.emit({
                     currentTime: session.positionSeconds,
                     duration: session.durationSeconds ?? 0,
+                    playing: session.status === 'playing',
                 });
                 this.legacyInteractions.scheduleControlsHide();
             });
@@ -570,7 +578,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         effect(() => {
             const session = this.session();
-            if (!session || session.status !== 'ended') {
+            // An `ended` the main process is reloading is a dropped
+            // connection, not the end: autoplay would skip the rest of the
+            // episode (#1902).
+            if (!session || session.status !== 'ended' || session.reconnect) {
                 return;
             }
             if (this.lastEndedSessionId === session.id) {

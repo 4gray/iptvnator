@@ -237,7 +237,8 @@ export function mapVodSeriesEpisodes(
                 ...createBaseEpisode(
                     trackingId,
                     episodeNum,
-                    episode.name || `Episode ${episodeNum}`,
+                    // No English stand-in: the view labels unnamed episodes.
+                    episode.name || '',
                     'mpg',
                     'vod-series',
                     seasonNum,
@@ -286,7 +287,9 @@ export function mapRegularSeriesEpisodes(
                 ...createBaseEpisode(
                     trackingId,
                     episodeNum,
-                    `Episode ${episodeNum}`,
+                    // Regular series episodes carry no names; the view
+                    // labels them.
+                    '',
                     '',
                     'regular-series',
                     Number(seasonKey),

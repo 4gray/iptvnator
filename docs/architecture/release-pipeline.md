@@ -136,6 +136,11 @@ fails on an unused import.
 
 ## Highlight cards
 
+For an imagegen announcement cover, use the reusable
+[release cover artwork recipe](../development/release-cover-artwork.md).
+It preserves the selected visual direction and exact 0.24 prompt; the
+deterministic cards and screenshot requirements below still apply.
+
 `tools/release/highlight-cards.mjs` plans and lays out;
 `tools/release/generate-highlight-cards.mjs` renders through sharp. Output is 1200×630 (Open Graph), matching the website
 palette in `apps/website/tailwind.config.mjs`.
@@ -163,7 +168,11 @@ into `apps/website/public/blog/guides/screenshots/` instead of a release folder
 guard a release shot does; the add-playlist dialog shots fill the form with the
 mock's fictional `marketing` credentials and use a labeled hand-out for the
 Auto-detect method rather than a `get.php?username=…` link, because G4 rejects
-any URL carrying query credentials. Shots that walk into a Stalker portal
+any URL carrying query credentials. The Xtream shot clicks **Test HTTPS and
+HTTP** against the plain-`http://` mock, so no HTTPS probe is made, and fails
+the run unless the status line reports an active portal; the mock does not
+check passwords, so that verdict proves the scenario answered, not that the
+password is right. Shots that walk into a Stalker portal
 (`open-stalker-live`) make the run start the stalker-mock-server on port 3210
 and seed its `marketing-demo` portal as a third source, which is why they are
 never part of a release run. That scenario's MAC, `00:1A:79:00:00:07`, is the
@@ -276,6 +285,24 @@ References: [AppImage desktop keys](https://docs.appimage.org/reference/desktop-
 [AppManager desktop parser](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/desktop_entry.vala),
 [AppManager updater](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/updater.vala).
 
+## Rolling test drafts
+
+Every non-fork PR build publishes its artifacts to a rolling **draft** release
+tagged `test-pr-<n>`; a non-PR, non-tag build (a dispatch on a branch) uses
+`test-<branch>`, the shape master pushes used before the nightly channel took
+over. The tag is stable per PR, so the draft is updated in place and a PR has
+at most one.
+
+`cleanup-pr-draft.yml` deletes a PR's draft when the PR closes. That event is
+the fast path, not a guarantee: GitHub does not run a `pull_request: closed`
+workflow when the head ref is already gone at event time, which is what
+Dependabot does when it supersedes one of its own PRs — 15 drafts were
+orphaned that way before this was noticed. A daily scheduled sweep in the same
+workflow (also runnable with `gh workflow run cleanup-pr-draft.yml`) therefore
+lists every `test-pr-<n>` draft, asks GitHub for that PR's live state, and
+deletes the draft only when the PR is closed; anything else — an open PR, a
+lookup failure, a `test-<branch>` draft — is left alone.
+
 ## Nightly channel
 
 Every push to `master` of `4gray/iptvnator` is also a nightly. The same
@@ -358,7 +385,47 @@ silently enables downgrades and the constructor enables prereleases for any
 prerelease build. Release notes and the manual-install fallback (Linux
 without AppImage) read the channel's release list; notes for a nightly
 version always come from the nightly repository, so a nightly build on the
-stable channel still shows its own notes.
+stable channel still shows its own notes. `AppUpdateReleaseCatalogs`
+(`app-update-release-notes.ts`) owns one catalog per channel and both reads
+the updater performs on them (release notes with paging, newest release for
+the manual-install fallback); the service only delegates. Each catalog is a
+snapshot of the GitHub release list kept for the whole process, so `findIndex` reloads it
+once when a version is missing from a fully paged list — the updater had
+offered a nightly published after the catalog was first read, and "What's
+new" answered "not found" for it — and `handleUpdateAvailable` drops every
+catalog, since a newly found release proves the snapshots stale. Readers
+of one catalog are serialized through `runExclusive` (both
+`getReleaseNotes` and the manual-update check): a read dereferences an
+index into `releases` after awaiting further pages, and that reload
+rebuilds the array, so two overlapping readers must never interleave. The
+not-found rejection carries the shared
+`APP_UPDATE_RELEASE_NOTES_NOT_FOUND_MARKER` text: `ipcRenderer.invoke`
+strips custom properties off rejections, so the dialog recognises the case
+by that text, shows localized copy with the version, and links to the
+channel's release list (`appUpdateReleasesListUrl`) instead of printing the
+IPC wrapper; every other failure keeps its underlying reason under a
+localized headline.
+
+The About section keeps the select honest about that Save boundary. The
+status block carries a badge naming the channel the verdict describes
+(`status.verdictChannel`, see below), and while the select shows a channel
+other than the saved one (`status.channel`) the
+verdict is dimmed, a hint names both channels, and the plain "Check again"
+button is replaced by a primary "Save and check for <channel> updates"
+button that submits the settings form
+(`SettingsAboutSectionComponent.saveAndCheckForAppUpdate` →
+`SettingsComponent.onSubmit()`). No renderer-side check follows: the saved
+channel reaches `persistAppUpdateChannel`, whose change listener calls
+`AppUpdateService.setChannel`, which already re-checks an idle updater. A
+download in flight or finished belongs to the previous channel and is kept
+by `setChannel`, so in those states the plain check stays and only the hint
+is shown. Because that kept download outlives the channel it was found on,
+every check stamps `status.verdictChannel` with the channel it ran on and
+`setChannel` leaves it alone: the badge names `verdictChannel`, not
+`channel`, and while the two differ a hint says the shown update came from
+the other channel and the saved one has not been checked yet. Checking the unsaved channel without saving was rejected on
+purpose: the updater would then offer a download for a channel that is not
+persisted.
 
 Switching is forward-only on purpose: a nightly build stays installed until
 a newer stable release exists, because a downgrade could land on a release
@@ -373,8 +440,28 @@ Publishing the GitHub release is manual. That publication automatically
 verifies its Snap assets and uploads them to `edge`; installed-Snap smoke and
 candidate/stable promotion remain manual (see
 `tools/packaging/validate-snap-release-boundary.mjs`). Keep the blog post a
-draft during artifact verification, then publish it in a follow-up commit and
-verify the website deployment.
+draft during artifact verification. After the release is public and its assets
+are verified, publish the blog and advance
+`apps/website/released-version.json` to that published version in the same
+follow-up commit. Run `WEBSITE_SKIP_RELEASE_FETCH=1 pnpm nx test website --skip-nx-cache`,
+compare the generated download links with the public release assets, and
+verify the website deployment. The fallback pin must never follow the
+development/nightly version in the root `package.json`.
+
+If a Store upload fails after publication, run `publish-snap.yaml` from
+`master` with its `tag` input set to the existing public stable tag, for example
+`gh workflow run publish-snap.yaml --ref master -f tag=v0.24.0`. The workflow
+resolves the public release through the API, rejects drafts/prereleases and
+invalid tags, and repeats the full released-tooling, asset and source-archive
+verification before uploading to `edge`. Do not move the release tag, rebuild
+its assets or republish the GitHub release to retry a Store upload.
+
+Snapcraft extracts metadata into a temporary sibling of the input `.snap`.
+The publisher therefore gives it root-owned read-only hard links in a separate
+root-owned sticky directory. Temporary siblings are writable, while the sticky
+bit prevents the unprivileged uploader from replacing the root-owned inputs.
+The original verified snapshot stays sealed; upload filenames are enumerated
+only from that snapshot, never from the writable scratch directory.
 
 ## Validation
 

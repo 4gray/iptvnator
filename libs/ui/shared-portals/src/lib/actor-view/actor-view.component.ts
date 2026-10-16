@@ -4,9 +4,9 @@ import {
     input,
     output,
 } from '@angular/core';
-import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
+import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
 import {
     ActorFilmographyCredit,
     ActorProfile,
@@ -32,7 +32,6 @@ export type ActorViewScope = TitleResultsScope;
 @Component({
     selector: 'app-actor-view',
     imports: [
-        MatIcon,
         MatProgressSpinnerModule,
         TranslatePipe,
         TitleResultsComponent,
@@ -54,6 +53,11 @@ export class ActorViewComponent {
     readonly scope = input<ActorViewScope>('portal');
 
     readonly itemClicked = output<ActorViewItem>();
+    /** The workspace header's Back on this page. */
     readonly backClicked = output<void>();
     readonly scopeChanged = output<ActorViewScope>();
+
+    constructor() {
+        registerWorkspaceBack({ run: () => this.backClicked.emit() });
+    }
 }

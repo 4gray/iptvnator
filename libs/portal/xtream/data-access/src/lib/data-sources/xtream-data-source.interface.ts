@@ -1,3 +1,4 @@
+import type { XtreamFavoriteCatalogStatus } from '@iptvnator/shared/interfaces';
 import { InjectionToken } from '@angular/core';
 import {
     ContentMetadataPatch,
@@ -16,7 +17,30 @@ import {
 } from '../services/xtream-api.service';
 
 // Re-export for backward compatibility
-export { PlaybackPositionData };
+export type { PlaybackPositionData };
+
+export const XTREAM_CONTENT_TYPES = ['live', 'movie', 'series'] as const;
+export type XtreamContentType = (typeof XTREAM_CONTENT_TYPES)[number];
+
+/** Captured from the content that actually starts playback, not a later catalog lookup. */
+export interface XtreamPlayedContent extends ContentMetadataPatch {
+    readonly title: string;
+    readonly posterUrl?: string;
+    readonly categoryId?: number | string;
+}
+
+/** SQLite row id on Electron; provider id on PWA. Always carry type for PWA. */
+export interface TypedXtreamCollectionRef {
+    readonly id: number;
+    readonly type: XtreamContentType;
+    /** Expected identity of the rendered collection row, independent of catalog hydration. */
+    readonly identity?: Pick<ContentMetadataPatch, 'tmdbId' | 'releaseYear'>;
+}
+export type XtreamCollectionRef = number | TypedXtreamCollectionRef;
+
+export function xtreamCollectionId(ref: XtreamCollectionRef): number {
+    return typeof ref === 'number' ? ref : ref.id;
+}
 
 /**
  * Playlist representation in the data source
@@ -62,6 +86,10 @@ export interface XtreamContentItem {
     added_at?: string;
     viewed_at?: string;
     position?: number | null;
+    /** Last confirmed availability of a persisted collection snapshot. */
+    catalog_status?: XtreamFavoriteCatalogStatus;
+    /** PWA evidence: absence may recover sparsely; a known conflict needs confirmation. */
+    catalog_missing_reason?: 'absent' | 'identity_conflict' | null;
 
     // XtreamItem compatibility fields (optional for search/navigation)
     num?: number;
@@ -78,6 +106,15 @@ export interface XtreamContentItem {
     playlist_name?: string;
 }
 
+export interface XtreamFavoriteItem extends Omit<
+    XtreamContentItem,
+    'id' | 'category_id'
+> {
+    id: number | null;
+    category_id: number | string | null;
+    favorite_id?: number;
+}
+
 /**
  * Category from the database with additional fields
  */
@@ -88,6 +125,8 @@ export interface XtreamCategoryFromDb {
     type: 'movies' | 'live' | 'series';
     xtream_id: number;
     hidden: boolean;
+    /** Parental lock index; see ParentalLockService. */
+    locked: boolean;
 }
 
 /**
@@ -316,7 +355,7 @@ export interface IXtreamDataSource {
     /**
      * Get all favorites for a playlist
      */
-    getFavorites(playlistId: string): Promise<XtreamContentItem[]>;
+    getFavorites(playlistId: string): Promise<XtreamFavoriteItem[]>;
 
     /**
      * Add content to favorites.
@@ -325,7 +364,7 @@ export interface IXtreamDataSource {
      * a cinematic backdrop without a separate round-trip.
      */
     addFavorite(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string,
         backdropUrl?: string
     ): Promise<void>;
@@ -333,12 +372,18 @@ export interface IXtreamDataSource {
     /**
      * Remove content from favorites
      */
-    removeFavorite(contentId: number, playlistId: string): Promise<void>;
+    removeFavorite(
+        contentId: XtreamCollectionRef,
+        playlistId: string
+    ): Promise<void>;
 
     /**
      * Check if content is favorited
      */
-    isFavorite(contentId: number, playlistId: string): Promise<boolean>;
+    isFavorite(
+        contentId: XtreamCollectionRef,
+        playlistId: string
+    ): Promise<boolean>;
 
     // =========================================================================
     // Recently Viewed Operations
@@ -353,15 +398,19 @@ export interface IXtreamDataSource {
      * Add item to recently viewed. See `addFavorite` for `backdropUrl`.
      */
     addRecentItem(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string,
-        backdropUrl?: string
+        backdropUrl?: string,
+        playedContent?: XtreamPlayedContent
     ): Promise<void>;
 
     /**
      * Remove item from recently viewed
      */
-    removeRecentItem(contentId: number, playlistId: string): Promise<void>;
+    removeRecentItem(
+        contentId: XtreamCollectionRef,
+        playlistId: string
+    ): Promise<void>;
 
     /**
      * Clear recently viewed for a playlist
@@ -378,7 +427,8 @@ export interface IXtreamDataSource {
     getContentByXtreamId(
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch
     ): Promise<XtreamContentItem | null>;
 
     /**
@@ -389,7 +439,7 @@ export interface IXtreamDataSource {
      * ordering, and never overwrites a column that already has a value.
      */
     setContentMetadataIfMissing(
-        contentId: number,
+        contentId: XtreamCollectionRef,
         playlistId: string,
         patch: ContentMetadataPatch
     ): Promise<void>;
@@ -487,6 +537,11 @@ export interface IXtreamDataSource {
     /**
      * Restore user data after refresh
      */
+    restoreFavoriteSnapshots?(
+        playlistId: string,
+        restoreState: XtreamPendingRestoreState
+    ): Promise<void>;
+
     restoreUserData(
         playlistId: string,
         restoreState: XtreamPendingRestoreState,

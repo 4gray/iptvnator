@@ -17,21 +17,23 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { SettingsStore } from '@iptvnator/services';
+import { ParentalLockService, SettingsStore } from '@iptvnator/services';
 import {
+    foldSearchText,
     Channel,
     EpgProgram,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
+import { ChannelContextMenuComponent } from '../channel-context-menu/channel-context-menu.component';
 import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import {
     PlaylistChannelSortMode,
-    getPlaylistChannelSortModeLabel,
+    getPlaylistChannelSortModeLabelKey,
     persistPlaylistChannelSortMode,
     restorePlaylistChannelSortMode,
     sortPlaylistChannelItems,
@@ -44,11 +46,17 @@ import {
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '../../menu-item-radio/menu-item-radio.directive';
+import { CategoryLockMenuComponent } from '../../category-lock-menu/category-lock-menu.component';
 import { ResizableDirective } from '../../resizable/resizable.directive';
 import {
     GroupManagementDialogComponent,
     GroupManagementDialogGroup,
 } from './group-management-dialog/group-management-dialog.component';
+import { dialogSize } from '../../dialog-shell/dialog-size';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
 /** Rail width inside the fullscreen channel panel; see the `compact` input. */
@@ -73,12 +81,16 @@ interface FilteredGroupView {
     styleUrls: ['./groups-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelContextMenuComponent,
+        CategoryLockMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
         MatButtonModule,
         MatIconModule,
         MatMenuModule,
         MatTooltipModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         ResizableDirective,
         ScrollingModule,
         TitleCasePipe,
@@ -87,13 +99,15 @@ interface FilteredGroupView {
 })
 export class GroupsViewComponent {
     private readonly dialog = inject(MatDialog);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
     private readonly hostEl = inject(ElementRef<HTMLElement>);
 
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
     readonly groupSearchInput =
         viewChild<ElementRef<HTMLInputElement>>('groupSearchInput');
 
@@ -147,6 +161,24 @@ export class GroupsViewComponent {
     /** Set of favorite channel URLs */
     readonly favoriteIds = input<Set<string>>(new Set());
     readonly hiddenGroupTitles = input<string[]>([]);
+    /**
+     * Parental lock. `lockedGroupTitles` is `null` while the lock feature is
+     * off (no toggles in the dialog); `managementGroups` lists EVERY group
+     * of the playlist, locked ones included, because `groupedChannels`
+     * arrives with the withheld groups already removed.
+     */
+    /**
+     * The playlist the groups belong to. The management dialog's result is
+     * applied only while it is still the open one: the host saves hidden
+     * and locked groups under the CURRENT playlist.
+     */
+    readonly playlistId = input<string | null>(null);
+    readonly lockedGroupTitles = input<string[] | null>(null);
+    readonly managementGroups = input<GroupManagementDialogGroup[] | null>(
+        null
+    );
+    /** Groups the active lock withholds; > 0 renders the unlock row. */
+    readonly withheldGroupCount = input(0);
 
     /** Current outer sidebar width */
     readonly sidebarWidth = input<number | null>(null);
@@ -167,6 +199,9 @@ export class GroupsViewComponent {
     /** Emits when the groups rail resize ends */
     readonly sidebarWidthRequestEnded = output<number>();
     readonly hiddenGroupTitlesChanged = output<string[]>();
+    readonly lockedGroupTitlesChanged = output<string[]>();
+    /** Right-click toggle of ONE group; the host applies it in the lock store's queue. */
+    readonly groupLockToggled = output<{ groupKey: string; locked: boolean }>();
 
     /** Emits when the user clicks the inline collapse toggle in the groups header */
     readonly sidebarToggleRequested = output<void>();
@@ -179,14 +214,18 @@ export class GroupsViewComponent {
      */
     readonly selectedGroupChange = output<string | null>();
 
+    private readonly groupLockMenu =
+        viewChild<CategoryLockMenuComponent>('groupLockMenu');
+    private groupLockKey: string | null = null;
+
     readonly isGroupSearchOpen = signal(false);
     readonly localGroupSearchTerm = signal('');
     readonly selectedGroupKey = signal<string | null>(null);
     readonly groupChannelSortMode = signal<PlaylistChannelSortMode>(
         restorePlaylistChannelSortMode(GROUP_CHANNEL_SORT_STORAGE_KEY)
     );
-    readonly groupChannelSortLabel = computed(() =>
-        getPlaylistChannelSortModeLabel(this.groupChannelSortMode())
+    readonly groupChannelSortLabelKey = computed(() =>
+        getPlaylistChannelSortModeLabelKey(this.groupChannelSortMode())
     );
     readonly hasSearchQuery = computed(
         () =>
@@ -195,10 +234,6 @@ export class GroupsViewComponent {
     );
     readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 52));
     readonly contextMenuChannel = signal<Channel | null>(null);
-    readonly contextMenuPosition = signal({
-        x: '0px',
-        y: '0px',
-    });
 
     private previousActiveChannelUrl: string | undefined;
     private preservedContentWidth = 0;
@@ -324,7 +359,7 @@ export class GroupsViewComponent {
     });
 
     readonly workspaceFilteredGroups = computed<FilteredGroupView[]>(() => {
-        const term = this.searchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.searchTerm().trim());
         const groups = this.visibleGroups();
 
         if (!term) {
@@ -337,11 +372,11 @@ export class GroupsViewComponent {
         }
 
         return groups.reduce<FilteredGroupView[]>((acc, group) => {
-            const titleMatches = group.key.toLowerCase().includes(term);
+            const titleMatches = foldSearchText(group.key).includes(term);
             const channels = titleMatches
                 ? group.channels
                 : group.channels.filter((channel) =>
-                      `${channel.name ?? ''}`.toLowerCase().includes(term)
+                      foldSearchText(`${channel.name ?? ''}`).includes(term)
                   );
 
             if (channels.length === 0) {
@@ -481,28 +516,91 @@ export class GroupsViewComponent {
         this.localGroupSearchTerm.set(value);
     }
 
-    openGroupManagement(): void {
-        const groups = this.allGroups().map<GroupManagementDialogGroup>(
-            ({ key, count }) => ({
-                key,
-                count,
-            })
-        );
+    /**
+     * Right-click accelerator of the parental lock for one group; the host
+     * persists the emitted list exactly as it does for the dialog. No menu
+     * while the feature is off (`lockedGroupTitles` is null then).
+     */
+    onGroupContextMenu(groupKey: string, event: MouseEvent): void {
+        const locked = this.lockedGroupTitles();
+        if (locked === null) {
+            return;
+        }
+        this.groupLockKey = groupKey;
+        this.groupLockMenu()?.open(event, locked.includes(groupKey));
+    }
+
+    /**
+     * Emitted at once: the host asks for the PIN itself, after capturing the
+     * playlist the toggle belongs to — this view does not know it, and the
+     * user may navigate while the (lazily loaded) prompt is pending.
+     */
+    onGroupLockToggle(lock: boolean): void {
+        const groupKey = this.groupLockKey;
+        this.groupLockKey = null;
+        if (groupKey === null || this.lockedGroupTitles() === null) {
+            return;
+        }
+        this.groupLockToggled.emit({ groupKey, locked: lock });
+    }
+
+    async requestParentalUnlock(): Promise<void> {
+        await this.parentalLock.requestUnlock();
+    }
+
+    async openGroupManagement(): Promise<void> {
+        // The dialog lists every group by name, locked ones included, and can
+        // rewrite the locks — so it sits behind the PIN like the portal
+        // dialogs do.
+        const playlistId = this.playlistId();
+        if (
+            !(await this.parentalLock.requestUnlock()) ||
+            this.playlistId() !== playlistId
+        ) {
+            return;
+        }
+        const groups =
+            this.managementGroups() ??
+            this.allGroups().map<GroupManagementDialogGroup>(
+                ({ key, count }) => ({
+                    key,
+                    count,
+                })
+            );
+        // Lock toggles only from a lock store that was read: a draft built
+        // from the empty fail-closed snapshot would, if storage recovered by
+        // Save, replace the real locks with nothing. Hidden groups stay
+        // editable either way.
+        const lockedGroupTitles =
+            this.lockedGroupTitles() !== null &&
+            playlistId &&
+            (await this.parentalLock.ensureLocksReadable()) &&
+            this.playlistId() === playlistId
+                ? this.parentalLock.lockedGroupTitles(playlistId)
+                : null;
+        // Relocked while the store was being read: the dialog lists every
+        // group, locked ones included.
+        if (this.parentalLock.active() || this.playlistId() !== playlistId) {
+            return;
+        }
         const dialogRef = this.dialog.open(GroupManagementDialogComponent, {
             data: {
                 groups,
                 hiddenGroupTitles: this.hiddenGroupTitles(),
+                ...(lockedGroupTitles ? { lockedGroupTitles } : {}),
             },
-            width: '500px',
-            maxHeight: '90vh',
+            ...dialogSize('md'),
         });
 
-        dialogRef.afterClosed().subscribe((hiddenGroupTitles) => {
-            if (hiddenGroupTitles === undefined) {
+        dialogRef.afterClosed().subscribe((result) => {
+            if (result === undefined || this.playlistId() !== playlistId) {
                 return;
             }
 
-            this.hiddenGroupTitlesChanged.emit(hiddenGroupTitles);
+            this.hiddenGroupTitlesChanged.emit(result.hiddenGroupTitles);
+            if (result.lockedGroupTitles) {
+                this.lockedGroupTitlesChanged.emit(result.lockedGroupTitles);
+            }
         });
     }
 
@@ -552,19 +650,7 @@ export class GroupsViewComponent {
 
     onChannelContextMenu(channel: Channel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     openEpgMapping(): void {
@@ -573,7 +659,7 @@ export class GroupsViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const channelKey = resolveChannelEpgLookupKey(channel);
         if (!channelKey) {
             return;
@@ -591,12 +677,8 @@ export class GroupsViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
-        });
+        this.channelContextMenu().close();
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     /**

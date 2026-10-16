@@ -50,6 +50,8 @@ class StubVodDetailsComponent {
     readonly providerOnly = input(false);
     readonly isFavorite = input(false);
     readonly playbackPosition = input<number | null>(null);
+    readonly playbackDurationSeconds = input<number | null>(null);
+    readonly sourceLabel = input<string | null>(null);
     readonly inlinePlayback = input<unknown>(null);
     readonly externalPlayback = input<unknown>(null);
     readonly isWatched = input(false);
@@ -64,6 +66,8 @@ class StubVodDetailsComponent {
     readonly backClicked = output<void>();
     readonly inlineTimeUpdated = output<unknown>();
     readonly inlinePlaybackClosed = output<void>();
+    readonly externalPlayRequested = output<unknown>();
+    readonly resetProgressRequested = output<unknown>();
     readonly streamUrlCopied = output<void>();
     readonly inlineExternalFallbackRequested = output<unknown>();
 }
@@ -368,6 +372,41 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
             cmd: '/media/99',
             info: { name: 'Replacement movie' },
         });
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(false);
+
+        resolve({ streamUrl: 'https://stale.example/movie.mpg' });
+        await fixture.whenStable();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(false);
+    });
+
+    it('does not hold a reopened movie with a start its earlier visit left pending', async () => {
+        const original = selectedItem();
+        let resolve: (value: unknown) => void = () => undefined;
+        resolveVodPlayback.mockReturnValueOnce(
+            new Promise((resolvePromise) => {
+                resolve = resolvePromise;
+            })
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.onVodPlay({
+            type: 'stalker',
+            cmd: '/media/42',
+            data: original,
+        } as never);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(true);
+
+        // Back out to another movie while the portal request hangs, then
+        // reopen the first one: its Play must not wait for that request.
+        selectedItem.set({
+            id: '99',
+            cmd: '/media/99',
+            info: { name: 'Replacement movie' },
+        });
+        fixture.detectChanges();
+        selectedItem.set(original);
         fixture.detectChanges();
         expect(fixture.componentInstance.playbackStartPending()).toBe(false);
 

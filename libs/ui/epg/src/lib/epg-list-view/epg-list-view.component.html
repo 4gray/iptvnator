@@ -26,6 +26,10 @@
 
         <span class="g-spacer"></span>
 
+        <!-- host-owned action that stays visible in both states (e.g. the
+             collection tab's "open in playlist" chip) -->
+        <ng-content select="[epgToolbarAction]" />
+
         @if (collapsed()) {
             <!-- collapsed inline summary lives IN the toolbar row: hosts clamp
                  the collapsed panel to 56px, so a block below it would be

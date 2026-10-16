@@ -74,11 +74,12 @@ resolves it at build time:
    options whose file is missing are dropped, sizes and the publish date come
    from the API. `deploy-website.yml` passes `GITHUB_TOKEN` to the build so
    the call is authenticated.
-2. Fallback: the root `package.json` version with the asset naming pattern
-   from `electron-builder.json`. This is deterministic but cannot prove the
-   files exist yet (a version bump lands on `master` before the release is
-   published), so a warning is printed. Set `WEBSITE_SKIP_RELEASE_FETCH=1` to
-   force it for offline or reproducible builds.
+2. Fallback: the published version pinned in `released-version.json` with
+   the asset naming pattern from `electron-builder.json`. Advance this pin
+   only after that GitHub release is public and its assets are verified, in
+   the follow-up commit that publishes the article. It must stay independent
+   of the root `package.json` development/nightly version. Set
+   `WEBSITE_SKIP_RELEASE_FETCH=1` to force it for offline or reproducible builds.
 
 Both paths produce the same page structure. Adding an artifact means adding a
 `DownloadOption` (matcher + fallback name) in `downloads.ts`; the pages and the
@@ -88,7 +89,9 @@ resolved version.
 `pnpm nx test website` builds the site and runs
 `tools/testing/website-download-pages.test.mjs`, which checks titles,
 canonicals, direct asset links, JSON-LD, cross-links and sitemap entries
-without depending on a specific version.
+without depending on a specific version. Resolver regression tests use the real
+Astro build constants and cover offline builds, rate limits and timeouts,
+ensuring each platform keeps links to the pinned published release.
 
 Two of the suites drive the built site in a real browser:
 `tools/testing/website-screenshot-showcase.test.mjs` (the home page channel
@@ -104,6 +107,16 @@ browser was found — run `pnpm exec playwright install chromium` once if the
 skip shows up in your output.
 
 ## Guides
+
+`/guides/` is the task-based entry point: Getting started, Live TV & EPG,
+Player & playback, Your library and Updates. `src/lib/guides.ts` owns the
+reading order; titles and descriptions come from the existing blog collection,
+and article URLs stay at `/blog/<slug>/`. Add an article's slug to the matching
+group when it should appear here. Missing slugs fail the build. Drafts follow
+the blog's visibility rule (development mode or `PUBLIC_INCLUDE_DRAFTS=true`),
+and preview entries carry a draft label. Updates also links to the latest
+published release post. The hub emits CollectionPage and BreadcrumbList data
+and is linked from the site header, footer and blog index.
 
 Evergreen how-to posts live in the blog collection next to release notes
 (`xtream-codes-setup-guide.mdx`, `stalker-portal-setup-guide.mdx`,
@@ -150,10 +163,20 @@ Evergreen how-to posts live in the blog collection next to release notes
   channel ids that match no playlist `tvg-id` on purpose) into the isolated
   database through the settings, then right-click a channel of the M3U
   fixture and search the dialog.
+  The 0.23/0.24 feature articles use the separate `feature-guides` capture
+  group (`pnpm release:screenshots --group feature-guides --theme dark`).
+  Playback shots decode the generated local slate documented in
+  `tools/release/fixtures/README.md`; settings and library shots use the same
+  isolated demo profile. The multi-channel EPG image is the original image
+  attached to the v0.24.0 GitHub release, explicitly selected by the maintainer;
+  its provenance is recorded alongside the assets. It is not a mock capture.
 
 `tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
 each guide for the FAQPage schema, a link to the download hub and the presence
-of every referenced screenshot in the build output.
+of every referenced screenshot in the build output. It also checks the task hub's
+grouping, draft visibility, article links, structured data and navigation at
+phone, tablet and desktop widths. Run the hub checks against a build made with
+`PUBLIC_INCLUDE_DRAFTS=true` using the same environment flag to verify previews.
 
 ## Blog Tags
 

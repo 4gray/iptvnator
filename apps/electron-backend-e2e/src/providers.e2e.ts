@@ -245,7 +245,9 @@ async function refreshRecentXtreamSourceFromDashboard(
 
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Yes', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Refresh playlist', exact: true })
+        .click();
 
     const refreshOverlay = page.locator('app-workspace-shell-import-overlay');
     await expect(refreshOverlay).toBeVisible({ timeout: 5000 });

@@ -135,4 +135,25 @@ describe('portal-collection-items', () => {
 
         expect(filtered).toEqual([items[1]]);
     });
+
+    it('folds the Turkish dotted capital İ so upper and lower case terms agree (issue #609)', () => {
+        const items = [
+            { name: 'İnşaat Kanalı', o_name: '' },
+            { name: 'Matrix', o_name: 'Neo' },
+        ];
+        const filter = (searchTerm: string) =>
+            filterCollectionBucket({
+                selectedCategoryId: 'all',
+                allItems: items,
+                buckets: {
+                    movie: items,
+                },
+                searchTerm,
+                textOf: (item) => `${item.name} ${item.o_name}`,
+            });
+
+        expect(filter('inş')).toEqual([items[0]]);
+        expect(filter('İnş')).toEqual([items[0]]);
+        expect(filter('İNŞ')).toEqual([items[0]]);
+    });
 });

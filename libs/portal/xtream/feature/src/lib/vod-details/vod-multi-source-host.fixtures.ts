@@ -5,6 +5,7 @@ import {
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
 import {
+    ParentalLockService,
     SettingsStore,
     StreamProbeService,
     VodSourcePinService,
@@ -124,6 +125,7 @@ export function setupVodMultiSourceHost() {
     const playbackLive = signal(false);
     const playbackStartBlocked = signal(false);
     const vodAutoFailover = signal(false);
+    const lockVersion = signal(0);
     const startPlayback = jest.fn();
     const discovery = { isAvailable: true, discover: jest.fn() };
     const resolver = { resolve: jest.fn() };
@@ -135,6 +137,7 @@ export function setupVodMultiSourceHost() {
         playbackLive,
         playbackStartBlocked,
         vodAutoFailover,
+        lockVersion,
         startPlayback,
         discovery,
         resolver,
@@ -150,6 +153,7 @@ export function setupVodMultiSourceHost() {
             playbackLive.set(false);
             playbackStartBlocked.set(false);
             vodAutoFailover.set(false);
+            lockVersion.set(0);
             discovery.isAvailable = true;
             discovery.discover.mockResolvedValue({
                 sources: [],
@@ -169,6 +173,10 @@ export function setupVodMultiSourceHost() {
                     { provide: VodSourcePinService, useValue: pins },
                     { provide: StreamProbeService, useValue: probes },
                     { provide: SettingsStore, useValue: { vodAutoFailover } },
+                    {
+                        provide: ParentalLockService,
+                        useValue: { version: lockVersion },
+                    },
                 ],
             });
 

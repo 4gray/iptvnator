@@ -66,6 +66,13 @@ export function appUpdateReleasesPageUrl(channel: AppUpdateChannel): string {
     return channel === 'stable' ? `${base}/latest` : base;
 }
 
+/** The channel's release list; the page to browse when one version is missing. */
+export function appUpdateReleasesListUrl(channel: AppUpdateChannel): string {
+    const { owner, repo } = APP_UPDATE_REPOSITORIES[channel];
+
+    return `https://github.com/${owner}/${repo}/releases`;
+}
+
 export function appUpdateReleasesApiUrl(channel: AppUpdateChannel): string {
     const { owner, repo } = APP_UPDATE_REPOSITORIES[channel];
 
@@ -175,4 +182,27 @@ export function compareAppVersions(left: string, right: string): number {
     }
 
     return 0;
+}
+
+/**
+ * Marker the main process puts into the release-notes rejection when a
+ * version has no published GitHub release. `ipcRenderer.invoke` strips every
+ * custom property off a rejection and wraps the message, so the renderer can
+ * only recognise the case by this text.
+ */
+export const APP_UPDATE_RELEASE_NOTES_NOT_FOUND_MARKER =
+    'Release notes were not found for';
+
+export function buildAppUpdateReleaseNotesNotFoundMessage(
+    version: string | undefined
+): string {
+    return `${APP_UPDATE_RELEASE_NOTES_NOT_FOUND_MARKER} ${version ?? 'latest release'}`;
+}
+
+export function isAppUpdateReleaseNotesNotFoundMessage(
+    message: string | null | undefined
+): boolean {
+    return Boolean(
+        message?.includes(APP_UPDATE_RELEASE_NOTES_NOT_FOUND_MARKER)
+    );
 }

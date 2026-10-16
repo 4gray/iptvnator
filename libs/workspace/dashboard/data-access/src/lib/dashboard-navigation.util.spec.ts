@@ -37,7 +37,13 @@ function episodePosition(
 
 type RecentNavigationState = {
     openCollectionDetailItem?: {
-        item?: { uid?: string; xtreamId?: number };
+        item?: {
+            uid?: string;
+            xtreamId?: number;
+            sourceType?: string;
+            contentType?: string;
+            stalkerId?: string;
+        };
         seriesResume?: unknown;
     };
 };
@@ -124,13 +130,64 @@ describe('getRecentItemResumeNavigation', () => {
         ).toBeNull();
     });
 
-    it('returns null for non-Xtream sources and missing positions', () => {
+    it('returns null for M3U sources and missing positions', () => {
         expect(
             getRecentItemResumeNavigation(
-                { ...recentSeries, source: 'stalker' },
+                { ...recentSeries, source: 'm3u' },
                 episodePosition()
             )
         ).toBeNull();
         expect(getRecentItemResumeNavigation(recentSeries, null)).toBeNull();
+    });
+
+    it('resumes a Stalker embedded-VOD show that routes as a movie', () => {
+        // The stored row lives in the VOD catalog (`type: 'movie'` keeps it
+        // routing there) but tracks per-episode progress under its parent id.
+        const stalkerShow: PortalRecentItem = {
+            id: '17572',
+            title: 'Fake (10 episodes)',
+            type: 'movie',
+            watch_kind: 'series',
+            source: 'stalker',
+            playlist_id: 'stalker-R',
+            category_id: '7',
+            xtream_id: '17572',
+            viewed_at: '2026-09-19T16:13:50.000Z',
+            stalker_item: { id: '17572', series: [1, 2, 3] } as never,
+        };
+        const navigation = getRecentItemResumeNavigation(
+            stalkerShow,
+            episodePosition({
+                playlistId: 'stalker-R',
+                seriesXtreamId: 17572,
+                contentXtreamId: 1750797722,
+                seasonNumber: 1,
+                episodeNumber: 5,
+            })
+        );
+
+        expect(navigation?.link).toEqual(['/workspace', 'global-recent']);
+        const state = navigation?.state as RecentNavigationState;
+        expect(state.openCollectionDetailItem?.item).toEqual(
+            expect.objectContaining({
+                sourceType: 'stalker',
+                contentType: 'movie',
+                stalkerId: '17572',
+            })
+        );
+        expect(state.openCollectionDetailItem?.seriesResume).toEqual({
+            seriesXtreamId: 17572,
+            contentXtreamId: 1750797722,
+            seasonNumber: 1,
+            episodeNumber: 5,
+        });
+
+        // Without the watch kind the same row is a plain movie: no handoff.
+        expect(
+            getRecentItemResumeNavigation(
+                { ...stalkerShow, watch_kind: undefined },
+                episodePosition({ seriesXtreamId: 17572 })
+            )
+        ).toBeNull();
     });
 });

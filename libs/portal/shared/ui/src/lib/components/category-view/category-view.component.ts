@@ -17,6 +17,11 @@ interface CategoryViewItem {
     readonly category_name?: string;
     readonly count?: number;
     readonly id?: string | number;
+    /**
+     * Translation key of an entry the app adds itself (a provider's "All"
+     * genre); rendered through the pipe so a language switch re-labels it.
+     */
+    readonly labelKey?: string;
     readonly name?: string;
 }
 
@@ -49,7 +54,8 @@ export class CategoryViewComponent {
                     container.querySelectorAll('[data-category-id]')
                 ) as HTMLElement[];
                 const selected = candidates.find(
-                    (el) => el.dataset.categoryId === String(selectedCategory)
+                    (el) =>
+                        el.dataset['categoryId'] === String(selectedCategory)
                 );
                 if (!selected) {
                     return;

@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { AudioPlayerComponent } from './audio-player.component';
 
 describe('AudioPlayerComponent', () => {
@@ -174,6 +175,47 @@ describe('AudioPlayerComponent', () => {
 
         expect(emitted).toEqual(['previous']);
         expect(store.dispatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('records the station in history only after it has played', () => {
+        const audio = createComponent('https://example.com/station.mp3');
+        const commit = jest.fn();
+        TestBed.inject(PlaybackHistoryGate).defer(
+            { streamUrls: ['https://example.com/station.mp3'] },
+            commit
+        );
+        Object.defineProperty(audio, 'paused', {
+            configurable: true,
+            value: false,
+        });
+        const playTo = (position: number) => {
+            Object.defineProperty(audio, 'currentTime', {
+                configurable: true,
+                value: position,
+            });
+            audio.dispatchEvent(new Event('timeupdate'));
+        };
+
+        playTo(0);
+        playTo(1);
+        expect(commit).not.toHaveBeenCalled();
+
+        playTo(2);
+        expect(commit).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not record a station that never advances', () => {
+        const audio = createComponent('https://example.com/dead.mp3');
+        const commit = jest.fn();
+        TestBed.inject(PlaybackHistoryGate).defer(
+            { streamUrls: ['https://example.com/dead.mp3'] },
+            commit
+        );
+
+        audio.dispatchEvent(new Event('timeupdate'));
+        audio.dispatchEvent(new Event('timeupdate'));
+
+        expect(commit).not.toHaveBeenCalled();
     });
 
     it('pauses the stream when the component is destroyed', () => {

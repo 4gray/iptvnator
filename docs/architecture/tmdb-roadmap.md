@@ -257,7 +257,7 @@ Zero i18n keys. Zero UI change.
 - populated in all three of `mergeVodInfoWithTmdb` (`:168`), `mergeSerieInfoWithTmdb` (`:215`), `mergeStalkerInfoWithTmdb` (`:257`)
 - through `NormalizedVodMeta` (`libs/shared/interfaces/src/lib/vod-details-item.interface.ts`) + **both** normalizers in `vod-details-adapters.ts` — the single convergence point where Xtream and Stalker meet
 
-**Component.** New standalone `app-tmdb-extras-shelf` in `libs/ui/shared-portals`. It must **not** go inline: `libs/ui/playback/src/lib/vod-details/vod-details.component.ts` is **388 lines and is NOT in `tools/eslint/max-lines-baseline.mjs`** — roughly 12 lines of headroom against the hard 400 lint cap.
+**Component.** New standalone `app-tmdb-extras-shelf` in `libs/ui/shared-portals`. It must **not** go inline: `libs/ui/playback/src/lib/vod-details/vod-details.component.ts` is **NOT in `tools/eslint/max-lines-baseline.mjs`** and stays under the hard 400 lint cap only because its state lives in sibling helpers (about 340 counted lines today).
 
 **Render** into the `detail-extras` projection slot at **four** sites (`vod-details.component.html:225`, `serial-details.component.html:201`, `vod-details-route.component.html:247`, `stalker-series-view.component.html:202`) — note Xtream `serial-details` has no trailer block today, so it either gains one or the shelf lands inconsistently. Reuse the existing nocookie iframe + `| safe` pipe so the Electron Referer shim keeps working; clicking swaps the embed `src` rather than opening a new player. Cards use `https://img.youtube.com/vi/{key}/hqdefault.jpg` (CSP verified: `img-src` covers it, `frame-src https://www.youtube-nocookie.com` covers the embed). `@if (extras().length > 1)` … `@else` the existing single-trailer markup **verbatim**.
 

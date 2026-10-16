@@ -254,8 +254,9 @@ export class GlobalFavoritesService {
             } catch {
                 continue;
             }
+            if (!playlist) continue;
 
-            const favorites = Array.isArray(playlist?.favorites)
+            const favorites = Array.isArray(playlist.favorites)
                 ? playlist.favorites.filter(isStalkerFavoriteItem)
                 : [];
 
@@ -271,6 +272,7 @@ export class GlobalFavoritesService {
                 if (!isLive) continue;
 
                 const streamId = fav.stream_id ?? fav.id;
+                if (streamId === undefined) continue;
                 results.push({
                     uid: buildFavoriteUid('stalker', meta._id, streamId),
                     name:

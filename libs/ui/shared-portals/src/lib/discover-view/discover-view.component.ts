@@ -5,9 +5,9 @@ import {
     input,
     output,
 } from '@angular/core';
-import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
+import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
 import {
     TitleResultItem,
     TitleResultsComponent,
@@ -23,7 +23,6 @@ import { DiscoverRouteParams } from './discover-params';
 @Component({
     selector: 'app-discover-view',
     imports: [
-        MatIcon,
         MatProgressSpinnerModule,
         TranslatePipe,
         TitleResultsComponent,
@@ -45,6 +44,7 @@ export class DiscoverViewComponent<T extends TitleResultItem> {
     readonly scope = input<TitleResultsScope>('portal');
 
     readonly itemClicked = output<T>();
+    /** The workspace header's Back on this page. */
     readonly backClicked = output<void>();
     readonly scopeChanged = output<TitleResultsScope>();
 
@@ -63,4 +63,8 @@ export class DiscoverViewComponent<T extends TitleResultItem> {
             facets.countryLabel ?? facets.countryCode,
         ].filter((label): label is string => label !== null);
     });
+
+    constructor() {
+        registerWorkspaceBack({ run: () => this.backClicked.emit() });
+    }
 }

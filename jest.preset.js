@@ -12,8 +12,16 @@ const collectCoverageFrom = [
     '!src/**/index.ts',
 ];
 
+// CI points every Jest run at one directory (JEST_CACHE_DIRECTORY) so the
+// transform cache can be persisted between workflow runs; unset, Jest keeps
+// its default per-user temp directory.
+const cacheDirectory = process.env.JEST_CACHE_DIRECTORY
+    ? { cacheDirectory: process.env.JEST_CACHE_DIRECTORY }
+    : {};
+
 module.exports = {
     ...nxPreset,
+    ...cacheDirectory,
     coverageReporters,
     collectCoverageFrom,
 };

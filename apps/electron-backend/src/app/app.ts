@@ -1,23 +1,41 @@
 import { app, BrowserWindow, Menu, screen, session, shell } from 'electron';
 import {
     ElectronBridgeWindowState,
+    MACOS_TRAFFIC_LIGHTS_POSITION,
     WINDOW_STATE_CHANGED,
 } from '@iptvnator/shared/interfaces';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { rendererAppName, rendererAppPort } from './constants';
 import {
-    isStartupTraceEnabled,
+    isPerformanceCaptureEnabled,
     isRendererConsoleTraceEnabled,
+    isSqlStatementCountEnabled,
     isWindowTraceEnabled,
+    performanceCounters,
     trace,
+    traceStartupPhase,
 } from './services/debug-trace';
+import {
+    MAIN_WINDOW_BACKGROUND_COLOR,
+    showMainWindowWhenLoaded,
+} from './services/main-window-first-show';
+import { attachMainWindowPerformanceCounters } from './services/performance-counters';
 import {
     STARTUP_WINDOW_MODE,
     store,
     WINDOW_BOUNDS,
 } from './services/store.service';
 import { isFrameCopyRuntimeUsable } from './services/embedded-mpv-frame-copy-platform.util';
+import {
+    attachZoomLevelPersistence,
+    persistZoomLevel,
+} from './services/window-zoom-level';
+import {
+    attachRendererReloadFallback,
+    resolveRoutedRendererUrl,
+    restoreRendererRoute,
+} from './services/renderer-reload-fallback';
 import { isEmbeddedMpvFeatureEnabled } from './services/embedded-mpv-runtime-policy.util';
 import {
     FULLSCREEN_LAUNCH_SWITCH,
@@ -27,6 +45,7 @@ import {
     requestFullScreen,
     trackNativeFullScreen,
 } from './services/native-fullscreen-transitions';
+import { attachWindowBackGestures } from './services/window-back-gestures';
 
 const externalBrowserProtocols = new Set(['http:', 'https:']);
 const trustedDevRendererHosts = new Set([
@@ -113,7 +132,11 @@ export function getMainWindowWebPreferences(): Electron.BrowserWindowConstructor
         nodeIntegration: false,
         sandbox: !frameCopyExperiment,
         webSecurity: true,
-        backgroundThrottling: false,
+        // Chromium's default. A hidden or minimized window must report
+        // `document.hidden` so idle timers can pause and the playback
+        // keep-awake gate can release the display; Chromium itself keeps
+        // audible media and picture-in-picture running at full rate.
+        backgroundThrottling: true,
         preload: join(__dirname, 'main.preload.js'),
     };
 }
@@ -126,19 +149,14 @@ export async function clearElectronServiceWorkerStorage(
             storages: ['serviceworkers', 'cachestorage'],
         });
 
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'electron-service-worker-storage:cleared');
-        }
+        traceStartupPhase('electron-service-worker-storage:cleared');
     } catch (error) {
         console.warn('Failed to clear Electron service worker storage:', error);
 
-        if (isStartupTraceEnabled()) {
-            trace(
-                'startup',
-                'electron-service-worker-storage:clear-failed',
-                error
-            );
-        }
+        traceStartupPhase(
+            'electron-service-worker-storage:clear-failed',
+            () => error
+        );
     }
 }
 
@@ -354,6 +372,20 @@ export default class App {
 
         event.preventDefault();
 
+        // A renderer-initiated reload (`location.reload()`, e.g. the
+        // settings unsaved-changes guard) on an in-app route arrives here as
+        // a routed file:// URL with no file behind it. Send it straight to
+        // the packaged index with that route instead of cancelling it.
+        if (!App.isDevelopmentMode() && App.mainWindow) {
+            const rendererIndexPath = getPackagedRendererIndexPath();
+            const route = resolveRoutedRendererUrl(url, rendererIndexPath);
+
+            if (route !== null) {
+                restoreRendererRoute(App.mainWindow, rendererIndexPath, route);
+                return;
+            }
+        }
+
         if (isExternalBrowserUrl(url)) {
             shell.openExternal(url);
         }
@@ -371,7 +403,7 @@ export default class App {
             return {
                 titleBarStyle: 'hidden',
                 titleBarOverlay: true,
-                trafficLightPosition: { x: 16, y: 20 },
+                trafficLightPosition: { ...MACOS_TRAFFIC_LIGHTS_POSITION },
             };
         }
 
@@ -450,6 +482,18 @@ export default class App {
         });
     }
 
+    /**
+     * Persist the state restored on the next launch: window bounds and the
+     * zoom level. Runs from both the window 'close' and app 'before-quit'
+     * handlers, since either can be the last to run before the process ends.
+     * The zoom half is a no-op until the window's preload took ownership of
+     * the level (`services/window-zoom-level.ts`).
+     */
+    private static persistWindowState(win: Electron.BrowserWindow): void {
+        store.set(WINDOW_BOUNDS, win.getNormalBounds());
+        persistZoomLevel(win);
+    }
+
     private static initMainWindow() {
         const workAreaSize = screen.getPrimaryDisplay().workAreaSize;
         const width = Math.min(1280, workAreaSize.width || 1280);
@@ -474,6 +518,9 @@ export default class App {
             width: width,
             height: height,
             show: false,
+            // The splash colour: the window can be shown before its first
+            // paint (main-window-first-show.ts).
+            backgroundColor: MAIN_WINDOW_BACKGROUND_COLOR,
             webPreferences: getMainWindowWebPreferences(),
             ...savedWindowBounds,
             // Fullscreen is a constructor option: the window is created
@@ -487,8 +534,19 @@ export default class App {
             ...App.getPlatformTitleBarOptions(),
         });
         App.mainWindow.setMenu(null);
+        attachMainWindowPerformanceCounters(
+            App.mainWindow,
+            performanceCounters,
+            {
+                capture: isPerformanceCaptureEnabled(),
+                sqlStatements: isSqlStatementCountEnabled(),
+            }
+        );
         attachWindowTrace(App.mainWindow);
         App.attachWindowStateEvents(App.mainWindow);
+        // Mouse Back buttons and Browser Back (Windows/Linux) and the
+        // trackpad swipe (macOS) run the workspace header's Back.
+        attachWindowBackGestures(App.mainWindow);
         // Seeds the F11 tracker's fullscreen state now, while no transition
         // can be in flight; from here on it follows the window's events.
         trackNativeFullScreen(App.mainWindow);
@@ -497,15 +555,17 @@ export default class App {
             App.mainWindow.center();
         }
 
-        // if main window is ready to show, close the splash window and show the main window
-        App.mainWindow.once('ready-to-show', () => {
+        // Shown at ready-to-show or did-finish-load, whichever comes first
+        // (see main-window-first-show.ts).
+        const mainWindow = App.mainWindow;
+        showMainWindowWhenLoaded(mainWindow, () => {
             // maximize() on a hidden window shows it (Electron docs), so it
-            // has to wait for ready-to-show like show() does — any earlier
-            // and a blank window flashes before the renderer paints.
+            // waits for the document like show() does — any earlier and a
+            // blank window flashes before the splash is there.
             if (startupWindowMode === 'maximized') {
-                App.mainWindow.maximize();
+                mainWindow.maximize();
             }
-            App.mainWindow.show();
+            mainWindow.show();
             // macOS ignores the constructor's `fullscreen` while the window
             // is hidden — an NSWindow can only toggle fullscreen once it is
             // on screen — so the request is repeated after show() wherever
@@ -516,9 +576,9 @@ export default class App {
             // asking for it again.
             if (
                 startupWindowMode === 'fullscreen' &&
-                !App.mainWindow.isFullScreen()
+                !mainWindow.isFullScreen()
             ) {
-                requestFullScreen(App.mainWindow, true);
+                requestFullScreen(mainWindow, true);
             }
         });
 
@@ -539,6 +599,18 @@ export default class App {
             App.handleRendererNavigation
         );
 
+        // The preload restores the zoom level on every document load; the
+        // main process only saves it back before a reload drops it.
+        attachZoomLevelPersistence(App.mainWindow);
+
+        // A reload on an in-app route asks file:// for a path that does not
+        // exist; re-load the packaged index with that route instead of
+        // leaving Chromium's error page (see renderer-reload-fallback.ts).
+        attachRendererReloadFallback(
+            App.mainWindow,
+            getPackagedRendererIndexPath()
+        );
+
         // Emitted when the window is closed.
         App.mainWindow.on('closed', () => {
             // Dereference the window object, usually you would store windows
@@ -551,7 +623,7 @@ export default class App {
 
         App.mainWindow.on('close', () => {
             if (App.mainWindow) {
-                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+                App.persistWindowState(App.mainWindow);
             }
         });
 
@@ -653,8 +725,7 @@ export default class App {
         }
         App.application.on('activate', App.onActivate); // App is activated
         App.application.on('before-quit', () => {
-            if (App.mainWindow)
-                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+            if (App.mainWindow) App.persistWindowState(App.mainWindow);
         });
     }
 }

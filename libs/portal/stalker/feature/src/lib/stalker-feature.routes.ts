@@ -1,4 +1,5 @@
 import { Route } from '@angular/router';
+import { parentalLockStalkerCategoryGuard } from './parental-lock-category.guard';
 import { PORTAL_CATALOG_DETAIL_COMPONENT } from '@iptvnator/portal/shared/util';
 import { StalkerCatalogDetailComponent } from './stalker-catalog-detail/stalker-catalog-detail.component';
 import { provideStalkerCatalogFacade } from './stalker-catalog-facade.service';
@@ -77,6 +78,9 @@ export function createStalkerRoutes(): Route[] {
                         },
                         {
                             path: ':categoryId',
+                            canActivate: [
+                                parentalLockStalkerCategoryGuard('vod'),
+                            ],
                             data: {
                                 api: 'stalker',
                                 contentType: 'vod',
@@ -113,6 +117,9 @@ export function createStalkerRoutes(): Route[] {
                         },
                         {
                             path: ':categoryId',
+                            canActivate: [
+                                parentalLockStalkerCategoryGuard('series'),
+                            ],
                             data: {
                                 api: 'stalker',
                                 contentType: 'series',

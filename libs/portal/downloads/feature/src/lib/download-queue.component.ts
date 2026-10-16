@@ -8,6 +8,7 @@ import {
     signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -66,6 +67,7 @@ export function formatDownloadBytes(bytes: number | undefined): string {
     selector: 'app-download-queue',
     imports: [
         MatButtonModule,
+        MatDividerModule,
         MatIcon,
         MatMenuModule,
         MatProgressBarModule,
@@ -152,7 +154,7 @@ export class DownloadQueueComponent {
 
     statusIcon(row: DownloadListItemViewModel): string {
         return this.isMissingFile(row)
-            ? 'file_off'
+            ? 'error_outline'
             : STATUS_ICONS[row.item.status];
     }
 

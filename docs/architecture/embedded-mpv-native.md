@@ -185,6 +185,39 @@ support API from global workspace startup paths; use an explicit user action
 or idle preparation path when a renderer surface only needs to reveal optional
 Embedded MPV UI.
 
+An unsupported answer can be `inconclusive`. The Linux native-view `mpv`
+executable check runs `mpv --version` by bare name, so the support and prepare
+handlers wait for the login shell PATH lookup (`startup/login-shell-path.ts`)
+first. When that lookup runs out of its budget, the check runs on the
+inherited PATH: `EmbeddedMpvNativeService` then reports a missing `mpv` as
+`supported: false` with `inconclusive: true`, keeps doing so while the cached
+result stands, and probes again once the shell answers. Every other answer,
+including a missing `mpv` after the shell answered, is final. An inconclusive
+answer is not a verdict on the machine: never persist a decision made from it.
+Whatever holds on to one answer follows it through `watchEmbeddedMpvSupport()`
+(`@iptvnator/shared/interfaces`), which asks again after
+`EMBEDDED_MPV_SUPPORT_RECHECK_MS`, backing off to
+`EMBEDDED_MPV_SUPPORT_RECHECK_MAX_MS`, until the answer is final:
+
+- The settings store keeps a saved Embedded MPV selection while the answer is
+  inconclusive, falls back to the default player only on a final unsupported
+  answer, and never overwrites a player the user picked meanwhile.
+- The player (`EmbeddedMpvSessionController`) and the settings page stay
+  mounted on one answer: a player mounted in that window starts playback by
+  itself once `mpv` is found, and the option appears without reopening the
+  page.
+- The settings page also follows the answer for its search
+  (`SettingsSearchService.followEmbeddedMpvSupport()`) and ends that when it
+  closes: the Embedded MPV rows become searchable while the page stays open,
+  and nothing keeps asking once no surface shows them.
+
+The command palette asks on demand, on every open, for its player commands and
+its settings rows (`ensureEmbeddedMpvSupportLoaded()`). Only a final answer is
+kept for the session; after an inconclusive one, or a failed request, the next
+open asks again. An open palette is a snapshot of that moment: it does not wait
+for a final answer, because a login shell that never answers would then keep
+it from opening.
+
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 
 For the native-view engine, the MPV video surface is a platform view/window,
@@ -443,7 +476,12 @@ Trade-offs and constraints:
   string to stderr. If an early tier selects Mesa software rendering (for
   example, while a proprietary NVIDIA driver is reachable through the default
   display or GBM), it probes the remaining tiers and uses software only when
-  no hardware-backed context works. Windows (any arch with a helper, in
+  no hardware-backed context works. On a software renderer the helper sets
+  `scale`, `cscale` and `dscale` to `bilinear` and `sigmoid-upscaling=no`
+  unless a session option sets the same key: mpv's LUT scalers upload their
+  weight texture with uninitialized row padding (`reinit_scaler`, mpv 0.41),
+  and llvmpipe carries NaN/Inf from it through zero-weight filtering, so
+  sessions otherwise render pure black at random. Windows (any arch with a helper, in
   practice x64) is ported: WGL renders offscreen against a hidden window,
   the shm ring is a session-local named file mapping, and the reader addon
   compiles as C++ there (MSVC has no C11 `<stdatomic.h>`). The helper
@@ -481,6 +519,8 @@ Seeking has two IPC shapes. The timeline scrub commits one absolute target (`see
 Audio tracks are discovered from MPV's `track-list` property. The selected track is controlled through MPV's `aid` property. Switching tracks must not reload the stream.
 
 Subtitle tracks mirror the audio-track contract: same `track-list` source, same parsing pipeline, but selected through MPV's `sid` property. A `trackId` of `-1` from the renderer is interpreted as "disable subtitles" and translated to `sid=no` at the addon boundary. Playback speed is observed and set through MPV's `speed` property, clamped at the addon to `[0.25, 4.0]`. Aspect override uses MPV's `video-aspect-override` property as a passthrough string ("no", "16:9", "4:3", "21:9", "2.35:1"). All four properties (`sid`, `speed`, `video-aspect-override`, plus `aid`) are observed at session init so renderer state stays in sync with the native side without needing extra round-trips.
+
+File chapters come from MPV's `chapter-list` property, observed as a node next to `track-list` by the macOS and Windows addons and the frame-copy helper, and cleared on every `START_FILE` so a replacement file never shows the previous one's chapters. Each snapshot carries `chapters: [{ timeSeconds, title? }]` (the helper always emits the key, because the adapter merges snapshot events field by field); `EmbeddedMpvNativeService` validates it with `normalizeEmbeddedMpvChapters` into `EmbeddedMpvSession.chapters`, and an older binary without the field yields `[]`. The Linux `mpv --wid` poller does not read chapters. The renderer maps them to timeline segments — see "Timeline segments" in the [player controls contract](player-controls-contract.md).
 
 The renderer learns which features the loaded addon binary supports through the `EmbeddedMpvSupport.capabilities` field returned from `getEmbeddedMpvSupport()`. The service probes `typeof addon.<method> === 'function'` for each optional native export. Older addon binaries with the original audio-only surface return `capabilities: { subtitles: false, playbackSpeed: false, aspectOverride: false, screenshot: false, recording: false }`, and the renderer hides the corresponding controls instead of throwing at runtime. Linux intentionally does not export libmpv-only optional controls while it uses the process-isolated `mpv --wid` backend.
 
@@ -596,6 +636,13 @@ button disabled state at current-season boundaries.
 
 Autoplay is enabled by default for series playback in embedded MPV. On `ended`, Xtream and Stalker series detail views start the next episode only when the current episode has a next item in the same season. Playback stops on the last episode of the current season. Previous always switches to the previous episode in the current season; it does not implement a restart-threshold behavior.
 
+`ended` alone does not prove the episode is over: mpv reports a connection the
+server closed (and ffmpeg could not reopen) as EOF too, once its cache runs
+dry. `EmbeddedMpvPlayerComponent` therefore emits `playbackEnded` only for an
+`ended` session that carries no `reconnect`; while the main process reloads a
+VOD that ended well before its duration (see Network Auto-Reconnect), the
+episode continues instead of autoplay skipping its rest (issue #1902).
+
 ## Session Options (Extra libmpv Options)
 
 `Settings > Playback > Extra embedded MPV options` is a free-form textarea,
@@ -661,8 +708,9 @@ included.
 `EmbeddedMpvReconnectCoordinator`
 (`apps/electron-backend/src/app/services/embedded-mpv-reconnect.ts`) reloads
 the last user-requested playback when a session reports a stream loss: an
-`error` status, or `ended` while the playback is live (`isLive`, else "no
-`contentInfo`", the same rule the renderer uses). It is driven by
+`error` status, `ended` while the playback is live (`isLive`, else "no
+`contentInfo`", the same rule the renderer uses), or `ended` on VOD well
+before the known duration. It is driven by
 `refreshSession()` status transitions, so it covers every engine, and it is
 captured per session from `Settings.embeddedMpvAutoReconnect` (default on;
 mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
@@ -676,6 +724,16 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
   the IPC socket so a stream that ended reports `ended` rather than the
   `paused` that keep-open would otherwise look like, and an mpv process that
   exits abnormally reports `error`.
+- A VOD `ended` counts only when more than `max(10 s, 1 % of the duration)`
+  remained (`isEmbeddedMpvEarlyEof`): the margin absorbs container rounding
+  and the whole-second snapshot values, and with no known duration an EOF is
+  always the end. A reload the engine accepted records where it resumed; an
+  early EOF before playback gets 5 s past that point (and with no user seek
+  in between) ended where the file does (a duration mpv estimated from the
+  bitrate can overshoot) and is left as the end, so autoplay still continues
+  after one attempt instead of a reload loop. A refused reload records
+  nothing, so the original EOF keeps its backoff.
+  With the setting off, an early EOF stays a plain `ended`.
 - Backoff is 2 s, 4 s, 8 s, 16 s, 30 s, 30 s, at most six attempts per
   outage. The budget resets only after 30 s of uninterrupted `playing`, so a
   stream that flaps every few seconds runs out of attempts instead of being
@@ -962,7 +1020,7 @@ Defensive practice for this component:
 
 Concrete bugs from the audit, recorded so they don't get reintroduced:
 
-- **Infinite session-create loop.** `EmbeddedMpvSessionController.startSession` once wrote `this.support.set(prepared)` after the `prepareEmbeddedMpv` round-trip. The component's session-creation effect tracks `this.support()`, so the write fired the effect → cleanup disposed the session → new session was created → prepare ran again → support was set again. Symptom: endless "Loading stream…" spinner. Fix: do not write `support` inside `startSession`; the constructor's `loadSupport()` already populates it including capabilities.
+- **Infinite session-create loop.** `EmbeddedMpvSessionController.startSession` once wrote `this.support.set(prepared)` after the `prepareEmbeddedMpv` round-trip. The component's session-creation effect tracks `this.support()`, so the write fired the effect → cleanup disposed the session → new session was created → prepare ran again → support was set again. Symptom: endless "Loading stream…" spinner. Fix: do not write `support` inside `startSession`; the constructor's `watchSupport()` already populates it including capabilities.
 - **Stream restart on volume change.** The session-creation effect once read `this.volume()` directly to pass to `startSession`'s `initialVolume`. Each volume tick re-ran the effect, disposing and recreating the session — for VOD/series this restarted playback from the beginning. Fix: read it via `untracked(() => this.volume())`. Subsequent volume changes flow through `controller.applyVolume()`, never through the effect graph.
 - **Spurious `timeUpdate` re-emits and `volume.set` calls.** The session-fan-out effect calls `scheduleControlsHide()`, which reads `isPlaying`, `menus.anyOpen`, `statusLabel`, and `controlsVisible`. Those reads became tracked deps, so opening any popover, pausing, or hovering re-ran the body. No loop in isolation, but a parent that wires `timeUpdate` back into `playback.startTime` would have hit the volume-restart bug class. Fix: wrap the side-effect block in `untracked()` so the effect listens only to session changes.
 - **2 Hz no-op stalled-tracker re-runs.** Position polling updates `session` around 2 Hz. Tracking the full session would re-run stalled logic for snapshots with unchanged status, so the controller tracks only `sessionStatus` and invokes `EmbeddedMpvStalledTracker.track` inside `untracked()`, avoiding full-session reruns.
@@ -987,6 +1045,13 @@ The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-
 Current development behavior:
 
 - The addon build supports `darwin`, `win32`, and `linux`; Windows and Linux builds require running on that target OS.
+- The addon is compiled by upstream `node-gyp`, declared as a root
+  `devDependency` and resolved with `require.resolve` in
+  `apps/electron-backend/build-embedded-mpv.js`. That resolution must not rely
+  on the `NODE_PATH` that pnpm's `.bin` shims export: it only reaches pnpm's
+  hidden hoist (`node_modules/.pnpm/node_modules`), so an undeclared
+  `node-gyp` works under `pnpm nx …` and in CI but fails from a plain
+  `node apps/electron-backend/build-embedded-mpv.js` on a clean install.
 - The build script first looks for staged inputs at `vendor/embedded-mpv/<platform>-<arch>/`. On Linux, local development can fall back to distribution `libmpv-dev` headers and libraries. `LIBMPV_INCLUDE_DIR` overrides the header root. `LINUX_NATIVE_LIBRARY_DIR` is a link-time override and must name a directory already visible to the system dynamic loader; it is never inherited as helper `LD_LIBRARY_PATH`.
 - When the staged-input path is used, it must contain `include/mpv/client.h`,
   `runtime-manifest.json`, and the platform runtime/build files. The Linux

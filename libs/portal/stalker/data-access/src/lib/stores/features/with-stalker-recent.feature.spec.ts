@@ -174,7 +174,7 @@ describe('withStalkerRecent', () => {
                     playlist: {
                         _id: 'portal-1',
                         recentlyViewed: [],
-                    } as PlaylistMeta,
+                    } as Partial<PlaylistMeta> as PlaylistMeta,
                 })
             );
             expect(onComplete).toHaveBeenCalled();

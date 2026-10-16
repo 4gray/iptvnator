@@ -114,3 +114,72 @@ describe('withSearch renderer performance markers', () => {
         expect(events).toEqual([]);
     });
 });
+
+describe('withSearch refreshSearchResults', () => {
+    let searchContent: jest.Mock;
+    let store: InstanceType<typeof TestSearchStore>;
+
+    beforeEach(() => {
+        searchContent = jest.fn(async () => [{ xtream_id: 1 }]);
+        TestBed.configureTestingModule({
+            providers: [
+                TestSearchStore,
+                { provide: XTREAM_DATA_SOURCE, useValue: { searchContent } },
+            ],
+        });
+        store = TestBed.inject(TestSearchStore);
+    });
+
+    it('re-runs the last search with the parameters it was issued with', async () => {
+        await store.searchContent({
+            term: 'news',
+            types: ['live'],
+            excludeHidden: true,
+        });
+        searchContent.mockResolvedValueOnce([]);
+
+        await store.refreshSearchResults();
+
+        expect(searchContent).toHaveBeenLastCalledWith(
+            'playlist-1',
+            'news',
+            ['live'],
+            true
+        );
+        expect(store.searchResults()).toEqual([]);
+    });
+
+    it('clears stored results without forgetting the last search', async () => {
+        await store.searchContent('news', ['live']);
+        expect(store.searchResults()).toHaveLength(1);
+
+        store.clearSearchResults();
+        expect(store.searchResults()).toEqual([]);
+
+        await store.refreshSearchResults();
+        expect(searchContent).toHaveBeenCalledTimes(2);
+        expect(store.searchResults()).toHaveLength(1);
+    });
+
+    it('retires a search still in flight when the results are cleared', async () => {
+        const pending = createDeferred<unknown[]>();
+        searchContent.mockReturnValueOnce(pending.promise);
+        const running = store.searchContent('news', ['live']);
+
+        store.clearSearchResults();
+        pending.resolve([{ xtream_id: 1 }]);
+        await running;
+
+        expect(store.searchResults()).toEqual([]);
+    });
+
+    it('does nothing without a previous search or after a reset', async () => {
+        await store.refreshSearchResults();
+        expect(searchContent).not.toHaveBeenCalled();
+
+        await store.searchContent('news', ['live']);
+        store.resetSearchResults();
+        await store.refreshSearchResults();
+        expect(searchContent).toHaveBeenCalledTimes(1);
+    });
+});

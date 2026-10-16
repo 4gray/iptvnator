@@ -17,8 +17,21 @@ class MockXtreamCollectionDetailComponent {
     readonly closeRequested = output<void>();
 }
 
+@Component({
+    selector: 'app-stalker-collection-detail',
+    template: '',
+})
+class MockStalkerCollectionDetailComponent {
+    readonly item = input<UnifiedCollectionItem | null>(null);
+    readonly seriesResume = input<SeriesResumeTarget | null>(null);
+    readonly closeRequested = output<void>();
+}
+
 jest.unstable_mockModule('@iptvnator/portal/xtream/feature', () => ({
     XtreamCollectionDetailComponent: MockXtreamCollectionDetailComponent,
+}));
+jest.unstable_mockModule('@iptvnator/portal/stalker/feature', () => ({
+    StalkerCollectionDetailComponent: MockStalkerCollectionDetailComponent,
 }));
 
 @Component({
@@ -120,6 +133,38 @@ describe('GlobalCollectionDetailHostComponent', () => {
         const instance =
             detail?.componentInstance as MockXtreamCollectionDetailComponent;
         expect(instance.item()?.xtreamId).toBe(103);
+        expect(instance.seriesResume()).toEqual(seriesResume);
+    });
+
+    it('creates the Stalker detail with the series resume target attached', async () => {
+        // A Stalker embedded-VOD show routes as a movie; the resume target
+        // still has to reach the detail so the series view can consume it.
+        const seriesResume = {
+            seriesXtreamId: 17672,
+            contentXtreamId: 1879880442,
+            seasonNumber: 2,
+            episodeNumber: 6,
+        };
+        fixture.componentInstance.seriesResume.set(seriesResume);
+        fixture.componentInstance.item.set({
+            uid: 'stalker::stalker-1::17672',
+            name: 'Old School',
+            contentType: 'movie',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Portal',
+            stalkerId: '17672',
+            categoryId: '7',
+        });
+        await stabilize();
+
+        const detail = fixture.debugElement.query(
+            By.directive(MockStalkerCollectionDetailComponent)
+        );
+        expect(detail).not.toBeNull();
+        const instance =
+            detail?.componentInstance as MockStalkerCollectionDetailComponent;
+        expect(instance.item()?.stalkerId).toBe('17672');
         expect(instance.seriesResume()).toEqual(seriesResume);
     });
 

@@ -30,6 +30,7 @@ const PLAYLIST = {
 } as PlaylistMeta;
 
 const TestSeriesStore = signalStore(
+    { protectedState: false },
     withState({
         currentPlaylist: undefined as PlaylistMeta | undefined,
     }),

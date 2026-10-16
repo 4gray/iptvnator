@@ -6,6 +6,8 @@ import type {
 } from '@iptvnator/shared/interfaces';
 
 export const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
+/** App-wide zoom, as the raw Electron zoom level (0 is default). */
+export const ZOOM_LEVEL = 'ZOOM_LEVEL';
 export const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';
 export const MPV_PLAYER_ARGUMENTS = 'MPV_PLAYER_ARGUMENTS';
 export const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
@@ -30,6 +32,14 @@ export const STARTUP_WINDOW_MODE = 'STARTUP_WINDOW_MODE';
 
 /** Desktop portal request cooldown; absent means enabled. */
 export const PORTAL_CONNECTIVITY_GUARD = 'PORTAL_CONNECTIVITY_GUARD';
+
+/**
+ * Parental lock feature switch, mirrored from the renderer's settings by the
+ * SETTINGS_UPDATE handler. Read when the database worker starts and when a
+ * renderer reloads or dies, so the SQLite reads are locked before any page
+ * has announced its lock state. Absent means off.
+ */
+export const PARENTAL_LOCK_ENABLED = 'PARENTAL_LOCK_ENABLED';
 
 /**
  * Update channel (`stable` / `nightly`). Mirrored here from the renderer's
@@ -64,6 +74,7 @@ export const EMBEDDED_MPV_AUTO_RECONNECT = 'EMBEDDED_MPV_AUTO_RECONNECT';
 
 export type StoreType = {
     [WINDOW_BOUNDS]: Electron.Rectangle;
+    [ZOOM_LEVEL]: number;
     [MPV_PLAYER_PATH]: string;
     [MPV_PLAYER_ARGUMENTS]: string;
     [VLC_PLAYER_PATH]: string;
@@ -75,6 +86,7 @@ export type StoreType = {
     [EMBEDDED_MPV_AUTO_RECONNECT]: boolean;
     [STARTUP_WINDOW_MODE]: StartupWindowMode;
     [PORTAL_CONNECTIVITY_GUARD]: boolean;
+    [PARENTAL_LOCK_ENABLED]: boolean;
     [APP_UPDATE_CHANNEL]: AppUpdateChannel;
     [TRUSTED_LOCAL_EPG_SOURCES]: string[];
 };

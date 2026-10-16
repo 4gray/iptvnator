@@ -1,7 +1,6 @@
 import {
     DestroyRef,
     Injectable,
-    NgZone,
     computed,
     effect,
     inject,
@@ -15,7 +14,9 @@ import {
     EmbeddedMpvSupport,
     RecordingStartMetadata,
     ResolvedPortalPlayback,
+    watchEmbeddedMpvSupport,
 } from '@iptvnator/shared/interfaces';
+import { TranslateService } from '@ngx-translate/core';
 import { EmbeddedMpvCommandRunner } from './embedded-mpv-command-runner';
 import { measureBounds } from './embedded-mpv-format.utils';
 import {
@@ -78,7 +79,7 @@ export class EmbeddedMpvSessionController {
     );
 
     private readonly destroyRef = inject(DestroyRef);
-    private readonly zone = inject(NgZone);
+    private readonly translate = inject(TranslateService);
     private readonly unsubscribeSessionUpdate?: () => void;
 
     private boundsProvider: EmbeddedMpvBoundsProvider = (host) =>
@@ -95,13 +96,14 @@ export class EmbeddedMpvSessionController {
                 this.session.set(session);
             });
 
+        let stopSupportWatch: (() => void) | undefined;
         if (typeof window.electron?.getEmbeddedMpvSupport === 'function') {
-            void this.loadSupport();
+            stopSupportWatch = this.watchSupport();
         } else {
+            // No reason: the player shows its translated "not available".
             this.support.set({
                 supported: false,
                 platform: typeof window === 'undefined' ? 'web' : 'unknown',
-                reason: 'Embedded MPV requires the Electron desktop build.',
             });
         }
 
@@ -114,6 +116,7 @@ export class EmbeddedMpvSessionController {
 
         this.destroyRef.onDestroy(() => {
             this.unsubscribeSessionUpdate?.();
+            stopSupportWatch?.();
             this.stalledTracker.cancel();
             if (this.boundsAnimationFrame !== null) {
                 cancelAnimationFrame(this.boundsAnimationFrame);
@@ -187,28 +190,22 @@ export class EmbeddedMpvSessionController {
         // on drift, so the idle cost is one getBoundingClientRect per tick
         // with no IPC.
         //
-        // The interval runs outside Angular's zone: with zone change
-        // detection a zone-registered timer would run app-wide change
-        // detection every tick for the whole stream. It never re-enters the
-        // zone — the drift path is rAF → setEmbeddedMpvBounds IPC and
-        // touches no Angular state. Frame-copy paints into a DOM canvas
+        // The poll touches no Angular state, so with zoneless change
+        // detection it schedules no render: the drift path is rAF →
+        // setEmbeddedMpvBounds IPC. Frame-copy paints into a DOM canvas
         // that moves with the layout, so only native-view can go stale on a
         // position-only shift; the poll skips the measurement there.
-        const positionPoll = this.zone.runOutsideAngular(() =>
-            window.setInterval(() => {
-                if (!activeSessionId || !lastSyncedBounds) {
-                    return;
-                }
-                if (untracked(() => this.isFrameCopyEngine())) {
-                    return;
-                }
-                if (
-                    boundsDiffer(this.boundsProvider(host), lastSyncedBounds)
-                ) {
-                    scheduleBoundsSync();
-                }
-            }, POSITION_POLL_INTERVAL_MS)
-        );
+        const positionPoll = window.setInterval(() => {
+            if (!activeSessionId || !lastSyncedBounds) {
+                return;
+            }
+            if (untracked(() => this.isFrameCopyEngine())) {
+                return;
+            }
+            if (boundsDiffer(this.boundsProvider(host), lastSyncedBounds)) {
+                scheduleBoundsSync();
+            }
+        }, POSITION_POLL_INTERVAL_MS);
 
         // Page zoom and monitor DPI rescale the CSS→native-pixel mapping the
         // backend applies to these bounds. Moving the window to a display
@@ -244,9 +241,7 @@ export class EmbeddedMpvSessionController {
 
             const electron = this.getElectronBridge();
             if (!electron) {
-                throw new Error(
-                    'Embedded MPV requires the Electron desktop build.'
-                );
+                throw new Error(this.notAvailableMessage());
             }
 
             const prepared = await electron.prepareEmbeddedMpv?.();
@@ -254,10 +249,7 @@ export class EmbeddedMpvSessionController {
                 return;
             }
             if (prepared && !prepared.supported) {
-                throw new Error(
-                    prepared.reason ??
-                        'Embedded MPV is not available in this environment.'
-                );
+                throw new Error(prepared.reason || this.notAvailableMessage());
             }
 
             const created = await electron.createEmbeddedMpvSession(
@@ -295,7 +287,9 @@ export class EmbeddedMpvSessionController {
                         .disposeEmbeddedMpvSession(created.id)
                         .catch(() => undefined);
                     throw new Error(
-                        'The embedded MPV frame view failed to initialize.'
+                        this.translate.instant(
+                            'EMBEDDED_MPV.PLAYER.FRAME_VIEW_FAILED'
+                        )
                     );
                 }
             }
@@ -381,25 +375,39 @@ export class EmbeddedMpvSessionController {
         EmbeddedMpvSession['recording'] | null
     > => this.commands.stopRecording();
 
-    private async loadSupport(): Promise<void> {
-        try {
-            const electron = this.getElectronBridge();
-            if (!electron?.getEmbeddedMpvSupport) {
-                throw new Error(
-                    'Embedded MPV requires the Electron desktop build.'
-                );
-            }
-            this.support.set(await electron.getEmbeddedMpvSupport());
-        } catch (error) {
-            this.support.set({
-                supported: false,
-                platform: window.electron?.platform ?? 'unknown',
-                reason: error instanceof Error ? error.message : String(error),
-            });
-        }
+    /**
+     * Loads support and keeps asking while the answer is inconclusive: the
+     * session effect starts playback as soon as `support` turns supported,
+     * so a player mounted during that window recovers by itself.
+     */
+    private watchSupport(): () => void {
+        return watchEmbeddedMpvSupport(
+            () => {
+                const electron = this.getElectronBridge();
+                if (!electron?.getEmbeddedMpvSupport) {
+                    return Promise.resolve({
+                        supported: false,
+                        platform: electron?.platform ?? 'unknown',
+                    });
+                }
+                return electron.getEmbeddedMpvSupport();
+            },
+            (support) => this.support.set(support),
+            (error) =>
+                this.support.set({
+                    supported: false,
+                    platform: window.electron?.platform ?? 'unknown',
+                    reason:
+                        error instanceof Error ? error.message : String(error),
+                })
+        );
     }
 
     private getElectronBridge(): ElectronBridge | undefined {
         return window.electron;
+    }
+
+    private notAvailableMessage(): string {
+        return this.translate.instant('EMBEDDED_MPV.PLAYER.NOT_AVAILABLE');
     }
 }

@@ -1,7 +1,7 @@
 import {
     AppUpdateChannel,
     appUpdateReleasesApiUrl,
-    appUpdateReleasesPageUrl,
+    appUpdateReleasesListUrl,
     appVersionChannel,
 } from '@iptvnator/shared/interfaces';
 
@@ -59,11 +59,18 @@ function isGitHubRelease(value: unknown): value is GitHubReleaseResponse {
  * prereleases (a beta tag must not become "the latest version"), while the
  * nightly catalog keeps only releases whose version carries the nightly
  * identifier, so a stray tag in that repository cannot be offered either.
+ *
+ * The list is a snapshot of GitHub at load time and the service keeps it
+ * for the whole process, so a release published later is invisible to it
+ * until something reloads it — `findIndex` does, once, when a version is
+ * missing from a fully paged list (a nightly the updater just offered had
+ * "no release notes" for exactly this reason).
  */
 export class AppUpdateReleaseCatalog {
-    readonly releases: CachedGitHubRelease[] = [];
+    releases: CachedGitHubRelease[] = [];
     loadedReleasePages = 0;
     loadedAllReleases = false;
+    private queue: Promise<unknown> = Promise.resolve();
 
     constructor(
         readonly channel: AppUpdateChannel,
@@ -87,13 +94,45 @@ export class AppUpdateReleaseCatalog {
         }
     }
 
-    /** Index of `version` (or its tag), paging further until it is found. */
-    async findIndex(version: string | undefined): Promise<number> {
+    /**
+     * Runs `work` after every earlier caller's work has settled. A read
+     * computes an index into `releases` and dereferences it after awaiting
+     * more pages, and `findIndex` may rebuild the whole list in between,
+     * so two overlapping readers of one catalog must never interleave.
+     */
+    runExclusive<T>(work: () => Promise<T>): Promise<T> {
+        const run = this.queue.then(work, work);
+
+        this.queue = run.catch(() => undefined);
+
+        return run;
+    }
+
+    /** Forgets every loaded page so the next read starts from GitHub again. */
+    reset(): void {
+        this.releases = [];
+        this.loadedReleasePages = 0;
+        this.loadedAllReleases = false;
+    }
+
+    /**
+     * Index of `version` (or its tag), paging further until it is found.
+     * With `reloadOnMiss`, a miss on a completely paged list reloads the
+     * list once before answering -1: the snapshot may simply predate the
+     * release. Callers that fall back to the newest release on a miss pass
+     * false — an unpublished local build would otherwise page the whole
+     * list twice for an answer the first pass already had.
+     */
+    async findIndex(
+        version: string | undefined,
+        reloadOnMiss = true
+    ): Promise<number> {
         if (!version) {
             return -1;
         }
 
         const normalizedVersion = normalizeVersion(version);
+        let reloaded = !reloadOnMiss;
 
         while (true) {
             const index = this.releases.findIndex(
@@ -102,8 +141,17 @@ export class AppUpdateReleaseCatalog {
                     normalizeVersion(release.tagName) === normalizedVersion
             );
 
-            if (index !== -1 || this.loadedAllReleases) {
+            if (index !== -1) {
                 return index;
+            }
+
+            if (this.loadedAllReleases) {
+                if (reloaded) {
+                    return -1;
+                }
+
+                reloaded = true;
+                this.reset();
             }
 
             await this.ensurePageLoaded(this.loadedReleasePages + 1);
@@ -143,10 +191,7 @@ export class AppUpdateReleaseCatalog {
             throw new Error('GitHub releases response was not an array');
         }
 
-        const releasesPageUrl = appUpdateReleasesPageUrl(this.channel).replace(
-            /\/latest$/,
-            ''
-        );
+        const releasesPageUrl = appUpdateReleasesListUrl(this.channel);
 
         for (const release of payload) {
             if (!isGitHubRelease(release) || !this.belongsToChannel(release)) {

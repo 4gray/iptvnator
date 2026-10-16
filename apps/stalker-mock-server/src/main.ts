@@ -19,7 +19,27 @@ import {
     resolveMarketingPosterUrls,
 } from './app/marketing-poster-url.js';
 
-const PORT = parseInt(process.env['PORT'] ?? '3210', 10);
+function resolvePort(raw: string | undefined): number {
+    if (raw === undefined) {
+        return 3210;
+    }
+    const port = /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
+    if (!Number.isInteger(port) || port > 65_535) {
+        console.error(
+            `[stalker-mock] Invalid port "${raw}": expected an integer in 0..65535`
+        );
+        process.exit(1);
+    }
+    return port;
+}
+
+// `PORT` is the server's own knob; `MOCK_PORT` is the client-side alias
+// Playwright and the specs read (`apps/web-e2e/playwright.config.ts`), honoured
+// here so one variable relocates the whole E2E run when another worktree
+// holds 3210. The Nx serve targets deliberately do not pin `PORT`: an `env`
+// entry in `nx:run-commands` overrides the shell, which is what made the
+// override impossible before.
+const PORT = resolvePort(process.env['PORT'] ?? process.env['MOCK_PORT']);
 // Loopback by default: the fixture serves fabricated but unauthenticated
 // content, so it should not be reachable from other hosts unless a dev
 // explicitly opts in with HOST=0.0.0.0 (e.g. to point a phone or STB at it).

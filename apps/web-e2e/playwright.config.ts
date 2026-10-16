@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { workspaceRoot } from '@nx/devkit';
@@ -15,6 +17,13 @@ const webServerCommand =
         ? `pnpm nx run web:serve-static --port=${staticPwaPort}`
         : 'pnpm nx run web:serve';
 const reuseExistingWebServer = isStaticPwaE2E ? false : !process.env['CI'];
+const webBackendPort = process.env['WEB_BACKEND_PORT'] ?? '3333';
+const storageBackendPort = process.env['STORAGE_BACKEND_PORT'] ?? '3334';
+// Path only; the backend creates it. A new pid gives every run an empty store.
+const storageBackendDataDir = join(
+    tmpdir(),
+    `iptvnator-web-e2e-storage-${process.pid}`
+);
 
 /**
  * Read environment variables from file.
@@ -52,11 +61,13 @@ export default defineConfig({
     /* Run local dev servers before starting the tests.
      * Both the Angular app and the Stalker mock server start in parallel.
      *
-     * MOCK_PORT only moves where the CLIENT looks — this health check and the
-     * specs' MOCK_SERVER constants. The mock reads PORT, which
-     * stalker-mock-server's serve target pins to 3210, and nothing maps one to
-     * the other, so MOCK_PORT alone makes the wait below time out. Use it to
-     * point at a mock you started yourself on that port.
+     * MOCK_PORT / XTREAM_MOCK_PORT relocate a mock for the whole run: the
+     * health checks below and the specs' MOCK_SERVER constants read them, and
+     * both mock servers honour them as a fallback for PORT (their serve
+     * targets no longer pin PORT, so an explicit shell value reaches the
+     * process). That is what lets two worktrees run E2E side by side when one
+     * already holds 3210/3211. WEB_BACKEND_PORT does the same for the web
+     * backend and self-hosted.e2e.ts, which is the only spec that calls it.
      */
     webServer: [
         {
@@ -65,22 +76,62 @@ export default defineConfig({
             reuseExistingServer: reuseExistingWebServer,
             cwd: workspaceRoot,
         },
+        /* The mocks run as one node process, not through `nx run …:serve`:
+         * Nx starts its command in a detached process group, so Playwright's
+         * process-group kill missed it and the server kept its port. */
         {
-            command: 'pnpm nx run stalker-mock-server:serve',
+            command: 'node --import tsx apps/stalker-mock-server/src/main.ts',
+            env: {
+                NODE_ENV: 'development',
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+            },
             url: `http://localhost:${process.env['MOCK_PORT'] ?? '3210'}/health`,
             reuseExistingServer: !process.env['CI'],
             cwd: workspaceRoot,
         },
         {
-            command: 'pnpm nx run xtream-mock-server:serve',
+            command: 'node --import tsx apps/xtream-mock-server/src/main.ts',
+            env: {
+                NODE_ENV: 'development',
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+            },
             url: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}/health`,
             reuseExistingServer: !process.env['CI'],
             cwd: workspaceRoot,
         },
+        /* Same single-process launch for the backend; `env` mirrors the
+         * `web-backend:serve` target, which stays the manual entry point. */
         {
-            command: 'pnpm nx run web-backend:serve',
-            url: 'http://localhost:3333/health',
+            command: 'node --import tsx apps/web-backend/src/main.ts',
+            env: {
+                PORT: webBackendPort,
+                CLIENT_URL: 'http://localhost:4200',
+                BACKEND_URL: '/api',
+                IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: '1',
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+            },
+            url: `http://localhost:${webBackendPort}/health`,
             reuseExistingServer: !process.env['CI'],
+            cwd: workspaceRoot,
+        },
+        /* A second backend with server storage, used only by
+         * server-storage.e2e.ts; the specs above keep the stateless one.
+         * STORAGE_BACKEND_PORT relocates it like WEB_BACKEND_PORT. */
+        {
+            command: 'node --import tsx apps/web-backend/src/main.ts',
+            env: {
+                PORT: storageBackendPort,
+                CLIENT_URL: `http://localhost:4200,http://localhost:${staticPwaPort}`,
+                BACKEND_URL: '/api',
+                IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: '1',
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+                IPTVNATOR_STORAGE: 'server',
+                IPTVNATOR_DATA_DIR: storageBackendDataDir,
+            },
+            url: `http://localhost:${storageBackendPort}/health`,
+            // Never another backend on that port: the specs delete every
+            // playlist before each test, which would wipe its library.
+            reuseExistingServer: false,
             cwd: workspaceRoot,
         },
     ],

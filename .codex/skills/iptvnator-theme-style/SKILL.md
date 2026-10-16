@@ -15,19 +15,23 @@ description: Use when changing IPTVnator SCSS tokens, shared layout mixins, port
   `libs/ui/styles/_detail-view-actions.scss`
 - UI policy and migration debt: `docs/architecture/iptvnator-ui-guidelines.md`
 
-The index is a barrel, not a configured Sass include path. Production
-consumers currently use relative `@use` paths to the needed partial.
+The index is a barrel, not a Sass include path: consumers `@use` each
+partial by relative path.
 
 ## Token Boundary
 
 - App-owned surfaces, text, separators, hover states, selections, and provider
-  accents use `--app-*` tokens from `m3-theme.scss`.
+  accents use `--app-*` tokens from `m3-theme.scss`, switched by
+  `.dark-theme`, not `prefers-color-scheme`.
 - Use `--app-selection-on-color` for foregrounds placed on the selection
   accent; do not assume white has enough contrast in both themes.
 - Angular Material mixins and Material-component overrides may use Material
-  tokens. Outside Material-owned components, use a `--mat-sys-*` token only
-  after proving it is emitted in both light and dark contexts and supplying a
-  real app-token or literal fallback.
+  tokens. `m3-theme.scss` declares `--mat-sys-*` for both theme contexts; use
+  them outside Material components only for roles without an app token.
+- Set component tokens through `mat.*-overrides()`; retired `--mdc-*` names
+  do nothing and `pnpm run styles:material-tokens:validate` rejects them.
+- Destructive buttons use `.app-destructive-button` (the `warn` color input is
+  a no-op with M3); provider icons come from `SOURCE_TYPE_ICONS`.
 - Local semantic status colors are acceptable. Existing hard-coded layout,
   selection, and EPG surface colors are migration debt, not precedent.
 
@@ -45,6 +49,28 @@ consumers currently use relative `@use` paths to the needed partial.
   content and the edge so scrollbar and resize hit areas stay independent.
 - A shared change must be checked across M3U, Xtream, Stalker, workspace,
   portal catalog/shared UI, and unified collections where relevant.
+
+## Typography
+
+- Font weights are 400, 500, 600 or 700 only, and JetBrains Mono stays at 500
+  or lighter (also where a mono modifier inherits a heavier weight);
+  `pnpm run styles:font-weights:validate` enforces the scale, and the Mono
+  cap in rules that set that family. Read the
+  guidelines' Typography section before changing bundled fonts.
+
+## Rendering Cost
+
+- A composited layer the size of the content area costs about 24 MB of
+  tile memory at 2x against Chromium's 512 MB budget; contract in
+  `docs/architecture/performance-journeys.md` (Compositing budget).
+- No `border-radius`, `mask` or `clip-path` on a scroller or another
+  ancestor of `backdrop-filter`, render-surface `filter`, running
+  animations, `isolation: isolate` or `will-change`: Blink then clips each
+  through a mask layer the size of the clipped area. Paint the corner, as
+  `.workspace-content-frame` does.
+- Adding or changing those properties: run `pnpm run perf:compositing`
+  before and after, quote the numbers in the PR, and extend
+  `compositing.e2e.ts` in `apps/electron-backend-e2e` for a new route.
 
 ## Validation
 

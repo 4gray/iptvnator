@@ -17,6 +17,7 @@ import {
     sortPortalChannelItems,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 export interface XtreamLiveChannelItem {
     readonly added?: string;
@@ -26,6 +27,8 @@ export interface XtreamLiveChannelItem {
     readonly poster_url?: string;
     readonly stream_icon?: string;
     readonly title?: string;
+    readonly tmdb_id?: number | null;
+    readonly release_year?: number | null;
     readonly tv_archive?: number | null;
     readonly tv_archive_duration?: number | string | null;
     readonly xtream_id: number;
@@ -59,7 +62,7 @@ export class XtreamLiveChannelNavigationService {
         return playing?.owner === this.owner() ? playing.item : null;
     });
     readonly displayedChannels = computed(() => {
-        const term = this.query().trim().toLowerCase();
+        const term = foldSearchText(this.query().trim());
         const channels = sortPortalChannelItems(
             this.store.selectItemsFromSelectedCategory() as XtreamLiveChannelItem[],
             this.sortMode(),
@@ -67,9 +70,9 @@ export class XtreamLiveChannelNavigationService {
         );
         return term
             ? channels.filter((item) =>
-                  `${item.title ?? ''} ${item.name ?? ''}`
-                      .toLowerCase()
-                      .includes(term)
+                  foldSearchText(
+                      `${item.title ?? ''} ${item.name ?? ''}`
+                  ).includes(term)
               )
             : channels;
     });
@@ -78,7 +81,7 @@ export class XtreamLiveChannelNavigationService {
             this.store
                 .getCategoriesBySelectedType()
                 .filter(
-                    (category) => !('hidden' in category && category.hidden)
+                    (category) => !('hidden' in category && category['hidden'])
                 )
                 .map((category) => Number(category.category_id ?? category.id))
         );

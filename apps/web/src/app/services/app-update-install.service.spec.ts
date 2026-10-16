@@ -67,7 +67,7 @@ describe('AppUpdateInstallService', () => {
     it('returns null and touches no guard without the desktop bridge', async () => {
         const service = createService();
         service.registerUnloadGuard(guard);
-        window.electron = undefined;
+        (window as { electron?: typeof window.electron }).electron = undefined;
 
         expect(await service.installAppUpdate()).toBeNull();
         expect(guard.suspendForAppQuit).not.toHaveBeenCalled();

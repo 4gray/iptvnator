@@ -14,6 +14,7 @@ import {
     marketingTitleFromSlug,
     renderMarketingLogoSvg,
 } from '@iptvnator/shared/marketing-fixtures';
+import { resolveXtreamMockPortString } from '../mock-port.js';
 import { RawCategory } from './categories.generator.js';
 import {
     buildEpgListing,
@@ -931,8 +932,9 @@ function buildMarketingEpgListings(
 }
 
 function marketingAssetOrigin(): string {
-    const port = process.env['PORT'] ?? '3211';
-    return `http://localhost:${port}`;
+    // Same resolution as the listener, so a run relocated through
+    // `XTREAM_MOCK_PORT` alone still mints asset URLs on the bound port.
+    return `http://localhost:${resolveXtreamMockPortString(process.env)}`;
 }
 
 function parseSize(

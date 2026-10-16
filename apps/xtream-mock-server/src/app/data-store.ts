@@ -31,7 +31,11 @@ import {
     buildPerformanceSeriesInfo,
     buildPerformanceVodDetails,
 } from './generators/performance.generator.js';
-import { getScenario, ScenarioConfig } from './scenarios.js';
+import {
+    getScenario,
+    LONG_PROGRAMME_TITLE,
+    ScenarioConfig,
+} from './scenarios.js';
 
 export interface PortalData {
     scenario: ScenarioConfig;
@@ -84,6 +88,15 @@ function generatePortalData(username: string, password: string): PortalData {
         };
     }
     let liveCategories = generateCategories('live', categoryCount.live);
+    if (scenario.categoryFixture === 'scroll') {
+        liveCategories = liveCategories.map((category, index) => ({
+            ...category,
+            // Coprime step permutes names independently of provider/SQLite IDs.
+            category_name: `${index % 4 === 0 ? 'Visible' : 'Hidden'} ${String(
+                (index * 137) % categoryCount.live
+            ).padStart(3, '0')}`,
+        }));
+    }
     const vodCategories = generateCategories('vod', categoryCount.vod);
     const seriesCategories = generateCategories('series', categoryCount.series);
     const epgListingsByStreamId = new Map<number, RawEpgListing[]>();
@@ -91,7 +104,11 @@ function generatePortalData(username: string, password: string): PortalData {
     const vodStreams = generateVodStreams(vodCategories, itemsPerCategory);
     const seriesItems = generateSeriesItems(seriesCategories, itemsPerCategory);
     if (scenario.epgFixture === 'timezone-focus') {
-        const timezoneFixture = buildTimezoneFixture();
+        const timezoneFixture = buildTimezoneFixture(
+            scenario.longProgrammeTitle
+                ? LONG_PROGRAMME_TITLE
+                : 'Earlier Bulletin'
+        );
         liveCategories = timezoneFixture.liveCategories;
         liveStreams = timezoneFixture.liveStreams;
         timezoneFixture.epgListingsByStreamId.forEach((listings, streamId) => {
@@ -240,7 +257,7 @@ function detailCacheKey(
     return `${username}:${password}:${itemId}`;
 }
 
-function buildTimezoneFixture(): Pick<
+function buildTimezoneFixture(pastTitle: string): Pick<
     PortalData,
     'liveCategories' | 'liveStreams' | 'epgListingsByStreamId'
 > {
@@ -295,7 +312,7 @@ function buildTimezoneFixture(): Pick<
     ];
 
     const epgListingsByStreamId = new Map<number, RawEpgListing[]>();
-    epgListingsByStreamId.set(10_000, buildTimezoneNewsEpg(10_000));
+    epgListingsByStreamId.set(10_000, buildTimezoneNewsEpg(10_000, pastTitle));
     epgListingsByStreamId.set(10_001, []);
     epgListingsByStreamId.set(10_002, []);
 
@@ -306,7 +323,10 @@ function buildTimezoneFixture(): Pick<
     };
 }
 
-function buildTimezoneNewsEpg(streamId: number): RawEpgListing[] {
+function buildTimezoneNewsEpg(
+    streamId: number,
+    pastTitle: string
+): RawEpgListing[] {
     const now = Math.floor(Date.now() / 1000);
     const roundedNow = now - (now % (15 * 60));
     const nextUtcMidnight = getFutureUtcMidnight(now);
@@ -316,7 +336,7 @@ function buildTimezoneNewsEpg(streamId: number): RawEpgListing[] {
     const listings = [
         {
             id: `${streamId}-past`,
-            title: 'Earlier Bulletin',
+            title: pastTitle,
             description:
                 'Past schedule item used to anchor current-program detection.',
             startTimestamp: roundedNow - 75 * 60,

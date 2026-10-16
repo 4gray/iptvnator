@@ -64,12 +64,14 @@ in both dependency sections and all official Nx packages on one exact version.
 Use `.nvmrc` for development/CI; supported LTS Node ranges are
 `^22.22.3 || ^24.15.0`. Docker uses the supported Node 24 line.
 
-The Angular 22 migration explicitly preserves the old default change detection
-with `ChangeDetectionStrategy.Eager`. Existing OnPush components and
-`provideZoneChangeDetection` remain in their existing modes.
-Existing eager components under Angular ESLint carry a line-scoped explanation
-for the newly recommended OnPush rule; new components keep that rule enabled.
-Adopting OnPush in those components requires a separate behavior review.
+The Angular 22 migration explicitly preserved the old default change detection
+with `ChangeDetectionStrategy.Eager`. Plan item C6 since converted every component
+the renderer uses to OnPush and switched it to
+`provideZonelessChangeDetection()` without the `zone.js` polyfill; see the
+[zoneless migration](zoneless-migration.md). `apps/remote-control-web` and its
+remote-control component still use zone.js and `ChangeDetectionStrategy.Eager`,
+with a line-scoped explanation for the OnPush lint rule; new components keep
+that rule enabled.
 TypeScript 6 migration settings preserve compiler defaults and per-project output roots;
 `ignoreDeprecations: "6.0"` temporarily supports legacy Node test configs and
 `baseUrl`, rather than changing the whole workspace to browser resolution.
@@ -105,8 +107,10 @@ imports `zone.js/testing` for existing `fakeAsync` helpers. This preserves the
 Angular 21 scheduler used by jest-preset-angular 15: its `setupZoneTestEnv` loaded
 Zone but did not provide zone-based change detection on Angular 20+. Preset 17
 does provide it, which disables automatic fixture rendering and changes
-`whenStable()` behavior. Production applications continue to use their existing
-`provideZoneChangeDetection`; browser and Electron E2E validate that runtime.
+`whenStable()` behavior. The production renderer (`apps/web`) runs
+`provideZonelessChangeDetection()` like the tests; `apps/remote-control-web`
+keeps `provideZoneChangeDetection`. Browser and Electron E2E validate both
+runtimes.
 
 ## Vite Dev-Server Patch
 
@@ -129,6 +133,22 @@ CI runs the same check. It resolves Vite from `@angular/build`, verifies the
 patched prefilter/matcher wiring and version pin, stress-tests the false-positive
 chunk shape, and preserves ordinary and comment-bearing asset and worker
 `new URL(..., import.meta.url)` matches.
+
+## Electron Builder signing patch
+
+`app-builder-lib` 26.15.7 is patched in
+`patches/app-builder-lib@26.15.7.patch` with the upstream backport
+electron-userland/electron-builder#10172. For macOS signing,
+`security set-key-partition-list -k` must receive the temporary keychain's own
+password rather than the `.p12` import password. macOS runner images since
+`macos-26-arm64` 20260831 verify that password; the old argument caused
+`SecKeychainUnlock: The user name or passphrase you entered is not correct`.
+Keep the patch until electron-builder resolves a fixed app-builder-lib (26.16.1+).
+Run `pnpm run deps:electron-builder:test` after related dependency updates; it
+also rejects a mismatch between the patched and installed version.
+
+Native addon builds additionally require the root `node-gyp` devDependency;
+see [runtime staging](embedded-mpv-native.md#runtime-staging) before removing it.
 
 ## Placement Decision
 
@@ -173,6 +193,14 @@ other utility projects, including shared interface contracts, while
 `ui-playback` and feature hosts may depend on it to render and execute
 session-local recovery actions.
 
+`libs/playback/data-access` is the `playback-data-access` Nx project,
+imported through `@iptvnator/playback/data-access` (tags `scope:shared`,
+`domain:playback`, `type:data-access`). It owns renderer playback state that
+store, feature and player layers share — currently `PlaybackHistoryGate`,
+which holds "recently viewed" writes until playback is confirmed. It is kept
+out of `@iptvnator/services` on purpose: that barrel ships in the initial
+bundle, and this project is only reached from lazy player and portal code.
+
 ## Project Tags
 
 Every Nx project keeps one tag from each family in `project.json`:
@@ -210,7 +238,71 @@ the lazy workspace shell feature into the initial bundle.
 Use scoped aliases from `tsconfig.base.json` and expose public imports through a
 library's `src/index.ts`. Do not introduce legacy bare aliases such as
 `services`, `components`, `shared-interfaces`, or `database`, and avoid deep
-imports unless a sub-entrypoint is explicitly configured.
+imports unless a sub-entrypoint is explicitly configured. The configured
+sub-entrypoints are `@iptvnator/shared/interfaces/ipc-commands` and
+`@iptvnator/shared/interfaces/zoom-level`, both for the Electron preload: the
+`@iptvnator/shared/interfaces` barrel pulls in `ngx-indexed-db`, which the
+preload bundle must not carry, so the preload only type-imports the barrel
+and value-imports those two dependency-free modules directly.
+`@iptvnator/workspace/shell/util/settings-search` exists for the opposite
+reason: the main `workspace-shell-util` barrel is imported eagerly, and the
+settings search index must stay in the lazy settings and shell chunks.
+`@iptvnator/workspace/shell/util/settings-context` keeps
+`SettingsContextService`, which only the lazy settings page and settings
+context panel use, out of that barrel for the same reason, and
+`@iptvnator/services/playlist-backup` keeps `PlaylistBackupService` (about
+22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
+barrel.
+
+`@iptvnator/services/pwa-xtream-backup-storage` exposes the framework-free browser
+backup persistence implementation without re-exporting it from the eager services
+barrel. The injected backup service wraps it; deferred restore loads it through a
+local dynamic-import module with the data source's storage. Its map keys live in
+a separate pure module so it does not import the Angular storage token at runtime.
+Electron favorites likewise load their
+legacy pending-conversion helper only when a favorites operation needs it.
+Those lazy helpers value-import the pure normalizer through
+`@iptvnator/shared/interfaces/xtream-restore-state`; their remaining contracts
+use type-only imports so a deferred conversion does not load the interfaces
+barrel's Angular/IndexedDB dependencies.
+
+The web app's root shell (`app.component.ts`, `app.config.ts` and the services
+they construct) is on the renderer's initial path, where a barrel costs its
+whole library: esbuild keeps every Angular component module a barrel
+re-exports, because their static definitions count as side effects (so do an
+`@Injectable` service's and a pipe's). Importing
+`WindowControlsComponent` and `DialogService` from `@iptvnator/ui/components`
+once put the channel lists, EPG views, `@angular/forms`, `date-fns` and the
+Stalker data layer into `main.js`. The root shell therefore uses file-level
+entries: `@iptvnator/ui/components/window-controls`,
+`@iptvnator/ui/components/confirm-dialog`,
+`@iptvnator/playlist/shared/ui/stalker-connection-editor`,
+`@iptvnator/playlist/shared/util/playlist-file-import` (the barrel would add
+`PlaylistContextFacade`) and `@iptvnator/pipes/date-format` (the barrel would
+add `SafePipe`; the eager EPG progress panel uses it too), like the existing
+`@iptvnator/ui/epg/progress-panel`, and loads anything used only on demand
+through a local file it imports dynamically (the Stalker connection editor,
+the release-notes dialog, the external-player info dialog, the parental-lock
+PIN dialog and the Stalker step of the parental-lock enforcement, which runs
+only while a Stalker route is open). A local file,
+not the library alias, is the dynamic-import target because
+`@nx/enforce-module-boundaries` forbids static imports of a library the same
+project also loads dynamically.
+
+A barrel the initial path imports also costs code it never runs itself:
+code splitting places a module in the chunk shared by every entry point
+that reaches it, so a helper that only lazy routes use, but that an eager
+file can reach through a barrel's re-export, lands in an initial chunk even
+though tree shaking would drop it from a single bundle. The eager Xtream
+data layer and root shell therefore import `@iptvnator/portal/shared/util/logger`
+and `@iptvnator/portal/shared/util/tokens` (the portal DI tokens), not the
+`@iptvnator/portal/shared/util` barrel, whose navigation, keyboard-shortcut
+and download helpers (about 45 KB) belong to the lazy portal routes. A
+type-only import of a barrel uses `import type`, so it can never keep the
+barrel reachable. `renderer.initialBytes` in
+[performance journeys](performance-journeys.md) guards the result; to see why a
+module is eager, build with `pnpm nx build web --stats-json` and follow the
+static imports in `dist/apps/web/stats.json` from `apps/web/src/main.ts`.
 
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency

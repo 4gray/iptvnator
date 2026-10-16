@@ -5,11 +5,10 @@
     min-height: 0;
 
     // "Playing from: SharkTV · 1080p · mkv — also found in 2 playlists".
-    // Projected into the hero's action row, which is a flex row, so it claims
-    // a full-width line of its own below the buttons.
+    // Projected into the hero's credits block, on a line of its own.
     ::ng-deep .source-caption {
         flex: 0 0 100%;
-        margin: 10px 0 0;
+        margin: 0;
         font-size: 0.75rem;
         line-height: 1.4;
         color: var(--text-muted);
@@ -25,15 +24,45 @@
         }
     }
 
-    ::ng-deep .details__tag--status {
-        color: var(--text-primary);
-        border-color: color-mix(in srgb, var(--accent-color) 28%, transparent);
-        background: linear-gradient(
-            135deg,
-            color-mix(in srgb, var(--accent-color) 12%, transparent) 0%,
-            var(--tag-bg) 100%
-        );
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    // The download button's circular progress: track + value arc, spinning
+    // when the total size — and so the percent — is unknown.
+    ::ng-deep .download-glyph {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        .download-ring {
+            width: 26px;
+            height: 26px;
+            transform: rotate(-90deg);
+
+            &--indeterminate {
+                animation: download-ring-spin 0.9s linear infinite;
+            }
+        }
+
+        .download-ring__track {
+            fill: none;
+            stroke: color-mix(in srgb, var(--app-on-surface) 18%, transparent);
+            stroke-width: 3;
+        }
+
+        .download-ring__value {
+            fill: none;
+            stroke: var(--accent-color, #4f8eff);
+            stroke-width: 3;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+
+        .download-glyph__center {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            font-size: 14px;
+            line-height: 14px;
+        }
     }
 
     ::ng-deep .details__fallback-note {
@@ -62,5 +91,17 @@
             font-size: 0.8125rem;
             letter-spacing: 0.03em;
         }
+    }
+}
+
+@keyframes download-ring-spin {
+    to {
+        transform: rotate(270deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host ::ng-deep .download-ring--indeterminate {
+        animation-duration: 3.6s;
     }
 }

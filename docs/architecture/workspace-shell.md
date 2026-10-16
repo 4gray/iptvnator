@@ -52,7 +52,10 @@ Current workspace routes:
 8. `/workspace/search`
 9. `/workspace/downloads`
 10. `/workspace/settings/:section` (`/workspace/settings` redirects to
-    `general`; the settings context panel links each section page)
+    `general`; the settings context panel links each section page; sections:
+    `general`, `playback`, `epg`, `dashboard`, `remote-control`, `tmdb`,
+    `parental` — see [parental lock](parental-lock.md) — `backup`, `reset`,
+    `about`)
 11. `/workspace/xtreams/:id/...`
 12. `/workspace/stalker/:id/...`
 
@@ -62,19 +65,19 @@ Compatibility redirect:
 
 Provider route integration:
 
-1. `apps/web/src/app/app.routes.ts` marks the `/workspace` root route with
-   `data.layout = 'workspace'`.
-2. `isWorkspaceLayoutRoute(...)` treats that layout marker as inherited route
-   state for all descendants.
-3. Xtream and Stalker parent routes attach route-scoped session providers that
+1. Every routed view renders inside the workspace shell (the only top-level
+   paths outside `/workspace` are redirects), so views keep no standalone
+   layout branches: the shell header owns search, Back and the playlist
+   switcher.
+2. Xtream and Stalker parent routes attach route-scoped session providers that
    bootstrap the active playlist, sync provider section state, and clean up
    provider-local state when the route is destroyed.
-4. Xtream route bootstrap is DB-first for already imported Electron playlists:
+3. Xtream route bootstrap is DB-first for already imported Electron playlists:
    if the requested section has persisted categories and content, the route
    hydrates from SQLite even when the portal status probe reports unavailable,
    expired, or inactive. Fresh/no-cache Xtream routes still use the status probe
    to block remote imports before the loading overlay starts.
-5. Workspace routes no longer rely on nested provider shell components for
+4. Workspace routes no longer rely on nested provider shell components for
    hidden local chrome.
 
 ## Shell Structure
@@ -86,18 +89,101 @@ The shell is intentionally split into four persistent regions:
        recently viewed. The routed global-search rail link is Electron-only
        because its data source is the SQLite worker bridge.
     2. Provider-aware context links derived from the active or current playlist.
-    3. Settings remains a persistent footer shortcut in the rail.
+    3. Settings remains a persistent footer shortcut in the rail. In
+       [server storage mode](pwa-self-hosted.md#server-storage-mode) a server
+       status shortcut sits above it: its dot shows online, offline or
+       sign-in needed, and it opens Settings → Server.
+    4. No brand mark: it only repeated the first workspace link (Dashboard,
+       or Sources when the dashboard is off).
 2. Top header:
-    1. Playlist switcher.
-    2. Route-aware search input and command palette trigger.
-    3. Add source action.
-    4. Optional playlist refresh and route-specific shortcut actions.
-    5. Downloads shortcut in Electron.
+    1. Leading Back slot: the current page's registered Back, else browser
+       history while an in-app previous page exists, else nothing. The mouse
+       Back button, Alt+← / Cmd+[ and the Electron window gestures run it.
+       See [Header Back](#header-back).
+    2. Playlist switcher.
+    3. Route-aware search input and command palette trigger.
+    4. Add source action.
+    5. Optional playlist refresh and route-specific shortcut actions.
+    6. Downloads shortcut in Electron.
 3. Main body:
     1. Optional left context panel.
-    2. Main router outlet content.
+    2. Main router outlet content. In server storage mode an offline banner
+       with Retry takes the first row of `.workspace-content-frame`, above
+       the scroller, so full-height pages keep their height.
 4. Optional footer:
     1. External playback session bar when a docked session is visible.
+
+### Content surface corner
+
+`main.workspace-content` (the scroller) sits in `.workspace-content-frame`.
+The frame carries the surface's 16px top-left radius and its shadow and never
+clips; the scroller clips to a rectangle and is a stacking context; a 16px
+corner piece on the frame paints the notch in the body colour. The radius used
+to sit on the scroller, which made Blink clip every composited effect inside it
+(the rail chevrons' and hero controls' `backdrop-filter`, running transform
+animations, isolated groups) through a mask layer synthesized per effect: its
+shader path for rounded clips needs four equal radii on macOS and a
+translation-only transform between the clip and the effect, and the fallback
+mask is the size of the whole clipped area, about 24 MB of tile memory at 2x
+on a 16" display. A dozen of them took the dashboard past Chromium's 512 MB
+tile budget (`tile memory limits exceeded`, blank tiles while scrolling).
+`apps/electron-backend-e2e/src/compositing.e2e.ts` guards it: no
+drawing layer without an owner node and without a compositing reason (a
+synthesized mask, unlike any content layer) may span half the content area,
+and the backdrop-filtered controls must really be composited, so the check
+cannot pass on a page with nothing to clip.
+
+### Layout slides
+
+When a route change adds or removes the context panel, the content frame
+moves by the panel's width (323 px on desktop), and when Back or the phone
+drawer toggle appears or leaves, the header controls after it move by the
+slot's width (44 px). Both happen in the frame that swaps the page, so they
+used to be one jump: a layout shift of 0.233 in the open-source journey,
+0.222 of it the content frame (see
+[performance journeys](./performance-journeys.md#j2-open-source-open-a-source-to-a-browsable-list)).
+
+`LayoutSlideDirective` (`workspace-shell/layout-slide.directive.ts`) turns
+these jumps into a 180 ms slide, the duration of the context panel's own
+width transition. The new layout applies at once; each target starts
+translated back to the position it had and animates its transform to none
+(FLIP), so nothing waits for the animation and Chromium records no layout
+shift for a transform. The shell's `.workspace-body` slides
+`.workspace-content-frame` when `showContextPanel` changes; the header slides
+the drawer toggle, switcher, search and action groups when its leading
+navigation (Back, drawer toggle) changes.
+
+1. **Previous positions.** `offsetLeft` values, which ignore transforms, are
+   recorded after every render in which the slide key or the record key
+   changed (the header's record key covers the other inputs that move its
+   controls: settings route, no playlists, parental lock, shortcuts) and
+   when the host or a target resizes (window resize, a context panel folding
+   or being dragged wider). A slide therefore starts where the target was
+   last laid out, and a target that has no recorded position or did not move
+   is left alone.
+2. **The uncovered strip.** The frame is narrower beside the panel than
+   without it, so the side it moves away from would show the body colour
+   during the slide. While a slide runs the target carries
+   `layout-slide-active` and the uncovered widths as `--layout-slide-start`
+   and `--layout-slide-end`; the frame's stylesheet extends the content
+   surface over that strip with an `::after` below the scroller.
+3. **Back fades in** over the same 180 ms, so the switcher still sliding away
+   from its slot does not draw over the arrow.
+4. **Reduced motion.** Under `prefers-reduced-motion` there is no animation:
+   the jump (and its layout shift) remains.
+5. **Compositing.** While it runs, each slid target is its own composited
+   layer (`ActiveTransformAnimation`): the frame at its width plus the
+   covered strip (1220×664 CSS pixels at 1280×720), the header controls a
+   few small ones. No synthesized clip mask appears, because no ancestor of
+   the frame clips with a radius ([content surface
+   corner](#content-surface-corner)), and the layers go away when the slide
+   ends: `perf:compositing` reads the same layer and mask counts on every
+   route as before the slides (#1895).
+6. **Not covered.** A slide does not change what the route renders. Going
+   back from a portal to the dashboard used to lay the new dashboard out
+   below the old page before the old page left, a shift a slide cannot
+   hide. That was the route swap, fixed at its cause (see
+   [Route swaps](#route-swaps)).
 
 `WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
 kept as a thin template-facing API and delegates ownership to component-scoped
@@ -111,15 +197,214 @@ services:
 3. `WorkspaceShellSearchSyncService` owns the search query signals, debounced
    application, provider-store synchronization, and query-param sync.
 4. `WorkspaceShellHeaderService` owns playlist title/subtitle, account/info
-   actions, refresh action state, and recent-items bulk cleanup.
+   actions, and refresh action state. It has no clear action: clearing
+   recently viewed or favorites belongs to the collection page.
 5. `WorkspaceShellCommandPaletteService` owns command-palette dialog lifecycle
    and recent-command recording.
 6. `WorkspaceShellXtreamImportService` owns Xtream import/refresh overlay
-   state and labels.
+   state and labels. Remote import phases and refresh preparation of the
+   shown playlist (of any playlist on the dashboard) show the overlay at
+   once. A session that has only read the saved catalog (`loading-cached`,
+   `isImporting` still false) shows it only after
+   `XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS` (300 ms), so a warm open goes from
+   the skeleton to the page without flashing the overlay, while a slow or
+   stuck cache read still blocks and stays cancellable.
 
 When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
 for the template unless the template contract itself intentionally changes.
+
+### Route swaps
+
+The router's activation runs in one task, outside change detection:
+deactivation destroys the old routed view, then activation creates the new
+one and inserts its host element into `main.workspace-content` at once.
+`WorkspaceShellRouteStateService.currentUrl` is set on `NavigationEnd`, which
+the router emits synchronously after activation, so the shell's state does
+not lag the outlet. The shell re-renders (the context panel leaves, the
+content frame slides) in the next change detection. With event coalescing
+that runs in the next `requestAnimationFrame`, before that frame paints.
+
+The app does not provide `provideAnimations()`. Nothing uses
+`@angular/animations` triggers (Material animates with CSS), and that
+package's renderer queues every DOM removal until the end of the next change
+detection, while insertions apply at once. Leaving a portal section for the
+dashboard therefore inserted the dashboard below the still-present portal
+page, and the old page left only in the coalesced tick. In between, Chromium
+laid out the document with both pages, the dashboard at y=720 in a 720 px
+window, and scored the swap as one layout shift: 0.337 at 1280 px, 0.394 at
+900 px, 0.723 at 420 px (measured with a `layout-shift` observer in the
+`electron-performance` build). With the default DOM renderer the old page is
+removed in the same microtask, before the new one is inserted, and the swap
+records no shift. `app.config.spec.ts` keeps the animations renderer out, and
+`workspace-route-swap.e2e.ts` asserts that no mutation checkpoint holds both
+pages and that neither the dashboard nor the content pane shifts.
+
+Destroy hooks therefore run with the view's DOM already detached; the
+[UI guidelines](./iptvnator-ui-guidelines.md) ("No animations module") say
+how hooks record geometry and focus instead.
+
+Do not add `provideAnimations()` or `provideAnimationsAsync()` back; animate
+with CSS. A leave animation (`animate.leave` included) delays its element's
+removal in the same way, so a routed page must not carry one.
+
+## Header Back
+
+The header's leading slot is the workspace's one page-level Back. Pages do not
+render an arrow of their own: they register a `WorkspaceBackTarget`
+(`@iptvnator/portal/shared/util`) with `WorkspaceBackNavigationService`
+(`@iptvnator/portal/shared/data-access`), normally through
+`registerWorkspaceBack()`, which registers for the calling component's
+lifetime while its optional `available` predicate holds. The newest
+registration wins, and each release removes only its own target. The button
+(`data-test-id="workspace-header-back"`) sits beside the macOS traffic lights,
+never scrolls, and has Electron `no-drag` hit testing. A target supplies its
+label (else the translated "Back"), whether Escape on the page runs it, and
+`run()`.
+
+| Page | Registered by | Back runs | ≤640 px |
+| --- | --- | --- | --- |
+| Portal, collection, offline and recording details | `PortalDetailShellComponent` while `backAvailable()` | the host's `backClicked` | replaces the drawer toggle |
+| Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's history Back; parent: the catalog section Discover lists (`vod` for movies, `series` for TV), the portal's default section for actor | (no drawer) |
+| In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | history Back; parent: the portal's default section | (no drawer) |
+| Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | history Back; parent: the first workspace view (`WorkspaceStartupPreferencesService.resolveDashboardPath()`: the dashboard, or sources when it is hidden) | beside the drawer toggle |
+
+Detail-page semantics (Escape, browse and watch) are in
+[Portal Detail Navigation](./portal-detail-navigation.md#detail-scroll-and-focus).
+
+**History fallback.** Without a registration, the header shows Back while the
+previous history entry is an in-app one, and runs `Location.back()`. The
+service reads that from the Navigation API: the previous entry must be
+same-document (`NavigationHistoryEntry.sameDocument`), so the router pushed it
+after this document loaded. Entries from before a reload or from another page
+of the origin never count, and the fallback can neither leave nor reload the
+app. `currententrychange` keeps it current through pushes, replacements,
+traversals and guard-cancelled Back navigations that the router rewrites.
+Without the Navigation API (older Safari and Firefox, jsdom) there is no
+fallback; registered pages are unaffected. The fallback reads "Back" and
+advertises no Escape, because no page handles one for it. Pages that set
+`backAvailable=false`, such as M3U details, therefore show it too when they
+were reached by navigation.
+
+**Parent fallback.** "Parent" in the table above: a registered page whose
+Back is history Back calls `WorkspaceBackNavigationService.back(resolveParent)`
+instead of `Location.back()`. It runs `Location.back()` while the previous
+entry is an in-app one, by the same Navigation API test as the history
+fallback. Without the API (older Safari and Firefox) the router's history
+depth decides (`trackRouterHistoryDepth`): the document's first navigation is
+depth 0, a push adds one, a replacement keeps it and a traversal restores the
+depth recorded for its entry. The lazy workspace shell creates the service
+after the first navigation began, so the tracker adopts the router's current
+or last navigation: a first one is depth 0, a later one leaves the depth
+unknown. A traversal to an entry from before a reload
+leaves the depth unknown and keeps `Location.back()`, which then has a
+previous entry. Otherwise the page opened
+the session (a deep link, a reload or a restored view), where
+`Location.back()` does nothing in Electron and leaves the app in a browser.
+The service then navigates to the page's parent with `replaceUrl`, so history
+Back cannot return to the page just left; with nothing in-app before it, the
+parent shows no history fallback. The resolver returns a URL or router commands, may be asynchronous, and
+returns null when the page knows no parent, which keeps `Location.back()`.
+Portal pages build their parent with `workspacePortalCommands()`
+(`@iptvnator/portal/shared/util`) from the route's `:id`; without a section,
+the portal route's `redirectTo` picks the default section within the same
+navigation, so the replacement still applies. Detail pages keep their own
+return logic (`backClicked`).
+
+When there is nowhere to go, the slot is empty rather than a disabled arrow.
+Sessions often start on a page that never navigates (an M3U playlist or live
+TV), where a disabled arrow would stay for the whole session. When Back first
+appears or leaves, which happens only at the start of the history and together
+with a route change, the switcher and search slide by the slot's width instead
+of jumping (see [Layout slides](#layout-slides)).
+There is no Forward button: Stalker inline details are store state, not
+history entries, so Forward would skip them.
+
+**Platform gestures.** The mouse Back button, Alt+← (Cmd+[ on macOS) and, in
+Electron, the window's `app-command` `browser-backward` (Windows and Linux:
+mouse Back buttons and the Browser Back key) and trackpad `swipe` left (macOS)
+run the same action as the header button, through
+`WorkspaceBackGesturesService` (shell-provided). Each gesture has one of
+three results (`WorkspaceBackGestureResult`):
+
+- `back`: the header has a target and nothing sits above the page, so
+  `WorkspaceBackNavigationService.goBack()` runs. "Above the page" is document
+  fullscreen (a fullscreen player), an open phone context drawer, a showing
+  CDK backdrop, or a visible `[role="dialog"]`, `[role="alertdialog"]` or
+  `[role="menu"]` outside hidden, `inert` or `aria-hidden` subtrees.
+- `blocked`: something sits above the page. Nothing navigates, and the
+  gesture is still swallowed, because browser Back would navigate under the
+  dialog (which then closes) or out of the fullscreen player.
+- `none`: the header has no Back. The gesture stays the browser's: in the PWA
+  it may leave the app, as browser Back does.
+
+Unless the result is `none`, the browser's default is prevented (the mouse
+press on `mouseup` and `auxclick`, listened to in the capture phase), so the
+browser cannot take a second history step. In Electron the mouse Back button
+is prevented even then: Electron's Chromium steps through history on an
+unprevented press itself, also to entries from before a reload, which reloads
+the app.
+
+- **Chord.** `navigate-back` in `keyboard-shortcut-definitions.ts` lists it in
+  the shortcuts dialog; `isWorkspaceBackShortcut()` matches it, on macOS also
+  by the `BracketLeft` key position for layouts that type `[` with Option.
+  `WorkspaceKeyboardShortcutsService` handles it in a capture-phase document
+  listener and stops a chord that runs Back there, so a focused carousel, tab
+  list, guide or player does not also read it as a plain arrow; a blocked
+  chord is prevented but still reaches the dialog or menu. It is ignored
+  while typing (Alt and Option arrows edit text). A held chord runs Back
+  once: its repeats follow its first press until a key is released, so after
+  a press that ran Back they are swallowed even when the page it reached has
+  no Back left, and the browser cannot step on them.
+- **Electron.** `attachWindowBackGestures()`
+  (`apps/electron-backend/src/app/services/window-back-gestures.ts`) forwards
+  the two window events over the main → renderer push channel
+  `WINDOW:BACK_REQUESTED` with the source (`app-command` or `swipe`); the
+  preload's `onWindowBackRequested` passes only those two values on. The
+  renderer subscribes only when
+  `RuntimeCapabilitiesService.supportsWindowBackGestures` reports the
+  subscription, so an older preload forwards nothing. `browser-forward` and
+  `swipe` right are not forwarded. `swipe` needs macOS's "Swipe between
+  pages" set to two or three fingers. On Linux Electron raises `app-command`
+  for the keydown and the keyup of the Browser Back key alike, so the main
+  process takes that key in `before-input-event` instead (Back once per
+  press, the key never reaches the page) and leaves `app-command` to mouse
+  Back buttons.
+- **One press, two events.** In Electron on Windows and Linux a mouse Back
+  press also reaches the window as `app-command`: with the release on
+  Windows, on press on Linux, and before or after the renderer sees the
+  button. Whichever half comes first runs Back and the other is consumed. A
+  command that arrives while the button is down belongs to that press however
+  long it is held; otherwise a command and a press (or a press and a command)
+  within `BACK_PRESS_TWIN_MS` (500 ms) of each other pair. Each press pairs
+  once, so two quick presses still go back twice, and the chord and the swipe
+  never pair.
+
+Electron E2E `back-gestures.e2e.ts` drives each gesture (the mouse through
+CDP's `back` button, the window events emitted on the `BrowserWindow`) and
+checks that each goes back one history entry, a paired press goes back once
+(also when held), Forward does nothing, and the gestures wait while typing
+(the chord) or with a dialog open. Web E2E `workspace-header-back.e2e.ts`
+checks that the mouse Back button and the chord step once in the browser.
+
+**Phone width.** `phoneDrawerToggle` sets how Back shares the leading slot with
+the context drawer toggle. `replace` (the default) takes the toggle's slot: a
+detail page's drawer belongs to the list that Back returns to. `beside` keeps
+both: the settings drawer holds the page's own sections. `yield` hides Back
+while the toggle shows: the history fallback must not cost a category list its
+only way into the drawer, and two navigation icons do not fit beside the
+switcher. The platform gestures above and browser Back still work there.
+
+**Left in place.** These controls stay inside their surface on purpose:
+
+1. Downloads offline and recording detail error states keep their labelled
+   "Back to Downloads" button beside Retry or Remove. It is the error state's
+   recovery action, not page chrome; the header shows the same Back.
+2. Back controls internal to a surface, which leave a panel rather than the
+   page: the Embedded MPV dock panel and the alternative-sources panel inside
+   the VOD "…" menu.
+3. The M3U player sidebar's Home button, which renders only outside the
+   workspace shell.
 
 ## Context Panel Rules
 
@@ -144,7 +429,10 @@ Xtream and Stalker category panels preserve provider/server category order by
 default. The panel header exposes a sort menu next to category search with
 `Server sorting`, `A-Z`, and `Z-A`; when alphabetical sorting is active,
 synthetic "all categories" entries stay pinned before sorted provider
-categories.
+categories. Search and sort render disabled while the categories load (beside
+the disabled Manage categories button), so the header row has its final width
+under the skeleton instead of growing by two buttons when the list arrives;
+they are hidden only once a load ended with no categories.
 
 On live sections the category panel can be folded away independently of the
 channels list; the folded panel is reachable as a popover from the channels
@@ -169,7 +457,8 @@ restarting playback; remote commands retain captured playback order. See the
 
 Search is shell-owned and route-aware:
 
-1. Disabled on settings routes.
+1. On settings routes, searches the settings themselves (see
+   [Settings search](#settings-search)).
 2. Enabled on sources routes.
 3. Enabled for `/workspace/search`, which is the Electron-only routed
    global-search view. `Ctrl/Cmd+F` in Electron opens this route and
@@ -214,8 +503,10 @@ Rail navigation is also shell-owned:
 
 Command palette behavior is shell-owned but view-extensible:
 
-1. The shell resolves commands into three groups in fixed order: current view,
-   this playlist, then global.
+1. The shell resolves commands into groups in fixed order: current view,
+   this playlist, global, then settings. The settings group appears only for a
+   non-empty query and holds at most six settings matches (see
+   [Settings search](#settings-search)).
 2. Shell-owned commands are derived from route context and current playlist
    state; empty groups are omitted instead of rendering disabled placeholders.
 3. Workspace features contribute current-view commands through
@@ -245,11 +536,57 @@ Command palette behavior is shell-owned but view-extensible:
    is disabled. The new player setting applies to the next playback session; an
    existing stream is not re-mounted.
 
+### Settings search
+
+Settings rows are searchable from the header search on `/workspace/settings`
+and from the command palette. Both use the same index and ranking.
+
+1. The index is `SETTINGS_SEARCH_ENTRIES` in
+   `libs/workspace/shell/util/src/lib/settings-search/`, published through the
+   `@iptvnator/workspace/shell/util/settings-search` sub-entrypoint. Eager
+   code imports the main shell util barrel, so the index stays out of it and
+   ships only in lazy chunks (the initial-bytes ratchet enforces this).
+2. Each entry names its section, title and description translation keys,
+   untranslated synonyms (`keywords`), runtime `requires`, and an optional
+   `fallbackId`. Section definitions (`SETTINGS_SECTION_DEFINITIONS`) are the
+   single source for the settings navigation too.
+3. Every titled `.setting-item` in the section templates carries
+   `data-setting-id`. `settings-search-registry.spec.ts` fails when a row, id,
+   title key or description key drifts from the index, so a new settings row
+   must be added to the index in the same change.
+4. `SettingsSearchService.search()` matches the translated title and
+   description of the current language plus the keywords; every query token
+   must match (AND), and a label prefix outranks a word start, which outranks
+   an inner match. Rows whose `requires` the runtime lacks are never returned.
+   Embedded MPV rows depend on a lazy support probe
+   (`ensureEmbeddedMpvSupportLoaded()`), run when the settings page or the
+   command palette opens, never from shell bootstrap; frame copy also needs
+   `frameCopyAvailable`, matching the settings page gate.
+5. Settings routes use `local-filter` search mode, so the term lives in `q`.
+   While `q` is set, the settings page shows ranked results in place of the
+   section page and the settings context panel shows per-section match
+   counts, muting sections without matches. The search box is shown on
+   settings even when no playlist exists.
+6. Choosing a result, pressing `Enter` in the header search (best match), or
+   picking a settings command in the palette calls `reveal()`: it navigates
+   to the section page without `q` (which clears the box) and the page
+   scrolls to, focuses, and briefly highlights the row once the form is
+   hydrated. A row hidden by the current form state falls back to its
+   `fallbackId`, the control that makes it appear. A reveal must win over the
+   typed term: `WorkspaceShellSearchSyncService` drops a keystroke still
+   waiting for its debounce through `onReveal()`, and Enter does not apply
+   the term first, because either `q` sync navigation would supersede the
+   reveal navigation. Keyboard users keep a `:focus-visible` ring on the row
+   after the highlight fades.
+7. `Ctrl/Cmd+F` on settings focuses the header search instead of opening
+   global search.
+
 Keyboard shortcut help is shell-owned:
 
 1. `WorkspaceKeyboardShortcutsService` is provided by `WorkspaceShellComponent`.
    It owns the workspace-scoped `document:keydown` listener for `?` /
-   `Shift+/`.
+   `Shift+/`, and a capture-phase one for the Back chord (see
+   [Header Back](#header-back)).
 2. The listener ignores events from inputs, textareas, selects, and
    content-editable elements via `isTypingInInput(...)`.
 3. `libs/portal/shared/util/src/lib/keyboard-shortcut-definitions.ts` is the
@@ -269,7 +606,32 @@ The Electron window hides the native title bar on all desktop platforms
 (`titleBarStyle: 'hidden'` in `apps/electron-backend/src/app/app.ts`):
 
 1. macOS keeps the native traffic lights (`titleBarOverlay: true`,
-   `trafficLightPosition`); the renderer draws no window buttons.
+   `trafficLightPosition` from `MACOS_TRAFFIC_LIGHTS_POSITION` in
+   `@iptvnator/shared/interfaces`); the renderer draws no window buttons.
+   The lights sit in the header band (`--workspace-header-band`, 56 px) over
+   the rail and the header's leading padding. The macOS rail
+   (`.app-rail.is-macos`) starts its first link below the band: level with
+   the content area and the dashboard hero, with its hover surface clear of
+   the lights. The header's content starts 84 window pixels from the
+   window's left edge (60 px rail plus 24 px padding). macOS 26 ends the
+   lights at 76 (earlier releases at 68), which is where Back's left edge
+   sits at 100 % because of its 8 px pull-in.
+
+   App zoom (see "Zoom level") scales CSS pixels but not the lights. On
+   macOS, `TrafficLightsClearanceDirective` on `.workspace-shell` reads the
+   page zoom factor (`outerWidth / innerWidth`, refreshed on `resize`) and
+   publishes the clearance in CSS pixels as `--traffic-lights-clear-x` (84
+   window pixels) and `--traffic-lights-clear-y` (48: the lights' bottom
+   plus a gap). Zoomed out, the band grows to the vertical clearance, so the
+   lights never overlap the content area. The header's leading padding grows
+   to the horizontal clearance, less the rail column
+   (`--workspace-header-lights-inset`). At 100 % both match the default
+   layout. Off macOS nothing is published and the defaults apply. The phone
+   layout, which puts the rail in a row above the header, ignores the
+   inset. `window-controls.e2e.ts` ("macOS traffic lights") checks the rail
+   alignment, the first header control (the switcher on the first page,
+   which has no history fallback yet, then a detail page's Back) and the
+   content top at default and minimum zoom.
 2. Windows and Linux use renderer-drawn window controls
    (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
    `frame` is intentionally left untouched so native resize borders and
@@ -381,15 +743,24 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
 3. `fullscreen` is the `BrowserWindow` constructor option: on Windows/Linux
    the window is created hidden and enters fullscreen before its first
    paint. macOS ignores the option while the window is hidden (an NSWindow
-   only toggles fullscreen once it is on screen), so `ready-to-show` repeats
+   only toggles fullscreen once it is on screen), so the first show repeats
    the request with `setFullScreen(true)` right after `show()` wherever
    `isFullScreen()` is still false — never unconditionally, or the
    platforms that honoured the option would animate a second toggle. The
    saved bounds stay spread into the options — they are the normal bounds
    the window returns to, and the close handler keeps persisting
-   `getNormalBounds()`. `maximized` calls `maximize()` inside
-   `ready-to-show` right before `show()`, never earlier: `maximize()` on a
-   hidden window shows it, and a blank window would flash.
+   `getNormalBounds()`. `maximized` calls `maximize()` right before the
+   first `show()`, never earlier: `maximize()` on a hidden window shows it,
+   and a blank window would flash. That first show happens at
+   `ready-to-show` or the main frame's `did-finish-load`, whichever comes
+   first (`services/main-window-first-show.ts`): on Linux a hidden window
+   whose startup scripts ran before its first frame gets the next one about
+   a second later, so `ready-to-show` alone left the window off screen and
+   the splash's animation frame waiting. At `did-finish-load` the inline
+   splash is parsed, and the window's `backgroundColor` is the splash colour
+   (`MAIN_WINDOW_BACKGROUND_COLOR`, keep it in sync with `#initial-splash`
+   in `apps/web/src/index.html`), so showing before the first paint does
+   not flash.
 4. `iptvnator --fullscreen` (read via `app.commandLine.hasSwitch`, so it can
    sit anywhere in argv; the playlist-path extractor already skips every
    `-`-prefixed argument) forces `fullscreen` for that launch only and is
@@ -406,6 +777,168 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
    ("startup window mode"), `settings.events.spec.ts`,
    `window.events.spec.ts`, and the startup-window-mode cases in
    `settings.e2e.ts`.
+
+Zoom level (Cmd/Ctrl and +/−/0, issue #1109):
+
+1. The packaged renderer runs under `file://` with path routing. Chromium
+   keys per-host zoom by the FULL URL when a URL has no host, so every
+   `pushState` to another section owns a separate zoom entry: after a route
+   change `webContents.getZoomLevel()` already reports that entry (usually
+   0) and the next visual-properties sync — a window resize, a display
+   change — snaps the renderer back to it. Chromium persists those per-URL
+   entries in `Preferences` on its own, which is why the level used to
+   "appear briefly" on `index.html` at startup and then reset. Dev mode
+   (`http://localhost:4200`) is per-host and never shows this, so only a
+   packaged or `ELECTRON_IS_DEV=0` run can verify zoom behaviour.
+2. Restore therefore happens in the preload, not the main process:
+   `applyPersistedZoomLevel` (`api/preload-zoom-level.ts`) asks for the
+   stored level over the synchronous `WINDOW:GET_ZOOM_LEVEL` IPC at preload
+   start and applies it with `webFrame.setZoomLevel`, which installs a
+   TEMPORARY, frame-bound zoom level. It survives in-page navigation and
+   resizes, the zoom shortcuts (point 4) step it through the same call, and
+   `getZoomLevel()` reports it regardless of the route.
+   `webContents.setZoomLevel` from the main process would write the per-URL
+   entry and re-create the bug. When nothing is stored the preload re-applies
+   the current level for the same reason: entering temporary mode makes the
+   first zoom shortcut URL-independent too. A failed request is swallowed
+   and only costs this load its restore.
+   The apply is deferred to `DOMContentLoaded` — never at preload start and
+   never from a `setTimeout`: on Linux and Windows a `webFrame.setZoomLevel`
+   that early leaves the hidden window without a first frame, `ready-to-show`
+   never fires, `show()` never runs, and the renderer gets no animation
+   frames (the splash `main.ts` removes in a `requestAnimationFrame` stays).
+   macOS is unaffected and CDP-driven tests force frames, so only the
+   packaged Linux/Windows E2E asserting the splash is gone caught it
+   (`legacy-playlist-migration.e2e.ts`, defer-epg). After the parser
+   finishes the call is harmless and still lands before the first Angular
+   paint. The preload then sends `WINDOW:ZOOM_LEVEL_APPLIED`.
+3. Chromium never persists temporary zoom, so `services/window-zoom-level.ts`
+   owns the electron-conf key `ZOOM_LEVEL`: the applied acknowledgement (not
+   the request — between the two the sender's `getZoomLevel()` is still the
+   per-URL default) marks the sender
+   as owning the level, `persistZoomLevel` writes it back from the window
+   `close` and app `before-quit` handlers (the bounds-only saves of before,
+   folded into `persistWindowState`), and `attachZoomLevelPersistence` also
+   writes it on every main-frame cross-document `did-start-navigation` —
+   a reload drops the temporary level, and by `did-finish-load` the new
+   document's preload has already read whatever was stored. That
+   navigation also releases ownership until the next preload answers, so a
+   close mid-reload cannot save the per-URL default over the user's level.
+4. The shortcuts are a renderer key binding, not a native menu: the
+   Windows/Linux window calls `setMenu(null)`, so no accelerator could reach
+   it there. `WorkspaceKeyboardShortcutsService` (`libs/workspace/shell`)
+   listens on the document like it does for F11 and resolves the chord with
+   `resolveZoomShortcutAction` (`libs/portal/shared/util`): Cmd on macOS,
+   Ctrl elsewhere, never Alt; `+`/`=` (so `Ctrl+=` and `Ctrl+Shift+=` both
+   zoom in), `-`/`_`, `0`, and the numpad `+`/`-`/`0` (by `code`, since a
+   NumLock-off `0` reports `Insert`). Keys are matched by `event.key`, so
+   non-US layouts zoom with their own `+`/`-` keys. Like F11 it is not gated
+   by the typing-target check — browsers zoom from any focus — and a key
+   another handler already `preventDefault`ed is left alone. The binding
+   calls the synchronous, preload-local `window.electron.adjustZoomLevel`
+   (`adjustFrameZoomLevel` in `api/preload-zoom-level.ts`), which steps the
+   frame's temporary level through the same `webFrame.setZoomLevel` as the
+   restore and returns the level applied — never a main-process
+   `webContents.setZoomLevel`, which would re-create the per-URL bug. The
+   step and limits live in `libs/shared/interfaces/src/lib/zoom-level.util.ts`
+   (`stepZoomLevel`): 0.5 per press, Electron's own `zoomIn`/`zoomOut` role
+   step (≈10 %), clamped to levels −4…6 (≈48 %…299 %, inside Chromium's
+   25–500 %), off-grid levels snapping to the next grid point in the pressed
+   direction; `Ctrl/Cmd+0` returns to level 0. A stored level already
+   outside the limits (the macOS menu roles never clamped) is never moved
+   against the request: a press further out leaves it, a press back in
+   lands on the limit. Persistence needs nothing
+   extra: the main process reads the live level back (point 3). On macOS the
+   default application menu still carries the `zoomIn`/`zoomOut`/`resetZoom`
+   roles, but Chromium hands a key equivalent to the web contents first and
+   Electron performs the menu equivalent only in
+   `WebContents::PlatformHandleKeyboardEvent`
+   (`shell/browser/api/electron_api_web_contents_mac.mm`, Electron 43.3.0),
+   the unhandled-keyboard-event hook — a `preventDefault`ed keydown never
+   gets there, so the binding keeps one press at one step. CDP-dispatched
+   keys (the E2E) never reach the menu at all.
+   Without a bridge (PWA) the browser keeps its own zoom, and the help
+   dialog lists the chords as Electron-only. Regression coverage:
+   `window-zoom-level.e2e.ts` presses the real shortcuts (in, out, numpad,
+   reset) and measures the rendered factor (content width ÷
+   `window.innerWidth`) across a section change, a resize, a reload and a
+   restart; key resolution and the bridge step are unit-tested in
+   `keyboard-shortcuts.spec.ts`, `workspace-keyboard-shortcuts.service.spec.ts`
+   and `preload-zoom-level.spec.ts`.
+
+Reloading the renderer on an in-app route:
+
+1. The packaged renderer is `dist/apps/web/index.html` over `file://` and
+   Angular routes by path (no hash strategy), so once the user is on a
+   section the document URL is `file:///…/web/workspace/sources` — a path
+   with no file behind it. A reload of that URL fails with
+   `ERR_FILE_NOT_FOUND` (-6) or is cancelled outright, depending on who
+   starts it. Two user-reachable triggers: the macOS default application
+   menu (nothing calls `Menu.setApplicationMenu`, so View › Reload / Force
+   Reload are live; Windows/Linux drop the menu bar via `setMenu(null)`),
+   and the settings unsaved-changes guard, which calls
+   `window.location.reload()` after the user confirms a reload intent on
+   `/workspace/settings/<section>`. Dev mode (`http://localhost:4200`) never
+   shows either — the dev server serves the index for every path.
+2. Both legs live in `services/renderer-reload-fallback.ts` and end in the
+   same `restoreRendererRoute`: load the packaged index with the routed
+   URL's route — its path relative to the renderer root plus query and
+   fragment (`resolveRoutedRendererUrl`) — in the `restoreRoute` query
+   parameter.
+    - A main-process reload (`webContents.reload()`, the menu role,
+      DevTools) fires no `will-navigate`, so it cannot be redirected up
+      front: it fails, Chromium commits `chrome-error://chromewebdata/`
+      and `app-root` stays empty until the app restarts.
+      `attachRendererReloadFallback` recovers it after the fact from the
+      main-frame `did-fail-load` with `ERR_FILE_NOT_FOUND`
+      (`resolveReloadedRendererRoute`); other error codes, subframes and
+      non-`file:` URLs are left alone. The recovery load is deferred to
+      the error page's `dom-ready` and never issued from inside
+      `did-fail-load`: a `loadFile` started while Chromium is still
+      committing the error page yields a document that never receives
+      animation frames — the splash stays, nothing paints, while
+      `document.visibilityState` still says `visible` — and the same load
+      after `dom-ready` paints normally (Electron emits `did-fail-load`
+      before that `dom-ready`). A cross-document navigation starting in
+      between withdraws the pending recovery, so a stale `dom-ready` can
+      never re-load the index over a newer navigation.
+    - A renderer-initiated reload (`location.reload()`, the settings
+      guard) does fire `will-navigate`, where the routed URL is not the
+      trusted index and `handleRendererNavigation` would cancel it —
+      silently, so the confirmed reload simply never happened. The handler
+      now recognizes a routed renderer URL and sends it straight to the
+      index with its route, with no failed load in between; every other
+      untrusted navigation is still blocked (external URLs still open in
+      the browser).
+   A failed `index.html` itself is never re-requested (it would loop):
+   `resolveRoutedRendererUrl` rejects the index, and the recovery load
+   carries `index.html` as its path, so a second failure cannot recurse.
+3. The renderer consumes the parameter before Angular bootstraps:
+   `apps/web/src/main.ts` calls `resolveRestoredRendererRoute`
+   (`libs/shared/interfaces/src/lib/renderer-reload-route.util.ts`, which
+   also owns the parameter name) and installs the result with
+   `history.replaceState`, so the router's initial navigation lands on the
+   route the user was on. The route is resolved against `document.baseURI`
+   (the packaged `<base href="./">`, i.e. the renderer directory — the same
+   prefix Angular strips from `location.pathname`), and anything that would
+   leave that directory (an absolute URL, another scheme, a `..` escape)
+   is dropped with only the parameter removed, so the app boots at its
+   default route instead of following an arbitrary target.
+4. Zoom persistence is unaffected: the failed reload's
+   `did-start-navigation` already saved the level and released ownership,
+   the recovery load's `did-start-navigation` is then a no-op, and the new
+   document's preload restores the level as after any other reload. The
+   main-process close guard also treats the recovery like any full
+   navigation (`did-navigate` disarms it).
+5. Regression coverage: `renderer-reload.e2e.ts` reloads from the main
+   process (`webContents.reload()`, the menu role) on Sources and from the
+   renderer (`window.location.reload()`, the settings guard) on a settings
+   section and asserts a NEW document is rendered on the same route with
+   the parameter gone (`renderer-reload.support.ts` marks the old document,
+   since the URL alone is identical before and after);
+   `window-zoom-level.e2e.ts` reloads the same way. Unit coverage:
+   `renderer-reload-fallback.spec.ts`, `renderer-reload-route.util.spec.ts`,
+   `app.spec.ts` ("renderer reload recovery").
 
 Layout integration:
 
@@ -454,6 +987,9 @@ Toolchain notes for the Electron 43 baseline:
    Those dependencies require standalone PRs so their dedicated package,
    worker, playback, and diagnostic-contract validation cannot be hidden by an
    unrelated grouped update.
+   Electron majors are ignored: Electron 44 ships no `linux-armv7l` binary,
+   and the release still packages armv7l AppImage, DEB and Snap builds. Remove
+   the ignore together with those targets when 32-bit ARM support is dropped.
 4. Electron 42 and newer download their development binary on the first
    Electron command instead of during package `postinstall`, so `electron`
    must not remain in pnpm's `onlyBuiltDependencies` allowlist. The first local

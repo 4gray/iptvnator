@@ -58,7 +58,10 @@
                     ('WORKSPACE.SORT_LABEL' | translate) +
                     (favSortLabelKey() | translate)
                 "
-                [attr.aria-label]="'WORKSPACE.SORT_LABEL' | translate"
+                [attr.aria-label]="
+                    ('WORKSPACE.SORT_LABEL' | translate) +
+                    (favSortLabelKey() | translate)
+                "
             >
                 <mat-icon>sort_by_alpha</mat-icon>
             </button>
@@ -66,13 +69,12 @@
                 @for (option of favSortOptions; track option.mode) {
                     <button
                         mat-menu-item
+                        [appMenuItemRadio]="favSortMode() === option.mode"
                         (click)="setFavSortMode(option.mode)"
                     >
+                        <mat-icon appMenuItemRadioCheck>check</mat-icon>
                         <mat-icon>{{ option.icon }}</mat-icon>
                         <span>{{ option.translationKey | translate }}</span>
-                        @if (favSortMode() === option.mode) {
-                            <mat-icon class="sort-check">check</mat-icon>
-                        }
                     </button>
                 }
             </mat-menu>
@@ -134,15 +136,11 @@
                 >
                     <mat-button-toggle value="playlist">
                         <mat-icon>playlist_play</mat-icon>
-                        <span class="toggle-label">{{
-                            'PORTALS.THIS_PLAYLIST' | translate
-                        }}</span>
+                        <span>{{ 'PORTALS.THIS_PLAYLIST' | translate }}</span>
                     </mat-button-toggle>
                     <mat-button-toggle value="all">
                         <mat-icon>public</mat-icon>
-                        <span class="toggle-label">{{
-                            'PORTALS.ALL_PLAYLISTS' | translate
-                        }}</span>
+                        <span>{{ 'PORTALS.ALL_PLAYLISTS' | translate }}</span>
                     </mat-button-toggle>
                 </mat-button-toggle-group>
             }
@@ -156,16 +154,14 @@
                         clearButtonTooltipKey()
                             | translate
                                 : {
-                                      type:
-                                          currentTypeLabelKey() | translate,
+                                      type: currentTypeLabelKey() | translate,
                                   }
                     "
                     [attr.aria-label]="
                         clearButtonTooltipKey()
                             | translate
                                 : {
-                                      type:
-                                          currentTypeLabelKey() | translate,
+                                      type: currentTypeLabelKey() | translate,
                                   }
                     "
                 >
@@ -173,71 +169,88 @@
                 </button>
             }
         </div>
-    </div>
 
-    @switch (selectedContentType()) {
-        @case ('live') {
-            @if (hasLive()) {
-                <app-unified-live-tab
-                    [items]="liveItems()"
-                    [mode]="mode()"
-                    [searchTerm]="workspaceSearchTerm()"
-                    [autoOpenItem]="pendingAutoOpenLiveItem()"
-                    [favoriteUids]="favoriteUidSet()"
-                    [sortMode]="favSortMode()"
-                    [isSidebarCollapsed]="isSidebarCollapsed()"
-                    (removeItem)="onRemoveItem($event)"
-                    (favoriteToggled)="onFavoriteToggled($event)"
-                    (reorderItems)="onReorder($event)"
-                    (itemPlayed)="onItemPlayed($event)"
-                    (autoOpenHandled)="onLiveAutoOpenHandled()"
-                    (restoreSidebarRequested)="toggleSidebar()"
-                />
-            }
-        }
-        @case ('movie') {
-            @if (hasMovies()) {
-                <app-unified-grid-tab
-                    [items]="movieItems()"
-                    [mode]="mode()"
-                    [contentType]="'movie'"
-                    [searchTerm]="workspaceSearchTerm()"
-                    (itemSelected)="onGridItemSelected($event)"
-                    (removeItem)="onRemoveItem($event)"
-                />
-            }
-        }
-        @case ('series') {
-            @if (hasSeries()) {
-                <app-unified-grid-tab
-                    [items]="seriesItems()"
-                    [mode]="mode()"
-                    [contentType]="'series'"
-                    [searchTerm]="workspaceSearchTerm()"
-                    (itemSelected)="onGridItemSelected($event)"
-                    (removeItem)="onRemoveItem($event)"
-                />
-            }
-        }
-    }
-
-    @if (!hasLive() && !hasMovies() && !hasSeries()) {
-        @if (workspaceSearchTerm()) {
-            <div class="empty-state">
-                <mat-icon class="empty-icon">search_off</mat-icon>
-                <p class="empty-title">
-                    {{ 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate }}
-                </p>
-            </div>
-        } @else {
-            <app-empty-state
-                type="no-data"
-                [icon]="emptyStateIcon()"
-                [titleKey]="emptyStateTitleKey()"
-                [descriptionKey]="emptyStateBodyKey()"
-                secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_DASHBOARD"
-                (secondaryActionClicked)="goToDashboard()"
+        @if (showReloadIndicator()) {
+            <mat-progress-bar
+                class="collection-reload-bar"
+                mode="indeterminate"
+                [attr.aria-label]="'LOADING' | translate"
             />
         }
-    }
+    </div>
+
+    <div
+        class="collection-content"
+        [class.collection-content--reloading]="showReloadIndicator()"
+        [attr.aria-busy]="isReloading() ? 'true' : null"
+    >
+        @switch (selectedContentType()) {
+            @case ('live') {
+                @if (hasLive()) {
+                    <app-unified-live-tab
+                        [items]="liveItems()"
+                        [mode]="mode()"
+                        [searchTerm]="workspaceSearchTerm()"
+                        [autoOpenItem]="pendingAutoOpenLiveItem()"
+                        [favoriteUids]="favoriteUidSet()"
+                        [sortMode]="favSortMode()"
+                        [isSidebarCollapsed]="isSidebarCollapsed()"
+                        [reloading]="showReloadIndicator()"
+                        (removeItem)="onRemoveItem($event)"
+                        (favoriteToggled)="onFavoriteToggled($event)"
+                        (reorderItems)="onReorder($event)"
+                        (itemPlayed)="onItemPlayed($event)"
+                        (autoOpenHandled)="onLiveAutoOpenHandled()"
+                        (restoreSidebarRequested)="toggleSidebar()"
+                    />
+                }
+            }
+            @case ('movie') {
+                @if (hasMovies()) {
+                    <app-unified-grid-tab
+                        [items]="movieItems()"
+                        [mode]="mode()"
+                        [contentType]="'movie'"
+                        [searchTerm]="workspaceSearchTerm()"
+                        (itemSelected)="onGridItemSelected($event)"
+                        (removeItem)="onRemoveItem($event)"
+                    />
+                }
+            }
+            @case ('series') {
+                @if (hasSeries()) {
+                    <app-unified-grid-tab
+                        [items]="seriesItems()"
+                        [mode]="mode()"
+                        [contentType]="'series'"
+                        [searchTerm]="workspaceSearchTerm()"
+                        (itemSelected)="onGridItemSelected($event)"
+                        (removeItem)="onRemoveItem($event)"
+                    />
+                }
+            }
+        }
+
+        @if (!hasLive() && !hasMovies() && !hasSeries()) {
+            @if (workspaceSearchTerm()) {
+                <div class="empty-state">
+                    <mat-icon class="empty-icon">search_off</mat-icon>
+                    <p class="empty-title">
+                        {{
+                            'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate
+                        }}
+                    </p>
+                </div>
+            } @else {
+                <app-empty-state
+                    type="no-data"
+                    [icon]="emptyStateIcon()"
+                    [titleKey]="emptyStateTitleKey()"
+                    [descriptionKey]="emptyStateBodyKey()"
+                    secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_DASHBOARD"
+                    (secondaryActionClicked)="goToDashboard()"
+                />
+            }
+        }
+    </div>
 }

@@ -5,7 +5,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
+import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util/tokens';
 import {
     XtreamSerieEpisode,
     XtreamVodDetails,

@@ -157,23 +157,34 @@ Contracts:
 - Hosts provide hero chips/meta/actions as `*appDetailTags` / `*appDetailMeta` /
   `*appDetailActions` templates; the shell stamps them into the hero and again
   into the About block. Degradation stays "missing → not rendered".
+- Provider stand-ins count as missing: `N/A` (any case), a lone `-`, and a
+  `0` IMDb/Kinopoisk score are dropped where provider rows are mapped, by
+  `readProviderText` / `readProviderRating`
+  (`libs/shared/interfaces/src/lib/provider-metadata.util.ts`) — in
+  `createStalkerInfo()`, the `vod-details-adapters.ts` normalizers and the
+  Xtream store's detail selection. Templates keep plain `@if` guards; do not
+  teach them the placeholder list. Widen the list only with evidence of a
+  provider sending the new stand-in.
 - The shell never wraps the `[detail-player]` slot in a conditional; the
   host's `@if (inlinePlayback())` is the only creator/destroyer of the
   player subtree, so shell state changes cannot recreate the `<video>`.
 - **External MPV/VLC sessions do not flip the layout to watch** — browse
   layout stays, and the primary CTA keeps its "Stop <player>" behavior.
-- The shell's sticky control and Escape close inline playback through
-  `closePlayerRequested`; hosts wire it to `closeInlinePlayer()`. From browse,
-  they emit the host-owned `backClicked` instead (unless `backAvailable=false`).
-  Escape respects fullscreen, menus/dialogs, editable fields and hidden/inert
-  surfaces, and consumes a handled key so one press performs only one action.
-  See [Portal Detail Navigation](./portal-detail-navigation.md).
-- The now-playing bar separates two exits: the back arrow emits
-  `backClicked`, which hosts wire to their route-level `goBack()` (straight
-  back to the list — everything browse offers is also visible in watch, so
-  a two-step unwind would be ceremony); the "Close player" button and
-  Escape emit `closed`/`closePlayerRequested` and return to browse without
-  navigating.
+- The shell's Back, rendered by the workspace header, emits the host-owned
+  `backClicked` in browse and watch alike (unless `backAvailable=false`, when
+  the shell registers none):
+  hosts wire it to their route-level `goBack()`, straight back to the list —
+  everything browse offers is also visible in watch, so a two-step unwind
+  would be ceremony. Escape alone unwinds one level: in watch it emits
+  `closePlayerRequested`, which hosts wire to `closeInlinePlayer()`; in browse
+  it emits `backClicked`. Escape respects fullscreen, menus/dialogs, editable
+  fields and hidden/inert surfaces, and consumes a handled key so one press
+  performs only one action. See
+  [Portal Detail Navigation](./portal-detail-navigation.md).
+- The now-playing bar has one exit of its own: the "Close player" button
+  emits `closed` and returns to browse without navigating. It carries no back
+  arrow — a second arrow beside the header's, with a different meaning,
+  was the duplicate this contract removes.
 - Entering watch scrolls the shell to the top; leaving keeps the scroll
   position.
 
@@ -208,7 +219,8 @@ becomes an "Up Next" episode rail (`app-up-next-rail`,
 `libs/ui/playback/src/lib/portal-inline-player/up-next-rail.component.ts`).
 The rail lists the currently playing episode (highlighted, click-inert)
 followed by the rest of its season and a spillover into the following
-seasons, with per-episode watch-progress bars from playback positions.
+seasons, with per-episode watch-progress bars from playback positions,
+drawn in the player's `--pc-progress` like the dock's Up next card.
 
 - Data flow: the hosts (Xtream `SerialDetailsComponent`, Stalker
   `StalkerSeriesViewComponent`) build the entries with
@@ -248,6 +260,16 @@ seasons, with per-episode watch-progress bars from playback positions.
 - Layering: the rail is an opaque panel rendered on top of the stage, so the
   ambient fill stays behind it and shows in the flexible gap between the
   docked player and the rail on very wide stages.
+- Fullscreen: the rail cannot show over a fullscreen video, so the same
+  host offers the whole series — season tabs plus the selected season's
+  episodes — as the slide-in side panel of the player's fullscreen surface.
+  `PortalInlinePlayerComponent` provides `FULLSCREEN_CHANNEL_PANEL` for the
+  nested view from the hosts' `seriesEpisodes` / `episodePlaybackPositions` /
+  `seasonLoadStates` inputs, an episode picked there travels the same
+  `upNextEpisodeSelected` output as a rail click, and a season tab picked
+  there travels `episodePanelSeasonSelected` into the host's
+  `onSeasonSelected`. Contract: "Fullscreen episode panel" in
+  `docs/architecture/player-controls-contract.md`.
 
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
@@ -255,9 +277,15 @@ seasons-grid + "Back to seasons" level. A season is auto-selected
 (inline-playing episode's season → most recently updated in-progress
 episode's season → earliest season with unwatched episodes → latest
 non-empty season; Stalker lazy-VOD series with unhydrated seasons pin
-the fallback to the first season because their watched state is unknown,
+the fallback to the first season still to load or holding episodes
+(`unloadedSeasonKeys`: a season the portal answered empty is passed over)
+because a pending season's watched state is unknown,
 and the empty→loaded positions flip caused by the session's own watched
-toggles never re-resolves the selection) and the
+toggles never re-resolves the selection). Extras (season 0, by the
+episodes' season or, unloaded, the key: `isExtrasSeason`) steer none of
+the last three while the series' other seasons hold, or may still hold,
+episodes, as with its next episode, so the page does not open on Specials;
+only a playing extra opens its season. The
 auto-selection emits `seasonSelected`,
 so host lazy-load/enrichment hooks (Stalker VOD-series episode fetch,
 TMDB season fetch, Xtream `enrichSelectedSerialSeason`) fire on open
@@ -265,6 +293,28 @@ without a click. Switching tabs never stops playback; a "back to playing
 episode" chip appears when the playing episode is outside the opened
 season. Season descriptions come from `get_series_info` seasons (Xtream)
 or `TmdbEnrichmentService.getSeason` (Stalker).
+
+The season picker carries no artwork: chips up to four seasons, a menu
+button with "N episodes · M watched" rows from five. The selected season's
+synopsis sits under the header, offset to the episode number column, only
+when it is non-empty and does not repeat the series description. The season
+posters (`seasonPosters` input, keyed like `seasonDescriptions`; TMDB season
+poster first, provider `seasons[].cover_big` next — see "Season/Episode
+Enrichment" in `tmdb-metadata-enrichment.md`) are not drawn on the detail
+page; the container only uses them to recognise an episode still that is the
+season cover again. The hero poster never follows the season.
+The fullscreen episode panel shows the same poster as a compact season
+strip (poster, season name, episode count — `PORTALS.EPISODE_COUNT_ONE` /
+`PORTALS.EPISODE_COUNT_OTHER`) above its season tabs, under the
+same gates, from `PortalInlinePlayerComponent.seasonPosters` through
+`buildFullscreenEpisodePanelSeasons`.
+
+`SeasonTabsComponent` draws both forms of the picker, on the detail page and
+in the fullscreen episode panel. Up to four seasons the tabs are the kit's
+segmented control (`role="tablist"` on the track only; the "back to playing
+episode" chip sits beside it). From five, the kit's toolbar picker (a small
+secondary button with a chevron) opens a `mat-menu` of radio rows. Neither
+form draws season artwork.
 
 ### Manual watched toggle for movies
 
@@ -305,7 +355,8 @@ Both hosts delegate to `createVodWatchedToggle()` in
 Catalog cards derive their corner badge from one shared `PortalWatchState`
 (`unwatched` / `in-progress` / `watched`, `portal-watch-state.ts`): both
 facades map a movie's position through `watchStateFromProgressPercent` /
-`resolvePortalWatchState` (90% threshold, shared with the Resume rule),
+`resolvePortalWatchState` (`PORTAL_WATCHED_PROGRESS_PERCENT`, 90%, shared
+with the Resume rule and the dashboard's Continue Watching rail),
 and a series through `resolvePortalSeriesWatchState`, which reports at
 most `in-progress` — the list payload never carries the episode total, so
 "every episode watched" is not decidable there.
@@ -337,15 +388,17 @@ meanwhile. The host reports busy-state back through the
 
 A series-level counterpart lives in a `⋮` menu at the end of the same
 header row (`SeasonWatchPresenter` in `libs/ui/components` owns the state
-math for both scopes; the container component sits at the max-lines cap).
+math for both scopes, which keeps the container component under the
+max-lines cap).
 `buildSeriesWatchToggleRequest` flattens every LOADED season with the same
 mark/unmark semantics, and the direction is always the one the label
 advertised (`markWatched: !seriesFullyWatched()`), never re-inferred from
 data at persist time. Hosts route the request through the same machinery
 as the season toggle — Xtream via the scope-parameterized
-`SerialDetailsSeasonWatchService.handle(..., scope)`, Stalker via the
-extracted `runWatchToggleBatch` core — sharing the busy flag, the
-ownership guards, and the catalog-badge refresh. Stalker lazy-VOD is the
+`SerialDetailsSeasonWatchService.handle(..., scope)`, Stalker via
+`StalkerSeriesWatchToggleService` and its `runStalkerWatchToggleBatch`
+core — sharing the busy flag, the ownership guards, and the catalog-badge
+refresh. Stalker lazy-VOD is the
 special case: unopened seasons have empty episode lists, so the container
 reports them through the `hasUnloadedSeasons` input (blocks the
 "fully watched" verdict and switches the label to its countless variant),
@@ -366,7 +419,8 @@ series-toggle hydration join one in-flight request instead of
 duplicating it (a second request's failure could abort a toggle whose
 original request succeeded).
 The host synchronously re-runs the position reconcile
-(`applyReconciledSeriesPositions` — the effect-fed maps only update on
+(`StalkerSeriesPositionsService.applyReconciledSeriesPositions` — the
+effect-fed maps only update on
 the next change-detection tick, and enqueuing against stale maps would
 miss the hydrated episodes' legacy rows), rebuilds the request from the
 now-complete seasons keeping the captured direction, and reports an
@@ -422,26 +476,91 @@ position telemetry overwrites this launch marker when available. This keeps the
 last-watched season and episode correct even when an external player's progress
 interface is unavailable; exact external timestamps remain best-effort.
 
+## Forced External Launches From Detail Pages
+
+The detail "…" menu's "Open in external player" sends the title to MPV/VLC
+through `PortalPlayer.openExternalPlayback(playback, player)` whatever the
+configured player is. The launch IPC cannot be cancelled, and until it
+resolves the session is at most `launching` and may not have a closer yet.
+Every detail host therefore keeps these rules:
+
+- **One external player per owner.** Before launching, the host closes the
+  external session the page owns: the session of the same title on the
+  Stalker pages and the Xtream series page; the session it launched, else the
+  one matching its movie, on the Xtream movie page. Sessions the page does not
+  own are left alone. With instance reuse off, a second detached player would
+  otherwise start beside the first. Stalker hosts use
+  `replaceOwnedExternalSession` from
+  `@iptvnator/portal/shared/util`; the Xtream pages use
+  `closeRunningExternalSession` with the same outcome rules.
+- **Unconfirmed teardown cancels the launch.** A live session without a
+  closer, or a close that rejects, leaves the running player in place and
+  nothing new launches.
+- **Ownership is rechecked after every await.** Stream resolution, the close
+  and the launch IPC can each outlive the page or be superseded by a newer
+  start. A stale step stops without reporting, and a launch that resolves
+  stale closes the session it just opened.
+- **No second player while a launch settles.** A repeat of the same launch is
+  ignored, or its control stays disabled. Movie pages refuse or disable every
+  other start of that title until the launch settles. Series pages hold the
+  latest episode choice and, once the launch settled, replace the player it
+  opened, only while that series is still on screen.
+- **Pending starts are owner-scoped.** A start still resolving holds the
+  actions of its own title only: another title shown by the reused page is
+  not blocked by it. Movie hosts track starts with
+  `createPendingPlaybackStart` (`@iptvnator/portal/shared/util`): only the
+  latest start may clear the flag, and `isPendingFor(owner)` answers for one
+  owner. The Stalker movie hosts, whose starts wait on a portal round trip,
+  also `retire(owner)` when the selection leaves it, so a start that never
+  settles does not keep the flag set on a return to the same title. A movie's
+  "Reset progress" is scoped the same way.
+- **Two gates are page-wide.** The Xtream movie page refuses Play, Start
+  over, source switches and the menu launch while an external launch it made
+  has not settled. A series page runs one watched or reset batch at a time,
+  whichever series is shown; the Stalker page also holds episode starts until
+  that batch settles.
+
+Owner keys and queueing are provider contracts:
+
+| Host | Contract |
+| --- | --- |
+| Xtream series | [Forced external launches from detail pages](./xtream-portal-compatibility.md#forced-external-launches-from-detail-pages) |
+| Xtream movie | [Menu launch and reset follow the primary button](./vod-multi-source.md#menu-launch-and-reset-follow-the-primary-button) |
+| Stalker series and movies | [Forced External Launches](./stalker-portal.md#forced-external-launches) |
+
 ## Series Quick Start CTA
 
 Xtream and Stalker series detail views share the quick-start decision helper in
-`libs/portal/shared/util/src/lib/series-quick-start.ts`.
-The helper flattens the loaded season/episode map, sorts seasons and episodes in
-natural order, and returns the hero CTA state.
+`libs/portal/shared/util/src/lib/series-quick-start.ts`, built on
+`getSeriesNextUp` (`series-next-up.ts`), which the dashboard's Continue
+Watching rail also follows. The helper flattens the loaded season/episode map,
+sorts seasons and episodes in natural order, and returns the hero CTA state.
 
 Current contract:
 
 - the CTA shows the action label plus a compact episode target such as
   `S01E02 · Episode title`
-- if an episode is in progress, resume the latest updated in-progress episode
-  with its saved offset
+- if the newest activity is an episode left unfinished, resume it with its
+  saved offset (recency reads SQLite `updated_at`, UTC without a zone, as UTC;
+  both hosts date the rows they write themselves with
+  `stampPlaybackPositionNow`, so the episode just played ranks newest)
 - if the newest episode entry is a successful external-player launch marker
   with no meaningful progress yet, target it with `Play episode N` instead of
   falling back to the first episode
-- if no episode is in progress, play the first unwatched episode in season order
+- otherwise play the first unwatched episode after the episode watched last,
+  as Plex's On Deck and Jellyfin's Next Up do: an earlier episode skipped or
+  left unfinished is passed over, and a next episode started before resumes
+- extras (season 0) stand apart when the series has other seasons: they never
+  come next, are never resumed from here (not even one left unfinished) and
+  never keep the series from completing; after only extras were played the
+  CTA plays the first episode of the run. A series filed under season 0 alone
+  has them as its run
 - if watched episodes end at a season boundary, play the first episode of the
   next loaded season
-- if every loaded episode is watched, render a disabled completed state
+- when no unwatched episode follows the one watched last, offer the first one
+  skipped before it (never an extra); with none left, render a disabled
+  completed state
+- with nothing played yet, play the first episode of the run in season order
 
 The click path must continue through each detail host's normal episode playback
 method so recent-item updates, inline/external player selection, resume offsets,
@@ -594,7 +713,7 @@ external-player workflows; it is not copied from the HLS error payload into
 the evidence or technical details. HLS startup development logs are event-only:
 they do not include provider-supplied channel names or source URLs.
 
-Shaka Player `5.2.4` errors cross a separate structured boundary before the
+Shaka Player `5.2.12` errors cross a separate structured boundary before the
 HTML5 or ArtPlayer DASH session emits a diagnostic. Version-locked tests assert
 the installed Shaka version plus the public `Severity`, `Category`, and selected
 online-playback `Code` values used by the boundary. Evidence retains only
@@ -648,7 +767,7 @@ allowlisted display name.
 
 `network-error` is reserved for provider/network loading failures. Engines that expose concrete browser security evidence, such as CORS, mixed content, Content Security Policy, or private-network-access blocks, use `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
 
-mpegts.js `1.8.1` errors cross one shared structured boundary before the HTML5,
+mpegts.js `1.8.2` errors cross one shared structured boundary before the HTML5,
 Video.js, or ArtPlayer owner emits a diagnostic. Version-locked tests compare
 the installed public `ErrorTypes` and `ErrorDetails` exports with the accepted
 contract. Evidence retains only an exact type/detail pair, terminal
@@ -685,6 +804,17 @@ Video.js/VHS, HLS, Shaka, and mpegts.js evidence. HLS manifest codec metadata
 also drives a concise browser-support hint for codecs that Chromium/Electron
 commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2
 video.
+
+The panel's host is a size container over the player, so its spacing, its
+narrow-width rules and a compact layout for players up to 560px tall all
+follow the player box rather than the window. The M3U inline player above its
+EPG panel is about 400px tall in a 720px window; there the whole surface fits,
+including each card's hint and status lines and the utilities. A shorter
+player scrolls the surface from its top. Card labels wrap instead of being
+ellipsized, because translated actions are wider than a card column.
+`apps/electron-backend-e2e/src/playback-diagnostic-layout.e2e.ts` writes every
+locale's card labels and status line into the cards and fails on any
+truncated label or clipped content.
 
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
 
@@ -900,6 +1030,61 @@ is also idempotent: it returns the closed snapshot without invoking the saved
 closer, and a later process error cannot revive it as a visible failure. Reused
 MPV commands use the socket captured for their exact child, so a delayed close
 cannot send `quit` to a replacement process through a newer global socket.
+Every reused MPV command carries a `request_id` and waits, within the same 2 s
+IPC bound, for mpv's matching newline-delimited reply; event lines and replies
+to other requests on that connection are skipped. An error reply or a missing
+reply fails the handoff exactly like a socket error: the reused child is torn
+down and a fresh launch follows. `loadfile` marks the content as possibly
+changed and moves ownership of the child to the attempted session from the
+moment it is written, whatever mpv replies, and stops the previous session's
+position poll there, including a read already awaiting mpv, so an exit or a
+stale Stop for the previous session during
+the reply wait settles the right session and no poll can save the new stream's
+position under the old content; a child that exited while its reply was in
+flight is returned as the session its exit handler settled, never reported as
+opened and never replaced by a fresh launch under that terminal session.
+MPV launches run one at a time. A reused launch waits for mpv's replies and a
+failed one for its teardown and fallback spawn, so a launch that arrives
+meanwhile, such as a quick channel switch, starts only once the previous one
+has settled and acts on the player that one left behind; two launches never
+act on the same child. Each launch begins its session at once, so the newest
+launch is the active session; the renderer lets a `launching` update take the
+dock only when that launch did not start before the current one, by the
+session's `launchOrder` (which separates launches in the same millisecond) or
+else its `startedAt`, so an older launch still settling cannot pull the dock
+back. Only the newest queued launch
+runs: an older
+one that comes up while a newer one waits behind it settles closed without
+reaching mpv or taking the dock. Stop on a launch still waiting in the queue
+cancels it and every launch queued before it; on the newest queued launch it
+also closes, through their own closers, the in-flight launch and the session
+owning the stored player at that moment (read from the per-child mapping, which
+a failed attempt hands back to the previous owner during its teardown), so
+their exact-child, retry and settle rules apply. Because launches run one at a
+time, nothing else acts on a reused child while an attempt is in flight, so
+that attempt's own Stop always reaches its child until the attempt settles,
+whatever the per-child mapping names (the previous owner before `loadfile` or
+during a failed attempt's teardown, possibly closed already); after it settles,
+ownership decides as before, except that a Stop of that attempt which could
+not confirm the exit keeps the right to retry that exact child. These rules apply
+and nothing starts playing after Stop. Those targets are fixed at the first
+Stop, so a retried Stop never reaches a player started later, and a late Stop
+for an older queued launch cancels only that launch. The cancelled launch
+settles only once its own Stop has: if the exit cannot be confirmed it stays a
+closable error, so Stop can be retried. App shutdown cancels the whole queue.
+A queued launch that finds the teardown gate closed, because the launch before
+it could not confirm its child's exit, restores the session that still owns
+that child, preferring the last launch that started (with reuse off its
+detached child is not stored anywhere else); if that is not possible, it stays
+a closable error so Stop can still tear the child down. Stopping the stored player, when reuse is disabled or
+the app quits, cancels an in-flight reuse attempt: it dispatches no further
+commands, never falls back to a fresh reusable player, also after waiting for
+a failed child's exit, and settles its own session as closed once the child's
+exit is confirmed, or as a closable error when it is not. No `seek` follows
+`loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
+travels as the per-file `start` option. The `loadfile` reply only acknowledges
+the command; a stream that later fails to open is reported through the reused
+child's output and exit, not through the reply.
 If Stop is observed before a pending MPV content command or VLC enqueue command
 is dispatched, that command is skipped. A source handoff also fails closed
 while a live session has no closer (`canClose: false`); renderer Dismiss is not
@@ -1013,8 +1198,13 @@ External MPV/VLC integration is split across focused main-process modules:
   session tracking, trace logging, renderer notifications, playback-position
   forwarding, and user-facing start errors.
 - `apps/electron-backend/src/app/events/mpv-session.service.ts` owns fresh MPV
-  launches and progress polling; `mpv-reusable-process.ts` owns the tracked
-  child, captured socket, remapping, retryable close, and reuse handoff.
+  launches; `mpv-position-polling.ts` owns progress polling over the IPC socket
+  and `mpv-output-errors.ts` the child's stdout/stderr error reporting;
+  `mpv-reusable-process.ts` owns the tracked
+  child, captured socket, remapping, retryable close, and reuse handoff;
+  `mpv-ipc-command.ts` owns the bounded request/reply IPC command the reuse
+  handoff and its quit use; `mpv-launch-queue.ts` runs MPV launches one at a
+  time and owns queued-launch cancellation and Stop.
 - `apps/electron-backend/src/app/events/vlc-session.service.ts` owns fresh VLC
   launches and progress polling; `vlc-reusable-process.ts` owns the tracked
   child, RC-port remapping, retryable close, and reuse handoff, while
@@ -1084,6 +1274,58 @@ This keeps:
 - inline/store-state detail navigation intact
 - series and VOD-as-series support intact
 - external MPV/VLC launches unchanged
+
+## Recently Viewed Confirmation
+
+Selecting or resolving an item is not watching it. A channel, movie or series
+becomes a recently viewed item — and with it the dashboard hero — only once
+its stream has really played, so a stream that fails straight away never
+reaches history.
+
+- Writers do not persist on selection. They hand the write to
+  `PlaybackHistoryGate` (`@iptvnator/playback/data-access`) with
+  `defer(target, commit)`, where the target is what the playback will be
+  known by: the host's `playbackSessionKey` (M3U) and/or stream URLs. The Stalker resolver defers
+  by the resolved (possibly temporary) link; the persisted row still stores
+  the portal `cmd`, never that link. Writers capture the item and its
+  playlist when they defer, so navigating meanwhile cannot misfile it; an
+  Xtream write confirmed after a switch to another playlist (only a slow
+  MPV/VLC launch can) is saved to its own playlist without reloading the
+  store's recent list, which belongs to the other playlist by then.
+- Matching: a write deferred with a session key is confirmed only by that
+  same key — the same URL in two playlists must not let playback in one
+  (inline, or in MPV/VLC) record a failed attempt in the other. Writes
+  without one (portal resolvers) match any confirmation of their stream URL.
+  The global live tab defers with its own playlist-scoped session key, which
+  also survives a switch to catch-up, when the row plays inline; a row that
+  goes to MPV/VLC defers by URL, the only thing that launch confirms.
+- `WebPlayerViewComponent` confirms its `playbackSessionKey`, `streamUrl`
+  and `playback.streamUrl` once the owned engine's reported position has
+  advanced by 2 seconds while playing (`PlaybackProgressConfirmation`).
+  Engines report `playing` (not paused, not seeking) with each time update,
+  so seeks of paused media do not count; neither do steps above 3 seconds
+  (seeks, a resume jump, live-edge catch-up), stalls or backwards jumps. A
+  report of a new stream never adds to the progress of the previous one; an
+  engine or format swap of the same stream keeps its progress. The radio
+  `AudioPlayerComponent` confirms the same way (with the host's session key
+  when given).
+- MPV/VLC cannot report whether a live stream plays, so the gate itself
+  subscribes to the Electron external-player session updates and confirms a
+  session's `streamUrl` once it is `opened` or `playing`; a launch that ends
+  in `error` is not recorded. (Subscribing in the gate, which the first
+  deferred write creates, keeps it off the initial bundle.) That
+  confirmation carries no session key, so an "Open in MPV/VLC" recovery
+  launch is also confirmed by the `WebPlayerViewComponent` that requested
+  it, under its own session key, once the launch has opened. M3U keeps
+  recording on selection when MPV/VLC is the configured player.
+- A confirmation commits every write matching it, once. Unconfirmed writes
+  are bounded (oldest dropped) and simply never commit. The global live tab
+  moves a confirmed row to the top of an open Recently Viewed list even if
+  another row was selected meanwhile.
+- A committed write updates the source while the item keeps playing. Hosts
+  must not hand the player a new but identical playback for it: the M3U
+  host's `embeddedPlayback` also reads the playlist meta, so it is compared
+  by value — a new object would remount the engine and restart the stream.
 
 ## Playback Position Saving
 

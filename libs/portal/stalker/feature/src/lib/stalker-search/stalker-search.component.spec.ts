@@ -24,8 +24,15 @@ import {
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
-import { DataService, PlaylistsService } from '@iptvnator/services';
-import { CONNECTIVITY_GUARD_RESET } from '@iptvnator/shared/interfaces';
+import {
+    DataService,
+    ParentalLockService,
+    PlaylistsService,
+} from '@iptvnator/services';
+import {
+    ALL_CATEGORIES_WITHHELD,
+    CONNECTIVITY_GUARD_RESET,
+} from '@iptvnator/shared/interfaces';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { StalkerSearchComponent } from './stalker-search.component';
 
@@ -289,6 +296,37 @@ describe('StalkerSearchComponent playback session key', () => {
 describe('StalkerSearchComponent result paging', () => {
     let component: StalkerSearchComponent;
     let dataService: { sendIpcEvent: jest.Mock };
+    let parentalLock: {
+        active: jest.Mock<boolean, []>;
+        version: ReturnType<typeof signal<number>>;
+        lockedStalkerIds: jest.Mock<string[], [string, string]>;
+    };
+    let stalkerStoreMock: {
+        selectedItem: ReturnType<typeof signal<unknown>>;
+        setSelectedContentType: jest.Mock;
+        setSelectedItem: jest.Mock;
+        addToFavorites: jest.Mock;
+        removeFromFavorites: jest.Mock;
+        resolveVodPlayback: jest.Mock;
+    };
+
+    async function flush(): Promise<void> {
+        TestBed.flushEffects();
+        await Promise.resolve();
+        await Promise.resolve();
+        TestBed.flushEffects();
+        await Promise.resolve();
+    }
+
+    async function waitFor(predicate: () => boolean, attempts = 40) {
+        for (let index = 0; index < attempts; index += 1) {
+            if (predicate()) {
+                return;
+            }
+            await flush();
+        }
+        throw new Error('Timed out waiting for the search resource');
+    }
     const activePlaylist = signal({
         _id: 'playlist|one',
         title: 'Search portal',
@@ -306,6 +344,21 @@ describe('StalkerSearchComponent result paging', () => {
     beforeEach(() => {
         dataService = {
             sendIpcEvent: jest.fn().mockResolvedValue({ success: true }),
+        };
+        parentalLock = {
+            active: jest.fn(() => false),
+            version: signal(0),
+            lockedStalkerIds: jest.fn(
+                (_playlistId: string, _type: string): string[] => []
+            ),
+        };
+        stalkerStoreMock = {
+            selectedItem: signal(null),
+            setSelectedContentType: jest.fn(),
+            setSelectedItem: jest.fn(),
+            addToFavorites: jest.fn(),
+            removeFromFavorites: jest.fn(),
+            resolveVodPlayback: jest.fn(),
         };
         activePlaylist.set({
             _id: 'playlist|one',
@@ -336,17 +389,8 @@ describe('StalkerSearchComponent result paging', () => {
                     provide: PlaylistsService,
                     useValue: { getPortalFavorites: () => of([]) },
                 },
-                {
-                    provide: StalkerStore,
-                    useValue: {
-                        selectedItem: signal(null),
-                        setSelectedContentType: jest.fn(),
-                        setSelectedItem: jest.fn(),
-                        addToFavorites: jest.fn(),
-                        removeFromFavorites: jest.fn(),
-                        resolveVodPlayback: jest.fn(),
-                    },
-                },
+                { provide: StalkerStore, useValue: stalkerStoreMock },
+                { provide: ParentalLockService, useValue: parentalLock },
                 { provide: StalkerSessionService, useValue: {} },
                 { provide: StalkerPortalRepairService, useValue: {} },
                 {
@@ -385,12 +429,12 @@ describe('StalkerSearchComponent result paging', () => {
             ...searchItems('page1', 3),
             { id: 'shared', name: 'Shared item' },
         ];
-        component.applySearchPageSuccess(1, pageOne, 7);
+        component.paging.applySearchPageSuccess(1, pageOne, 7);
         expect(component.searchResults()).toHaveLength(4);
         expect(component.searchHasMore()).toBe(true);
 
         // The portal shifted `shared` between pages — it must not duplicate.
-        component.applySearchPageSuccess(
+        component.paging.applySearchPageSuccess(
             2,
             [...searchItems('page2', 2), { id: 'shared', name: 'Shared item' }],
             7
@@ -398,37 +442,136 @@ describe('StalkerSearchComponent result paging', () => {
         expect(component.searchResults()).toHaveLength(6);
         expect(component.searchHasMore()).toBe(true);
 
-        component.applySearchPageSuccess(3, searchItems('page3', 1), 7);
+        component.paging.applySearchPageSuccess(3, searchItems('page3', 1), 7);
         expect(component.searchResults()).toHaveLength(7);
         expect(component.searchHasMore()).toBe(false);
     });
 
+    it('advances past a page made only of parental-locked rows, but not past a repeated one', async () => {
+        component.paging.applySearchPageSuccess(1, searchItems('page1', 3), 10);
+        const pageBefore = component.paging.searchPage();
+
+        // Locked rows the list had not seen: schedule the next page.
+        component.paging.advancePastWithheldPage(pageBefore, 0, 2, () => true);
+        await flushMicrotasks();
+        expect(component.paging.searchPage()).toBe(pageBefore + 1);
+
+        // A page with visible rows, or one adding no new withheld ids, or a
+        // request that is no longer current: stay put.
+        component.paging.advancePastWithheldPage(
+            pageBefore + 1,
+            1,
+            2,
+            () => true
+        );
+        component.paging.advancePastWithheldPage(
+            pageBefore + 1,
+            0,
+            0,
+            () => true
+        );
+        component.paging.advancePastWithheldPage(
+            pageBefore + 1,
+            0,
+            2,
+            () => false
+        );
+        await flushMicrotasks();
+        expect(component.paging.searchPage()).toBe(pageBefore + 1);
+    });
+
+    it('drops withheld rows on screen at relock time, page 1 included', () => {
+        component.paging.applySearchPageSuccess(
+            1,
+            [
+                { id: 'news-1', name: 'News', category_id: '5' },
+                { id: 'adult-1', name: 'Adult', category_id: '9' },
+            ],
+            2
+        );
+        expect(component.searchResults()).toHaveLength(2);
+
+        component.paging.applyRelockToResults(new Set(['9']), 'vod');
+
+        expect(component.searchResults().map((item) => item.id)).toEqual([
+            'news-1',
+        ]);
+    });
+
+    it('closes an open detail whose genre became withheld on relock', () => {
+        component.selectItem({ id: 'adult-9', name: 'A', category_id: '9' });
+        expect(component.itemDetails()).not.toBeNull();
+
+        // Another genre locked: the detail stays.
+        component.closeWithheldDetail(new Set(['5']));
+        expect(component.itemDetails()).not.toBeNull();
+
+        component.closeWithheldDetail(new Set(['9']));
+        expect(component.itemDetails()).toBeNull();
+        expect(component.vodDetailsItem()).toBeNull();
+        expect(stalkerStoreMock.setSelectedItem).toHaveBeenLastCalledWith(null);
+    });
+
+    it('closes a genre-less detail on relock only in fail-closed mode', () => {
+        component.selectItem({ id: 'no-genre', name: 'N' });
+        expect(component.itemDetails()).not.toBeNull();
+
+        component.closeWithheldDetail(new Set(['9']));
+        expect(component.itemDetails()).not.toBeNull();
+
+        component.closeWithheldDetail(ALL_CATEGORIES_WITHHELD);
+        expect(component.itemDetails()).toBeNull();
+    });
+
+    it('keeps paging past a page whose rows were all withheld by the parental lock', () => {
+        component.paging.applySearchPageSuccess(1, searchItems('page1', 3), 10);
+        expect(component.searchHasMore()).toBe(true);
+
+        // The portal sent rows, every one of them locked: no visible growth,
+        // but not the end of the results either.
+        component.paging.applySearchPageSuccess(2, [], 10, true);
+        expect(component.searchResults()).toHaveLength(3);
+        expect(component.searchHasMore()).toBe(true);
+
+        // An actually empty page still ends it.
+        component.paging.applySearchPageSuccess(3, [], 10, false);
+        expect(component.searchHasMore()).toBe(false);
+    });
+
     it('stops paging when a total-backed append makes no progress', () => {
-        component.applySearchPageSuccess(1, searchItems('page1', 3), 10);
+        component.paging.applySearchPageSuccess(1, searchItems('page1', 3), 10);
         expect(component.searchHasMore()).toBe(true);
 
         // The portal repeats page 1 under a larger claimed total — dedupe
         // yields no growth, which must still end the paging loop.
-        component.applySearchPageSuccess(2, searchItems('page1', 3), 10);
+        component.paging.applySearchPageSuccess(2, searchItems('page1', 3), 10);
         expect(component.searchResults()).toHaveLength(3);
         expect(component.searchHasMore()).toBe(false);
     });
 
     it('stops paging without a total once pages stop making progress', () => {
-        component.applySearchPageSuccess(1, searchItems('page1', 3), undefined);
+        component.paging.applySearchPageSuccess(
+            1,
+            searchItems('page1', 3),
+            undefined
+        );
         expect(component.searchHasMore()).toBe(true);
 
         // The portal ignores paging and repeats the same page — dedupe
         // yields no growth, which must terminate the loop.
-        component.applySearchPageSuccess(2, searchItems('page1', 3), undefined);
+        component.paging.applySearchPageSuccess(
+            2,
+            searchItems('page1', 3),
+            undefined
+        );
         expect(component.searchHasMore()).toBe(false);
     });
 
     it('keeps accumulated pages on a failed append and retries the SAME page', async () => {
-        component.applySearchPageSuccess(1, searchItems('page1', 3), 6);
+        component.paging.applySearchPageSuccess(1, searchItems('page1', 3), 6);
         expect(component.searchHasMore()).toBe(true);
 
-        component.applySearchPageFailure(2);
+        component.paging.applySearchPageFailure(2);
         // The failed append kept page 1 on screen and flagged the error.
         expect(component.searchResults()).toHaveLength(3);
         expect(component.searchAppendError()).toBe(true);
@@ -437,16 +580,16 @@ describe('StalkerSearchComponent result paging', () => {
         // The real resource never settles in this template-less harness —
         // substitute a deterministic stand-in for the guard checks.
         const reload = jest.fn(() => true);
-        Object.defineProperty(component, 'searchResultsResource', {
+        Object.defineProperty(component.paging, 'searchResultsResource', {
             configurable: true,
             value: { isLoading: () => false, reload },
         });
 
         // The next near-end must RETRY page 2 (page stays put, the error is
         // consumed) instead of advancing to page 3 and skipping results.
-        const pageBefore = component.searchPage();
+        const pageBefore = component.paging.searchPage();
         component.loadMoreSearchResults();
-        expect(component.searchPage()).toBe(pageBefore);
+        expect(component.paging.searchPage()).toBe(pageBefore);
         // Cleared synchronously, so a second near-end cannot re-enter the retry
         // while the connectivity-guard reset is still in flight.
         expect(component.searchAppendError()).toBe(false);
@@ -463,15 +606,15 @@ describe('StalkerSearchComponent result paging', () => {
 
         // With the error cleared, the following near-end advances normally.
         component.loadMoreSearchResults();
-        expect(component.searchPage()).toBe(pageBefore + 1);
+        expect(component.paging.searchPage()).toBe(pageBefore + 1);
         expect(reload).toHaveBeenCalledTimes(1);
     });
 
     it("clears the previous query's results when a fresh search fails", () => {
-        component.applySearchPageSuccess(1, searchItems('matrix', 3), 3);
+        component.paging.applySearchPageSuccess(1, searchItems('matrix', 3), 3);
         expect(component.searchResults()).toHaveLength(3);
 
-        component.applySearchPageFailure(1);
+        component.paging.applySearchPageFailure(1);
 
         expect(component.searchResults()).toHaveLength(0);
         expect(component.searchHasMore()).toBe(false);
@@ -524,11 +667,15 @@ describe('StalkerSearchComponent result paging', () => {
         // The loader calls this on every no-portal early return (deleted or
         // malformed playlist on a reused route, short term) so the previous
         // portal's cards cannot keep rendering under the new context.
-        component.applySearchPageSuccess(1, searchItems('portalA', 3), 6);
-        component.applySearchPageFailure(2);
+        component.paging.applySearchPageSuccess(
+            1,
+            searchItems('portalA', 3),
+            6
+        );
+        component.paging.applySearchPageFailure(2);
         expect(component.searchResults()).toHaveLength(3);
 
-        component.resetSearchAccumulator();
+        component.paging.resetSearchAccumulator();
 
         expect(component.searchResults()).toHaveLength(0);
         expect(component.searchHasMore()).toBe(false);
@@ -539,13 +686,17 @@ describe('StalkerSearchComponent result paging', () => {
         // Regression: /stalker/A/search -> /stalker/B/search reuses the
         // component; a surviving page number would append portal B's later
         // page onto portal A's results and skip B's first page.
-        Object.defineProperty(component, 'searchResultsResource', {
+        Object.defineProperty(component.paging, 'searchResultsResource', {
             configurable: true,
             value: { isLoading: () => false, reload: jest.fn(() => true) },
         });
-        component.applySearchPageSuccess(1, searchItems('portalA', 3), 6);
+        component.paging.applySearchPageSuccess(
+            1,
+            searchItems('portalA', 3),
+            6
+        );
         component.loadMoreSearchResults();
-        expect(component.searchPage()).toBe(2);
+        expect(component.paging.searchPage()).toBe(2);
 
         activePlaylist.set({
             _id: 'playlist|two',
@@ -554,7 +705,7 @@ describe('StalkerSearchComponent result paging', () => {
             macAddress: '00:1A:79:00:00:02',
         });
 
-        expect(component.searchPage()).toBe(1);
+        expect(component.paging.searchPage()).toBe(1);
         expect(component.searchScrollResetKey()).toContain('playlist|two');
     });
 });

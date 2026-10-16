@@ -122,7 +122,9 @@ unauthenticated content, so it should not be reachable from other hosts by
 accident. Set `HOST=0.0.0.0` explicitly to expose it, which is what you need
 when driving the mock from a phone, an STB, a container, or another machine.
 Control mode additionally *rejects* an explicitly configured non-loopback host. The Nx serve targets do not pin `PORT`, so an explicit shell
-value reaches the parser; its no-value default remains `3211`.
+value reaches the parser; without one it falls back to `XTREAM_MOCK_PORT` (the
+client-side knob Playwright and the specs read, so one variable relocates the
+mock and the tests together) and then to `3211`.
 
 Use a dedicated port rather than the normal `3211` E2E server:
 
@@ -399,9 +401,11 @@ sometimes only respond to that misspelled action.
 | `series:series`           | 2002  | live:3, vod:4, series:15   | 30        | active         |
 | `minimal:minimal`         | 3003  | 2 each                     | 5         | active         |
 | `epg:epg`                 | 6006  | live:2, vod:1, series:1    | 3         | active         |
+| `epglong:epglong`         | 6006  | live:2, vod:1, series:1    | 3         | active         |
 | `tzoffset:tzoffset`       | 6006  | live:2, vod:1, series:1    | 3         | active         |
 | `emptyvod:emptyvod`       | 7007  | 2 each                     | 5         | active         |
 | `marketing:marketing`     | 8020  | live:4, vod:4, series:4    | curated   | active         |
+| `streamdrop:streamdrop`   | 8181  | series:1                   | 1         | active         |
 | `expired:expired`         | 4004  | 4 each                     | 10        | Expired        |
 | `inactive:inactive`       | 5005  | 4 each                     | 10        | Disabled       |
 | `<any other>`             | hash  | 6 each                     | 30        | active         |
@@ -418,6 +422,23 @@ This scenario is reserved for Xtream EPG tests:
 That deliberate mismatch lets Electron tests verify the renderer uses timestamp
 fields for sorting, current-program selection, progress bars, and local clock
 labels instead of trusting provider-local strings.
+
+Timeshift URLs of `epg` and `epglong` play the local MPEG-TS clip
+(`src/fixtures/live.mpegts`). `epglong:epglong` is the same fixture with
+`LONG_PROGRAMME_TITLE`, a 120-character title, on the past programme, for
+the catch-up seek bar's label bounds; `epg:epg` keeps its short titles,
+which other tests assert verbatim.
+
+### `streamdrop:streamdrop` fixture details
+
+Its three episodes play the local 60 s Matroska clip
+(`src/fixtures/episode.mkv`, generation command in the fixtures README) with
+byte ranges, but `dropping-episode.ts` cuts the first response that reaches
+35 % of the file and answers 403 for the next 4 s, so ffmpeg's own HTTP
+reconnect fails and mpv reports EOF mid-episode. `POST /reset` re-arms the
+drop. The Electron E2E `embedded-mpv-series-stream-drop.e2e.ts` uses it to
+check that Embedded MPV resumes the episode instead of autoplaying the next
+one (issue #1902).
 
 ### `marketing:marketing` fixture details
 
@@ -548,12 +569,62 @@ The mock server is listed as a third `webServer` entry:
 
 ```typescript
 {
-  command: 'pnpm nx run xtream-mock-server:serve',
-  url: 'http://localhost:3211/health',
+  command: 'node --import tsx apps/xtream-mock-server/src/main.ts',
+  env: {
+    NODE_ENV: 'development',
+    TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+  },
+  url: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}/health`,
   reuseExistingServer: !process.env['CI'],
   cwd: workspaceRoot,
 }
 ```
+
+Every mock-server `webServer` entry uses this launch form, never
+`pnpm nx run …:serve`. The web and Electron E2E configs
+(`apps/web-e2e/playwright.config.ts`,
+`apps/electron-backend-e2e/playwright.config.ts`) start both the Stalker and
+the Xtream mock. The journeys and Xtream benchmark configs start only the
+Xtream mock, on their own loopback ports. The packaged and other performance
+configs start no mock.
+Playwright stops a `webServer` by sending `SIGKILL` to the process group it
+spawned (`taskkill /T /F` on Windows), and Nx `run-commands` starts its command
+in a detached process group of its own. The kill therefore reached only
+`pnpm`/`nx`, and the `tsx` server was reparented and kept the port, which made
+the next run fail with "…/health is already used" or, with
+`reuseExistingServer`, silently reuse a stale server. `node --import tsx` keeps
+the server a single process in Playwright's group. `TSX_TSCONFIG_PATH` stands in
+for the serve target's `--tsconfig` flag and is required for the `@iptvnator/*`
+path aliases. `project-config.spec.ts` pins which configs start which mock,
+and fails if any of them launches a mock through Nx or a new config starts one
+without being listed there. The `serve` targets remain the entry point
+for starting a mock by hand, and no E2E target may depend on them: with no
+Nx-launched server, `@nx/playwright` infers the atomized `e2e-ci--*` targets
+as non-parallel, and Nx refuses to run a non-parallel task that depends on a
+continuous `serve` task. The same spec guards the `e2e*` entries of `nx.json`
+`targetDefaults` and every target in the `apps/*-e2e` `project.json` files. The web-e2e `web-backend` entry uses the same
+launch form; see [PWA web backend](pwa-self-hosted.md#web-backend).
+
+Playwright, not Nx, starts every E2E server, including the web dev server.
+`@nx/playwright/plugin` infers a continuous `serve` dependency from a
+`pnpm nx run <project>:serve` webServer only while `reuseExistingServer` is
+true, which the configs set only when `CI` is unset. It also sets
+`parallelism: false` on a target when a webServer has an `env` or a plain
+`node` command, because no Nx task covers that server. Nx refuses to run a
+non-parallel task that depends on a continuous task, so the inferred
+`web-e2e:e2e` failed locally with "do not support parallelism but depend on
+continuous tasks" and passed only in CI. Therefore:
+
+- `apps/web-e2e/project.json` sets `e2e.dependsOn` to `[]`, and the filtered
+  `e2e-ci--src/*.e2e.ts` target default in `nx.json` does the same for the
+  per-file web targets. The per-file Electron targets depend only on
+  `electron-backend:build-e2e`.
+- The plugin runs with `waitForWebServer: false`, because no target consumes
+  its `e2e--wait-for-webserver` readiness task. Playwright's own URL probe
+  covers readiness.
+- `pnpm run e2e:task-graphs:validate` (`tools/nx/check-e2e-task-graphs.mjs`)
+  builds each Playwright target's task graph with Nx's own validation, once
+  with `CI` unset and once with it set.
 
 ### Request Interception
 

@@ -1,3 +1,5 @@
+import { WorkspaceDashboardRailsComponent } from './workspace-dashboard-rails.component';
+import type { GlobalRecentItem } from '@iptvnator/workspace/dashboard/data-access';
 import type { EpgProgram, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DEFAULT_DASHBOARD_RAILS_SETTINGS } from '@iptvnator/shared/interfaces';
 import {
@@ -6,16 +8,19 @@ import {
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
+    recentContentSkeletonLayout,
     shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
 } from './dashboard-rail.utils';
 import {
     buildDashboardLiveEpgDetails,
     buildLiveEpgCardsForEnabledRails,
-    buildLiveEpgLookupKeys,
+    buildLiveEpgLookupGroups,
     calcEpgProgress,
     formatEpgTimeRange,
     getLiveEpgProgramForCard,
+    liveEpgProgramKey,
+    liveEpgScopeKey,
 } from './dashboard-live-epg.utils';
 import {
     buildPlaybackPositionReloadKey,
@@ -144,7 +149,6 @@ describe('buildDashboardContinueWatchingActions', () => {
 
 describe('resolveDashboardHeroArtwork', () => {
     const item = {
-        title: 'Broken Hero',
         posterUrl: 'https://images.example.test/poster.jpg',
         backdropUrl: 'https://images.example.test/backdrop.jpg',
     };
@@ -171,7 +175,8 @@ describe('resolveDashboardHeroArtwork', () => {
         });
     });
 
-    it('uses generated fallback artwork when backdrop and poster both fail', () => {
+    // The stylesheet paints the no-artwork gradient from the slide's hue.
+    it('reports no artwork when backdrop and poster both fail', () => {
         const artwork = resolveDashboardHeroArtwork(item, {
             [item.backdropUrl]: true,
             [item.posterUrl]: true,
@@ -183,8 +188,6 @@ describe('resolveDashboardHeroArtwork', () => {
             posterUrl: undefined,
             backdropUrl: undefined,
         });
-        expect(artwork.fallbackBackdropBackground).toContain('linear-gradient');
-        expect(artwork.fallbackPosterBackground).toContain('linear-gradient');
     });
 });
 
@@ -287,6 +290,30 @@ describe('EPG enrichment helpers', () => {
                 nowPlayingProgress: 25,
             });
         });
+
+        it('adds the synopsis and category only when the guide has them', () => {
+            const now = START_S * 1000;
+
+            expect(
+                buildDashboardLiveEpgDetails(
+                    baseProgram({
+                        desc: '  Live from Moscow.  ',
+                        category: 'Sport',
+                    }),
+                    now
+                )
+            ).toMatchObject({
+                nowPlayingDescription: 'Live from Moscow.',
+                nowPlayingCategory: 'Sport',
+            });
+
+            const bare = buildDashboardLiveEpgDetails(
+                baseProgram({ desc: ' ', category: null }),
+                now
+            );
+            expect(bare).not.toHaveProperty('nowPlayingDescription');
+            expect(bare).not.toHaveProperty('nowPlayingCategory');
+        });
     });
 });
 
@@ -311,9 +338,15 @@ describe('Live rail helpers', () => {
         ...overrides,
     });
 
+    const guideA = ['https://a.example/guide.xml'];
+    const guideB = ['https://b.example/guide.xml'];
+    const scopeFor =
+        (byPlaylist: Record<string, string[]>) => (card: DashboardRailCard) =>
+            byPlaylist[card.epgPlaylistId ?? ''] ?? [];
+
     it('uses explicit EPG lookup keys before falling back to card titles', () => {
-        expect(
-            buildLiveEpgLookupKeys([
+        const groups = buildLiveEpgLookupGroups(
+            [
                 channelCard({
                     title: 'Das Erste HD',
                     epgLookupKey: 'ard.de',
@@ -327,8 +360,75 @@ describe('Live rail helpers', () => {
                     id: 'card-3',
                     title: 'Fallback News',
                 }),
-            ])
-        ).toEqual(['ard.de', 'Fallback News']);
+            ],
+            () => []
+        );
+
+        expect(groups).toHaveLength(2);
+        // 'ard.de' carries an explicit key, 'Fallback News' falls back to its
+        // title — different any-source eligibility, so different groups.
+        expect(groups[0].lookupKeys).toEqual(['ard.de']);
+        expect(groups[0].anySourceFallback).toBe(true);
+        expect(groups[1].lookupKeys).toEqual(['Fallback News']);
+        expect(groups[1].anySourceFallback).toBe(false);
+        expect(groups[0].sourceUrls).toEqual([]);
+    });
+
+    it('asks each XMLTV source scope separately and shares one lookup between playlists on the same guide', () => {
+        const groups = buildLiveEpgLookupGroups(
+            [
+                channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'a' }),
+                channelCard({
+                    id: 'card-2',
+                    epgLookupKey: 'ard.de',
+                    epgPlaylistId: 'b',
+                }),
+                // Same guide as playlist a: one question, shared answer.
+                channelCard({
+                    id: 'card-3',
+                    epgLookupKey: 'zdf.de',
+                    epgPlaylistId: 'a2',
+                }),
+                // No guide of its own: answered from Settings.
+                channelCard({
+                    id: 'card-4',
+                    epgLookupKey: 'cnn.us',
+                    epgPlaylistId: 'portal',
+                }),
+            ],
+            scopeFor({ a: guideA, a2: guideA, b: guideB })
+        );
+
+        expect(
+            groups.map((group) => [group.sourceUrls, group.lookupKeys])
+        ).toEqual([
+            [guideA, ['ard.de', 'zdf.de']],
+            [guideB, ['ard.de']],
+            [[], ['cnn.us']],
+        ]);
+    });
+
+    it('never widens a portal card to every guide: its key is only a title', () => {
+        const groups = buildLiveEpgLookupGroups(
+            [
+                // M3U: a real XMLTV key from the playlist.
+                channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'm3u' }),
+                // Xtream/Stalker: no key at all, so the title stands in.
+                channelCard({
+                    id: 'card-2',
+                    title: 'Das Erste HD',
+                    epgPlaylistId: 'portal',
+                }),
+            ],
+            () => []
+        );
+
+        expect(
+            groups.map((group) => [group.lookupKeys, group.anySourceFallback])
+        ).toEqual([
+            [['ard.de'], true],
+            [['Das Erste HD'], false],
+        ]);
     });
 
     it('reads EPG programs by explicit lookup key instead of display title', () => {
@@ -343,11 +443,63 @@ describe('Live rail helpers', () => {
             getLiveEpgProgramForCard(
                 card,
                 new Map<string, EpgProgram | null>([
-                    ['Das Erste HD', wrongProgram],
-                    ['ard.de', program],
-                ])
+                    [liveEpgProgramKey('', 'Das Erste HD'), wrongProgram],
+                    [liveEpgProgramKey('', 'ard.de'), program],
+                ]),
+                ''
             )
         ).toBe(program);
+    });
+
+    it('never hands a card the programme another playlist resolved for the same XMLTV id', () => {
+        // `ard.de` is unique inside a guide, not across imports.
+        const fromGuideA = { title: 'Guide A bulletin' } as EpgProgram;
+        const fromGuideB = { title: 'Guide B bulletin' } as EpgProgram;
+        const epgMap = new Map<string, EpgProgram | null>([
+            [
+                liveEpgProgramKey(liveEpgScopeKey(guideA, true), 'ard.de'),
+                fromGuideA,
+            ],
+            [
+                liveEpgProgramKey(liveEpgScopeKey(guideB, true), 'ard.de'),
+                fromGuideB,
+            ],
+        ]);
+
+        expect(
+            getLiveEpgProgramForCard(
+                channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'a' }),
+                epgMap,
+                liveEpgScopeKey(guideA, true)
+            )
+        ).toBe(fromGuideA);
+        expect(
+            getLiveEpgProgramForCard(
+                channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'b' }),
+                epgMap,
+                liveEpgScopeKey(guideB, true)
+            )
+        ).toBe(fromGuideB);
+        // A scope with no answer stays empty instead of borrowing one.
+        expect(
+            getLiveEpgProgramForCard(
+                channelCard({ epgLookupKey: 'ard.de' }),
+                epgMap,
+                ''
+            )
+        ).toBeNull();
+    });
+
+    it('treats the same URL set as one scope whatever its order or duplicates', () => {
+        expect(liveEpgScopeKey(['b', 'a'], true)).toBe(
+            liveEpgScopeKey(['a', 'b', 'a'], true)
+        );
+        expect(liveEpgScopeKey(['a'], true)).not.toBe(
+            liveEpgScopeKey(['a', 'b'], true)
+        );
+        // A portal card and a guide-less M3U card both resolve against
+        // Settings, but their answers must not be interchangeable.
+        expect(liveEpgScopeKey([], true)).not.toBe(liveEpgScopeKey([], false));
     });
 
     it('uses honest, semantically named title keys for favorite and recent live rails', () => {
@@ -417,29 +569,7 @@ describe('Live rail helpers', () => {
         expect(first).toBe('a::movie::10|b::series::20');
     });
 
-    it('omits hero cards from live EPG lookup sources when the hero rail is disabled', () => {
-        const hero = channelCard({ id: 'hero', epgLookupKey: 'hero' });
-        const favorite = channelCard({
-            id: 'favorite',
-            epgLookupKey: 'favorite',
-        });
-        const recent = channelCard({ id: 'recent', epgLookupKey: 'recent' });
-
-        expect(
-            buildLiveEpgCardsForEnabledRails(
-                {
-                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
-                    hero: false,
-                },
-                hero,
-                [favorite],
-                [recent]
-            ).map((card) => card.id)
-        ).toEqual(['favorite', 'recent']);
-    });
-
     it('omits disabled live rails from live EPG lookup sources', () => {
-        const hero = channelCard({ id: 'hero', epgLookupKey: 'hero' });
         const favorite = channelCard({
             id: 'favorite',
             epgLookupKey: 'favorite',
@@ -451,13 +581,22 @@ describe('Live rail helpers', () => {
                 {
                     ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
                     liveFavorites: false,
-                    recentlyWatchedLive: false,
                 },
-                hero,
                 [favorite],
                 [recent]
             ).map((card) => card.id)
-        ).toEqual(['hero']);
+        ).toEqual(['recent']);
+        expect(
+            buildLiveEpgCardsForEnabledRails(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    liveFavorites: false,
+                    recentlyWatchedLive: false,
+                },
+                [favorite],
+                [recent]
+            )
+        ).toEqual([]);
     });
 });
 
@@ -471,6 +610,7 @@ describe('recent content skeleton helper', () => {
                 },
                 {
                     continueWatchingCount: 0,
+                    continueWatchingLoading: true,
                     recentLiveCount: 0,
                     globalRecentLoading: true,
                 }
@@ -487,11 +627,38 @@ describe('recent content skeleton helper', () => {
                 },
                 {
                     continueWatchingCount: 0,
+                    continueWatchingLoading: true,
                     recentLiveCount: 0,
                     globalRecentLoading: true,
                 }
             )
         ).toBe(true);
+    });
+
+    it('keeps the Continue Watching skeleton while playback positions load after the history', () => {
+        const waitingForPositions = {
+            continueWatchingCount: 0,
+            continueWatchingLoading: true,
+            recentLiveCount: 0,
+            globalRecentLoading: false,
+        };
+
+        expect(
+            shouldShowRecentContentSkeleton(
+                DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                waitingForPositions
+            )
+        ).toBe(true);
+        // The live rail only waits for the history itself.
+        expect(
+            shouldShowRecentContentSkeleton(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    continueWatching: false,
+                },
+                waitingForPositions
+            )
+        ).toBe(false);
     });
 
     it('hides the loading skeleton when no enabled recent rail is waiting for data', () => {
@@ -504,6 +671,7 @@ describe('recent content skeleton helper', () => {
                 },
                 {
                     continueWatchingCount: 0,
+                    continueWatchingLoading: true,
                     recentLiveCount: 0,
                     globalRecentLoading: true,
                 }
@@ -513,10 +681,52 @@ describe('recent content skeleton helper', () => {
         expect(
             shouldShowRecentContentSkeleton(DEFAULT_DASHBOARD_RAILS_SETTINGS, {
                 continueWatchingCount: 1,
+                continueWatchingLoading: true,
                 recentLiveCount: 1,
                 globalRecentLoading: true,
             })
         ).toBe(false);
+
+        expect(
+            shouldShowRecentContentSkeleton(DEFAULT_DASHBOARD_RAILS_SETTINGS, {
+                continueWatchingCount: 0,
+                continueWatchingLoading: false,
+                recentLiveCount: 0,
+                globalRecentLoading: false,
+            })
+        ).toBe(false);
+    });
+
+    it('draws posters while Continue Watching is the rail still loading, channel cards otherwise', () => {
+        const loading = {
+            continueWatchingCount: 0,
+            continueWatchingLoading: true,
+            recentLiveCount: 0,
+            globalRecentLoading: true,
+        };
+
+        expect(
+            recentContentSkeletonLayout(
+                DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                loading
+            )
+        ).toBe('cover');
+        expect(
+            recentContentSkeletonLayout(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    continueWatching: false,
+                },
+                loading
+            )
+        ).toBe('channel');
+        // Continue Watching already shows cards; only the live history waits.
+        expect(
+            recentContentSkeletonLayout(DEFAULT_DASHBOARD_RAILS_SETTINGS, {
+                ...loading,
+                continueWatchingCount: 2,
+            })
+        ).toBe('channel');
     });
 });
 
@@ -667,4 +877,51 @@ describe('playback-position helpers', () => {
             });
         });
     });
+});
+
+describe('Recent rail availability projection', () => {
+    it.each(['missing', 'unknown'] as const)(
+        'preserves %s before EPG lookup and cached programme display',
+        (catalogStatus) => {
+            const component = Object.create(
+                WorkspaceDashboardRailsComponent.prototype
+            ) as {
+                data: object;
+                toRecentCard: (item: GlobalRecentItem) => DashboardRailCard;
+            };
+            component.data = {
+                getPlaybackPositionForItem: () => null,
+                getRecentItemLink: () => null,
+                getRecentItemDetailNavigationState: () => undefined,
+            };
+            const projected = component.toRecentCard({
+                id: 1,
+                title: 'Retained live',
+                type: 'live',
+                source: 'xtream',
+                playlist_id: 'p',
+                viewed_at: '2026-10-15',
+                epg_lookup_key: 'channel',
+                catalogStatus,
+            } as GlobalRecentItem);
+            expect(projected.catalogStatus).toBe(catalogStatus);
+            expect(
+                buildLiveEpgLookupGroups([projected], () => [
+                    'https://guide.invalid',
+                ])
+            ).toEqual([]);
+            expect(
+                getLiveEpgProgramForCard(
+                    projected,
+                    new Map([
+                        [
+                            liveEpgProgramKey('scope', 'channel'),
+                            { title: 'Cached show' } as EpgProgram,
+                        ],
+                    ]),
+                    'scope'
+                )
+            ).toBeNull();
+        }
+    );
 });

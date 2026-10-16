@@ -2,7 +2,6 @@ import { EpgArchiveDownloadService } from '@iptvnator/ui/epg';
 import { EpgArchiveCopyService } from '@iptvnator/ui/epg';
 import {
     Component,
-    Directive,
     input,
     output,
     signal,
@@ -19,7 +18,6 @@ import {
     LiveLayoutSidebarStateService,
     liveSidebarStateStorageKey,
     PORTAL_PLAYER,
-    ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import {
     ChannelListHiddenStateComponent,
@@ -94,9 +92,6 @@ class StubGridListComponent {
 })
 class StubPassiveComponent {}
 
-@Directive({ selector: '[appResizable]', standalone: true })
-class StubResizableDirective {}
-
 describe('LiveStreamLayoutComponent sidebar levels', () => {
     let fixture: ComponentFixture<LiveStreamLayoutComponent>;
     let service: LiveLayoutSidebarStateService;
@@ -125,6 +120,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         selectedItem: signal(null),
         currentPlaylist: signal({ _id: 'pl-1', title: 'Playlist' }),
         liveStreams: emptyList,
+        isContentInitialized: signal(true),
         selectItemsFromSelectedCategory: jest.fn(() => []),
         constructStreamUrl: jest.fn(() => ''),
         openPlayer: jest.fn(),
@@ -163,9 +159,6 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
                             queryParamMap: convertToParamMap({}),
                         },
                         queryParamMap: of(convertToParamMap({})),
-                        pathFromRoot: [
-                            { snapshot: { data: { layout: 'workspace' } } },
-                        ],
                     },
                 },
                 {
@@ -221,7 +214,6 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
                         EpgTimelineComponent,
                         GridListComponent,
                         PortalChannelsListComponent,
-                        ResizableDirective,
                         TranslatePipe,
                         WebPlayerViewComponent,
                     ],
@@ -232,7 +224,6 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
                         StubGridListComponent,
                         StubPassiveComponent,
                         StubPortalChannelsListComponent,
-                        StubResizableDirective,
                         MockPipe(TranslatePipe, (value: string) => value),
                     ],
                 },
@@ -324,7 +315,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
 
         service.hideCategories('portal');
         fixture.detectChanges();
-        await new Promise((resolve) => queueMicrotask(resolve));
+        await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
 
         expect(document.activeElement).toBe(
             query('[data-test-id="live-show-categories"]')
@@ -334,13 +325,13 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
     it('leaves focus alone when a control still owns it', async () => {
         fixture.detectChanges();
         const sort = query<HTMLButtonElement>(
-            '.sidebar-header [aria-label="Sort channels"]'
+            '.sidebar-header [aria-label="CHANNELS.SORT_CHANNELS"]'
         );
         sort?.focus();
 
         service.hideCategories('portal');
         fixture.detectChanges();
-        await new Promise((resolve) => queueMicrotask(resolve));
+        await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
 
         expect(document.activeElement).toBe(sort);
     });
@@ -352,13 +343,13 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
 
         service.collapse('portal');
         fixture.detectChanges();
-        await new Promise((resolve) => queueMicrotask(resolve));
+        await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
         expect(document.activeElement).toBe(query('.sidebar-restore'));
 
         // The handle is removed with the expand, so focus is lost again.
         service.expand('portal');
         fixture.detectChanges();
-        await new Promise((resolve) => queueMicrotask(resolve));
+        await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
         expect(document.activeElement).toBe(
             query('[data-test-id="live-show-categories"]')
         );
@@ -373,7 +364,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         // The category button the user activated is inert now: focus lost.
         selectedCategoryId.set(1);
         fixture.detectChanges();
-        await new Promise((resolve) => queueMicrotask(resolve));
+        await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
 
         expect(document.activeElement).toBe(
             query('[data-test-id="live-show-categories"]')

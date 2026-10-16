@@ -109,6 +109,7 @@ describe('workspace-portal-navigation', () => {
         expect(navigation).toEqual({
             link: ['/workspace', 'global-favorites'],
             state: {
+                collectionViewState: { scope: 'all' },
                 openCollectionDetailItem: {
                     item: expect.objectContaining({
                         uid: 'stalker::stalker-1::movie-7',
@@ -179,6 +180,7 @@ describe('workspace-portal-navigation', () => {
         expect(navigation).toEqual({
             link: ['/workspace', 'global-recent'],
             state: {
+                collectionViewState: { scope: 'all' },
                 openCollectionDetailItem: {
                     item: expect.objectContaining({
                         contentType: 'series',
@@ -256,6 +258,33 @@ describe('workspace-portal-navigation', () => {
                 uid: 'xtream::xtream-1::movie:55',
                 contentType: 'movie',
                 xtreamId: 55,
+            })
+        ).toBeUndefined();
+
+        // …except for a Stalker VOD row, which may be an embedded-VOD or
+        // lazy is_series show that routes as a movie; the detail decides.
+        expect(
+            readResume(validResume, {
+                uid: 'stalker::stalker-1::17572',
+                name: 'Fake (10 episodes)',
+                contentType: 'movie',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Portal',
+                stalkerId: '17572',
+                categoryId: '7',
+            })
+        ).toEqual(validResume);
+        expect(
+            readResume(validResume, {
+                uid: 'stalker::stalker-1::712',
+                name: 'Channel',
+                contentType: 'live',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Portal',
+                stalkerId: '712',
+                categoryId: 'itv',
             })
         ).toBeUndefined();
     });

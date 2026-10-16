@@ -167,27 +167,31 @@ describe('SettingsPlaybackSectionComponent', () => {
         }
     );
 
-    it('binds the shared web controls checkbox to the settings form', () => {
+    it('binds the shared web controls switch to the settings form', () => {
         const form = createForm();
         form.controls['webPlayerSharedControls'].setValue(true);
         fixture.componentRef.setInput('form', form);
         fixture.detectChanges();
 
-        const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>(
-            '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
+        const toggle = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector<HTMLButtonElement>(
+            '[data-test-id="web-player-shared-controls-toggle"] button[role="switch"]'
         );
 
-        expect(checkbox?.checked).toBe(true);
+        expect(toggle?.getAttribute('aria-checked')).toBe('true');
     });
 
-    it('labels the rendered native shared web controls checkbox', () => {
+    it('labels the rendered shared web controls switch', () => {
         fixture.detectChanges();
 
-        const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>(
-            '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
+        const toggle = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector<HTMLButtonElement>(
+            '[data-test-id="web-player-shared-controls-toggle"] button[role="switch"]'
         );
 
-        expect(checkbox?.getAttribute('aria-label')).toBe(
+        expect(toggle?.getAttribute('aria-label')).toBe(
             WEB_PLAYER_SHARED_CONTROLS_LABEL
         );
     });
@@ -348,9 +352,10 @@ describe('SettingsPlaybackSectionComponent', () => {
             'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL'
         );
         expect(
-            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
-                '#mpvPlayerArguments'
-            )?.placeholder
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLTextAreaElement>('#mpvPlayerArguments')
+                ?.placeholder
         ).toBe(MPV_ARGUMENTS_PLACEHOLDER);
     });
 
@@ -369,9 +374,10 @@ describe('SettingsPlaybackSectionComponent', () => {
             'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL'
         );
         expect(
-            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
-                '#vlcPlayerArguments'
-            )?.placeholder
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLTextAreaElement>('#vlcPlayerArguments')
+                ?.placeholder
         ).toBe(VLC_ARGUMENTS_PLACEHOLDER);
     });
 
@@ -405,6 +411,20 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).not.toBeNull();
     });
 
+    it('offers the up next card toggle for Embedded MPV only under the frame-copy engine', () => {
+        // The native-view engine never mounts the shared controls.
+        fixture.componentRef.setInput(
+            'form',
+            createForm(VideoPlayer.EmbeddedMpv)
+        );
+        fixture.detectChanges();
+        expect(queryByTestId('player-up-next-card-setting')).toBeNull();
+
+        fixture.componentRef.setInput('frameCopyActive', true);
+        fixture.detectChanges();
+        expect(queryByTestId('player-up-next-card-setting')).not.toBeNull();
+    });
+
     it('hides the fullscreen channel panel toggle for a web player on the legacy vendor chrome', () => {
         // The vendor chrome fullscreens the engine's own element, outside
         // which the panel cannot render, so the toggle would do nothing.
@@ -414,6 +434,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.detectChanges();
 
         expect(queryByTestId('fullscreen-channel-panel-setting')).toBeNull();
+        expect(queryByTestId('player-up-next-card-setting')).toBeNull();
     });
 
     it.each([VideoPlayer.MPV, VideoPlayer.VLC])(
@@ -436,7 +457,10 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         player: new FormControl(player),
         webPlayerSharedControls: new FormControl(false),
         playerAmbientMode: new FormControl(false),
+        detailTrailerBackdrop: new FormControl(false),
+        showCaptions: new FormControl(false),
         playerUpNextRail: new FormControl(true),
+        playerUpNextCard: new FormControl(true),
         fullscreenChannelPanel: new FormControl(true),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),

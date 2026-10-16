@@ -1,3 +1,5 @@
+import { TestBed } from '@angular/core/testing';
+import { ParentalLockService } from '@iptvnator/services';
 import {
     credentials,
     ElectronXtreamDataSourceHarness,
@@ -21,6 +23,7 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
         type: 'live' as const,
         xtream_id: 10,
         hidden: false,
+        locked: false,
     };
     const dbContentItem = {
         id: 1,
@@ -31,6 +34,48 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
 
     beforeEach(() => {
         harness = setupElectronXtreamDataSource();
+    });
+
+    describe('withholding everything', () => {
+        it('serves no categories, content or search hits while the lock store withholds everything', async () => {
+            const parentalLock = TestBed.inject(ParentalLockService);
+            Object.defineProperty(parentalLock, 'withholdsEverything', {
+                configurable: true,
+                value: () => true,
+            });
+            harness.dbService.getXtreamImportStatus.mockResolvedValue(
+                'completed'
+            );
+            harness.dbService.getXtreamCategories.mockResolvedValue([
+                dbCategory,
+            ]);
+            harness.dbService.getXtreamContent.mockResolvedValue([
+                dbContentItem,
+            ]);
+
+            await expect(
+                harness.dataSource.getCategories(
+                    playlistId,
+                    credentials,
+                    'live'
+                )
+            ).resolves.toEqual([]);
+            await expect(
+                harness.dataSource.getContent(playlistId, credentials, 'live')
+            ).resolves.toEqual([]);
+            await expect(
+                harness.dataSource.searchContent(playlistId, 'news', ['live'])
+            ).resolves.toEqual([]);
+            await expect(
+                harness.dataSource.getCachedCategories(playlistId, 'live')
+            ).resolves.toEqual([]);
+            await expect(
+                harness.dataSource.getCachedContent(playlistId, 'live')
+            ).resolves.toEqual([]);
+            expect(
+                harness.dbService.getXtreamCategories
+            ).not.toHaveBeenCalled();
+        });
     });
 
     describe('getCategories', () => {
@@ -54,6 +99,26 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
                 playlistId,
                 'live'
             );
+        });
+
+        it('keeps a complete cache whose every category the parental lock withholds', async () => {
+            // The filtered read returns nothing, but rows exist: refetching
+            // from the provider would be wasted work and, for content, a
+            // full re-import.
+            harness.dbService.getXtreamImportStatus.mockResolvedValue(
+                'completed'
+            );
+            harness.dbService.getXtreamCategories.mockResolvedValue([]);
+            harness.dbService.hasXtreamCategories.mockResolvedValue(true);
+
+            const result = await harness.dataSource.getCategories(
+                playlistId,
+                credentials,
+                'live'
+            );
+
+            expect(result).toEqual([]);
+            expect(harness.apiService.getCategories).not.toHaveBeenCalled();
         });
 
         it('fetches from the API and caches to DB when the cache is cold', async () => {
@@ -84,7 +149,9 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
                 playlistId,
                 remoteCategories,
                 'movies',
-                undefined
+                undefined,
+                // Parental lock: no locks stored for the playlist.
+                []
             );
             expect(result).toEqual([dbCategory]);
             expect(onPhaseChange.mock.calls).toEqual([
@@ -174,7 +241,8 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
                 playlistId,
                 expect.any(Array),
                 'live',
-                [5]
+                [5],
+                []
             );
         });
 
@@ -207,7 +275,11 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
                 .mockResolvedValueOnce([]);
 
             await expect(
-                harness.dataSource.getCategories(playlistId, credentials, 'live')
+                harness.dataSource.getCategories(
+                    playlistId,
+                    credentials,
+                    'live'
+                )
             ).rejects.toThrow('portal unreachable');
 
             await harness.dataSource.getCategories(

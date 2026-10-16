@@ -8,6 +8,7 @@ import {
     tmdbSearchLanguageForTitle,
 } from './tmdb-config';
 import {
+    SearchTitleVariant,
     buildBadProviderIdLookupKey,
     buildSearchLookupKey,
     buildSearchTitleVariants,
@@ -37,7 +38,12 @@ export class TmdbIdResolverService {
 
     /**
      * Resolve a title/year to a TMDB id via /search with the confidence
-     * gate. Both hits and misses are cached; misses use a shorter TTL.
+     * gate. Every attempted variant is cached under its own key — hits for
+     * 30 days, misses for 7 — because a verdict belongs to the search that
+     * produced it, not to the item that asked: two items sharing an
+     * original title but not a display title walk different variant lists,
+     * and a row keyed on the first variant alone would hand the second item
+     * the first one's answer, or its cached miss.
      */
     async resolveBySearch(
         mediaType: TmdbMediaType,
@@ -49,22 +55,39 @@ export class TmdbIdResolverService {
             query.title,
             query.originalTitle
         );
-        if (variants.length === 0) {
-            return null;
+        const year = query.year ?? extractYear(null, query.title);
+
+        for (const variant of variants) {
+            const resolved = await this.resolveVariant(
+                mediaType,
+                variant,
+                year
+            );
+            if (resolved !== null) {
+                return resolved;
+            }
         }
 
-        const year = query.year ?? extractYear(null, query.title);
-        const cacheLanguage = tmdbSearchLanguageForTitle(
-            variants[0],
+        return null;
+    }
+
+    /** One variant's cached or freshly searched verdict; null on a miss. */
+    private async resolveVariant(
+        mediaType: TmdbMediaType,
+        variant: SearchTitleVariant,
+        year: number | null
+    ): Promise<number | null> {
+        // Cyrillic (and other non-app-script) titles search in their own
+        // language so TMDB returns comparable titles — see
+        // tmdbSearchLanguageForTitle. The cache row carries the same
+        // language, since the answer depends on it.
+        const language = tmdbSearchLanguageForTitle(
+            variant.normalized,
             this.runtime.appLanguage()
         );
-        const lookupKey = buildSearchLookupKey(variants[0], year);
+        const lookupKey = buildSearchLookupKey(variant.query, year);
 
-        const cached = await this.cache.get(
-            mediaType,
-            lookupKey,
-            cacheLanguage
-        );
+        const cached = await this.cache.get(mediaType, lookupKey, language);
         const ttl =
             cached?.tmdbId !== null && cached?.tmdbId !== undefined
                 ? TMDB_MATCH_CACHE_TTL_MS
@@ -73,46 +96,36 @@ export class TmdbIdResolverService {
             return cached?.tmdbId ?? null;
         }
 
-        let match = null;
-        for (const variant of variants) {
-            // Cyrillic (and other non-app-script) titles search in their
-            // own language so TMDB returns comparable titles — see
-            // tmdbSearchLanguageForTitle. Search by title only: TMDB's
-            // year params filter strictly; the ±1/season tolerance lives
-            // in pickConfidentMatch instead.
-            const language = tmdbSearchLanguageForTitle(
-                variant,
-                this.runtime.appLanguage()
-            );
-            const results =
-                mediaType === 'movie'
-                    ? await this.api.searchMovie(
-                          variant,
-                          null,
-                          language,
-                          this.runtime.apiKey()
-                      )
-                    : await this.api.searchTv(
-                          variant,
-                          null,
-                          language,
-                          this.runtime.apiKey()
-                      );
+        // Search by title only: TMDB's year params filter strictly; the
+        // ±1/season tolerance lives in pickConfidentMatch instead. The wire
+        // query is the provider's own spelling (`variant.query`), never the
+        // folded comparison key: TMDB does not fold Cyrillic "й" the way
+        // the key does, and a folded query finds nothing.
+        const results =
+            mediaType === 'movie'
+                ? await this.api.searchMovie(
+                      variant.query,
+                      null,
+                      language,
+                      this.runtime.apiKey()
+                  )
+                : await this.api.searchTv(
+                      variant.query,
+                      null,
+                      language,
+                      this.runtime.apiKey()
+                  );
 
-            match = pickConfidentMatch(
-                results,
-                { title: variant, year },
-                mediaType
-            );
-            if (match) {
-                break;
-            }
-        }
+        const match = pickConfidentMatch(
+            results,
+            { title: variant.normalized, year },
+            mediaType
+        );
 
         await this.cache.set({
             mediaType,
             lookupKey,
-            language: cacheLanguage,
+            language,
             tmdbId: match?.id ?? null,
             payload: null,
         });

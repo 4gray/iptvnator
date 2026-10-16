@@ -94,6 +94,21 @@ export function reportGuardedHostSuccess(token: HostRequestToken | null): void {
         getHostConnectivityGuard().reportSuccess(token);
     }
 }
+
+/**
+ * The endpoint accepted the TCP connection for this request — reachability
+ * evidence, reported the moment it happens (from the transport's `onConnect`
+ * hook), never deferred to the request's outcome. A request that connects and
+ * then hangs for 30 s must not, when it finally times out, clear failures
+ * that later requests recorded in between: those are newer evidence.
+ */
+export function reportGuardedHostConnected(
+    token: HostRequestToken | null
+): void {
+    if (token && currentTokens.has(token)) {
+        getHostConnectivityGuard().reportConnected(token);
+    }
+}
 /**
  * Records what a failed request proved about its endpoint.
  *
@@ -101,11 +116,22 @@ export function reportGuardedHostSuccess(token: HostRequestToken | null): void {
  * discovery): their failures are expected and must not count, but an error that
  * still carries an HTTP response proves the origin answered, and dropping that
  * is what would let the breaker open in the middle of discovery.
+ *
+ * `connected` is the transport's word that the endpoint accepted the TCP
+ * connection (`ValidatedAxiosRequestConfig.onConnect`). A timeout after that
+ * is a slow panel, not a dead one, and does not count; the connection itself
+ * was already credited by `reportGuardedHostConnected` when it happened —
+ * see `classifyHostRequestFailure`. Redirect attribution is checked first so
+ * an exempt probe's redirect evidence is not lost behind the exemption.
  */
 export function reportGuardedHostFailure(
     token: HostRequestToken | null,
     error: unknown,
-    options: { countFailures?: boolean; requestUrl?: string } = {}
+    options: {
+        countFailures?: boolean;
+        requestUrl?: string;
+        connected?: boolean;
+    } = {}
 ): void {
     if (!token || !currentTokens.has(token)) {
         return;
@@ -113,22 +139,27 @@ export function reportGuardedHostFailure(
 
     const guard = getHostConnectivityGuard();
     const countFailures = options.countFailures ?? true;
-    switch (classifyHostRequestFailure(error)) {
-        case 'host-level': {
-            if (!countFailures) {
-                break;
-            }
+    if (
+        countFailures &&
+        classifyHostRequestFailure(error) === 'host-level' &&
+        failedAfterRedirect(error, token, options.requestUrl)
+    ) {
+        // The guarded endpoint answered with a redirect, so this clears its
+        // record like any other response rather than merely declining to
+        // count the downstream failure. The failing hop is not guarded (it
+        // has no token of its own), so such a chain keeps costing a full
+        // timeout — a documented gap.
+        guard.reportSuccess(token);
+        return;
+    }
 
-            if (failedAfterRedirect(error, token, options.requestUrl)) {
-                // The guarded endpoint answered with a redirect, so this clears
-                // its record like any other response rather than merely
-                // declining to count the downstream failure. The failing hop is
-                // not guarded (it has no token of its own), so such a chain
-                // keeps costing a full timeout — a documented gap.
-                guard.reportSuccess(token);
-                break;
+    switch (
+        classifyHostRequestFailure(error, { connected: options.connected })
+    ) {
+        case 'host-level': {
+            if (countFailures) {
+                guard.reportFailure(token);
             }
-            guard.reportFailure(token);
             break;
         }
         case 'responded':

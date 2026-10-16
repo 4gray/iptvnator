@@ -18,9 +18,10 @@ import {
     installEmbeddedMpvSessionCapture,
     installFrameCanvasAndSessionCapture,
     isMeaningfulNativePlaybackSnapshot,
-    renderedFrameSignal,
     type LocalMediaServer,
+    alsoClosing,
 } from './embedded-mpv-frame-copy-packaged-fixtures';
+import { expectRenderedFrame } from './embedded-mpv-frame-copy-packaged-diagnostics';
 import {
     createDisposablePackagedLinuxApp,
     createPackagedEntryGuard,
@@ -120,18 +121,21 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 });
 
             await installFrameCanvasAndSessionCapture(launchedFrameCopyApp);
+            const mpvLogPath = join(dataDir, 'mpv-frame-copy.log');
             const created = await launchedFrameCopyApp.mainWindow.evaluate(
-                async () => {
-                    // Decode audio without requiring a sound device on CI.
+                async (logFile) => {
+                    // Decode audio without requiring a sound device on CI;
+                    // keep mpv's verbose log for failure diagnostics.
                     await window.electron.updateSettings({
-                        embeddedMpvExtraOptions: 'ao=null',
+                        embeddedMpvExtraOptions: `ao=null\nlog-file=${logFile}`,
                     });
                     return window.electron.createEmbeddedMpvSession(
                         { x: 0, y: 0, width: 320, height: 180 },
                         'Packaged frame-copy smoke',
                         0
                     );
-                }
+                },
+                mpvLogPath
             );
 
             await launchedFrameCopyApp.mainWindow.evaluate(
@@ -179,11 +183,12 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     'packaged-embedded-mpv-frame'
                 )
             ).toHaveAttribute('height', '180');
-            await expect
-                .poll(() => renderedFrameSignal(launchedFrameCopyApp), {
-                    timeout: 15000,
-                })
-                .toBeGreaterThan(0);
+            await expectRenderedFrame(
+                launchedFrameCopyApp,
+                created.id,
+                15000,
+                mpvLogPath
+            );
 
             // Relative seek steps (arrow keys, ±10 s buttons) must reach mpv
             // as `seek <delta> relative+exact` through the real preload →
@@ -356,27 +361,24 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 resourcePath: '/stream-stats-switch.webm',
                 contentType: 'video/webm',
             });
-            media = {
-                url: mediaServer.url,
-                close: async () => {
-                    await Promise.all([
-                        mediaServer.close(),
-                        alternateMedia.close(),
-                    ]);
-                },
-            };
+            media = alsoClosing(mediaServer, alternateMedia);
+            const chapteredMedia = await createLocalMediaServer({
+                body: readFileSync(
+                    join(
+                        __dirname,
+                        '../../web-e2e/src/fixtures/playback/episode-chapters.webm'
+                    )
+                ),
+                resourcePath: '/chapters.webm',
+                contentType: 'video/webm',
+            });
+            media = alsoClosing(media, chapteredMedia);
             const audioMedia = await createLocalMediaServer({
                 body: createWavFixture(),
                 resourcePath: '/stream-stats-audio.wav',
                 contentType: 'audio/wav',
             });
-            const videoMedia = media;
-            media = {
-                url: videoMedia.url,
-                close: async () => {
-                    await Promise.all([videoMedia.close(), audioMedia.close()]);
-                },
-            };
+            media = alsoClosing(media, audioMedia);
             // mpv uses its built-in demuxer name "mkv" for WebM.
             for (const [streamUrl, videoCodec, container] of [
                 [alternateMedia.url, 'vp8', 'mkv'],
@@ -411,6 +413,33 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     });
             }
 
+            // mpv's `chapter-list` reaches the renderer session (it draws the
+            // timeline segments and times the Up next card), and the next
+            // file starts without the previous file's chapters.
+            await launchedFrameCopyApp.mainWindow.evaluate(
+                async ({ sessionId, streamUrl }) => {
+                    await window.electron.loadEmbeddedMpvPlayback(sessionId, {
+                        streamUrl,
+                        title: 'Chaptered episode',
+                        isLive: false,
+                    });
+                },
+                { sessionId: created.id, streamUrl: chapteredMedia.url }
+            );
+            await expect
+                .poll(
+                    () => getLatestSession(launchedFrameCopyApp, created.id),
+                    { timeout: 15000 }
+                )
+                .toMatchObject({
+                    streamUrl: chapteredMedia.url,
+                    chapters: [
+                        { timeSeconds: 0, title: 'Intro' },
+                        { timeSeconds: 5, title: 'Episode' },
+                        { timeSeconds: 24, title: 'Credits' },
+                    ],
+                });
+
             // Audio-only replacements must not retain the previous video size.
             await launchedFrameCopyApp.mainWindow.evaluate(
                 async ({ sessionId, streamUrl }) => {
@@ -429,6 +458,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 )
                 .toMatchObject({
                     streamUrl: audioMedia.url,
+                    chapters: [],
                     videoWidth: 0,
                     videoHeight: 0,
                     stats: {

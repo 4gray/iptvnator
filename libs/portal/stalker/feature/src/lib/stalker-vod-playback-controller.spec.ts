@@ -6,7 +6,10 @@ import type {
     PortalPlaybackPositions,
     PortalPlayer,
 } from '@iptvnator/portal/shared/util';
-import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import type {
+    PlaybackPositionData,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
 import { StalkerVodPlaybackController } from './stalker-vod-playback-controller';
 
 interface Deferred<T> {
@@ -38,7 +41,7 @@ function createPosition(
     };
 }
 
-function createController() {
+function createController(playbackOwnerKey?: () => string) {
     const inlinePlayback = signal(null);
     const selectedVodPosition = signal<PlaybackPositionData | null>(null);
     const playbackPositions = {
@@ -76,6 +79,7 @@ function createController() {
         translateService,
         logger,
         playbackErrorLogMessage: 'Playback failed',
+        playbackOwnerKey,
     });
 
     return {
@@ -117,13 +121,34 @@ describe('StalkerVodPlaybackController', () => {
         expect(selectedVodPosition()?.positionSeconds).toBe(20);
     });
 
+    it('does not hold a reopened movie with a start its earlier visit left pending', () => {
+        let owner = 'movie-a';
+        const { controller } = createController(() => owner);
+        const pending = controller.beginPendingStart();
+        expect(controller.playbackStartPending()).toBe(true);
+
+        // Back out of the movie while the portal request hangs, then
+        // reopen it: the new visit must be playable.
+        owner = '';
+        controller.retirePendingStart('movie-a');
+        owner = 'movie-a';
+        expect(controller.playbackStartPending()).toBe(false);
+        expect(pending.isCurrent()).toBe(true);
+
+        pending.settle();
+        expect(controller.playbackStartPending()).toBe(false);
+    });
+
     it('does not mount playback that resolves after the detail closes', async () => {
         const { controller, inlinePlayback } = createController();
-        const pending = createDeferred<{ streamUrl: string }>();
+        const pending = createDeferred<ResolvedPortalPlayback>();
         const playback = controller.startVodPlayback(() => pending.promise);
 
         controller.closeInlinePlayer();
-        pending.resolve({ streamUrl: 'https://stale.example/movie.mpg' });
+        pending.resolve({
+            streamUrl: 'https://stale.example/movie.mpg',
+            title: 'Stale movie',
+        });
         await playback;
 
         expect(inlinePlayback()).toBeNull();
@@ -131,14 +156,20 @@ describe('StalkerVodPlaybackController', () => {
 
     it('keeps the newest VOD request when resolutions finish out of order', async () => {
         const { controller, inlinePlayback } = createController();
-        const older = createDeferred<{ streamUrl: string }>();
-        const newer = createDeferred<{ streamUrl: string }>();
+        const older = createDeferred<ResolvedPortalPlayback>();
+        const newer = createDeferred<ResolvedPortalPlayback>();
         const olderRequest = controller.startVodPlayback(() => older.promise);
         const newerRequest = controller.startVodPlayback(() => newer.promise);
-        const newestPlayback = { streamUrl: 'https://new.example/movie.mpg' };
+        const newestPlayback = {
+            streamUrl: 'https://new.example/movie.mpg',
+            title: 'Newest movie',
+        };
 
         newer.resolve(newestPlayback);
-        older.resolve({ streamUrl: 'https://old.example/movie.mpg' });
+        older.resolve({
+            streamUrl: 'https://old.example/movie.mpg',
+            title: 'Old movie',
+        });
         await Promise.all([olderRequest, newerRequest]);
 
         expect(inlinePlayback()).toBe(newestPlayback);

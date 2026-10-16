@@ -605,6 +605,9 @@ channel-list-container/
   `setFavorites` action: doing so reads and rewrites the complete M3U payload
   again just to store favorites that already came from SQLite.
 - `ChannelListContainerComponent` now renders a dedicated skeleton state while `channelsLoading` is true.
+  Its headers and first row share the views' boxes
+  (`libs/ui/components/src/lib/styles/_channel-list-layout.scss`), so the list
+  does not move when the channels land.
 - `ChannelListContainerComponent` no longer clears `channels` on destroy; route/session code is the single owner of shared list lifecycle during navigation.
 - The dedicated `/workspace/playlists/:id/favorites` and `/workspace/playlists/:id/recent` collection routes do not drive the shared sidebar channel list; they default to the `playlist` scope so rail links always open the current playlist view, not the last persisted global scope.
 - M3U favorites and recent collection rows preserve their full `Channel` payload on unified live items so the shared live list can open the read-only channel details context menu without reconstructing partial channel data.
@@ -633,6 +636,19 @@ channel-list-container/
 - `PlaylistsService.updatePlaylistMeta()` persists `hiddenGroupTitles` into the
   stored playlist payload, and M3U refresh/update flows preserve the existing
   value when refreshed playlist data omits the field.
+- Electron loads the playlist store from `DB_GET_APP_PLAYLIST_METAS`, which
+  reads columns only, so `hiddenGroupTitles` is absent from the store after a
+  restart. `M3uWorkspaceRouteSession` copies it from the full playlist read into
+  the store (`updatePlaylistMeta` with `persist: false`) before publishing the
+  channels, unless the store value changed while that read was queued (#1894).
+  A restored or deep-linked route can finish that read before the startup
+  inventory, which waits for settings and EPG reconciliation, publishes the
+  playlist; the hydration then waits for the entity, since `updateOne` drops an
+  update for a missing one. The startup screen keeps the router outlet hidden
+  until that inventory is published, and the hydration runs in the same store
+  update, so the rail never renders a hidden group. A save's meta write joins
+  the per-playlist queue that `getPlaylist()` reads through, so a reopened
+  route reads the saved value.
 - The groups route keeps the manage action reachable even when every group is
   hidden by separating "playlist has no groups" from "no visible/search-matching
   groups" empty states.
@@ -981,7 +997,34 @@ These URLs are playlist-scoped by default:
   TTL expires.
 - Scoped lookups fall back only to Settings-managed EPG URLs for channels
   missing from the playlist-declared source. Playlist-local sources from other
-  playlists are not treated as global fallback sources. Single-channel current
+  playlists are not treated as global fallback sources. The one opt-out is
+  `EpgLookupOptions.anySourceFallback` (renderer-only, never forwarded to the
+  bridge): after the scope — playlist sources, then the global ones — has
+  answered, the keys still without a programme are retried once against every
+  imported source through the source-less batch path and its cache. The
+  ladder has the same shape with or without the bridge's batch endpoint: on
+  an older preload the scoped pass runs as per-channel scoped lookups
+  (`getScopedCurrentProgramForChannel`, same scope -> fallback-scope walk,
+  same scoped cache key) and only the any-source retry is source-less.
+  Collapsing that preload straight into the source-less lookup would drop
+  the caller's scope, which is what the scopes exist to prevent. The
+  dashboard live
+  rails pass the option: without it a favourite whose guide only exists in
+  another playlist's XMLTV showed no programme on the dashboard while its
+  "See all" row — resolved by `StreamResolverService`, which never scopes by
+  source — had one. They still ask **per source scope**, one lookup per
+  distinct set of playlist-declared XMLTV URLs, and namespace the answers by
+  that scope: a `tvg-id` is unique inside a guide, not across imports, so a
+  single flat map keyed by lookup key alone would hand one playlist's card
+  the programme another playlist's guide resolved for the same id. Playlists
+  sharing a guide share one lookup. Only a card that carries a real XMLTV key
+  is widened: an Xtream or Stalker card has none, so its lookup key is just
+  its display title, and searching every guide by title would let a
+  same-named M3U channel answer for a portal channel. Those cards keep the
+  strict scope (their own programmes come from the portal), and the
+  any-source flag is part of the scope identity so the two never share an
+  answer. Wiring: `DashboardLiveEpgPresenter` in
+  `libs/workspace/dashboard/feature/src/lib/rails/`. The channel list keeps the strict scope. Single-channel current
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
   source scope. Batch current-program lookups use the same source-scoped
@@ -1066,6 +1109,62 @@ These URLs are playlist-scoped by default:
 
 ## EPG Integration
 
+### Xtream channel-row programme refresh
+
+The "current programme" line under each Xtream Live TV channel used to be
+written only when a row scrolled into view, when an EPG result arrived, or
+when the display offset changed. Nothing re-evaluated it as wall-clock time
+passed, so once a programme ended the row stayed on it until the category was
+left and re-entered (#767).
+
+`PortalChannelsListComponent` re-checks the rows on screen once a minute. The
+rules, each of which exists to avoid a specific failure:
+
+- A programme still on air only has its **progress bar** advanced. No cache
+  read, no request: a row with nothing to learn must not cost traffic.
+- Once it ends the row is re-picked from the queue's cache, and only a
+  programme that is **on air or upcoming** may replace it. A finished
+  programme is never re-applied — it would keep presenting itself as current,
+  and the earliest-item fallback that fills a blank row on first paint would
+  move an advanced row *backwards*.
+- A cached guide whose programmes have **all** ended is dropped
+  (`EpgQueueService.invalidate`) and refetched, because the queue skips any
+  stream that still holds a cached answer. An **empty** answer means the
+  provider has no guide for that channel and is left alone; re-asking would
+  put one call per EPG-less visible row on the wire every minute.
+- What is on screen stays there until a replacement arrives, so a refreshing
+  row never blanks out.
+
+A programme occupies `[start, stop)` in every one of these comparisons, so
+"has it ended" and "what is on air" cannot disagree on the boundary instant.
+The selection rules are pure functions in
+`libs/portal/xtream/feature/src/lib/portal-channels-list/epg-preview-program.ts`
+and take an explicit `nowMs` in the PROVIDER's clock (`epgProviderClockMs`),
+never `Date.now()`.
+
+Two root-provided services exist because a live layout mounts the channel list
+more than once — the sidebar and the fullscreen channel panel render side by
+side — over one shared `EpgQueueService`:
+
+- `EpgRefillLimiter` is the floor on dropping an exhausted cache, the one
+  place that overrides the queue's own throttling. A provider whose guide has
+  genuinely run out answers the refill with the same finished programmes, so
+  without a floor the row would ask again on the very next tick. Records carry
+  the owning playlist, since a stream id is provider-local and the service
+  outlives a playlist switch, and they expire by age rather than by viewport
+  membership — a claim dropped when its row scrolled away would be handed back
+  the moment the user scrolled to it again.
+- `EpgRefreshCoordinator` owns the single timer and merges what every mounted
+  list needs into one queue request. `EpgQueueService.enqueue` is latest-wins:
+  it bumps one generation, replaces the queue and the visible set, and drops an
+  earlier caller's entries after its XMLTV await. Separate timers would cancel
+  each other whenever both lists had rows to fill, which is exactly what
+  happens on a programme boundary. Each list still decides for itself what is
+  stale (that reads only its own state) and contributes its whole visible
+  slice, since the queue drops anything outside the visible set it was last
+  handed; a channel both lists show is fetched once, and playlists stay apart
+  because their credentials differ.
+
 ### XMLTV response compression
 
 The Electron EPG worker decodes HTTP `Content-Encoding` layers in reverse
@@ -1083,6 +1182,11 @@ and stream backpressure. Invalid or truncated gzip fails the import; it is not
 retried as plain XML. Source errors and consumer cancellation terminate the
 whole decoding chain. The decoder does not recursively unpack file layers or
 change XML parsing, source reconciliation, or database persistence contracts.
+
+After all decompression stages, the parser worker uses a single UTF-8 stream
+decoder per import. It retains incomplete multibyte characters across chunks
+and flushes before finishing SAX parsing, preserving channel IDs and programme
+text in both remote and local feeds without buffering the whole guide.
 
 ### Local XMLTV files
 
@@ -1230,9 +1334,11 @@ class EpgService {
 - The unified favorites/recent live tab
   (`libs/portal/shared/ui/.../unified-collection/unified-live-tab.component.ts`)
   hosts the same timeline but does not use the NgRx playlist state; it keeps
-  its own `activeTimeshift` signal, resolves the replay URL with
-  `resolveM3uCatchupUrl`, and swaps the inline player's playback target (or
-  hands the URL to the configured external player). Selecting another channel,
+  its own `activeTimeshift` signal and hands it to
+  `createUnifiedLiveCatchup` (`unified-live-catchup.ts`), which resolves the
+  replay URL with `resolveM3uCatchupUrl` and swaps the inline player's
+  playback target (or hands the URL to the configured external player).
+  Selecting another channel,
   closing the player, or "Return to live" clears the override.
 - Catch-up activation is never silent: if the replay URL cannot be resolved
   for a programme the user clicked, both hosts surface a
@@ -1431,7 +1537,7 @@ does not change the saved player preference. Clear DASH needs this routing too.
   engine: lazy `import('shaka-player')` on first use (the module is a separate
   lazy chunk, ~217 KB transfer), `drm.clearKeys` configuration, an operation
   queue + generation guard against channel-switch races. The DOM-free Shaka
-  `5.2.4` public-error boundary lives in `libs/playback/util`; it version-locks
+  `5.2.12` public-error boundary lives in `libs/playback/util`; it version-locks
   its allowlisted
   severity/category/code values, emits only structured sanitized
   `PlaybackDiagnosticSource.Shaka` evidence, ignores recoverable error events,
@@ -1713,6 +1819,43 @@ Same-URL clears are serialized and replacement imports await the outstanding
 clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
 also awaits the in-flight fetch promise when an error/timeout has already removed
 the worker from the lookup but its termination is still pending.
+Clear All retires every import generation, including queued batches, pending
+freshness reads and local-file permission prompts. It gates new imports, stops
+writers and awaits their actual exit (including imports already settling after
+an error) before starting the database clear worker. Failed shutdown rejects the
+clear and remains retryable. A `CLEAR_COMPLETE` message confirms the database
+operation only: both global and source-clear IPC wait for confirmed worker
+shutdown before acknowledging success. If that shutdown fails, the clear rejects
+and the retained worker must stop successfully before a retry or import can start.
+Existing source clears finish before the global
+clear; later source clears and fetches wait behind it. Overlapping global clears
+share the same operation while retiring requests queued since the earlier call.
+A late local-file approval cannot restart a retired import or delay cache clearing.
+All imports share one admission queue across IPC requests and ordinary batches,
+including Refresh All's separate per-source requests. A worker keeps the slot until
+its import and termination settle; failures release the slot, while the strict
+shutdown barrier still prevents a new writer after an unconfirmed exit. Same-URL
+requests share their queued or active import. Local-file authorization happens
+before admission, so an open prompt holds no import slot. Each queued request
+retains its original generation: source cleanup and Clear All retire it before
+admission, without waiting for queued work or pending prompts to finish.
+Explicit Refresh bypasses both persisted 12-hour freshness and the session cache;
+normal background fetches retain those shortcuts. Refresh still shares an active
+same-source fetch and preserves trust options, local-file authorization and source
+retirement checks. Once that fetch has emitted completion or failure, a new
+Refresh waits for its worker shutdown and starts a replacement instead of reusing
+its terminal result. Concurrent retries share the replacement; a clear during
+shutdown retires it. Failed worker shutdown must succeed before another import
+can write, and a failed retry reports an error rather than leaving progress queued.
+Fetch admission checks shutdown after local-file authorization, immediately before
+creating the worker. Source clears apply the same strict shutdown barrier even
+when the previous import or clear has already settled. Both paths recheck after
+every wait, so a newly pending shutdown cannot be bypassed while another worker
+is stopping; generation retirement still cancels imports waiting at this barrier.
+Stopping an active import for source cleanup also enters the shared runtime
+shutdown registry. Imports of other sources therefore wait for that stop or fail
+if it cannot complete, while overlapping source/global clears share its promise.
+
 Every removed source emits generation-scoped cancellation before cleanup starts,
 including retained actionable errors whose workers have already finished. Retired
 queued/running imports also cancel their own generation. Retry waits for source
@@ -1758,6 +1901,15 @@ shared data access. Electron checks Xtream account info, Stalker account/profile
 facts through the existing session, and the first 64 KiB of M3U URL responses.
 An M3U success describes the playlist URL, not every channel. Local files and
 text imports have no network indicator. PWA retains its existing Xtream path.
+Lists read one status per source through `SourceStatusService`, which falls
+back to the last conclusive result kept by `SourceHealthHistoryService`
+(localStorage, by playlist ID: state, check time, the start of a failing
+run, the check's cause and a 32-bit fingerprint of the checked connection;
+no URL or credential). A result kept for an edited address or account is
+ignored, and the next check starts the history over. Deleting a source or
+resetting the library clears its entry. The Sources page keeps every
+library source checked while it is open (`keepSourcesChecked`), so a status
+filter never hides the sources it is waiting for. See the [UI guidelines](iptvnator-ui-guidelines.md#network-source-indicators-electron).
 
 Checks are demand-driven, never a startup readiness barrier: four at a time,
 two per origin, shared between surfaces. Known results remain visible during
@@ -1824,3 +1976,44 @@ deletes with follow-up cleanup warnings. The UI does not resurrect a deleted
 row after a cleanup failure. Downloaded files are not removed. The dialog's
 confirmation covers deletion of the source and associated favorites, history
 and playback positions; no deletion happens on merely opening the dialog.
+
+## Opening playlists from the operating system
+
+Electron only: a `.m3u`/`.m3u8` path passed
+on the command line, opened through a file association, or delivered by macOS'
+`open-file` event is normalized to an absolute path in the main process
+(`apps/electron-backend/src/app/services/playlist-open-request.ts`) and queued there. The renderer
+(`apps/web/src/app/services/playlist-open-request.service.ts`) subscribes to the
+`OPEN_FILE` push **before** calling `announcePlaylistOpenListener`, which is
+what makes the main process flush. `OPEN_FILE` is the only way out of the
+queue, and a request stays there until the renderer confirms receipt via
+`acknowledgePlaylistOpenRequest` — `webContents.send()` returns before the
+listener runs, and a reload or dead render process keeps the `WebContents`
+alive, so a successful push is not proof of delivery. Anything unacknowledged
+is replayed to the next renderer that announces itself. The renderer
+imports them on a single promise chain so a burst arrives in a deterministic
+order. `addPlaylist$` in `libs/m3u-state` uses `concatMap` (not `switchMap`)
+for the same reason: each action carries a different playlist, so a newer add
+must never cancel an older one's write, EPG fetch and navigation. The import
+itself reuses the normal file path
+(`updatePlaylistFromFilePath` → `PlaylistActions.addPlaylist`), so persistence,
+playlist-scoped EPG, and the navigation to the new playlist all behave exactly
+like a dialog import.
+
+The OS-level registration that makes those paths reachable is
+`fileAssociations` in `electron-builder.json` — one entry per extension, each
+with its own `mimeType`. Electron Builder derives all three platform
+registrations from it: macOS `CFBundleDocumentTypes` (which is what makes
+`open-file` fire from Finder), the NSIS registry entries, and, on Linux, the
+desktop entry's `MimeType` plus `/usr/share/mime/packages/iptvnator.xml` for
+deb/rpm/pacman. Two traps: it assigns the derived `MimeType` _after_ spreading
+`linux.desktop.entry`, so declaring `MimeType` there is silently overwritten and
+must not be used; and it appends `%U` to `Exec`, so Linux file managers hand
+over percent-encoded `file://` URIs rather than paths —
+`createPlaylistOpenRequest` decodes them before the extension check. `%U` is
+also the _plural_ exec code, so a multi-file selection arrives as one launch
+with one argument per file; `extractPlaylistOpenRequestsFromArgv` returns all
+of them and `enqueueAll` queues the batch, because stopping at the first match
+would silently drop the rest of the selection. Adding an exec code to
+`linux.executableArgs` would suppress the `%U` but also pass that code to the
+app as a real argument, so it is not an option.

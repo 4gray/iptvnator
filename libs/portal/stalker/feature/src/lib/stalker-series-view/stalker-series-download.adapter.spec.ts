@@ -31,7 +31,7 @@ const ITEM = {
         rating_imdb: '8.4',
         rating_kinopoisk: '8.0',
         tmdb_id: 88001,
-        tmdb_status: 'returning-series',
+        tmdb_status: 'returning',
     },
 } as const;
 
@@ -210,7 +210,7 @@ describe('createStalkerSeriesDownloadAdapter', () => {
             year: 2025,
             genres: ['Drama', 'Mystery'],
             rating: 8.4,
-            status: 'returning-series',
+            status: 'returning',
             posterUrl: SERIES_POSTER_URL,
             tmdbId: 88001,
             providerCategoryId: '18',

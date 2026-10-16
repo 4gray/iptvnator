@@ -110,6 +110,12 @@ const TestSelectionStore = signalStore(
                 title: 'Cosmos',
                 added: '6',
             },
+            {
+                xtream_id: 7,
+                category_id: '20',
+                title: 'İnşaat Belgeseli',
+                added: '7',
+            },
             ...bulkVodStreams,
         ],
         serialCategories: [
@@ -189,6 +195,21 @@ describe('withSelection', () => {
         const coveredCount = store.visibleCount();
         store.loadMoreContent();
         expect(store.visibleCount()).toBe(coveredCount);
+    });
+
+    it('matches the Turkish dotted capital İ from a lower-case search term (issue #609)', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(20);
+
+        store.setCategorySearchTerm('inş');
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'İnşaat Belgeseli',
+        ]);
+
+        store.setCategorySearchTerm('İNŞ');
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'İnşaat Belgeseli',
+        ]);
     });
 
     it('keeps the render window when the category search term is unchanged', () => {

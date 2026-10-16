@@ -15,14 +15,6 @@
     overflow-x: hidden;
 }
 
-.channel-context-menu-anchor {
-    position: fixed;
-    width: 0;
-    height: 0;
-    opacity: 0;
-    pointer-events: none;
-}
-
 .empty-favorites,
 .empty-favorites-hint {
     padding: 16px 24px;
@@ -32,7 +24,7 @@
 .empty-favorites {
     margin-top: 40px;
     font-size: 1.05rem;
-    font-weight: 520;
+    font-weight: 500;
     letter-spacing: -0.01em;
 }
 

@@ -239,7 +239,7 @@ describe('EmbeddedMpvControlsAdapter command/session ordering', () => {
             const successMessage =
                 operation === 'stop' ? `Saved to ${targetPath}` : null;
             const failureMessage = `Failed to ${operation} recording`;
-            const setRecording = (recording: RecordingState) =>
+            const setRecording = (recording: NonNullable<RecordingState>) =>
                 controller.session.set(session({ recording }));
             const originalCommand =
                 operation === 'start'

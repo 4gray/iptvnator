@@ -63,7 +63,8 @@ describe('ArtPlayerSourceSession caption preference without shared controls', ()
         const { session, player, video } = startHls(() => false);
         video.dispatchEvent(new Event('playing'));
 
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/second.m3u8',
             player
@@ -90,7 +91,8 @@ describe('ArtPlayerSourceSession caption preference without shared controls', ()
             showCaptions,
         });
         session.attach(player);
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/live.m3u8',
             player

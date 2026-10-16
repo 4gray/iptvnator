@@ -6,8 +6,8 @@ import {
 import { StalkerVodInfo, TmdbMediaType } from '@iptvnator/shared/interfaces';
 import { StalkerVodSource } from '../models';
 import {
+    firstNonBlankStalkerIdText,
     isStalkerSeriesItem,
-    normalizeStalkerEntityId,
 } from '../stalker-vod.utils';
 
 /**
@@ -52,14 +52,14 @@ export async function enrichStalkerSelectionWithTmdb(
         return;
     }
 
-    const itemId = normalizeStalkerEntityId(item.id ?? item.stream_id);
+    const itemId = firstNonBlankStalkerIdText(item.id, item.stream_id);
     const isCurrent = (): StalkerVodSource | null => {
         const current = store.selectedItem();
         if (!current) {
             return null;
         }
         const matches = itemId
-            ? normalizeStalkerEntityId(current.id ?? current.stream_id) ===
+            ? firstNonBlankStalkerIdText(current.id, current.stream_id) ===
               itemId
             : current === item;
         return matches ? current : null;

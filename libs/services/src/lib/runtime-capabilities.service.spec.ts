@@ -20,6 +20,16 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsPortalConnectivityGuard).toBe(false);
     });
 
+    it('offers the parental lock worker filter only with both bridge methods', () => {
+        const service = new RuntimeCapabilitiesService();
+        testWindow.electron = { setParentalLockState: jest.fn() };
+        expect(service.supportsParentalLockSqliteFilter).toBe(false);
+        testWindow.electron['dbSetCategoryLocks'] = jest.fn();
+        expect(service.supportsParentalLockSqliteFilter).toBe(true);
+        testWindow.electron = undefined;
+        expect(service.supportsParentalLockSqliteFilter).toBe(false);
+    });
+
     it('reports browser PWA capabilities when the Electron bridge is absent', () => {
         testWindow.electron = undefined;
 
@@ -77,6 +87,7 @@ describe('RuntimeCapabilitiesService', () => {
             dbRemoveRecentItem: jest.fn(),
             dbRemoveFavorite: jest.fn(),
             dbGetFavorites: jest.fn(),
+            dbGetFavoritesForBackup: jest.fn(),
             dbReorderGlobalFavorites: jest.fn(),
             dbGetRecentItems: jest.fn(),
             dbAddRecentItem: jest.fn(),
@@ -108,6 +119,8 @@ describe('RuntimeCapabilitiesService', () => {
             onPlaybackPositionUpdate: jest.fn(),
             dbDeleteXtreamContent: jest.fn(),
             dbRestoreXtreamUserData: jest.fn(),
+            dbRestoreXtreamFavorites: jest.fn(),
+            dbReplaceAllPlaybackPositions: jest.fn(),
             downloadsStart: jest.fn(),
             downloadsCancel: jest.fn(),
             downloadsPause: jest.fn(),
@@ -185,6 +198,13 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpgDataManagement).toBe(true);
         expect(service.supportsEpgGuide).toBe(true);
         expect(service.supportsEpgProgramSearch).toBe(true);
+        for (const method of ['dbGetPlaylist', 'dbRestoreXtreamFavorites']) {
+            const implementation = testWindow.electron[method];
+            delete testWindow.electron[method];
+            expect(service.supportsPortalActivityStorage).toBe(false);
+            testWindow.electron[method] = implementation;
+            expect(service.supportsPortalActivityStorage).toBe(true);
+        }
     });
 
     it('keeps feature-specific capabilities false when an Electron bridge is partial', () => {
@@ -303,6 +323,22 @@ describe('RuntimeCapabilitiesService', () => {
             toggleFullScreenWindow: jest.fn(),
         };
         expect(service.supportsStartupWindowMode).toBe(true);
+    });
+
+    it('offers window Back gestures only with their push subscription', () => {
+        const service = new RuntimeCapabilitiesService();
+
+        testWindow.electron = undefined;
+        expect(service.supportsWindowBackGestures).toBe(false);
+
+        // An Electron bridge without the subscription (an older preload)
+        // forwards no gestures.
+        testWindow.electron = { platform: 'darwin', minimizeWindow: jest.fn() };
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsWindowBackGestures).toBe(false);
+
+        testWindow.electron = { onWindowBackRequested: jest.fn() };
+        expect(service.supportsWindowBackGestures).toBe(true);
     });
 
     it('decouples external player launch support from path-setting support', () => {
@@ -584,6 +620,29 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSectionNavigation).toBe(true);
     });
 
+    it('requires the durable favorite backup reader in the Xtream SQLite contract', () => {
+        const bridge = createXtreamSqliteBridge();
+        testWindow.electron = bridge;
+        const service = new RuntimeCapabilitiesService();
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+        delete bridge['dbGetFavoritesForBackup'];
+        expect(service.supportsXtreamSqliteDataSource).toBe(false);
+        bridge['dbGetFavoritesForBackup'] = jest.fn();
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+    });
+
+    it('keeps Xtream SQLite and ordinary position storage when atomic restore is unavailable', () => {
+        const bridge = createXtreamSqliteBridge();
+        testWindow.electron = bridge;
+        const service = new RuntimeCapabilitiesService();
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+        delete bridge['dbReplaceAllPlaybackPositions'];
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+        expect(service.supportsPlaybackPositionStorage).toBe(true);
+        bridge['dbReplaceAllPlaybackPositions'] = jest.fn();
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+    });
+
     it('supports Xtream section navigation in Electron when only the SQLite data source is available', () => {
         testWindow.electron = createXtreamSqliteBridge();
 
@@ -627,6 +686,7 @@ function createXtreamSqliteBridge(): Record<string, jest.Mock> {
         dbGetContent: jest.fn(),
         dbGetContentByXtreamId: jest.fn(),
         dbGetFavorites: jest.fn(),
+        dbGetFavoritesForBackup: jest.fn(),
         dbGetPlaylist: jest.fn(),
         dbGetPlaybackPosition: jest.fn(),
         dbGetRecentItems: jest.fn(),
@@ -638,6 +698,8 @@ function createXtreamSqliteBridge(): Record<string, jest.Mock> {
         dbRemoveFavorite: jest.fn(),
         dbRemoveRecentItem: jest.fn(),
         dbRestoreXtreamUserData: jest.fn(),
+        dbRestoreXtreamFavorites: jest.fn(),
+        dbReplaceAllPlaybackPositions: jest.fn(),
         dbSaveCategories: jest.fn(),
         dbSaveContent: jest.fn(),
         dbSavePlaybackPosition: jest.fn(),

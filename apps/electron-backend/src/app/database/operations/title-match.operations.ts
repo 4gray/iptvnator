@@ -4,6 +4,7 @@ import {
     normalizeTitleKeys,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
+import { unlockedCategorySql } from '../parental-lock-state';
 
 /**
  * Batched cross-playlist title matching for the actor page's "All portals"
@@ -75,6 +76,7 @@ export async function matchTitles(
                 WHERE content_title_fts MATCH ${matchQuery}
                 AND c.type IN ('movie', 'series')
                 AND cat.hidden = 0
+                ${unlockedCategorySql()}
                 ORDER BY rank, c.title
                 LIMIT ${PER_TITLE_CANDIDATE_LIMIT}
             `)) as TitleMatchRow[];

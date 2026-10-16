@@ -61,4 +61,10 @@ describe('CategorySearchComponent', () => {
             0
         );
     });
+    it('preserves quoted inline exclusions when removing another chip', () => {
+        component.query.set('sports canada -"Spanish Dub"');
+        component.remove(1);
+        expect(component.query()).toBe('sports -"Spanish Dub"');
+        expect(component.keywords()).toEqual(['sports', '-Spanish Dub']);
+    });
 });

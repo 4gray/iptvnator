@@ -193,7 +193,7 @@ mat-card {
         --error-empty-max-width: min(480px, 100%);
         --error-empty-title-size: clamp(1.45rem, 2vw, 1.9rem);
         --error-empty-description-size: clamp(0.95rem, 1.15vw, 1.05rem);
-        --error-empty-title-weight: 660;
+        --error-empty-title-weight: 600;
         --error-empty-title-spacing: -0.014em;
         --error-empty-copy-gap: 10px;
         --error-empty-description-line-height: 1.44;
@@ -211,7 +211,7 @@ mat-card {
             --error-empty-max-width: 310px;
             --error-empty-title-size: 1.3rem;
             --error-empty-description-size: 0.9rem;
-            --error-empty-title-weight: 640;
+            --error-empty-title-weight: 600;
             --error-empty-copy-gap: 8px;
         }
     }

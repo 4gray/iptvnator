@@ -6,9 +6,14 @@ import {
     WorkspaceResolvedCommandItem,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
-import { WorkspaceCommandPaletteComponent } from '../../workspace-command-palette/workspace-command-palette.component';
+import {
+    WorkspaceCommandPaletteComponent,
+    WorkspaceCommandPaletteData,
+} from '../../workspace-command-palette/workspace-command-palette.component';
 import { RecentCommandsService } from '../../recent-commands';
 import { WorkspacePlayerCommandsContributor } from '../../workspace-player-commands';
+import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
+import { buildSettingsPaletteCommands } from './helpers/workspace-settings-commands';
 import {
     buildCommandPaletteItems,
     CommandBuilderContext,
@@ -23,6 +28,7 @@ export class WorkspaceShellCommandPaletteService {
     private readonly playerCommands = inject(
         WorkspacePlayerCommandsContributor
     );
+    private readonly settingsSearch = inject(SettingsSearchService);
 
     private commandPaletteRef: MatDialogRef<
         WorkspaceCommandPaletteComponent,
@@ -46,11 +52,18 @@ export class WorkspaceShellCommandPaletteService {
             return;
         }
 
-        const embeddedMpvSupportLoad =
-            this.playerCommands.ensureEmbeddedMpvSupportLoaded();
-        if (embeddedMpvSupportLoad) {
+        const embeddedMpvSupportLoads = [
+            this.playerCommands.ensureEmbeddedMpvSupportLoaded(),
+            this.settingsSearch.ensureEmbeddedMpvSupportLoaded(),
+        ].filter((load): load is Promise<void> => load !== undefined);
+        if (embeddedMpvSupportLoads.length > 0) {
             this.commandPaletteOpening = true;
-            void embeddedMpvSupportLoad.finally(() => {
+            // A failed probe only hides its commands; it must not block opening.
+            void Promise.all(
+                embeddedMpvSupportLoads.map((load) =>
+                    load.catch(() => undefined)
+                )
+            ).finally(() => {
                 this.commandPaletteOpening = false;
                 this.openResolvedCommandPalette(ctx, initialQuery);
             });
@@ -68,17 +81,20 @@ export class WorkspaceShellCommandPaletteService {
             return;
         }
 
-        const commands = this.buildPaletteCommands(ctx);
+        const settings = buildSettingsPaletteCommands(
+            this.settingsSearch,
+            ctx.translate
+        );
+        const commands = [
+            ...this.buildPaletteCommands(ctx),
+            ...settings.commands,
+        ];
         const recentIds = this.recentCommands
             .entries()
             .map((entry) => entry.id);
         const dialogRef = this.dialog.open<
             WorkspaceCommandPaletteComponent,
-            {
-                commands: WorkspaceResolvedCommandItem[];
-                query: string;
-                recentIds: readonly string[];
-            },
+            WorkspaceCommandPaletteData,
             WorkspaceCommandSelection | undefined
         >(WorkspaceCommandPaletteComponent, {
             width: 'min(760px, 92vw)',
@@ -89,6 +105,7 @@ export class WorkspaceShellCommandPaletteService {
                 commands,
                 query: initialQuery,
                 recentIds,
+                searchSettings: settings.search,
             },
         });
         this.commandPaletteRef = dialogRef;

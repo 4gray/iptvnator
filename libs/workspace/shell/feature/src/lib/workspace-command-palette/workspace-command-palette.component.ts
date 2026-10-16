@@ -21,11 +21,17 @@ import {
     WorkspaceCommandSelection,
     WorkspaceResolvedCommandItem,
 } from '@iptvnator/portal/shared/util';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
-interface WorkspaceCommandPaletteData {
+export interface WorkspaceCommandPaletteData {
     commands: WorkspaceResolvedCommandItem[];
     query?: string;
     recentIds?: readonly string[];
+    /**
+     * Ranked ids of the `settings` group commands matching a query. Settings
+     * commands are listed only through this, never for an empty query.
+     */
+    searchSettings?: (query: string) => readonly string[];
 }
 
 type PaletteSectionGroup = WorkspaceCommandGroup | 'recent';
@@ -39,7 +45,7 @@ interface WorkspaceCommandGroupSection {
     selector: 'app-workspace-command-palette',
     imports: [MatDialogModule, MatIconModule, TranslatePipe],
     templateUrl: './workspace-command-palette.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-command-palette.component.scss',
 })
 export class WorkspaceCommandPaletteComponent implements AfterViewInit {
@@ -63,8 +69,10 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
     );
 
     readonly filteredCommands = computed(() => {
-        const term = this.query().trim().toLowerCase();
-        const commands = this.visibleCommands();
+        const term = foldSearchText(this.query().trim());
+        const commands = this.visibleCommands().filter(
+            (command) => command.group !== 'settings'
+        );
 
         if (!term) {
             return commands;
@@ -75,11 +83,9 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
                 command.label,
                 command.description,
                 ...(command.keywords ?? []),
-            ]
-                .join(' ')
-                .toLowerCase();
+            ].join(' ');
 
-            return haystack.includes(term);
+            return foldSearchText(haystack).includes(term);
         });
     });
 
@@ -105,6 +111,28 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
                 );
 
             return items.length === 0 ? null : { group: 'recent', items };
+        }
+    );
+
+    readonly settingsSection = computed<WorkspaceCommandGroupSection | null>(
+        () => {
+            const query = this.query().trim();
+            const searchSettings = this.data?.searchSettings;
+            if (!query || !searchSettings) {
+                return null;
+            }
+
+            const byId = new Map(
+                this.visibleCommands().map((command) => [command.id, command])
+            );
+            const items = searchSettings(query)
+                .map((id) => byId.get(id))
+                .filter(
+                    (command): command is WorkspaceResolvedCommandItem =>
+                        command?.group === 'settings'
+                );
+
+            return items.length === 0 ? null : { group: 'settings', items };
         }
     );
 
@@ -145,6 +173,12 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
         );
 
         sections.push(...groups);
+
+        const settings = this.settingsSection();
+        if (settings) {
+            sections.push(settings);
+        }
+
         return sections;
     });
 
@@ -259,6 +293,9 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
         }
         if (group === 'playlist') {
             return 'WORKSPACE.COMMAND_PALETTE.GROUP_PLAYLIST';
+        }
+        if (group === 'settings') {
+            return 'WORKSPACE.COMMAND_PALETTE.GROUP_SETTINGS';
         }
         return 'WORKSPACE.COMMAND_PALETTE.GROUP_GLOBAL';
     }

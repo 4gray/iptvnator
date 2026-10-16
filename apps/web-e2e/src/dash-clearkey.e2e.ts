@@ -131,7 +131,9 @@ async function importDashPlaylist(page: Page): Promise<void> {
     await dialog.locator('textarea').fill(DASH_PLAYLIST);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog.getByRole('button', { name: 'Import', exact: true }).click(),
+        dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click(),
     ]);
     await expect(page.getByText('3 channels')).toBeVisible();
 }
@@ -181,10 +183,27 @@ test('@web @m3u @dash ClearKey and clear DASH channels play inline', async ({
 test('@web @m3u @dash ClearKey reopens from recent and favorites collections', async ({
     page,
 }) => {
+    // Five cold loads of the dev-served app (import + four collection routes)
+    // cost ~6 s each on the CI runner, so the default 30 s budget expired on
+    // the last route (#1630). Sized like the other multi-load specs.
+    test.setTimeout(90_000);
     await serveDashFixtures(page);
     await importDashPlaylist(page);
     await page.getByText('1. ClearKey DASH').click();
     await expectVideoPlaying(page);
+    // Recent history records the channel once it has played two seconds.
+    await expect
+        .poll(
+            () =>
+                page
+                    .locator('app-web-player-view video')
+                    .first()
+                    .evaluate(
+                        (element: HTMLVideoElement) => element.currentTime
+                    ),
+            { timeout: 20_000 }
+        )
+        .toBeGreaterThan(2.5);
     const playlistUrl = page.url().replace(/\/all$/, '');
     const channel = page.locator('.channel-list-item').filter({
         hasText: '1. ClearKey DASH',
@@ -203,10 +222,14 @@ test('@web @m3u @dash ClearKey reopens from recent and favorites collections', a
         // Full navigation also proves persisted channels survive a cold load.
         await page.goto(route);
         if (route.startsWith('/workspace/global-')) {
-            await page
+            const allPlaylists = page
                 .locator('.scope-toggle')
-                .getByText('All playlists', { exact: true })
-                .click();
+                .getByRole('radio', { name: 'All playlists' });
+            await allPlaylists.click();
+            // The global routes default to the active playlist's scope; make
+            // sure the toggle took before waiting for a row only "All
+            // playlists" can show, or a lost click surfaces as a missing row.
+            await expect(allPlaylists).toBeChecked();
         }
         const collection = page.locator('app-unified-live-tab');
         await collection

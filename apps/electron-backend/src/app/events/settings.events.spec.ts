@@ -38,6 +38,7 @@ const handlers = new Map<string, SettingsUpdateHandler>();
 const mockStoreGet = jest.fn();
 const mockStoreSet = jest.fn();
 const mockUpdateSettings = jest.fn();
+const mockApplyParentalLockState = jest.fn();
 const mockIpcHandle = jest.fn(
     (channel: string, handler: SettingsUpdateHandler): void => {
         handlers.set(channel, handler);
@@ -61,10 +62,16 @@ jest.mock('../services/store.service', () => ({
     PORTAL_CONNECTIVITY_GUARD: STORE_KEYS.PORTAL_CONNECTIVITY_GUARD,
     VLC_PLAYER_ARGUMENTS: STORE_KEYS.VLC_PLAYER_ARGUMENTS,
     VLC_REUSE_INSTANCE: STORE_KEYS.VLC_REUSE_INSTANCE,
+    PARENTAL_LOCK_ENABLED: 'PARENTAL_LOCK_ENABLED',
     store: {
         get: mockStoreGet,
         set: mockStoreSet,
     },
+}));
+
+jest.mock('./parental-lock.events', () => ({
+    applyParentalLockState: (...args: unknown[]) =>
+        mockApplyParentalLockState(...args),
 }));
 
 jest.mock('../server/http-server', () => ({
@@ -84,6 +91,7 @@ describe('SETTINGS_UPDATE', () => {
         mockStoreGet.mockReset();
         mockStoreSet.mockReset();
         mockUpdateSettings.mockReset();
+        mockApplyParentalLockState.mockReset().mockResolvedValue(undefined);
         mockStoreGet.mockImplementation(
             (_key: string, fallbackValue: unknown): unknown => fallbackValue
         );
@@ -134,6 +142,35 @@ describe('SETTINGS_UPDATE', () => {
             STORE_KEYS.PORTAL_CONNECTIVITY_GUARD,
             false
         );
+    });
+
+    it('mirrors the parental lock switch and releases the worker only on switch-off', () => {
+        // Off → on: persist; the renderer announces its own live state.
+        settingsUpdateHandler({}, { parentalLockEnabled: true });
+        expect(mockStoreSet).toHaveBeenCalledWith(
+            'PARENTAL_LOCK_ENABLED',
+            true
+        );
+        expect(mockApplyParentalLockState).not.toHaveBeenCalled();
+
+        // An ordinary save carrying the unchanged flag must not re-lock a
+        // worker the renderer believes is unlocked.
+        mockStoreGet.mockImplementation((key: string, fallback: unknown) =>
+            key === 'PARENTAL_LOCK_ENABLED' ? true : fallback
+        );
+        settingsUpdateHandler(
+            {},
+            { parentalLockEnabled: true, showCaptions: true }
+        );
+        expect(mockApplyParentalLockState).not.toHaveBeenCalled();
+
+        // On → off: release at once.
+        settingsUpdateHandler({}, { parentalLockEnabled: false });
+        expect(mockStoreSet).toHaveBeenCalledWith(
+            'PARENTAL_LOCK_ENABLED',
+            false
+        );
+        expect(mockApplyParentalLockState).toHaveBeenCalledWith(false);
     });
 
     it('normalizes external-player arguments and preserves explicit false reuse settings', () => {

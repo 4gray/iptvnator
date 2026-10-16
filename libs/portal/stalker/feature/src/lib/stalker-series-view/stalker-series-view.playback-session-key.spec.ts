@@ -330,9 +330,10 @@ describe('StalkerSeriesViewComponent playback session key', () => {
 
         pending.resolve({
             streamUrl: 'https://stale.example/old-command.mpg',
+            title: 'Stale command',
             contentInfo: {
                 playlistId: 'transport-playlist',
-                contentXtreamId: episodeA.id,
+                contentXtreamId: Number(episodeA.id),
                 contentType: 'episode',
             },
         });
@@ -676,9 +677,10 @@ describe('StalkerSeriesViewComponent playback session key', () => {
         setLazySeries('replacement-parent', 'replacement-provider-episode');
         pending.resolve({
             streamUrl: 'https://stale.example/old-episode.mpg',
+            title: 'Stale episode',
             contentInfo: {
                 playlistId: 'transport-playlist',
-                contentXtreamId: episode.id,
+                contentXtreamId: Number(episode.id),
                 contentType: 'episode',
             },
         });
@@ -709,18 +711,20 @@ describe('StalkerSeriesViewComponent playback session key', () => {
         fixture.componentInstance.onEpisodeClicked(newEpisode);
         const newestPlayback = {
             streamUrl: 'https://new.example/episode.mpg',
+            title: 'Newest episode',
             contentInfo: {
                 playlistId: 'transport-playlist',
-                contentXtreamId: newEpisode.id,
+                contentXtreamId: Number(newEpisode.id),
                 contentType: 'episode' as const,
             },
         };
         newRequest.resolve(newestPlayback);
         oldRequest.resolve({
             streamUrl: 'https://old.example/episode.mpg',
+            title: 'Old episode',
             contentInfo: {
                 playlistId: 'transport-playlist',
-                contentXtreamId: oldEpisode.id,
+                contentXtreamId: Number(oldEpisode.id),
                 contentType: 'episode',
             },
         });

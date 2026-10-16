@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
@@ -213,7 +214,7 @@ export class StreamResolverService {
         const stalkerByPlaylist = new Map<string, UnifiedCollectionItem[]>();
 
         for (const item of items) {
-            if (item.contentType !== 'live') {
+            if (item.contentType !== 'live' || isCatalogUnavailable(item)) {
                 continue;
             }
 
@@ -710,7 +711,7 @@ export class StreamResolverService {
             // epg_channel_id column but is not declared on the TS interface.
             const epgKey = (
                 item as unknown as Record<string, string | undefined | null>
-            ).epgChannelId?.trim();
+            )['epgChannelId']?.trim();
             if (this.supportsProgramLookup && epgKey) {
                 const uploaded = await this.epgBridge
                     .getChannelPrograms(epgKey)
@@ -995,7 +996,7 @@ export class StreamResolverService {
                             string,
                             string | undefined | null
                         >
-                    ).epgChannelId?.trim();
+                    )['epgChannelId']?.trim();
                     if (this.supportsProgramLookup && epgChannelKey) {
                         currentItem = await this.findCurrentInXmltv(
                             epgChannelKey,

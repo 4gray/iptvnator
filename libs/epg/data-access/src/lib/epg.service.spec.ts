@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, of, skip } from 'rxjs';
 import {
@@ -7,12 +7,16 @@ import {
     PlaylistsService,
     SettingsStore,
 } from '@iptvnator/services';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { EpgService } from './epg.service';
 
+/** Spec-only double: capability flags are read-only getters on the real class. */
+type WritablePartial<T> = { -readonly [K in keyof T]?: T[K] };
+
 describe('EpgService', () => {
     let service: EpgService;
-    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let epgBridge: WritablePartial<EpgRuntimeBridgeService>;
     let snackBar: { open: jest.Mock };
     let settingsStore: {
         loadSettings: jest.Mock;
@@ -28,10 +32,11 @@ describe('EpgService', () => {
             getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
             supportsCurrentProgramBatch: false,
             supportsImport: false,
+            supportsProgress: true,
             supportsProgramLookup: false,
         };
         snackBar = {
-            open: jest.fn(),
+            open: jest.fn().mockResolvedValue(null),
         };
         settingsStore = {
             loadSettings: jest.fn().mockResolvedValue(undefined),
@@ -68,7 +73,7 @@ describe('EpgService', () => {
                     useValue: epgBridge,
                 },
                 {
-                    provide: MatSnackBar,
+                    provide: LazySnackBar,
                     useValue: snackBar,
                 },
                 {
@@ -164,7 +169,7 @@ describe('EpgService', () => {
                 new Promise((resolve) => {
                     complete = resolve;
                 }),
-        } as typeof window.electron;
+        } as Partial<typeof window.electron> as typeof window.electron;
         try {
             const sources = TestBed.inject(EpgSourceSettingsService);
             const reconciliation = sources.synchronize([
@@ -224,6 +229,59 @@ describe('EpgService', () => {
         await Promise.resolve();
 
         expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('leaves a failed batch to the import panel instead of repeating its message in a toast', async () => {
+        epgBridge.supportsImport = true;
+        (epgBridge.fetchEpg as jest.Mock).mockResolvedValue({
+            success: false,
+            message: 'database is locked',
+        });
+        const availability: boolean[] = [];
+        service.epgAvailable$.pipe(skip(1)).subscribe((available) => {
+            availability.push(available);
+        });
+
+        await service.fetchEpg(['https://example.com/epg.xml']);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(availability).toEqual([false]);
+        expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('keeps the generic toast for a failed batch when the runtime reports no import progress', async () => {
+        epgBridge.supportsImport = true;
+        epgBridge.supportsProgress = false;
+        (epgBridge.fetchEpg as jest.Mock).mockResolvedValue({
+            success: false,
+            message: 'database is locked',
+        });
+
+        await service.fetchEpg(['https://example.com/epg.xml']);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // No panel row can carry the failure, and the backend's text is
+        // still not what the user sees.
+        expect(snackBar.open).toHaveBeenCalledTimes(1);
+        expect(snackBar.open).toHaveBeenCalledWith('EPG.ERROR', 'CLOSE', {
+            duration: 3000,
+        });
+    });
+
+    it('shows the generic toast at the default position when the bridge call itself fails', async () => {
+        epgBridge.supportsImport = true;
+        (epgBridge.fetchEpg as jest.Mock).mockRejectedValue(
+            new Error('bridge unavailable')
+        );
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        await service.fetchEpg(['https://example.com/epg.xml']);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(snackBar.open).toHaveBeenCalledTimes(1);
+        expect(snackBar.open).toHaveBeenCalledWith('EPG.ERROR', 'CLOSE', {
+            duration: 3000,
+        });
     });
 
     it('returns an empty batch result when the desktop bridge is unavailable', async () => {
@@ -457,16 +515,7 @@ describe('EpgService', () => {
 
     it('deduplicates concurrent scoped current program lookups for the same source scope', async () => {
         epgBridge.supportsProgramLookup = true;
-        let resolvePrograms:
-            | ((
-                  programs: {
-                      channel: string;
-                      start: string;
-                      stop: string;
-                      title: string;
-                  }[]
-              ) => void)
-            | undefined;
+        let resolvePrograms: ((programs: EpgProgram[]) => void) | undefined;
         epgBridge.getChannelPrograms = jest.fn(
             () =>
                 new Promise((resolve) => {
@@ -495,6 +544,8 @@ describe('EpgService', () => {
                     start: '2026-05-23T10:00:00.000Z',
                     stop: '2026-05-23T11:00:00.000Z',
                     title: 'Playlist Guide Bulletin',
+                    desc: null,
+                    category: null,
                 },
             ]);
 
@@ -594,6 +645,258 @@ describe('EpgService', () => {
         );
     });
 
+    it('retries keys the global scope left unresolved against every source when anySourceFallback is set', async () => {
+        // The dashboard rails: no playlist scope, one global XMLTV in
+        // Settings, and a channel whose guide only exists in an XMLTV another
+        // playlist imported. The "See all" pages resolve it unscoped, so the
+        // rails must too — but only after the configured scope had its say.
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({
+                'guide-news': {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Global Bulletin',
+                },
+                'guide-sports': null,
+            })
+            .mockResolvedValueOnce({
+                'guide-sports': {
+                    channel: 'guide-sports',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Other Playlist Sports',
+                },
+            });
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(
+                ['guide-news', 'guide-sports'],
+                { anySourceFallback: true }
+            )
+        );
+
+        expect(result.get('guide-news')?.title).toBe('Global Bulletin');
+        expect(result.get('guide-sports')?.title).toBe('Other Playlist Sports');
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenNthCalledWith(
+            1,
+            ['guide-news', 'guide-sports'],
+            expect.objectContaining({
+                sourceUrls: ['https://global.example.com/guide.xml'],
+            })
+        );
+        // The retry carries only the unresolved key and no source scope.
+        const [retryIds, retryOptions] = (
+            epgBridge.getCurrentProgramsBatch as jest.Mock
+        ).mock.calls[1];
+        expect(retryIds).toEqual(['guide-sports']);
+        expect(retryOptions).not.toHaveProperty('sourceUrls');
+    });
+
+    it('walks scope then any-source per channel on a preload without the batch endpoint', async () => {
+        // The ladder must not change shape with the capability: the scoped
+        // pass runs first and only its misses reach the source-less pool.
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = false;
+        epgBridge.getChannelPrograms = jest
+            .fn()
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([
+                {
+                    channel: 'guide-sports',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Other Playlist Sports',
+                },
+            ]);
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
+
+        try {
+            const result = await firstValueFrom(
+                service.getCurrentProgramsForChannels(['guide-sports'], {
+                    sourceUrls: ['https://playlist.example.com/guide.xml'],
+                    anySourceFallback: true,
+                })
+            );
+
+            expect(result.get('guide-sports')?.title).toBe(
+                'Other Playlist Sports'
+            );
+            const calls = (epgBridge.getChannelPrograms as jest.Mock).mock
+                .calls;
+            expect(calls.map(([, options]) => options?.sourceUrls)).toEqual([
+                ['https://playlist.example.com/guide.xml'],
+                ['https://global.example.com/guide.xml'],
+                undefined,
+            ]);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('keeps the playlist scope on a preload without the batch endpoint when no any-source retry was asked for', async () => {
+        // Jumping straight to the source-less lookup here would defeat the
+        // scopes: two guides reusing one XMLTV id would answer each other.
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = false;
+        epgBridge.getChannelPrograms = jest.fn().mockResolvedValue([]);
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+
+        expect(result.get('guide-sports')).toBeNull();
+        const calls = (epgBridge.getChannelPrograms as jest.Mock).mock.calls;
+        expect(calls.map(([, options]) => options?.sourceUrls)).toEqual([
+            ['https://playlist.example.com/guide.xml'],
+            ['https://global.example.com/guide.xml'],
+        ]);
+    });
+
+    it('keeps the Settings scope on the legacy per-channel path when no any-source retry was asked for', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = false;
+        epgBridge.getChannelPrograms = jest.fn().mockResolvedValue([]);
+
+        await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'])
+        );
+
+        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith(
+            'guide-sports',
+            expect.objectContaining({
+                sourceUrls: ['https://global.example.com/guide.xml'],
+            })
+        );
+    });
+
+    it('keeps the scoped verdict when the any-source retry finds nothing either', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({ 'guide-sports': null })
+            .mockResolvedValueOnce({ 'guide-sports': null });
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'], {
+                anySourceFallback: true,
+            })
+        );
+
+        expect(result.size).toBe(1);
+        expect(result.get('guide-sports')).toBeNull();
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('skips the any-source retry when every key resolved in scope, and never retries without the option', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({
+                'guide-news': {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Global Bulletin',
+                },
+            })
+            .mockResolvedValueOnce({ 'guide-sports': null });
+
+        const resolved = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                anySourceFallback: true,
+            })
+        );
+        expect(resolved.get('guide-news')?.title).toBe('Global Bulletin');
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+
+        // Scoped callers (the channel list) keep today's contract: a miss in
+        // the configured scope stays a miss.
+        const unresolved = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'])
+        );
+        expect(unresolved.get('guide-sports')).toBeNull();
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('runs the any-source retry after the playlist scope and its global fallback', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({ 'guide-sports': null })
+            .mockResolvedValueOnce({ 'guide-sports': null })
+            .mockResolvedValueOnce({
+                'guide-sports': {
+                    channel: 'guide-sports',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Other Playlist Sports',
+                },
+            });
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+                anySourceFallback: true,
+            })
+        );
+
+        expect(result.get('guide-sports')?.title).toBe('Other Playlist Sports');
+        const calls = (epgBridge.getCurrentProgramsBatch as jest.Mock).mock
+            .calls;
+        expect(calls.map(([, options]) => options.sourceUrls)).toEqual([
+            ['https://playlist.example.com/guide.xml'],
+            ['https://global.example.com/guide.xml'],
+            undefined,
+        ]);
+    });
+
     it('caches scoped batch current programs by EPG source URL scope', async () => {
         epgBridge.supportsProgramLookup = true;
         epgBridge.supportsCurrentProgramBatch = true;
@@ -676,7 +979,7 @@ describe('EpgService', () => {
         epgBridge.supportsProgramLookup = true;
         epgBridge.supportsCurrentProgramBatch = true;
         const batchResolvers: Array<
-            (programs: Record<string, unknown>) => void
+            (programs: Record<string, EpgProgram | null>) => void
         > = [];
         epgBridge.getCurrentProgramsBatch = jest.fn(
             () =>
@@ -705,6 +1008,8 @@ describe('EpgService', () => {
                         start: '2026-05-23T10:00:00.000Z',
                         stop: '2026-05-23T11:00:00.000Z',
                         title: 'Playlist Guide Bulletin',
+                        desc: null,
+                        category: null,
                     },
                 })
             );
@@ -729,7 +1034,7 @@ describe('EpgService', () => {
         epgBridge.supportsProgramLookup = true;
         epgBridge.supportsCurrentProgramBatch = true;
         let resolveBatch:
-            ((programs: Record<string, unknown>) => void) | undefined;
+            ((programs: Record<string, EpgProgram | null>) => void) | undefined;
         epgBridge.getCurrentProgramsBatch = jest.fn(
             () =>
                 new Promise((resolve) => {
@@ -758,12 +1063,16 @@ describe('EpgService', () => {
                     start: '2026-05-23T10:00:00.000Z',
                     stop: '2026-05-23T11:00:00.000Z',
                     title: 'Playlist Guide Bulletin',
+                    desc: null,
+                    category: null,
                 },
                 'guide-sports': {
                     channel: 'guide-sports',
                     start: '2026-05-23T10:00:00.000Z',
                     stop: '2026-05-23T11:00:00.000Z',
                     title: 'Playlist Sports Bulletin',
+                    desc: null,
+                    category: null,
                 },
             });
 

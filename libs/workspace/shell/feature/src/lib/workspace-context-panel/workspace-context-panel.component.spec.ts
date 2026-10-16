@@ -16,6 +16,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import { ParentalLockService } from '@iptvnator/services';
 import { WorkspaceContextPanelComponent } from './workspace-context-panel.component';
 
 const translations: Record<string, string> = {
@@ -30,6 +31,7 @@ const translations: Record<string, string> = {
     'WORKSPACE.SORT_SERVER': 'Server sorting',
     'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING':
         'Fetching playlist data from source...',
+    'PORTALS.ALL_CATEGORIES': 'All Categories',
 };
 
 interface RouteSnapshotStub {
@@ -56,13 +58,17 @@ function getCategoryLabels(
     fixture: ComponentFixture<WorkspaceContextPanelComponent>
 ): string[] {
     return Array.from(
-        fixture.nativeElement.querySelectorAll('.category-item .nav-item-label')
+        (fixture.nativeElement as HTMLElement).querySelectorAll(
+            '.category-item .nav-item-label'
+        )
     ).map((element: Element) => element.textContent?.trim() ?? '');
 }
 
 describe('WorkspaceContextPanelComponent', () => {
     let fixture: ComponentFixture<WorkspaceContextPanelComponent>;
-    const xtreamCategories = signal([
+    const xtreamCategories = signal<
+        Array<{ id: number; name: string; xtream_id?: number }>
+    >([
         { id: 1, name: 'News' },
         { id: 2, name: 'Sports' },
     ]);
@@ -93,8 +99,16 @@ describe('WorkspaceContextPanelComponent', () => {
         reloadCategories: jest.fn(),
     };
     const stalkerStore = {
+        getAllCategoriesForSelectedType: jest.fn(() => [
+            { category_id: '*', category_name: 'All' },
+            { category_id: '1', category_name: 'News' },
+        ]),
         getCategoryResource: signal<
-            Array<{ category_id: string; category_name: string }>
+            Array<{
+                category_id: string;
+                category_name: string;
+                labelKey?: string;
+            }>
         >([]),
         selectedCategoryId: signal<string | null>(null),
         isCategoryResourceLoading: signal(false),
@@ -262,6 +276,35 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(router.navigate).not.toHaveBeenCalled();
     });
 
+    it('renders the category search and sort actions disabled while the categories load', () => {
+        // Present from the skeleton on, so the header row keeps its width
+        // when the categories arrive instead of growing by two buttons.
+        const loaded = xtreamCategories();
+        fixture.componentRef.setInput('section', 'vod');
+        xtreamCategories.set([]);
+        xtreamIsLoadingCategories.set(true);
+        fixture.detectChanges();
+
+        const actions = () =>
+            Array.from(
+                fixture.nativeElement.querySelectorAll(
+                    '.context-header__action'
+                )
+            ) as HTMLButtonElement[];
+        expect(actions()).toHaveLength(3);
+        expect(actions().every((button) => button.disabled)).toBe(true);
+        expect(fixture.componentInstance.focusTarget()).toBeNull();
+
+        xtreamCategories.set(loaded);
+        xtreamIsLoadingCategories.set(false);
+        fixture.detectChanges();
+
+        expect(actions()).toHaveLength(3);
+        expect(actions()[0].disabled).toBe(false);
+        expect(actions()[1].disabled).toBe(false);
+        expect(fixture.componentInstance.focusTarget()).toBe(actions()[0]);
+    });
+
     it('keeps local xtream loading states quiet when no import is running', () => {
         fixture.componentRef.setInput('section', 'vod');
         xtreamIsImporting.set(false);
@@ -295,7 +338,9 @@ describe('WorkspaceContextPanelComponent', () => {
         fixture.detectChanges();
 
         const countTexts = Array.from(
-            fixture.nativeElement.querySelectorAll('.item-count')
+            (fixture.nativeElement as HTMLElement).querySelectorAll(
+                '.item-count'
+            )
         ).map((element: Element) => element.textContent?.trim());
         const categoryButtons = Array.from(
             fixture.nativeElement.querySelectorAll('.category-item')
@@ -359,6 +404,59 @@ describe('WorkspaceContextPanelComponent', () => {
         );
     });
 
+    it.each([
+        { id: 7, name: 'Alpha', top: 520 },
+        { id: 8, name: 'Zulu', top: 2420 },
+    ])(
+        'scrolls to the selected local category $name when provider IDs collide after sorting',
+        async ({ id, name, top }) => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedTypeContentState.set('ready');
+            // SQLite IDs drive selection; provider IDs can belong to another row.
+            xtreamCategories.set([
+                { id: 8, xtream_id: 7, name: 'Zulu' },
+                { id: 50, xtream_id: 500, name: 'Middle' },
+                { id: 7, xtream_id: 8, name: 'Alpha' },
+            ]);
+            fixture.componentInstance.setCategorySortMode('name-asc');
+            fixture.detectChanges();
+
+            const container = fixture.nativeElement.querySelector(
+                'app-workspace-context-category-view'
+            ) as HTMLElement;
+            Object.defineProperties(container, {
+                clientHeight: { value: 400 },
+                scrollHeight: { value: 3000 },
+            });
+            container.scrollTop = 500;
+            container.getBoundingClientRect = () =>
+                new DOMRect(0, 100, 200, 400);
+            container.scrollTo = jest.fn();
+            const rows = Array.from(
+                container.querySelectorAll<HTMLButtonElement>('.category-item')
+            );
+            rows.forEach((row, index) => {
+                row.getBoundingClientRect = () =>
+                    new DOMRect(0, [300, 800, 2200][index], 200, 40);
+            });
+            const selected = rows.find((row) =>
+                row.textContent?.includes(name)
+            );
+            if (!selected) throw new Error(`Missing category ${name}`);
+            selected.click();
+            expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(id);
+            xtreamSelectedCategoryId.set(id);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(selected.getAttribute('aria-current')).toBe('true');
+            expect(container.scrollTo).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                top,
+            });
+        }
+    );
+
     it('uses translated category sort labels and distinct mode icons', () => {
         fixture.componentRef.setInput('section', 'vod');
         xtreamSelectedTypeContentState.set('ready');
@@ -414,8 +512,13 @@ describe('WorkspaceContextPanelComponent', () => {
             playlistId: 'stalker-1',
         });
         fixture.componentRef.setInput('section', 'series');
+        // The store names its every-item entry by a key, not a name.
         stalkerStore.getCategoryResource.set([
-            { category_id: '*', category_name: 'All Categories' },
+            {
+                category_id: '*',
+                category_name: '',
+                labelKey: 'PORTALS.ALL_CATEGORIES',
+            },
             { category_id: 'z', category_name: 'Zulu' },
             { category_id: 'a', category_name: 'Alpha' },
             { category_id: 'm', category_name: 'Movies' },
@@ -428,6 +531,13 @@ describe('WorkspaceContextPanelComponent', () => {
             'Alpha',
             'Movies',
         ]);
+
+        // The filter matches the label on screen, translated key included.
+        fixture.componentInstance.categorySearchTerm.set('all c');
+        fixture.detectChanges();
+        expect(getCategoryLabels(fixture)).toEqual(['All Categories']);
+        fixture.componentInstance.categorySearchTerm.set('');
+        fixture.detectChanges();
 
         fixture.componentInstance.setCategorySortMode('name-asc');
         fixture.detectChanges();
@@ -509,9 +619,9 @@ describe('WorkspaceContextPanelComponent', () => {
             el.textContent?.includes('For adults')
         );
 
-        expect(documentary?.querySelector('.item-count')?.textContent).toContain(
-            '190'
-        );
+        expect(
+            documentary?.querySelector('.item-count')?.textContent
+        ).toContain('190');
         expect(adults?.querySelector('.item-count')).toBeNull();
     });
 
@@ -563,7 +673,9 @@ describe('WorkspaceContextPanelComponent', () => {
 
             button?.click();
 
-            expect(liveSidebarService.stateOf('portal')()).toBe('categories-hidden');
+            expect(liveSidebarService.stateOf('portal')()).toBe(
+                'categories-hidden'
+            );
         });
 
         it('offers it for Stalker itv and radio too', () => {
@@ -862,7 +974,9 @@ describe('WorkspaceContextPanelComponent', () => {
                 ) as never
             );
 
-            expect(fixture.componentInstance.stalkerCategoryErrorDescription()).toBe(
+            expect(
+                fixture.componentInstance.stalkerCategoryErrorDescription()
+            ).toBe(
                 'PORTALS.ERROR_VIEW.STALKER_DEVICE_CONFLICT device conflict - device_id mismatch — Your STB is damaged.'
             );
         });
@@ -872,9 +986,212 @@ describe('WorkspaceContextPanelComponent', () => {
                 new StalkerPortalError('blocked', 'Account disabled') as never
             );
 
-            expect(fixture.componentInstance.stalkerCategoryErrorDescription()).toBe(
-                'Account disabled'
+            expect(
+                fixture.componentInstance.stalkerCategoryErrorDescription()
+            ).toBe('Account disabled');
+        });
+    });
+
+    it('offers the unlock row in fail-closed mode, when no locked ids are known', () => {
+        const parentalLock = TestBed.inject(ParentalLockService);
+        Object.defineProperty(parentalLock, 'withholdsEverything', {
+            configurable: true,
+            value: signal(true),
+        });
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'itv');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.withheldCategoryCount()).toBe(0);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="context-locked-categories"]'
+            )
+        ).not.toBeNull();
+    });
+
+    it('opens no Xtream category dialog when the route changed while the PIN was asked', async () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'xtreams',
+            playlistId: 'xtream-1',
+        });
+        fixture.componentRef.setInput('section', 'vod');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        Object.defineProperty(component, 'canManageXtreamCategories', {
+            configurable: true,
+            value: () => true,
+        });
+        const parentalLock = TestBed.inject(ParentalLockService);
+        jest.spyOn(parentalLock, 'requestUnlock').mockImplementation(
+            async () => {
+                fixture.componentRef.setInput('context', {
+                    provider: 'xtreams',
+                    playlistId: 'xtream-2',
+                });
+                return true;
+            }
+        );
+        component.loadXtreamCategoryDialog = jest.fn(
+            async () => class DialogStub {}
+        );
+
+        await component.openManageCategories();
+
+        expect(component.loadXtreamCategoryDialog).not.toHaveBeenCalled();
+        expect(dialog.open).not.toHaveBeenCalled();
+    });
+
+    it('opens the Xtream category dialog capped at the viewport width', async () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'xtreams',
+            playlistId: 'xtream-1',
+        });
+        fixture.componentRef.setInput('section', 'vod');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        Object.defineProperty(component, 'canManageXtreamCategories', {
+            configurable: true,
+            value: () => true,
+        });
+        jest.spyOn(
+            TestBed.inject(ParentalLockService),
+            'requestUnlock'
+        ).mockResolvedValue(true);
+        component.loadXtreamCategoryDialog = jest.fn(
+            async () => class DialogStub {}
+        );
+        dialog.open.mockReturnValueOnce({ afterClosed: () => of(false) });
+
+        await component.openManageCategories();
+
+        // A 500px panel on a 375px phone would scroll sideways.
+        expect(dialog.open).toHaveBeenCalledWith(
+            expect.any(Function),
+            expect.objectContaining({
+                width: '560px',
+                maxWidth: 'calc(100vw - 32px)',
+            })
+        );
+    });
+
+    describe('Stalker lock dialog', () => {
+        function enableLock(): void {
+            const parentalLock = TestBed.inject(ParentalLockService);
+            Object.defineProperty(parentalLock, 'enabled', {
+                configurable: true,
+                value: signal(true),
+            });
+            jest.spyOn(parentalLock, 'requestUnlock').mockResolvedValue(true);
+            jest.spyOn(parentalLock, 'ensureLocksReadable').mockResolvedValue(
+                true
             );
+        }
+
+        it('opens with the categories snapshotted before the lazy import', async () => {
+            enableLock();
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(
+                async () => class DialogStub {}
+            );
+
+            await component.openManageStalkerCategories();
+
+            expect(dialog.open).toHaveBeenCalledWith(
+                expect.any(Function),
+                expect.objectContaining({
+                    data: {
+                        playlistId: 'stalker-1',
+                        contentType: 'itv',
+                        categories: [
+                            { category_id: '1', category_name: 'News' },
+                        ],
+                    },
+                    maxWidth: 'calc(100vw - 32px)',
+                })
+            );
+        });
+
+        it('opens nothing when the route changed while the PIN was asked', async () => {
+            enableLock();
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const parentalLock = TestBed.inject(ParentalLockService);
+            jest.spyOn(parentalLock, 'requestUnlock').mockImplementation(
+                async () => {
+                    fixture.componentRef.setInput('context', {
+                        provider: 'xtreams',
+                        playlistId: 'xtream-2',
+                    });
+                    return true;
+                }
+            );
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(
+                async () => class DialogStub {}
+            );
+
+            await component.openManageStalkerCategories();
+
+            expect(component.loadStalkerLockDialog).not.toHaveBeenCalled();
+            expect(dialog.open).not.toHaveBeenCalled();
+        });
+
+        it('opens nothing while the lock store cannot be read', async () => {
+            enableLock();
+            jest.spyOn(
+                TestBed.inject(ParentalLockService),
+                'ensureLocksReadable'
+            ).mockResolvedValue(false);
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(
+                async () => class DialogStub {}
+            );
+
+            await component.openManageStalkerCategories();
+
+            expect(dialog.open).not.toHaveBeenCalled();
+        });
+
+        it('opens nothing when the route changed during the lazy import', async () => {
+            enableLock();
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(async () => {
+                fixture.componentRef.setInput('context', {
+                    provider: 'stalker',
+                    playlistId: 'stalker-2',
+                });
+                return class DialogStub {};
+            });
+
+            await component.openManageStalkerCategories();
+
+            expect(dialog.open).not.toHaveBeenCalled();
         });
     });
 });

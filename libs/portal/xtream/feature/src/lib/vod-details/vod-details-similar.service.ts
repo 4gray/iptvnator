@@ -84,9 +84,12 @@ export class VodDetailsSimilarService {
             )
         );
 
-        return this.crossPortalItems().filter(
-            (item) => !localTitles.has(normalizeTitleKeys(item.title).exact)
-        );
+        // Filtered on read: a relock hides matches cached while unlocked.
+        return this.crossPortalSimilar
+            .visible(this.crossPortalItems())
+            .filter(
+                (item) => !localTitles.has(normalizeTitleKeys(item.title).exact)
+            );
     });
 
     private readonly loadCrossPortalSimilar = effect(() => {

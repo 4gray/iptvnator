@@ -117,6 +117,7 @@ export class XtreamCollectionDetailComponent implements ViewInPortalHandoff {
     }
 
     ngOnDestroy(): void {
+        this.initRequestId++;
         this.xtreamStore.cancelDetailsRequest();
         this.restoreStoreState();
     }

@@ -2,8 +2,9 @@
     <app-channel-list-loading-state
         [view]="activeView()"
         [showEpg]="shouldShowEpg()"
+        [showHeader]="!compact()"
     />
-} @else if (displayedChannels().length) {
+} @else if (showChannelViews()) {
     @if (
         !compact() &&
         viewTitle() &&
@@ -13,16 +14,6 @@
         <header class="context-header">
             <div class="context-header__top">
                 <h2>{{ viewTitle() | translate }}</h2>
-                @if (
-                    activeView() === 'recent' && recentChannelItems().length > 0
-                ) {
-                    <button mat-button (click)="clearRecentChannels()">
-                        {{
-                            'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_SECTION'
-                                | translate
-                        }}
-                    </button>
-                }
             </div>
         </header>
         <div class="context-divider"></div>
@@ -62,11 +53,17 @@
                 [activeChannelUrl]="activeChannelUrl()"
                 [favoriteIds]="favoriteIds()"
                 [hiddenGroupTitles]="hiddenGroupTitles()"
+                [playlistId]="activePlaylist()?._id ?? null"
+                [lockedGroupTitles]="lockedGroupTitles()"
+                [withheldGroupCount]="withheldGroupCount()"
+                [managementGroups]="managementGroups()"
                 [sidebarWidth]="sidebarWidth()"
                 (channelSelected)="onChannelSelected($event)"
                 (channelPlaybackRequested)="onChannelPlaybackRequested($event)"
                 (favoriteToggled)="onFavoriteToggled($event)"
                 (hiddenGroupTitlesChanged)="onHiddenGroupTitlesChanged($event)"
+                (lockedGroupTitlesChanged)="onLockedGroupTitlesChanged($event)"
+                (groupLockToggled)="onGroupLockToggled($event)"
                 (sidebarWidthRequested)="onSidebarWidthRequested($event)"
                 (sidebarWidthRequestEnded)="onSidebarWidthRequestEnded($event)"
                 (sidebarToggleRequested)="sidebarToggleRequested.emit()"

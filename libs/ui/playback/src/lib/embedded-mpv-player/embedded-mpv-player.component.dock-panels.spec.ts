@@ -25,7 +25,7 @@ class DockPanelsHostComponent {
         contentInfo: {
             playlistId: 'playlist-1',
             contentXtreamId: 42,
-            contentType: 'movie',
+            contentType: 'vod',
         },
     };
 }
@@ -284,20 +284,13 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
     });
 
     it('blocks seek and volume arrow shortcuts while a chip panel is open', () => {
-        const seekBy = jest
-            .spyOn(controller, 'seekBy')
-            .mockResolvedValue(true);
+        const seekBy = jest.spyOn(controller, 'seekBy').mockResolvedValue(true);
         const volumeBefore = player.volume();
 
         query('[data-embedded-mpv-menu-button="audio"]').nativeElement.click();
         fixture.detectChanges();
 
-        for (const key of [
-            'ArrowLeft',
-            'ArrowRight',
-            'ArrowUp',
-            'ArrowDown',
-        ]) {
+        for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) {
             document.dispatchEvent(
                 new KeyboardEvent('keydown', {
                     key,

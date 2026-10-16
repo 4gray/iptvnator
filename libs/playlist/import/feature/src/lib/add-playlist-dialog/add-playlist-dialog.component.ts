@@ -18,12 +18,18 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import {
+    DialogFooterDirective,
+    DialogFooterStartDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DataService } from '@iptvnator/services';
 import {
     PLAYLIST_PARSE_BY_URL,
     ProviderImportCandidate,
+    SOURCE_TYPE_ICONS,
 } from '@iptvnator/shared/interfaces';
 import { AutoImportComponent } from '../auto-import/auto-import.component';
 import { FileUploadComponent } from '../file-upload/file-upload.component';
@@ -58,6 +64,9 @@ const METHOD_BY_CANDIDATE_KIND: Record<
 @Component({
     imports: [
         AutoImportComponent,
+        DialogFooterDirective,
+        DialogFooterStartDirective,
+        DialogShellComponent,
         FileUploadComponent,
         MatButtonModule,
         MatDialogModule,
@@ -71,7 +80,7 @@ const METHOD_BY_CANDIDATE_KIND: Record<
     selector: 'app-add-playlist',
     templateUrl: './add-playlist-dialog.component.html',
     styleUrl: './add-playlist-dialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
 })
 export class AddPlaylistDialogComponent {
@@ -119,31 +128,31 @@ export class AddPlaylistDialogComponent {
     readonly methodOptions: PlaylistMethodOption[] = [
         {
             value: 'url',
-            icon: 'public',
+            icon: SOURCE_TYPE_ICONS['m3u-url'],
             labelKey: 'HOME.ADD_PLAYLIST.METHOD_URL_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_URL_SUB',
         },
         {
             value: 'file',
-            icon: 'folder_open',
+            icon: SOURCE_TYPE_ICONS['m3u-local'],
             labelKey: 'HOME.ADD_PLAYLIST.METHOD_FILE_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_FILE_SUB',
         },
         {
             value: 'xtream',
-            icon: 'vpn_key',
+            icon: SOURCE_TYPE_ICONS.xtream,
             labelKey: 'HOME.ADD_PLAYLIST.METHOD_XTREAM_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_XTREAM_SUB',
         },
         {
             value: 'stalker',
-            icon: 'cast',
+            icon: SOURCE_TYPE_ICONS.stalker,
             labelKey: 'HOME.ADD_PLAYLIST.METHOD_STALKER_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_STALKER_SUB',
         },
         {
             value: 'text',
-            icon: 'subject',
+            icon: SOURCE_TYPE_ICONS['m3u-text'],
             labelKey: 'HOME.ADD_PLAYLIST.METHOD_TEXT_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_TEXT_SUB',
         },
@@ -259,9 +268,13 @@ export class AddPlaylistDialogComponent {
 
     rejectFile(filename: string): void {
         this.snackBar.open(
-            this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
-                filename,
-            })
+            filename
+                ? this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
+                      filename,
+                  })
+                : this.translateService.instant(
+                      'HOME.FILE_UPLOAD.REJECTED_UNNAMED'
+                  )
         );
     }
 

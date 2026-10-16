@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import packageJson from '@package';
+import { version as appVersion } from '@package';
 import { createDiagnosticReport } from './playback-diagnostic-report.util';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import {
@@ -91,7 +91,7 @@ export class PlaybackDiagnosticPanelComponent {
     readonly diagnosticReport = computed(() =>
         createDiagnosticReport(
             this.diagnostic(),
-            packageJson.version,
+            appVersion,
             this.document.defaultView?.navigator.userAgent ?? ''
         )
     );

@@ -52,6 +52,7 @@ import {
     normalizeEpgUrls,
     resolvePlaylistEpgSourceState,
 } from '@iptvnator/shared/m3u-utils';
+import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 import {
     hasStalkerConnectionChanged,
     omitStalkerConnection,
@@ -61,6 +62,12 @@ import {
     STALKER_PLAYLIST_CONNECTION_EDITOR,
     STALKER_PLAYLIST_CONNECTION_EDITOR_STATUS,
 } from './stalker-playlist-connection-editor.token';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import {
+    DialogFooterDirective,
+    DialogFooterStartDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 type DesktopFileSaveBridge = Pick<
     typeof window.electron,
@@ -72,10 +79,6 @@ type DesktopFileSaveBridge = Pick<
     templateUrl: './playlist-info.component.html',
     styles: [
         `
-            .spacer {
-                flex: 1 1 auto;
-            }
-
             .playlist-info-fields {
                 min-width: 0;
                 margin: 0;
@@ -83,32 +86,30 @@ type DesktopFileSaveBridge = Pick<
                 border: 0;
             }
 
-            mat-dialog-content {
+            // The shell renders the body; this wrapper lays the fields out.
+            .playlist-info-body {
                 display: flex;
                 flex-direction: column;
                 gap: 14px;
             }
 
-            // Material's '.mat-mdc-dialog-title + .mat-mdc-dialog-content' rule
-            // zeroes padding-top with higher specificity than a scoped override,
-            // which clips the first field's floating label. Pushing the first
-            // field down with margin-top side-steps that entirely.
-            mat-dialog-content > mat-form-field:first-child {
-                margin-top: 10px;
+            // Room for the first field's floating label under the header.
+            .playlist-info-body > mat-form-field:first-child {
+                margin-top: 6px;
             }
 
-            mat-dialog-content mat-checkbox {
+            .playlist-info-body mat-checkbox {
                 margin-top: 4px;
             }
 
-            mat-dialog-content p {
+            .playlist-info-body p {
                 margin: 0;
                 color: var(--mat-sys-on-surface-variant);
                 font-size: 12.5px;
                 line-height: 1.45;
             }
 
-            mat-dialog-content p.stalker-device-id-warning {
+            .playlist-info-body p.stalker-device-id-warning {
                 color: var(--mat-sys-error);
             }
 
@@ -164,9 +165,12 @@ type DesktopFileSaveBridge = Pick<
             }
         `,
     ],
-    providers: [DatePipe],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    providers: [provideFormFieldDefaults(), DatePipe],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        DialogFooterDirective,
+        DialogFooterStartDirective,
+        DialogShellComponent,
         ClipboardModule,
         MatButton,
         MatCheckboxModule,
@@ -175,6 +179,7 @@ type DesktopFileSaveBridge = Pick<
         MatIconButton,
         MatInputModule,
         MatTooltip,
+        PasswordVisibilityToggleDirective,
         ReactiveFormsModule,
         TranslatePipe,
     ],
@@ -298,8 +303,20 @@ export class PlaylistInfoComponent {
         ) as UntypedFormArray;
     }
 
-    /** Playlist object */
-    playlist: Playlist & { id: string };
+    /**
+     * Playlist object. Signal-backed because it is replaced after awaited
+     * hydration and EPG source edits, which no template event marks for an
+     * OnPush check.
+     */
+    private readonly playlistState = signal<Playlist & { id: string }>(
+        this.playlistData
+    );
+    get playlist(): Playlist & { id: string } {
+        return this.playlistState();
+    }
+    set playlist(value: Playlist & { id: string }) {
+        this.playlistState.set(value);
+    }
 
     /** Form group with playlist details */
     playlistDetails!: UntypedFormGroup;
@@ -309,7 +326,6 @@ export class PlaylistInfoComponent {
         this.dialogRef?.beforeClosed().subscribe(() => {
             this.dialogClosing = true;
         });
-        this.playlist = this.playlistData;
         this.createForm();
         this.connectionTest = createXtreamConnectionTestState(
             this.playlistDetails
@@ -807,7 +823,9 @@ export class PlaylistInfoComponent {
                     `${this.playlist.title || 'exported'}.m3u8`,
                     [
                         {
-                            name: 'Playlist',
+                            name: this.translate.instant(
+                                'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE'
+                            ),
                             extensions: ['m3u8', 'm3u'],
                         },
                     ]

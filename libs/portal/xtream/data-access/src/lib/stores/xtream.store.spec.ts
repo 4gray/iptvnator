@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import {
     DataService,
     DatabaseService,
@@ -16,7 +18,10 @@ import {
     XtreamPlaylistData,
 } from '../data-sources/xtream-data-source.interface';
 import { XtreamApiService } from '../services/xtream-api.service';
-import { resolveXtreamVodPlaybackSource } from '../services/xtream-vod-playback-source';
+import {
+    resolveXtreamVodPlaybackSource,
+    type XtreamVodPlaybackItem,
+} from '../services/xtream-vod-playback-source';
 import { XtreamUrlService } from '../services/xtream-url.service';
 import { XtreamXmltvFallbackService } from '../services/xtream-xmltv-fallback.service';
 import { XtreamStore } from './xtream.store';
@@ -72,6 +77,11 @@ function configureStore(
     TestBed.configureTestingModule({
         providers: [
             XtreamStore,
+            { provide: MatSnackBar, useValue: { open: jest.fn() } },
+            {
+                provide: TranslateService,
+                useValue: { instant: (key: string) => key },
+            },
             { provide: XTREAM_DATA_SOURCE, useValue: dataSource },
             { provide: XtreamApiService, useValue: xtreamApiService },
             { provide: DatabaseService, useValue: {} },
@@ -135,7 +145,11 @@ describe('XtreamStore VOD details recovery', () => {
                 container_extension: null,
             })
         );
-        expect(resolveXtreamVodPlaybackSource(store.selectedItem())).toBeNull();
+        expect(
+            resolveXtreamVodPlaybackSource(
+                store.selectedItem() as XtreamVodPlaybackItem | null
+            )
+        ).toBeNull();
         expect(store.isLoadingDetails()).toBe(false);
 
         const publishedSelection = store.selectedItem();
@@ -152,11 +166,16 @@ describe('XtreamStore VOD details recovery', () => {
         } as XtreamVodStream);
         await waitForCondition(
             () =>
-                resolveXtreamVodPlaybackSource(store.selectedItem())
-                    ?.containerExtension === 'mkv'
+                resolveXtreamVodPlaybackSource(
+                    store.selectedItem() as XtreamVodPlaybackItem | null
+                )?.containerExtension === 'mkv'
         );
 
-        expect(resolveXtreamVodPlaybackSource(store.selectedItem())).toEqual({
+        expect(
+            resolveXtreamVodPlaybackSource(
+                store.selectedItem() as XtreamVodPlaybackItem | null
+            )
+        ).toEqual({
             streamId: 42,
             containerExtension: 'mkv',
         });
@@ -197,8 +216,9 @@ describe('XtreamStore VOD details recovery', () => {
         });
         await waitForCondition(
             () =>
-                resolveXtreamVodPlaybackSource(store.selectedItem())
-                    ?.streamId === 99
+                resolveXtreamVodPlaybackSource(
+                    store.selectedItem() as XtreamVodPlaybackItem | null
+                )?.streamId === 99
         );
 
         firstCatalogItem.resolve({
@@ -208,7 +228,11 @@ describe('XtreamStore VOD details recovery', () => {
         await Promise.resolve();
         await new Promise((resolve) => setTimeout(resolve, 0));
 
-        expect(resolveXtreamVodPlaybackSource(store.selectedItem())).toEqual({
+        expect(
+            resolveXtreamVodPlaybackSource(
+                store.selectedItem() as XtreamVodPlaybackItem | null
+            )
+        ).toEqual({
             streamId: 99,
             containerExtension: 'mp4',
         });
@@ -303,8 +327,9 @@ describe('XtreamStore VOD details recovery', () => {
         });
         await waitForCondition(
             () =>
-                resolveXtreamVodPlaybackSource(store.selectedItem())
-                    ?.streamId === 99
+                resolveXtreamVodPlaybackSource(
+                    store.selectedItem() as XtreamVodPlaybackItem | null
+                )?.streamId === 99
         );
 
         firstDetails.resolve({
@@ -315,12 +340,49 @@ describe('XtreamStore VOD details recovery', () => {
         await Promise.resolve();
         await new Promise((resolve) => setTimeout(resolve, 0));
 
-        expect(resolveXtreamVodPlaybackSource(store.selectedItem())).toEqual({
+        expect(
+            resolveXtreamVodPlaybackSource(
+                store.selectedItem() as XtreamVodPlaybackItem | null
+            )
+        ).toEqual({
             streamId: 99,
             containerExtension: 'mp4',
         });
         expect(store.detailsError()).toBeNull();
         expect(store.isLoadingDetails()).toBe(false);
+    });
+
+    it('publishes series details without provider stand-ins', async () => {
+        const xtreamApiService = {
+            getSeriesInfo: jest.fn().mockResolvedValue({
+                info: {
+                    name: 'Placeholder Series',
+                    plot: 'N/A',
+                    rating: '0',
+                    releaseDate: 'N/A',
+                },
+                seasons: [],
+                episodes: {},
+            }),
+            getVodInfo: jest.fn(),
+            getVodStream: jest.fn(),
+        };
+        const store = configureStore(xtreamApiService);
+
+        store.fetchSerialDetailsWithMetadata({
+            categoryId: 7,
+            serialId: '99',
+        });
+        await waitForCondition(() => store.selectedItem() !== null);
+
+        expect(
+            (store.selectedItem() as { info: Record<string, unknown> }).info
+        ).toEqual({
+            name: 'Placeholder Series',
+            plot: '',
+            rating: '',
+            releaseDate: '',
+        });
     });
 
     it('clears the previous series while a reused-route request is pending or fails', async () => {

@@ -4,7 +4,10 @@ import { describe, it } from 'node:test';
 import { XTREAM_SCENARIO_ID } from './xtream-benchmark-contract';
 import { createXtreamAssemblerFixture } from './xtream-iteration-assembler.fixture';
 import { assembleXtreamRawIteration } from './xtream-iteration-assembler';
-import { summarizeXtreamUiActionSamples } from './xtream-ui-action-probe';
+import {
+    summarizeXtreamUiActionSamples,
+    type XtreamUiActionProbeResult,
+} from './xtream-ui-action-probe';
 
 describe('Xtream raw iteration assembler background UI evidence', () => {
     it('binds samples to the full refresh lifecycle after the delete prelude', () => {
@@ -23,9 +26,10 @@ describe('Xtream raw iteration assembler background UI evidence', () => {
         assert.ok(background);
         assert.ok(operation);
         assert.ok(storeTerminalEpochMs);
+        const deleteStartedEpochMs = request.workStartedEpochMs;
         const step = (storeTerminalEpochMs - request.workEndedEpochMs) / 12;
         assert.ok(step > 0);
-        const samples = background.result.samples.map((sample, index) => {
+        const samples = uiResult(background).samples.map((sample, index) => {
             const startEpochMs =
                 Number(request.workEndedEpochMs) + step * (index * 2 + 1);
             const endEpochMs = startEpochMs + step;
@@ -51,7 +55,7 @@ describe('Xtream raw iteration assembler background UI evidence', () => {
                             dashboardPaintVisibility: 'visible-without-overlay',
                             samples,
                         },
-                        startedEpochMs: request.workStartedEpochMs,
+                        startedEpochMs: deleteStartedEpochMs,
                     },
                     operation: {
                         ...operation,
@@ -78,7 +82,7 @@ describe('Xtream raw iteration assembler background UI evidence', () => {
         const step =
             (request.workEndedEpochMs - background.startedEpochMs) / 12;
         assert.ok(step > 0);
-        const samples = background.result.samples.map((sample, index) => {
+        const samples = uiResult(background).samples.map((sample, index) => {
             const startEpochMs =
                 background.startedEpochMs + step * (index * 2 + 1);
             const endEpochMs = startEpochMs + step;
@@ -123,17 +127,19 @@ describe('Xtream raw iteration assembler background UI evidence', () => {
         );
         const background = input.terminal.backgroundProbe;
         assert.ok(background);
-        const samples = background.result.samples.map((sample, index, all) => {
-            if (index !== 1) return sample;
-            const previous = all[0];
-            assert.ok(previous);
-            const startEpochMs = previous.endEpochMs - 0.1;
-            return {
-                ...sample,
-                latencyMs: sample.endEpochMs - startEpochMs,
-                startEpochMs,
-            };
-        });
+        const samples = uiResult(background).samples.map(
+            (sample, index, all) => {
+                if (index !== 1) return sample;
+                const previous = all[0];
+                assert.ok(previous);
+                const startEpochMs = previous.endEpochMs - 0.1;
+                return {
+                    ...sample,
+                    latencyMs: sample.endEpochMs - startEpochMs,
+                    startEpochMs,
+                };
+            }
+        );
         const summary = summarizeXtreamUiActionSamples(samples);
 
         assert.throws(
@@ -166,15 +172,17 @@ describe('Xtream raw iteration assembler background UI evidence', () => {
             input.rendererCapture.probe.storeTerminalEpochMs;
         assert.ok(background);
         assert.ok(storeTerminalEpochMs);
-        const samples = background.result.samples.map((sample, index, all) => {
-            if (index !== all.length - 1) return sample;
-            const endEpochMs = storeTerminalEpochMs + 0.1;
-            return {
-                ...sample,
-                endEpochMs,
-                latencyMs: endEpochMs - sample.startEpochMs,
-            };
-        });
+        const samples = uiResult(background).samples.map(
+            (sample, index, all) => {
+                if (index !== all.length - 1) return sample;
+                const endEpochMs = storeTerminalEpochMs + 0.1;
+                return {
+                    ...sample,
+                    endEpochMs,
+                    latencyMs: endEpochMs - sample.startEpochMs,
+                };
+            }
+        );
         const summary = summarizeXtreamUiActionSamples(samples);
 
         assert.throws(
@@ -199,3 +207,11 @@ describe('Xtream raw iteration assembler background UI evidence', () => {
         );
     });
 });
+
+// The background-UI fixture builds its probe result from the UI action probe;
+// the terminal evidence type erases it to unknown.
+function uiResult(background: {
+    readonly result: unknown;
+}): XtreamUiActionProbeResult {
+    return background.result as XtreamUiActionProbeResult;
+}

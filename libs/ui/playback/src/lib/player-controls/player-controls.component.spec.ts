@@ -77,6 +77,7 @@ describe('PlayerControlsComponent', () => {
                     FORWARD_10_SECONDS: 'Forward 10 seconds',
                     LIVE_STREAM: 'Live stream',
                     PLAYBACK_POSITION: 'Playback position',
+                    SETTINGS: 'Settings',
                     MUTE: 'Mute',
                     UNMUTE: 'Unmute',
                     VOLUME: 'Volume',
@@ -107,10 +108,15 @@ describe('PlayerControlsComponent', () => {
     describe('capability gating', () => {
         it('hides every optional control when no capability is enabled', () => {
             expect(query('[aria-label="Back 10 seconds"]')).toBeNull();
-            expect(query('[aria-label="Audio tracks"]')).toBeNull();
-            expect(query('[aria-label="Subtitles"]')).toBeNull();
-            expect(query('[aria-label="Playback speed"]')).toBeNull();
-            expect(query('[aria-label="Aspect ratio"]')).toBeNull();
+            expect(
+                query('[data-test-id="player-controls-settings-button"]')
+            ).toBeNull();
+            expect(
+                query('[data-test-id="player-controls-subtitle-chip"]')
+            ).toBeNull();
+            expect(
+                query('[data-test-id="player-controls-speed-chip"]')
+            ).toBeNull();
             expect(query('.player-controls__record-button')).toBeNull();
             expect(query('[aria-label="Enter fullscreen"]')).toBeNull();
             expect(query('[aria-label="Mute"]')).toBeNull();
@@ -137,8 +143,16 @@ describe('PlayerControlsComponent', () => {
             expect(query('.player-controls__record-button')).toBeNull();
         });
 
-        it('shows the audio menu only with the capability and more than one track', () => {
+        it('shows the settings button only with the capability and more than one audio track', () => {
             setCapabilities({ audioTracks: true });
+            setState({
+                audioTracks: [{ id: 1, label: 'English', selected: true }],
+            });
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-settings-button"]')
+            ).toBeNull();
+
             setState({
                 audioTracks: [
                     { id: 1, label: 'English', selected: true },
@@ -146,14 +160,23 @@ describe('PlayerControlsComponent', () => {
                 ],
             });
             fixture.detectChanges();
-            expect(query('[aria-label="Audio tracks"]')).not.toBeNull();
+            expect(
+                query('[data-test-id="player-controls-settings-button"]')
+            ).not.toBeNull();
+            expect(query('[aria-label="Settings"]')).not.toBeNull();
         });
 
-        it('shows speed and aspect controls per their capabilities', () => {
+        it('shows the speed chip and the settings button per their capabilities', () => {
             setCapabilities({ playbackSpeed: true, aspectRatio: true });
             fixture.detectChanges();
-            expect(query('[aria-label="Playback speed"]')).not.toBeNull();
-            expect(query('[aria-label="Aspect ratio"]')).not.toBeNull();
+            expect(
+                query('[data-test-id="player-controls-speed-chip"]')
+            ).not.toBeNull();
+            // Aspect ratio has no chip of its own: it lives in the panel.
+            expect(query('[aria-label="Aspect ratio"]')).toBeNull();
+            expect(
+                query('[data-test-id="player-controls-settings-button"]')
+            ).not.toBeNull();
         });
 
         it('shows the fullscreen button when supported', () => {
@@ -201,10 +224,10 @@ describe('PlayerControlsComponent', () => {
             });
             fixture.detectChanges();
 
-            query('[aria-label="Audio tracks"]')?.click();
+            query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();
             const items = fixture.nativeElement.querySelectorAll(
-                '.player-controls__track'
+                '[data-test-id="player-settings-audio"] .player-settings__option'
             ) as NodeListOf<HTMLElement>;
             items[1].click();
             expect(fake.commands.setAudioTrack).toHaveBeenCalledWith(2);

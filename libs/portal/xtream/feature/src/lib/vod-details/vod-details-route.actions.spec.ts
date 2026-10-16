@@ -26,6 +26,7 @@ import {
 } from '@iptvnator/services';
 import {
     PlaybackPositionData,
+    VideoPlayer,
     XtreamCategory,
     XtreamVodDetails,
     XtreamVodStream,
@@ -312,11 +313,15 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                         isAvailable: false,
                         buildLink: jest.fn(),
                         matchRecommendations: jest.fn(),
+                        visible: <T>(items: T[]) => items,
                     },
                 },
                 {
                     provide: SettingsStore,
-                    useValue: { theme: signal('dark') },
+                    useValue: {
+                        theme: signal('dark'),
+                        player: signal(VideoPlayer.Html5Player),
+                    },
                 },
                 { provide: MatSnackBar, useValue: { open: jest.fn() } },
                 { provide: Location, useValue: { back: jest.fn() } },
@@ -441,6 +446,25 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             host.querySelector('app-portal-detail-shell')?.classList
         ).toContain('shell-host--watch');
     });
+    it('binds the detail heart to the displayed metadata identity', async () => {
+        const item = richItem();
+        if (item.info && !Array.isArray(item.info)) item.info.tmdb_id = 200;
+        selectedItem.set(item);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.nativeElement
+            .querySelector('[data-testid="vod-favorite-toggle"]')
+            .click();
+        await fixture.whenStable();
+        expect(toggleFavorite).toHaveBeenCalledWith(
+            '650020',
+            'playlist-1',
+            'movie',
+            undefined,
+            expect.objectContaining({ tmdbId: 200, releaseYear: 2025 })
+        );
+    });
+
     it('reuses the sparse item for resume, favorite, and download', async () => {
         const item = sparseItem();
         selectedItem.set(item);
@@ -462,7 +486,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         fixture.detectChanges();
         const host = fixture.nativeElement as HTMLElement;
         host.querySelector<HTMLButtonElement>(
-            'button.play-btn--resume'
+            '[data-testid="vod-primary-action"]'
         )?.click();
         fixture.detectChanges();
         host.querySelector<HTMLButtonElement>(
@@ -479,6 +503,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             '650020',
             'playlist-1',
             'movie',
+            undefined,
             undefined
         );
         expect(startDownload).toHaveBeenCalledWith(
@@ -782,10 +807,10 @@ describe('VodDetailsRouteComponent fallback actions', () => {
 
         const host = fixture.nativeElement as HTMLElement;
         const primary = host.querySelector<HTMLButtonElement>(
-            'button.play-btn--resume'
+            '[data-testid="vod-primary-action"]'
         );
         expect(primary?.disabled).toBe(true);
-        expect(primary?.textContent).toContain('Opening in MPV...');
+        expect(primary?.textContent).toContain('EXTERNAL_PLAYER.OPENING_IN');
         expect(
             Array.from(host.querySelectorAll('button')).some((button) =>
                 button.textContent?.includes('XTREAM.RESTART')

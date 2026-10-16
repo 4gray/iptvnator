@@ -445,6 +445,24 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().playerUpNextRail).toBe(false);
     });
 
+    it('defaults the up next card to true when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().playerUpNextCard).toBe(true);
+    });
+
+    it('restores a persisted false up next card preference', async () => {
+        storedSettings = { playerUpNextCard: false };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().playerUpNextCard).toBe(false);
+    });
+
     it('defaults the fullscreen channel panel to true when the stored field is missing', async () => {
         storedSettings = {};
         const store = injector.get(SettingsStore);

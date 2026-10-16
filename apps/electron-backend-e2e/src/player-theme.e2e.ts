@@ -139,15 +139,20 @@ for (const engine of [
                     )
                     .toBeGreaterThan(0);
             } else {
+                // Past the two seconds after which the channel is recorded
+                // as recently viewed: the HTML5 pass reopens it from there.
                 await expect
-                    .poll(() =>
-                        app.mainWindow
-                            .locator('app-web-player-view video')
-                            .evaluate(
-                                (video: HTMLVideoElement) => video.currentTime
-                            )
+                    .poll(
+                        () =>
+                            app.mainWindow
+                                .locator('app-web-player-view video')
+                                .evaluate(
+                                    (video: HTMLVideoElement) =>
+                                        video.currentTime
+                                ),
+                        { timeout: 20000 }
                     )
-                    .toBeGreaterThan(0);
+                    .toBeGreaterThan(2.5);
             }
             const controls = app.mainWindow.locator(
                 engine === 'native'
@@ -159,6 +164,10 @@ for (const engine of [
                 exact: true,
             });
             await expect(pause).toBeEnabled({ timeout: 20000 });
+            if (engine !== 'native') {
+                // Seconds of playback let the controls auto-hide; reveal them.
+                await app.mainWindow.locator('app-web-player-view').hover();
+            }
             await pause.click();
             const play = controls.getByRole('button', {
                 name: 'Play',

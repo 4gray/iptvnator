@@ -1,0 +1,59 @@
+@use '../../../../styles/detail-view-actions' as actions;
+
+:host {
+    display: inline-flex;
+}
+
+.icon-btn {
+    @include actions.ghost-action-surface;
+
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 10px;
+    cursor: pointer;
+
+    mat-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+        line-height: 20px;
+    }
+
+    &:disabled {
+        cursor: default;
+        opacity: 0.55;
+    }
+
+    // Favorited: the glyph fills and turns red, the surface stays a ghost.
+    &--favorite.is-active {
+        color: var(--app-live-color, #ff5b6e);
+    }
+
+    &--favorite.is-pulsing mat-icon {
+        animation: icon-btn-pulse 180ms ease;
+    }
+
+    &--watched.is-active,
+    &--done {
+        color: #4ade80;
+    }
+}
+
+@keyframes icon-btn-pulse {
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .icon-btn mat-icon {
+        animation: none !important;
+    }
+}

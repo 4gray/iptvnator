@@ -1,3 +1,4 @@
+import type { ZoomLevelAction } from '@iptvnator/shared/interfaces';
 import {
     APP_KEYBOARD_SHORTCUTS,
     KEYBOARD_SHORTCUT_GROUPS,
@@ -43,6 +44,8 @@ const KEY_LABELS = new Map<string, string>([
     ['ArrowUp', '↑'],
     ['ArrowDown', '↓'],
     ['Escape', 'Esc'],
+    ['Plus', '+'],
+    ['Minus', '−'],
 ]);
 
 const KEY_ARIA_LABELS = new Map<string, string>([
@@ -53,6 +56,7 @@ const KEY_ARIA_LABELS = new Map<string, string>([
     ['ArrowUp', 'Up arrow'],
     ['ArrowDown', 'Down arrow'],
     ['Escape', 'Escape'],
+    ['[', 'Left bracket'],
 ]);
 
 const MODIFIER_KEYS = new Set(['Cmd', 'Ctrl', 'Alt', 'Shift']);
@@ -86,6 +90,78 @@ export function isKeyboardShortcutHelpTrigger(event: KeyboardEvent): boolean {
     }
 
     return event.key === '?' || (event.key === '/' && event.shiftKey);
+}
+
+/**
+ * True for the Back chord: Cmd+[ on macOS, Alt+← elsewhere (the browser's
+ * own chords). On macOS the key position counts as well (`BracketLeft`), so
+ * layouts that type `[` with Option still have a Cmd chord on that key.
+ */
+export function isWorkspaceBackShortcut(
+    event: KeyboardEvent,
+    options: { isMac: boolean }
+): boolean {
+    if (event.shiftKey) {
+        return false;
+    }
+
+    if (options.isMac) {
+        return (
+            event.metaKey &&
+            !event.ctrlKey &&
+            (event.key === '[' || event.code === 'BracketLeft')
+        );
+    }
+
+    return (
+        event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        event.key === 'ArrowLeft'
+    );
+}
+
+/**
+ * The app zoom shortcut `event` carries, or null. Follows the browser
+ * convention on each platform — Cmd on macOS, Ctrl elsewhere, Alt never:
+ * `+`/`=` (so `Ctrl+=` and `Ctrl+Shift+=` both zoom in), `-`/`_`, `0`, and
+ * the numpad `+`/`-`/`0` keys (matched by `code`, since NumLock-off `0`
+ * reports `Insert`). Keys are matched by `event.key` so non-US layouts zoom
+ * with their own `+`/`-` keys rather than with whatever sits on `Equal`.
+ */
+export function resolveZoomShortcutAction(
+    event: KeyboardEvent,
+    options: { isMac: boolean }
+): ZoomLevelAction | null {
+    const commandModifier = options.isMac
+        ? event.metaKey && !event.ctrlKey
+        : event.ctrlKey && !event.metaKey;
+
+    if (!commandModifier || event.altKey) {
+        return null;
+    }
+
+    switch (event.key) {
+        case '+':
+        case '=':
+            return 'in';
+        case '-':
+        case '_':
+            return 'out';
+        case '0':
+            return 'reset';
+    }
+
+    switch (event.code) {
+        case 'NumpadAdd':
+            return 'in';
+        case 'NumpadSubtract':
+            return 'out';
+        case 'Numpad0':
+            return 'reset';
+    }
+
+    return null;
 }
 
 function resolveShortcutChord(

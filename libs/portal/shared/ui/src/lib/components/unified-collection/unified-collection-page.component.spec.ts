@@ -7,6 +7,8 @@ import {
     ViewChild,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatButtonToggleGroup } from '@angular/material/button-toggle';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -24,6 +26,7 @@ import {
     liveSidebarStateStorageKey,
 } from '@iptvnator/portal/shared/util';
 import {
+    UnifiedCollectionDataService,
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
@@ -34,6 +37,7 @@ import {
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { BehaviorSubject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { COLLECTION_RELOAD_INDICATOR_DELAY_MS } from '@iptvnator/portal/shared/data-access';
 import { UnifiedCollectionPageComponent } from './unified-collection-page.component';
 import { UnifiedCollectionDetailDirective } from './unified-collection-detail.directive';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
@@ -52,6 +56,7 @@ class StubUnifiedLiveTabComponent {
     readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
     readonly sortMode = input<FavoritesChannelSortMode>('custom');
     readonly isSidebarCollapsed = input(false);
+    readonly reloading = input(false);
 
     readonly removeItem = output<UnifiedCollectionItem>();
     readonly favoriteToggled = output<UnifiedCollectionItem>();
@@ -140,6 +145,7 @@ describe('UnifiedCollectionPageComponent', () => {
     const playlistsLoaded = signal(false);
     const playlists = signal<PlaylistMeta[]>([]);
     const favoritesData = {
+        isXtreamFavorite: jest.fn().mockResolvedValue(true),
         addFavorite: jest.fn().mockResolvedValue(undefined),
         getFavorites: jest.fn().mockResolvedValue([]),
         clearFavorites: jest.fn().mockResolvedValue(undefined),
@@ -155,6 +161,7 @@ describe('UnifiedCollectionPageComponent', () => {
     const dialogService = {
         openConfirmDialog: jest.fn(),
     };
+    const snackBar = { open: jest.fn() };
     const workspaceViewCommands = {
         registerCommand: jest.fn(),
     };
@@ -200,12 +207,11 @@ describe('UnifiedCollectionPageComponent', () => {
 
         const workspaceRoute = {
             snapshot: {
-                data: { layout: 'workspace' },
                 paramMap: convertToParamMap({}),
                 params: {},
             },
             paramMap: workspaceParamMap$.asObservable(),
-        } as ActivatedRoute;
+        } as unknown as ActivatedRoute;
 
         route = {
             snapshot: {
@@ -219,7 +225,7 @@ describe('UnifiedCollectionPageComponent', () => {
             paramMap: routeParamMap$.asObservable(),
             queryParamMap: routeQueryParamMap$.asObservable(),
             pathFromRoot: [],
-        } as ActivatedRoute & {
+        } as unknown as ActivatedRoute & {
             snapshot: {
                 paramMap: ReturnType<typeof convertToParamMap>;
                 queryParamMap: ReturnType<typeof convertToParamMap>;
@@ -249,6 +255,7 @@ describe('UnifiedCollectionPageComponent', () => {
                 TranslateModule.forRoot(),
             ],
             providers: [
+                { provide: MatSnackBar, useValue: snackBar },
                 {
                     provide: ActivatedRoute,
                     useValue: route,
@@ -319,6 +326,68 @@ describe('UnifiedCollectionPageComponent', () => {
         fixture = TestBed.createComponent(UnifiedCollectionPageComponent);
         fixture.componentRef.setInput('mode', 'favorites');
         fixture.componentRef.setInput('defaultScope', 'all');
+    });
+
+    it.each([
+        [
+            'XTREAM_FAVORITE_IDENTITY_CONFLICT',
+            'PORTALS.FAVORITE_IDENTITY_CONFLICT',
+        ],
+        ['SQLite write failed', 'PORTALS.FAVORITE_SAVE_FAILED'],
+    ])(
+        'reports %s without filling the recent favorite heart',
+        async (error, message) => {
+            fixture.componentRef.setInput('mode', 'recent');
+            const item: UnifiedCollectionItem = {
+                uid: 'xtream::source::live:7',
+                name: 'Recent channel',
+                sourceType: 'xtream',
+                contentType: 'live',
+                playlistId: 'source',
+                playlistName: 'Source',
+                contentId: 42,
+            };
+            favoritesData.addFavorite.mockRejectedValueOnce(new Error(error));
+            await expect(
+                fixture.componentInstance.onFavoriteToggled(item)
+            ).resolves.toBeUndefined();
+            expect(snackBar.open).toHaveBeenCalledWith(message, undefined, {
+                duration: 6000,
+            });
+            const data = fixture.debugElement.injector.get(
+                UnifiedCollectionDataService
+            );
+            expect(data.favoriteUidSet().has(item.uid)).toBe(false);
+        }
+    );
+
+    it('names the favorites sort button with the current order', async () => {
+        const favorite = {
+            uid: 'm3u::playlist-1::https://example.com/one.m3u8',
+            name: 'Favorite One',
+            contentType: 'live',
+            sourceType: 'm3u',
+            playlistId: 'playlist-1',
+            playlistName: 'Playlist One',
+            streamUrl: 'https://example.com/one.m3u8',
+        } satisfies UnifiedCollectionItem;
+        favoritesData.getFavorites.mockResolvedValueOnce([favorite]);
+
+        fixture.componentRef.setInput('mode', 'favorites');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.isLoading.set(false);
+        fixture.componentInstance.selectedContentType.set('live');
+        fixture.componentInstance.allItems.set([favorite]);
+        fixture.detectChanges();
+
+        const button = fixture.nativeElement.querySelector(
+            '.favorites-sort-button'
+        ) as HTMLButtonElement;
+        // No translations are loaded, so the keys are the rendered text.
+        expect(button.getAttribute('aria-label')).toBe(
+            `WORKSPACE.SORT_LABEL${fixture.componentInstance.favSortLabelKey()}`
+        );
     });
 
     it('uses compact loading rows when the runtime has no EPG support', () => {
@@ -669,7 +738,6 @@ describe('UnifiedCollectionPageComponent', () => {
     it('registers a workspace command when the current view has actionable items', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
-        expect(fixture.componentInstance.isWorkspaceLayout).toBe(true);
 
         fixture.componentInstance.allItems.set([
             {
@@ -876,6 +944,7 @@ describe('UnifiedCollectionPageComponent', () => {
                 ['/workspace', 'global-favorites'],
                 {
                     state: {
+                        [COLLECTION_VIEW_STATE_KEY]: { scope: 'all' },
                         [OPEN_COLLECTION_DETAIL_STATE_KEY]: {
                             item: expect.objectContaining({ xtreamId: 103 }),
                             seriesResume,
@@ -999,6 +1068,7 @@ describe('UnifiedCollectionPageComponent', () => {
             ['/workspace', 'global-recent'],
             {
                 state: {
+                    [COLLECTION_VIEW_STATE_KEY]: { scope: 'all' },
                     [OPEN_COLLECTION_DETAIL_STATE_KEY]: {
                         item: expect.objectContaining({
                             uid: item.uid,
@@ -1014,5 +1084,262 @@ describe('UnifiedCollectionPageComponent', () => {
                 },
             }
         );
+    });
+
+    describe('reload feedback while items stay on screen', () => {
+        const liveItem = {
+            uid: 'm3u::playlist-1::https://example.com/one.m3u8',
+            name: 'Channel One',
+            contentType: 'live',
+            sourceType: 'm3u',
+            playlistId: 'playlist-1',
+            playlistName: 'Playlist One',
+            streamUrl: 'https://example.com/one.m3u8',
+        } satisfies UnifiedCollectionItem;
+        const otherLiveItem = {
+            ...liveItem,
+            uid: 'm3u::playlist-2::https://example.com/two.m3u8',
+            name: 'Channel Two',
+            playlistId: 'playlist-2',
+            playlistName: 'Playlist Two',
+            streamUrl: 'https://example.com/two.m3u8',
+        } satisfies UnifiedCollectionItem;
+
+        function deferred<T>(): {
+            promise: Promise<T>;
+            resolve: (value: T) => void;
+        } {
+            let resolve!: (value: T) => void;
+            const promise = new Promise<T>((r) => {
+                resolve = r;
+            });
+            return { promise, resolve };
+        }
+
+        async function flushMicrotasks(): Promise<void> {
+            for (let i = 0; i < 8; i++) {
+                await Promise.resolve();
+            }
+        }
+
+        function liveTab(): StubUnifiedLiveTabComponent | null {
+            return (
+                fixture.debugElement.query(
+                    By.directive(StubUnifiedLiveTabComponent)
+                )?.componentInstance ?? null
+            );
+        }
+
+        function reloadBar(): HTMLElement | null {
+            return fixture.nativeElement.querySelector(
+                '.collection-reload-bar'
+            );
+        }
+
+        function contentRegion(): HTMLElement {
+            return fixture.nativeElement.querySelector('.collection-content');
+        }
+
+        function scopeToggleValue(): CollectionScope {
+            return fixture.debugElement
+                .query(By.css('.scope-toggle'))
+                .injector.get(MatButtonToggleGroup).value;
+        }
+
+        async function mountWithLiveItems(
+            scope: CollectionScope = 'playlist',
+            items: UnifiedCollectionItem[] = [liveItem]
+        ): Promise<void> {
+            setRouteParams({ id: 'playlist-1' });
+            setRouteQueryParams({ scope });
+            playlistsLoaded.set(true);
+            fixture.componentRef.setInput('portalType', 'm3u');
+            fixture.componentRef.setInput('defaultScope', undefined);
+            favoritesData.getFavorites.mockResolvedValueOnce(items);
+
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.isLoading()).toBe(false);
+            expect(fixture.componentInstance.isReloading()).toBe(false);
+            expect(liveTab()?.items()).toEqual(items);
+            expect(scopeToggleValue()).toBe(scope);
+        }
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('keeps the previous items and live tab mounted and shows the bar only after the grace period', async () => {
+            await mountWithLiveItems();
+            jest.useFakeTimers();
+            const pending = deferred<UnifiedCollectionItem[]>();
+            favoritesData.getFavorites.mockReturnValueOnce(pending.promise);
+
+            fixture.componentInstance.onScopeChange('all');
+            fixture.detectChanges();
+
+            expect(favoritesData.getFavorites).toHaveBeenLastCalledWith(
+                'all',
+                'playlist-1',
+                'm3u'
+            );
+            expect(fixture.componentInstance.isReloading()).toBe(true);
+            expect(fixture.componentInstance.isLoading()).toBe(false);
+            expect(fixture.componentInstance.showReloadIndicator()).toBe(false);
+            expect(reloadBar()).toBeNull();
+            expect(
+                fixture.nativeElement.querySelector('.skeleton-list')
+            ).toBeNull();
+            expect(liveTab()?.items()).toEqual([liveItem]);
+            expect(liveTab()?.reloading()).toBe(false);
+            expect(contentRegion().getAttribute('aria-busy')).toBe('true');
+            expect(scopeToggleValue()).toBe('all');
+
+            jest.advanceTimersByTime(COLLECTION_RELOAD_INDICATOR_DELAY_MS);
+            fixture.detectChanges();
+
+            expect(reloadBar()).not.toBeNull();
+            expect(reloadBar()?.getAttribute('mode')).toBe('indeterminate');
+            expect(contentRegion().classList).toContain(
+                'collection-content--reloading'
+            );
+            expect(liveTab()?.items()).toEqual([liveItem]);
+            expect(liveTab()?.reloading()).toBe(true);
+
+            pending.resolve([liveItem, otherLiveItem]);
+            await flushMicrotasks();
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.isReloading()).toBe(false);
+            expect(reloadBar()).toBeNull();
+            expect(contentRegion().getAttribute('aria-busy')).toBeNull();
+            expect(contentRegion().classList).not.toContain(
+                'collection-content--reloading'
+            );
+            expect(liveTab()?.items()).toEqual([liveItem, otherLiveItem]);
+            expect(liveTab()?.reloading()).toBe(false);
+        });
+
+        it('does not clear the indicator when a superseded reload settles', async () => {
+            await mountWithLiveItems();
+            jest.useFakeTimers();
+            const first = deferred<UnifiedCollectionItem[]>();
+            const second = deferred<UnifiedCollectionItem[]>();
+            favoritesData.getFavorites
+                .mockReturnValueOnce(first.promise)
+                .mockReturnValueOnce(second.promise);
+
+            fixture.componentInstance.onScopeChange('all');
+            fixture.detectChanges();
+            fixture.componentInstance.onScopeChange('playlist');
+            fixture.detectChanges();
+
+            expect(favoritesData.getFavorites).toHaveBeenCalledTimes(3);
+            jest.advanceTimersByTime(COLLECTION_RELOAD_INDICATOR_DELAY_MS);
+            fixture.detectChanges();
+            expect(reloadBar()).not.toBeNull();
+
+            first.resolve([]);
+            await flushMicrotasks();
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.isReloading()).toBe(true);
+            expect(reloadBar()).not.toBeNull();
+            expect(liveTab()?.items()).toEqual([liveItem]);
+
+            second.resolve([otherLiveItem]);
+            await flushMicrotasks();
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.isReloading()).toBe(false);
+            expect(reloadBar()).toBeNull();
+            expect(liveTab()?.items()).toEqual([otherLiveItem]);
+        });
+
+        it('never shows the bar for a reload that settles inside the grace period', async () => {
+            await mountWithLiveItems();
+            jest.useFakeTimers();
+            const pending = deferred<UnifiedCollectionItem[]>();
+            favoritesData.getFavorites.mockReturnValueOnce(pending.promise);
+
+            fixture.componentInstance.onScopeChange('all');
+            fixture.detectChanges();
+            pending.resolve([otherLiveItem]);
+            await flushMicrotasks();
+            fixture.detectChanges();
+            jest.advanceTimersByTime(COLLECTION_RELOAD_INDICATOR_DELAY_MS * 2);
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.isReloading()).toBe(false);
+            expect(fixture.componentInstance.showReloadIndicator()).toBe(false);
+            expect(reloadBar()).toBeNull();
+            expect(liveTab()?.items()).toEqual([otherLiveItem]);
+        });
+
+        it('binds Clear and reorder to the scope that loaded the rows still on screen', async () => {
+            await mountWithLiveItems('all', [liveItem, otherLiveItem]);
+            const pending = deferred<UnifiedCollectionItem[]>();
+            favoritesData.getFavorites.mockReturnValueOnce(pending.promise);
+
+            fixture.componentInstance.onScopeChange('playlist');
+            fixture.detectChanges();
+
+            expect(scopeToggleValue()).toBe('playlist');
+            expect(liveTab()?.items()).toEqual([liveItem, otherLiveItem]);
+
+            fixture.componentInstance.clearAllCurrent();
+            const [dialogConfig] =
+                dialogService.openConfirmDialog.mock.calls.at(-1) ?? [null];
+            expect(dialogConfig.message).toContain(
+                'CLEAR_FAVORITES_DIALOG_MESSAGE_ALL'
+            );
+
+            await fixture.componentInstance.onReorder([
+                otherLiveItem,
+                liveItem,
+            ]);
+            expect(favoritesData.reorder).toHaveBeenLastCalledWith(
+                [otherLiveItem, liveItem],
+                { scope: 'all', playlistId: 'playlist-1', portalType: 'm3u' }
+            );
+
+            pending.resolve([liveItem]);
+            await flushMicrotasks();
+            fixture.detectChanges();
+
+            await fixture.componentInstance.onReorder([liveItem]);
+            expect(favoritesData.reorder).toHaveBeenLastCalledWith([liveItem], {
+                scope: 'playlist',
+                playlistId: 'playlist-1',
+                portalType: 'm3u',
+            });
+            fixture.componentInstance.clearAllCurrent();
+            const [playlistDialogConfig] =
+                dialogService.openConfirmDialog.mock.calls.at(-1) ?? [null];
+            expect(playlistDialogConfig.message).toContain(
+                'CLEAR_FAVORITES_DIALOG_MESSAGE_PLAYLIST'
+            );
+        });
+
+        it('keeps the empty first load on the skeleton instead of the reload indicator', async () => {
+            const pending = deferred<UnifiedCollectionItem[]>();
+            favoritesData.getFavorites.mockReturnValueOnce(pending.promise);
+
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.isLoading()).toBe(true);
+            expect(fixture.componentInstance.isReloading()).toBe(false);
+            expect(
+                fixture.nativeElement.querySelector('.skeleton-list')
+            ).not.toBeNull();
+
+            pending.resolve([]);
+            await flushMicrotasks();
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.isLoading()).toBe(false);
+        });
     });
 });

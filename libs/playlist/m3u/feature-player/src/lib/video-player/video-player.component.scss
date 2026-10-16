@@ -4,7 +4,7 @@
 
 :host {
     min-height: 0;
-    background: var(--mat-sys-surface);
+    background: var(--app-content-bg);
 }
 
 .sidebar {
@@ -40,14 +40,14 @@
 
 .content-container {
     min-width: 0;
-    background: var(--mat-sys-surface);
+    background: var(--app-content-bg);
 }
 
 .video-player {
     background: #000;
 
     &:has(> app-audio-player) {
-        background: var(--mat-sys-surface);
+        background: var(--app-content-bg);
     }
 
     > app-audio-player,
@@ -61,8 +61,8 @@
 }
 
 .epg {
-    border-top: 1px solid var(--mat-sys-outline-variant);
-    background: var(--mat-sys-surface);
+    border-top: 1px solid var(--app-separator);
+    background: var(--app-content-bg);
 }
 
 .epg-content {
@@ -126,7 +126,7 @@
         // whole point of the bottom-drawer layout, so release the cap.
         max-height: none;
         border-right: none;
-        border-top: 1px solid var(--mat-sys-outline-variant);
+        border-top: 1px solid var(--app-separator);
         border-bottom: none;
 
         // Sidebar collapse uses width=0 on desktop; on mobile the rail flips

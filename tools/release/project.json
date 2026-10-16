@@ -21,6 +21,7 @@
                 "{workspaceRoot}/tools/release/nightly-version.mjs",
                 "{workspaceRoot}/tools/release/screenshot-guards.mjs",
                 "{workspaceRoot}/tools/release/screenshots.manifest.json",
+                "{workspaceRoot}/tools/release/capture-navigation-*-actions.ts",
                 "{workspaceRoot}/.github/workflows/build-and-make.yaml",
                 "{workspaceRoot}/tools/release/release-notes.test.mjs",
                 "{workspaceRoot}/tools/release/release-note-gate.test.mjs",

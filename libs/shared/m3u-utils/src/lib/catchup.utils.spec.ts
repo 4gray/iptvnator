@@ -1,6 +1,7 @@
 import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     getM3uArchiveDays,
+    getM3uCatchupWindowEndSeconds,
     isM3uCatchupPlaybackSupported,
     resolveM3uCatchupUrl,
 } from './catchup.utils';
@@ -332,5 +333,26 @@ describe('catchup.utils', () => {
                 radio: 'false',
             })
         );
+    });
+
+    describe('getM3uCatchupWindowEndSeconds', () => {
+        it('reads the lutc the resolver stamped on the URL', () => {
+            const url = resolveM3uCatchupUrl(
+                baseChannel,
+                { start: '2026-03-26T11:00:00.000Z' },
+                1_774_530_000
+            );
+
+            expect(getM3uCatchupWindowEndSeconds(url)).toBe(1_774_530_000);
+        });
+
+        it.each([
+            ['no URL', null],
+            ['an unparsable URL', 'not a url'],
+            ['a URL without lutc', 'https://example.com/live.m3u8?utc=1'],
+            ['a zero lutc', 'https://example.com/live.m3u8?lutc=0'],
+        ])('is null for %s', (_label, url) => {
+            expect(getM3uCatchupWindowEndSeconds(url)).toBeNull();
+        });
     });
 });

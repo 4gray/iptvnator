@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import {
     TmdbEnrichmentService,
     mergeEpisodesWithTmdb,
+    tmdbSeasonPosterUrl,
     type TmdbEpisode,
 } from '@iptvnator/services';
 import {
@@ -37,8 +38,14 @@ export class StalkerSeriesTmdbSeasonsService {
     private readonly overviewsByKey = signal<ReadonlyMap<string, string>>(
         new Map()
     );
+    /** mapKey → full URL of the season's own TMDB poster */
+    private readonly postersByKey = signal<ReadonlyMap<string, string>>(
+        new Map()
+    );
     /** mapKey → season number currently being fetched (in-flight dedup) */
     private readonly pending = new Map<string, number>();
+    /** mapKeys whose fetch has finished, with or without a result. */
+    private readonly settledKeys = signal<ReadonlySet<string>>(new Set());
 
     /**
      * Overlays fetched TMDB episode data (real names, overviews, stills)
@@ -69,19 +76,56 @@ export class StalkerSeriesTmdbSeasonsService {
      * given show. Reads a signal, so callers can use it in a `computed`.
      */
     descriptions(tmdbId: number | null | undefined): Record<string, string> {
-        const overviews = this.overviewsByKey();
-        if (!tmdbId || overviews.size === 0) {
+        return this.forShow(this.overviewsByKey(), tmdbId);
+    }
+
+    /**
+     * Season poster URLs for the season cover and the fullscreen episode
+     * panel, keyed by season key of the given show. Stalker rows carry no
+     * provider season art, so this is the only source. Reads a signal.
+     */
+    posters(tmdbId: number | null | undefined): Record<string, string> {
+        return this.forShow(this.postersByKey(), tmdbId);
+    }
+
+    /**
+     * True once the season's TMDB fetch has finished (or the season is
+     * cached), whatever it returned. Reads a signal, so callers can use it
+     * in a `computed`: the series view keeps rows it would render bare as
+     * skeletons until then.
+     */
+    isSeasonSettled(
+        tmdbId: number | null | undefined,
+        seasonKey: string
+    ): boolean {
+        const mapKey = `${tmdbId}|${seasonKey}`;
+        return (
+            this.settledKeys().has(mapKey) || this.seasonsByKey().has(mapKey)
+        );
+    }
+
+    private markSettled(mapKey: string): void {
+        if (!this.settledKeys().has(mapKey)) {
+            this.settledKeys.update((keys) => new Set(keys).add(mapKey));
+        }
+    }
+
+    private forShow(
+        entries: ReadonlyMap<string, string>,
+        tmdbId: number | null | undefined
+    ): Record<string, string> {
+        if (!tmdbId || entries.size === 0) {
             return {};
         }
 
         const prefix = `${tmdbId}|`;
-        const descriptions: Record<string, string> = {};
-        for (const [mapKey, overview] of overviews) {
+        const bySeason: Record<string, string> = {};
+        for (const [mapKey, value] of entries) {
             if (mapKey.startsWith(prefix)) {
-                descriptions[mapKey.slice(prefix.length)] = overview;
+                bySeason[mapKey.slice(prefix.length)] = value;
             }
         }
-        return descriptions;
+        return bySeason;
     }
 
     /**
@@ -107,6 +151,7 @@ export class StalkerSeriesTmdbSeasonsService {
 
         const providerSeasonNumber = Number(episodes?.[0]?.season ?? seasonKey);
         if (!Number.isFinite(providerSeasonNumber)) {
+            this.markSettled(`${tmdbId}|${seasonKey}`);
             return;
         }
 
@@ -159,6 +204,15 @@ export class StalkerSeriesTmdbSeasonsService {
             }
             this.overviewsByKey.set(overviews);
 
+            const posters = new Map(this.postersByKey());
+            const poster = tmdbSeasonPosterUrl(season.poster_path);
+            if (poster) {
+                posters.set(mapKey, poster);
+            } else {
+                posters.delete(mapKey);
+            }
+            this.postersByKey.set(posters);
+
             const next = new Map(this.seasonsByKey());
             next.set(mapKey, {
                 seasonNumber,
@@ -168,6 +222,7 @@ export class StalkerSeriesTmdbSeasonsService {
         } finally {
             if (this.pending.get(mapKey) === seasonNumber) {
                 this.pending.delete(mapKey);
+                this.markSettled(mapKey);
             }
         }
     }
@@ -180,5 +235,9 @@ export class StalkerSeriesTmdbSeasonsService {
         const overviews = new Map(this.overviewsByKey());
         overviews.delete(mapKey);
         this.overviewsByKey.set(overviews);
+
+        const posters = new Map(this.postersByKey());
+        posters.delete(mapKey);
+        this.postersByKey.set(posters);
     }
 }

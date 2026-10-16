@@ -1,7 +1,7 @@
 import { ListRange } from '@angular/cdk/collections';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { DestroyRef } from '@angular/core';
-import { Subject } from 'rxjs';
+import { config, Subject } from 'rxjs';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import { EPG_GUIDE_ROW_BUFFER } from './epg-guide-layout.util';
 import { EpgGuideChannel } from './epg-guide-source';
@@ -106,6 +106,7 @@ function harness(rowCount = 100): Harness {
         activeRow: () => 40,
         ensureLoaded,
         setScrollLeft,
+        afterRender: (callback) => callback(),
     };
     return {
         controller: new EpgGuideViewportController(host),
@@ -173,21 +174,91 @@ describe('EpgGuideViewportController', () => {
         expect(test.ensureLoaded).not.toHaveBeenCalled();
     });
 
-    it('scrolls the lane and the playing row to now, and does nothing off-day', () => {
+    it('scrolls the lane and the playing row to now in one call, and does nothing off-day', () => {
         const test = harness();
+        test.controller.scrollToNow(900, true);
+        // 1000 - 200 visible, a third of it kept to the left of the line; the
+        // playing row 40 keeps three rows above it. A second, vertical smooth
+        // scroll would cancel the horizontal one in Chromium (#1733).
+        expect(test.scrollTo).toHaveBeenCalledTimes(1);
+        expect(test.scrollTo).toHaveBeenCalledWith({
+            left: 900 - 800 / 3,
+            top: 37 * 60,
+            behavior: 'smooth',
+        });
+        expect(test.scrollToIndex).not.toHaveBeenCalled();
+
+        test.scrollTo.mockClear();
+        test.controller.scrollToNow(null, false);
+        expect(test.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('scrolls only the lane to now when no channel is playing', () => {
+        const test = harness();
+        test.host.activeRow = () => -1;
         test.controller.scrollToNow(900, false);
-        // 1000 - 200 visible, a third of it kept to the left of the line.
         expect(test.scrollTo).toHaveBeenCalledWith({
             left: 900 - 800 / 3,
             behavior: 'auto',
         });
-        expect(test.scrollToIndex).toHaveBeenCalledWith(37, 'auto');
+    });
 
-        test.scrollTo.mockClear();
-        test.scrollToIndex.mockClear();
-        test.controller.scrollToNow(null, false);
-        expect(test.scrollTo).not.toHaveBeenCalled();
-        expect(test.scrollToIndex).not.toHaveBeenCalled();
+    it('waits for the first rendered rows before the initial jump, once', () => {
+        const test = harness();
+        const callback = jest.fn();
+        test.controller.whenRowsRendered(
+            test.viewport,
+            test.destroyRef,
+            callback
+        );
+
+        // The CDK reports an empty range before it has measured itself.
+        test.renderedRange$.next({ start: 0, end: 0 });
+        expect(callback).not.toHaveBeenCalled();
+
+        test.renderedRange$.next({ start: 0, end: 12 });
+        test.renderedRange$.next({ start: 4, end: 16 });
+        expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes cleanly when the viewport completes without ever rendering rows', async () => {
+        const test = harness();
+        const callback = jest.fn();
+        const onUnhandledError = jest.fn();
+        const previous = config.onUnhandledError;
+        config.onUnhandledError = onUnhandledError;
+        try {
+            test.controller.whenRowsRendered(
+                test.viewport,
+                test.destroyRef,
+                callback
+            );
+            // An empty scope: the CDK only ever reports an empty range, then
+            // completes the stream when the guide closes.
+            test.renderedRange$.next({ start: 0, end: 0 });
+            test.renderedRange$.complete();
+            // RxJS reports unhandled errors from a timeout.
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        } finally {
+            config.onUnhandledError = previous;
+        }
+
+        expect(onUnhandledError).not.toHaveBeenCalled();
+        expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('drops the initial jump when the host is destroyed first', () => {
+        const test = harness();
+        const callback = jest.fn();
+        test.controller.whenRowsRendered(
+            test.viewport,
+            test.destroyRef,
+            callback
+        );
+        test.destroy();
+
+        test.renderedRange$.next({ start: 0, end: 12 });
+        expect(callback).not.toHaveBeenCalled();
     });
 
     it('gives the DOM focus to the cell holding the roving tabindex', () => {
@@ -215,6 +286,70 @@ describe('EpgGuideViewportController', () => {
 
         outside.remove();
         test.element.remove();
+    });
+
+    it('focuses the roving target only once its row is rendered', () => {
+        const test = harness();
+        test.controller.watch(test.viewport, test.destroyRef);
+        test.renderedRange$.next({ start: 0, end: 20 });
+        const cell = document.createElement('button');
+        cell.setAttribute('data-epg-guide-grid', '');
+        cell.tabIndex = 0;
+        const focus = jest.spyOn(cell, 'focus');
+
+        // A smooth jump to row 40: the row is not rendered yet.
+        test.controller.focusRovingTargetOnRow(40);
+        expect(focus).not.toHaveBeenCalled();
+        test.renderedRange$.next({ start: 20, end: 35 });
+        expect(focus).not.toHaveBeenCalled();
+        test.element.appendChild(cell);
+        test.renderedRange$.next({ start: 30, end: 50 });
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+
+        // Already rendered: focused after the next render, and only once.
+        focus.mockClear();
+        test.controller.focusRovingTargetOnRow(35);
+        expect(focus).toHaveBeenCalledTimes(1);
+        test.renderedRange$.next({ start: 30, end: 60 });
+        expect(focus).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops a pending roving focus when a newer one is requested', () => {
+        const test = harness();
+        test.controller.watch(test.viewport, test.destroyRef);
+        test.renderedRange$.next({ start: 0, end: 20 });
+        const cell = document.createElement('button');
+        cell.setAttribute('data-epg-guide-grid', '');
+        cell.tabIndex = 0;
+        test.element.appendChild(cell);
+        const focus = jest.spyOn(cell, 'focus');
+
+        test.controller.focusRovingTargetOnRow(40);
+        test.controller.focusRovingTargetOnRow(60);
+        focus.mockClear();
+        test.renderedRange$.next({ start: 30, end: 50 });
+        expect(focus).not.toHaveBeenCalled();
+        test.renderedRange$.next({ start: 50, end: 70 });
+        expect(focus).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not take the focus from a control outside the grid', () => {
+        const test = harness();
+        const cell = document.createElement('button');
+        cell.setAttribute('data-epg-guide-grid', '');
+        cell.tabIndex = 0;
+        test.element.appendChild(cell);
+        const focus = jest.spyOn(cell, 'focus');
+        const field = document.createElement('input');
+        document.body.appendChild(field);
+        field.focus();
+        try {
+            test.controller.focusRovingTarget();
+            expect(focus).not.toHaveBeenCalled();
+            expect(document.activeElement).toBe(field);
+        } finally {
+            field.remove();
+        }
     });
 
     it('reveals the focused row and block, and ignores a null focus', () => {

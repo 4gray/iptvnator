@@ -1,4 +1,22 @@
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { ParentalLockService } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from './vod-source-discovery.service';
+
+const withholdsEverything = signal(false);
+
+function createService(): VodSourceDiscoveryService {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+        providers: [
+            {
+                provide: ParentalLockService,
+                useValue: { withholdsEverything },
+            },
+        ],
+    });
+    return TestBed.inject(VodSourceDiscoveryService);
+}
 
 /**
  * Discovery talks to a foreign playlist, and Xtream carries the account in the
@@ -17,7 +35,7 @@ describe('VodSourceDiscoveryService — failure logging', () => {
         warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
             /* captured */
         });
-        service = new VodSourceDiscoveryService();
+        service = createService();
     });
 
     afterEach(() => {
@@ -85,7 +103,7 @@ describe('VodSourceDiscoveryService — candidate mapping', () => {
                     row(4, undefined),
                 ]),
         };
-        const service = new VodSourceDiscoveryService();
+        const service = createService();
 
         const result = await service.discover({
             title: 'Dune',
@@ -110,4 +128,25 @@ describe('VodSourceDiscoveryService — candidate mapping', () => {
             categoryNames,
         };
     }
+});
+
+describe('VodSourceDiscoveryService — parental lock', () => {
+    afterEach(() => {
+        withholdsEverything.set(false);
+        delete (window as { electron?: unknown }).electron;
+    });
+
+    it('asks the worker nothing while the lock withholds everything', async () => {
+        const dbFindTitleSources = jest.fn().mockResolvedValue([]);
+        (window as { electron?: unknown }).electron = { dbFindTitleSources };
+        withholdsEverything.set(true);
+
+        const result = await createService().discover({
+            title: 'Dune',
+            currentPlaylistId: 'playlist-0',
+        });
+
+        expect(result.sources).toEqual([]);
+        expect(dbFindTitleSources).not.toHaveBeenCalled();
+    });
 });

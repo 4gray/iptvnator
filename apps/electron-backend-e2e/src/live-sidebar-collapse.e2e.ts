@@ -20,6 +20,11 @@ import {
     writeTemporaryM3uFile,
 } from './electron-test-fixtures';
 import { fetchXtreamLiveFixture } from './portal-mock-fixtures';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
+import { clearRecentItems } from './recent-clear.e2e-support';
 
 /**
  * Issue #1458, second report: "all channels disappear after clearing the
@@ -136,6 +141,7 @@ test.describe('Live channel rail collapse (#1458)', () => {
             CHANNELS
         );
         const app: LaunchedElectronApp = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await importM3uPlaylistFromNativeDialog(app, filePath);
@@ -143,19 +149,19 @@ test.describe('Live channel rail collapse (#1458)', () => {
             const playlistId = playlistIdFromUrl(app.mainWindow);
             expect(await storedItemCount(app.mainWindow, playlistId)).toBe(3);
 
-            await channelItemByTitle(app.mainWindow, 'Channel Alpha')
-                .first()
-                .click();
+            // History records a channel only once it has really played.
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, 'Channel Alpha')
+                    .first()
+                    .click()
+            );
 
             await openPlaylistRecent(app.mainWindow);
             await expect(
                 channelItemByTitle(app.mainWindow, 'Channel Alpha').first()
             ).toBeVisible({ timeout: 20000 });
 
-            await app.mainWindow
-                .getByRole('button', { name: 'Clear recently viewed Live TV' })
-                .click();
-            await app.mainWindow.getByRole('button', { name: 'Yes' }).click();
+            await clearRecentItems(app.mainWindow, 'Live TV');
             await expect(
                 channelItemByTitle(app.mainWindow, 'Channel Alpha')
             ).toHaveCount(0);

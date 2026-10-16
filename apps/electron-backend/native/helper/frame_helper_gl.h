@@ -28,6 +28,8 @@
  */
 #pragma once
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 
 #if defined(__APPLE__)
@@ -125,6 +127,20 @@ namespace frame_helper {
 
 /* Matches mpv_opengl_init_params.get_proc_address. */
 using GlGetProcAddressFn = void* (*)(void* ctx, const char* name);
+
+/* GL_RENDERER strings of CPU rasterizers (Mesa llvmpipe/softpipe/swrast). */
+inline bool isSoftwareGlRenderer(const std::string& renderer) {
+    std::string normalized = renderer;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char value) {
+                       return static_cast<char>(std::tolower(value));
+                   });
+    for (const char* marker : {"llvmpipe", "softpipe", "swrast",
+                               "software rasterizer", "lavapipe"}) {
+        if (normalized.find(marker) != std::string::npos) return true;
+    }
+    return false;
+}
 
 #if defined(__APPLE__)
 
@@ -382,19 +398,6 @@ private:
                candidate.gbmFd >= 0 || candidate.current;
     }
 
-    static bool isSoftwareRenderer(const std::string& renderer) {
-        std::string normalized = renderer;
-        std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                       [](unsigned char value) {
-                           return static_cast<char>(std::tolower(value));
-                       });
-        for (const char* marker : {"llvmpipe", "softpipe", "swrast",
-                                   "software rasterizer", "lavapipe"}) {
-            if (normalized.find(marker) != std::string::npos) return true;
-        }
-        return false;
-    }
-
     static bool openGbmDevice(Candidate& candidate) {
         for (int node = 128; node <= 131; node++) {
             char devicePath[32];
@@ -508,7 +511,7 @@ private:
         const GLubyte* renderer = glGetString(GL_RENDERER);
         if (!renderer) return fail("GL_RENDERER unavailable");
         candidate.renderer = reinterpret_cast<const char*>(renderer);
-        candidate.softwareRenderer = isSoftwareRenderer(candidate.renderer);
+        candidate.softwareRenderer = isSoftwareGlRenderer(candidate.renderer);
 
         if (eglMakeCurrent(candidate.display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                            EGL_NO_CONTEXT) != EGL_TRUE) {

@@ -387,6 +387,112 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
         expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(false);
     });
 
+    it('holds an episode start until the watched batch settled', async () => {
+        const [firstId, secondId] = await startWithTwoLoadedEpisodes();
+        const store = TestBed.inject(StalkerStore);
+        const resolvePlayback = jest
+            .spyOn(store, 'resolveVodPlayback')
+            .mockResolvedValue(null as never);
+        let finishSave: () => void = () => undefined;
+        savePlaybackPositionOrThrow.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (finishSave = resolve))
+        );
+        const batch =
+            fixture.componentInstance.handleSeasonPlaybackToggleRequested(
+                seasonToggleRequest([firstId, secondId], true)
+            );
+        await Promise.resolve();
+        expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(true);
+
+        // The batch rewrites the rows a start resumes from: the episode
+        // chosen meanwhile waits for it instead of resuming from a row
+        // the batch is about to mark.
+        const [first] = fixture.componentInstance.mappedSeasons()['1'];
+        fixture.componentInstance.onEpisodeClicked(first);
+        expect(resolvePlayback).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.quickStartButton()?.disabled).toBe(
+            true
+        );
+
+        finishSave();
+        await batch;
+        expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(false);
+        expect(resolvePlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops an episode held during a batch once the viewer switched series', async () => {
+        const [firstId, secondId] = await startWithTwoLoadedEpisodes();
+        const store = TestBed.inject(StalkerStore);
+        const resolvePlayback = jest
+            .spyOn(store, 'resolveVodPlayback')
+            .mockResolvedValue(null as never);
+        let finishSave: () => void = () => undefined;
+        savePlaybackPositionOrThrow.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (finishSave = resolve))
+        );
+        const batch =
+            fixture.componentInstance.handleSeasonPlaybackToggleRequested(
+                seasonToggleRequest([firstId, secondId], true)
+            );
+        await Promise.resolve();
+        const [first] = fixture.componentInstance.mappedSeasons()['1'];
+        fixture.componentInstance.onEpisodeClicked(first);
+
+        // Episode identities overlap across series: the held choice must
+        // not resolve against the series now on screen.
+        selectedItem.set(createVodItem(SERIES_B_ID));
+        await settle();
+        finishSave();
+        await batch;
+
+        expect(resolvePlayback).not.toHaveBeenCalled();
+    });
+
+    it('closes the player a forced launch opened after the viewer left the series', async () => {
+        await startWithTwoLoadedEpisodes();
+        const store = TestBed.inject(StalkerStore);
+        jest.spyOn(store, 'resolveVodPlayback').mockResolvedValue({
+            streamUrl: 'http://stalker.example/episode.mpg',
+            title: 'Episode',
+            contentInfo: {
+                playlistId: PLAYLIST_ID,
+                contentXtreamId: 1,
+                contentType: 'episode',
+                seriesXtreamId: SERIES_A_ID,
+            },
+        } as never);
+        const player = TestBed.inject(PORTAL_PLAYER) as unknown as {
+            openExternalPlayback: jest.Mock;
+        };
+        const external = TestBed.inject(
+            PORTAL_EXTERNAL_PLAYBACK
+        ) as unknown as { closeSession?: jest.Mock };
+        external.closeSession = jest.fn().mockResolvedValue(undefined);
+        const opened = { id: 'mpv-9', status: 'launching' };
+        let finishLaunch: () => void = () => undefined;
+        player.openExternalPlayback.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finishLaunch = () => resolve(opened);
+                })
+        );
+        const [first] = fixture.componentInstance.mappedSeasons()['1'];
+        fixture.componentInstance.onEpisodeClicked(first, undefined, 'mpv');
+        await settle();
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(player.openExternalPlayback).toHaveBeenCalledTimes(1);
+
+        // The viewer opens another series while the launch sits inside the
+        // player IPC: the player it opens must not stay beside that one.
+        selectedItem.set(createVodItem(SERIES_B_ID));
+        await settle();
+        finishLaunch();
+        await settle();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(external.closeSession).toHaveBeenCalledWith(opened);
+    });
+
     it('keeps surviving clears and reports a partial season unwatch failure', async () => {
         const [firstId, secondId] = await startWithTwoLoadedEpisodes();
         repositoryRows = [firstId, secondId].map((contentXtreamId, index) =>
@@ -493,9 +599,7 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
                 createSecondSeason(),
             ]);
             await settle();
-            return Number(
-                fixture.componentInstance.mappedSeasons()['1'][0].id
-            );
+            return Number(fixture.componentInstance.mappedSeasons()['1'][0].id);
         }
 
         function mockSecondSeasonFetch(): jest.Mock {
@@ -518,9 +622,9 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
             ]);
             expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
             expect(refreshPositions).toHaveBeenCalledWith(PLAYLIST_ID);
-            expect(
-                fixture.componentInstance.seasonWatchBatchRunning()
-            ).toBe(false);
+            expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(
+                false
+            );
         });
 
         it('hydrates lazy seasons, then marks them with legacy-row cleanup', async () => {
@@ -542,10 +646,7 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
                 seriesToggleRequest([firstId], true)
             );
 
-            expect(fetch).toHaveBeenCalledWith(
-                String(SERIES_A_ID),
-                'season-2'
-            );
+            expect(fetch).toHaveBeenCalledWith(String(SERIES_A_ID), 'season-2');
             expect(repositoryOrder).toEqual([
                 `save:${firstId}`,
                 `save:${S2_SCOPED_ID}`,
@@ -577,9 +678,9 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
             expect(fetch).toHaveBeenCalledTimes(1);
             expect(repositoryOrder).toEqual([`save:${firstId}`]);
             expectSeasonToggleSnackbar('XTREAM.SEASON_MARKED_WATCHED');
-            expect(
-                fixture.componentInstance.hasUnloadedVodSeasons()
-            ).toBe(false);
+            expect(fixture.componentInstance.hasUnloadedVodSeasons()).toBe(
+                false
+            );
 
             // Everything loaded is now watched and nothing is pending — an
             // empty follow-up mark request is a no-op, not another fetch.
@@ -637,9 +738,9 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
             expect(repositoryOrder).toEqual([]);
             expectSeasonToggleSnackbar('XTREAM.SERIES_WATCH_UPDATE_FAILED');
             expect(refreshPositions).not.toHaveBeenCalled();
-            expect(
-                fixture.componentInstance.seasonWatchBatchRunning()
-            ).toBe(false);
+            expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(
+                false
+            );
         });
 
         it('aborts silently when the series changes during hydration', async () => {
@@ -665,9 +766,9 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
 
             expect(repositoryOrder).toEqual([]);
             expect(snackBarCalls().length).toBe(callsBefore);
-            expect(
-                fixture.componentInstance.seasonWatchBatchRunning()
-            ).toBe(false);
+            expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(
+                false
+            );
         });
 
         it('reports a zero count when hydration reveals nothing to mark', async () => {
@@ -715,9 +816,9 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
                 fixture.componentInstance.handleSeriesPlaybackToggleRequested(
                     seriesToggleRequest([firstId], true)
                 );
-            expect(
-                fixture.componentInstance.seasonWatchBatchRunning()
-            ).toBe(true);
+            expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(
+                true
+            );
             // A season toggle during hydration must not enqueue anything.
             await fixture.componentInstance.handleSeasonPlaybackToggleRequested(
                 seasonToggleRequest([firstId], true)
@@ -731,9 +832,9 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
                 `save:${firstId}`,
                 `save:${S2_SCOPED_ID}`,
             ]);
-            expect(
-                fixture.componentInstance.seasonWatchBatchRunning()
-            ).toBe(false);
+            expect(fixture.componentInstance.seasonWatchBatchRunning()).toBe(
+                false
+            );
         });
     });
 });

@@ -4,7 +4,15 @@ import {
     getAllCategories,
     getCategories,
     saveCategories,
+    setCategoryLocks,
 } from './category.operations';
+import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core';
+import type { SQL } from 'drizzle-orm';
+import { setParentalLockActive } from '../parental-lock-state';
+
+function renderSql(query: SQL): string {
+    return new SQLiteSyncDialect().sqlToQuery(query).sql;
+}
 
 // Renderer consumers (XCategoryFromDb/XtreamCategoryFromDb) expect category
 // rows in this snake_case wire shape. A bare select() would return Drizzle's
@@ -17,6 +25,7 @@ const categoryWireShape = {
     type: schema.categories.type,
     xtream_id: schema.categories.xtreamId,
     hidden: schema.categories.hidden,
+    locked: schema.categories.locked,
 };
 
 function createDbMock(existingCount = 0) {
@@ -93,6 +102,7 @@ describe('category.operations', () => {
                 type: 'live',
                 xtreamId: 101,
                 hidden: false,
+                locked: false,
             },
             {
                 playlistId: 'playlist-1',
@@ -100,6 +110,7 @@ describe('category.operations', () => {
                 type: 'live',
                 xtreamId: 102,
                 hidden: true,
+                locked: false,
             },
         ]);
     });
@@ -125,6 +136,7 @@ describe('category.operations', () => {
                 type: 'movies',
                 xtreamId: 201,
                 hidden: true,
+                locked: false,
             },
         ]);
     });
@@ -141,5 +153,122 @@ describe('category.operations', () => {
         );
 
         expect(insert).not.toHaveBeenCalled();
+    });
+});
+
+describe('category.operations parental lock', () => {
+    afterEach(() => {
+        setParentalLockActive(false);
+    });
+
+    function createReadDb() {
+        const orderBy = jest.fn().mockResolvedValue([]);
+        const where = jest.fn().mockReturnValue({ orderBy });
+        const from = jest.fn().mockReturnValue({ where });
+        const select = jest.fn().mockReturnValue({ from });
+        return { db: { select } as unknown as AppDatabase, where };
+    }
+
+    it('adds the locked filter to visible-category reads only while active', async () => {
+        const unlocked = createReadDb();
+        await getCategories(unlocked.db, 'playlist-1', 'live');
+        expect(renderSql(unlocked.where.mock.calls[0][0])).not.toContain(
+            '"locked"'
+        );
+
+        setParentalLockActive(true);
+        const locked = createReadDb();
+        await getCategories(locked.db, 'playlist-1', 'live');
+        expect(renderSql(locked.where.mock.calls[0][0])).toContain(
+            '"categories"."locked" = ?'
+        );
+    });
+
+    it('never filters the management read, which lists locked rows by design', async () => {
+        setParentalLockActive(true);
+        const { db, where } = createReadDb();
+        await getAllCategories(db, 'playlist-1', 'movies');
+        expect(renderSql(where.mock.calls[0][0])).not.toContain('"locked"');
+    });
+
+    it('stamps locked from the caller-supplied provider ids on insert', async () => {
+        const { db, values } = createDbMock(0);
+
+        await saveCategories(
+            db,
+            'playlist-1',
+            [
+                { category_id: '1', category_name: 'Kids' },
+                { category_id: '2', category_name: 'Adult' },
+            ],
+            'live',
+            undefined,
+            [2]
+        );
+
+        expect(values).toHaveBeenCalledWith([
+            expect.objectContaining({ xtreamId: 1, locked: false }),
+            expect.objectContaining({ xtreamId: 2, locked: true }),
+        ]);
+    });
+
+    function lockIndexDb() {
+        const run = jest.fn();
+        const where = jest.fn().mockReturnValue({ run });
+        const set = jest.fn().mockReturnValue({ where });
+        const update = jest.fn().mockReturnValue({ set });
+        const transaction = jest.fn((callback: () => void) => callback());
+        return {
+            db: { update, transaction } as unknown as AppDatabase,
+            run,
+            set,
+            transaction,
+            where,
+        };
+    }
+
+    it('re-stamps one playlist/type in one transaction: clears everything, then locks the listed ids', async () => {
+        const { db, run, set, transaction, where } = lockIndexDb();
+
+        await setCategoryLocks(db, 'playlist-1', 'live', [5, 5, 7, 1.5]);
+
+        expect(transaction).toHaveBeenCalledTimes(1);
+        expect(run).toHaveBeenCalledTimes(2);
+        expect(set).toHaveBeenNthCalledWith(1, { locked: false });
+        expect(set).toHaveBeenNthCalledWith(2, { locked: true });
+        const lockScope = new SQLiteSyncDialect().sqlToQuery(
+            where.mock.calls[1][0]
+        );
+        expect(lockScope.sql).toContain('"categories"."xtream_id" in (?, ?)');
+        expect(lockScope.params).toEqual(['playlist-1', 'live', 5, 7]);
+    });
+
+    it('only clears when no id is locked', async () => {
+        const { db, set } = lockIndexDb();
+
+        await setCategoryLocks(db, 'playlist-1', 'series', []);
+
+        expect(set).toHaveBeenCalledTimes(1);
+        expect(set).toHaveBeenCalledWith({ locked: false });
+    });
+});
+
+describe('setCategoryLocks atomicity', () => {
+    it('runs both statements inside the transaction callback', async () => {
+        const order: string[] = [];
+        const run = jest.fn(() => order.push('run'));
+        const where = jest.fn().mockReturnValue({ run });
+        const set = jest.fn().mockReturnValue({ where });
+        const update = jest.fn().mockReturnValue({ set });
+        const transaction = jest.fn((callback: () => void) => {
+            order.push('begin');
+            callback();
+            order.push('commit');
+        });
+        const db = { update, transaction } as unknown as AppDatabase;
+
+        await setCategoryLocks(db, 'playlist-1', 'live', [5]);
+
+        expect(order).toEqual(['begin', 'run', 'run', 'commit']);
     });
 });

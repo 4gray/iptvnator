@@ -13,6 +13,7 @@ import {
     TemplateRef,
     computed,
     effect,
+    untracked,
     forwardRef,
     inject,
     OnDestroy,
@@ -27,7 +28,11 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ResizableDirective } from '@iptvnator/ui/components';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+    ResizableDirective,
+} from '@iptvnator/ui/components';
 import {
     GridListComponent,
     InfiniteScrollDirective,
@@ -38,11 +43,10 @@ import {
     createLivePanelsController,
     PORTAL_PLAYER,
     PortalChannelSortMode,
-    getPortalChannelSortModeLabel,
+    getPortalChannelSortModeLabelKey,
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
-    isWorkspaceLayoutRoute,
     LiveEpgPanelState,
     persistLiveEpgPanelState,
     persistPortalChannelSortMode,
@@ -69,6 +73,7 @@ import {
 } from '@iptvnator/ui/epg';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
+    buildCatchupTimelineSegments,
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
     type FullscreenChannelPanelHost,
@@ -94,12 +99,15 @@ import {
 } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import {
+    DatabaseService,
+    ParentalLockService,
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
 import {
     XtreamLiveChannelNavigationService,
@@ -130,6 +138,8 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         MatMenuModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         NgTemplateOutlet,
         GridListComponent,
         InfiniteScrollDirective,
@@ -151,6 +161,7 @@ export class LiveStreamLayoutComponent
     private readonly router = inject(Router);
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly recordRecentItem = injectXtreamRecentHistory();
     readonly archiveContextKey = computed(() =>
         JSON.stringify([
             this.xtreamStore.currentPlaylist()?.id,
@@ -167,6 +178,8 @@ export class LiveStreamLayoutComponent
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly parentalLock = inject(ParentalLockService);
+    private readonly databaseService = inject(DatabaseService);
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
@@ -202,14 +215,8 @@ export class LiveStreamLayoutComponent
     );
     readonly isElectron = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
-    private readonly routeSearchTerm = queryParamSignal(
-        this.route,
-        'q',
-        (value) => (value ?? '').trim()
-    );
-    readonly workspaceSearchTerm = computed(() =>
-        this.isWorkspaceLayout ? this.routeSearchTerm() : ''
+    readonly workspaceSearchTerm = queryParamSignal(this.route, 'q', (value) =>
+        (value ?? '').trim()
     );
     readonly showLiveChannelSidebar = computed(
         () => !!this.selectedCategoryId() || !!this.workspaceSearchTerm()
@@ -298,6 +305,13 @@ export class LiveStreamLayoutComponent
     }
     private readonly currentTimeMs = signal(Date.now());
     readonly activeCatchupProgram = signal<EpgProgram | null>(null);
+    /** The archive window's programmes as seek-bar segments; null live. */
+    readonly catchupTimelineSegments = computed(() =>
+        buildCatchupTimelineSegments(
+            this.controlledEpgPrograms(),
+            this.activeCatchupProgram()
+        )
+    );
     readonly controlledArchiveDays = computed(() =>
         Math.max(
             0,
@@ -368,8 +382,8 @@ export class LiveStreamLayoutComponent
     readonly showReturnToLive = computed(
         () => this.activeCatchupProgram() !== null
     );
-    readonly liveChannelSortLabel = computed(() =>
-        getPortalChannelSortModeLabel(this.liveChannelSortMode())
+    readonly liveChannelSortLabelKey = computed(() =>
+        getPortalChannelSortModeLabelKey(this.liveChannelSortMode())
     );
     readonly liveRootItems = computed(
         () =>
@@ -381,10 +395,6 @@ export class LiveStreamLayoutComponent
     readonly liveRootItemCount = computed(
         () => this.xtreamStore.selectItemsFromSelectedCategory().length
     );
-    readonly liveRootSubtitle = computed(() => {
-        const count = this.liveRootItemCount();
-        return `${count} ${count === 1 ? 'channel' : 'channels'}`;
-    });
     readonly liveRootHasMore = this.xtreamStore.hasMoreContent;
 
     readonly selectedCategoryInfo = computed(() => {
@@ -400,8 +410,9 @@ export class LiveStreamLayoutComponent
         );
         const count = this.categoryItemCounts()?.get(categoryId) ?? 0;
 
+        // A null name falls back to a translated label in the template.
         return {
-            name: category?.category_name ?? category?.name ?? 'Channels',
+            name: category?.category_name ?? category?.name ?? null,
             count,
         };
     });
@@ -416,6 +427,14 @@ export class LiveStreamLayoutComponent
     );
     readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
     private readonly activeLiveItemId = signal<number | null>(null);
+    /**
+     * Provider category id of the playing channel, for the parental lock.
+     * `null`: nothing playing (or no category); `'unknown'`: Electron has
+     * not resolved it yet (or cannot) — a relock then stops the channel.
+     */
+    private activeLiveProviderCategoryId: number | null | 'unknown' = null;
+    /** Bumped per resolution so a slow hidden-category lookup cannot land on a later playback. */
+    private liveCategoryLookupGeneration = 0;
     readonly playbackSessionKey = computed(() => {
         const sourceId = this.xtreamStore.currentPlaylist()?.id;
         const contentId = this.activeLiveItemId();
@@ -439,6 +458,39 @@ export class LiveStreamLayoutComponent
                 this.activeCatchupProgram.set(null);
             }
         });
+        // A relock (idle timer, Lock now) must stop a channel playing from a
+        // now-withheld category: the player is gated on `activePlayback`,
+        // not on the store selection the enforcement service clears — and
+        // that selection is also dropped by an ordinary category switch,
+        // which must keep the channel playing.
+        effect(() => {
+            this.parentalLock.version();
+            untracked(() => {
+                const categoryId = this.activeLiveProviderCategoryId;
+                const playlistId = this.xtreamStore.currentPlaylist()?.id;
+                if (categoryId === null || !playlistId) {
+                    return;
+                }
+                // Unresolved category: fail closed while the lock is active
+                // rather than keep a possibly locked stream running.
+                const withheld =
+                    categoryId === 'unknown'
+                        ? this.parentalLock.active()
+                        : this.parentalLock.isXtreamCategoryLocked(
+                              playlistId,
+                              'live',
+                              categoryId
+                          );
+                if (!withheld) {
+                    return;
+                }
+                this.playbackRequestId += 1;
+                this.activePlayback.set(null);
+                this.activeLiveItemId.set(null);
+                this.activeCatchupProgram.set(null);
+                this.activeLiveProviderCategoryId = null;
+            });
+        });
         effect((onCleanup) => {
             const intervalId = window.setInterval(() => {
                 this.currentTimeMs.set(Date.now());
@@ -447,9 +499,16 @@ export class LiveStreamLayoutComponent
             onCleanup(() => clearInterval(intervalId));
         });
 
-        // Read pending auto-open state on every NavigationEnd — covers both the
-        // initial navigation (Angular fires NavigationEnd after component creation)
-        // and re-navigation to the same /live route when the component is reused.
+        // Read pending auto-open state once at mount and again on every
+        // NavigationEnd. Arriving from another route (a collection's "open in
+        // playlist", the dashboard, global search into another portal), the
+        // Xtream shell mounts this layout only after its session bootstrap —
+        // i.e. AFTER that navigation's NavigationEnd, which a subscription
+        // made here can never observe; the history entry still carries the
+        // keys, so the mount-time read is what serves those arrivals. The
+        // NavigationEnd read covers re-navigation to the same /live route
+        // while the component is reused (in-portal search, playlist switch).
+        this.liveAutoOpenState.captureFromHistoryState();
         this.router.events
             .pipe(
                 filter((e) => e instanceof NavigationEnd),
@@ -470,6 +529,21 @@ export class LiveStreamLayoutComponent
                 return;
             }
 
+            // The shared store may still serve the PREVIOUS playlist here:
+            // NavigationEnd fires before the route session resets it. Stream
+            // ids are provider-local, so a colliding id in that catalog would
+            // otherwise play the wrong channel and consume the handoff. Wait
+            // until the store is the requested playlist's — the effect
+            // re-runs when the playlist, catalog or init flag changes.
+            const pendingPlaylistId =
+                this.liveAutoOpenState.pendingPlaylistId();
+            if (
+                pendingPlaylistId &&
+                this.xtreamStore.currentPlaylist()?.id !== pendingPlaylistId
+            ) {
+                return;
+            }
+
             // Search across all live streams, not just the category-filtered view,
             // so a channel from a different category can still be auto-opened.
             const allChannels = this.getAllLiveStreams();
@@ -481,7 +555,11 @@ export class LiveStreamLayoutComponent
                 (channel) => Number(channel?.xtream_id) === pendingId
             );
             if (!item) {
-                this.pendingAutoOpenLiveItemId.set(null);
+                // "Not in the catalog" is a verdict only once this
+                // playlist's catalog has finished loading.
+                if (this.xtreamStore.isContentInitialized()) {
+                    this.liveAutoOpenState.clearPendingItem();
+                }
                 return;
             }
 
@@ -595,6 +673,8 @@ export class LiveStreamLayoutComponent
         // store no-op.
         if (!remote) this.selectLiveItemCategory(item);
         this.activeLiveItemId.set(item.xtream_id);
+        this.activeLiveProviderCategoryId =
+            this.resolveLiveProviderCategoryId(item);
         const playlist = this.xtreamStore.currentPlaylist();
         this.activePlaylistId = playlist?.id ?? null;
         this.activePlayback.set({
@@ -612,6 +692,25 @@ export class LiveStreamLayoutComponent
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
         });
+        if (startPlayback && streamUrl) {
+            this.recordRecentItem(
+                streamUrl,
+                {
+                    xtreamId: item.xtream_id,
+                    contentType: 'live',
+                    playedContent: {
+                        title: item.title ?? item.name ?? '',
+                        posterUrl: item.poster_url ?? item.stream_icon,
+                        categoryId: item.category_id,
+                        tmdbId: item.tmdb_id ?? undefined,
+                        releaseYear: item.release_year ?? undefined,
+                    },
+                },
+                this.usesEmbeddedPlayer()
+                    ? this.playbackSessionKey()
+                    : undefined
+            );
+        }
         if (this.usesEmbeddedPlayer() || !startPlayback) {
             return;
         }
@@ -781,6 +880,62 @@ export class LiveStreamLayoutComponent
         return [...this.channelNavigation.remoteChannels()];
     }
 
+    /**
+     * The provider category id the parental lock is keyed by. Electron rows
+     * carry the SQLite category row id in `category_id` and the provider id
+     * on the category row (`xtream_id`); the PWA carries the provider id on
+     * both. A row whose category is not in the list resolves to null rather
+     * than to a guess that could collide with a locked provider id.
+     */
+    private resolveLiveProviderCategoryId(
+        item: XtreamLiveChannelItem
+    ): number | null | 'unknown' {
+        // Every resolution retires the lookups before it, including one for
+        // a same-id channel of another playlist that resolved synchronously.
+        const generation = ++this.liveCategoryLookupGeneration;
+        const categoryId = Number(item.category_id);
+        if (!Number.isFinite(categoryId)) {
+            return null;
+        }
+        if (!this.runtime.supportsXtreamSqliteDataSource) {
+            return categoryId;
+        }
+        const category = (this.xtreamStore.liveCategories?.() ?? []).find(
+            (candidate) =>
+                Number((candidate as { id?: number }).id) === categoryId
+        ) as { xtream_id?: number } | undefined;
+        const providerId = Number(category?.xtream_id);
+        if (Number.isFinite(providerId)) {
+            return providerId;
+        }
+        // Not in the visible list — a hidden category (search can play its
+        // channels). Resolve through the unfiltered rows; until that lands
+        // the id is unknown and a relock stops the channel.
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (playlistId) {
+            void this.databaseService
+                .getAllXtreamCategories(playlistId, 'live')
+                .then((rows) => {
+                    if (
+                        generation !== this.liveCategoryLookupGeneration ||
+                        this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+                        this.activeLiveItemId() !== item.xtream_id
+                    ) {
+                        return;
+                    }
+                    const row = rows.find(
+                        (candidate) => Number(candidate.id) === categoryId
+                    );
+                    const resolved = Number(row?.xtream_id);
+                    if (Number.isFinite(resolved)) {
+                        this.activeLiveProviderCategoryId = resolved;
+                    }
+                })
+                .catch(() => undefined);
+        }
+        return 'unknown';
+    }
+
     private selectLiveItemCategory(item: XtreamLiveChannelItem): void {
         const categoryId = Number(item.category_id);
         if (Number.isFinite(categoryId) && categoryId > 0) {
@@ -812,6 +967,8 @@ export class LiveStreamLayoutComponent
 
         const requestId = ++this.playbackRequestId;
         this.activeLiveItemId.set(item.xtream_id);
+        this.activeLiveProviderCategoryId =
+            this.resolveLiveProviderCategoryId(item);
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
             playlist.id,
             {

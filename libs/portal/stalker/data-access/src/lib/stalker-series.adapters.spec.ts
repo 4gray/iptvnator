@@ -21,10 +21,10 @@ describe('stalker-series.adapters', () => {
         'The Gentlemen season2',
         'The Gentlemen (s02)',
         'The Gentlemen (season 2)',
-        'Олдскул (2 сезон)',
-        'Олдскул (сезон 2)',
-        'Олдскул s02',
-        'Олдскул season2',
+        'Пример (2 сезон)',
+        'Пример (сезон 2)',
+        'Пример s02',
+        'Пример season2',
     ])(
         'uses the title season for lazy VOD %s without changing tracking IDs',
         (title) => {

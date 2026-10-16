@@ -3,11 +3,11 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     PlaylistBackupImportSummary,
     PlaylistBackupService,
-    RuntimeCapabilitiesService,
-} from '@iptvnator/services';
+} from '@iptvnator/services/playlist-backup';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 
 @Injectable()
@@ -55,10 +55,14 @@ export class SettingsBackupFacade {
                 );
             }
 
-            this.settingsSnackbar.open('Playlist backup exported.');
+            this.settingsSnackbar.open(
+                this.translate.instant('SETTINGS.BACKUP_EXPORTED')
+            );
         } catch (error) {
             console.error('Failed to export playlist backup:', error);
-            this.settingsSnackbar.open('Playlist backup export failed.');
+            this.settingsSnackbar.open(
+                this.translate.instant('SETTINGS.BACKUP_EXPORT_FAILED')
+            );
         } finally {
             this.isExportingData.set(false);
         }
@@ -132,6 +136,11 @@ export class SettingsBackupFacade {
     private buildBackupImportSummary(
         summary: PlaylistBackupImportSummary
     ): string {
-        return `Backup import finished: ${summary.imported} imported, ${summary.merged} merged, ${summary.skipped} skipped, ${summary.failed} failed.`;
+        return this.translate.instant('SETTINGS.BACKUP_IMPORT_SUMMARY', {
+            imported: summary.imported,
+            merged: summary.merged,
+            skipped: summary.skipped,
+            failed: summary.failed,
+        });
     }
 }

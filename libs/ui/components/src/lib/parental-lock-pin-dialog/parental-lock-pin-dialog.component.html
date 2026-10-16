@@ -1,0 +1,111 @@
+<form (ngSubmit)="submit()" novalidate>
+    <!-- No header close while a verification is pending, as Cancel is
+         disabled then: a dismissal would hand the caller a cancel and the
+         accepted PIN could no longer be delivered. -->
+    <app-dialog-shell
+        [icon]="isSetMode() ? 'lock_reset' : 'lock'"
+        [heading]="titleKey() | translate"
+        [subtitle]="descriptionKey() | translate"
+        [showClose]="!busy()"
+    >
+        <div class="pin-dialog__content">
+            <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
+                class="pin-dialog__field"
+                [class.pin-dialog__field--shake]="shake() === 'pin'"
+            >
+                <mat-label>{{
+                    'PARENTAL_LOCK.PIN_DIALOG.PIN_LABEL' | translate
+                }}</mat-label>
+                <input
+                    #pinInput
+                    matInput
+                    type="password"
+                    inputmode="numeric"
+                    data-test-id="parental-lock-pin"
+                    [attr.autocomplete]="isSetMode() ? 'new-password' : 'off'"
+                    [attr.maxlength]="maxLength"
+                    [disabled]="busy() || inCooldown()"
+                    [errorStateMatcher]="pinErrorState"
+                    [ngModel]="pin()"
+                    (ngModelChange)="onPinInput($event)"
+                    (keydown.enter)="onPinEnter($event)"
+                    name="pin"
+                />
+                <mat-hint>
+                    {{
+                        'PARENTAL_LOCK.PIN_DIALOG.PIN_HINT'
+                            | translate: { min: minLength, max: maxLength }
+                    }}
+                </mat-hint>
+                @if (pinErrorKey(); as errorKey) {
+                    <mat-error data-test-id="parental-lock-pin-error">
+                        {{
+                            errorKey
+                                | translate: { min: minLength, max: maxLength }
+                        }}
+                    </mat-error>
+                }
+            </mat-form-field>
+
+            @if (isSetMode()) {
+                <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="pin-dialog__field"
+                    [class.pin-dialog__field--shake]="
+                        shake() === 'confirmation'
+                    "
+                >
+                    <mat-label>{{
+                        'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_LABEL' | translate
+                    }}</mat-label>
+                    <input
+                        #confirmationInput
+                        matInput
+                        type="password"
+                        inputmode="numeric"
+                        autocomplete="new-password"
+                        data-test-id="parental-lock-pin-confirm"
+                        [attr.maxlength]="maxLength"
+                        [disabled]="busy()"
+                        [errorStateMatcher]="confirmationErrorState"
+                        [ngModel]="confirmation()"
+                        (ngModelChange)="onConfirmationInput($event)"
+                        name="confirmation"
+                    />
+                    @if (mismatch()) {
+                        <mat-error data-test-id="parental-lock-pin-mismatch">
+                            {{
+                                'PARENTAL_LOCK.PIN_DIALOG.MISMATCH' | translate
+                            }}
+                        </mat-error>
+                    }
+                </mat-form-field>
+
+                <p class="pin-dialog__note">
+                    {{ 'PARENTAL_LOCK.PIN_DIALOG.NO_RECOVERY' | translate }}
+                </p>
+            }
+        </div>
+        <div appDialogFooter>
+            <button
+                mat-button
+                type="button"
+                (click)="cancel()"
+                [disabled]="busy()"
+            >
+                {{ 'CANCEL' | translate }}
+            </button>
+            <button
+                mat-flat-button
+                type="submit"
+                data-test-id="parental-lock-pin-submit"
+                [disabled]="busy() || inCooldown()"
+            >
+                {{ submitKey() | translate }}
+            </button>
+        </div>
+    </app-dialog-shell>
+</form>

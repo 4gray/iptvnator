@@ -157,6 +157,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [playlistId, operationId],
     },
     {
+        method: 'dbRestoreXtreamFavorites',
+        args: [playlistId, favorites, 'restore-1'],
+        channel: 'DB_RESTORE_XTREAM_FAVORITES',
+        forwardedArgs: [playlistId, favorites, 'restore-1'],
+    },
+    {
         method: 'dbRestoreXtreamUserData',
         args: [playlistId, favorites, recentlyViewed, operationId],
         channel: 'DB_RESTORE_XTREAM_USER_DATA',
@@ -176,9 +182,15 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
     },
     {
         method: 'dbSaveCategories',
-        args: [playlistId, categories, 'live', categoryIds],
+        args: [playlistId, categories, 'live', categoryIds, categoryIds],
         channel: 'DB_SAVE_CATEGORIES',
-        forwardedArgs: [playlistId, categories, 'live', categoryIds],
+        forwardedArgs: [
+            playlistId,
+            categories,
+            'live',
+            categoryIds,
+            categoryIds,
+        ],
     },
     {
         method: 'dbGetAllCategories',
@@ -191,6 +203,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [categoryIds, true],
         channel: 'DB_UPDATE_CATEGORY_VISIBILITY',
         forwardedArgs: [categoryIds, true],
+    },
+    {
+        method: 'dbSetCategoryLocks',
+        args: [playlistId, 'live', categoryIds],
+        channel: 'DB_SET_CATEGORY_LOCKS',
+        forwardedArgs: [playlistId, 'live', categoryIds],
     },
     {
         method: 'dbHasContent',
@@ -263,6 +281,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [12, playlistId],
         channel: 'DB_IS_FAVORITE',
         forwardedArgs: [12, playlistId],
+    },
+    {
+        method: 'dbGetFavoritesForBackup',
+        args: [playlistId],
+        channel: 'DB_GET_FAVORITES_FOR_BACKUP',
+        forwardedArgs: [playlistId],
     },
     {
         method: 'dbGetFavorites',
@@ -401,6 +425,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [playlistId, 42, 'vod'],
         channel: 'DB_CLEAR_PLAYBACK_POSITION',
         forwardedArgs: [playlistId, 42, 'vod'],
+    },
+    {
+        method: 'dbReplaceAllPlaybackPositions',
+        args: [playlistId, [playbackData]],
+        channel: 'DB_REPLACE_ALL_PLAYBACK_POSITIONS',
+        forwardedArgs: [playlistId, [playbackData]],
     },
     {
         method: 'dbSavePlaybackPositionsBatch',

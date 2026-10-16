@@ -5,6 +5,7 @@ import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DashboardSourceExpiryService } from './dashboard-source-expiry.service';
 import {
     SOURCE_EXPIRY_WARNING_DAYS,
+    nextSourceExpiryChangeMs,
     resolveSourceExpiryBadge,
 } from './dashboard-source-expiry.util';
 
@@ -91,6 +92,61 @@ describe('resolveSourceExpiryBadge', () => {
     });
 });
 
+describe('nextSourceExpiryChangeMs', () => {
+    const nowMs = Date.UTC(2026, 7, 1, 12, 0, 0);
+    const badgeAt = (expiresAtSeconds: number, atMs: number) =>
+        JSON.stringify(
+            resolveSourceExpiryBadge(
+                { expiresAtSeconds, reportedExpired: false },
+                atMs
+            )
+        );
+
+    it.each([
+        ['far outside the warning window', 30 * DAY_SECONDS + 5],
+        ['one day past the warning window', 8 * DAY_SECONDS - 60],
+        ['inside the warning window', 3 * DAY_SECONDS + 3_600],
+        ['on the last day', 7_200],
+        ['exactly on a day boundary', 2 * DAY_SECONDS],
+    ])('returns the first instant the badge changes (%s)', (_, secondsLeft) => {
+        const expiresAt = nowMs / 1000 + secondsLeft;
+        const next = nextSourceExpiryChangeMs(
+            { expiresAtSeconds: expiresAt, reportedExpired: false },
+            nowMs
+        );
+
+        expect(next).not.toBeNull();
+        const boundary = next as number;
+        expect(boundary).toBeGreaterThan(nowMs);
+        // Unchanged up to the boundary, different from it on.
+        expect(badgeAt(expiresAt, boundary - 1)).toBe(badgeAt(expiresAt, nowMs));
+        expect(badgeAt(expiresAt, boundary)).not.toBe(badgeAt(expiresAt, nowMs));
+    });
+
+    it('never schedules for facts whose badge cannot change any more', () => {
+        const nowSeconds = nowMs / 1000;
+        expect(nextSourceExpiryChangeMs(null, nowMs)).toBeNull();
+        expect(
+            nextSourceExpiryChangeMs(
+                { expiresAtSeconds: null, reportedExpired: true },
+                nowMs
+            )
+        ).toBeNull();
+        expect(
+            nextSourceExpiryChangeMs(
+                { expiresAtSeconds: nowSeconds - 1, reportedExpired: false },
+                nowMs
+            )
+        ).toBeNull();
+        expect(
+            nextSourceExpiryChangeMs(
+                { expiresAtSeconds: 0, reportedExpired: false },
+                nowMs
+            )
+        ).toBeNull();
+    });
+});
+
 describe('DashboardSourceExpiryService', () => {
     let service: DashboardSourceExpiryService;
     let portalStatusService: { checkPortalStatusDetails: jest.Mock };
@@ -140,7 +196,8 @@ describe('DashboardSourceExpiryService', () => {
     });
 
     it('collects Xtream facts from the shared status details', async () => {
-        const expiresAtSeconds = Math.floor(Date.now() / 1000) + 3 * DAY_SECONDS;
+        const expiresAtSeconds =
+            Math.floor(Date.now() / 1000) + 3 * DAY_SECONDS;
         portalStatusService.checkPortalStatusDetails.mockResolvedValue({
             status: 'active',
             expiresAtSeconds,

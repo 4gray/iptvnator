@@ -21,8 +21,16 @@ export class ExternalPlaybackRecoveryCoordinator {
     readonly states = this.recovery.states;
     readonly pending = this.recovery.pending;
 
+    /**
+     * @param onLaunched runs once a launch this view requested has opened in
+     *   MPV/VLC — still owned by the current intent — e.g. to record it as
+     *   recently viewed under the view's own playback session.
+     */
     constructor(
-        private readonly externalPlayback: PortalExternalPlayback | null
+        private readonly externalPlayback: PortalExternalPlayback | null,
+        private readonly onLaunched: (
+            session: ExternalPlayerSession
+        ) => void = () => undefined
     ) {}
 
     observe(session: ExternalPlayerSession | null): void {
@@ -93,7 +101,13 @@ export class ExternalPlaybackRecoveryCoordinator {
             void launch.then(
                 (session) => {
                     if (session) {
-                        this.recovery.confirm(intent, session);
+                        if (
+                            this.recovery.confirm(intent, session) &&
+                            (session.status === 'opened' ||
+                                session.status === 'playing')
+                        ) {
+                            this.onLaunched(session);
+                        }
                     } else {
                         this.recovery.fail(intent);
                     }

@@ -19,6 +19,7 @@ import {
     normalizeEmbeddedMpvExtraOptions,
     normalizeExternalPlayerArguments,
     normalizeEpgOffsetMinutes,
+    normalizeParentalLockRelockMinutes,
     normalizeStartupWindowMode,
     Settings,
     StartupBehavior,
@@ -63,7 +64,9 @@ export function createSettingsForm(
         player: [VideoPlayer.VideoJs],
         webPlayerSharedControls: true,
         playerAmbientMode: false,
+        detailTrailerBackdrop: false,
         playerUpNextRail: true,
+        playerUpNextCard: true,
         fullscreenChannelPanel: true,
         vodAutoFailover: false,
         m3uVodDetails: true,
@@ -174,7 +177,9 @@ export function createSettingsFromFormValue(
         player: value.player ?? VideoPlayer.VideoJs,
         webPlayerSharedControls: value.webPlayerSharedControls ?? true,
         playerAmbientMode: value.playerAmbientMode ?? false,
+        detailTrailerBackdrop: value.detailTrailerBackdrop ?? false,
         playerUpNextRail: value.playerUpNextRail ?? true,
+        playerUpNextCard: value.playerUpNextCard ?? true,
         fullscreenChannelPanel: value.fullscreenChannelPanel ?? true,
         vodAutoFailover: value.vodAutoFailover ?? false,
         m3uVodDetails: value.m3uVodDetails ?? true,
@@ -228,6 +233,12 @@ export function createSettingsFromFormValue(
             enabled: value.tmdb?.enabled ?? DEFAULT_TMDB_SETTINGS.enabled,
             apiKey: value.tmdb?.apiKey?.trim() ?? '',
         },
+        // Not on the form: the parental lock section applies its changes
+        // immediately (they gate on the PIN), so Save must not undo them.
+        parentalLockEnabled: currentSettings.parentalLockEnabled === true,
+        parentalLockRelockMinutes: normalizeParentalLockRelockMinutes(
+            currentSettings.parentalLockRelockMinutes
+        ),
     };
 }
 

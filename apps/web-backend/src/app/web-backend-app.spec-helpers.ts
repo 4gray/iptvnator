@@ -39,6 +39,8 @@ export class StubHttpClient implements WebBackendHttpClient {
     private readonly queuedResponses: Array<{
         readonly data: unknown;
         readonly error?: Error;
+        /** Report the TCP connection as accepted before failing. */
+        readonly connected?: boolean;
         readonly status?: number;
         readonly statusText?: string;
         readonly headers?: { location?: string };
@@ -60,8 +62,15 @@ export class StubHttpClient implements WebBackendHttpClient {
         this.queuedResponses.push({ data: null, error: new Error(message) });
     }
 
-    queueNetworkError(error: Error): void {
-        this.queuedResponses.push({ data: null, error });
+    queueNetworkError(
+        error: Error,
+        options: { connected?: boolean } = {}
+    ): void {
+        this.queuedResponses.push({
+            data: null,
+            error,
+            connected: options.connected,
+        });
     }
 
     async get<T>(
@@ -81,6 +90,9 @@ export class StubHttpClient implements WebBackendHttpClient {
         }
 
         if (response.error) {
+            if (response.connected) {
+                options.onConnect?.();
+            }
             // Shaped like a real axios rejection, because the guard reads these
             // fields to tell a redirect hop from the endpoint we asked for. A
             // bare Error here hid a bug where every ordinary /xtream failure

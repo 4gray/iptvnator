@@ -18,6 +18,7 @@ import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    MetaChipComponent,
     PortalDetailShellComponent,
 } from '@iptvnator/ui/components';
 import { map } from 'rxjs';
@@ -52,6 +53,7 @@ import {
         MatButtonModule,
         MatIcon,
         MatMenuModule,
+        MetaChipComponent,
         PortalDetailShellComponent,
         TranslatePipe,
     ],

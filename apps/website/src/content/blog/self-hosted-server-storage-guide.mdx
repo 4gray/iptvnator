@@ -1,0 +1,368 @@
+---
+title: Self-Host IPTVnator on a NAS and Share One Library with Every Device
+description: Run the browser version of IPTVnator from one Docker container on a NAS or home server. Since 0.25 the container keeps playlists, favorites and watch progress on the server, so every phone, TV and laptop on your network sees the same library. Compose file, access token, HTTPS, backups and updates.
+pubDate: 2026-10-16
+author: 4gray
+heroImage: /iptvnator/blog/guides/screenshots/guide-server-settings-dark.png
+tags:
+    - guide
+draft: true
+faq:
+    - q: Does the desktop app connect to my server too?
+      a: Not yet. The desktop app keeps its own local database, and the server library is shared between browsers that open the same container. You can move a library between the two with a playlist backup from Settings → Backup. Connecting the desktop app to a self-hosted server is planned as a later step of the same work.
+    - q: Do I need the access token on my home network?
+      a: It is optional. Without it, anyone who can reach the address sees the library and can play through your providers. Set it when other people share the network, and always when the address is reachable from outside your home.
+    - q: What happens to playlists that were already in my browser?
+      a: The first browser that opens an instance with an empty server is offered to move them, and later browsers find the same action in Settings → Server. Nothing is deleted from the browser. A playlist the server already has is merged with the browser's favorites and history instead of being added twice.
+    - q: Can two people have separate libraries on one server?
+      a: There are no user accounts, so one container means one shared library. For separate libraries, run two containers from two compose files in different folders, each with its own host port, data folder and container_name (Docker requires the name to be unique), and give each its own access token.
+    - q: Does it run on a Raspberry Pi?
+      a: Yes. The image is published for amd64 and arm64, so a Raspberry Pi 4 or 5 with a 64-bit OS works. 32-bit systems are not covered.
+    - q: Are my provider passwords stored on the server?
+      a: Yes, unencrypted, in the SQLite database on the data volume, as the desktop app stores them in its local database. Keep the data folder private, set the access token, and use HTTPS when the address leaves your network.
+    - q: What happens while the server is down or restarting?
+      a: Open browsers show a "Server unavailable" banner and cannot save changes until the server answers again. A browser that already used the server does not fall back to an empty library; it waits and reloads when the server is back.
+---
+
+import Alert from '../../components/blog/Alert.astro';
+import ContentDisclaimer from '../../components/blog/ContentDisclaimer.astro';
+import CopyCommand from '../../components/blog/CopyCommand.astro';
+import LinkCards from '../../components/blog/LinkCards.astro';
+import StepRail from '../../components/blog/StepRail.astro';
+
+The browser version of IPTVnator ships as one Docker image: the web app and the backend that
+fetches playlists and talks to Xtream and Stalker portals. Until now that container was
+stateless. Every browser that opened it kept its own playlists in its own storage, so a
+playlist added on the laptop never showed up on the phone, and a cleared browser cache meant
+starting over.
+
+Since IPTVnator 0.25 (and the `latest` Docker image published on 15 October 2026) the
+container keeps the library on the server. Playlists, favorites, history and playback
+positions live in a database on a Docker volume, and every phone, TV and computer that opens
+the same address sees the same library. This guide sets that up on a NAS or any Docker host,
+protects it with an access token, puts it behind HTTPS and shows how to back it up.
+
+<ContentDisclaimer />
+
+## What the server keeps, and what stays on the device
+
+| Data | Where it lives now |
+| --- | --- |
+| Playlists: M3U, Xtream Codes and Stalker sources with their connection details | Server |
+| M3U and Stalker favorites and recently viewed channels | Server |
+| Xtream favorites, recently viewed items, collections and playback positions | Server |
+| Settings: theme, language, player, EPG display | This browser |
+| Parental lock PIN and locked groups | This browser |
+| Order of the global favorites list and other UI preferences | This browser |
+
+Changes travel on the next load, not live: a favorite added on the tablet shows up on the TV
+after the TV's page is reloaded or its tab is brought back to the front, not while that page
+stays open. The server is the authority, so there is no per-playlist choice between "local"
+and "server". If you prefer the old behavior, set
+`IPTVNATOR_STORAGE=none` and every browser keeps its own data as before.
+
+## What you need
+
+- A machine that runs Docker and Docker Compose: a NAS (Synology, QNAP, Unraid, TrueNAS), a
+  mini PC, or a Raspberry Pi 4 or 5 with a 64-bit OS. The image is built for `linux/amd64`
+  and `linux/arm64`.
+- A folder on that machine for the database. A few megabytes per playlist is typical; a large
+  M3U file with thousands of channels takes tens of megabytes.
+- The address other devices will use to reach the host, for example `http://192.168.1.20:4333`
+  or `http://nas.local:4333`.
+
+## Step 1: write the compose file
+
+Create a folder, for example `iptvnator`, and save this as `compose.yaml` inside it:
+
+```yaml
+services:
+  iptvnator:
+    image: 4gray/iptvnator:latest
+    container_name: iptvnator
+    restart: unless-stopped
+    ports:
+      - "4333:80"
+    environment:
+      # The addresses you open IPTVnator from, comma-separated.
+      CLIENT_URL: http://192.168.1.20:4333,http://nas.local:4333
+      # Keep the library on the server (the image default; "none" = per browser).
+      IPTVNATOR_STORAGE: server
+      # Ask every browser for this token once. Uncomment to require it.
+      # IPTVNATOR_ACCESS_TOKEN: replace-with-a-long-random-string
+    volumes:
+      - ./data:/data
+```
+
+Line by line:
+
+- **`ports`** maps the container's port 80 to 4333 on the host. Change the left side if 4333
+  is taken.
+- **`CLIENT_URL`** lists the addresses browsers use to open the app. The backend accepts
+  requests from these origins; add every hostname and IP you plan to type.
+- **`IPTVNATOR_STORAGE: server`** turns on the server database. The image already defaults to
+  it, so the line is documentation as much as configuration.
+- **`volumes`** mounts the `data` folder next to the compose file as `/data` in the container.
+  The database is created at `data/databases/iptvnator.db`. A bind mount like this is easy to
+  find and back up on a NAS; the repository's own compose file uses a named Docker volume
+  instead, which works the same way.
+- **`IPTVNATOR_ACCESS_TOKEN`** stays commented out for the first start. Step 4 turns it on.
+
+The complete reference compose file with health check and all variables is in the
+repository's `docker` folder; the snippet above is the same thing without the build stage.
+
+## Step 2: start it and add a first source
+
+<CopyCommand title="In the folder with compose.yaml" command="docker compose up -d" />
+
+The first start pulls the image, creates the database and runs its migrations before the web
+server answers, so give it a moment. Then open the address in a browser and add a source as
+usual: an M3U URL, an Xtream Codes login or a Stalker portal. The add-playlist flow is the same
+as in the desktop app; the [Xtream](/iptvnator/blog/xtream-codes-setup-guide/),
+[Stalker](/iptvnator/blog/stalker-portal-setup-guide/) and
+[M3U](/iptvnator/blog/m3u-playlist-epg-setup-guide/) guides cover the details.
+
+Open **Settings → Server** to confirm the library went to the server. The page shows the
+connection state, the number of playlists, the size of the database and its path inside the
+container.
+
+![Settings → Server in the browser version, showing the connection state, the database size and path, the backup export and the access mode](/iptvnator/blog/guides/screenshots/guide-server-settings-dark.png)
+
+*Settings → Server appears only when the container reports server storage. The access row
+tells you whether a token is required.*
+
+From a terminal you can ask the backend directly. `storage` must say `server`:
+
+<CopyCommand title="Check the instance" command="curl -s http://192.168.1.20:4333/api/v1/instance" />
+
+The answer looks like `{"service":"iptvnator","apiVersion":1,"instanceId":"…","storage":"server","auth":"none"}`.
+
+## Step 3: open it from a second device
+
+Open the same address on a phone, a TV browser or another computer. The sources, favorites
+and history are already there; nothing to import, nothing to sign in to.
+
+If a browser already used this address before the update, its old playlists are still in that
+browser's storage. The first time such a browser opens an instance with an empty server, a
+dialog lists them and offers **Move to server**. The move copies the playlists with their
+favorites, history and Xtream progress; nothing is deleted from the browser, so you can always
+go back to the stateless setup.
+
+![The migration dialog listing the playlists found in this browser, with the Not now and Move to server actions](/iptvnator/blog/guides/screenshots/guide-server-migration-dark.png)
+
+*The dialog appears once per server. Choosing Not now keeps the offer available in
+Settings → Server under "Playlists in this browser".*
+
+Later browsers, or a browser whose server already has playlists, find the same action in
+**Settings → Server**. A playlist the server already has is recognized by its source (the
+Xtream server and username, the Stalker portal and MAC address, or the M3U URL) and merged:
+the server copy gains the browser's favorites and history, and nothing is added twice.
+
+<Alert type="info" title="Install it like an app">
+  On a phone or tablet, use the browser's "Add to Home Screen" or "Install app" action. The
+  browser version is a progressive web app and opens full-screen from its own icon. Browsers
+  offer the install action only over HTTPS, which Step 5 sets up.
+</Alert>
+
+## Step 4: require an access token
+
+Without a token, anyone who can reach the address sees the library and can play through your
+providers. On a home network behind a router that is often fine; with guests, children or any
+exposure beyond your network, set a token.
+
+<StepRail
+  title="Turn the token on"
+  steps={[
+    'Pick a long random string. Any password manager generates one, and so does the terminal command openssl rand -hex 24.',
+    'Uncomment IPTVNATOR_ACCESS_TOKEN in compose.yaml and paste the string as its value.',
+    'Run docker compose up -d again. Compose recreates the container with the new environment; the database is untouched.',
+    'Open the address in each browser. A sign-in page asks for the token once and keeps it in that browser.',
+  ]}
+/>
+
+The token guards every request except the health check and the public instance probe, the
+provider proxy included, so a browser without the token can neither read the library nor use
+the backend to reach your providers. **Settings → Server → Access** shows whether a token is
+in use and offers **Sign out**, which forgets the token in that browser. Changing the token on
+the server sends every browser back to the sign-in page the next time it talks to the server.
+
+<Alert type="warning" title="A token needs server storage">
+  The backend refuses to start when IPTVNATOR_ACCESS_TOKEN is set together with
+  IPTVNATOR_STORAGE=none, because a stateless backend has no sign-in page to ask for it. Protect
+  a stateless instance in your reverse proxy instead.
+</Alert>
+
+## Step 5: HTTPS and a reverse proxy
+
+A reverse proxy gives the app a name and a certificate, and makes the PWA installable on
+phones. Any proxy that forwards HTTP works; the one rule is to serve IPTVnator at the root of
+its own hostname, because the app expects its backend under `/api` on the same origin. A
+sub-path such as `https://nas.example.com/iptvnator/` is not supported.
+
+The certificate is the part that needs a decision. Browsers trust a certificate only when a
+public authority issued it for a name you own, or when you installed the issuing authority on
+the device yourself. That gives two workable setups:
+
+- **A name you own, with a public certificate.** Register a domain (or use a subdomain of one
+  you have) and point `tv.example.com` at the NAS: in public DNS when the host is reachable
+  from the internet, or in your router's or Pi-hole's local DNS when it is not. Caddy then
+  obtains a Let's Encrypt certificate on its own, provided it can answer the challenge: port 80
+  or 443 of the name must reach Caddy from the internet, or you use the DNS challenge with a
+  Caddy build that includes your DNS provider's plugin. This is the setup that works on every
+  phone and TV without touching the device.
+- **A LAN-only name with Caddy's own authority.** With `tls internal`, Caddy issues the
+  certificate itself. Every device then needs Caddy's root certificate installed once (Caddy
+  prints its location; `caddy trust` installs it on the machine running Caddy). Phones and
+  laptops accept a user-installed root; many TV browsers do not, so test the devices you care
+  about before settling on this.
+
+With Caddy, the two site definitions are:
+
+```text
+# A name you own: Caddy fetches and renews a Let's Encrypt certificate.
+tv.example.com {
+    reverse_proxy 192.168.1.20:4333
+}
+
+# LAN only: Caddy's own authority, trusted on each device by hand.
+tv.home.arpa {
+    tls internal
+    reverse_proxy 192.168.1.20:4333
+}
+```
+
+Then add the HTTPS origin to `CLIENT_URL` in `compose.yaml` and recreate the container:
+
+```yaml
+    environment:
+      CLIENT_URL: https://tv.example.com,http://192.168.1.20:4333
+```
+
+Keep `BACKEND_URL` at its default `/api`; the proxy inside the image forwards it to the
+backend. Nginx Proxy Manager, Traefik and the reverse proxy built into Synology DSM work the
+same way: point them at the container port, give them a certificate the same way, and allow
+request bodies of at least 64 MB if the proxy limits them, because a playlist upload carries
+the whole M3U file.
+
+If the name resolves on the internet, treat the instance as public: set the access token, keep
+the private-network proxy switch off (the default), and consider your own authentication layer
+or a VPN in front of it.
+
+## Where the data lives, and how to back it up
+
+Everything is in `data/databases/iptvnator.db` next to your compose file (plus a `-wal`
+journal file while the container runs). It is the same SQLite schema the desktop app uses, with
+one extra table for the synced user data. Provider credentials are stored unencrypted in it,
+like in the desktop database, so the folder deserves the same care as a password file.
+
+Two ways to back it up:
+
+1. **From the app.** **Settings → Server → Export backup** downloads a playlist backup in the
+   same JSON format the desktop app exports. It carries the playlists, their credentials, the
+   favorites, history and playback positions. Importing it on any device of the instance
+   through **Settings → Backup** restores them to the server. The
+   [backup guide](/iptvnator/blog/playlist-backup-restore-guide/) explains what the format
+   covers for each source type.
+2. **From the host.** Stop the container, copy the `data` folder, start it again. Copy only
+   while the container is stopped: SQLite keeps recent changes in a `-wal` journal next to the
+   database and moves them into the file at its own pace, so files copied from a running
+   container can be out of step with each other and may not open or may miss saved changes.
+   The app export above is the safe way to take a backup without stopping anything.
+
+<CopyCommand title="A consistent file-level backup" command="docker compose stop && cp -a data data-backup-$(date +%F) && docker compose start" />
+
+Restoring is the reverse: stop the container, replace the `data` folder, start it. A restored
+copy of your own database keeps its identity, so browsers that signed in with a token stay
+signed in and simply see the library as it was at backup time. Only a database with a
+different identity, such as an empty folder or another instance's data, counts as a new
+server: then each browser asks for the token again and offers to move its local playlists
+once more.
+
+## Updating
+
+<CopyCommand title="Pull the newest image and recreate" command="docker compose pull && docker compose up -d" />
+
+Database migrations run before the backend starts listening, so a large library can keep the
+container in "starting" for a while; the entrypoint waits up to five minutes by default. Open
+browsers show a "Server unavailable" banner during the restart and reload on their own once
+the server answers. They never fall back to an empty browser library in the meantime.
+
+Which tag to follow:
+
+| Tag | Follows |
+| --- | --- |
+| `latest` | Every merge to the main branch. The simplest choice at home. |
+| `stable` | The most recent tagged release that is not a prerelease. |
+| `0.25.0` | One release, for a container that should only change when you say so. |
+| `sha-<commit>` | One exact build, for rollbacks. |
+
+Server storage is in every image from `latest` since 15 October 2026 and in the 0.25 release
+tag onwards. An older image at the same address answers the probe without server storage, and
+browsers then fall back to their own data without losing anything.
+
+## On a Synology or other NAS
+
+Synology's Container Manager, QNAP's Container Station, Unraid's Compose plugin and Portainer
+all accept the compose file above as a "project" or "stack". Three things to check:
+
+- **The data folder.** `./data` is relative to the compose file. On a Synology that usually
+  means a folder under `/volume1/docker/iptvnator/data`; create it first if the UI does not.
+- **The port.** 4333 is unusual enough to be free on most NAS, but another app may hold it.
+  Change the host side of the mapping, and update `CLIENT_URL` to match.
+- **The health check.** The image reports healthy once the backend and nginx both answer. A
+  container that stays "starting" for more than a minute or two on an empty database usually
+  cannot write to the data folder; the logs say so.
+
+<CopyCommand title="See what the container says" command="docker logs --tail 50 iptvnator" />
+
+## When something does not work
+
+**The banner says "Server unavailable" although the container runs.** Check `docker logs
+iptvnator` and `curl http://<host>:4333/api/health`. A 502 from the proxy while the backend is
+still migrating resolves itself; a backend that exits at once usually cannot open the data
+folder.
+
+**The sign-in page rejects the token.** Compare what the container actually has with `docker
+compose config` and recreate it with `docker compose up -d`; `docker compose restart` does not
+pick up environment changes.
+
+**"This playlist is larger than the server accepts."** The backend and the nginx inside the
+image accept documents up to 64 MB (`IPTVNATOR_MAX_DOCUMENT_MB`). An M3U file beyond that is
+best trimmed at the provider side, or split into several playlists.
+
+**A provider on your own network cannot be reached.** The backend refuses private and
+loopback addresses by default so a public instance cannot scan your LAN. For a provider that
+really lives on your network, set `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: "1"` and keep the
+instance limited to trusted users.
+
+**The app behaves as if the server were new.** The browser remembers which server and database
+it talked to. A database with a different identity behind the same address, such as a freshly
+created data folder or another instance's data, counts as a new server: the browser asks for
+the token again and offers to move its local playlists once more. A restored backup of the same
+database keeps its identity and does not trigger this. Nothing is lost on either side.
+
+## What the browser version still leaves to the desktop
+
+The container runs the browser build, so the limits of the browser version apply: no MPV or
+VLC handoff, no embedded MPV engine, no downloads or recordings, no XMLTV guide and no phone
+remote. The provider schedules of Xtream and Stalker portals are the exception on the EPG side;
+a server-side program guide for M3U playlists is the next item on the self-hosting roadmap,
+followed by letting the desktop app connect to the same server. The full comparison is on the
+[desktop vs browser page](/iptvnator/compare/desktop-vs-browser/), and the
+[desktop app](/iptvnator/download/) stays the choice for a single computer that needs those
+features.
+
+## Related
+
+<LinkCards
+  links={[
+    { label: 'Docker download page', href: '/iptvnator/download/docker/', hint: 'Quick start, variables, tags and the FAQ for the browser version.', icon: 'download' },
+    { label: 'docker/README.md', href: 'https://github.com/4gray/iptvnator/blob/master/docker/README.md', hint: 'Every variable, IPv6 and VPN notes, private certificate authorities, local validation.', icon: 'github' },
+    { label: 'Desktop app vs browser version', href: '/iptvnator/compare/desktop-vs-browser/', hint: 'The capability table for the two editions.', icon: 'docs' },
+  ]}
+/>
+
+- [Back up your playlists and move to a new computer](/iptvnator/blog/playlist-backup-restore-guide/)
+- [Add an Xtream Codes account](/iptvnator/blog/xtream-codes-setup-guide/)
+- [Connect a Stalker portal](/iptvnator/blog/stalker-portal-setup-guide/)
+- [Load an M3U playlist](/iptvnator/blog/m3u-playlist-epg-setup-guide/)

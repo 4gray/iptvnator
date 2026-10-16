@@ -11,24 +11,31 @@ import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.a
 import PlatformSwitcher from '../../components/download/PlatformSwitcher.astro';
 import RelatedPosts from '../../components/download/RelatedPosts.astro';
 import SpecList from '../../components/download/SpecList.astro';
+import { getCollection } from 'astro:content';
 import type { FaqEntry } from '../../lib/download-schema';
 import { REPO_URL } from '../../lib/downloads';
 import { absoluteUrl } from '../../lib/site';
 
 const pageUrl = absoluteUrl('/download/docker/');
+// The self-hosting guide is linked only once its post is published (or drafts are included),
+// so the page never points at a blog URL the build left out.
+const includeDrafts = import.meta.env.DEV || import.meta.env.PUBLIC_INCLUDE_DRAFTS === 'true';
+const GUIDE_SLUG = 'self-hosted-server-storage-guide';
+const guidePost = (await getCollection('blog')).find((post) => post.id === GUIDE_SLUG);
+const guideHref = guidePost && (includeDrafts || !guidePost.data.draft) ? `/iptvnator/blog/${GUIDE_SLUG}/` : null;
 const DOCKER_HUB_URL = 'https://hub.docker.com/r/4gray/iptvnator';
 const DOCKER_README_URL = `${REPO_URL}/blob/master/docker/README.md`;
 const COMPOSE_URL = `${REPO_URL}/blob/master/docker/docker-compose.yml`;
 
 const title = 'Self-Host IPTVnator with Docker – The Browser Version';
 const description =
-  'Run IPTVnator in your browser from one Docker container: the web app and its backend in a single image, published for amd64 and arm64. One compose command, the ports and variables that matter, what the browser version leaves out, and how to keep it updated.';
+  'Run IPTVnator in your browser from one Docker container: the web app and its backend in a single image, published for amd64 and arm64. One compose command, a library kept on the server for every device, the ports and variables that matter, what the browser version leaves out, and how to keep it updated.';
 
 const quickStart = [
   'Install Docker and Docker Compose on the machine that will host IPTVnator. A home server, a NAS or a spare computer all work; the image is published for amd64 and arm64.',
-  'Save the compose file from the repository, or copy the command below into a directory of your choice.',
-  'Start the container. On the first run Docker pulls the image; later runs start in seconds.',
-  'Open the address in any browser on the same device and add your first source: an M3U playlist, an Xtream Codes login or a Stalker portal.',
+  'Save the compose file from the repository, or copy the command below into a directory of your choice. It mounts a volume for the library database.',
+  'Start the container. On the first run Docker pulls the image and creates the database; later runs start in seconds.',
+  'Open the address in any browser and add your first source: an M3U playlist, an Xtream Codes login or a Stalker portal. Every other device that opens the same address sees the same library.',
 ];
 
 const composeSnippet = `services:
@@ -38,7 +45,14 @@ const composeSnippet = `services:
     ports:
       - "4333:80"
     environment:
-      CLIENT_URL: http://localhost:4333`;
+      CLIENT_URL: http://localhost:4333
+      IPTVNATOR_STORAGE: server
+      # IPTVNATOR_ACCESS_TOKEN: change-me
+    volumes:
+      - iptvnator-data:/data
+
+volumes:
+  iptvnator-data: {}`;
 
 const included = [
   {
@@ -57,9 +71,9 @@ const included = [
       'Xtream and Stalker sources publish their own schedule, and it shows in the channel list and under the player in the browser too.',
   },
   {
-    title: 'Reachable from every device',
+    title: 'One library for every device',
     description:
-      'Run it once on the server and open it from any laptop, tablet or phone on your network. Each browser keeps its own sources and history.',
+      'Run it once on the server and open it from any laptop, tablet or phone on your network. Playlists, favorites and watch progress are kept in a database on the container volume, so every browser sees the same library. An optional access token keeps it private.',
   },
   {
     title: 'A guarded proxy',
@@ -78,6 +92,9 @@ const config = [
   { term: 'Port', value: 'The container listens on 80; the compose file maps it to 4333 on the host. Change the host side to taste.' },
   { term: 'CLIENT_URL', value: 'The origin browsers use to open the app, for CORS. Set it to your public URL behind a reverse proxy; several origins can be comma-separated.' },
   { term: 'BACKEND_URL', value: 'Where the app finds its backend. Keep the default /api for the bundled proxy.' },
+  { term: 'IPTVNATOR_STORAGE', value: 'server (the image default) keeps playlists, favorites and watch progress in a database on the volume, shared by every browser. none keeps the backend stateless and every browser on its own data.' },
+  { term: 'IPTVNATOR_DATA_DIR', value: '/data by default. Mount a volume or a host folder here; the database is created at databases/iptvnator.db inside it.' },
+  { term: 'IPTVNATOR_ACCESS_TOKEN', value: 'Unset by default. When set, every browser asks for the token once on a sign-in page before it shows the library, and the proxy routes require it too. Needs server storage.' },
   { term: 'IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS', value: 'Off by default. Set to 1 only when your provider lives on your own LAN and the instance is limited to trusted users.' },
   { term: 'NODE_EXTRA_CA_CERTS', value: 'Path to a CA bundle you mount into the container, for providers behind a private certificate authority. Keeps TLS validation on.' },
 ];
@@ -104,11 +121,11 @@ const faq: FaqEntry[] = [
   },
   {
     q: 'Is it safe to expose to the internet?',
-    a: 'Treat it as a private service. The app has no user accounts, and the backend proxies requests to your providers on behalf of whoever can reach it. Put it behind your own authenticating proxy or a VPN, and leave the private-network proxy switch off.',
+    a: 'Treat it as a private service. The app has no user accounts, and the backend proxies requests to your providers on behalf of whoever can reach it. Set IPTVNATOR_ACCESS_TOKEN so every browser has to present the token, put HTTPS and ideally your own authenticating proxy or a VPN in front, and leave the private-network proxy switch off.',
   },
   {
     q: 'Where is my data stored?',
-    a: 'In the browser you use, not in the container: playlist metadata in IndexedDB and portal user data in local storage. Another browser or device starts empty, and clearing site data removes the sources. The container itself keeps no state, so replacing it loses nothing.',
+    a: 'In a SQLite database on the container volume, under /data/databases/iptvnator.db: playlists with their connection details, favorites, history and playback positions. Every browser that opens the instance reads the same library, and clearing site data in one browser changes nothing on the server. Settings, parental locks and UI preferences stay in each browser. Back up the volume like any database, or export a playlist backup from Settings → Server. With IPTVNATOR_STORAGE=none the backend keeps no state and each browser stores its own data.',
   },
   {
     q: 'A stream does not play in the browser. What now?',
@@ -211,7 +228,7 @@ const jsonLd = [
           </div>
 
           <ul class="mt-8 flex flex-wrap gap-2" aria-label="Key facts">
-            {['One image, no extra backend', 'amd64 & arm64', 'Port 4333 by default', 'Free & open source'].map((fact) => (
+            {['One image, no extra backend', 'One library for every device', 'amd64 & arm64', 'Port 4333 by default', 'Free & open source'].map((fact) => (
               <li class="rounded-full border border-surface-700/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-surface-400">{fact}</li>
             ))}
           </ul>
@@ -276,11 +293,18 @@ const jsonLd = [
           <a href="/iptvnator/compare/desktop-vs-browser/" class="text-accent-400 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-300">desktop vs browser comparison</a>.
         </p>
       </div>
-      <Alert type="info" title="Data lives in the browser">
+      <Alert type="info" title="Data lives on the server">
         <p>
-          Sources, favorites and history are stored by the browser you use, not by the container. A second device
-          starts empty, and clearing site data removes them. Replacing the container loses nothing, since it keeps
-          no state of its own.
+          Sources, favorites, history and playback positions are stored in a database on the container volume, and
+          every browser that opens the instance shares them. Settings, parental locks and UI preferences stay in
+          each browser. Keep the volume when you replace the container, and back it up like any database.
+          {guideHref && (
+            <>
+              {' '}The{' '}
+              <a href={guideHref} class="text-accent-300 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-200">self-hosting guide</a>{' '}
+              walks through the setup, the access token and backups.
+            </>
+          )}
         </p>
       </Alert>
     </div>
@@ -320,13 +344,16 @@ const jsonLd = [
   <DownloadSection id="more" eyebrow="Go deeper" title="Details live" accent="in the repository" lead="This page covers the decisions. The docker README covers every variable, the IPv6 fallback, private certificate authorities and how the image is built.">
     <LinkCards
       links={[
+        ...(guideHref
+          ? [{ label: 'Self-hosting guide', href: guideHref, hint: 'Compose file for a NAS, the access token, HTTPS behind a reverse proxy, backups and updates.', icon: 'docs' as const }]
+          : []),
         { label: 'docker/README.md', href: DOCKER_README_URL, hint: 'Runtime configuration, image tags, IPv6 and VPN notes, local validation.', icon: 'github' },
         { label: 'Desktop app vs browser version', href: '/iptvnator/compare/desktop-vs-browser/', hint: 'The full capability table for the two editions.', icon: 'docs' },
         { label: 'Download the desktop app', href: '/iptvnator/download/', hint: 'Windows, macOS and Linux builds with every desktop feature.', icon: 'download' },
       ]}
     />
     <div class="mt-10">
-      <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'xtream-codes-setup-guide', 'stalker-portal-setup-guide']} />
+      <RelatedPosts slugs={['self-hosted-server-storage-guide', 'xtream-codes-setup-guide', 'playlist-backup-restore-guide']} />
     </div>
     <div class="mt-10">
       <OfficialSourcesNote />

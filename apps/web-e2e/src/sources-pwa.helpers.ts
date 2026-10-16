@@ -126,7 +126,7 @@ export async function addXtreamPortal(
     await setInputValue(dialog.locator('#password'), 'pass1');
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add',
+        name: 'Add playlist',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -172,7 +172,7 @@ export async function addStalkerPortal(
     await setInputValue(dialog.locator('input#macAddress'), DEFAULT_MAC);
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add',
+        name: 'Add playlist',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -190,7 +190,10 @@ export async function openSources(page: Page): Promise<void> {
 }
 
 export function sourceRowByTitle(page: Page, title: string): Locator {
-    return page.locator('app-playlist-item').filter({ hasText: title }).first();
+    return page
+        .locator('app-workspace-sources app-source-row')
+        .filter({ hasText: title })
+        .first();
 }
 
 export async function openSourceEditor(
@@ -200,7 +203,7 @@ export async function openSourceEditor(
     const row = sourceRowByTitle(page, title);
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.hover();
-    await row.locator('.edit-btn').click();
+    await row.locator('.source-row__edit').click();
     const dialog = page.locator('mat-dialog-container').last();
     await expect(dialog).toBeVisible();
     return dialog;

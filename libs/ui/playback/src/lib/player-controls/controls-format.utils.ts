@@ -15,6 +15,37 @@ export function formatTime(value: number | null | undefined): string {
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+/**
+ * The end-time slot while no duration is known: {@link formatTime}'s shape
+ * with the digits blanked, no more a language string than `1:40` is. The
+ * docks pair it with the translated `DURATION_UNKNOWN` name for assistive
+ * technology, which would otherwise read out the dashes.
+ */
+export const UNKNOWN_TIME_TEXT = '--:--';
+
+/**
+ * Time left until the end, as `−7:03`. The dock shows it in place of the
+ * total duration: it is the number a viewer actually wants at a glance.
+ * Null when there is no finite duration to count down from.
+ */
+export function formatRemainingTime(
+    positionSeconds: number,
+    durationSeconds: number | null | undefined
+): string | null {
+    if (
+        typeof durationSeconds !== 'number' ||
+        !Number.isFinite(durationSeconds) ||
+        durationSeconds <= 0
+    ) {
+        return null;
+    }
+    const remaining = Math.max(
+        0,
+        durationSeconds - Math.max(0, positionSeconds)
+    );
+    return `−${formatTime(Math.ceil(remaining))}`;
+}
+
 export function volumeIcon(value: number): string {
     if (value <= 0) {
         return 'volume_off';

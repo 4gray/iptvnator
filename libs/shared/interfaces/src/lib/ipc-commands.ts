@@ -124,6 +124,12 @@ export const REMOTE_CONTROL_CHANGE_CHANNEL = 'REMOTE_CONTROL_CHANGE_CHANNEL';
 // the main process to hold a powerSaveBlocker so the screen stays awake
 export const PLAYBACK_SET_KEEP_AWAKE = 'PLAYBACK:SET_KEEP_AWAKE';
 
+// Parental lock: the renderer tells the main process whether locked
+// categories must currently be withheld (feature on and no PIN entered), so
+// the SQLite worker can filter every content read. Reset to the mirrored
+// `parentalLockEnabled` setting when the renderer reloads or dies.
+export const PARENTAL_LOCK_SET_STATE = 'PARENTAL_LOCK:SET_STATE';
+
 // Window controls (custom title bar on Windows/Linux)
 export const WINDOW_MINIMIZE = 'WINDOW:MINIMIZE';
 export const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
@@ -134,6 +140,16 @@ export const WINDOW_TOGGLE_FULLSCREEN = 'WINDOW:TOGGLE_FULLSCREEN';
 export const WINDOW_CLOSE = 'WINDOW:CLOSE';
 export const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 export const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
+// Main → renderer only: the window received a platform Back gesture (Windows
+// and Linux `app-command` `browser-backward`, macOS trackpad `swipe` left),
+// carrying an `ElectronBridgeBackGestureSource`. The renderer decides
+// whether Back runs; nothing flows the other way.
+export const WINDOW_BACK_REQUESTED = 'WINDOW:BACK_REQUESTED';
+// Synchronous preload request for the persisted app zoom level (answered
+// with `event.returnValue`), and the preload's acknowledgement once it has
+// applied that level with webFrame.setZoomLevel at DOMContentLoaded
+export const WINDOW_GET_ZOOM_LEVEL = 'WINDOW:GET_ZOOM_LEVEL';
+export const WINDOW_ZOOM_LEVEL_APPLIED = 'WINDOW:ZOOM_LEVEL_APPLIED';
 
 // Close guard: while active, closing/quitting the app is intercepted in the
 // main process and handed to the renderer for a save/discard/stay decision

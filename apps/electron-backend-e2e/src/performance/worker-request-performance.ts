@@ -34,6 +34,8 @@ export interface MainCaptureGenerationTransport {
     }[];
 }
 
+// A parsed capture always carries its four work timestamps; only the
+// unavailable fallback reports them as null.
 type ParsedWorkerPerformanceCapture = Pick<
     WorkerRequestPerformanceMetrics,
     | 'eventLoopDelay'
@@ -43,14 +45,15 @@ type ParsedWorkerPerformanceCapture = Pick<
     | 'histogramFlushedEpochMs'
     | 'invalidReason'
     | 'phaseEvents'
-    | 'requestReceivedEpochMs'
-    | 'responsePostedEpochMs'
     | 'threadCpuSystemMicros'
     | 'threadCpuUnavailableReason'
     | 'threadCpuUserMicros'
-    | 'workEndedEpochMs'
-    | 'workStartedEpochMs'
->;
+> & {
+    readonly requestReceivedEpochMs: number;
+    readonly responsePostedEpochMs: number;
+    readonly workEndedEpochMs: number;
+    readonly workStartedEpochMs: number;
+};
 
 const INVALID_REASONS = new Set(['overlapping-database-worker-requests']);
 const EVENT_LOOP_DELAY_REASONS = new Set([

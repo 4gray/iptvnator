@@ -2,6 +2,7 @@ import { ListRange } from '@angular/cdk/collections';
 import { DestroyRef } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter, Subscription, take } from 'rxjs';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import { EpgGuideFocus } from './epg-guide-keyboard.controller';
 import { EPG_GUIDE_ROW_BUFFER } from './epg-guide-layout.util';
@@ -9,7 +10,7 @@ import {
     guideBlockRevealScrollLeft,
     guideNowScrollLeft,
     guideRowNeedsReveal,
-    scrollElementLeft,
+    scrollElementTo,
 } from './epg-guide-scroll.util';
 import { EpgGuideChannel } from './epg-guide-source';
 
@@ -30,6 +31,8 @@ export interface EpgGuideViewportHost {
     ensureLoaded(channels: readonly EpgGuideChannel[]): void;
     /** Reports the viewport's horizontal offset; drives the ruler and now-line. */
     setScrollLeft(left: number): void;
+    /** Run `callback` after the next render (`afterNextRender`). */
+    afterRender(callback: () => void): void;
 }
 
 /**
@@ -40,6 +43,7 @@ export interface EpgGuideViewportHost {
  */
 export class EpgGuideViewportController {
     private renderedRange: ListRange | null = null;
+    private pendingFocus: Subscription | null = null;
 
     constructor(private readonly host: EpgGuideViewportHost) {}
 
@@ -99,6 +103,31 @@ export class EpgGuideViewportController {
         this.host.ensureLoaded(rows.slice(start, end));
     }
 
+    /**
+     * Call `callback` once, when the viewport first reports rows to render.
+     * The CDK attaches its scroll strategy a microtask after init and renders
+     * rows in a later pass, so a scroll issued on the guide's first render
+     * finds neither content width nor height and is clamped to the top-left —
+     * the guide then opened at midnight. The callback still has to wait for
+     * that render (`afterNextRender`) before it scrolls.
+     */
+    whenRowsRendered(
+        viewport: CdkVirtualScrollViewport,
+        destroyRef: DestroyRef,
+        callback: () => void
+    ): void {
+        viewport.renderedRangeStream
+            .pipe(
+                // Not `first(predicate)`: the CDK completes the stream on
+                // destroy, and a guide closed without ever having rows would
+                // then raise an `EmptyError`.
+                filter((range) => range.end > range.start),
+                take(1),
+                takeUntilDestroyed(destroyRef)
+            )
+            .subscribe(() => callback());
+    }
+
     /** Put the now-line into view, and the playing channel's row with it. */
     scrollToNow(nowLeftPx: number | null, animate: boolean): void {
         const viewport = this.host.viewport();
@@ -106,22 +135,25 @@ export class EpgGuideViewportController {
             return;
         }
         const element = viewport.elementRef.nativeElement;
-        scrollElementLeft(
+        const activeRow = this.host.activeRow();
+        scrollElementTo(
             element,
-            guideNowScrollLeft(
-                element.clientWidth,
-                nowLeftPx,
-                this.host.channelColumnPx()
-            ),
+            {
+                left: guideNowScrollLeft(
+                    element.clientWidth,
+                    nowLeftPx,
+                    this.host.channelColumnPx()
+                ),
+                // The fixed-size strategy's `scrollToIndex` offset, applied in
+                // the same call as the horizontal one (see `scrollElementTo`).
+                top:
+                    activeRow >= 0
+                        ? Math.max(0, activeRow - ACTIVE_ROW_MARGIN) *
+                          this.host.rowHeightPx()
+                        : undefined,
+            },
             animate
         );
-        const activeRow = this.host.activeRow();
-        if (activeRow >= 0) {
-            viewport.scrollToIndex(
-                Math.max(0, activeRow - ACTIVE_ROW_MARGIN),
-                animate ? 'smooth' : 'auto'
-            );
-        }
     }
 
     /**
@@ -132,12 +164,41 @@ export class EpgGuideViewportController {
      */
     focusRovingTarget(): void {
         const element = this.host.viewport()?.elementRef.nativeElement;
+        const active = document.activeElement;
+        // Only a focus inside the grid, or one already lost to the page, is
+        // moved: a deferred call must not take it from a control used since.
+        if (active && active !== document.body && !element?.contains(active)) {
+            return;
+        }
         const target = element?.querySelector<HTMLElement>(
             '[data-epg-guide-grid][tabindex="0"]'
         );
         if (typeof target?.focus === 'function') {
             target.focus({ preventScroll: true });
         }
+    }
+
+    /**
+     * `focusRovingTarget` once `row` is rendered. A smooth jump renders a far
+     * row only towards its end, and only a rendered cell can take the focus;
+     * the CDK may recycle the previously focused one meanwhile. Before the
+     * viewport has reported a range (jsdom), the next render is used.
+     */
+    focusRovingTargetOnRow(row: number): void {
+        this.pendingFocus?.unsubscribe();
+        this.pendingFocus = null;
+        const viewport = this.host.viewport();
+        const focus = () =>
+            this.host.afterRender(() => this.focusRovingTarget());
+        const rendered = (range: ListRange | null) =>
+            range === null || (range.start <= row && row < range.end);
+        if (!viewport || rendered(this.renderedRange)) {
+            focus();
+            return;
+        }
+        this.pendingFocus = viewport.renderedRangeStream
+            .pipe(filter(rendered), take(1))
+            .subscribe(focus);
     }
 
     /** Keep the keyboard focus target inside the viewport, both axes. */
@@ -170,7 +231,7 @@ export class EpgGuideViewportController {
                 this.host.channelColumnPx()
             );
         if (typeof left === 'number') {
-            scrollElementLeft(element, left, true);
+            scrollElementTo(element, { left }, true);
         }
     }
 }

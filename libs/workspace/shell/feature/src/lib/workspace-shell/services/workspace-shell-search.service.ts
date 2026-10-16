@@ -1,15 +1,21 @@
 import { computed, inject, Injectable } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerStore,
+    stalkerCategoryLabelText,
+} from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { WorkspaceSearchCapability } from '@iptvnator/workspace/shell/util';
+import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
 import {
     SEARCH_LOADED_ONLY_STATUS,
     SEARCH_PLAYLIST_PLACEHOLDER,
+    SEARCH_SETTINGS_PLACEHOLDER,
 } from './helpers/workspace-shell-constants';
 import {
     resolveSearchPlaceholderKey,
@@ -28,11 +34,9 @@ export class WorkspaceShellSearchService {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
     private readonly searchSync = inject(WorkspaceShellSearchSyncService);
+    private readonly settingsSearch = inject(SettingsSearchService);
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly searchQuery = this.searchSync.searchQuery;
     readonly appliedSearchQuery = this.searchSync.appliedSearchQuery;
@@ -44,17 +48,19 @@ export class WorkspaceShellSearchService {
         const section = route.section;
         const appliedQuery = this.appliedSearchQuery().trim();
 
+        // Settings search filters an in-memory index of setting rows (see
+        // SettingsSearchService); the settings page reads the term from `q`.
         if (route.kind === 'settings') {
             return {
-                enabled: false,
-                behavior: 'disabled',
+                enabled: true,
+                behavior: 'local-filter',
                 context: null,
                 section: null,
-                searchMode: 'none',
-                placeholderKey: SEARCH_PLAYLIST_PLACEHOLDER,
+                searchMode: 'local-filter',
+                placeholderKey: SEARCH_SETTINGS_PLACEHOLDER,
                 scopeLabel: '',
                 statusLabel: '',
-                minLength: 0,
+                minLength: 1,
                 advancedRouteTarget: null,
             };
         }
@@ -151,9 +157,16 @@ export class WorkspaceShellSearchService {
                 context,
                 section,
                 translate: (key, params) => this.translateText(key, params),
-                xtreamCategory: this.xtreamStore.getSelectedCategory(),
-                stalkerCategoryName:
-                    this.stalkerStore.getSelectedCategoryName(),
+                // No selected category means the grid lists every item.
+                xtreamCategory: this.xtreamStore.selectedCategoryId()
+                    ? this.xtreamStore.getSelectedCategory()
+                    : { name: this.translateText('PORTALS.ALL_ITEMS') },
+                // This computed reads the language tick, so the every-item
+                // genre is translated in the current language.
+                stalkerCategoryName: stalkerCategoryLabelText(
+                    this.stalkerStore.getSelectedCategoryLabel(),
+                    (key) => this.translateText(key)
+                ),
             }),
             statusLabel: isDegradedStalkerLive
                 ? this.translateText(SEARCH_LOADED_ONLY_STATUS)
@@ -180,6 +193,21 @@ export class WorkspaceShellSearchService {
     onSearchEnter(value: string): void {
         const trimmedValue = value.trim();
         this.searchQuery.set(trimmedValue);
+
+        // Enter on settings jumps to the best match, like picking the first
+        // result. The reveal navigation drops `q`, which clears the box. The
+        // term is deliberately not applied: applying would make the `q` sync
+        // start its own navigation, superseding the reveal navigation (the
+        // reveal also cancels a keystroke still waiting for its debounce).
+        if (this.routeState.currentRoute().kind === 'settings') {
+            const [bestMatch] = this.settingsSearch.search(trimmedValue, 1);
+            if (bestMatch) {
+                this.settingsSearch.reveal(bestMatch.entry);
+            } else {
+                this.searchSync.applySearchQuery(trimmedValue);
+            }
+            return;
+        }
 
         if (this.searchCapability().behavior === 'advanced-only') {
             const advancedRouteTarget =

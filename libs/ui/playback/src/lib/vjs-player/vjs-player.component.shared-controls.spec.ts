@@ -255,7 +255,7 @@ function createVideoJsPlayerHarness() {
         currentVideo: document.createElement('video'),
         paused: true,
         pauseCompletesImmediately: true,
-        ready: () => undefined,
+        ready: (): void => undefined,
         mpegTsPlayers: [] as ReturnType<typeof createMpegTsPlayer>[],
         pause: jest.fn(() => {
             if (harness.pauseCompletesImmediately) {

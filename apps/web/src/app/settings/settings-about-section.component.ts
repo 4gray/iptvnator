@@ -13,13 +13,23 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { TranslateModule } from '@ngx-translate/core';
 import {
+    AppUpdateChannel,
+    APP_UPDATE_CHANNELS,
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { UpdateChannelOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+
+interface SettingsUpdateStatusChip {
+    readonly labelKey: string;
+    readonly tone: 'accent' | 'success' | 'warn' | 'neutral';
+}
 
 @Component({
     selector: 'app-settings-about-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         MatButtonModule,
         MatFormFieldModule,
@@ -30,15 +40,8 @@ import { UpdateChannelOption } from './settings.models';
     ],
     templateUrl: './settings-about-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
-    styles: [
-        ':host { display: contents; }',
-        '.version-block .build-commit { opacity: 0.65; font-size: 0.85em; }',
-        '.app-update-channel { margin-top: 12px; }',
-        '.app-update-channel mat-form-field { width: 100%; max-width: 320px; }',
-        '.app-update-channel__note { display: block; margin-top: 4px; opacity: 0.75; font-size: 0.85em; }',
-    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrls: ['./settings-about-section.component.scss'],
 })
 export class SettingsAboutSectionComponent {
     readonly isDesktop = input(false);
@@ -54,6 +57,13 @@ export class SettingsAboutSectionComponent {
      * setting. Absent in hosts that only render the version block.
      */
     readonly form = input<FormGroup | null>(null);
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly updateChannelOptions = input<UpdateChannelOption[]>([]);
 
     readonly buildCommitShort = computed(() => {
@@ -63,10 +73,19 @@ export class SettingsAboutSectionComponent {
     });
 
     readonly checkForAppUpdate = output<void>();
+    /**
+     * Emitted instead of a plain check while the channel select shows a
+     * channel the updater has not been told about yet. The host saves the
+     * form; the main process re-checks on its own once the saved channel
+     * changes, so one click yields the verdict the user is looking at.
+     */
+    readonly saveAndCheckForAppUpdate = output<void>();
     readonly downloadAppUpdate = output<void>();
     readonly installAppUpdate = output<void>();
     readonly openManualAppUpdate = output<void>();
     readonly openAppUpdateReleaseNotes = output<void>();
+    /** The nightly warning offers the backup page before switching. */
+    readonly openBackup = output<void>();
 
     readonly canSelectUpdateChannel = computed(
         () =>
@@ -84,6 +103,112 @@ export class SettingsAboutSectionComponent {
             status.channel === 'stable'
         );
     });
+
+    /**
+     * The channel the select currently shows. Read off the control on every
+     * check rather than tracked as a signal: the section is eagerly checked
+     * and the sibling nightly warning already reads the control the same way.
+     */
+    draftUpdateChannel(): AppUpdateChannel | null {
+        const value: unknown = this.form()?.get('updateChannel')?.value;
+
+        return APP_UPDATE_CHANNELS.includes(value as AppUpdateChannel)
+            ? (value as AppUpdateChannel)
+            : null;
+    }
+
+    /**
+     * True while the select shows a channel other than the one the last
+     * verdict describes. The verdict on screen is then about the OTHER
+     * channel, and a plain "check again" would silently repeat it.
+     */
+    hasPendingChannelChange(): boolean {
+        const draft = this.draftUpdateChannel();
+        const applied = this.appUpdateStatus()?.channel;
+
+        return draft !== null && applied !== undefined && draft !== applied;
+    }
+
+    /**
+     * Whether Save would make the updater re-check. A download in flight or
+     * finished belongs to the previous channel and is kept, so saving there
+     * changes the channel without a new verdict and the plain check stays.
+     */
+    canSaveAndCheckForAppUpdate(): boolean {
+        const status = this.appUpdateStatus()?.status;
+
+        return (
+            this.hasPendingChannelChange() &&
+            status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading &&
+            status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+        );
+    }
+
+    channelLabelKey(channel: AppUpdateChannel | null | undefined): string {
+        return channel === 'nightly'
+            ? 'SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY'
+            : 'SETTINGS.APP_UPDATE_CHANNEL_STABLE';
+    }
+
+    /**
+     * The channel the verdict on screen belongs to. `verdictChannel` is
+     * stamped by every check; a channel change saved while a download was
+     * running or done keeps that download, so the two can differ until
+     * the new channel is checked.
+     */
+    verdictChannel(): AppUpdateChannel | null {
+        const status = this.appUpdateStatus();
+
+        return status?.verdictChannel ?? status?.channel ?? null;
+    }
+
+    /** The kept download was found on another channel than the saved one. */
+    hasRetainedOtherChannelVerdict(): boolean {
+        const status = this.appUpdateStatus();
+
+        return (
+            status?.verdictChannel !== undefined &&
+            status.verdictChannel !== status.channel
+        );
+    }
+
+    readonly appliedChannelLabelKey = computed(() => {
+        const channel = this.verdictChannel();
+
+        return channel ? this.channelLabelKey(channel) : null;
+    });
+
+    /** The one-word verdict beside the app name in the hero. */
+    readonly updateStatusChip = computed<SettingsUpdateStatusChip | null>(
+        () => {
+            switch (this.appUpdateStatus()?.status) {
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available:
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading:
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded:
+                    return {
+                        labelKey: 'SETTINGS.UPDATE_AVAILABLE_CHIP',
+                        tone: 'accent',
+                    };
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable:
+                    return {
+                        labelKey: 'SETTINGS.UPDATE_UP_TO_DATE',
+                        tone: 'success',
+                    };
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking:
+                    return {
+                        labelKey: 'SETTINGS.APP_UPDATE_CHECKING',
+                        tone: 'neutral',
+                    };
+                case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error:
+                    return {
+                        labelKey: 'SETTINGS.APP_UPDATE_ERROR',
+                        tone: 'warn',
+                    };
+                default:
+                    return null;
+            }
+        }
+    );
 
     readonly isAppUpdateBusy = computed(() => {
         const status = this.appUpdateStatus()?.status;

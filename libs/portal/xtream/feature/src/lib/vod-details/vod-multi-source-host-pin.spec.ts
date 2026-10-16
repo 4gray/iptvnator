@@ -1,3 +1,4 @@
+import type { VodSourceCandidate } from '@iptvnator/shared/interfaces';
 import {
     ALT_THREE,
     ALT_TWO,
@@ -45,6 +46,63 @@ describe('VodMultiSourceHostService — pinning', () => {
         // movie would still start the playlist the route is on.
         await expect(service.playPinnedSource()).resolves.toBe('played');
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
+    });
+
+    it('launches the pinned copy in the forced player', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+
+        // The "…" menu's MPV/VLC launch honours the pin like Play does, so
+        // the two never start different copies of the film.
+        await expect(
+            service.playPinnedSource(undefined, { player: 'vlc' })
+        ).resolves.toBe('played');
+        expect(startPlayback).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.any(Function),
+            'vlc'
+        );
+    });
+
+    it('relaunches a pinned copy that already plays only when asked to replace it', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+        await expect(service.playPinnedSource()).resolves.toBe('played');
+        playbackLive.set(true);
+        startPlayback.mockClear();
+
+        // Plain Play has nothing to honour while the pinned copy plays...
+        await expect(
+            service.playPinnedSource(undefined, { player: 'mpv' })
+        ).resolves.toBe('unavailable');
+        expect(startPlayback).not.toHaveBeenCalled();
+
+        // ...but Restart and the menu's MPV/VLC launch mean THAT copy, never
+        // the route's, so they replace the running player with it.
+        await expect(
+            service.playPinnedSource(undefined, {
+                player: 'mpv',
+                replacePlaying: true,
+            })
+        ).resolves.toBe('played');
+        expect(startPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: expect.stringContaining(String(ALT_TWO.contentId)),
+            }),
+            expect.any(Function),
+            'mpv'
+        );
+        playbackLive.set(false);
     });
 
     it('resumes the pinned source from the stored position', async () => {

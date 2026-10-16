@@ -8,7 +8,7 @@ import {
 import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 
 interface CacheEntry {
     data: EpgItem[];

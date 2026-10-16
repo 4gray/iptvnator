@@ -1,5 +1,6 @@
 import type { RecordingItem } from '@iptvnator/services';
 import { normalizeDownloadFilter } from './download-manager.viewmodel';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 export type RecordingAttentionReason = 'file-missing' | 'failed';
 
@@ -96,7 +97,7 @@ function toRow(item: RecordingItem): RecordingRowViewModel {
 }
 
 function matchesSearch(row: RecordingRowViewModel, searchTerm: string): boolean {
-    const query = searchTerm.trim().toLowerCase();
+    const query = foldSearchText(searchTerm.trim());
     return (
         query.length === 0 ||
         [
@@ -104,7 +105,7 @@ function matchesSearch(row: RecordingRowViewModel, searchTerm: string): boolean 
             row.channelName,
             row.item.playlistName ?? '',
             row.item.errorMessage ?? '',
-        ].some((value) => value.toLowerCase().includes(query))
+        ].some((value) => foldSearchText(value).includes(query))
     );
 }
 

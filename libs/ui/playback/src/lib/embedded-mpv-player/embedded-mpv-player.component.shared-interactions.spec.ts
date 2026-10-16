@@ -16,7 +16,7 @@ const PLAYBACK: ResolvedPortalPlayback = {
     contentInfo: {
         playlistId: 'playlist-1',
         contentXtreamId: 42,
-        contentType: 'movie',
+        contentType: 'vod',
     },
 };
 

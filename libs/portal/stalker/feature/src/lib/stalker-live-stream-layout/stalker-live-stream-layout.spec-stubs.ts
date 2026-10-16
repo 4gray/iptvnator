@@ -117,8 +117,14 @@ export class StubPortalEmptyStateComponent {
     readonly message = input('');
 }
 
+/** Accepts the layout's resizable bindings without touching storage or the DOM. */
 @Directive({
     selector: '[appResizable]',
     standalone: true,
 })
-export class StubResizableDirective {}
+export class StubResizableDirective {
+    readonly minWidth = input<number>(200);
+    readonly maxWidth = input<number>(600);
+    readonly defaultWidth = input<number>(400);
+    readonly storageKey = input<string>('');
+}

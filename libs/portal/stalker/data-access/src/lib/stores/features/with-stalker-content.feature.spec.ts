@@ -1,8 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { TranslateService } from '@ngx-translate/core';
-import { DataService } from '@iptvnator/services';
+import { DataService, ParentalLockService } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
     PlaylistMeta,
@@ -34,6 +33,7 @@ const PLAYLIST = {
 } as PlaylistMeta;
 
 const TestContentStore = signalStore(
+    { protectedState: false },
     withState({
         currentPlaylist: undefined as PlaylistMeta | undefined,
         selectedContentType: 'vod' as 'vod' | 'series' | 'itv' | 'radio',
@@ -57,6 +57,11 @@ const TestContentStore = signalStore(
     })),
     withStalkerContent()
 );
+
+/** Request payload the content feature sends through `sendIpcEvent`. */
+interface StalkerIpcRequest {
+    params?: { action?: string; p?: number; search?: string };
+}
 
 function createDeferred<T>() {
     let resolve!: (value: T) => void;
@@ -120,6 +125,7 @@ function createItvCacheMock(
     return {
         versionFor: jest.fn(() => version()),
         getChannels: jest.fn(() => channels),
+        isUnsupported: jest.fn(() => false),
         ensureLoaded: jest.fn().mockResolvedValue(undefined),
         refresh: jest.fn().mockResolvedValue(undefined),
         isReady: jest.fn(() => channels !== null),
@@ -135,18 +141,34 @@ function createItvCacheMock(
 describe('withStalkerContent failure states', () => {
     let store: InstanceType<typeof TestContentStore>;
     let dataService: {
-        sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
+        sendIpcEvent: jest.Mock<
+            Promise<unknown>,
+            [event: string, request: StalkerIpcRequest]
+        >;
+    };
+    let parentalLock: {
+        active: jest.Mock<boolean, []>;
+        version: ReturnType<typeof signal<number>>;
+        lockedStalkerIds: jest.Mock<string[], [string, string]>;
     };
 
     beforeEach(() => {
         dataService = {
             sendIpcEvent: jest.fn(),
         };
+        parentalLock = {
+            active: jest.fn(() => false),
+            version: signal(0),
+            lockedStalkerIds: jest.fn(
+                (_playlistId: string, _type: string): string[] => []
+            ),
+        };
 
         TestBed.configureTestingModule({
             providers: [
                 TestContentStore,
                 { provide: DataService, useValue: dataService },
+                { provide: ParentalLockService, useValue: parentalLock },
                 {
                     provide: StalkerItvCacheService,
                     useValue: createItvCacheMock(),
@@ -160,12 +182,6 @@ describe('withStalkerContent failure states', () => {
                         }),
                     },
                 },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        instant: jest.fn((key: string) => key),
-                    },
-                },
             ],
         });
 
@@ -175,31 +191,25 @@ describe('withStalkerContent failure states', () => {
     it('keeps ITV pages unfiltered while independent local searches change', async () => {
         const pending =
             createDeferred<ReturnType<typeof createContentResponse>>();
-        dataService.sendIpcEvent.mockImplementation(
-            (_event, request: { params: { action: string } }) =>
-                request.params.action === 'get_genres'
-                    ? Promise.resolve({ js: [] })
-                    : pending.promise
+        dataService.sendIpcEvent.mockImplementation((_event, request) =>
+            request.params?.action === 'get_genres'
+                ? Promise.resolve({ js: [] })
+                : pending.promise
         );
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '5', category_name: 'Five' },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         patchState(store, { searchPhrase: 'sidebar' });
         await flushResources();
         const orderedCalls = () =>
             dataService.sendIpcEvent.mock.calls.filter(
-                (call) =>
-                    (call[1] as { params: { action: string } }).params
-                        .action === 'get_ordered_list'
+                (call) => call[1].params?.action === 'get_ordered_list'
             );
         await waitForCondition(() => orderedCalls().length > 0);
-        expect(
-            (orderedCalls()[0][1] as { params: { search?: string } }).params
-                .search
-        ).toBeUndefined();
+        expect(orderedCalls()[0][1].params?.search).toBeUndefined();
         patchState(store, { searchPhrase: 'changed' });
         await flushResources();
         pending.resolve(createContentResponse('Panel match'));
@@ -278,8 +288,44 @@ describe('withStalkerContent failure states', () => {
         expect(
             store
                 .getCategoryResource()
-                .map((category) => category.category_name)
+                .map((category) => category.labelKey ?? category.category_name)
         ).toEqual(['PORTALS.ALL_CATEGORIES', 'Zulu', 'Alpha', 'Movies']);
+        // The added entry is named by its key alone: a name translated at
+        // load time would keep that language after a runtime switch.
+        expect(store.getCategoryResource()[0]).toEqual({
+            category_id: '*',
+            category_name: '',
+            labelKey: 'PORTALS.ALL_CATEGORIES',
+        });
+    });
+
+    it('names the selected genre by the portal name or the added entry key', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: [{ id: '7', title: 'Drama' }],
+        });
+
+        store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isCategoryResourceLoading();
+        await waitForCondition(() => store.getCategoryResource().length > 0);
+
+        store.setSelectedCategory('*');
+        expect(store.getSelectedCategoryLabel()).toEqual({
+            name: '',
+            labelKey: 'PORTALS.ALL_CATEGORIES',
+        });
+
+        store.setSelectedCategory('7');
+        expect(store.getSelectedCategoryLabel()).toEqual({
+            name: 'Drama',
+            labelKey: null,
+        });
+
+        store.setSelectedCategory(null);
+        expect(store.getSelectedCategoryLabel()).toEqual({
+            name: '',
+            labelKey: null,
+        });
     });
 
     it('normalizes content failures into empty collections instead of undefined state', async () => {
@@ -288,6 +334,7 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             {
                 category_id: '5',
@@ -295,7 +342,6 @@ describe('withStalkerContent failure states', () => {
             },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(
@@ -344,6 +390,7 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             {
                 category_id: '5',
@@ -351,7 +398,6 @@ describe('withStalkerContent failure states', () => {
             },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.itvChannels().length === 1);
@@ -396,6 +442,102 @@ describe('withStalkerContent failure states', () => {
         expect(store.hasMoreChannels()).toBe(false);
     });
 
+    it('reports which category the ITV channels on screen were served for', async () => {
+        dataService.sendIpcEvent.mockImplementation(() =>
+            Promise.resolve({
+                js: {
+                    data: [{ id: 'channel-1', name: 'One', category_id: '5' }],
+                    total_items: 1,
+                },
+            })
+        );
+
+        store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
+        store.setCategories('itv', [
+            { category_id: '5', category_name: 'News' },
+            { category_id: '9', category_name: 'Sports' },
+        ]);
+        expect(store.itvChannelsCategory()).toBeNull();
+
+        store.setSelectedCategory('5');
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.itvChannels().length === 1);
+
+        expect(store.itvChannelsCategory()).toBe('5');
+
+        // Selecting another genre does not retroactively re-label the rows
+        // still on screen: they belong to '5' until the new page arrives.
+        store.setSelectedCategory('9');
+        expect(store.itvChannelsCategory()).toBe('5');
+
+        await waitForCondition(() => store.itvChannelsCategory() === '9');
+
+        // Clearing the list leaves no category on screen.
+        store.setItvChannels([]);
+        expect(store.itvChannelsCategory()).toBeNull();
+    });
+
+    it("does not report another portal's served category as its own", async () => {
+        dataService.sendIpcEvent.mockImplementation(() =>
+            Promise.resolve({
+                js: {
+                    data: [{ id: 'channel-1', name: 'One', category_id: '5' }],
+                    total_items: 1,
+                },
+            })
+        );
+
+        store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
+        store.setCategories('itv', [
+            { category_id: '5', category_name: 'News' },
+        ]);
+        store.setSelectedCategory('5');
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.itvChannelsCategory() === '5');
+
+        // Switching portal keeps the previous rows until the new portal's
+        // own load lands; genre ids are provider-local, so the marker must
+        // not answer for a portal that did not serve them.
+        store.setCurrentPlaylist({ ...PLAYLIST, _id: 'other-portal' });
+
+        expect(store.itvChannelsCategory()).toBeNull();
+    });
+
+    it('forgets the served category when a failed ITV page clears the rows', async () => {
+        dataService.sendIpcEvent.mockImplementation(() =>
+            Promise.resolve({
+                js: {
+                    data: [{ id: 'channel-1', name: 'One', category_id: '5' }],
+                    total_items: 1,
+                },
+            })
+        );
+
+        store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
+        store.setCategories('itv', [
+            { category_id: '5', category_name: 'News' },
+            { category_id: '9', category_name: 'Sports' },
+        ]);
+        store.setSelectedCategory('5');
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.itvChannelsCategory() === '5');
+
+        // The next category's first page fails: the rows are cleared, so no
+        // category is on screen — a stale marker would tell an auto-open
+        // handoff for genre 5 that its channels are still rendered.
+        dataService.sendIpcEvent.mockImplementation(() =>
+            Promise.reject(new Error('portal down'))
+        );
+        store.setSelectedCategory('9');
+
+        await waitForCondition(() => store.contentError() !== null);
+        expect(store.itvChannels()).toEqual([]);
+        expect(store.itvChannelsCategory()).toBeNull();
+    });
+
     it('appends later VOD pages into one continuous deduplicated list', async () => {
         dataService.sendIpcEvent.mockImplementation(
             (_event: unknown, payload: { params?: { p?: number } }) => {
@@ -424,11 +566,11 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             { category_id: '5', category_name: 'Action' },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.getPaginatedContent().length === 2);
@@ -474,11 +616,11 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             { category_id: '5', category_name: 'Action' },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.getPaginatedContent().length === 2);
@@ -491,6 +633,149 @@ describe('withStalkerContent failure states', () => {
         // instead of leaving hasMoreContent true past the end forever.
         expect(store.getPaginatedContent()).toHaveLength(2);
         expect(store.totalCount()).toBe(2);
+    });
+
+    it('pages past a VOD page made only of parental-locked rows', async () => {
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+                // Page 1: one visible film. Page 2: locked rows only. Page 3:
+                // the visible film paging must still reach.
+                const data =
+                    page === 1
+                        ? [{ id: 'movie-1', name: 'One', category_id: '5' }]
+                        : page === 2
+                          ? [
+                                { id: 'adult-1', name: 'A', category_id: '9' },
+                                { id: 'adult-2', name: 'B', category_id: '9' },
+                            ]
+                          : [
+                                {
+                                    id: 'movie-3',
+                                    name: 'Three',
+                                    category_id: '5',
+                                },
+                            ];
+                return Promise.resolve({ js: { data, total_items: 4 } });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+            { category_id: '9', category_name: 'Adult' },
+        ]);
+        store.setSelectedCategory('*');
+        void store.isPaginatedContentLoading();
+
+        await waitForCondition(() => store.getPaginatedContent().length === 1);
+        expect(store.hasMoreContent()).toBe(true);
+
+        // The append lands on the fully withheld page; the loader must ask
+        // for the next one by itself instead of ending the list.
+        store.setPage(1);
+        await waitForCondition(
+            () => store.getPaginatedContent().length === 2,
+            60
+        );
+
+        expect(store.getPaginatedContent().map((item) => item.id)).toEqual([
+            'movie-1',
+            'movie-3',
+        ]);
+        // Both withheld ids are subtracted from the portal's total.
+        expect(store.totalCount()).toBe(2);
+        expect(store.hasMoreContent()).toBe(false);
+    });
+
+    it('drops accumulated rows of a newly locked genre and restarts from page 1', async () => {
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+                const data =
+                    page === 1
+                        ? [
+                              { id: 'movie-1', name: 'One', category_id: '5' },
+                              { id: 'adult-1', name: 'A', category_id: '9' },
+                          ]
+                        : [{ id: 'movie-2', name: 'Two', category_id: '5' }];
+                return Promise.resolve({ js: { data, total_items: 3 } });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+            { category_id: '9', category_name: 'Adult' },
+        ]);
+        store.setSelectedCategory('*');
+        void store.isPaginatedContentLoading();
+
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+        store.setPage(1);
+        await waitForCondition(() => store.getPaginatedContent().length === 3);
+
+        // Lock now: the genre-9 row loaded on page 1 must leave the screen
+        // and the list must be rebuilt from page 1 under the new lock state.
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+        parentalLock.version.set(1);
+
+        await waitForCondition(
+            () =>
+                store.page() === 0 &&
+                !store.isPaginatedContentLoading() &&
+                store
+                    .getPaginatedContent()
+                    .every((item) => item.category_id !== '9'),
+            60
+        );
+
+        expect(store.getPaginatedContent().map((item) => item.id)).toEqual([
+            'movie-1',
+        ]);
+        expect(store.totalCount()).toBe(2);
+    });
+
+    it('takes page-one rows of a newly locked genre off screen before the reload answers', async () => {
+        let hangReload = false;
+        dataService.sendIpcEvent.mockImplementation(() =>
+            hangReload
+                ? new Promise(() => undefined)
+                : Promise.resolve({
+                      js: {
+                          data: [
+                              { id: 'movie-1', name: 'One', category_id: '5' },
+                              { id: 'adult-1', name: 'A', category_id: '9' },
+                          ],
+                          total_items: 2,
+                      },
+                  })
+        );
+        store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+            { category_id: '9', category_name: 'Adult' },
+        ]);
+        store.setSelectedCategory('*');
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+
+        // Lock now while the replacement request hangs.
+        hangReload = true;
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+        parentalLock.version.set(1);
+
+        // Page 1 blanks the grid synchronously before its request, so the
+        // locked row is gone even though the reload never answers.
+        await waitForCondition(() => store.getPaginatedContent().length === 0);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
     });
 
     it('keeps accumulated pages when an append fails and retries the same page', async () => {
@@ -518,11 +803,11 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             { category_id: '5', category_name: 'Action' },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
         await waitForCondition(() => store.getPaginatedContent().length === 1);
 
@@ -582,18 +867,13 @@ describe('withStalkerContent failure states', () => {
                 }),
             })
         );
-        expect(store.getCategoryResource()).toEqual([
-            {
-                category_id: '*',
-                category_name: 'PORTALS.ALL_RADIO',
-            },
-        ]);
-        expect(store.radioCategories()).toEqual([
-            {
-                category_id: '*',
-                category_name: 'PORTALS.ALL_RADIO',
-            },
-        ]);
+        const allRadio = {
+            category_id: '*',
+            category_name: '',
+            labelKey: 'PORTALS.ALL_RADIO',
+        };
+        expect(store.getCategoryResource()).toEqual([allRadio]);
+        expect(store.radioCategories()).toEqual([allRadio]);
         expect(store.isCategoryResourceFailed()).toBeNull();
     });
 
@@ -612,6 +892,7 @@ describe('withStalkerContent failure states', () => {
         });
 
         store.setSelectedContentType('radio');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('radio', [
             {
                 category_id: 'radio-all',
@@ -619,7 +900,6 @@ describe('withStalkerContent failure states', () => {
             },
         ]);
         store.setSelectedCategory('radio-all');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.radioChannels().length === 1);
@@ -659,6 +939,7 @@ describe('withStalkerContent failure states', () => {
         );
 
         store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('vod', [
             {
                 category_id: '5',
@@ -666,7 +947,6 @@ describe('withStalkerContent failure states', () => {
             },
         ]);
         store.setSelectedCategory('5');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => pendingByPage.get(1)?.length === 1);
@@ -713,7 +993,10 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
     let store: InstanceType<typeof TestContentStore>;
     let dataService: {
-        sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
+        sendIpcEvent: jest.Mock<
+            Promise<unknown>,
+            [event: string, request: StalkerIpcRequest]
+        >;
     };
     let itvCache: ReturnType<typeof createItvCacheMock>;
 
@@ -737,12 +1020,6 @@ describe('withStalkerContent full ITV channel list cache', () => {
                         }),
                     },
                 },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        instant: jest.fn((key: string) => key),
-                    },
-                },
             ],
         });
 
@@ -751,12 +1028,12 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
     function enterItvCategory(categoryId: string) {
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '5', category_name: 'News' },
             { category_id: '9', category_name: 'Sports' },
         ]);
         store.setSelectedCategory(categoryId);
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
     }
 
@@ -814,12 +1091,12 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
         // Genre '19' has no channels in the cached full list.
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '5', category_name: 'News' },
             { category_id: '19', category_name: 'For adults', censored: true },
         ]);
         store.setSelectedCategory('19');
-        store.setCurrentPlaylist(PLAYLIST);
         void store.isPaginatedContentLoading();
 
         await waitForCondition(() => store.itvChannels().length === 1);
@@ -856,12 +1133,12 @@ describe('withStalkerContent full ITV channel list cache', () => {
     it('omits genres without cached channels from the count map (adult genres)', () => {
         setup(CACHED_CHANNELS);
         store.setSelectedContentType('itv');
+        store.setCurrentPlaylist(PLAYLIST);
         store.setCategories('itv', [
             { category_id: '*', category_name: 'All' },
             { category_id: '5', category_name: 'News' },
             { category_id: '19', category_name: 'For adults', censored: true },
         ]);
-        store.setCurrentPlaylist(PLAYLIST);
 
         const counts = store.itvCategoryItemCounts();
         expect(counts.get(5)).toBe(2);
@@ -944,19 +1221,18 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
     it('keeps censored pagination after a delayed cache replays the current page', async () => {
         setup(null);
-        dataService.sendIpcEvent.mockImplementation(
-            (_event, payload: { params: { p: number } }) =>
-                Promise.resolve({
-                    js: {
-                        data: [
-                            {
-                                id: String(payload.params.p),
-                                name: `Hidden ${payload.params.p}`,
-                            },
-                        ],
-                        total_items: 3,
-                    },
-                })
+        dataService.sendIpcEvent.mockImplementation((_event, payload) =>
+            Promise.resolve({
+                js: {
+                    data: [
+                        {
+                            id: String(payload.params?.p),
+                            name: `Hidden ${payload.params?.p}`,
+                        },
+                    ],
+                    total_items: 3,
+                },
+            })
         );
         enterItvCategory('1099');
         await waitForCondition(() => store.itvChannels().length === 1);

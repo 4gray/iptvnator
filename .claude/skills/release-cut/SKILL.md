@@ -7,6 +7,8 @@ description: Use when preparing, cutting, tagging, publishing, or verifying an I
 
 Full contract, asset table and rationale: `docs/architecture/release-pipeline.md`.
 
+For imagegen announcement covers, reuse [the approved artwork prompt](../../../docs/development/release-cover-artwork.md).
+
 The tag workflow authors the public GitHub body with
 `node tools/release/extract-changelog-section.mjs --public "${VERSION}"`.
 Keep the full changelog, including internal notes, committed before tagging.
@@ -71,11 +73,12 @@ the complete 27-asset set documented in `docs/architecture/release-pipeline.md`.
 It is read-only, and fails on an already-published release. Still review the
 authored text and generated commits by eye.
 
-After verification, manually publish the GitHub release. That publication
-automatically verifies its Snap assets and uploads them to `edge`.
-Installed-Snap smoke and candidate/stable promotion remain manual. Keep the
-blog draft during artifact verification; publish it in a follow-up commit and
-verify the website deployment.
+Manually publish the release; this verifies and uploads Snaps
+to `edge`. Installed-Snap smoke and candidate/stable promotion stay manual.
+After public-asset verification, publish the draft blog and update
+`apps/website/released-version.json` to the published version together.
+Follow the release pipeline's offline-download checks and verify deployment;
+never use the development/nightly version for this pin.
 
 ## Failure Safety
 

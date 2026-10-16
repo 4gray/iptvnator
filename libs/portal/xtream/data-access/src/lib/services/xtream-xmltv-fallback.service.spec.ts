@@ -31,7 +31,7 @@ describe('XtreamXmltvFallbackService', () => {
             getChannelPrograms: jest.fn(),
             getCurrentProgramsBatch: jest.fn(),
         };
-        (window as { electron?: Bridge }).electron = bridge;
+        (window as { electron?: unknown }).electron = bridge;
     });
 
     afterEach(() => {

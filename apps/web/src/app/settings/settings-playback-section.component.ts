@@ -8,11 +8,12 @@ import {
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import {
     StreamFormat,
@@ -20,24 +21,27 @@ import {
     reportsPlaybackFailures,
 } from '@iptvnator/shared/interfaces';
 import { SettingsPlayerOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-playback-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         CommonModule,
         MatButtonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         MatSelectModule,
+        MatSlideToggleModule,
+        MatTooltipModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
     templateUrl: './settings-playback-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [':host { display: contents; }'],
 })
 export class SettingsPlaybackSectionComponent {
@@ -53,6 +57,13 @@ export class SettingsPlaybackSectionComponent {
     ].join('\n');
 
     readonly form = input.required<FormGroup>();
+
+    constructor() {
+        // Parent patches (Discard, backup import) change the form outside
+        // this OnPush section's events.
+        markSectionForCheckOnFormEvents(this.form);
+    }
+
     readonly players = input.required<SettingsPlayerOption[]>();
     readonly streamFormatEnum = input.required<typeof StreamFormat>();
     readonly isDesktop = input(false);
@@ -89,8 +100,26 @@ export class SettingsPlaybackSectionComponent {
         );
     }
 
+    /**
+     * The Up next card is part of the shared controls. Embedded MPV mounts
+     * them only under the frame-copy engine; the native-view engine keeps
+     * its own dock, where the toggle would control nothing.
+     */
+    supportsUpNextCard(): boolean {
+        const value = this.form().value;
+        return (
+            (this.isWebPlayerSelected() &&
+                value.webPlayerSharedControls !== false) ||
+            (value.player === VideoPlayer.EmbeddedMpv && this.frameCopyActive())
+        );
+    }
+
     isExternalPlayerSelected(): boolean {
         const player = this.form().value.player;
         return player === VideoPlayer.MPV || player === VideoPlayer.VLC;
+    }
+
+    isEmbeddedMpvSelected(): boolean {
+        return this.form().value.player === VideoPlayer.EmbeddedMpv;
     }
 }

@@ -31,6 +31,11 @@ function episodeInfoOf(
     return !episode.info || Array.isArray(episode.info) ? {} : episode.info;
 }
 
+/** A runtime the provider sent: seconds, or a duration string that is not all zeros ("00:00:00"). */
+function hasProviderRuntime(info: Partial<XtreamSerieEpisodeInfo>): boolean {
+    return Number(info.duration_secs) > 0 || /[1-9]/.test(info.duration ?? '');
+}
+
 export function mergeEpisodesWithTmdb(
     episodes: readonly XtreamSerieEpisode[],
     tmdbEpisodes: readonly TmdbEpisode[]
@@ -69,6 +74,11 @@ export function mergeEpisodesWithTmdb(
                 ...(tmdb.overview?.trim() ? { plot: tmdb.overview } : {}),
                 ...(still ? { movie_image: still } : {}),
                 releasedate: info.releasedate || (tmdb.air_date ?? ''),
+                // Most Stalker portals send no runtime; TMDB's fills the
+                // episode meta line. A provider runtime always wins.
+                ...(!hasProviderRuntime(info) && (tmdb.runtime ?? 0) > 0
+                    ? { duration_secs: Number(tmdb.runtime) * 60 }
+                    : {}),
                 ...(info.rating === undefined && rating !== null
                     ? { rating }
                     : {}),

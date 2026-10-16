@@ -18,6 +18,8 @@ export interface XtreamBuildPairIdentity {
 export interface XtreamBenchmarkBuildIdentity {
     readonly electron: {
         readonly databaseWorker: XtreamBuildPairIdentity;
+        readonly deferredEvents: XtreamBuildPairIdentity;
+        readonly launcher: XtreamBuildPairIdentity;
         readonly main: XtreamBuildPairIdentity;
         readonly playlistRefreshWorker: XtreamBuildPairIdentity;
         readonly preload: XtreamBuildPairIdentity;
@@ -35,7 +37,13 @@ const BACKEND_ROOT = 'dist/apps/electron-backend';
 const RENDERER_ROOT = 'dist/apps/web';
 const ELECTRON_PATHS = {
     databaseWorker: `${BACKEND_ROOT}/workers/database.worker.js`,
-    main: `${BACKEND_ROOT}/main.js`,
+    // main.app.js loads this chunk once the window starts loading; most IPC
+    // handlers and the database wiring live there.
+    deferredEvents: `${BACKEND_ROOT}/deferred-events.js`,
+    // main.js only enables the compile cache and requires main.app.js, but
+    // it decides startup behavior, so both belong to the identity.
+    launcher: `${BACKEND_ROOT}/main.js`,
+    main: `${BACKEND_ROOT}/main.app.js`,
     playlistRefreshWorker: `${BACKEND_ROOT}/workers/playlist-refresh.worker.js`,
     preload: `${BACKEND_ROOT}/main.preload.js`,
 } as const;
@@ -45,17 +53,28 @@ export async function captureXtreamBuildIdentity(
 ): Promise<XtreamBenchmarkBuildIdentity> {
     try {
         if (!isAbsolute(workspaceRoot)) invalid();
-        const [databaseWorker, main, playlistRefreshWorker, preload, renderer] =
-            await Promise.all([
-                readPair(workspaceRoot, ELECTRON_PATHS.databaseWorker),
-                readPair(workspaceRoot, ELECTRON_PATHS.main),
-                readPair(workspaceRoot, ELECTRON_PATHS.playlistRefreshWorker),
-                readPair(workspaceRoot, ELECTRON_PATHS.preload),
-                readRenderer(workspaceRoot),
-            ]);
+        const [
+            databaseWorker,
+            deferredEvents,
+            launcher,
+            main,
+            playlistRefreshWorker,
+            preload,
+            renderer,
+        ] = await Promise.all([
+            readPair(workspaceRoot, ELECTRON_PATHS.databaseWorker),
+            readPair(workspaceRoot, ELECTRON_PATHS.deferredEvents),
+            readPair(workspaceRoot, ELECTRON_PATHS.launcher),
+            readPair(workspaceRoot, ELECTRON_PATHS.main),
+            readPair(workspaceRoot, ELECTRON_PATHS.playlistRefreshWorker),
+            readPair(workspaceRoot, ELECTRON_PATHS.preload),
+            readRenderer(workspaceRoot),
+        ]);
         return Object.freeze({
             electron: Object.freeze({
                 databaseWorker,
+                deferredEvents,
+                launcher,
                 main,
                 playlistRefreshWorker,
                 preload,

@@ -1,0 +1,67 @@
+<button
+    type="button"
+    class="player-up-next__button"
+    data-test-id="player-controls-up-next"
+    (click)="selected.emit()"
+    [attr.aria-label]="
+        ('EMBEDDED_MPV.PLAYER.UP_NEXT' | translate) +
+        ': ' +
+        item().label +
+        (item().title ? ' – ' + item().title : '')
+    "
+>
+    @if (!collapsed()) {
+        <span class="player-up-next__thumb" aria-hidden="true">
+            @if (thumbnail(); as src) {
+                <img
+                    class="player-up-next__image"
+                    [src]="src"
+                    alt=""
+                    loading="lazy"
+                    (error)="onThumbnailError()"
+                />
+            } @else {
+                <span class="player-up-next__placeholder">{{
+                    item().label
+                }}</span>
+            }
+            @if (item().progressPercent !== null) {
+                <span class="player-up-next__progress">
+                    <span
+                        class="player-up-next__progress-bar"
+                        [style.width.%]="item().progressPercent"
+                    ></span>
+                </span>
+            }
+        </span>
+    }
+    <span class="player-up-next__meta">
+        <span class="player-up-next__eyebrow">
+            {{ 'EMBEDDED_MPV.PLAYER.UP_NEXT' | translate }}
+            @if (collapsed()) {
+                · {{ item().label }}
+            }
+            ·
+            {{ countdown().key | translate: countdown().params }}
+        </span>
+        @if (!collapsed()) {
+            <span class="player-up-next__title">
+                {{ item().title || item().label }}
+            </span>
+        }
+    </span>
+    @if (!compact()) {
+        <mat-icon class="player-up-next__icon" aria-hidden="true"
+            >skip_next</mat-icon
+        >
+    }
+</button>
+<button
+    type="button"
+    class="player-up-next__close"
+    data-test-id="player-controls-up-next-close"
+    [attr.aria-label]="'EMBEDDED_MPV.PLAYER.UP_NEXT_DISMISS' | translate"
+    (click)="dismissed.emit()"
+>
+    <mat-icon aria-hidden="true">close</mat-icon>
+</button>

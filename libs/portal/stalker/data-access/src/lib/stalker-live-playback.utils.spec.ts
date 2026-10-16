@@ -1,4 +1,7 @@
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    PlaylistUpdateState,
+} from '@iptvnator/shared/interfaces';
 import {
     STALKER_MAG_USER_AGENT,
     STALKER_STREAM_USER_AGENT,
@@ -16,8 +19,8 @@ function createPlaylist(overrides: Partial<PlaylistMeta> = {}): PlaylistMeta {
         url: '',
         importDate: '',
         filePath: '',
-        updateDate: '',
-        updateState: '',
+        updateDate: 0,
+        updateState: PlaylistUpdateState.NOT_UPDATED,
         position: 0,
         autoRefresh: false,
         favorites: [],

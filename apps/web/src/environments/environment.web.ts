@@ -1,8 +1,8 @@
-import packageJson from '@package';
+import { version as appVersion } from '@package';
 
 export const AppConfig = {
     production: false,
     environment: 'WEB',
-    version: packageJson.version,
+    version: appVersion,
     BACKEND_URL: 'http://localhost:3333',
 };

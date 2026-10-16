@@ -20,6 +20,7 @@ import {
     observeProviderRequest,
     PROVIDER_REQUEST_TIMEOUT_MS,
     releaseProviderRequest,
+    reportProviderRequestConnected,
     reportProviderRequestFailure,
     reportProviderRequestSuccess,
     resetProviderHost,
@@ -42,6 +43,11 @@ import {
     resolveHostname,
     validateProviderUrl,
 } from './provider-url-policy';
+import {
+    DEFAULT_MAX_DOCUMENT_BYTES,
+    mountServerStorage,
+} from './storage/mount-server-storage';
+import type { ServerStorage } from './storage/server-storage';
 export type {
     WebBackendHttpClient,
     WebBackendHttpGetOptions,
@@ -66,6 +72,12 @@ export interface WebBackendAppOptions {
     readonly now?: () => Date;
     readonly resolveHostname?: (hostname: string) => Promise<readonly string[]>;
     readonly runtimeBackendUrl?: string;
+    /** Optional bearer token for every non-public route. */
+    readonly accessToken?: string | null;
+    /** Largest accepted playlist document in bytes. */
+    readonly maxDocumentBytes?: number;
+    /** Server storage; `null` or absent keeps the backend stateless. */
+    readonly storage?: ServerStorage | null;
 }
 
 type ProviderTargetRegistry = Map<string, URL>;
@@ -126,6 +138,14 @@ export function createWebBackendApp(
         res.type('application/javascript').send(
             `window.__IPTVNATOR_CONFIG__ = Object.assign({}, window.__IPTVNATOR_CONFIG__, ${config});\n`
         );
+    });
+
+    mountServerStorage(app, {
+        corsMiddleware,
+        storage: options.storage ?? null,
+        accessToken: options.accessToken ?? null,
+        maxDocumentBytes:
+            options.maxDocumentBytes ?? DEFAULT_MAX_DOCUMENT_BYTES,
     });
 
     app.options('/provider-targets', corsMiddleware);
@@ -259,6 +279,9 @@ export function createWebBackendApp(
         // The URL actually requested, so a failure on a redirect hop can be
         // told apart from a failure of the endpoint we guarded.
         let requestUrl: string | undefined;
+        // Whether the provider accepted the TCP connection: a timeout after
+        // that is a slow provider, not a dead one.
+        let connected = false;
         try {
             // Before URL validation, not after: that step resolves the hostname
             // over DNS, and a dead host is exactly where DNS is slow or failing
@@ -284,6 +307,10 @@ export function createWebBackendApp(
             const response = await httpClient.get(requestUrl, {
                 params: getProxyParams(req, ['targetId', 'connectionTest']),
                 timeout: PROVIDER_REQUEST_TIMEOUT_MS.xtream,
+                onConnect: () => {
+                    connected = true;
+                    reportProviderRequestConnected(hostGuard, guardToken);
+                },
             });
             reportProviderRequestSuccess(hostGuard, guardToken);
             guardToken = null;
@@ -295,6 +322,7 @@ export function createWebBackendApp(
         } catch (error) {
             reportProviderRequestFailure(hostGuard, guardToken, error, {
                 requestUrl,
+                connected,
             });
             logProviderRequestFailure({ error, route: '/xtream', url });
             if (getQueryString(req, 'connectionTest') === 'true') {
@@ -331,6 +359,9 @@ export function createWebBackendApp(
             getQueryString(req, 'skipConnectionGuard') !== 'true';
         let guardToken: HostRequestToken | null = null;
         let requestUrl: string | undefined;
+        // Whether the portal accepted the TCP connection: a timeout after
+        // that is a slow portal, not a dead one.
+        let connected = false;
         try {
             // `macAddress`, `token` and `serialNumber` are portal credentials,
             // not protocol content: they reach the portal only as the same
@@ -400,6 +431,10 @@ export function createWebBackendApp(
                     params['action'] === 'create_link'
                         ? PROVIDER_REQUEST_TIMEOUT_MS.stalkerCreateLink
                         : PROVIDER_REQUEST_TIMEOUT_MS.stalker,
+                onConnect: () => {
+                    connected = true;
+                    reportProviderRequestConnected(hostGuard, guardToken);
+                },
             });
             reportProviderRequestSuccess(hostGuard, guardToken);
             guardToken = null;
@@ -415,6 +450,7 @@ export function createWebBackendApp(
             reportProviderRequestFailure(hostGuard, guardToken, error, {
                 countFailures: countsTowardsGuard,
                 requestUrl,
+                connected,
             });
             logProviderRequestFailure({ error, route: '/stalker', url });
             res.json(normalizeProviderError(error));

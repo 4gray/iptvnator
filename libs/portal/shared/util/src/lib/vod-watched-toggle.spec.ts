@@ -105,7 +105,9 @@ describe('createVodWatchedToggle', () => {
             applyPosition: (next) => position.set(next),
             playingNow,
             notify: (kind) => feedback.push(kind),
-            onPersisted: (playlistId) => persisted.push(playlistId),
+            onPersisted: (playlistId) => {
+                persisted.push(playlistId);
+            },
             logger,
         });
         const target = (stillCurrent = () => true) => ({

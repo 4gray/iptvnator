@@ -154,12 +154,13 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
     },
     {
         operation: 'DB_SAVE_CATEGORIES',
-        args: [playlistId, categories, 'live', categoryIds],
+        args: [playlistId, categories, 'live', categoryIds, categoryIds],
         payload: {
             playlistId,
             categories,
             type: 'live',
             hiddenCategoryXtreamIds: categoryIds,
+            lockedCategoryXtreamIds: categoryIds,
         },
     },
     {
@@ -171,6 +172,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_UPDATE_CATEGORY_VISIBILITY',
         args: [categoryIds, true],
         payload: { categoryIds, hidden: true },
+    },
+    {
+        operation: 'DB_SET_CATEGORY_LOCKS',
+        args: [playlistId, 'live', categoryIds],
+        payload: { playlistId, type: 'live', lockedXtreamIds: categoryIds },
     },
     {
         operation: 'DB_HAS_CONTENT',
@@ -202,6 +208,16 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
         args: [42, playlistId, 'movie'],
         payload: { xtreamId: 42, playlistId, contentType: 'movie' },
+    },
+    {
+        operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        args: [42, playlistId, 'movie', { tmdbId: 100, releaseYear: 1995 }],
+        payload: {
+            xtreamId: 42,
+            playlistId,
+            contentType: 'movie',
+            identity: { tmdbId: 100, releaseYear: 1995 },
+        },
     },
     {
         operation: 'DB_SET_CONTENT_METADATA_IF_MISSING',
@@ -254,6 +270,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         forwardsEvents: true,
     },
     {
+        operation: 'DB_RESTORE_XTREAM_FAVORITES',
+        args: [playlistId, favorites, 'restore-1'],
+        payload: { playlistId, favorites, restoreId: 'restore-1' },
+    },
+    {
         operation: 'DB_ADD_FAVORITE',
         args: [12, playlistId, 'https://image.example/backdrop.jpg'],
         payload: {
@@ -271,6 +292,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_IS_FAVORITE',
         args: [12, playlistId],
         payload: { contentId: 12, playlistId },
+    },
+    {
+        operation: 'DB_GET_FAVORITES_FOR_BACKUP',
+        args: [playlistId],
+        payload: { playlistId },
     },
     {
         operation: 'DB_GET_FAVORITES',
@@ -365,6 +391,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_CLEAR_PLAYBACK_POSITION',
         args: [playlistId, 42, 'vod'],
         payload: { playlistId, contentXtreamId: 42, contentType: 'vod' },
+    },
+    {
+        operation: 'DB_REPLACE_ALL_PLAYBACK_POSITIONS',
+        args: [playlistId, playbackBatchItems],
+        payload: { playlistId, items: playbackBatchItems },
     },
     {
         operation: 'DB_SAVE_PLAYBACK_POSITIONS_BATCH',

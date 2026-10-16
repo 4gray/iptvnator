@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import Hls from 'hls.js';
 import { WebVideoControlsAdapter } from '../player-controls/web-video-controls.adapter';
 import { HtmlVideoPlayerControlsBridge } from './html-video-player-controls.bridge';

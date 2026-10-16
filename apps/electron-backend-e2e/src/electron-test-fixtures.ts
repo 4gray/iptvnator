@@ -7,7 +7,7 @@ import {
     Page,
     test as base,
 } from '@playwright/test';
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import { createServer, Server } from 'http';
 import {
     accessSync,
@@ -28,9 +28,15 @@ import {
     writeDataDirOwnerMarker,
 } from './data-dir-reaper';
 import {
+    captureElectronProcess,
     closeElectronApplicationAndConfirmExit,
+    type ElectronExitConfirmationOptions,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
+import {
+    waitForXtreamImportCompleted,
+    xtreamPlaylistIdFromUrl,
+} from './xtream-import-wait';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -199,7 +205,7 @@ export { expect };
  * helper that spawns the app itself has to use the same list. `appArgs` land
  * after the entry point, which is where the OS puts an opened file's path.
  */
-function buildElectronLaunchArgs(
+export function buildElectronLaunchArgs(
     extraArgs: readonly string[] = [],
     appArgs: readonly string[] = [],
     entryPoint = electronMainPath
@@ -234,6 +240,7 @@ export async function launchElectronApp(
         args,
         env: buildElectronLaunchEnvironment(dataDir, options),
     });
+    const electronProcess = captureElectronProcess(electronApp);
     return prepareElectronApplication({
         application: electronApp,
         dispose: (application) =>
@@ -242,7 +249,7 @@ export async function launchElectronApp(
                 exitTimeoutMs: electronAppKillWaitMs,
             }),
         prepare: async (application) => {
-            attachElectronProcessDiagnostics(application);
+            attachElectronProcessDiagnostics(electronProcess);
             const mainWindow = await findMainWindow(application);
             await waitForAppReady(mainWindow);
             await startPortalDebugCapture(mainWindow);
@@ -458,25 +465,30 @@ export async function launchPackagedElectronApp(
             NODE_ENV: 'test',
         },
     });
-    attachElectronProcessDiagnostics(electronApp);
-
-    const mainWindow = await findMainWindow(electronApp);
-    await waitForAppReady(mainWindow);
-
-    return {
-        electronApp,
-        mainWindow,
-    };
+    const electronProcess = captureElectronProcess(electronApp);
+    return prepareElectronApplication({
+        application: electronApp,
+        dispose: (application) =>
+            closeElectronApplicationAndConfirmExit(application, {
+                closeTimeoutMs: electronAppCloseTimeoutMs,
+                exitTimeoutMs: electronAppKillWaitMs,
+            }),
+        prepare: async (application) => {
+            attachElectronProcessDiagnostics(electronProcess);
+            const mainWindow = await findMainWindow(application);
+            await waitForAppReady(mainWindow);
+            return {
+                electronApp: application,
+                mainWindow,
+            };
+        },
+    });
 }
 
-function attachElectronProcessDiagnostics(
-    electronApp: ElectronApplication
-): void {
+function attachElectronProcessDiagnostics(childProcess: ChildProcess): void {
     if (!process.env['CI']) {
         return;
     }
-
-    const childProcess = electronApp.process();
 
     childProcess.stdout?.on('data', (chunk: Buffer) => {
         console.log(`[electron stdout] ${chunk.toString().trimEnd()}`);
@@ -564,81 +576,24 @@ export async function launchCompetingElectronInstance(
 export async function closeElectronApp(
     app: LaunchedElectronApp
 ): Promise<void> {
-    try {
-        const closePromise = app.electronApp.close();
-        const closed = await waitForPromiseWithTimeout(
-            closePromise,
-            electronAppCloseTimeoutMs
-        );
-
-        if (closed) {
-            return;
-        }
-
-        console.warn(
-            `Electron app did not close within ${electronAppCloseTimeoutMs}ms; killing process`
-        );
-        const childProcess = app.electronApp.process();
-
-        if (!childProcess.killed) {
-            childProcess.kill();
-        }
-
-        await waitForPromiseWithTimeout(
-            closePromise.catch(() => undefined),
-            electronAppKillWaitMs
-        );
-
-        // SIGTERM asks Electron for a graceful quit, which the app can
-        // legitimately refuse — the unsaved-settings close guard cancels the
-        // quit while it waits for an answer. A process that survives here
-        // would outlive the test, hold its data dir, and time out the worker
-        // teardown, so escalate to SIGKILL.
-        if (
-            childProcess.exitCode === null &&
-            childProcess.signalCode === null
-        ) {
-            console.warn(
-                'Electron app survived SIGTERM; escalating to SIGKILL'
-            );
-            childProcess.kill('SIGKILL');
-            await waitForPromiseWithTimeout(
-                closePromise.catch(() => undefined),
-                electronAppKillWaitMs
-            );
-        }
-    } catch (error) {
-        console.warn('Failed to close Electron app cleanly:', error);
-    }
+    await closeElectronAppAndConfirmExit(app);
 }
 
 export async function closeElectronAppAndConfirmExit(
     app: LaunchedElectronApp
 ): Promise<void> {
-    await closeElectronApplicationAndConfirmExit(app.electronApp, {
-        closeTimeoutMs: electronAppCloseTimeoutMs,
-        exitTimeoutMs: electronAppKillWaitMs,
-    });
+    await closeElectronApplicationAndConfirmExit(
+        app.electronApp,
+        electronAppExitConfirmationOptions()
+    );
 }
 
-async function waitForPromiseWithTimeout(
-    promise: Promise<unknown>,
-    timeoutMs: number
-): Promise<boolean> {
-    let timeoutId: NodeJS.Timeout | undefined;
-
-    try {
-        return await Promise.race([
-            promise.then(() => true),
-            new Promise<boolean>((resolvePromise) => {
-                timeoutId = setTimeout(() => resolvePromise(false), timeoutMs);
-            }),
-        ]);
-    } finally {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-    }
+/** The close/exit timeouts the shared fixture applies to every launch. */
+export function electronAppExitConfirmationOptions(): ElectronExitConfirmationOptions {
+    return {
+        closeTimeoutMs: electronAppCloseTimeoutMs,
+        exitTimeoutMs: electronAppKillWaitMs,
+    };
 }
 
 function assertPackagedRendererBuildIsElectronSafe(): void {
@@ -1021,18 +976,33 @@ export async function openSettingsSection(
     await page.waitForURL(new RegExp(`/workspace/settings/${sectionId}$`));
 }
 
+/**
+ * Material slide toggles render `aria-checked` after Angular's next change
+ * detection, later than Playwright's `check()` looks, which then reports
+ * that the click changed nothing. Click when needed and wait for the state.
+ */
+export async function setSwitch(
+    toggle: Locator,
+    checked: boolean
+): Promise<void> {
+    if ((await toggle.isChecked()) !== checked) {
+        await toggle.click();
+    }
+    await expect(toggle).toBeChecked({ checked });
+}
+
 export async function enableRemoteControl(
     page: Page,
     port: number
 ): Promise<void> {
     await openSettingsSection(page, 'remote-control');
 
-    const remoteControlCheckbox = page.locator(
-        'mat-checkbox[formcontrolname="remoteControl"] input[type="checkbox"]'
+    const remoteControlSwitch = page.locator(
+        'mat-slide-toggle[formcontrolname="remoteControl"] [role="switch"]'
     );
 
-    await remoteControlCheckbox.scrollIntoViewIfNeeded();
-    await remoteControlCheckbox.check();
+    await remoteControlSwitch.scrollIntoViewIfNeeded();
+    await setSwitch(remoteControlSwitch, true);
     await page.locator('#remoteControlPort').fill(String(port));
 }
 
@@ -1062,7 +1032,7 @@ export async function saveSettings(page: Page): Promise<void> {
 
 export async function goToDashboard(page: Page): Promise<void> {
     const dashboardLink = page
-        .locator('a.brand[href$="/workspace/dashboard"]')
+        .locator('app-workspace-shell-rail a[href$="/workspace/dashboard"]')
         .first();
 
     await expect(dashboardLink).toBeVisible();
@@ -1103,7 +1073,10 @@ export async function importM3uPlaylistFromUrl(
         playlistUrl
     );
     if (userAgent !== undefined) {
-        await setInputValue(dialog.getByRole('textbox', { name: 'User agent', exact: true }), userAgent);
+        await setInputValue(
+            dialog.getByRole('textbox', { name: 'User agent', exact: true }),
+            userAgent
+        );
     }
     await dialog.getByRole('button', { name: /Add playlist/i }).click();
     await dialog.waitFor({ state: 'detached' });
@@ -1217,7 +1190,10 @@ export async function createMutableTextServer(
             return;
         }
 
-        if (options.requiredUserAgent && req.headers['user-agent'] !== options.requiredUserAgent) {
+        if (
+            options.requiredUserAgent &&
+            req.headers['user-agent'] !== options.requiredUserAgent
+        ) {
             res.writeHead(403);
             res.end('User-Agent required');
             return;
@@ -1315,7 +1291,7 @@ export async function clearCurrentUnifiedCollection(page: Page): Promise<void> {
 
     const dialog = page.locator('mat-dialog-container').last();
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: /^Yes$/i }).click();
+    await dialog.getByRole('button', { name: 'Clear', exact: true }).click();
     await expect(dialog).toBeHidden();
 }
 
@@ -1499,20 +1475,23 @@ export async function clickCategoryByNameExact(
 }
 
 export function sourceRowByTitle(page: Page, title: string): Locator {
-    return page.locator('app-playlist-item').filter({
+    return page.locator('app-workspace-sources app-source-row').filter({
         hasText: flexibleTextPattern(title),
     });
 }
 
 export async function getVisibleSourceTitles(page: Page): Promise<string[]> {
-    return page.locator('app-playlist-item').evaluateAll((elements) =>
-        elements
-            .map((element) => {
-                const titleElement = element.querySelector('.playlist-title');
-                return titleElement?.textContent?.trim() ?? '';
-            })
-            .filter((title) => title.length > 0)
-    );
+    return page
+        .locator('app-workspace-sources app-source-row')
+        .evaluateAll((elements) =>
+            elements
+                .map((element) => {
+                    const titleElement =
+                        element.querySelector('.source-row__name');
+                    return titleElement?.textContent?.trim() ?? '';
+                })
+                .filter((title) => title.length > 0)
+        );
 }
 
 export async function selectSourceTypeFilter(
@@ -1527,8 +1506,10 @@ export async function selectSourceSort(
     sortLabel:
         | 'Date added (Newest first)'
         | 'Date added (Oldest first)'
+        | 'Last updated'
         | 'Name (A-Z)'
         | 'Name (Z-A)'
+        | 'Most channels'
         | 'Custom order'
 ): Promise<void> {
     const sortTrigger = page.locator('app-workspace-sources .sort-trigger');
@@ -1537,7 +1518,7 @@ export async function selectSourceSort(
     await sortTrigger.click();
 
     const option = page
-        .locator('.cdk-overlay-pane [role="menuitem"]')
+        .locator('.cdk-overlay-pane [role="menuitemradio"]')
         .filter({
             hasText: flexibleTextPattern(sortLabel),
         })
@@ -1553,10 +1534,10 @@ export async function dragSourceBefore(
     sourceTitle: string,
     targetTitle: string
 ): Promise<void> {
-    const source = sourceRowByTitle(page, sourceTitle).locator('.drag-icon');
-    const target = sourceRowByTitle(page, targetTitle).locator(
-        '.playlist-item'
+    const source = sourceRowByTitle(page, sourceTitle).locator(
+        '.source-row__handle'
     );
+    const target = sourceRowByTitle(page, targetTitle).locator('.source-row');
 
     await expect(source.first()).toBeVisible();
     await expect(target.first()).toBeVisible();
@@ -1590,15 +1571,18 @@ export async function openSourceEditor(
     const row = sourceRowByTitle(page, title).first();
 
     await expect(row).toBeVisible();
-    await row.locator('.edit-btn').click();
+    await row.hover();
+    await row.locator('.source-row__edit').click();
     const dialog = page.locator('mat-dialog-container').last();
 
     await expect(dialog).toBeVisible();
     // Material applies its initial focus after the opening transition.
     await dialog.evaluate(async (element) => {
-        await Promise.all(element.getAnimations({ subtree: true }).map((animation) =>
-            animation.finished.catch(() => undefined)
-        ));
+        await Promise.all(
+            element
+                .getAnimations({ subtree: true })
+                .map((animation) => animation.finished.catch(() => undefined))
+        );
     });
     return dialog;
 }
@@ -1708,12 +1692,24 @@ export async function expectSourceDialogValues(
     }
 }
 
+/**
+ * Deletes a source from its ⋯ menu. The row leaves at once; the delete
+ * itself runs when the Undo toast closes, so this waits for the toast to go
+ * before the caller checks persisted state.
+ */
 export async function deleteSource(page: Page, title: string): Promise<void> {
     const row = sourceRowByTitle(page, title).first();
 
     await expect(row).toBeVisible();
-    await row.locator('.delete-btn').click();
-    await confirmDialog(page);
+    await row.hover();
+    await row.locator('.source-row__more').click();
+    await page
+        .locator('.cdk-overlay-pane [mat-menu-item]')
+        .filter({ hasText: 'Remove playlist' })
+        .click();
+    const toast = page.locator('mat-snack-bar-container.app-toast');
+    await expect(toast).toContainText('Removed');
+    await expect(toast).toBeHidden({ timeout: 15000 });
 }
 
 export async function refreshSource(
@@ -1727,10 +1723,11 @@ export async function refreshSource(
     const row = sourceRowByTitle(page, title).first();
 
     await expect(row).toBeVisible();
-    await row.locator('.refresh-btn').click();
+    await row.hover();
+    await row.locator('.source-row__refresh').click();
 
     if (confirm) {
-        await confirmDialog(page);
+        await confirmDialog(page, 'Refresh playlist');
     }
 }
 
@@ -1741,10 +1738,10 @@ export async function waitForSourceRowIdle(
     const row = sourceRowByTitle(page, title).first();
 
     await expect(row).toBeVisible();
-    await expect(row.locator('.busy-state__message')).toHaveCount(0, {
+    await expect(row.locator('.source-row__busy')).toHaveCount(0, {
         timeout: 60000,
     });
-    await expect(row.locator('.action-spinner')).toHaveCount(0, {
+    await expect(row.locator('mat-spinner')).toHaveCount(0, {
         timeout: 60000,
     });
 }
@@ -1803,7 +1800,13 @@ export async function waitForXtreamImportToFinish(page: Page): Promise<void> {
     try {
         await overlay.waitFor({ state: 'visible', timeout: 5000 });
     } catch {
-        // The overlay may already be gone by the time the test reaches this point.
+        // The overlay may already be gone, or not shown yet: it appears only
+        // once the portal has answered, so the import status decides below.
+    }
+
+    const playlistId = xtreamPlaylistIdFromUrl(page.url());
+    if (playlistId) {
+        await waitForXtreamImportCompleted(page, playlistId);
     }
 
     await expect(overlay).toHaveCount(0, { timeout: 30000 });
@@ -2147,7 +2150,7 @@ async function openCommandPalette(page: Page): Promise<Locator> {
     return dialog;
 }
 
-async function confirmDialog(page: Page, buttonLabel = 'Yes'): Promise<void> {
+async function confirmDialog(page: Page, buttonLabel: string): Promise<void> {
     const dialog = page.locator('mat-dialog-container');
 
     await expect(dialog).toBeVisible();

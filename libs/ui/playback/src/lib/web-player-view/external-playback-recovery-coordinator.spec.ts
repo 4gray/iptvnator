@@ -83,6 +83,38 @@ describe('ExternalPlaybackRecoveryCoordinator', () => {
         coordinator.destroy();
     });
 
+    it.each([
+        ['an opened launch', session({ status: 'opened' }), 1],
+        ['a launch that failed', session({ status: 'error' }), 0],
+        ['a launch of another player', session({ player: 'vlc' }), 0],
+    ])(
+        'reports %s to the view',
+        async (_label, launched: ExternalPlayerSession, calls: number) => {
+            const activeSession = signal<ExternalPlayerSession | null>(null);
+            const onLaunched = jest.fn();
+            const coordinator = new ExternalPlaybackRecoveryCoordinator(
+                {
+                    activeSession,
+                    visibleSession: activeSession,
+                    closeSession: jest.fn(),
+                    dismissActiveSession: jest.fn(),
+                },
+                onLaunched
+            );
+            coordinator.syncSession('content-a');
+
+            coordinator.request('mpv', jest.fn(), (trackLaunch) => {
+                trackLaunch(Promise.resolve(launched));
+                return true;
+            });
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(onLaunched).toHaveBeenCalledTimes(calls);
+            coordinator.destroy();
+        }
+    );
+
     it('closes a closable error before retrying another external target', async () => {
         const previous = session({
             id: 'uncertain-process',

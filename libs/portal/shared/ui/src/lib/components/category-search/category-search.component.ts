@@ -34,7 +34,9 @@ export class CategorySearchComponent {
     readonly matched = input(0);
     readonly total = input(0);
     readonly keywords = computed(() => categorySearchTerms(this.query()));
-    readonly excludedKeywords = computed(() => exclusionTerms(this.exclusions()));
+    readonly excludedKeywords = computed(() =>
+        exclusionTerms(this.exclusions())
+    );
     private readonly searchInput =
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
@@ -46,9 +48,10 @@ export class CategorySearchComponent {
         const target = excluded ? this.exclusions : this.query;
         target.set(
             serializeCategorySearch(
-                (excluded ? exclusionTerms(target()) : categorySearchTerms(target())).filter(
-                    (_, i) => i !== index
-                )
+                (excluded
+                    ? exclusionTerms(target())
+                    : categorySearchTerms(target())
+                ).filter((_, i) => i !== index)
             )
         );
     }

@@ -379,6 +379,84 @@ describe('enrichSerialSeasonWithTmdb', () => {
         expect(store.setSelectedItem).toHaveBeenCalledTimes(1);
     });
 
+    it('stores the TMDB season poster as a full w342 URL beside the overview', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeason: jest.fn().mockResolvedValue({
+                overview: 'Season overview.',
+                poster_path: '/season-one.jpg',
+                episodes: [{ episode_number: 1, name: 'The Marshal' }],
+            }),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+
+        const updated = store.setSelectedItem.mock.calls[0][0] as {
+            tmdb_season_posters: Record<string, string>;
+        };
+        expect(updated.tmdb_season_posters).toEqual({
+            '1': 'https://image.tmdb.org/t/p/w342/season-one.jpg',
+        });
+    });
+
+    it('patches only the poster when TMDB returns neither episodes nor overview', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeason: jest.fn().mockResolvedValue({
+                poster_path: '/season-one.jpg',
+                episodes: [],
+            }),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+
+        expect(store.setSelectedItem).toHaveBeenCalledTimes(1);
+        const updated = store.setSelectedItem.mock.calls[0][0] as {
+            episodes: Record<string, { title: string }[]>;
+            tmdb_season_overviews?: Record<string, string>;
+            tmdb_season_posters: Record<string, string>;
+        };
+        expect(updated.episodes['1'][0].title).toBe('Episode 1');
+        expect(updated.tmdb_season_overviews).toBeUndefined();
+        expect(updated.tmdb_season_posters).toEqual({
+            '1': 'https://image.tmdb.org/t/p/w342/season-one.jpg',
+        });
+
+        // Convergence: the same cache-served poster writes nothing again.
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+        expect(store.setSelectedItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not store a season poster when TMDB has none', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeason: jest.fn().mockResolvedValue({
+                overview: 'Season overview.',
+                poster_path: null,
+                episodes: [],
+            }),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+
+        const updated = store.setSelectedItem.mock.calls[0][0] as {
+            tmdb_season_posters?: Record<string, string>;
+        };
+        expect(updated.tmdb_season_posters).toBeUndefined();
+    });
+
     it('does not store a blank TMDB season overview', async () => {
         const store = createStore(
             seasonSliceItem('The Mandalorian', {
@@ -416,7 +494,9 @@ describe('enrichSerialSeasonWithTmdb', () => {
                     })
                 );
                 return {
-                    episodes: [{ episode_number: 1, name: 'Playlist A episode' }],
+                    episodes: [
+                        { episode_number: 1, name: 'Playlist A episode' },
+                    ],
                 };
             }),
         } as Partial<TmdbEnrichmentService>);

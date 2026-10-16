@@ -1,0 +1,16 @@
+Use case: identity-preserve
+Asset type: horizontal 2:1 IPTVnator 0.24 release poster, finished raster artwork.
+Edit target: Image 1, the off-white abstract graphite ribbon poster. Preserve its beautiful warm uncoated-paper background, monochrome graphite material, restrained blue logo accent, asymmetric editorial layout, lighting, precise typography and all five exact text strings.
+Supporting identity reference: Image 2 is the actual IPTVnator app icon, a TV outline on a short stem and horizontal foot with a Wi-Fi symbol inside.
+Primary change: Replace the ambiguous central rectangular ribbon aperture with an unmistakable SCULPTURAL VERSION OF THE IPTVnator TV-and-Wi-Fi ICON. Make the logo the central hero artwork in the same sophisticated folded graphite / brushed-metal lamella style.
+Sculpture: a broad television outline, recognizably a wide rectangular TV frame with softly rounded corners, a visible short central stem and horizontal base/foot. Inside the TV is the exact familiar Wi-Fi motif, three clean nested curved arcs above a small diamond-like dot, built from the same refined graphite material. The arcs must remain clearly separated and immediately legible; do not fill the interior with random lines. The TV itself is formed from several thin layered metal ribbons with precise spacing and delicate shadows. Stretch its layered side edges horizontally into elegant parallel ribbons: longer staggered strips entering from the left, and a restrained flowing wave continuing to the right. The extension belongs naturally to the TV contour; keep the central TV shape, Wi-Fi symbol and stand intact and readable. The entire object is one sculptural physical artwork resting close to the paper plane, with subtle relief depth and soft directional daylight. Mostly front-facing, with a small editorial perspective angle. It should read first as the IPTVnator app icon, second as a layered abstract sculpture.
+Composition invariants: keep the small original logo and “IPTVnator” wordmark at upper left. Keep the compressed heavy industrial “0.24” at lower right. Keep the three monospaced captions at lower left. Reserve clear whitespace around all lettering. The sculpture occupies the same central band, with TV stand visible above the lower caption/version region. Do not obscure the lettering.
+Text must remain EXACTLY:
+“IPTVnator”
+“0.24”
+“Programme guide”
+“Fullscreen browsing”
+“Stream info”
+Keep the numeral's distinctive Druk/Monument-like condensed silhouette and the captions' precise monospaced character. Do not revert to thin geometric sans. No extra text.
+Avoid: generic laptop, remote control, speaker, old CRT knobs, antenna rods, literal video or screen content, realistic app screenshot, technology dashboard, neon, glass panels, blue/purple glow, floating balls, new colors, decorative pseudo-text. Preserve the paper-and-graphite visual world of Image 1. The principal TV sculpture is graphite, with the existing small blue logo as the only color accent.
+

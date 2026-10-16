@@ -7,7 +7,13 @@ import {
     signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router } from '@angular/router';
+import {
+    NavigationCancel,
+    NavigationEnd,
+    NavigationError,
+    NavigationStart,
+    Router,
+} from '@angular/router';
 import { filter, firstValueFrom } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PortalRailSection } from '@iptvnator/portal/shared/util';
@@ -27,18 +33,55 @@ export class StalkerWorkspaceRouteSession {
     private readonly stalkerStore = inject(StalkerStore);
 
     private currentPlaylistId: string | null = null;
+    private targetPlaylistId: string | null = null;
     private readonly currentSection = signal<PortalRailSection | null>(null);
+    private readonly synced = signal(false);
+
+    /**
+     * Arrivals are applied one at a time, and only the newest one publishes
+     * readiness. Both halves are load-bearing: the constructor starts a sync
+     * before the first `NavigationEnd` starts another, so two can be in
+     * flight at once, and the playlist id is claimed only once the store
+     * actually holds that row — otherwise the second sync saw the id already
+     * claimed, skipped the bootstrap, and reported ready while the first was
+     * still awaiting `setCurrentPlaylist()`, leaving the auto-open handoff to
+     * resolve and play against the PREVIOUS portal's row.
+     */
+    private syncGeneration = 0;
+    private pendingSync: Promise<void> = Promise.resolve();
+    /**
+     * False while this session is applying the route to the store. Its sync
+     * resets the selected category and item (and, on a section change, the
+     * search) before awaiting the playlist, and the store keeps the previous
+     * portal's playlist and cache across a revisit — so anything that acts on
+     * store state for an arrival (the live auto-open handoff) must wait, or
+     * its selection is wiped a tick later.
+     */
+    readonly isReady = this.synced.asReadonly();
 
     constructor() {
         this.router.events
             .pipe(
                 filter(
-                    (event): event is NavigationEnd =>
-                        event instanceof NavigationEnd
+                    (event) =>
+                        event instanceof NavigationStart ||
+                        event instanceof NavigationEnd ||
+                        event instanceof NavigationCancel ||
+                        event instanceof NavigationError
                 ),
                 takeUntilDestroyed(this.destroyRef)
             )
-            .subscribe(() => {
+            .subscribe((event) => {
+                // Synchronous, and before the async sync: this session's
+                // subscription is registered from an ENVIRONMENT_INITIALIZER
+                // when the route injector is created, so it runs ahead of the
+                // components that read `isReady`.
+                this.synced.set(false);
+                if (event instanceof NavigationStart) {
+                    this.targetPlaylistId = null;
+                    ++this.syncGeneration;
+                    return;
+                }
                 void this.syncRouteContext();
             });
 
@@ -51,25 +94,82 @@ export class StalkerWorkspaceRouteSession {
         });
     }
 
-    private async syncRouteContext(): Promise<void> {
+    private syncRouteContext(): Promise<void> {
+        const generation = ++this.syncGeneration;
+        // Read the route SYNCHRONOUSLY: `syncFromUrl` publishes the active
+        // playlist context, and deferring it onto the queue would leave every
+        // consumer of that context a tick behind the navigation.
         const routeContext = this.playlistContext.syncFromUrl(this.router.url);
+        this.targetPlaylistId =
+            routeContext.provider === 'stalker'
+                ? routeContext.playlistId
+                : null;
+        const run = async (): Promise<void> => {
+            try {
+                await this.applyRouteContext(generation, routeContext);
+            } catch {
+                // A failed bootstrap deliberately leaves readiness false: the
+                // store may still hold the previous portal, and acting on that
+                // is worse than not acting at all.
+            }
+        };
+
+        this.pendingSync = this.pendingSync.then(run, run);
+
+        return this.pendingSync;
+    }
+
+    private async applyRouteContext(
+        generation: number,
+        routeContext: ReturnType<PlaylistContextFacade['syncFromUrl']>
+    ): Promise<void> {
         const playlistId =
             routeContext.provider === 'stalker'
                 ? routeContext.playlistId
                 : null;
 
-        if (playlistId && this.currentPlaylistId !== playlistId) {
-            this.currentPlaylistId = playlistId;
+        if (
+            !playlistId ||
+            this.targetPlaylistId !== playlistId ||
+            this.destroyRef.destroyed
+        ) {
+            return;
+        }
 
+        if (
+            this.currentPlaylistId !== playlistId ||
+            this.stalkerStore.currentPlaylist()?._id !== playlistId
+        ) {
+            // A handoff can install the destination in the store before this
+            // session does; the categories it held are cleared all the same.
+            const storeHeldDestination =
+                this.stalkerStore.currentPlaylist()?._id === playlistId;
             this.stalkerStore.resetCategories();
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
 
             const playlist = await this.resolveStalkerPlaylist(playlistId);
+            if (
+                this.targetPlaylistId !== playlistId ||
+                this.destroyRef.destroyed ||
+                playlist?._id !== playlistId
+            ) {
+                return;
+            }
             await this.stalkerStore.setCurrentPlaylist(playlist);
+            this.currentPlaylistId = playlistId;
+            // The owner did not change, so the category resource keeps its
+            // params and would not reload the cleared categories by itself.
+            if (storeHeldDestination) this.stalkerStore.reloadCategories();
+        }
+
+        if (generation !== this.syncGeneration || this.destroyRef.destroyed) {
+            // A newer arrival is queued behind this one and owns readiness.
+            return;
         }
 
         this.syncRouteState(routeContext.section);
+        this.synced.set(true);
     }
 
     private syncRouteState(section: PortalRailSection | null): void {
@@ -110,7 +210,7 @@ export class StalkerWorkspaceRouteSession {
         const activePlaylist = this.playlistContext.activePlaylist();
 
         if (this.hasExplicitStalkerPortalMode(playlistId, activePlaylist)) {
-            return activePlaylist;
+            return activePlaylist ?? undefined;
         }
 
         const storedPlaylist = await firstValueFrom(
@@ -118,13 +218,17 @@ export class StalkerWorkspaceRouteSession {
             { defaultValue: null }
         );
 
-        return storedPlaylist ?? activePlaylist ?? undefined;
+        return storedPlaylist?._id === playlistId
+            ? storedPlaylist
+            : activePlaylist?._id === playlistId
+              ? activePlaylist
+              : undefined;
     }
 
     private hasExplicitStalkerPortalMode(
         playlistId: string,
         playlist: PlaylistMeta | null
-    ): playlist is PlaylistMeta {
+    ): boolean {
         return (
             playlist?._id === playlistId &&
             playlist.isFullStalkerPortal !== undefined

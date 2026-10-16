@@ -37,7 +37,7 @@ Core implementation:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Hero — Continue Watching (most recent item)                        │
+│  Hero — rotating cinematic banner (resume · live · discovery)       │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Continue Watching · See all →                                      │
 │  [poster][poster][poster][poster] →→                                │
@@ -70,15 +70,30 @@ Render rules:
 1. Dashboard rails render independently as their data sources resolve. The
    page no longer uses `dashboardReady()` as a page-wide skeleton gate.
    Initial hero/recent/favorites loading states render scoped skeletons so one
-   slow rail does not hide already available content.
+   slow rail does not hide already available content. A rail skeleton is a
+   `lib-dashboard-rail-skeleton` with the layout of the rail it precedes,
+   sized from the rail's own geometry partial, so the rail replaces it at the
+   same height (UI guidelines, Loading States).
 2. `hasPlaylists() === false` → render `<app-empty-state [type]="'welcome-dashboard'">`
    full-bleed. All rails and the hero are skipped.
-3. `hero()` = `globalRecentItems()[0]`. If present, render the hero panel.
+3. The hero (`lib-dashboard-hero`) renders when it has at least one slide;
+   see [Cinematic Hero](#cinematic-hero). It shows its own skeleton while
+   it has no slide and any of its sources (history and its playback
+   positions, favorites, Xtream recently added) is still on its first load,
+   or a live candidate still
+   waits for its first programme answer (portal or XMLTV, for at most
+   `DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS`, 2 s, from the hero's creation).
+   Dropping it earlier removed the hero and inserted it again when a later
+   source featured a title, moving every rail below twice. Once the
+   skeleton has gone it does not come back. An item enters recent history only after
+   its stream has really played (see "Recently Viewed Confirmation" in
+   `embedded-inline-playback.md`), so a channel that failed at once never
+   becomes a hero slide.
 4. Each rail is emitted via `@if (cards.length > 0)`. Empty rails are hidden
    — there is no "empty widget" placeholder.
-5. The continue-watching hero prefers a stored Xtream `backdrop_url`; when it
-   is missing the UI falls back to a blurred poster treatment instead of
-   showing a flat panel.
+5. Hero slides prefer a stored `backdrop_url`, then the TMDB backdrop; when
+   both are missing the poster becomes a blurred wash plus key art on the
+   right instead of a flat panel.
 6. Live favorites are promoted into their own live rail; movie/series
    favorites render in a separate `Favorite movies & series` rail
    (`favoriteMoviesAndSeriesCards`, `data-test-id="dashboard-favorite-vod-rail"`,
@@ -89,6 +104,107 @@ Render rules:
    favorites. This avoids first-paint partial counts such as a single Stalker
    favorite appearing before M3U favorites finish resolving.
 
+## Cinematic Hero
+
+`DashboardHeroComponent` renders a full-bleed banner: it cancels the page's
+`--dashboard-gutter`/top padding and the centred `--dashboard-max-width`
+(the page host is the `dashboard` inline-size container), keeps
+`clamp(320px, 42vh, 520px)` so the first rail starts above the fold, and uses
+`--app-content-bg` as its scrim so it dissolves into the page in both themes.
+
+Height: that clamp is a floor, not a fixed height. Every slide's content is
+laid out in the same grid cell at the bottom of the banner, so it is as tall
+as its tallest slide whichever one is shown, and an unusually full slide or a
+long translation grows it instead of being cut. Only the active slide is
+shown; the others are `inert` and `visibility: hidden`. When only the shown
+slide was in flow, each automatic rotation between slides of different
+heights resized the banner and moved every rail below it, every 8 s on an idle
+dashboard. Late data (TMDB extras, the live slide's first EPG answer, the next
+programme) can still grow the tallest slide, once, when it arrives.
+
+Slides (`pickDashboardHeroSources`, at most four, stable order, each title
+once):
+
+1. the newest unfinished movie/series (`continueWatchingItems()`, the rail's
+   list: a finished movie skips, a series features the episode it continues
+   with);
+2. a live channel with a programme on air — the first of
+   `selectDashboardHeroLiveCandidates` (up to three favourites, then two
+   recently watched channels) whose EPG answer has a title;
+3. one favourite movie/series and one Xtream recently-added title;
+4. remaining places round-robin over the next items of those lists;
+5. only when nothing qualifies, the newest history row of any kind (a
+   detail action: it can be a finished title). It waits for
+   `continueWatchingSettled()`: before the positions load, that row may be
+   the title the resume slide is about to feature.
+
+While live candidates exist but none has answered yet, one place stays
+reserved for the live slide, so its late arrival never evicts a slide the
+user may be viewing.
+
+The live candidates are derived and pinned by `DashboardLiveEpgPresenter`
+itself (XMLTV lookup and portal queue), independent of the live rails, so the
+slide works with those rails hidden. Actions: a resume slide keeps the resume
+handoff and adds a detail-only "Details" when a series episode can resume;
+discovery slides open the detail page; live slides open the channel. TMDB
+extras (backdrop, rating, genres, overview, year) come from
+`DashboardHeroTmdbService` per featured title and vanish when TMDB is off.
+
+Artwork: a title's backdrop, else its poster blurred and scaled past the
+edges (no second, sharp copy); a live channel's logo sits on the right as key
+art over its own wash. Series titles drop their season marker
+(`splitSeasonSuffix`) — the `S1·E1` chip names the season. Chips are
+`app-meta-chip`; the primary is the details pages' light primary
+(`light-primary-button` from `libs/ui/styles`). With no artwork at all the
+stage is a gradient in the title's hue (`--hero-hue`), light in the light
+theme and near-black in the dark one; a dark gradient under the light
+theme's page-coloured scrim read as a grey slab behind dark text.
+
+Legibility: slide text stays at 4.5:1 or more over any artwork. The side
+scrim holds 88% of the page colour up to the slide's right edge
+(`--hero-text-edge`: the inset plus `min(560px, 55%)`, the slide's own
+`max-width`) before it opens onto the art. In the narrow layout (`dashboard`
+container ≤ 720px) the slide spans the width, so a full-bleed scrim sits
+behind the text block (90%, fading in just above the eyebrow), the copy gets
+a scrim-coloured text shadow, and the slide enters without a fade so that
+scrim never flashes the art on a rotation. Body text is 85% of the heading
+colour; the rating chip uses `--app-rating-color`, set per theme in
+`m3-theme.scss`. Buttons end long labels in an ellipsis.
+`dashboard-hero-legibility.e2e.ts` replaces every image with a black-and-white
+checkerboard and measures each piece of slide text from the screen in both
+themes, at a wide and a narrow width, for a backdrop, a blurred-poster, a
+no-artwork and a live slide.
+
+Semantics: the page has one stable, visually hidden `h1` ("Dashboard",
+`dashboard-page-heading`); each slide title is an `h2`, like the rail titles.
+Slide changes are announced by one polite live region
+(`dashboard-hero-announcement`, position and title) that lives outside the
+slides and is silent while the slides rotate on their own. A
+slide's progress bar is named after its title (a live slide: the programme)
+and a title's reads "N% watched". The dots are 26 × 24px targets (WCAG 2.5.8)
+of one fixed width; the active pill is the same 18px bar with its
+`clip-path` opened, so a slide change moves no dot.
+
+Rotation is the active dot's CSS fill animation (8 s); its `animationend`
+advances. The fill animates `transform` only (a bar sliding in under the
+pill's rounded clip), so it runs on the compositor; animating `width` there
+cost a style, layout and paint pass on every frame of an idle dashboard.
+Hover, focus inside the hero, a hidden document and the pause button pause
+it; an explicit Play clears the hover/focus pause until they re-arm; under
+`prefers-reduced-motion` nothing auto-advances. The hero is a focusable
+region: ←/→ switch slides and Enter follows the primary action. The active slide is tracked
+by id, so a late live slide never moves the user off the current one. Test
+hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
+`dashboard-hero-dot`, `dashboard-hero-pause`,
+`dashboard-hero-primary-action`, `dashboard-hero-secondary-action`. The
+slide hooks mark the shown slide only; the inert slides carry none.
+`dashboard-hero-rotation.e2e.ts` drives the real fill animation (with a
+shortened `--hero-rotation-ms`) to prove its `animationend` still advances
+and that pause holds the slide. `dashboard-hero-legibility.e2e.ts` sums the
+layout shifts of an unattended rotation, at the wide width and again at the
+narrow one once every slide carries a rating and an overview: under 0.001 in
+all, and none inside the hero.
+
 ## Rail Contract
 
 `DashboardRailComponent` is purely presentational:
@@ -96,48 +212,233 @@ Render rules:
 1. Inputs: `label`, `items: DashboardRailCard[]`, optional `seeAllLink`,
    optional `aspectRatio` (default `'2 / 3'`), optional `testId`.
 2. Behavior: horizontal flex track with `scroll-snap-type: x mandatory`.
+   The track scrolls back to the start and re-observes its cards only when
+   the ids or order of `items` change. Hosts rebuild card objects on every
+   clock tick (live progress, expiry badges), and such a rebuild must not
+   move a rail the user scrolled.
 3. Chevron buttons fade in on hover (desktop only via `@media (hover: none)`).
+   Edge fades follow the chevrons' visibility. The track bleeds
+   `--rail-bleed` past the viewport on every side so card focus rings and
+   hover lift are not clipped; the fades are offset by the same variable so
+   they reach the track's clipping edge and no card strip shows beyond them.
 4. Cards are keyboard-focusable router links; `scroll-snap-align: start`
-   means arrow-key nav lands on card boundaries.
+   means arrow-key nav lands on card boundaries. A card that receives
+   keyboard or script focus scrolls fully into the viewport: Chromium skips
+   its own focus scroll once 32px of an element shows, so the track's
+   `focusin` handler moves to the first card-start snap position revealing
+   the whole card (a card wider than the viewport aligns at its own start).
+   Focus caused by a press inside the track (within 100ms of `pointerdown`,
+   650ms for touch) leaves the rail still, so the card does not slide from
+   under the pointer before the click.
 5. Image handling: `loading="lazy"`, `decoding="async"`, fallback icon tile
    when `imageUrl` is missing or `error` fires.
-6. Dashboard hero, rail containers, rail cards, and "Manage all" links expose
-   stable `data-test-id` hooks. Treat these as the supported Electron E2E
+6. Dashboard hero, rail containers, rail viewports and tracks, rail cards and
+   their links, and "Manage all" links expose stable `data-test-id` hooks. Treat these as the supported Electron E2E
    selector surface; do not target internal CSS class names.
 
 ## Data Flow
 
 1. `WorkspaceDashboardRailsComponent` injects `DashboardDataService`.
 2. It derives the dashboard surface via `computed()`:
-    1. `hero` — first item of `globalRecentItems()`.
-    2. `continueWatchingCards` — maps `globalRecentVodItems()` to movie/series
-       cover cards. Portal playback positions are bulk-loaded per playlist so
-       hero and cards can show progress, remaining time, and series season/
-       episode badges. This includes Stalker VOD activity normalized to series
-       through `is_series`. Series lookup uses keyed maps for both direct
-       episode ids and parent series ids; card renders must not scan the full
-       playback-position map. The badge uses saved `seasonNumber` /
+    1. The hero slides — built by `DashboardHeroSlidesPresenter`, see
+       [Cinematic Hero](#cinematic-hero).
+    2. `continueWatchingCards` — maps `continueWatchingItems()` to movie/series
+       cover cards. The list and its loading gate are built by
+       `createDashboardContinueWatching` (`dashboard-continue-watching.ts`)
+       from the history and the playback positions `DashboardDataService`
+       holds, which exposes them as `continueWatchingItems()` and
+       `continueWatchingSettled()`. A movie stays until its position reaches
+       `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`). The
+       threshold is 90%, the Plex/Jellyfin/Emby/Kodi default, so stopping
+       during the end credits finishes a title, as does "Mark watched". A
+       series stays while it has something to continue: once its newest
+       episode is watched, or is an extra (season 0),
+       `DashboardSeriesEpisodesService` fetches its episode list
+       (`get_series_info`, two lookups at a time) and
+       `resolveDashboardSeriesContinuation` applies
+       `getSeriesNextUp`, the rule the series page's quick start follows
+       too. Like Plex's On Deck and Jellyfin's Next Up it goes on from the
+       episode watched last, not from the first gap in the list: the first
+       episode after it that is not watched, so a series started at season
+       2 or with an episode skipped (or left unfinished) goes on after the
+       episode actually watched. A started next episode resumes where it was
+       left. Extras (season 0) stand apart when the series has other
+       seasons: they never come next, never keep the series on the rail and
+       never take its card, not even one left unfinished; a series filed
+       under season 0 alone has them as its run. The card then shows and
+       resumes that episode; a next episode not started yet is a
+       synthesized row at 0:00 without duration, so it carries the S·E
+       badge but no progress, remaining time or "Mark watched". The series
+       leaves once no unwatched episode follows the one watched last, even
+       if an earlier one was skipped or extras are left. Until its list is
+       in (loading, failed, empty, or not holding the episode played last:
+       a list cached before that episode is fetched again in the next
+       round), for
+       series that cannot be looked up (Stalker), and for series never
+       looked up, a series keeps its newest episode rather than vanish on a
+       guess. `planDashboardSeriesLookups` picks the series to look up:
+       newest first until `CONTINUE_WATCHING_VISIBLE_ITEMS` (20, the rail's
+       `RAIL_ITEM_LIMIT`) titles are known to stay listed, counting movies
+       and series that need no lookup; a finished series frees its slot, so
+       an older one is looked up next, up to
+       `CONTINUE_WATCHING_SERIES_LOOKUP_LIMIT` (40) lookups. Lists are kept
+       per session and per source (server and username: an edited playlist
+       is looked up again, and a late answer for the old source is
+       dropped). Lookups are background requests (`suppressErrorLog`: a
+       failure is logged, never a toast). Each `reloadPlaybackPositions()`
+       that lands (dashboard entry, a changed history, "Mark watched") is a
+       lookup round: a failed lookup is tried again once
+       `DASHBOARD_SERIES_EPISODES_RETRY_DELAY_MS` (5 min) has passed (at
+       once when the playlist's password is corrected), and a list older
+       than `DASHBOARD_SERIES_EPISODES_MAX_AGE_MS` (1 h) is fetched again so
+       newly added episodes show up, the old list standing until the new
+       one arrives (a failed refresh keeps it, and waits for the same delay).
+       A source that failed two lookups in a row is not asked for its other
+       series until the delay has passed either: a portal that is down or
+       expired costs two requests per delay, not one per series per dashboard
+       visit. Within one round, more
+       series to look past never repeat a request, and the request list
+       compares by value, so playlist store churn elsewhere in the app does
+       not trigger lookups. Finished titles
+       stay in `globalRecentVodItems()` and on the Global Recent page ("See
+       all");
+       the rail's count badge counts only the listed ones. The list stays
+       empty until `continueWatchingSettled()`: the history has loaded (on
+       the PWA that includes its Xtream data-source read, not only the
+       playlist inventory), `reloadPlaybackPositions()` has covered every
+       playlist in it once, and the episode lists the first open asked for
+       have answered or `CONTINUE_WATCHING_SERIES_LOOKUP_WAIT_MS` (2 s) has
+       passed, so on first open the rail inserts once instead of listing
+       finished titles and dropping them a moment later. A playlist whose
+       positions failed to load counts as covered. The gate stays open
+       afterwards: like the history, a dashboard opened again first renders
+       the positions it already holds and refreshes them on entry, so a title
+       finished since the last visit leaves the rail, or a series moves on to
+       its next episode, when that refresh (and, for a series not looked up
+       yet this session, its episode list) lands.
+       `reloadPlaybackPositions()` applies only its latest call's result, so
+       an older read finishing last cannot bring finished titles back.
+       Portal playback positions are bulk-loaded per playlist
+       (`loadDashboardPlaybackPositions`), every playlist at once (one `Promise.all`, not one await per playlist: the
+       single-threaded DB worker then answers the set in one pass, and a
+       long request it is busy with delays the set once, not once per
+       playlist), so hero and cards can show progress, remaining time, and
+       series season/episode badges. Whether an item is looked up as a movie (one `vod`
+       row) or a series (episode rows under the parent id) is its WATCH
+       kind, `resolvePortalActivityWatchKind`, not its routing `type`. The
+       shape that needs the distinction is a Stalker embedded-VOD row: its
+       stored entry carries a `series[]` episode array but no `is_series`
+       flag, so `extractStalkerItemType` reports `movie` (deliberately — the
+       item belongs in the VOD catalog) while its progress lives in episode
+       rows. The mappers give both it and a lazy Ministra `is_series` row
+       (already typed `series`) `watch_kind: 'series'`. Series lookup uses
+       keyed maps for both direct episode ids and parent series ids; card
+       renders must not scan the full playback-position map. A series'
+       newest row is the latest `updatedAt`; rows saved in the same second
+       (SQLite keeps whole seconds, and "Mark season watched" stamps a
+       season at once) go to the later episode, as `getSeriesNextUp` breaks
+       the tie. The badge uses saved `seasonNumber` /
        `episodeNumber` metadata and does not infer it from provider payloads;
        legacy rows without that metadata remain badge-less until replay.
-       Dashboard-originated Xtream series clicks also carry that exact episode
-       target through the global-recent inline-detail handoff. Once the series
-       metadata and playback positions load, the detail player consumes the
-       target once and resumes the saved episode. Opening the same item normally
-       from the global recent grid remains a detail-only action.
+       Dashboard-originated Xtream and Stalker series clicks also carry that
+       exact episode target through the global-recent inline-detail handoff.
+       Once the series metadata and playback positions load, the detail player
+       consumes the target once and resumes the saved episode. Opening the same
+       item normally from the global recent grid remains a detail-only action.
+       Continue Watching cards carry no provider/content-kind subtitle: their
+       meta row is the S·E chip plus a "N min left" label (`remainingLabel`,
+       from `formatRemainingLabel`), and the row is not rendered when both are
+       absent. The hero subtitle is the source name alone, through
+       `playlistDisplayLabel`.
     3. `liveFavoriteCardsEnriched` and `recentLiveCardsEnriched` — two
        independent rails (`dashboard-live-favorites-rail` and
        `dashboard-recent-live-rail`); there is no fallback from one to the
        other. M3U cards carry an `epg_lookup_key` using the app-wide XMLTV
        fallback order (`tvg-id` -> `tvg-name` -> channel name); EPG enrichment
-       must use that key before falling back to the card title.
+       must use that key before falling back to the card title. Both rails are
+       enriched by `DashboardLiveEpgPresenter`, the one component-provided
+       facade for live EPG: it owns the XMLTV lookup described under "Scoped
+       lookups" in `m3u-playlist-module.md`, forwards everything portal-shaped
+       to `DashboardPortalLiveEpgPresenter`, and `enrich()` returns the cards
+       with their "now on air" row filled in.
+       One component-provided `DashboardLiveEpgClock` drives every live
+       refresh and progress bar on the page. It ticks every 30 s only while
+       the XMLTV lookup has cards or the portal presenter wants one, and
+       only while the document is visible; it reads the clock at once when
+       it starts again. A tick re-reads progress for every live card. It
+       re-asks an XMLTV scope only after one of its programmes has ended,
+       while a key has no programme, or once the answer is five minutes old
+       (`LIVE_EPG_MAX_ANSWER_AGE_MS`), because a guide refreshed elsewhere
+       can correct a programme still on air. A guide import or source change
+       (`EpgService.epgAvailable$`) re-asks at once. An unchanged answer is
+       not re-emitted.
+       Xtream and Stalker cards have no XMLTV key of their own; their "now on
+       air" line comes from the portal, **lazily and per card**:
+        - `buildDashboardPortalLiveEpgEntry` (dashboard data-access) turns a
+          live `PortalActivityItem` into the `UnifiedCollectionItem` the
+          collection pages hand `StreamResolverService.loadEpgForItems`, keyed
+          by the collection uid — favourites and recent rows of one channel
+          share the answer. Radio rows and rows without a usable provider id
+          get no entry. Cards carry that key as `liveEpgSourceKey`.
+        - `lib-dashboard-rail` reports the cards inside its track viewport
+          (plus ~one card of `rootMargin`) through `visibleCardsChanged`, from
+          an `IntersectionObserver` rooted at the track; without the API every
+          card counts as visible. Cards that leave the list are reported gone
+          at once.
+        - `DashboardPortalLiveEpgPresenter` (component-provided) unions the
+          visible keys of both rails with the pinned hero keys and calls
+          `DashboardPortalLiveEpgService.sync()` with exactly those entries —
+          on every change, on each tick of the shared live-EPG clock, and on
+          a display-offset change.
+          It is reached through `DashboardLiveEpgPresenter`, which derives the
+          portal rows itself from the enabled rails and pins the hero's live
+          candidates, so the page component only forwards what a rail can see. The queue lives in
+          the root service, so leaving the dashboard hands the wanted set back
+          (`sync([])` on destroy); otherwise the queue would keep asking for
+          cards on a page that is gone.
+        - `DashboardPortalLiveEpgService` (root) owns the queue: at most two
+          requests in flight, 200 ms between starts (the numbers
+          `EpgQueueService` proved against real panels), one card per request,
+          each answer published the moment it lands in `programs`, so the page
+          never waits and a slow portal delays no other card. Only wanted keys
+          are dequeued, so a card scrolled past before its turn is never
+          requested. A programme lives 60 s; a programme that ended is asked
+          again, but not within 30 s of the last answer (a portal may keep
+          returning the stale row). An answer with **no** programme lives only
+          30 s, because the resolver reports a failed portal and a guide-less
+          channel identically (it files per-channel failures as `null`), so
+          there is no failure cooldown to keep and the short TTL is what lets
+          an outage recover on the next tick.
+        - Every answer is "at the provider clock" and against one XMLTV source
+          set. A request captures both the display offset and
+          `EpgSourceSettingsService.revision()` — the same fence
+          `EpgService.guard()` uses — and a completion whose either fact moved
+          is discarded and requeued instead of published. That requeue has to
+          happen in the completion: while the key is in flight the retire pass
+          cannot queue a replacement, and without it the pre-change answer
+          would be trusted for a full TTL (the repo's late-result
+          invalidation contract).
+        - Desktop only in practice: the shared collection resolver is gated on
+          the local XMLTV bridge (`supportsProgramLookup`) and answers nothing
+          without it, so `sync()` returns immediately in the PWA rather than
+          filing an empty answer for every card. Lifting that gate for portal
+          lookups would change the collection pages too and is deliberately
+          out of scope here.
+        - `DashboardLiveEpgPresenter.enrich()` prefers the portal answer, falls
+          back to the XMLTV title match when the portal said "nothing on air",
+          and marks a card
+          `nowPlayingState: 'pending'` only before its FIRST answer — the
+          channel layout then shows a shimmer placeholder in the programme
+          slot; a refresh keeps the previous answer on screen.
     4. `xtreamRecentlyAddedCards` — maps `xtreamRecentlyAddedItems()` to rail
        cards. Aggregates newly added VOD and series across *all* Xtream
        playlists via `DashboardDataService.reloadXtreamRecentlyAddedItems()`,
        which calls `getGlobalRecentlyAdded('all', limit, 'xtream')` with the
        DB-level `playlists.type = 'xtream'` filter. The rail is Electron-only
        (PWA returns `[]`) and auto-hides when empty, so users without Xtream
-       playlists never see it. Cards carry a `playlist_name · type` subtitle
-       so users can tell which provider each item came from. Driven by an
+       playlists never see it. Cards carry the source name as their subtitle
+       (`playlistDisplayLabel`) so users can tell where each item was added;
+       the content kind is not repeated on every card. Driven by an
        effect that re-runs whenever the Xtream playlist count changes, but the
        first run waits for `globalFavoritesLoaded()` so the slower
        recently-added DB query does not block the live favorites rail on
@@ -145,8 +446,15 @@ Render rules:
     5. `recommendationCards` / `trendingCards` — the two TMDB rails. Both
        need the TMDB opt-in AND the Electron DB worker that answers
        `DB_MATCH_TITLES` (each is hidden in the PWA), and both load after
-       `globalFavoritesLoaded()` so the batched title match never competes
-       for the worker at startup. `recommendationCards` is seeded from
+       `globalFavoritesLoaded()` AND `continueWatchingSettled()`
+       (`connectDashboardTmdbRails` in `rails/dashboard-tmdb-rails.ts`) so
+       the batched title match never competes
+       for the worker at startup: one match runs a ranked FTS query per
+       title and a common single word holds the worker for seconds on a
+       large catalog; issued before the playback positions, it queued them
+       behind it and kept the Continue Watching and hero skeletons up for
+       as long as it ran (measured 14 s warm and 97 s cold on a 3.9M-title
+       library). `recommendationCards` is seeded from
        recently watched movies/series and only shows titles present in an
        imported library, hiding itself below five matched cards; its rail
        label names the seed ("Because you watched X") when exactly one
@@ -217,9 +525,10 @@ The welcome state is rendered via the existing
    rails have data.
 5. Navigation from a rail card must deep-link into the appropriate workspace
    route without switching the active playlist in the header switcher.
-6. Xtream series hero/Continue Watching clicks with a saved episode position
-   must resume that exact episode while preserving the collection-owned detail
-   and Back behavior. Do not apply autoplay to ordinary collection-grid clicks.
+6. Xtream and Stalker series hero/Continue Watching clicks with a saved episode
+   position must resume that exact episode while preserving the
+   collection-owned detail and Back behavior. Do not apply autoplay to
+   ordinary collection-grid clicks.
 7. `Recently Used Sources` reflects recent source usage across all provider
    types, not just recent imports.
 8. The live rail title key must match the rendered source: favorites use
@@ -251,3 +560,20 @@ Intentionally out of scope:
 2. Freeform widget grid with collision management.
 3. External data rails such as RSS, sports, or news adapters.
 4. Per-user A/B variants of rail ordering.
+
+## Source subscription expiry
+
+Source cards show a passive subscription-expiry chip: amber within seven days,
+error-toned once expired. Account details stay behind the Account info menu.
+`DashboardSourceExpiryService` in `libs/workspace/dashboard/data-access` reads
+Xtream expiry from cached `PortalStatusService.checkPortalStatusDetails()`
+(`exp_date`). Stalker uses the persisted `stalkerAccountInfo` snapshot from the
+playlist payload, not the metadata row; each source therefore needs one memoized
+full-playlist read. The chip is not a separate account-refresh request.
+The badge only changes at day boundaries, so the rails do not poll the clock:
+`createSourceExpiryClock` arms one timer for the earliest boundary among the
+known facts (`nextSourceExpiryChangeMs`), capped at an hour because timers do
+not follow system sleep. It arms no timer while the page is hidden or the
+sources rail is disabled, and re-reads the clock when the page becomes visible. It schedules from the real
+time, so facts that arrive long after the last tick are not scheduled late.
+Facts whose badge can no longer change arm no timer.

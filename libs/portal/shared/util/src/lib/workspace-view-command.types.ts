@@ -1,4 +1,9 @@
-export type WorkspaceCommandGroup = 'view' | 'playlist' | 'global';
+/**
+ * `settings` holds one command per searchable settings row. The palette
+ * lists them only for a non-empty query, ranked and capped, so they never
+ * flood the default command list.
+ */
+export type WorkspaceCommandGroup = 'view' | 'playlist' | 'global' | 'settings';
 
 export interface WorkspaceCommandActionContext {
     query: string;

@@ -1,0 +1,56 @@
+:host {
+    display: block;
+    min-height: 100%;
+    background: var(--app-shell-bg);
+}
+
+.server-sign-in {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.server-sign-in__card {
+    width: min(100%, 420px);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 28px;
+    box-sizing: border-box;
+    border-radius: 20px;
+    background: var(--app-widget-bg);
+    box-shadow: var(--app-widget-shadow);
+    color: var(--app-on-surface);
+
+    h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--app-heading-color);
+    }
+
+    p {
+        margin: 0;
+        color: var(--app-body-color);
+        font-size: 0.9rem;
+        line-height: 1.45;
+    }
+
+    button[type='submit'] {
+        align-self: flex-end;
+    }
+}
+
+.server-sign-in__logo {
+    border-radius: 12px;
+}
+
+.server-sign-in .server-sign-in__feedback {
+    color: var(--app-expiry-expired-text);
+
+    &:empty {
+        display: none;
+    }
+}

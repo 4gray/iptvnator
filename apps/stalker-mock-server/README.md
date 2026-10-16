@@ -101,7 +101,8 @@ flags a real portal sends. Outside the `static-channel-cmd` scenario they are
 
 | Environment Variable | Default | Description |
 |---|---|---|
-| `PORT` | `3210` | HTTP port the server listens on |
+| `PORT` | `3210` | HTTP port the server listens on. The Nx serve targets do not pin it, so `PORT=3310 pnpm nx run stalker-mock-server:serve` relocates the server |
+| `MOCK_PORT` | — | Fallback for `PORT`. It is the client-side knob `apps/web-e2e/playwright.config.ts` and the specs already read, so `MOCK_PORT=3310 pnpm exec playwright test …` moves the mock AND the tests together when another worktree holds 3210 |
 | `HOST` | `127.0.0.1` | Bind address. Loopback by default — the fixture serves fabricated, unauthenticated content, so set `HOST=0.0.0.0` only to deliberately point a phone or STB at it |
 | `NODE_ENV` | `development` | Node environment |
 

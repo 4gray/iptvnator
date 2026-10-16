@@ -30,12 +30,27 @@ handleWorkerRequest(
             category_id: string | number;
         }>,
         type: 'live' | 'movies' | 'series',
-        hiddenCategoryXtreamIds?: number[]
+        hiddenCategoryXtreamIds?: number[],
+        lockedCategoryXtreamIds?: number[]
     ) => ({
         playlistId,
         categories,
         type,
         hiddenCategoryXtreamIds,
+        lockedCategoryXtreamIds,
+    })
+);
+
+handleWorkerRequest(
+    'DB_SET_CATEGORY_LOCKS',
+    (
+        playlistId: string,
+        type: 'live' | 'movies' | 'series',
+        lockedXtreamIds: number[]
+    ) => ({
+        playlistId,
+        type,
+        lockedXtreamIds: Array.isArray(lockedXtreamIds) ? lockedXtreamIds : [],
     })
 );
 

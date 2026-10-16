@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures';
-import { waitForScrollIdle } from './e2e-helpers';
+import { pressTab, waitForScrollIdle, setSwitch } from './e2e-helpers';
 
 /**
  * The M3U movie-recognition workflow end to end: a playlist entry whose URL
@@ -100,12 +100,15 @@ async function selectPlayer(
 
 async function enableTmdb(page: Page): Promise<void> {
     await page.goto('/workspace/settings/tmdb');
-    await page.locator('[data-test-id="tmdb-enabled"] input').check();
+    await setSwitch(
+        page.locator('[data-test-id="tmdb-enabled"] [role="switch"]'),
+        true
+    );
     await page.locator('[data-test-id="tmdb-api-key"]').fill('e2e-key');
     // The M3U recognition toggle only appears once TMDB itself is on, and it
     // ships enabled — assert rather than click, so a changed default fails.
     await expect(
-        page.locator('[data-test-id="tmdb-m3u-vod-details"] input')
+        page.locator('[data-test-id="tmdb-m3u-vod-details"] [role="switch"]')
     ).toBeChecked();
     await saveSettings(page);
 }
@@ -123,7 +126,9 @@ async function importPlaylist(
     await dialog.getByLabel('Insert m3u(8) playlist as text').fill(content);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog.getByRole('button', { name: 'Import', exact: true }).click(),
+        dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click(),
     ]);
     await expect(page.getByText(`${count} channels`)).toBeVisible();
 }
@@ -220,9 +225,10 @@ async function configureMetadata(
     if (mode === 'disabled') return;
     await enableTmdb(page);
     if (mode === 'details-disabled') {
-        await page
-            .locator('[data-test-id="tmdb-m3u-vod-details"] input')
-            .uncheck();
+        await setSwitch(
+            page.locator('[data-test-id="tmdb-m3u-vod-details"] [role="switch"]'),
+            false
+        );
         await saveSettings(page);
     }
 }
@@ -345,17 +351,15 @@ test('@web @m3u @tmdb recognized movies open the VOD detail view', async ({
     ).toEqual(['app-html-video-player']);
 
     // Metadata patches the mounted view asynchronously. The shell stamps the
-    // host templates into BOTH the hero and the watch-state About block, so
-    // every metadata string legitimately resolves twice.
+    // host templates into BOTH the hero and the watch-state About block, but
+    // the collapsed hero turns `visibility: hidden` 300ms after mount,
+    // sometimes before TMDB answers. Assert the copy a watching user sees.
+    const about = detail(page).locator('app-content-about');
     await expect(
-        detail(page).getByText('Paul Atreides arrives on Arrakis.').first()
+        about.getByText('Paul Atreides arrives on Arrakis.')
     ).toBeVisible();
-    await expect(
-        detail(page).getByText('Denis Villeneuve').first()
-    ).toBeVisible();
-    await expect(
-        detail(page).getByText('Science Fiction').first()
-    ).toBeVisible();
+    await expect(about.getByText('Denis Villeneuve')).toBeVisible();
+    await expect(about.getByText('Science Fiction')).toBeVisible();
 
     // A live channel keeps the classic layout.
     await sidebarEntry(page, 'Live One').click();
@@ -393,7 +397,7 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
 
     await page.keyboard.press('Escape');
     await expect(inlineVideo(page)).toHaveCount(0);
-    const playButton = page.locator('[data-test-id="m3u-vod-play"]');
+    const playButton = page.locator('[data-testid="m3u-vod-play"]');
     await expect(playButton).toBeVisible();
 
     // Browse → Play remounts the engine without a channel change.
@@ -406,14 +410,28 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
             )
         )
         .toBe(0.25);
-    // M3U has no browse Back target, but the sticky watch control can close it.
+    // M3U registers no Back target in either state: the header's only arrow
+    // is the history fallback to the dashboard the import started from,
+    // which claims no Escape. The now-playing bar's own Close button
+    // returns to browse.
     const shell = detail(page).locator('app-portal-detail-shell');
+    const headerBack = page.locator('[data-test-id="workspace-header-back"]');
+    await expect(headerBack).toHaveCount(1);
+    await expect(headerBack).not.toHaveAttribute('aria-keyshortcuts');
     await shell
+        .locator('app-portal-inline-player')
         .getByRole('button', { name: 'Close player', exact: true })
-        .first()
         .click();
     await expect(inlineVideo(page)).toHaveCount(0);
-    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
+    await expect(headerBack).toHaveCount(1);
+    await expect(headerBack).not.toHaveAttribute('aria-keyshortcuts');
+    // The hero keeps its own inset (32px, or 20px in a pane narrower than
+    // 760px) in both states.
+    expect(
+        await shell
+            .locator('.hero__content')
+            .evaluate((el) => getComputedStyle(el).paddingInlineStart)
+    ).toMatch(/^(20|32)px$/);
     await shell.focus();
     await page.keyboard.press('Escape');
     await expect(playButton).toBeVisible();
@@ -422,13 +440,14 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
 for (const theme of ['light', 'dark']) {
     test(`@web @m3u channel scrolling keeps focus after selection (${theme})`, async ({
         page,
+        browserName,
     }) => {
         await serveSeekableClip(page);
         await selectPlayer(page);
         const channels = Array.from(
             { length: 60 },
             (_, index) =>
-                `#EXTINF:-1 group-title="News",Station ${index + 1}\n${FIXTURE_HOST}/live-${index}.m3u8`
+                `#EXTINF:-1 group-title="News",Station ${index + 1}\n${FIXTURE_HOST}/live-${index}.webm`
         );
         await importPlaylist(page, ['#EXTM3U', ...channels].join('\n'), 60);
         await page.evaluate(
@@ -450,7 +469,7 @@ for (const theme of ['light', 'dark']) {
         await expect
             .poll(() => viewport.evaluate((el) => el.scrollTop))
             .toBe(0);
-        await page.keyboard.press('Tab');
+        await pressTab(page, browserName);
         await expect(
             viewport.locator('button.channel-content').first()
         ).toBeFocused();
@@ -459,7 +478,20 @@ for (const theme of ['light', 'dark']) {
         await expect(viewport.locator('.channel-list-item').nth(1)).toHaveClass(
             /active/
         );
-        await page.keyboard.press('Tab');
+        // Recently viewed lists the station once it has played two seconds.
+        await expect
+            .poll(
+                () =>
+                    page
+                        .locator('app-web-player-view video')
+                        .first()
+                        .evaluate(
+                            (video: HTMLVideoElement) => video.currentTime
+                        ),
+                { timeout: 20_000 }
+            )
+            .toBeGreaterThan(2.5);
+        await pressTab(page, browserName);
         const favorite = viewport.locator('.favorite-button').nth(1);
         await expect(favorite).toBeFocused();
         await page.keyboard.press('Space');

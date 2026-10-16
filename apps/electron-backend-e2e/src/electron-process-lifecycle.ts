@@ -1,18 +1,36 @@
 import type { ChildProcess } from 'node:child_process';
+import { terminateElectronProcess } from './electron-process-termination';
 
-type ElectronChildProcess = Pick<
+// Only the exit subscription is used; picking ChildProcess's own once and
+// removeListener would demand that every listener host returns a ChildProcess.
+interface ElectronChildProcess extends Pick<
     ChildProcess,
-    'exitCode' | 'kill' | 'once' | 'removeListener' | 'signalCode'
->;
+    'exitCode' | 'kill' | 'pid' | 'signalCode'
+> {
+    once(event: 'exit', listener: () => void): unknown;
+    removeListener(event: 'exit', listener: () => void): unknown;
+}
 
 export interface ClosableElectronApplication {
     close(): Promise<void>;
-    process(): ElectronChildProcess;
 }
 
 export interface ElectronExitConfirmationOptions {
     readonly closeTimeoutMs: number;
     readonly exitTimeoutMs: number;
+}
+
+const electronProcesses = new WeakMap<
+    ClosableElectronApplication,
+    ElectronChildProcess
+>();
+
+export function captureElectronProcess<Process extends ElectronChildProcess>(
+    application: ClosableElectronApplication & { process(): Process }
+): Process {
+    const child = application.process();
+    electronProcesses.set(application, child);
+    return child;
 }
 
 export interface PrepareElectronApplicationOptions<Application, Prepared> {
@@ -49,11 +67,19 @@ export async function prepareElectronApplication<Application, Prepared>(
 
 export async function closeElectronApplicationAndConfirmExit(
     application: ClosableElectronApplication,
-    options: ElectronExitConfirmationOptions
+    options: ElectronExitConfirmationOptions,
+    terminate: (
+        child: ElectronChildProcess,
+        signal: NodeJS.Signals
+    ) => void = terminateElectronProcess
 ): Promise<void> {
     assertTimeout(options.closeTimeoutMs);
     assertTimeout(options.exitTimeoutMs);
-    const child = application.process();
+    // Playwright discards its process dispatcher when Electron exits. Keep
+    // using the Node handle captured immediately after launch, including when
+    // the application's last window already caused a normal process exit.
+    const child = electronProcesses.get(application);
+    if (!child) throw new Error('electron-process-handle-not-captured');
     if (hasExited(child)) return;
 
     const exit = observeProcessExit(child);
@@ -82,14 +108,19 @@ export async function closeElectronApplicationAndConfirmExit(
         }
         if (first.kind === 'close-rejected') failure = first.failure;
 
-        try {
-            child.kill();
-        } catch (killFailure) {
-            failure = failure
-                ? new AggregateError([failure, killFailure])
-                : killFailure;
+        // A failed termination must not skip exit observation or let a
+        // caller restart against a profile that is still owned by Electron.
+        for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
+            try {
+                terminate(child, signal);
+            } catch (killFailure) {
+                failure = failure
+                    ? new AggregateError([failure, killFailure])
+                    : killFailure;
+            }
+            if (await resolvesWithin(exit.promise, options.exitTimeoutMs))
+                return;
         }
-        if (await resolvesWithin(exit.promise, options.exitTimeoutMs)) return;
     } finally {
         exit.cancel();
     }

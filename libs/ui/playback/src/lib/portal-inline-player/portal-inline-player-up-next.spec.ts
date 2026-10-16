@@ -22,6 +22,7 @@ class StubWebPlayerViewComponent {
     readonly streamUrl = input.required<string>();
     readonly title = input('');
     readonly mediaTitle = input<unknown>(null);
+    readonly upNext = input<unknown>(null);
     readonly playback = input<unknown>(null);
     readonly volume = input(1);
     readonly playerOverride = input<unknown>(null);
@@ -54,7 +55,11 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         fixture?.destroy();
     });
 
-    async function setup(railEnabled: boolean, player = 'videojs') {
+    async function setup(
+        railEnabled: boolean,
+        player = 'videojs',
+        cardEnabled = true
+    ) {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [PortalInlinePlayerComponent, TranslateModule.forRoot()],
@@ -65,6 +70,7 @@ describe('PortalInlinePlayerComponent up next rail', () => {
                         player: signal(player),
                         playerAmbientMode: signal(false),
                         playerUpNextRail: signal(railEnabled),
+                        playerUpNextCard: signal(cardEnabled),
                         stripCountryPrefix: signal(false),
                     },
                 },
@@ -114,6 +120,78 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             episode: { id: '13' },
         },
     ];
+
+    it('hands the episode after the playing one to the player as "up next"', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.detectChanges();
+
+        expect(component.playerUpNext()).toEqual({
+            label: 'S01E03',
+            title: 'Episode 3',
+            thumbnailUrl: null,
+            progressPercent: null,
+        });
+
+        // The last episode of the list has nothing after it.
+        fixture.componentRef.setInput('upNextEpisodes', [
+            { ...upNextItems[1], isPlaying: true },
+        ]);
+        fixture.detectChanges();
+        expect(component.playerUpNext()).toBeNull();
+
+        // Only episodes get a card: a movie never has a "next".
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.componentRef.setInput('playback', {
+            ...seriesPlayback,
+            contentInfo: {
+                ...seriesPlayback.contentInfo,
+                contentType: 'movie',
+            },
+        });
+        fixture.detectChanges();
+        expect(component.playerUpNext()).toBeNull();
+    });
+
+    it('hands no "up next" card to the player when the setting is off', async () => {
+        await setup(true, 'videojs', false);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.detectChanges();
+
+        expect(component.playerUpNext()).toBeNull();
+    });
+
+    it('plays the next season through the rail path once the season is over', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        const selected = jest.fn();
+        const next = jest.fn();
+        component.upNextEpisodeSelected.subscribe(selected);
+        component.nextEpisodeRequested.subscribe(next);
+
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: false,
+        });
+        fixture.detectChanges();
+        component.onNextEpisodeRequested();
+        expect(selected).toHaveBeenCalledWith(upNextItems[1]);
+        expect(next).not.toHaveBeenCalled();
+
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: true,
+            autoplayEnabled: false,
+        });
+        fixture.detectChanges();
+        component.onNextEpisodeRequested();
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(selected).toHaveBeenCalledTimes(1);
+    });
 
     /** Renders, then feeds a stage size as the ResizeObserver would. */
     function renderWithStage(width: number, height: number): void {

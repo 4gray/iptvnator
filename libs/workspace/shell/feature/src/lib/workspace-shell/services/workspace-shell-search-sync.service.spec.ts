@@ -3,12 +3,13 @@ import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { Subject, of } from 'rxjs';
+import { EMPTY, of, Subject } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
+import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
 import { SEARCH_INPUT_DEBOUNCE_MS } from './helpers/workspace-shell-constants';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
@@ -95,6 +96,8 @@ describe('WorkspaceShellSearchSyncService', () => {
                     useValue: {
                         instant: jest.fn((key: string) => key),
                         onLangChange: of(null),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                     },
                 },
                 {
@@ -111,13 +114,17 @@ describe('WorkspaceShellSearchSyncService', () => {
                         setSearchTerm: jest.fn(),
                         setCategorySearchTerm: jest.fn(),
                         getSelectedCategory: signal(null),
+                        selectedCategoryId: signal(null),
                     },
                 },
                 {
                     provide: StalkerStore,
                     useValue: {
                         setSearchPhrase: jest.fn(),
-                        getSelectedCategoryName: signal(''),
+                        getSelectedCategoryLabel: signal({
+                            name: '',
+                            labelKey: null,
+                        }),
                         itvFullListActive: signal(false),
                     },
                 },
@@ -131,6 +138,21 @@ describe('WorkspaceShellSearchSyncService', () => {
 
     afterEach(() => {
         jest.useRealTimers();
+    });
+
+    it('drops a still-debouncing keystroke when a settings result is opened', () => {
+        // Typing one more letter and clicking a visible settings result
+        // within the debounce window: applying that keystroke afterwards
+        // would start a `q` navigation that supersedes the reveal.
+        service.onSearchInput('them');
+        TestBed.inject(SettingsSearchService).reveal({
+            id: 'theme',
+            section: 'general',
+            labelKey: 'SETTINGS.THEME',
+        });
+        jest.advanceTimersByTime(SEARCH_INPUT_DEBOUNCE_MS);
+
+        expect(service.appliedSearchQuery()).toBe('');
     });
 
     it('keeps in-flight typing when the page writes an unrelated query param', () => {

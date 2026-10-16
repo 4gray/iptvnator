@@ -1,0 +1,141 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { GUIDE_GROUPS } from '../../lib/guides';
+import { absoluteUrl, siteHref } from '../../lib/site';
+
+const includeDrafts = import.meta.env.DEV || import.meta.env.PUBLIC_INCLUDE_DRAFTS === 'true';
+const allPosts = await getCollection('blog');
+const byId = new Map(allPosts.map((post) => [post.id, post]));
+const latestRelease = allPosts
+  .filter((post) => !post.data.draft && post.data.tags.includes('release'))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())[0];
+const groups = GUIDE_GROUPS.map((group) => {
+  const posts = group.posts.map((id) => {
+    const post = byId.get(id);
+    if (!post) throw new Error(`Guides group "${group.id}" references missing post "${id}".`);
+    return post;
+  }).filter((post) => includeDrafts || !post.data.draft);
+  if (group.includeLatestRelease && latestRelease) posts.push(latestRelease);
+  return { ...group, posts };
+}).filter((group) => group.posts.length > 0);
+const pageUrl = absoluteUrl('/guides/');
+const description = 'Practical IPTVnator guides organized by task: getting started, live TV and EPG, player controls, your library and updates.';
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'IPTVnator Guides',
+    description,
+    url: pageUrl,
+    hasPart: groups.flatMap((group) => group.posts.map((post) => ({
+      '@type': 'BlogPosting',
+      headline: post.data.title,
+      url: absoluteUrl(`/blog/${post.id}/`),
+    }))),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'IPTVnator', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: 'Guides', item: pageUrl },
+    ],
+  },
+];
+---
+
+<BaseLayout title="Guides | IPTVnator" description={description} jsonLd={jsonLd}>
+  <div class="mx-auto max-w-6xl px-6 pt-36 pb-24 sm:pt-40">
+    <header class="max-w-3xl">
+      <span class="font-mono text-xs uppercase tracking-[0.2em] text-accent-500">Guides</span>
+      <h1 class="mt-4 font-display text-4xl font-bold tracking-tight text-surface-50 sm:text-5xl lg:text-6xl">
+        Get more from<br /><span class="text-accent-400">IPTVnator.</span>
+      </h1>
+      <p class="mt-6 max-w-2xl text-lg leading-relaxed text-surface-400">
+        Set up your first source, find something to watch, or get playback working
+        the way you want. Pick a task and start there.
+      </p>
+      <p class="mt-5 text-sm text-surface-400">
+        New to the app? <a href={siteHref('/download/')} class="guide-link">Download IPTVnator</a>
+        or <a href={siteHref('/compare/m3u-vs-xtream-vs-stalker/')} class="guide-link">compare source types</a>.
+      </p>
+    </header>
+
+    <div class="mt-14 grid gap-12 border-t border-surface-800 pt-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16 lg:pt-12">
+      <aside>
+        <nav aria-label="Guide topics" class="lg:sticky lg:top-28">
+          <p class="mb-4 font-mono text-[11px] uppercase tracking-[0.16em] text-surface-500">Find your task</p>
+          <ol class="grid gap-1 sm:grid-cols-2 lg:grid-cols-1">
+            {groups.map((group, index) => (
+              <li>
+                <a href={`#${group.id}`} class="topic-link flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-surface-300 transition-colors hover:bg-surface-900 hover:text-accent-400">
+                  <span aria-hidden="true" class="font-mono text-[11px] text-accent-500">{String(index + 1).padStart(2, '0')}</span>
+                  <span class="flex-1">{group.title}</span>
+                  <span class="font-mono text-[11px] text-surface-500" aria-label={`${group.posts.length} articles`}>{group.posts.length}</span>
+                </a>
+              </li>
+            ))}
+          </ol>
+          <p class="mt-6 border-t border-surface-800 pt-5 text-sm leading-relaxed text-surface-500">
+            Looking for an overview?
+            <a href={siteHref('/features/')} class="guide-link mt-1 block">Explore the features →</a>
+          </p>
+        </nav>
+      </aside>
+
+      <div class="min-w-0 space-y-16">
+        {groups.map((group, index) => (
+          <section id={group.id} aria-labelledby={`${group.id}-title`} class="guide-group scroll-mt-28">
+            <div class="flex items-baseline gap-4">
+              <span aria-hidden="true" class="font-mono text-xs text-accent-500">{String(index + 1).padStart(2, '0')}</span>
+              <h2 id={`${group.id}-title`} class="font-display text-2xl font-semibold tracking-tight text-surface-50 sm:text-3xl">{group.title}</h2>
+            </div>
+            <p class="mt-3 text-sm leading-relaxed text-surface-400">{group.description}</p>
+            <ul class="mt-6 divide-y divide-surface-800 border-y border-surface-800">
+              {group.posts.map((post) => (
+                <li>
+                  <a href={siteHref(`/blog/${post.id}/`)} data-guide-article={post.id} class="guide-article group -mx-3 flex gap-5 rounded-lg px-3 py-6 transition-colors hover:bg-surface-900/60">
+                    <div class="min-w-0 flex-1">
+                      {(post.data.draft || post.data.tags.includes('release')) && (
+                        <span class="mb-2 block font-mono text-[10px] uppercase tracking-[0.12em] text-accent-500">
+                          {post.data.draft ? 'Draft preview' : 'Release notes'}
+                        </span>
+                      )}
+                      <h3 class="font-display text-lg font-semibold leading-snug text-surface-100 transition-colors group-hover:text-accent-400">{post.data.title}</h3>
+                      <p class="mt-2 text-sm leading-relaxed text-surface-400">{post.data.description}</p>
+                    </div>
+                    <svg class="mt-1 h-5 w-5 shrink-0 text-surface-600 transition-colors group-hover:text-accent-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M7 17 17 7M7 7h10v10" />
+                    </svg>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  /* Clip horizontal decoration without creating a scroll container for the topic nav. */
+  :global(main:has(.guide-group)) {
+    overflow-x: clip;
+  }
+  .guide-link {
+    @apply text-accent-400 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-300;
+  }
+  .guide-link:focus-visible,
+  .topic-link:focus-visible,
+  .guide-article:focus-visible {
+    outline: 2px solid theme('colors.accent.400');
+    outline-offset: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(html:has(.guide-group)) {
+      scroll-behavior: auto;
+    }
+  }
+</style>

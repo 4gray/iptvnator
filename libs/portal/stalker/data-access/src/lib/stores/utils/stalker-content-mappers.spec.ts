@@ -1,5 +1,8 @@
 import { StalkerItvChannel } from '../../models';
-import { filterItvChannelsByGenre } from './stalker-content-mappers';
+import {
+    filterItvChannelsByGenre,
+    toStalkerItvChannel,
+} from './stalker-content-mappers';
 
 describe('filterItvChannelsByGenre', () => {
     const CHANNELS: StalkerItvChannel[] = [
@@ -28,5 +31,24 @@ describe('filterItvChannelsByGenre', () => {
 
     it('hides channels without a genre from specific categories', () => {
         expect(filterItvChannelsByGenre(CHANNELS, '404')).toEqual([]);
+    });
+});
+
+describe('toStalkerItvChannel', () => {
+    it('keeps a provided id', () => {
+        expect(toStalkerItvChannel({ id: 7, cmd: 'x' }).id).toBe(7);
+    });
+
+    it('does not let a blank id shadow the stream_id', () => {
+        expect(
+            toStalkerItvChannel({ id: '', stream_id: 30, cmd: 'x' }).id
+        ).toBe(30);
+        expect(
+            toStalkerItvChannel({ id: '  ', stream_id: '31', cmd: 'x' }).id
+        ).toBe('31');
+    });
+
+    it('falls back to an empty id when neither is set', () => {
+        expect(toStalkerItvChannel({ cmd: 'x' }).id).toBe('');
     });
 });

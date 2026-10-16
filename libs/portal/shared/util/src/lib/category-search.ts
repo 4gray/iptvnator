@@ -56,7 +56,12 @@ export function categorySearchTerms(query: string): string[] {
 
 export function serializeCategorySearch(terms: readonly string[]): string {
     return terms
-        .map((term) => (/[\s,]/.test(term) ? `"${term}"` : term))
+        .map((term) => {
+            const excluded = term.startsWith('-');
+            const value = excluded ? term.slice(1) : term;
+            const serialized = /[\s,]/.test(value) ? `"${value}"` : value;
+            return `${excluded ? '-' : ''}${serialized}`;
+        })
         .join(' ');
 }
 

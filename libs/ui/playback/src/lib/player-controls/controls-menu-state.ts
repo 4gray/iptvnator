@@ -1,18 +1,15 @@
 import { computed, signal } from '@angular/core';
+import {
+    anySettingsGroupAvailable,
+    getSettingsGroupAvailability,
+    type SettingsGroup,
+} from './controls-settings-groups';
 import type {
     PlayerControlsCapabilities,
     PlayerControlsState,
 } from './player-controls.model';
 
-const CONTROL_MENUS = [
-    'volume',
-    'audio',
-    'subtitle',
-    'quality',
-    'speed',
-    'aspect',
-    'stats',
-] as const;
+const CONTROL_MENUS = ['volume', 'settings', 'stats'] as const;
 
 export type ControlsMenu = (typeof CONTROL_MENUS)[number];
 export type ControlsMenuAvailability = Readonly<Record<ControlsMenu, boolean>>;
@@ -24,49 +21,30 @@ function getControlsMenuAvailability(
 ): ControlsMenuAvailability {
     return {
         volume: showControls && capabilities.volume,
-        audio:
+        settings:
             showControls &&
-            capabilities.audioTracks &&
-            state.audioTracks.length > 1,
-        // External subtitle loading keeps the menu reachable with an empty
-        // track list — the "Load subtitle file…" action is how the first
-        // track appears.
-        subtitle:
-            showControls &&
-            ((capabilities.subtitles && state.subtitleTracks.length > 0) ||
-                capabilities.externalSubtitles),
-        quality:
-            showControls &&
-            capabilities.qualityLevels &&
-            state.qualityLevels.length > 1,
-        speed: showControls && capabilities.playbackSpeed,
-        aspect: showControls && capabilities.aspectRatio,
+            anySettingsGroupAvailable(
+                getSettingsGroupAvailability(capabilities, state)
+            ),
         stats: showControls && capabilities.streamStats,
     };
 }
 
 /**
  * Tracks which menu/popover is currently open and exposes individual signals
- * the template binds to. Only one menu can be open at a time.
+ * the template binds to. Only one menu can be open at a time. The settings
+ * panel is one menu: every track, quality, speed and aspect choice lives
+ * inside it, and `settingsFocus` names the group it was opened for (a chip
+ * click), so the panel can bring that group into view.
  */
 export class ControlsMenuState {
     readonly volumeOpen = signal(false);
-    readonly audioOpen = signal(false);
-    readonly subtitleOpen = signal(false);
-    readonly qualityOpen = signal(false);
-    readonly speedOpen = signal(false);
-    readonly aspectOpen = signal(false);
+    readonly settingsOpen = signal(false);
     readonly statsOpen = signal(false);
+    readonly settingsFocus = signal<SettingsGroup | null>(null);
 
     readonly anyOpen = computed(
-        () =>
-            this.volumeOpen() ||
-            this.audioOpen() ||
-            this.subtitleOpen() ||
-            this.qualityOpen() ||
-            this.speedOpen() ||
-            this.aspectOpen() ||
-            this.statsOpen()
+        () => this.volumeOpen() || this.settingsOpen() || this.statsOpen()
     );
 
     toggle(menu: ControlsMenu): void {
@@ -84,18 +62,24 @@ export class ControlsMenuState {
         this.signalFor(menu).set(true);
     }
 
+    /** Opens the settings panel on one group (or wherever it was). */
+    openSettings(group: SettingsGroup | null = null): void {
+        this.open('settings');
+        this.settingsFocus.set(group);
+    }
+
     close(menu: ControlsMenu): void {
         this.signalFor(menu).set(false);
+        if (menu === 'settings') {
+            this.settingsFocus.set(null);
+        }
     }
 
     closeAll(): void {
         this.volumeOpen.set(false);
-        this.audioOpen.set(false);
-        this.subtitleOpen.set(false);
-        this.qualityOpen.set(false);
-        this.speedOpen.set(false);
-        this.aspectOpen.set(false);
+        this.settingsOpen.set(false);
         this.statsOpen.set(false);
+        this.settingsFocus.set(null);
     }
 
     reconcile(availability: ControlsMenuAvailability): boolean {
@@ -103,7 +87,7 @@ export class ControlsMenuState {
         for (const menu of CONTROL_MENUS) {
             const open = this.signalFor(menu);
             if (open() && !availability[menu]) {
-                open.set(false);
+                this.close(menu);
                 changed = true;
             }
         }
@@ -124,16 +108,8 @@ export class ControlsMenuState {
         switch (menu) {
             case 'volume':
                 return this.volumeOpen;
-            case 'audio':
-                return this.audioOpen;
-            case 'subtitle':
-                return this.subtitleOpen;
-            case 'quality':
-                return this.qualityOpen;
-            case 'speed':
-                return this.speedOpen;
-            case 'aspect':
-                return this.aspectOpen;
+            case 'settings':
+                return this.settingsOpen;
             case 'stats':
                 return this.statsOpen;
         }

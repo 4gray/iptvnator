@@ -1,6 +1,8 @@
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
+import type { PortalRequestFailureEnvelope } from './portal-request-failure.util';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
+import type { ZoomLevelAction } from './zoom-level.util';
 import type {
     CatchupDownloadMetadata,
     DownloadRecoveryResult,
@@ -17,7 +19,10 @@ import { ContentMetadataPatch } from './content-metadata.interface';
 import { DownloadMetadataSnapshot } from './download-metadata.interface';
 import { EpgChannelMetadata } from './epg-channel-metadata.model';
 import { EpgProgram } from './epg-program.model';
-import { ExternalPlayerSession } from './external-player-session.interface';
+import {
+    ExternalPlayerErrorCode,
+    ExternalPlayerSession,
+} from './external-player-session.interface';
 import {
     GlobalSearchPaginationOptions,
     GlobalSearchResult,
@@ -220,6 +225,13 @@ export interface ElectronBridgeWindowState {
 }
 
 /**
+ * The window event behind a Back request: `app-command` (`browser-backward`,
+ * Windows and Linux: mouse Back buttons and the keyboard Browser Back key)
+ * or `swipe` (macOS trackpad swipe).
+ */
+export type ElectronBridgeBackGestureSource = 'app-command' | 'swipe';
+
+/**
  * Portal credentials for an auth-gated stream, passed alongside the scoped
  * header override. The main process attaches them only to requests going to
  * the exact origin of the override's `scopeUrl`, keeps them in memory only,
@@ -268,6 +280,14 @@ export interface ElectronBridgeAppUpdateStatus {
     manualDownloadUrl: string;
     /** Channel the updater checks (`Settings.updateChannel`, mirrored). */
     channel: AppUpdateChannel;
+    /**
+     * Channel the current verdict — `latestVersion`, `release`, a download
+     * in flight or finished — was produced on. Absent until the first
+     * check. Differs from `channel` after a channel change saved while a
+     * download was running or done: the download is kept, the new channel
+     * has not been checked yet.
+     */
+    verdictChannel?: AppUpdateChannel;
     /** Channel the running build came from, read off its version string. */
     installedChannel: AppUpdateChannel;
 }
@@ -329,6 +349,17 @@ export interface ElectronBridgeXtreamResponse {
     payload: unknown;
     action: string;
 }
+
+/**
+ * What `xtreamRequest` resolves with: the provider answer, or — for a
+ * cancelled request and an HTTP 401/403 — a `portalRequestFailure` envelope
+ * carrying neither `payload` nor `action`. Resolved instead of rejected so
+ * Electron does not log the handler as failed; `ElectronService` narrows it
+ * with `isPortalRequestFailureEnvelope` and rethrows
+ * (`portal-request-failure.util.ts`).
+ */
+export type ElectronBridgeXtreamResult =
+    ElectronBridgeXtreamResponse | PortalRequestFailureEnvelope;
 
 export interface ElectronBridgeXtreamCancelResult extends ElectronBridgeResult {
     cancelled: number;
@@ -488,6 +519,8 @@ export interface ElectronBridgeCategoryRow {
     type: 'movies' | 'live' | 'series';
     xtream_id: number;
     hidden: boolean;
+    /** Parental lock index, stamped from the renderer's lock store. */
+    locked: boolean;
 }
 
 export interface ElectronBridgeXtreamContent {
@@ -538,7 +571,21 @@ export interface ElectronBridgeGlobalRecentItem extends ElectronBridgeXtreamCont
     viewed_at: string;
 }
 
-export interface ElectronBridgeGlobalFavoriteItem extends ElectronBridgeXtreamContent {
+export interface ElectronBridgeXtreamFavorite extends Omit<
+    ElectronBridgeXtreamContent,
+    'id' | 'category_id'
+> {
+    id: number | null;
+    category_id: number | null;
+    favorite_id?: number;
+    catalog_status?: import('./xtream-favorite.interface').XtreamFavoriteCatalogStatus;
+    catalog_missing_reason?: 'absent' | 'identity_conflict' | null;
+    tmdb_id?: number | null;
+    release_year?: number | null;
+    original_title?: string | null;
+}
+
+export interface ElectronBridgeGlobalFavoriteItem extends ElectronBridgeXtreamFavorite {
     playlist_id: string;
     playlist_name: string;
     added_at: string;
@@ -551,7 +598,8 @@ export interface ElectronBridgeGlobalRecentlyAddedItem extends ElectronBridgeXtr
 }
 
 export interface ElectronBridgeFavoriteReorderUpdate {
-    content_id: number;
+    content_id?: number;
+    favorite_id?: number;
     /** Favorites are playlist-scoped — scope the position write per playlist */
     playlist_id: string;
     position: number;
@@ -580,10 +628,13 @@ export interface ElectronBridgeRemoteControlStatus {
     muted?: boolean;
 }
 
+/** Payload of the main process `player-error` event. */
 export interface ElectronBridgePlayerError {
-    player: string;
+    player: 'MPV' | 'VLC';
+    /** Null when no code describes the output; see `error`. */
+    code: ExternalPlayerErrorCode | null;
+    /** Raw player output, for logs and the unknown-error message. */
     error: string;
-    originalError: string;
 }
 
 export interface ElectronBridgePlaybackPositionInput extends Omit<
@@ -718,9 +769,30 @@ export interface ElectronBridgeApi {
      */
     toggleFullScreenWindow: () => Promise<ElectronBridgeWindowState>;
     closeWindow: () => Promise<void>;
+    /**
+     * Zoom shortcuts (Cmd/Ctrl and +/−/0). Synchronous and preload-local:
+     * steps the FRAME-BOUND temporary zoom level through `webFrame` (never a
+     * main-process `webContents.setZoomLevel`, whose per-URL entry the app's
+     * `file://` path routing resets — issue #1109) by `stepZoomLevel`'s
+     * rules — one `ZOOM_LEVEL_STEP` inside `ZOOM_LEVEL_MIN..ZOOM_LEVEL_MAX`,
+     * a stored level already outside them never moved against the request —
+     * and returns the level now applied, which is therefore not itself
+     * guaranteed to be within the limits. Persistence needs nothing from the
+     * caller: the main process reads the live level back on close, quit and
+     * reload.
+     */
+    adjustZoomLevel: (action: ZoomLevelAction) => number;
     getWindowState: () => Promise<ElectronBridgeWindowState>;
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void
+    ) => () => void;
+    /**
+     * Platform Back gestures the window receives, forwarded from the main
+     * process. Subscribe-only: the renderer runs the workspace Back (or
+     * ignores the request) and sends nothing back. Returns the unsubscribe.
+     */
+    onWindowBackRequested: (
+        callback: (source: ElectronBridgeBackGestureSource) => void
     ) => () => void;
     /**
      * While active, the main process intercepts window close / app quit and
@@ -751,6 +823,14 @@ export interface ElectronBridgeApi {
      * leave the display pinned awake.
      */
     setPlaybackKeepAwake: (active: boolean) => Promise<void>;
+    /**
+     * Parental lock enforcement for the SQLite worker: `true` withholds
+     * every row in a locked category from content reads, `false` returns
+     * them. Reset to the mirrored `parentalLockEnabled` setting when the
+     * renderer reloads or dies, so a crashed page can never leave the
+     * library unlocked.
+     */
+    setParentalLockState: (active: boolean) => Promise<void>;
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
@@ -880,9 +960,13 @@ export interface ElectronBridgeApi {
     getAiSettings: () => Promise<ElectronBridgeAiSettings>;
     setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
     setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
+    /**
+     * The portal's JSON, the `{ stalkerAuthFailure }` marker, or a
+     * `PortalRequestFailureEnvelope` (cancelled request, HTTP 401/403).
+     */
     stalkerRequest: (
         payload: ElectronBridgeStalkerRequestPayload
-    ) => Promise<Record<string, unknown>>;
+    ) => Promise<Record<string, unknown> | PortalRequestFailureEnvelope>;
     /**
      * Forgets the connection failures recorded for the host `url` points at, so
      * the next request contacts it for real instead of being fast-failed.
@@ -890,7 +974,7 @@ export interface ElectronBridgeApi {
     resetHostConnectivityGuard: (url: string) => Promise<ElectronBridgeResult>;
     xtreamRequest: (
         payload: ElectronBridgeXtreamRequestPayload
-    ) => Promise<ElectronBridgeXtreamResponse>;
+    ) => Promise<ElectronBridgeXtreamResult>;
     xtreamCancelSession: (
         sessionId: string
     ) => Promise<ElectronBridgeXtreamCancelResult>;
@@ -979,6 +1063,11 @@ export interface ElectronBridgeApi {
         recentlyViewed: XtreamBackupRecentlyViewedItem[];
         hiddenCategories: XtreamBackupHiddenCategory[];
     }>;
+    dbRestoreXtreamFavorites: (
+        playlistId: string,
+        favorites: XtreamBackupFavoriteItem[],
+        restoreId?: string
+    ) => Promise<ElectronBridgeResult>;
     dbRestoreXtreamUserData: (
         playlistId: string,
         favorites: XtreamBackupFavoriteItem[],
@@ -994,7 +1083,8 @@ export interface ElectronBridgeApi {
         playlistId: string,
         categories: XtreamCategory[],
         type: string,
-        hiddenCategoryXtreamIds?: number[]
+        hiddenCategoryXtreamIds?: number[],
+        lockedCategoryXtreamIds?: number[]
     ) => Promise<ElectronBridgeResult>;
     dbGetAllCategories: (
         playlistId: string,
@@ -1003,6 +1093,17 @@ export interface ElectronBridgeApi {
     dbUpdateCategoryVisibility: (
         categoryIds: number[],
         hidden: boolean
+    ) => Promise<ElectronBridgeResult>;
+    /**
+     * Re-stamps `categories.locked` for one playlist and type from the given
+     * provider category ids: rows in the list become locked, every other row
+     * of that playlist/type unlocked. Idempotent, so the renderer can replay
+     * its lock store after a refresh or a backup restore.
+     */
+    dbSetCategoryLocks: (
+        playlistId: string,
+        type: string,
+        lockedXtreamIds: number[]
     ) => Promise<ElectronBridgeResult>;
     dbHasContent: (playlistId: string, type: string) => Promise<boolean>;
     dbGetContent: (
@@ -1043,15 +1144,18 @@ export interface ElectronBridgeApi {
         contentId: number,
         playlistId: string,
         backdropUrl?: string
-    ) => Promise<ElectronBridgeResult>;
+    ) => Promise<ElectronBridgeErrorResult>;
     dbRemoveFavorite: (
-        contentId: number,
+        contentId: import('./xtream-favorite.interface').XtreamFavoriteRemovalRef,
         playlistId: string
     ) => Promise<ElectronBridgeResult>;
     dbIsFavorite: (contentId: number, playlistId: string) => Promise<boolean>;
+    dbGetFavoritesForBackup: (
+        playlistId: string
+    ) => Promise<ElectronBridgeXtreamFavorite[]>;
     dbGetFavorites: (
         playlistId: string
-    ) => Promise<ElectronBridgeXtreamContent[]>;
+    ) => Promise<ElectronBridgeXtreamFavorite[]>;
     dbGetGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
     dbGetAllGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
     dbReorderGlobalFavorites: (
@@ -1078,7 +1182,8 @@ export interface ElectronBridgeApi {
     dbGetContentByXtreamId: (
         xtreamId: number,
         playlistId: string,
-        contentType?: ElectronBridgePortalContentType
+        contentType?: ElectronBridgePortalContentType,
+        identity?: ContentMetadataPatch
     ) => Promise<ElectronBridgeXtreamContent | null>;
     dbSetContentMetadataIfMissing: (
         contentId: number,
@@ -1180,6 +1285,10 @@ export interface ElectronBridgeApi {
     dbGetAllPlaybackPositions: (
         playlistId: string
     ) => Promise<PlaybackPositionData[]>;
+    dbReplaceAllPlaybackPositions: (
+        playlistId: string,
+        items: ElectronBridgePlaybackPositionInput[]
+    ) => Promise<ElectronBridgeResult>;
     dbClearAllPlaybackPositions: (
         playlistId: string
     ) => Promise<ElectronBridgeResult>;

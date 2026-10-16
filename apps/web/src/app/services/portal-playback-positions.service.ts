@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import {
     PORTAL_PLAYBACK_POSITIONS,
     PortalPlaybackPositions,
-} from '@iptvnator/portal/shared/util';
+} from '@iptvnator/portal/shared/util/tokens';
 import {
     PlaybackPositionRuntimeBridgeService,
     RuntimeCapabilitiesService,

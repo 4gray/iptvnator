@@ -1,9 +1,6 @@
 import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import {
-    DataService,
-    resetHostConnectivityGuard,
-} from '@iptvnator/services';
+import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { StalkerItvChannel } from './models';
 import {
@@ -57,7 +54,11 @@ export class StalkerItvCacheService {
     private readonly versionSignals = new Map<string, WritableSignal<number>>();
 
     private readonly channelsByKey = new Map<string, StalkerItvChannel[]>();
-    private readonly unsupportedKeys = new Set<string>();
+    /**
+     * Portals whose full list cannot be served (legacy paged flow stays in
+     * charge). A signal so consumers can wait on "ready OR unsupported".
+     */
+    private readonly unsupportedKeys = signal<ReadonlySet<string>>(new Set());
     private readonly inflight = new Map<string, Promise<void>>();
     /** Wall-clock (ms) until which a portal's crawl error suppresses retries. */
     private readonly errorCooldownUntil = new Map<string, number>();
@@ -83,6 +84,12 @@ export class StalkerItvCacheService {
         return key !== null && this.loadingKeys().has(key);
     }
 
+    /** Reactive: the portal answered but cannot provide a full list this session. */
+    isUnsupported(playlist: PlaylistMeta | undefined): boolean {
+        const key = this.keyFor(playlist);
+        return key !== null && this.unsupportedKeys().has(key);
+    }
+
     progressOf(
         playlist: PlaylistMeta | undefined
     ): StalkerItvLoadProgress | null {
@@ -99,7 +106,9 @@ export class StalkerItvCacheService {
      * per-portal dependency via {@link versionFor}; boolean readiness for UI
      * stays on the reactive {@link isReady}.
      */
-    getChannels(playlist: PlaylistMeta | undefined): StalkerItvChannel[] | null {
+    getChannels(
+        playlist: PlaylistMeta | undefined
+    ): StalkerItvChannel[] | null {
         const key = this.keyFor(playlist);
         return key === null ? null : (this.channelsByKey.get(key) ?? null);
     }
@@ -114,7 +123,7 @@ export class StalkerItvCacheService {
             key === null ||
             !playlist ||
             this.readyKeys().has(key) ||
-            this.unsupportedKeys.has(key) ||
+            this.unsupportedKeys().has(key) ||
             this.isInErrorCooldown(key)
         ) {
             return;
@@ -143,7 +152,7 @@ export class StalkerItvCacheService {
             playlist.portalUrl
         );
 
-        this.unsupportedKeys.delete(key);
+        this.patchKeySet(this.unsupportedKeys, key, false);
         this.errorCooldownUntil.delete(key);
         await this.runLoad(key, playlist);
     }
@@ -194,7 +203,7 @@ export class StalkerItvCacheService {
                         Date.now() + ERROR_COOLDOWN_MS
                     );
                 } else if (!this.readyKeys().has(key)) {
-                    this.unsupportedKeys.add(key);
+                    this.patchKeySet(this.unsupportedKeys, key, true);
                 }
             } finally {
                 this.inflight.delete(key);

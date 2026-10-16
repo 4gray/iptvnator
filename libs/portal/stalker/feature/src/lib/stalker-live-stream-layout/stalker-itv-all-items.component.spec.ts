@@ -20,10 +20,7 @@ describe('StalkerItvAllItemsComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [
-                StalkerItvAllItemsComponent,
-                TranslateModule.forRoot(),
-            ],
+            imports: [StalkerItvAllItemsComponent, TranslateModule.forRoot()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(StalkerItvAllItemsComponent);

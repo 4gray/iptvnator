@@ -25,7 +25,7 @@ describe('EpgQueueService', () => {
 
     type ServicePrivates = {
         fetchEpg: (
-            credentials: typeof credentials,
+            portalCredentials: typeof credentials,
             streamId: number
         ) => Promise<void>;
         shouldFetch: (streamId: number) => boolean;

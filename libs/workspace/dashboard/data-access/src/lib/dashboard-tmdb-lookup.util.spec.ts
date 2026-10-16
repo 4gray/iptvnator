@@ -87,9 +87,7 @@ describe('buildDashboardTmdbAttempts', () => {
             ['an implausible year', { release_year: 12 }],
             ['a blank original title', { original_title: '   ' }],
         ])('ignores %s', (_label, overrides) => {
-            const [attempt] = buildDashboardTmdbAttempts(
-                xtreamItem(overrides)
-            );
+            const [attempt] = buildDashboardTmdbAttempts(xtreamItem(overrides));
 
             expect(attempt.tmdbId).toBeUndefined();
             expect(attempt.year).toBeNull();

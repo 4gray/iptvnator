@@ -19,7 +19,6 @@
                     "base": "dist/apps/web",
                     "browser": ""
                 },
-                "polyfills": ["zone.js"],
                 "tsConfig": "apps/web/tsconfig.app.json",
                 "inlineStyleLanguage": "scss",
                 "serviceWorker": "ngsw-config.json",
@@ -57,8 +56,8 @@
                     "budgets": [
                         {
                             "type": "initial",
-                            "maximumWarning": "4.5mb",
-                            "maximumError": "5mb"
+                            "maximumWarning": "1.8mb",
+                            "maximumError": "2mb"
                         },
                         {
                             "type": "anyComponentStyle",
@@ -88,8 +87,8 @@
                     "budgets": [
                         {
                             "type": "initial",
-                            "maximumWarning": "4.5mb",
-                            "maximumError": "5mb"
+                            "maximumWarning": "1.8mb",
+                            "maximumError": "2mb"
                         },
                         {
                             "type": "anyComponentStyle",
@@ -120,7 +119,13 @@
                     "serviceWorker": false,
                     "optimization": false,
                     "extractLicenses": false,
-                    "sourceMap": true
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/store-devtools.providers.ts",
+                            "with": "apps/web/src/environments/store-devtools.providers.dev.ts"
+                        }
+                    ]
                 },
                 "electron-performance": {
                     "baseHref": "./",
@@ -139,7 +144,7 @@
                     "fileReplacements": [
                         {
                             "replace": "apps/web/src/environments/environment.ts",
-                            "with": "apps/web/src/environments/environment.prod.ts"
+                            "with": "apps/web/src/environments/environment.performance.ts"
                         }
                     ]
                 },
@@ -148,7 +153,13 @@
                     "serviceWorker": false,
                     "optimization": false,
                     "extractLicenses": false,
-                    "sourceMap": true
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/store-devtools.providers.ts",
+                            "with": "apps/web/src/environments/store-devtools.providers.dev.ts"
+                        }
+                    ]
                 }
             },
             "defaultConfiguration": "production"

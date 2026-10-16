@@ -1,11 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
+import type { XtreamContentItem } from './xtream-data-source.interface';
 import {
     XtreamApiService,
     XtreamCredentials,
 } from '../services/xtream-api.service';
-import { PlaylistsService } from '@iptvnator/services';
+import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
 
 describe('PwaXtreamDataSource', () => {
@@ -16,6 +17,11 @@ describe('PwaXtreamDataSource', () => {
     let playlistsService: {
         getPlaylistById: jest.Mock;
         transformPlaylistMeta: jest.Mock;
+    };
+    let parentalLock: {
+        active: jest.Mock<boolean, []>;
+        lockedXtreamIds: jest.Mock<number[], [string, string]>;
+        withholdsEverything: jest.Mock<boolean, []>;
     };
 
     const credentials: XtreamCredentials = {
@@ -34,10 +40,18 @@ describe('PwaXtreamDataSource', () => {
             getPlaylistById: jest.fn(() => of(undefined)),
             transformPlaylistMeta: jest.fn(() => of(null)),
         };
+        parentalLock = {
+            active: jest.fn(() => false),
+            lockedXtreamIds: jest.fn(
+                (_playlistId: string, _type: string): number[] => []
+            ),
+            withholdsEverything: jest.fn(() => false),
+        };
 
         TestBed.configureTestingModule({
             providers: [
                 PwaXtreamDataSource,
+                { provide: ParentalLockService, useValue: parentalLock },
                 {
                     provide: XtreamApiService,
                     useValue: apiService,
@@ -54,6 +68,135 @@ describe('PwaXtreamDataSource', () => {
 
     afterEach(() => {
         localStorage.clear();
+    });
+
+    it('reuses requested catalog rows across favorite status checks and invalidates after refresh', async () => {
+        const rows = Array.from({ length: 1000 }, (_, i) => ({
+            id: i + 1,
+            xtream_id: i + 1,
+            type: 'movie',
+            title: 'Film',
+            tmdb_id: i + 1,
+        })) as XtreamContentItem[];
+        await dataSource.saveContent('p', rows, 'movie');
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({
+                p: Array.from({ length: 50 }, (_, i) => `movie:${i + 1}`),
+            })
+        );
+        const cache = (
+            dataSource as unknown as {
+                contentCache: Map<string, XtreamContentItem[]>;
+            }
+        ).contentCache;
+        const catalog = cache.get('p-movie-content');
+        if (!catalog) throw new Error('Expected loaded movie catalog');
+        let catalogRowsRead = 0;
+        cache.set(
+            'p-movie-content',
+            new Proxy(catalog, {
+                get(target, key, receiver) {
+                    if (typeof key === 'string' && /^\d+$/.test(key))
+                        catalogRowsRead++;
+                    return Reflect.get(target, key, receiver);
+                },
+            })
+        );
+        await dataSource.getFavorites('p');
+        const statuses = await Promise.all(
+            Array.from({ length: 50 }, (_, i) =>
+                dataSource.isFavorite(
+                    { id: i + 1, type: 'movie', identity: { tmdbId: i + 1 } },
+                    'p'
+                )
+            )
+        );
+        expect(statuses.every(Boolean)).toBe(true);
+        // Catalog work is bounded by the load, rather than repeated for each heart.
+        expect(catalogRowsRead).toBeLessThanOrEqual(rows.length);
+        await dataSource.saveContent(
+            'p',
+            [{ ...rows[0], tmdb_id: 2000 }],
+            'movie'
+        );
+        expect(
+            await dataSource.isFavorite(
+                { id: 1, type: 'movie', identity: { tmdbId: 1 } },
+                'p'
+            )
+        ).toBe(false);
+    });
+
+    it('withholds locked categories from catalog reads and search while the lock is active', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 1, name: 'Family film', category_id: '5' },
+            { stream_id: 2, name: 'Family after dark', category_id: '9' },
+        ]);
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedXtreamIds.mockImplementation((_id, type) =>
+            type === 'movies' ? [9] : []
+        );
+
+        const content = await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie'
+        );
+        const found = await dataSource.searchContent('playlist-1', 'family', [
+            'movie',
+        ]);
+
+        expect(content.map((item) => item.name)).toEqual(['Family film']);
+        expect(found.map((item) => item.name)).toEqual(['Family film']);
+
+        parentalLock.active.mockReturnValue(false);
+        const unlocked = await dataSource.searchContent(
+            'playlist-1',
+            'family',
+            ['movie']
+        );
+        expect(unlocked).toHaveLength(2);
+    });
+
+    it('matches a noncanonical provider category id against its numeric lock', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 1, name: 'Family film', category_id: '5' },
+            { stream_id: 2, name: 'Family after dark', category_id: '009' },
+        ]);
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedXtreamIds.mockImplementation((_id, type) =>
+            type === 'movies' ? [9] : []
+        );
+
+        const content = await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie'
+        );
+
+        expect(content.map((item) => item.name)).toEqual(['Family film']);
+    });
+
+    it('withholds everything while the lock store cannot be read', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 1, name: 'Family film', category_id: '5' },
+        ]);
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.withholdsEverything = jest.fn(() => true);
+
+        const content = await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie'
+        );
+        const found = await dataSource.searchContent('playlist-1', 'family', [
+            'movie',
+        ]);
+
+        expect(content).toEqual([]);
+        expect(found).toEqual([]);
+        expect(parentalLock.lockedXtreamIds).not.toHaveBeenCalled();
     });
 
     it('reports remote loading phases for API fetches but stays silent on cache hits', async () => {
@@ -281,17 +424,17 @@ describe('PwaXtreamDataSource', () => {
             'playlist-1',
             credentials,
             'live'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
         const vod = (await dataSource.getContent(
             'playlist-1',
             credentials,
             'movie'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
         const series = (await dataSource.getContent(
             'playlist-1',
             credentials,
             'series'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
 
         expect(live[0]).toEqual(
             expect.objectContaining({
@@ -362,6 +505,9 @@ describe('PwaXtreamDataSource', () => {
         );
 
         await dataSource.getContent('playlist-1', credentials, 'movie');
+        apiService.getStreams.mockResolvedValue([]);
+        await dataSource.getContent('playlist-1', credentials, 'live');
+        await dataSource.getContent('playlist-1', credentials, 'series');
 
         await expect(dataSource.isFavorite(202, 'playlist-1')).resolves.toBe(
             true
@@ -399,7 +545,7 @@ describe('PwaXtreamDataSource', () => {
             'playlist-1',
             credentials,
             'movie'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
 
         expect(content).toEqual([
             expect.objectContaining({
@@ -524,7 +670,7 @@ describe('PwaXtreamDataSource', () => {
             'playlist-1',
             credentials,
             'movie'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
 
         expect(content[0]).toEqual(
             expect.objectContaining({
@@ -533,8 +679,14 @@ describe('PwaXtreamDataSource', () => {
             })
         );
 
-        await dataSource.addFavorite(Number(content[0].id), 'playlist-1');
-        await dataSource.addRecentItem(Number(content[0].id), 'playlist-1');
+        await dataSource.addFavorite(
+            { id: Number(content[0].id), type: 'movie' },
+            'playlist-1'
+        );
+        await dataSource.addRecentItem(
+            { id: Number(content[0].id), type: 'movie' },
+            'playlist-1'
+        );
 
         await expect(dataSource.getFavorites('playlist-1')).resolves.toEqual([
             expect.objectContaining({
@@ -552,6 +704,34 @@ describe('PwaXtreamDataSource', () => {
         ]);
     });
 
+    it('keeps concurrent Recent additions when the writer loads on demand', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 201, name: 'First movie', category_id: '20' },
+            { stream_id: 202, name: 'Second movie', category_id: '20' },
+        ]);
+        await dataSource.getContent('playlist-1', credentials, 'movie');
+
+        await Promise.all([
+            dataSource.addRecentItem({ id: 201, type: 'movie' }, 'playlist-1'),
+            dataSource.addRecentItem({ id: 202, type: 'movie' }, 'playlist-1'),
+        ]);
+
+        const recent = await dataSource.getRecentItems('playlist-1');
+        expect(recent).toHaveLength(2);
+        expect(recent).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    xtream_id: 201,
+                    title: 'First movie',
+                }),
+                expect.objectContaining({
+                    xtream_id: 202,
+                    title: 'Second movie',
+                }),
+            ])
+        );
+    });
+
     it('backfills PWA recent-item backdrop metadata without rewriting recency', async () => {
         apiService.getStreams.mockResolvedValue([
             {
@@ -563,24 +743,31 @@ describe('PwaXtreamDataSource', () => {
         ]);
 
         await dataSource.getContent('playlist-1', credentials, 'movie');
-        await dataSource.addRecentItem(202, 'playlist-1');
+        await dataSource.addRecentItem(
+            { id: 202, type: 'movie' },
+            'playlist-1'
+        );
         const before = JSON.parse(
             localStorage.getItem('xtream-recent-items') || '{}'
         )['playlist-1'][0].viewedAt;
 
-        await dataSource.setContentMetadataIfMissing(202, 'playlist-1', {
-            backdropUrl: ' https://example.com/backdrop.png ',
-        });
+        await dataSource.setContentMetadataIfMissing(
+            { id: 202, type: 'movie' },
+            'playlist-1',
+            {
+                backdropUrl: ' https://example.com/backdrop.png ',
+            }
+        );
 
         const stored = JSON.parse(
             localStorage.getItem('xtream-recent-items') || '{}'
         )['playlist-1'][0];
         const storedSnapshot = JSON.parse(
             localStorage.getItem('xtream-collection-items') || '{}'
-        )['playlist-1']['202'];
+        )['playlist-1']['movie:202'];
         expect(stored).toEqual(
             expect.objectContaining({
-                id: 202,
+                id: 'movie:202',
                 backdropUrl: 'https://example.com/backdrop.png',
                 viewedAt: before,
             })
@@ -620,9 +807,9 @@ describe('PwaXtreamDataSource', () => {
         ]);
 
         await dataSource.getContent('playlist-1', credentials, 'movie');
-        await dataSource.addFavorite(202, 'playlist-1');
+        await dataSource.addFavorite({ id: 202, type: 'movie' }, 'playlist-1');
         await dataSource.addRecentItem(
-            202,
+            { id: 202, type: 'movie' },
             'playlist-1',
             'https://example.com/backdrop.png'
         );
@@ -630,7 +817,7 @@ describe('PwaXtreamDataSource', () => {
         const storedCollectionItems = JSON.parse(
             localStorage.getItem('xtream-collection-items') || '{}'
         );
-        expect(storedCollectionItems['playlist-1']['202']).toEqual(
+        expect(storedCollectionItems['playlist-1']['movie:202']).toEqual(
             expect.objectContaining({
                 title: 'Movie One',
                 xtream_id: 202,
@@ -684,6 +871,43 @@ describe('PwaXtreamDataSource', () => {
             durationSeconds: 5400,
             playlistId: 'playlist-1',
             ...overrides,
+        });
+
+        it('retains concurrent single and batch saves across playlists', async () => {
+            await Promise.all([
+                dataSource.savePlaybackPosition('playlist-1', position()),
+                dataSource.savePlaybackPositionsBatch('playlist-1', [
+                    position({
+                        contentXtreamId: 101,
+                        contentType: 'episode',
+                        seriesXtreamId: 9,
+                    }),
+                ]),
+                dataSource.savePlaybackPosition(
+                    'playlist-2',
+                    position({ playlistId: 'playlist-2' })
+                ),
+            ]);
+
+            expect(
+                await dataSource.getAllPlaybackPositions('playlist-1')
+            ).toHaveLength(2);
+            expect(
+                await dataSource.getAllPlaybackPositions('playlist-2')
+            ).toHaveLength(1);
+            expect(
+                await dataSource.getSeriesPlaybackPositions('playlist-1', 9)
+            ).toEqual([expect.objectContaining({ contentXtreamId: 101 })]);
+            await dataSource.clearPlaybackPosition('playlist-1', 100, 'vod');
+            expect(
+                await dataSource.getPlaybackPosition('playlist-1', 100, 'vod')
+            ).toBeNull();
+            expect(
+                await dataSource.getRecentPlaybackPositions('playlist-1', 1)
+            ).toEqual([expect.objectContaining({ contentXtreamId: 101 })]);
+            expect(
+                await dataSource.getPlaybackPosition('playlist-2', 100, 'vod')
+            ).not.toBeNull();
         });
 
         it('writes a playback-position batch save as one storage write with upsert semantics', async () => {

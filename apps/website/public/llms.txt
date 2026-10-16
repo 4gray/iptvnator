@@ -6,6 +6,7 @@
 
 - Website: https://4gray.github.io/iptvnator/
 - Blog: https://4gray.github.io/iptvnator/blog/
+- Guides by task: https://4gray.github.io/iptvnator/guides/
 - Latest Release: https://github.com/4gray/iptvnator/releases/latest
 - Downloads overview: https://4gray.github.io/iptvnator/download/
 - Download for Windows: https://4gray.github.io/iptvnator/download/windows/

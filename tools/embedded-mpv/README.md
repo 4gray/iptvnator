@@ -84,6 +84,8 @@ pnpm embedded-mpv:stage-runtime -- linux x64 /tmp/linux-prefix
 
 ### Windows CI pin lifecycle
 
+The PAT-backed refresh job must pin every third-party action to a full commit.
+
 Windows package builds consume the one validated record in
 `windows-runtime-pin.json`; URL and checksum repository variables are not build
 inputs. Check it locally with:
@@ -100,6 +102,18 @@ updater:
 ```bash
 pnpm embedded-mpv:windows-runtime-pin:refresh -- --force
 ```
+
+That workflow validates its own result with
+`windows-runtime-pin.test.mjs`, so nothing in those refresh tests may read the
+CHECKED-IN pin's `publishedAt`. Building a fixture from it makes the outcome a
+function of the very data the job replaces, and the assertion then fails
+exactly when the job succeeds: a rotation asserted that the pin it had just
+written was already past the 14-day threshold, the validation step went red,
+the bot PR was never opened, and the pin sat until upstream retention deleted
+its asset — turning every Windows build red on a cold cache. Refresh tests
+build their own pin at a chosen age (`createPinFixture({ ageDays })`);
+`CURRENT_PIN` is for the schema, naming and licence-statement checks, which
+hold for any pin.
 
 The upstream archive is checksum- and layout-verified, not independently
 certified as a complete LGPL closure. It contains no corresponding source or
@@ -383,8 +397,11 @@ CI. This affects only Chromium's software-renderer admission; the manifest,
 hash, loader, and helper probes still fail closed, and `--no-sandbox` remains
 root-only.
 
-Snap publication is a separate `release.published` workflow for public `v*`
-GitHub releases. It verifies that the public release already contains at least
+Snap publication is a separate `release.published` workflow for public stable
+GitHub releases, with a `workflow_dispatch` retry from `master` for an existing
+public stable tag. Both paths resolve the release through the API before
+checking out its tag; draft, prerelease and mismatched event IDs are rejected.
+It verifies that the public release already contains at least
 one Snap and exactly one non-empty
 `linux-frame-copy-runtime-sources.tar.xz` before uploading anything. The
 release verifier hashes the downloaded archive, checks its clean released
@@ -416,7 +433,12 @@ The dependent publish job runs on a bounded GitHub-hosted `ubuntu-latest`
 runner with no checkout or release-tag code. It verifies that separate digest,
 the exact receipt schema, every asset size/hash, and the expected regular-file
 layout, rejects links and extras, root-seals the transferred data again, and
-installs the official stable Snapcraft snap. Only its final fixed shell step
+installs the official stable Snapcraft snap. Snapcraft creates temporary
+metadata-extraction siblings beside its input, so the publisher creates
+root-owned read-only hard links in a separate root-owned sticky directory.
+The uploader can create temporary siblings but cannot modify or replace those
+inputs; the original sealed snapshot supplies the upload filename list.
+Only its final fixed shell step
 receives the Store credential; it executes no released code, resolves no PATH
 command, and passes the credential only to each exact
 `/snap/bin/snapcraft upload --release=edge` process. GitHub credentials remain

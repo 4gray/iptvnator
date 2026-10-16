@@ -9,11 +9,17 @@ import { BrowserWindow, ipcMain } from 'electron';
 import {
     WINDOW_CLOSE,
     WINDOW_GET_STATE,
+    WINDOW_GET_ZOOM_LEVEL,
     WINDOW_MINIMIZE,
+    WINDOW_ZOOM_LEVEL_APPLIED,
     WINDOW_TOGGLE_FULLSCREEN,
     WINDOW_TOGGLE_MAXIMIZE,
 } from '@iptvnator/shared/interfaces';
 import { toggleFullScreen } from '../services/native-fullscreen-transitions';
+import {
+    markZoomLevelApplied,
+    readPersistedZoomLevel,
+} from '../services/window-zoom-level';
 
 interface WindowState {
     isMaximized: boolean;
@@ -97,4 +103,19 @@ ipcMain.handle(WINDOW_CLOSE, (event) => {
 
 ipcMain.handle(WINDOW_GET_STATE, (event): WindowState => {
     return getWindowState(getSenderWindow(event));
+});
+
+// Answered synchronously (`returnValue`) so the preload has the level before
+// the document is parsed and can apply it at DOMContentLoaded, ahead of the
+// first Angular paint.
+ipcMain.on(WINDOW_GET_ZOOM_LEVEL, (event) => {
+    event.returnValue = readPersistedZoomLevel();
+});
+
+// The preload applied the level with webFrame.setZoomLevel: from here on the
+// sender's getZoomLevel() is the app's value and may be persisted. Ownership
+// waits for this acknowledgement rather than the request above, so a close
+// between the two cannot save Chromium's per-URL default over the user's level.
+ipcMain.on(WINDOW_ZOOM_LEVEL_APPLIED, (event) => {
+    markZoomLevelApplied(event.sender);
 });

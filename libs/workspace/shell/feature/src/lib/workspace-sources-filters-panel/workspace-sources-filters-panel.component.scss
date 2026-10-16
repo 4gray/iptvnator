@@ -1,4 +1,5 @@
-@use '../../nav-list.scss';
+@use '../../../../../../ui/styles/app-controls' as controls;
+@use '../../../../../../ui/styles/side-list';
 
 :host {
     display: flex;
@@ -7,7 +8,7 @@
     height: 100%;
 }
 
-.context-column {
+.side-list {
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -15,88 +16,73 @@
     overflow: hidden;
 }
 
-// ─── Header ───────────────────────────────────────────────────────────────────
-.context-header {
-    padding: 4px 6px 10px;
+.side-list__header {
+    @include side-list.header;
     flex-shrink: 0;
 }
 
-.context-header__top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-
-    h2 {
-        margin: 0;
-        font-size: 0.94rem;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--mat-sys-on-surface);
-    }
+.side-list__heading {
+    flex: 1;
+    min-width: 0;
 }
 
-.context-header p {
-    margin: 4px 0 0;
-    font-size: 0.78rem;
-    color: var(--mat-sys-on-surface-variant);
+.side-list__title {
+    @include side-list.title;
 }
 
-// ─── Divider ──────────────────────────────────────────────────────────────────
-.context-divider {
-    height: 1px;
-    background: var(--mat-sys-outline-variant);
-    margin: 0 0 6px;
-    opacity: 0.6;
-    flex-shrink: 0;
+.side-list__subtitle {
+    @include side-list.subtitle;
 }
 
-.panel-section {
+.side-list__action {
+    @include controls.ghost-icon-button(32px, 18px);
+    flex: none;
+}
+
+.side-list__groups {
     display: flex;
     flex-direction: column;
+    gap: 14px;
     min-height: 0;
-}
-
-.option-list {
     overflow-y: auto;
-    min-height: 0;
+    scrollbar-width: thin;
 }
 
-.option-row {
-    border-radius: 12px;
-    transition:
-        box-shadow 0.18s ease,
-        transform 0.18s ease;
-
-    .option-label,
-    .option-meta,
-    mat-icon {
-        transition: color 0.18s ease, opacity 0.18s ease;
-    }
-
-    &.selected {
-        box-shadow: 0 10px 20px -18px var(--app-selection-glow);
-        transform: translateY(-1px);
-
-        .option-label,
-        .option-meta,
-        mat-icon {
-            color: var(--app-selection-color) !important;
-        }
-
-        .option-meta {
-            opacity: 0.95;
-        }
-    }
+.side-list__group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
 }
 
-.panel-section-title {
-    margin: 0;
-    padding: 10px 10px 6px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--mat-sys-on-surface-variant);
-    opacity: 0.85;
+.side-list__label {
+    @include side-list.label;
+}
+
+.side-list__row {
+    @include side-list.row;
+}
+
+.side-list__row-label {
+    @include side-list.row-label;
+}
+
+.side-list__row-count {
+    @include side-list.row-count;
+}
+
+// The status rows lead with a dot in the colour the source rows use.
+.side-list__dot {
+    width: 8px;
+    height: 8px;
+    margin: 0 4px;
+    border-radius: 50%;
+    background: var(--app-muted-color);
+
+    &[data-state='ok'] {
+        background: var(--app-success-color);
+    }
+
+    &[data-state='bad'] {
+        background: var(--app-live-color);
+    }
 }

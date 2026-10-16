@@ -145,12 +145,22 @@ export interface Settings {
      */
     playerAmbientMode?: boolean;
     /**
+     * Play a title's trailer, muted, behind the movie or series details a
+     * few seconds after the page opens. Off by default.
+     */
+    detailTrailerBackdrop?: boolean;
+    /**
      * Dock the inline series player to the left and show an "Up Next"
      * episode rail in the leftover stage column on wide windows. On by
      * default (the rail only appears when there is genuinely unused space);
      * missing values mean enabled. Only affects the built-in web players.
      */
     playerUpNextRail?: boolean;
+    /**
+     * Show the "Up next" card in the shared player controls shortly before a
+     * series episode ends. On by default; missing values mean enabled.
+     */
+    playerUpNextCard?: boolean;
     /**
      * Slide the live channel list over the video in fullscreen — resting the
      * mouse on the left edge, tapping that edge on touch, or pressing `C` —
@@ -297,4 +307,36 @@ export interface Settings {
      * Disabled by default because enrichment sends content titles to TMDB.
      */
     tmdb?: TmdbSettings;
+    /**
+     * Parental lock: locked categories disappear from the whole app until
+     * the PIN is entered. Off by default; may only be on while a PIN exists
+     * (the hash lives outside `Settings`, see `parental-lock-pin.util.ts`).
+     * Mirrored into the main-process config so the SQLite worker filters
+     * before the renderer has announced its lock state.
+     */
+    parentalLockEnabled?: boolean;
+    /**
+     * Minutes without user interaction after which the app locks itself
+     * again; `0` keeps it unlocked until the next restart. Active playback
+     * counts as interaction. Default 15.
+     */
+    parentalLockRelockMinutes?: ParentalLockRelockMinutes;
+}
+
+export type ParentalLockRelockMinutes = 0 | 5 | 15 | 30 | 60;
+
+export const PARENTAL_LOCK_RELOCK_MINUTES_OPTIONS: readonly ParentalLockRelockMinutes[] =
+    [0, 5, 15, 30, 60];
+
+export const DEFAULT_PARENTAL_LOCK_RELOCK_MINUTES: ParentalLockRelockMinutes = 15;
+
+/** Collapses anything outside the offered choices to the default. */
+export function normalizeParentalLockRelockMinutes(
+    value: unknown
+): ParentalLockRelockMinutes {
+    return PARENTAL_LOCK_RELOCK_MINUTES_OPTIONS.includes(
+        value as ParentalLockRelockMinutes
+    )
+        ? (value as ParentalLockRelockMinutes)
+        : DEFAULT_PARENTAL_LOCK_RELOCK_MINUTES;
 }

@@ -1,4 +1,6 @@
 export * from './lib/dashboard-data.service';
+export * from './lib/dashboard-portal-live-epg.service';
+export * from './lib/dashboard-portal-live-epg.util';
 export * from './lib/dashboard-recommendations.service';
 export * from './lib/dashboard-recommendations.util';
 export * from './lib/dashboard-source-expiry.service';

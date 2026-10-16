@@ -9,6 +9,7 @@ import {
     type DownloadLibraryEntity,
     type DownloadLibraryRow,
 } from './download-library.viewmodel';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 export type {
     DownloadCatchupCardViewModel,
@@ -124,7 +125,7 @@ function matchesSearch(
     row: DownloadListItemViewModel,
     searchTerm: string
 ): boolean {
-    const query = searchTerm.trim().toLowerCase();
+    const query = foldSearchText(searchTerm.trim());
     return (
         query.length === 0 ||
         [
@@ -133,7 +134,7 @@ function matchesSearch(
             row.sourceName,
             row.episodeLabel,
             row.item.errorMessage ?? '',
-        ].some((value) => value.toLowerCase().includes(query))
+        ].some((value) => foldSearchText(value).includes(query))
     );
 }
 

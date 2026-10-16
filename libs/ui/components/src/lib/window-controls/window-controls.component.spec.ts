@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ElectronBridgeWindowState } from '@iptvnator/shared/interfaces';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { WindowControlsComponent } from './window-controls.component';
 
 describe('WindowControlsComponent', () => {
@@ -42,8 +43,21 @@ describe('WindowControlsComponent', () => {
         (window as { electron?: unknown }).electron = electronMock;
 
         await TestBed.configureTestingModule({
-            imports: [WindowControlsComponent],
+            imports: [WindowControlsComponent, TranslateModule.forRoot()],
         }).compileComponents();
+
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('de', {
+            WORKSPACE: {
+                SHELL: {
+                    WINDOW_MINIMIZE: 'Minimieren',
+                    WINDOW_MAXIMIZE: 'Maximieren',
+                    WINDOW_RESTORE: 'Wiederherstellen',
+                    WINDOW_CLOSE: 'Schließen',
+                },
+            },
+        });
+        translate.use('de');
 
         fixture = TestBed.createComponent(WindowControlsComponent);
         fixture.detectChanges();
@@ -60,6 +74,17 @@ describe('WindowControlsComponent', () => {
         expect(query('window-maximize-glyph')).not.toBeNull();
         expect(query('window-restore-glyph')).toBeNull();
         expect(electronMock.getWindowState).toHaveBeenCalled();
+    });
+
+    it('labels every button in the active language', () => {
+        for (const [testId, label] of [
+            ['window-minimize', 'Minimieren'],
+            ['window-maximize', 'Maximieren'],
+            ['window-close', 'Schließen'],
+        ]) {
+            expect(query(testId)?.getAttribute('aria-label')).toBe(label);
+            expect(query(testId)?.getAttribute('title')).toBe(label);
+        }
     });
 
     it('calls the bridge methods when the buttons are clicked', () => {
@@ -80,7 +105,7 @@ describe('WindowControlsComponent', () => {
         expect(query('window-restore-glyph')).not.toBeNull();
         expect(query('window-maximize-glyph')).toBeNull();
         expect(query('window-maximize')?.getAttribute('aria-label')).toBe(
-            'Restore'
+            'Wiederherstellen'
         );
     });
 

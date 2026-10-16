@@ -2,12 +2,11 @@
 export const SOURCE_EXPIRY_WARNING_DAYS = 7;
 
 /**
- * How often badge consumers should re-evaluate {@link resolveSourceExpiryBadge}
- * against the wall clock. The badge state only moves at day granularity, but a
- * dashboard left open must still cross day-countdown and expiration
- * boundaries without a remount; a minute tick is imperceptibly cheap.
+ * Longest wait before badge consumers re-check the wall clock even when no
+ * badge boundary is due. A timer does not track wall-clock jumps (system
+ * sleep, a changed clock), so it is re-armed at least this often.
  */
-export const SOURCE_EXPIRY_TICK_MS = 60_000;
+export const SOURCE_EXPIRY_MAX_WAIT_MS = 60 * 60_000;
 
 const SECONDS_PER_DAY = 86_400;
 
@@ -23,8 +22,7 @@ export interface SourceExpiryFacts {
 }
 
 export type SourceExpiryBadge =
-    | { kind: 'expired' }
-    | { kind: 'expiring'; daysLeft: number };
+    { kind: 'expired' } | { kind: 'expiring'; daysLeft: number };
 
 /**
  * Decides whether a source card should carry an expiry badge. Returns null
@@ -55,4 +53,36 @@ export function resolveSourceExpiryBadge(
 
     const daysLeft = Math.ceil(secondsLeft / SECONDS_PER_DAY);
     return daysLeft <= warningDays ? { kind: 'expiring', daysLeft } : null;
+}
+
+/**
+ * The next instant (ms) at which {@link resolveSourceExpiryBadge} would answer
+ * differently for these facts, or null when no boundary lies ahead: a
+ * portal-reported expiry, or a timestamp already in the past (for as long as
+ * the system clock only moves forward). The badge moves only at day
+ * granularity: it appears `warningDays` days before expiry, counts down once
+ * per day and turns into "expired" at expiry, so a consumer can wait for that
+ * boundary instead of polling the clock.
+ */
+export function nextSourceExpiryChangeMs(
+    facts: SourceExpiryFacts | null | undefined,
+    nowMs: number,
+    warningDays: number = SOURCE_EXPIRY_WARNING_DAYS
+): number | null {
+    if (!facts || facts.reportedExpired) {
+        return null;
+    }
+    const expiresAt = facts.expiresAtSeconds;
+    if (expiresAt === null || expiresAt <= 0) {
+        return null;
+    }
+    const secondsLeft = expiresAt - nowMs / 1000;
+    if (secondsLeft <= 0) {
+        return null;
+    }
+    const daysLeft = Math.ceil(secondsLeft / SECONDS_PER_DAY);
+    // The count drops by one each time another whole day has passed; above
+    // the warning window only the day the badge appears matters.
+    const nextDaysLeft = Math.min(daysLeft, warningDays + 1) - 1;
+    return (expiresAt - nextDaysLeft * SECONDS_PER_DAY) * 1000;
 }

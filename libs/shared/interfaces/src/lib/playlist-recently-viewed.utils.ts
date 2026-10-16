@@ -6,6 +6,7 @@ import {
     extractStalkerItemPoster,
     extractStalkerItemTitle,
     extractStalkerItemType,
+    isStalkerSeriesItem,
     normalizeStalkerDate,
 } from './stalker-item.normalizer';
 import {
@@ -59,6 +60,10 @@ function mapStalkerPlaylistRecentItems(
                 backdrop_url: extractStalkerItemTmdbHints(item).backdropUrl,
                 source: 'stalker',
                 stalker_item: rawItem,
+                // `type` stays the routing verdict: an embedded-VOD row
+                // (a `series[]` array, no flag) routes as a movie. Either
+                // shape tracks progress per episode, keyed by this parent id.
+                ...(isStalkerSeriesItem(item) ? { watch_kind: 'series' } : {}),
             });
 
             return acc;

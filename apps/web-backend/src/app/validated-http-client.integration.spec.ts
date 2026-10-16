@@ -233,6 +233,32 @@ describe('real axios validated transport', () => {
             });
         });
     });
+    it('reports the accepted connection of a provider that then never answers', async () => {
+        const provider = express().use(() => {
+            /* Deliberately silent synthetic provider. */
+        });
+        await withServer(provider, async (url) => {
+            const onConnect = jest.fn();
+            await expect(
+                new ValidatedHttpClient(lan).get(url, {
+                    timeout: 100,
+                    onConnect,
+                })
+            ).rejects.toMatchObject({ cause: { code: 'ECONNABORTED' } });
+            expect(onConnect).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('reports nothing for a provider that refuses the connection', async () => {
+        // A listener that has just closed: nothing accepts on that port.
+        const url = await withServer(express(), async (url) => url);
+        const onConnect = jest.fn();
+        await expect(
+            new ValidatedHttpClient(lan).get(url, { timeout: 1_000, onConnect })
+        ).rejects.toMatchObject({ cause: { code: 'ECONNREFUSED' } });
+        expect(onConnect).not.toHaveBeenCalled();
+    });
+
     it('does not cap a healthy trickling body at the inactivity timeout', async () => {
         const provider = express().use((_req, res) => {
             let count = 0;

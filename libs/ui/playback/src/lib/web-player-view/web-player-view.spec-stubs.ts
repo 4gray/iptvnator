@@ -5,6 +5,7 @@ import type {
     RecordingStartMetadata,
     RecordingStoppedEvent,
 } from '@iptvnator/shared/interfaces';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 /**
  * Player stand-ins for WebPlayerViewComponent specs. They mirror the real
@@ -20,12 +21,14 @@ export class StubVjsPlayerComponent {
     readonly options = input<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
+    readonly upNext = input<unknown>(null);
+    readonly timelineSegments = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
     readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackStarted = output<void>();
     readonly playbackEnded = output<void>();
@@ -41,13 +44,15 @@ export class StubHtmlVideoPlayerComponent {
     readonly channel = input<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
+    readonly upNext = input<unknown>(null);
+    readonly timelineSegments = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackStarted = output<void>();
     readonly playbackEnded = output<void>();
@@ -63,13 +68,15 @@ export class StubArtPlayerComponent {
     readonly channel = input<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
+    readonly upNext = input<unknown>(null);
+    readonly timelineSegments = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackStarted = output<void>();
     readonly playbackEnded = output<void>();
@@ -95,10 +102,12 @@ export class StubEmbeddedMpvPlayerComponent {
     readonly playback = input.required<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);
+    readonly upNext = input<unknown>(null);
+    readonly timelineSegments = input<unknown>(null);
     readonly recordingFolder = input('');
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();

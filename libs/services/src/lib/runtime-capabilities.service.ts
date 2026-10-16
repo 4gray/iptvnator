@@ -5,9 +5,10 @@ export type RuntimeEnvironment = 'electron' | 'pwa';
 
 type RuntimeElectronBridge = Partial<ElectronBridgeApi>;
 
-// The full method set the position-storage layer may invoke — including the
-// season-batch variants, so a bridge lacking them degrades to the in-memory
-// path wholesale instead of throwing mid-action.
+// Ordinary playback methods include season batches, so partial bridges use
+// the in-memory path instead of throwing mid-action. Atomic backup restore is
+// checked separately by a restore-only preflight; it never changes data-source
+// selection or disables ordinary SQLite reads and playback writes.
 const playbackPositionStorageMethods = [
     'dbSavePlaybackPosition',
     'dbGetPlaybackPosition',
@@ -67,6 +68,15 @@ export class RuntimeCapabilitiesService {
                 'onWindowStateChange',
             ].every((methodName) => this.hasElectronMethod(methodName))
         );
+    }
+
+    /**
+     * The main process forwards the window's platform Back gestures (mouse
+     * Back buttons and Browser Back through `app-command` on Windows/Linux,
+     * the trackpad swipe on macOS) to the workspace Back.
+     */
+    get supportsWindowBackGestures(): boolean {
+        return this.hasElectronMethod('onWindowBackRequested');
     }
 
     /** Desktop-only preference: PWA clients cannot configure the shared server guard. */
@@ -180,6 +190,19 @@ export class RuntimeCapabilitiesService {
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
+    /**
+     * The worker-side parental lock filter: the lock state reaches the
+     * SQLite worker and the `categories.locked` index can be stamped. When
+     * the Xtream SQLite data source is used without it, the worker cannot
+     * withhold locked rows and the lock service fails closed instead.
+     */
+    get supportsParentalLockSqliteFilter(): boolean {
+        return (
+            this.hasElectronMethod('setParentalLockState') &&
+            this.hasElectronMethod('dbSetCategoryLocks')
+        );
+    }
+
     get supportsXtreamSqliteDataSource(): boolean {
         return [
             'dbGetPlaylist',
@@ -198,6 +221,7 @@ export class RuntimeCapabilitiesService {
             'dbSetAppState',
             'dbSearchContent',
             'dbGetFavorites',
+            'dbGetFavoritesForBackup',
             'dbAddFavorite',
             'dbRemoveFavorite',
             'dbIsFavorite',
@@ -209,6 +233,7 @@ export class RuntimeCapabilitiesService {
             ...playbackPositionStorageMethods,
             'dbDeleteXtreamContent',
             'dbRestoreXtreamUserData',
+            'dbRestoreXtreamFavorites',
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
@@ -260,6 +285,8 @@ export class RuntimeCapabilitiesService {
 
     get supportsPortalActivityStorage(): boolean {
         return [
+            'dbGetPlaylist',
+            'dbRestoreXtreamFavorites',
             'dbGetRecentlyViewed',
             'dbClearRecentlyViewed',
             'dbGetAllGlobalFavorites',

@@ -1,4 +1,3 @@
-import { Component, input, output, signal } from '@angular/core';
 import {
     ComponentFixture,
     DeferBlockBehavior,
@@ -13,12 +12,7 @@ import { VodSourceRowComponent } from '@iptvnator/ui/components';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import {
-    VideoPlayer,
-    type EmbeddedMpvSupport,
-    type RecordingStartMetadata,
-    type RecordingStoppedEvent,
-} from '@iptvnator/shared/interfaces';
+import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { ErrorDetails, ErrorTypes } from 'hls.js';
 import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from './web-player-view.component';
@@ -35,7 +29,13 @@ import {
     getDiagnosticMeta,
     getDiagnosticTitleKey,
 } from '../playback-diagnostic-panel/playback-diagnostic-view.util';
-import { StubFullscreenChannelPanelComponent } from './web-player-view.spec-stubs';
+import {
+    StubArtPlayerComponent,
+    StubEmbeddedMpvPlayerComponent,
+    StubFullscreenChannelPanelComponent,
+    StubHtmlVideoPlayerComponent,
+    StubVjsPlayerComponent,
+} from './web-player-view.spec-stubs';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -44,88 +44,6 @@ jest.unstable_mockModule('video.js', () => ({
 jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
 jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
 jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
-
-@Component({
-    selector: 'app-vjs-player',
-    template: '<div data-test-id="stub-vjs-player"></div>',
-})
-class StubVjsPlayerComponent {
-    readonly options = input<unknown>();
-    readonly fullscreenTarget = input<HTMLElement | null>(null);
-    readonly mediaTitle = input<unknown>(null);
-    readonly volume = input(1);
-    readonly showCaptions = input(false);
-    readonly interactionEnabled = input(true);
-    readonly startTime = input(0);
-    readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
-    readonly playbackIssue = output<PlaybackDiagnostic | null>();
-    readonly playbackEnded = output<void>();
-    readonly previousEpisodeRequested = output<void>();
-    readonly nextEpisodeRequested = output<void>();
-}
-
-@Component({
-    selector: 'app-html-video-player',
-    template: '<div data-test-id="stub-html-player"></div>',
-})
-class StubHtmlVideoPlayerComponent {
-    readonly channel = input<unknown>();
-    readonly fullscreenTarget = input<HTMLElement | null>(null);
-    readonly mediaTitle = input<unknown>(null);
-    readonly volume = input(1);
-    readonly showCaptions = input(false);
-    readonly isLive = input(true);
-    readonly interactionEnabled = input(true);
-    readonly startTime = input(0);
-    readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
-    readonly playbackIssue = output<PlaybackDiagnostic | null>();
-    readonly playbackEnded = output<void>();
-    readonly previousEpisodeRequested = output<void>();
-    readonly nextEpisodeRequested = output<void>();
-}
-
-@Component({
-    selector: 'app-art-player',
-    template: '<div data-test-id="stub-art-player"></div>',
-})
-class StubArtPlayerComponent {
-    readonly channel = input<unknown>();
-    readonly fullscreenTarget = input<HTMLElement | null>(null);
-    readonly mediaTitle = input<unknown>(null);
-    readonly volume = input(1);
-    readonly showCaptions = input(false);
-    readonly isLive = input(true);
-    readonly interactionEnabled = input(true);
-    readonly startTime = input(0);
-    readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
-    readonly playbackIssue = output<PlaybackDiagnostic | null>();
-    readonly playbackEnded = output<void>();
-    readonly previousEpisodeRequested = output<void>();
-    readonly nextEpisodeRequested = output<void>();
-}
-
-@Component({
-    selector: 'app-embedded-mpv-player',
-    template: '<div data-test-id="stub-embedded-mpv-player"></div>',
-})
-class StubEmbeddedMpvPlayerComponent {
-    /** Read by the view's channel-panel gate (`EmbeddedMpvEngineReporter`). */
-    readonly support = signal<EmbeddedMpvSupport | null>(null);
-    readonly playback = input.required<unknown>();
-    readonly fullscreenTarget = input<HTMLElement | null>(null);
-    readonly mediaTitle = input<unknown>(null);
-    readonly recordingFolder = input('');
-    readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
-    readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
-    readonly playbackEnded = output<void>();
-    readonly previousEpisodeRequested = output<void>();
-    readonly nextEpisodeRequested = output<void>();
-    readonly recordingStopped = output<RecordingStoppedEvent>();
-}
 
 describe('WebPlayerViewComponent', () => {
     let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;

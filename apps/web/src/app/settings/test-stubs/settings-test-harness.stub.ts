@@ -34,9 +34,9 @@ import {
 import {
     DatabaseService,
     DataService,
-    PlaylistBackupService,
     PlaylistsService,
 } from '@iptvnator/services';
+import { PlaylistBackupService } from '@iptvnator/services/playlist-backup';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
@@ -86,7 +86,9 @@ export const DEFAULT_SETTINGS = {
     player: VideoPlayer.VideoJs,
     webPlayerSharedControls: true,
     playerAmbientMode: false,
+    detailTrailerBackdrop: false,
     playerUpNextRail: true,
+    playerUpNextCard: true,
     fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
@@ -109,7 +111,7 @@ export const DEFAULT_SETTINGS = {
     vlcReuseInstance: false,
     remoteControl: false,
     remoteControlPort: 8765,
-    epgUrl: [],
+    epgUrl: [] as string[],
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
     embeddedMpvExtraOptions: '',
@@ -146,18 +148,27 @@ export class MockRouter {
 }
 
 /**
- * Stands in for the `:section` route param the settings page renders from.
- * Specs switch section pages with `setSettingsSection` below.
+ * Stands in for the `:section` route param the settings page renders from
+ * and the shell-owned `q` search param. Specs switch section pages with
+ * `setSettingsSection` and search with `setSettingsSearchQuery` below.
  */
 export class MockActivatedRoute {
     private readonly params = new BehaviorSubject<ParamMap>(
         convertToParamMap({ section: 'general' })
     );
+    private readonly queryParams = new BehaviorSubject<ParamMap>(
+        convertToParamMap({})
+    );
 
     readonly paramMap = this.params.asObservable();
+    readonly queryParamMap = this.queryParams.asObservable();
 
     setSection(section: string): void {
         this.params.next(convertToParamMap({ section }));
+    }
+
+    setQuery(query: string): void {
+        this.queryParams.next(convertToParamMap(query ? { q: query } : {}));
     }
 }
 
@@ -166,6 +177,13 @@ export function setSettingsSection(section: string): void {
     (
         TestBed.inject(ActivatedRoute) as unknown as MockActivatedRoute
     ).setSection(section);
+}
+
+/** Sets the header search term (`q`) the settings page searches for. */
+export function setSettingsSearchQuery(query: string): void {
+    (
+        TestBed.inject(ActivatedRoute) as unknown as MockActivatedRoute
+    ).setQuery(query);
 }
 
 export class MockSettingsStore {

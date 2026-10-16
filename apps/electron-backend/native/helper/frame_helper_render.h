@@ -144,6 +144,9 @@ public:
     std::function<void(const std::string& name, int width, int height,
                        uint32_t generation)>
         onGenerationChanged;
+    /* Called from the render thread before the mpv render context exists
+     * when the bound context is a CPU rasterizer (see setupGl()). */
+    std::function<void()> onSoftwareRenderer;
 
     bool start(mpv_handle* mpv, const std::string& shmBaseName, int width,
                int height, std::string& errorOut);
@@ -205,8 +208,11 @@ inline bool RenderPipeline::setupGl(std::string& errorOut) {
      * software tiers when a later hardware-backed EGL candidate was usable. */
     const GLubyte* renderer = glGetString(GL_RENDERER);
     if (renderer) {
-        std::fprintf(stderr, "gl renderer: %s\n",
-                     reinterpret_cast<const char*>(renderer));
+        const char* rendererName = reinterpret_cast<const char*>(renderer);
+        std::fprintf(stderr, "gl renderer: %s\n", rendererName);
+        if (onSoftwareRenderer && isSoftwareGlRenderer(rendererName)) {
+            onSoftwareRenderer();
+        }
     }
 
     if (!rebuildTargets(width_, height_)) {

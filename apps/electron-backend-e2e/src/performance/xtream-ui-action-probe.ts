@@ -87,7 +87,7 @@ export async function runXtreamBackgroundUiActions(
             async () => {
                 const start = await clickSelector(
                     page,
-                    'a.brand[href$="/workspace/dashboard"]'
+                    'app-workspace-shell-rail a[href$="/workspace/dashboard"]'
                 );
                 await page.waitForFunction(() => {
                     const overlay = document.querySelector(
@@ -154,14 +154,14 @@ export async function runXtreamBackgroundUiActions(
                         );
                         const resultRows = Array.from(
                             document.querySelectorAll(
-                                'app-workspace-sources app-playlist-item'
+                                'app-workspace-sources app-source-row'
                             )
                         );
                         const resultPainted =
                             resultRows.length > 0
                                 ? resultRows.every((row) =>
                                       (
-                                          row.querySelector('.playlist-title')
+                                          row.querySelector('.source-row__name')
                                               ?.textContent ?? ''
                                       )
                                           .trim()
@@ -259,9 +259,14 @@ async function measureNameSort(
             'app-workspace-sources .sort-trigger'
         );
         await page
-            .getByRole('menuitem', { name: 'Name (A-Z)' })
+            .getByRole('menuitemradio', { name: 'Name (A-Z)' })
             .waitFor({ state: 'visible' });
-        await clickTextOption(page, '[role="menuitem"]', 'span', 'Name (A-Z)');
+        await clickTextOption(
+            page,
+            '[role="menuitemradio"]',
+            'span',
+            'Name (A-Z)'
+        );
         await page.waitForFunction(
             () =>
                 document

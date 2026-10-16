@@ -5,27 +5,34 @@ import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
  * between the frontend and the electron backend.
  */
 
-import axios, { AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import { ipcMain } from 'electron';
 import {
     classifyStalkerAuthFailureBody,
+    createPortalRequestFailureEnvelope,
     createStalkerAuthFailureMarker,
     PortalDebugEvent,
     STALKER_REQUEST,
     buildStalkerIdentityRequestContext,
     buildStalkerRequestUrl,
 } from '@iptvnator/shared/interfaces';
-import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
-import { formatPortalRequestError } from './portal-request-error.util';
+import {
+    classifyExpectedPortalFailure,
+    logPortalRequestFailure,
+} from './portal-request-outcome';
 import { assertRemoteUrlAllowed } from './url-safety';
-import { requestWithValidatedRedirects } from '../util/validated-axios';
+import {
+    requestWithValidatedRedirects,
+    ValidatedAxiosRequestConfig,
+} from '../util/validated-axios';
 import {
     HostConnectivityGuardError,
     HostRequestToken,
     beginGuardedHostRequest,
     observeGuardedHostRequest,
+    reportGuardedHostConnected,
     reportGuardedHostFailure,
     reportGuardedHostSuccess,
     releaseGuardedHostRequest,
@@ -77,6 +84,9 @@ ipcMain.handle(
         let debugRequest: Record<string, unknown> | undefined;
         let requestUrlForLog = payload.url;
         let guardToken: HostRequestToken | null = null;
+        // Set by the transport once the portal accepts the TCP connection, so
+        // a timeout can be told apart from a host that never answered at all.
+        let socketConnected = false;
         const countsTowardsGuard = !payload.skipConnectionGuard;
         try {
             const { url, macAddress, params, token, serialNumber, requestId } =
@@ -110,7 +120,11 @@ ipcMain.handle(
             const requestTimeout = isCreateLink ? 30000 : 15000;
 
             // Configure axios request
-            const config: AxiosRequestConfig = {
+            const config: ValidatedAxiosRequestConfig = {
+                onConnect: () => {
+                    socketConnected = true;
+                    reportGuardedHostConnected(guardToken);
+                },
                 method: 'GET',
                 signal: probeControl.signal,
                 url: fullUrl,
@@ -145,8 +159,9 @@ ipcMain.handle(
                 // next candidate) from a network failure (stop probing).
                 const httpError = new Error(
                     `HTTP Error ${response.status}: ${response.statusText}`
-                ) as Error & { status: number };
+                ) as Error & { status: number; statusText?: string };
                 httpError.status = response.status;
+                httpError.statusText = response.statusText;
                 throw httpError;
             }
 
@@ -226,18 +241,27 @@ ipcMain.handle(
             reportGuardedHostFailure(guardToken, error, {
                 countFailures: countsTowardsGuard,
                 requestUrl: requestUrlForLog,
+                connected: socketConnected,
             });
 
-            console.error(
-                '[STALKER_REQUEST] Failed',
-                redactSensitiveData(
-                    formatPortalRequestError(
-                        error,
-                        requestUrlForLog,
-                        String(payload.params?.action ?? 'unknown')
-                    )
-                )
+            // A cancelled request and an HTTP 401/403 are routine: resolve
+            // them as a structured envelope so Electron does not log the
+            // handler as failed. The renderer's data service rethrows them as
+            // the errors the Stalker layers classify (an AbortError, or an
+            // `HTTP Error <code>` carrying `status`), so a cancellation is
+            // never read as an empty answer. Everything else keeps the
+            // rejection shapes below and their error log.
+            const expected = classifyExpectedPortalFailure(error);
+            logPortalRequestFailure(
+                STALKER_REQUEST,
+                expected,
+                error,
+                requestUrlForLog,
+                String(payload.params?.action ?? 'unknown')
             );
+            if (expected) {
+                return createPortalRequestFailureEnvelope(expected);
+            }
 
             // Format error response
             if (axios.isAxiosError(error) && error.response) {

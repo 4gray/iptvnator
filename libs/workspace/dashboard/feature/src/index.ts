@@ -9,12 +9,17 @@ export type {
 export {
     buildDashboardLiveEpgDetails,
     buildLiveEpgCardsForEnabledRails,
-    buildLiveEpgLookupKeys,
+    buildLiveEpgLookupGroups,
     calcEpgProgress,
     formatEpgTimeRange,
     getLiveEpgProgramForCard,
+    liveEpgProgramKey,
+    liveEpgScopeKey,
 } from './lib/rails/dashboard-live-epg.utils';
-export type { DashboardLiveEpgDetails } from './lib/rails/dashboard-live-epg.utils';
+export type {
+    DashboardLiveEpgDetails,
+    DashboardLiveEpgLookupGroup,
+} from './lib/rails/dashboard-live-epg.utils';
 export {
     buildPlaybackPositionReloadKey,
     formatRemainingLabel,

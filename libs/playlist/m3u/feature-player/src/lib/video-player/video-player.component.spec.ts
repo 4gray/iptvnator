@@ -132,7 +132,6 @@ describe('VideoPlayerComponent', () => {
                         params: of({ id: playlistId(), view: 'all' }),
                         queryParams: of({}),
                         snapshot: {
-                            data: { layout: 'workspace' },
                             queryParams: {},
                         },
                     },
@@ -162,13 +161,16 @@ describe('VideoPlayerComponent', () => {
                         // Mirrors the real capability check: every
                         // remote-control bridge method must be present.
                         get supportsRemoteControl() {
-                            const bridge = window.electron as
-                                Record<string, unknown> | undefined;
-                            return [
-                                'updateRemoteControlStatus',
-                                'onChannelChange',
-                                'onRemoteControlCommand',
-                            ].every(
+                            const bridge:
+                                Partial<typeof window.electron> | undefined =
+                                window.electron;
+                            return (
+                                [
+                                    'updateRemoteControlStatus',
+                                    'onChannelChange',
+                                    'onRemoteControlCommand',
+                                ] as const
+                            ).every(
                                 (method) =>
                                     typeof bridge?.[method] === 'function'
                             );
@@ -582,7 +584,7 @@ describe('VideoPlayerComponent', () => {
         const updateRemoteControlStatus = jest.fn();
         window.electron = {
             updateRemoteControlStatus,
-        } as typeof window.electron;
+        } as unknown as typeof window.electron;
 
         fixture = TestBed.createComponent(VideoPlayerComponent);
         component = fixture.componentInstance;
@@ -687,6 +689,7 @@ describe('VideoPlayerComponent', () => {
             streamUrl: sampleChannel.url,
             startedAt: '2026-08-08T00:00:00.000Z',
             updatedAt: '2026-08-08T00:00:00.000Z',
+            canClose: true,
         });
         fixture.detectChanges();
 

@@ -21,6 +21,7 @@ import {
     isInvalidTlsCertificateError,
 } from '../util/security-errors';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import { applyElectronNetworkDefaults } from '../util/network-defaults';
 import { PLAYLIST_FETCH_TIMEOUT_MS } from '../events/playlist-source';
 import {
     armWorkerPerformanceCapture,
@@ -33,6 +34,9 @@ type ActiveRefreshState = {
     cancelled: boolean;
     controller: AbortController;
 };
+
+// Worker threads keep their own Node networking defaults; see the helper.
+applyElectronNetworkDefaults();
 
 const activeRefreshes = new Map<string, ActiveRefreshState>();
 

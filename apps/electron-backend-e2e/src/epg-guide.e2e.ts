@@ -1,3 +1,4 @@
+import { Page } from '@playwright/test';
 import {
     buildM3uContent,
     channelItemByTitle,
@@ -38,6 +39,39 @@ function xmltvWithCurrentProgramme(
   </programme>
 </tv>
 `;
+}
+
+/** True when the now-line is painted inside the visible programme lane. */
+function nowLineInLane(page: Page): Promise<boolean> {
+    return page.evaluate(() => {
+        const lane = document
+            .querySelector('.epg-guide__now-clip')
+            ?.getBoundingClientRect();
+        const line = document
+            .querySelector('.epg-guide__now-line')
+            ?.getBoundingClientRect();
+        return (
+            !!lane &&
+            !!line &&
+            line.left >= lane.left &&
+            line.right <= lane.right
+        );
+    });
+}
+
+/** Scroll the lane to whichever end of the day is farther from now. */
+async function scrollAwayFromNow(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        const viewport = document.querySelector(
+            '.epg-guide__viewport'
+        ) as HTMLElement;
+        const badge = document.querySelector(
+            '.epg-guide__now-badge'
+        ) as HTMLElement;
+        const nowLeft = parseFloat(badge.style.left);
+        const end = viewport.scrollWidth - viewport.clientWidth;
+        viewport.scrollTo({ left: nowLeft > end / 2 ? 0 : end });
+    });
 }
 
 test('@epg @electron opens the programme guide with the playlist channels, switches channels and keeps the player mounted', async ({
@@ -132,6 +166,27 @@ test('@epg @electron opens the programme guide with the playlist channels, switc
         await expect(rows.nth(1).locator('.epg-guide-row__empty')).toBeVisible({
             timeout: 20000,
         });
+
+        // The guide opens on "now", and the Now button and N jump back to it
+        // on both axes at once (#1733: the lane stayed at midnight).
+        await expect.poll(() => nowLineInLane(app.mainWindow)).toBe(true);
+        await scrollAwayFromNow(app.mainWindow);
+        await expect.poll(() => nowLineInLane(app.mainWindow)).toBe(false);
+        await guide.locator('.guide-toolbar__now').click();
+        await expect.poll(() => nowLineInLane(app.mainWindow)).toBe(true);
+
+        await scrollAwayFromNow(app.mainWindow);
+        await expect.poll(() => nowLineInLane(app.mainWindow)).toBe(false);
+        // Keys are left alone while a toolbar button holds the focus.
+        await app.mainWindow.evaluate(() =>
+            (document.activeElement as HTMLElement | null)?.blur()
+        );
+        await app.mainWindow.keyboard.press('n');
+        await expect.poll(() => nowLineInLane(app.mainWindow)).toBe(true);
+        // The keyboard focus follows the jump to the playing row.
+        await expect(
+            rows.nth(0).locator('[data-epg-guide-grid][tabindex="0"]')
+        ).toBeFocused();
 
         // "Only with EPG" hides the silent channel once coverage is known.
         const toggle = guide.locator('.guide-toolbar__toggle input');

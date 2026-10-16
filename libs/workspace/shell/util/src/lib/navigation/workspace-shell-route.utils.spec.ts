@@ -28,6 +28,9 @@ describe('workspace-shell-route.utils', () => {
                 kind: 'settings',
                 context: null,
                 contextPanel: 'settings',
+                // Settings search filters rows and keeps its term in `q`.
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
             })
         );
         expect(parseWorkspaceShellRoute('/workspace/global-favorites')).toEqual(

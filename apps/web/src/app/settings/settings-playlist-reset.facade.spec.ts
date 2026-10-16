@@ -6,7 +6,11 @@ import {
     selectAllPlaylistsMeta,
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    DatabaseService,
+    PlaylistsService,
+} from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -59,6 +63,9 @@ describe('SettingsPlaylistResetFacade', () => {
                 MockProvider(PlaylistsService, {
                     removeAll: jest.fn().mockReturnValue(of(undefined)),
                 }),
+                MockProvider(ParentalLockService, {
+                    clearAllLocks: jest.fn().mockResolvedValue(true),
+                }),
                 provideMockStore({
                     selectors: [
                         { selector: selectAllPlaylistsMeta, value: [] },
@@ -78,15 +85,33 @@ describe('SettingsPlaylistResetFacade', () => {
         snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
         translate = TestBed.inject(TranslateService);
         jest.spyOn(translate, 'instant').mockImplementation(
-            (key: string, params?: Record<string, number>) =>
+            (key: string | string[], params?: Record<string, number>) =>
                 key === 'SETTINGS.REMOVE_ALL_PROGRESS'
-                    ? `${params?.current}/${params?.total}`
+                    ? `${params?.['current']}/${params?.['total']}`
                     : key
         );
     });
 
     afterEach(() => {
         window.electron = originalElectron;
+    });
+
+    it('rewords the removal progress after a language switch mid-run', () => {
+        (translate.instant as jest.Mock).mockRestore();
+        translate.setTranslation('en', {
+            SETTINGS: { REMOVE_ALL_IN_PROGRESS: 'Removing playlists…' },
+        });
+        translate.setTranslation('ru', {
+            SETTINGS: { REMOVE_ALL_IN_PROGRESS: 'Удаление плейлистов…' },
+        });
+        translate.use('en');
+        facade.isRemovingAllPlaylists.set(true);
+
+        expect(facade.removeAllProgressLabel()).toBe('Removing playlists…');
+
+        translate.use('ru');
+
+        expect(facade.removeAllProgressLabel()).toBe('Удаление плейлистов…');
     });
 
     it('refuses the global wipe when there are no playlists', () => {
@@ -218,6 +243,9 @@ describe('SettingsPlaylistResetFacade', () => {
 
         expect(playlistsService.removeAll).toHaveBeenCalled();
         expect(databaseService.deleteAllPlaylists).not.toHaveBeenCalled();
+        expect(
+            TestBed.inject(ParentalLockService).clearAllLocks
+        ).toHaveBeenCalled();
         expect(dispatchSpy).toHaveBeenCalledWith(
             PlaylistActions.removeAllPlaylists()
         );
@@ -235,6 +263,10 @@ describe('SettingsPlaylistResetFacade', () => {
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
         expect(facade.isRemovingAllPlaylists()).toBe(false);
+        // Nothing was deleted, so the locks stay.
+        expect(
+            TestBed.inject(ParentalLockService).clearAllLocks
+        ).not.toHaveBeenCalled();
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.PLAYLISTS_REMOVE_FAILED',
             undefined,

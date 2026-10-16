@@ -1,3 +1,4 @@
+import { FormArray, FormControl } from '@angular/forms';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -8,6 +9,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsComponent } from './settings.component';
 import {
@@ -61,10 +63,10 @@ describe('SettingsComponent form', () => {
 
     it('stages the desktop portal pause setting until Save', async () => {
         const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
-            '[data-test-id="portal-connectivity-toggle"] input'
-        ) as HTMLInputElement;
+            '[data-test-id="portal-connectivity-toggle"] button[role="switch"]'
+        ) as HTMLButtonElement;
         expect(checkbox).not.toBeNull();
-        expect(checkbox.checked).toBe(true);
+        expect(checkbox.getAttribute('aria-checked')).toBe('true');
         checkbox.click();
         fixture.detectChanges();
         expect(
@@ -73,7 +75,7 @@ describe('SettingsComponent form', () => {
         expect(window.electron.updateSettings).not.toHaveBeenCalled();
         component.form.hydrateFromStore();
         fixture.detectChanges();
-        expect(checkbox.checked).toBe(true);
+        expect(checkbox.getAttribute('aria-checked')).toBe('true');
         checkbox.click();
         await component.form.save(() => undefined);
         expect(window.electron.updateSettings).toHaveBeenCalledWith(
@@ -83,10 +85,10 @@ describe('SettingsComponent form', () => {
 
     it('stages the posters-only cover wall until Save', async () => {
         const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
-            '[data-test-id="cover-titles-toggle"] input'
-        ) as HTMLInputElement;
+            '[data-test-id="cover-titles-toggle"] button[role="switch"]'
+        ) as HTMLButtonElement;
         expect(checkbox).not.toBeNull();
-        expect(checkbox.checked).toBe(true);
+        expect(checkbox.getAttribute('aria-checked')).toBe('true');
 
         checkbox.click();
         fixture.detectChanges();
@@ -106,7 +108,7 @@ describe('SettingsComponent form', () => {
 
     it('hides the portal pause setting when the desktop bridge is unavailable', () => {
         fixture.destroy();
-        window.electron = undefined;
+        (window as { electron?: typeof window.electron }).electron = undefined;
         fixture = TestBed.createComponent(SettingsComponent);
         fixture.detectChanges();
         expect(
@@ -141,6 +143,25 @@ describe('SettingsComponent form', () => {
                 ...DEFAULT_SETTINGS,
                 ...settings,
             });
+        });
+
+        // The sections are OnPush and a Discard or backup import patches the
+        // form outside their template events, so the section must mark
+        // itself on the form's events. The fixture renders on its own here:
+        // a forced detectChanges() would hide a section that is not marked.
+        it('re-renders section selections after a value-only form patch', async () => {
+            const darkTheme = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    '[data-test-id="DARK_THEME"]'
+                );
+            fixture.autoDetectChanges();
+            await fixture.whenStable();
+            expect(darkTheme()?.getAttribute('aria-checked')).toBe('false');
+
+            component.settingsForm.patchValue({ theme: Theme.DarkTheme });
+            await fixture.whenStable();
+
+            expect(darkTheme()?.getAttribute('aria-checked')).toBe('true');
         });
 
         it('hydrates a shared web controls opt-out from the settings store', () => {
@@ -183,6 +204,26 @@ describe('SettingsComponent form', () => {
             expect(component.settingsForm.dirty).toBe(true);
             // An eager write here would make Discard unable to revert it
             expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+        });
+
+        // The native file picker sets the EPG control after an await, with
+        // no template event in the OnPush section; its status must follow.
+        it('shows the source status after a control is set outside the section', async () => {
+            setSettingsSection('epg');
+            fixture.autoDetectChanges();
+            const epgUrls = component.settingsForm.get('epgUrl') as FormArray;
+            epgUrls.push(new FormControl(''));
+            await fixture.whenStable();
+            const status = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    'app-epg-source-status'
+                );
+            expect(status()).toBeNull();
+
+            epgUrls.at(epgUrls.length - 1).setValue('/tmp/guide.xml');
+            await fixture.whenStable();
+
+            expect(status()).not.toBeNull();
         });
 
         it('stages the EPG view mode without writing to the store until Save', () => {
@@ -314,6 +355,267 @@ describe('SettingsComponent form', () => {
             expect(unsavedBar()).toBeNull();
         });
 
+        // The page owns the bar and is OnPush, and Save marks the form
+        // pristine after an async store write, also on a page without a form
+        // section. `pristine` and `valid` read the form's state signals, so
+        // the page re-renders without a form subscription; no forced render
+        // here, so a regression shows.
+        it('hides after a save on a page without a form section', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            setSettingsSection('backup');
+            fixture.autoDetectChanges();
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            await fixture.whenStable();
+            expect(unsavedBar()).not.toBeNull();
+
+            component.onSubmit();
+            await fixture.whenStable();
+            // The render the form event scheduled runs in the next macrotask.
+            await new Promise((resolve) => setTimeout(resolve));
+
+            expect(component.settingsForm.pristine).toBe(true);
+            expect(unsavedBar()).toBeNull();
+        });
+
+        it('counts the staged changes and marks their pages in the navigation', () => {
+            const settingsCtx = TestBed.inject(SettingsContextService);
+            const message = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    '[data-test-id="settings-unsaved-message"]'
+                )?.textContent;
+
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            fixture.detectChanges();
+
+            expect(component.changeCount()).toBe(1);
+            expect(component.unsavedMessageKey()).toBe(
+                'SETTINGS.UNSAVED_CHANGES_ONE'
+            );
+            expect(settingsCtx.dirtySections()).toEqual(new Set(['general']));
+
+            component.settingsForm
+                .get('dashboardRails.hero')
+                ?.setValue(!DEFAULT_DASHBOARD_RAILS.hero);
+            component.settingsForm.get('showCaptions')?.setValue(true);
+            fixture.detectChanges();
+
+            expect(component.changeCount()).toBe(3);
+            expect(component.unsavedMessageKey()).toBe(
+                'SETTINGS.UNSAVED_CHANGES_COUNT'
+            );
+            expect(message()).toContain('SETTINGS.UNSAVED_CHANGES_COUNT');
+            expect(settingsCtx.dirtySections()).toEqual(
+                new Set(['general', 'dashboard', 'playback'])
+            );
+
+            // Reverting by hand leaves the form dirty but counts nothing.
+            component.settingsForm.get('theme')?.setValue(Theme.SystemTheme);
+            component.settingsForm
+                .get('dashboardRails.hero')
+                ?.setValue(DEFAULT_DASHBOARD_RAILS.hero);
+            component.settingsForm.get('showCaptions')?.setValue(false);
+            fixture.detectChanges();
+
+            expect(component.changeCount()).toBe(0);
+            expect(component.unsavedMessageKey()).toBe(
+                'SETTINGS.UNSAVED_CHANGES'
+            );
+            expect(settingsCtx.dirtySections().size).toBe(0);
+            expect(unsavedBar()).not.toBeNull();
+        });
+
+        it('saves on Ctrl/Cmd+S while valid and dirty, and swallows the browser save otherwise', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            const press = (init: KeyboardEventInit) => {
+                const event = new KeyboardEvent('keydown', {
+                    key: 's',
+                    bubbles: true,
+                    cancelable: true,
+                    ...init,
+                });
+                document.dispatchEvent(event);
+                return event;
+            };
+
+            // Nothing staged: the page still keeps the browser dialog away.
+            expect(press({ ctrlKey: true }).defaultPrevented).toBe(true);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            fixture.detectChanges();
+
+            // A plain "s" or a chord with Shift is not the shortcut.
+            expect(press({}).defaultPrevented).toBe(false);
+            expect(
+                press({ metaKey: true, shiftKey: true }).defaultPrevented
+            ).toBe(false);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+            // The phone drawer makes the page inert: the chord is not ours.
+            const host = fixture.nativeElement as HTMLElement;
+            host.setAttribute('inert', '');
+            expect(press({ metaKey: true }).defaultPrevented).toBe(false);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+            host.removeAttribute('inert');
+
+            // Nor while a dialog (the leave dialog) or a select panel is open.
+            const backdrop = document.createElement('div');
+            backdrop.className = 'cdk-overlay-backdrop';
+            document.body.appendChild(backdrop);
+            expect(press({ metaKey: true }).defaultPrevented).toBe(false);
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+            backdrop.remove();
+
+            expect(press({ metaKey: true }).defaultPrevented).toBe(true);
+            await fixture.whenStable();
+
+            expect(settingsStore.updateSettings).toHaveBeenCalledTimes(1);
+            expect(component.settingsForm.pristine).toBe(true);
+        });
+
+        it('notices a saved change that waits for a restart until dismissed', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            const notice = () =>
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    '[data-test-id="settings-restart-notice"]'
+                );
+
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            // A live change says nothing about restarting.
+            expect(notice()).toBeNull();
+
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('maximized');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(component.form.restartPendingControls()).toEqual([
+                'startupWindowMode',
+            ]);
+            expect(notice()).not.toBeNull();
+
+            // Saving the launch value back withdraws the notice: nothing
+            // waits for a restart any more.
+            component.settingsForm.get('startupWindowMode')?.setValue('normal');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(component.form.restartPendingControls()).toEqual([]);
+            expect(notice()).toBeNull();
+
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('fullscreen');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(notice()).not.toBeNull();
+
+            (
+                notice()?.querySelector(
+                    '[data-test-id="settings-restart-later"]'
+                ) as HTMLButtonElement
+            ).click();
+            fixture.detectChanges();
+
+            expect(notice()).toBeNull();
+
+            // Later holds: an unrelated save does not bring the reminder back.
+            component.settingsForm.get('theme')?.setValue(Theme.LightTheme);
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(notice()).toBeNull();
+
+            // A different restart value is news again.
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('maximized');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(notice()).not.toBeNull();
+        });
+
+        it('keeps the launch values across settings visits', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            settingsStore.updateSettings.mockImplementation((settings) => {
+                settingsStore._setSettings(settings);
+                return Promise.resolve(undefined);
+            });
+            component.settingsForm
+                .get('startupWindowMode')
+                ?.setValue('maximized');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            expect(component.form.restartPendingControls()).toEqual([
+                'startupWindowMode',
+            ]);
+
+            // Leave settings and come back: the page and its form are new,
+            // but the app still runs with the launch value.
+            fixture.destroy();
+            fixture = TestBed.createComponent(SettingsComponent);
+            component = fixture.componentInstance;
+            stubSettingsSideEffects(component);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(component.form.restartPendingControls()).toEqual([
+                'startupWindowMode',
+            ]);
+
+            // Saving the launch value back withdraws the notice here too.
+            component.settingsForm.get('startupWindowMode')?.setValue('normal');
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+            expect(component.form.restartPendingControls()).toEqual([]);
+        });
+
+        it('compares the frame-copy opt-in against the engine the app runs', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            // Stored true, but the engine could not honour it at launch.
+            component.form.setRunningValue('embeddedMpvFrameCopy', false);
+            component.settingsForm.get('embeddedMpvFrameCopy')?.setValue(true);
+            component.settingsForm.markAsDirty();
+            component.onSubmit();
+            await fixture.whenStable();
+
+            expect(component.form.restartPendingControls()).toEqual([
+                'embeddedMpvFrameCopy',
+            ]);
+
+            // A staged, unsaved edit back to the launch value changes nothing:
+            // the saved setting still needs the restart.
+            component.settingsForm.get('embeddedMpvFrameCopy')?.setValue(false);
+            component.form.setRunningValue('embeddedMpvFrameCopy', false);
+            expect(component.form.restartPendingControls()).toEqual([
+                'embeddedMpvFrameCopy',
+            ]);
+
+            // The engine catches up (a later probe reports frame copy): the
+            // notice goes without another save.
+            component.form.setRunningValue('embeddedMpvFrameCopy', true);
+            expect(component.form.restartPendingControls()).toEqual([]);
+        });
+
         it('discard reverts a staged cover size (regression: eager persist made it stick)', () => {
             const largeCoverButton = (
                 fixture.nativeElement as HTMLElement
@@ -379,6 +681,10 @@ describe('SettingsComponent form', () => {
                     ...component.settingsForm.value,
                     trustedPrivateNetworkEpgUrls: [],
                     trustedInsecureTlsHosts: [],
+                    // Parental lock settings are not on the form; Save
+                    // carries the current values through unchanged.
+                    parentalLockEnabled: false,
+                    parentalLockRelockMinutes: 15,
                 },
                 { retryEpgCleanup: false }
             );
@@ -386,6 +692,8 @@ describe('SettingsComponent form', () => {
                 ...component.settingsForm.value,
                 trustedPrivateNetworkEpgUrls: [],
                 trustedInsecureTlsHosts: [],
+                parentalLockEnabled: false,
+                parentalLockRelockMinutes: 15,
             });
         });
 
@@ -461,7 +769,8 @@ describe('SettingsComponent form', () => {
 
         it('preserves saved EPG settings when saving from the web settings form', async () => {
             fixture.destroy();
-            window.electron = undefined as unknown as typeof window.electron;
+            (window as { electron?: typeof window.electron }).electron =
+                undefined;
 
             settingsStore._setSettings({
                 epgUrl: ['https://example.com/guide.xml'],

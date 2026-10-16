@@ -26,6 +26,7 @@ describe('CrossPortalSimilarService', () => {
 
     let matchTitles: jest.Mock;
     let isAvailable: boolean;
+    let withheld: Set<number>;
 
     // The services Jest target has no @angular/core/testing — construct
     // the service in a plain injection context instead of TestBed
@@ -39,6 +40,10 @@ describe('CrossPortalSimilarService', () => {
                             return isAvailable;
                         },
                         matchTitles,
+                        isWithheld: (m: CatalogTitleMatch) =>
+                            withheld.has(m.xtreamId),
+                        visibleMatches: (ms: CatalogTitleMatch[]) =>
+                            ms.filter((m) => !withheld.has(m.xtreamId)),
                     },
                 },
             ],
@@ -51,6 +56,7 @@ describe('CrossPortalSimilarService', () => {
 
     beforeEach(() => {
         isAvailable = true;
+        withheld = new Set();
         matchTitles = jest.fn().mockResolvedValue([match()]);
     });
 
@@ -127,5 +133,48 @@ describe('CrossPortalSimilarService', () => {
         );
 
         expect(items).toEqual([]);
+    });
+
+    it('drops items whose match the lock withholds', () => {
+        const service = createService();
+        const kept = {
+            title: 'A',
+            posterUrl: null,
+            year: null,
+            match: match(),
+        };
+        const locked = {
+            title: 'B',
+            posterUrl: null,
+            year: null,
+            match: match({ xtreamId: 99 }),
+        };
+        withheld.add(99);
+
+        expect(service.visible([kept, locked])).toEqual([kept]);
+    });
+
+    it('falls back to an unlocked candidate when the chosen match is withheld', async () => {
+        matchTitles.mockResolvedValue([
+            match(),
+            match({
+                playlistId: 'pl-2',
+                playlistName: 'Portal Two',
+                xtreamId: 43,
+            }),
+        ]);
+        const service = createService();
+        const [item] = await service.matchRecommendations(
+            [rec('The Matrix')],
+            'movie'
+        );
+        expect(item.match.xtreamId).toBe(42);
+
+        withheld.add(42);
+        const [visible] = service.visible([item]);
+        expect(visible.match.playlistName).toBe('Portal Two');
+
+        withheld.add(43);
+        expect(service.visible([item])).toEqual([]);
     });
 });

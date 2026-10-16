@@ -14,6 +14,7 @@ import {
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
 import {
+    ParentalLockService,
     SettingsStore,
     StreamProbeService,
     VodSourcePinService,
@@ -49,6 +50,7 @@ import {
     type PinKeySets,
 } from './vod-multi-source-pin';
 import {
+    type ExternalPlayerName,
     type ResolvedPortalPlayback,
     type VodSourceCandidate,
     type VodSourceDescriptor,
@@ -63,14 +65,24 @@ import {
  * reaches into the route component.
  */
 
+/** How a pinned play starts. */
+export interface PinnedPlayOptions {
+    /** Forces MPV/VLC instead of the host's inline-or-external choice. */
+    readonly player?: ExternalPlayerName;
+    /** Honour the pin even while its copy already plays: a restart or a forced relaunch replaces it. */
+    readonly replacePlaying?: boolean;
+}
+
 export interface VodMultiSourceBindings {
     /**
-     * Applies a playback — inline swap or external launch, host's choice.
-     * False leaves the controller on its current source.
+     * Applies a playback — inline swap or external launch, host's choice,
+     * unless `player` forces MPV/VLC. False leaves the controller on its
+     * current source.
      */
     startPlayback: (
         playback: ResolvedPortalPlayback,
-        isCurrent: () => boolean
+        isCurrent: () => boolean,
+        player?: ExternalPlayerName
     ) => Promise<boolean>;
     /** The movie on screen, or null while its identity is not yet knowable. */
     movie: Signal<VodMultiSourceMovie | null>;
@@ -97,6 +109,7 @@ export class VodMultiSourceHostService {
     private readonly probes = inject(StreamProbeService);
     private readonly probeCache = inject(VodSourceProbeCacheService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly parentalLock = inject(ParentalLockService);
 
     /**
      * At most this many availability checks in flight at once. Each check is
@@ -116,6 +129,7 @@ export class VodMultiSourceHostService {
     /** Bumped by every switch: a slower one must not overwrite a newer. */
     private switchToken = 0;
     private lastMovieKey: string | null = null;
+    private lastLockVersion: number | null = null;
     private movieIdentity: string | null = null;
     /** The row standing for the playlist the route is on. */
     private routeSourceId: string | null = null;
@@ -170,6 +184,24 @@ export class VodMultiSourceHostService {
 
         effect(() => {
             const movie = bindings.movie();
+            // A lock change starts a fresh session: alternatives discovered
+            // under the previous lock state may sit in a now-locked
+            // category, and a discovery or switch still in flight must not
+            // publish or play them. Rediscovery reads through the worker's
+            // new lock state.
+            const lockVersion = this.parentalLock.version();
+            if (
+                this.lastLockVersion !== null &&
+                this.lastLockVersion !== lockVersion
+            ) {
+                this.discoveryToken++;
+                this.sessionToken++;
+                this.movieIdentity = null;
+                this.lastMovieKey = null;
+                this.controller = new VodMultiSourceController();
+                this._sources.set([]);
+            }
+            this.lastLockVersion = lockVersion;
             if (!movie) {
                 // Navigating away empties the identity before the next movie's
                 // `load()` runs, so bumping here — not only there — closes the
@@ -358,10 +390,13 @@ export class VodMultiSourceHostService {
     /**
      * Start from the pinned source if there is one. `unavailable` means there
      * is nothing pinned to honour, leaving the caller's own Play path in
-     * charge; a superseded attempt must NOT fall through that way.
+     * charge; a superseded attempt must NOT fall through that way. A pin
+     * whose copy already plays counts as nothing to honour, unless
+     * `replacePlaying` says the caller means to restart or relaunch it.
      */
     playPinnedSource(
-        resumeFor?: (source: VodSourceCandidate) => Promise<number | null>
+        resumeFor?: (source: VodSourceCandidate) => Promise<number | null>,
+        options: PinnedPlayOptions = {}
     ): Promise<PinnedPlayOutcome> {
         const session = this.sessionToken;
         // Claim a switch generation up front. The discovery wait and the
@@ -372,10 +407,13 @@ export class VodMultiSourceHostService {
         return startPinnedSource({
             controller: this.controller,
             loadInFlight: this.loadInFlight,
-            pinnedSourceId: () => this.pendingPinnedSourceId(),
+            pinnedSourceId: () =>
+                options.replacePlaying
+                    ? pinnedSourceAwaitingPlay(this._sources(), false)
+                    : this.pendingPinnedSourceId(),
             resumeFor,
             isCurrent: () => this.isCurrentSwitch(session, attempt),
-            play: (sourceId) => this.runPlay(sourceId),
+            play: (sourceId) => this.runPlay(sourceId, options.player),
         });
     }
 
@@ -385,7 +423,10 @@ export class VodMultiSourceHostService {
     }
 
     /** As `play`, but keeping the distinction the pinned path needs. */
-    private async runPlay(sourceId: string): Promise<PinnedPlayOutcome> {
+    private async runPlay(
+        sourceId: string,
+        player?: ExternalPlayerName
+    ): Promise<PinnedPlayOutcome> {
         const candidate = this.controller.findSource(sourceId);
         if (!candidate || !this.bindings) {
             return 'unavailable';
@@ -393,7 +434,7 @@ export class VodMultiSourceHostService {
 
         this._busySourceId.set(sourceId);
         try {
-            return toPinnedOutcome(await this.switchTo(candidate));
+            return toPinnedOutcome(await this.switchTo(candidate, player));
         } finally {
             // Only while this attempt still owns the spinner, or a slower
             // pick would clear the row that is still resolving.
@@ -538,7 +579,10 @@ export class VodMultiSourceHostService {
         this.controller.seedResumeSeconds(seconds);
     }
 
-    private switchTo(candidate: VodSourceCandidate): Promise<SwitchOutcome> {
+    private switchTo(
+        candidate: VodSourceCandidate,
+        player?: ExternalPlayerName
+    ): Promise<SwitchOutcome> {
         const bindings = this.bindings;
         if (!bindings || bindings.playbackStartBlocked()) {
             return Promise.resolve('superseded');
@@ -552,7 +596,7 @@ export class VodMultiSourceHostService {
             resolve: (target, options) =>
                 this.resolver.resolve(target, options),
             startPlayback: (playback, isCurrent) =>
-                bindings.startPlayback(playback, isCurrent),
+                bindings.startPlayback(playback, isCurrent, player),
             isCurrent: () => this.isCurrentSwitch(session, attempt),
             setPreviousSource: (id) => this._previousSourceId.set(id),
             setNotice: (notice) => this._lastSwitch.set(notice),

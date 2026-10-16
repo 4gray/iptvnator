@@ -21,10 +21,15 @@ import {
     MockSettingsStore,
 } from './test-stubs/settings-test-harness.stub';
 
+/** Writable double for the bridge's read-only capability getters. */
+type EpgBridgeStub = {
+    -readonly [K in keyof EpgRuntimeBridgeService]?: EpgRuntimeBridgeService[K];
+};
+
 describe('SettingsEpgFacade', () => {
     let facade: SettingsEpgFacade;
     let formFacade: SettingsFormFacade;
-    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let epgBridge: EpgBridgeStub;
     let epgService: EpgService;
     let dialogService: DialogService;
     let snackBar: MatSnackBarStub;

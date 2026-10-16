@@ -109,6 +109,7 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
             vodId: routeVodId,
             vodInfo: signal(null),
             activeSource,
+            supersedePendingSwitch: jest.fn(),
         });
     });
 
@@ -190,6 +191,48 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
         expect(openResolvedPlayback).not.toHaveBeenCalled();
     });
 
+    it('refuses a start of the copy whose progress reset is still writing', async () => {
+        openResolvedPlayback.mockClear();
+        const resetTarget = signal<{
+            playlistId: string;
+            contentId: number;
+        } | null>({ playlistId: ROUTE_PLAYLIST, contentId: ROUTE_VOD_ID });
+        service.bind({
+            vodId: routeVodId,
+            vodInfo: signal(null),
+            activeSource,
+            supersedePendingSwitch: jest.fn(),
+            resetTarget,
+        });
+        service.pendingResets.set([
+            { playlistId: ROUTE_PLAYLIST, contentId: ROUTE_VOD_ID },
+        ]);
+
+        // The row is being cleared: a start now would resume from it and
+        // the clear would then report no progress for a resumed stream.
+        await expect(
+            service.startResolvedPlayback({
+                streamUrl: 'https://example.com/route.mkv',
+                title: 'Example Movie',
+            })
+        ).resolves.toBe(false);
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
+        expect(service.startBlocked()).toBe(true);
+
+        // The reused page shows another movie before the write landed: its
+        // progress is not being cleared, so it starts.
+        resetTarget.set({ playlistId: ROUTE_PLAYLIST, contentId: 991 });
+        expect(service.startBlocked()).toBe(false);
+        await expect(
+            service.startResolvedPlayback({
+                streamUrl: 'https://example.com/other.mkv',
+                title: 'Other Movie',
+            })
+        ).resolves.toBe(true);
+
+        service.pendingResets.set([]);
+    });
+
     it('rejects a handoff when the external player launch fails', async () => {
         openResolvedPlayback.mockRejectedValueOnce(
             new Error('previous player is still shutting down')
@@ -208,6 +251,45 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
         ).resolves.toBe(false);
 
         expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a failed launch to the page unless another start superseded it', async () => {
+        const reportExternalLaunchFailure = jest.fn();
+        service.bind({
+            vodId: routeVodId,
+            vodInfo: signal(null),
+            activeSource,
+            supersedePendingSwitch: jest.fn(),
+            reportExternalLaunchFailure,
+        });
+        const failure = new Error('mpv is not installed');
+        const playback = {
+            streamUrl: 'https://example.com/alt.mkv',
+            title: 'Example Movie',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 1,
+                contentType: 'vod' as const,
+            },
+        };
+
+        openResolvedPlayback.mockRejectedValueOnce(failure);
+        await service.startResolvedPlayback(playback);
+        expect(reportExternalLaunchFailure).toHaveBeenCalledWith(failure);
+
+        // The route moved on before the failure arrived: the error belongs
+        // to a launch nothing shows any more.
+        let shown = true;
+        let rejectLaunch: (error: Error) => void = () => undefined;
+        openResolvedPlayback.mockImplementationOnce(
+            () => new Promise((_, reject) => (rejectLaunch = reject))
+        );
+        const stale = service.startResolvedPlayback(playback, () => shown);
+        await new Promise((resolve) => setTimeout(resolve));
+        shown = false;
+        rejectLaunch(failure);
+        await expect(stale).resolves.toBe(false);
+        expect(reportExternalLaunchFailure).toHaveBeenCalledTimes(1);
     });
 
     it('closes a closable error before starting a replacement source', async () => {
