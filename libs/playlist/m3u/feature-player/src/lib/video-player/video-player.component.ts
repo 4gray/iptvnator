@@ -1,4 +1,4 @@
-import { AsyncPipe, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import {
     Component,
     ElementRef,
@@ -85,7 +85,6 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
-    isWorkspaceLayoutRoute,
     LiveEpgPanelState,
     LiveLayoutSidebarStateService,
     persistLiveEpgPanelState,
@@ -190,7 +189,6 @@ function isInsideScrollableRegion(
 @Component({
     selector: 'app-video-player',
     imports: [
-        AsyncPipe,
         AudioPlayerComponent,
         ChannelListLoadingStateComponent,
         CommonModule,
@@ -731,7 +729,6 @@ export class VideoPlayerComponent
 
     readonly isDesktop = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
@@ -1770,7 +1767,7 @@ export class VideoPlayerComponent
     }
 
     private registerHeaderShortcut(): void {
-        if (!this.isWorkspaceLayout || !this.supportsEpg) {
+        if (!this.supportsEpg) {
             return;
         }
 

@@ -1,4 +1,5 @@
 export * from './lib/channel-list-container/channel-list-container.component';
+export * from './lib/channel-list-container/channel-context-menu/channel-context-menu.component';
 export * from './lib/channel-list-container/channel-details-dialog/channel-details-dialog.component';
 export * from './lib/channel-list-container/epg-mapping-dialog/epg-mapping-dialog.component';
 export * from './lib/channel-list-container/channel-list-item/channel-list-item.component';
@@ -9,7 +10,9 @@ export * from './lib/confirm-dialog/confirm-dialog.component';
 export * from './lib/confirm-dialog/dialog.service';
 export * from './lib/content-hero/content-hero.component';
 export * from './lib/expandable-text/expandable-text.component';
+export * from './lib/form-field-defaults/form-field-defaults';
 export * from './lib/external-playback-dock/external-playback-dock.component';
+export * from './lib/lazy-dialog/lazy-mat-dialog';
 export * from './lib/portal-detail-shell/content-about.component';
 export * from './lib/portal-detail-shell/detail-template.directives';
 export * from './lib/portal-detail-shell/portal-detail-shell.component';
@@ -19,6 +22,7 @@ export * from './lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component
 export * from './lib/password-visibility-toggle/password-visibility-toggle.directive';
 export * from './lib/progress-capsule/progress-capsule.component';
 export * from './lib/resizable/resizable.directive';
+export * from './lib/season-container/episode-skeleton.component';
 export * from './lib/season-container/season-container.component';
 export * from './lib/season-container/season-tabs.component';
 export * from './lib/season-container/season-watch-presenter';
@@ -34,6 +38,7 @@ export * from './lib/window-controls/window-controls.component';
 
 export * from './lib/channel-scroll-focus/channel-scroll-focus.directive';
 export * from './lib/category-lock-menu/category-lock-menu.component';
+export * from './lib/menu-item-radio/menu-item-radio.directive';
 
 export * from './lib/detail-ui/cast-crew.util';
 export * from './lib/detail-ui/cast-crew-row.component';
@@ -41,6 +46,8 @@ export * from './lib/detail-ui/detail-credits.component';
 export * from './lib/detail-ui/detail-icon-button.component';
 export * from './lib/detail-ui/detail-action-button.component';
 export * from './lib/detail-ui/detail-rail.component';
+export * from './lib/detail-ui/detail-action-skeleton.component';
+export * from './lib/detail-ui/detail-section-header.component';
 export * from './lib/detail-ui/meta-chip.component';
 export * from './lib/detail-ui/similar-rail.component';
 export * from './lib/detail-ui/trailer-dialog.component';
@@ -50,3 +57,6 @@ export * from './lib/detail-ui/vod-more-menu.component';
 export * from './lib/detail-ui/vod-more-menu.model';
 export * from './lib/detail-ui/series-hero.state';
 export * from './lib/detail-ui/hero-trailer-backdrop.component';
+export * from './lib/dialog-shell/dialog-shell.component';
+export * from './lib/dialog-shell/dialog-shell.directives';
+export * from './lib/dialog-shell/dialog-size';

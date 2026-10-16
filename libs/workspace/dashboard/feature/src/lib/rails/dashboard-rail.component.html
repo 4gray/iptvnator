@@ -43,7 +43,7 @@
             class="rail__chev rail__chev--left"
             [class.rail__chev--visible]="canScrollLeft()"
             (click)="scrollBy(-1)"
-            aria-label="Scroll left"
+            [attr.aria-label]="'PORTALS.SCROLL_LEFT' | translate"
             tabindex="-1"
         >
             <mat-icon>chevron_left</mat-icon>
@@ -125,9 +125,9 @@
                                 </div>
                             </div>
                             <div class="rail__channel-progress-row">
-                                <span class="rail__channel-live-chip"
-                                    >LIVE</span
-                                >
+                                <span class="rail__channel-live-chip">{{
+                                    'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate
+                                }}</span>
                                 <span
                                     class="rail__channel-progress"
                                     [class.rail__channel-progress--idle]="
@@ -224,7 +224,8 @@
                                     card.episodeBadge ||
                                     card.remainingLabel ||
                                     card.subtitle ||
-                                    card.expiryBadge
+                                    card.expiryBadge ||
+                                    reserveMetaLine()
                                 ) {
                                     <span class="rail__card-meta-row">
                                         @if (card.episodeBadge) {
@@ -232,11 +233,18 @@
                                                 card.episodeBadge
                                             }}</span>
                                         }
-                                        @if (card.remainingLabel; as remaining) {
-                                            <span class="rail__card-remaining">{{
-                                                remaining.key
-                                                    | translate: remaining.params
-                                            }}</span>
+                                        @if (
+                                            card.remainingLabel;
+                                            as remaining
+                                        ) {
+                                            <span
+                                                class="rail__card-remaining"
+                                                >{{
+                                                    remaining.key
+                                                        | translate
+                                                            : remaining.params
+                                                }}</span
+                                            >
                                         }
                                         @if (card.subtitle) {
                                             <span class="rail__card-subtitle">{{
@@ -251,7 +259,8 @@
                                                 "
                                                 [attr.data-test-id]="
                                                     testId()
-                                                        ? testId() + '-card-expiry'
+                                                        ? testId() +
+                                                          '-card-expiry'
                                                         : null
                                                 "
                                                 >{{ expiry.label }}</span
@@ -283,21 +292,17 @@
             }
         </div>
 
-        <mat-menu
-            #cardActionMenu="matMenu"
-            panelClass="dashboard-rail-action-menu"
-            xPosition="before"
-        >
+        <mat-menu #cardActionMenu="matMenu" xPosition="before">
             <ng-template matMenuContent let-card="card">
                 @for (action of card.actions ?? []; track action.id) {
+                    @if (action.separatorBefore) {
+                        <mat-divider />
+                    }
                     <button
                         mat-menu-item
                         type="button"
                         [disabled]="action.disabled"
-                        [class.rail__menu-action--danger]="action.destructive"
-                        [class.rail__menu-action--separated]="
-                            action.separatorBefore
-                        "
+                        [class.app-menu-item--danger]="action.destructive"
                         (click)="selectAction(card, action, $event)"
                     >
                         <mat-icon>{{ action.icon }}</mat-icon>
@@ -312,7 +317,7 @@
             class="rail__chev rail__chev--right"
             [class.rail__chev--visible]="canScrollRight()"
             (click)="scrollBy(1)"
-            aria-label="Scroll right"
+            [attr.aria-label]="'PORTALS.SCROLL_RIGHT' | translate"
             tabindex="-1"
         >
             <mat-icon>chevron_right</mat-icon>

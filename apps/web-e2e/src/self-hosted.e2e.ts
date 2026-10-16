@@ -259,7 +259,7 @@ test('@self-hosted M3U User-Agent reaches the provider on import and refresh', a
         channel = 'Refreshed UA Channel';
         const row = sourceRowByTitle(page, 'Protected M3U');
         await row.hover();
-        await row.locator('.refresh-btn').click();
+        await row.locator('.source-row__refresh').click();
         await expect(
             page.locator('.mat-mdc-snack-bar-label').last()
         ).toContainText('updated');

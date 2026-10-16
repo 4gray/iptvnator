@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RecentlyAddedComponent } from './recently-added.component';
 
@@ -82,6 +82,8 @@ describe('RecentlyAddedComponent', () => {
                         defaultLang: 'en',
                         instant: jest.fn((key: string) => key),
                         onLangChange: of(null),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                     },
                 },
             ],

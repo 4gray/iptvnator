@@ -242,7 +242,12 @@ barrier and row reservation before its persisted-source preflight; contention
 or unavailable PWA locking declines repair without discovery, while an acquired
 reservation stays held through its conditional row transform. The reservation
 blocks every new authentication (including a URL edit with the same normalized
-fingerprint) and repair, and drains any work already in flight.
+fingerprint) and repair, and drains any work already in flight. Delete All
+drains the playlist writes queued before it, then takes the exclusive reset;
+later writes wait for the delete before they join their playlist's queue, so
+no queue holds work blocked on the reset, except a write under a reservation
+this tab holds (`holdsPlaylistAuthority`), which joins at once since the
+reset waits for that reservation.
 When Save follows a lazy repair in the same tab, Edit publishes its local
 authentication owner first, drains that repair through the actual Web Lock
 request completion, and only then requests the row reservation itself. Repair
@@ -405,11 +410,39 @@ would not reload by itself, so the session calls `reloadCategories()` once
 it has installed that playlist. This contract applies to collection details as well as routed
 catalogs, because both use the root Stalker store.
 
+The store adds an every-item genre (`category_id: '*'`) in front of a
+portal's list when the portal sends none. That entry holds no translated
+name: its `category_name` is empty and its `labelKey` is
+`PORTALS.ALL_CATEGORIES` (`PORTALS.ALL_RADIO` for radio). The category lists
+render the key with the translate pipe. `getSelectedCategoryLabel()` returns
+`{ name, labelKey }` for the selected genre. Text consumers (live header,
+fullscreen panel title, catalog title, search scope) turn it into a string
+with `stalkerCategoryLabelText()` inside a computed that reads
+`injectTranslationTick()`. The root store outlives a runtime language switch, so a name
+translated at load time would keep the old language until the next reload.
+
 Failure-handling rule:
 
 - Failed category or content requests must degrade into empty/error UI state,
   not `undefined` collections or renderer exceptions. The workspace Stalker
   context panel and live layout rely on this guarantee.
+
+Detail metadata rule:
+
+- `createStalkerInfo()` (`stalker-vod.utils.ts`) is the mapping both detail
+  templates read: the series view binds `info` directly and the shared VOD
+  view reads it through `normalizeStalkerVod()`. Each field takes the first
+  usable candidate, and portal stand-ins (`N/A`, `-`, an unrated `0` score)
+  become `''` there — see the placeholder rule in
+  [Embedded Inline Playback](./embedded-inline-playback.md). It runs before
+  TMDB enrichment, which keeps a non-empty provider rating and release date,
+  so a surviving stand-in would also block the TMDB value.
+- It also runs AFTER enrichment: the series view re-normalizes the store item
+  on every render, so it carries every `tmdb_*` field over. The key list
+  (`TMDB_ENRICHMENT_KEYS`) is typed as a `Record` over `StalkerVodInfo`'s
+  `tmdb_*` keys, so a new enrichment field fails to compile until it is listed
+  there instead of silently vanishing from the view (as the genre and country
+  Discover chips once did).
 
 ## Stalker Identity Policy
 
@@ -752,6 +785,31 @@ rejections. The PWA proxy path still delivers the raw string; the renderer
 classifier accepts both shapes plus the legacy `{ js: '<body>' }` envelope.
 `makeAuthenticatedRequest` retries once with fresh authentication and
 otherwise throws `StalkerPortalError('auth-failed')` carrying the body.
+
+### Cancelled requests and HTTP 401/403 over IPC
+
+Electron prints `Error occurred in handler for 'STALKER_REQUEST'` — with a
+stack trace — for every `ipcMain.handle` promise that rejects, so the main
+process resolves two routine outcomes instead of throwing them: a request whose
+abort signal fired (a source-health probe the renderer cancelled or let
+expire) and an HTTP 401/403 (the endpoint answered and refused — an auth gate
+in front of a discovery candidate, an expired account). Both come back as a
+`{ portalRequestFailure }` envelope
+(`libs/shared/interfaces/src/lib/portal-request-failure.util.ts`, classified
+in `apps/electron-backend/src/app/events/portal-request-outcome.ts`).
+`ElectronService.fetchStalkerData` is the only reader of the raw bridge result
+and rethrows the envelope as the error the Stalker layers already classify: an
+`AbortError` for the cancellation (debug log, no snackbar), or an
+`HTTP Error <code>: <statusText>` Error that carries a numeric `status`, so
+`getStalkerRequestErrorStatus` no longer has to parse it out of the message.
+A cancelled request therefore never resolves into an empty answer. In the main
+process the refusal is one `console.warn` through `formatPortalRequestError`
+and `redactSensitiveData` (host and pathname, never the MAC, token or query
+string); the cancellation is logged only under `IPTVNATOR_TRACE_IPC`. Every
+other failure — 404, 5xx, network errors, the connectivity guard's fast-fail —
+still rejects with the message contracts above and keeps its `console.error`.
+`apps/electron-backend-e2e/src/portal-request-logging.e2e.ts` pins both
+outcomes for both portals against the real main-process log.
 
 ### Error surfacing
 
@@ -1286,8 +1344,8 @@ The Stalker live route and radio route intentionally share
   `create_link` with `type=radio`, skips EPG loading, and renders the same
   `AudioPlayerComponent` layout instead of the Stalker VOD detail layout.
 - Some Stalker portals do not expose radio categories. Radio category loading
-  falls back to a synthetic `PORTALS.ALL_RADIO` category with
-  `category_id: '*'` so the station list can still be loaded.
+  falls back to a synthetic every-item category (`category_id: '*'`,
+  `labelKey: 'PORTALS.ALL_RADIO'`) so the station list can still be loaded.
 - A category click in the shell context panel only re-filters the channel
   sidebar; the selected channel or station keeps playing (Xtream live #936 and
   M3U group parity). `onStalkerCategoryClicked` therefore must NOT
@@ -1475,6 +1533,12 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   instead of showing the completed state. After a lazy load, quick start is
   recomputed from the mapped episodes before playback so provider episode
   ordering cannot start the wrong episode.
+- Extras (season 0) follow the shared next-episode rule (`getSeriesNextUp`):
+  while the series has other seasons they never become the quick-start target,
+  and the lazy load before playback picks the first regular season the portal
+  has not answered for (an empty answer counts as loaded:
+  `isVodSeasonHydrationPending`), never an unloaded Specials season. Only when
+  every regular season came back empty do extras count as the run.
 - For unloaded VOD-series seasons, the CTA target label is derived from season
   metadata and rendered as `SxxE01` until episode details are loaded.
 - Lazy VOD-series episodes use scoped tracking IDs derived from the parent

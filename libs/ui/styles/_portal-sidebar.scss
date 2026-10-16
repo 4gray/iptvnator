@@ -6,6 +6,8 @@
 // depth. No alias is needed because this partial exports no callable members.
 //   @use '../../../../../../ui/styles/portal-sidebar';
 
+@use 'focus-ring';
+
 .sidebar {
     // Width is controlled by the resizable directive
     // Default fallback if directive not applied
@@ -38,11 +40,6 @@
 
         button {
             app-region: no-drag;
-        }
-
-        .switcher {
-            flex: 1;
-            min-width: 0;
         }
 
         .manage-categories-btn {
@@ -126,8 +123,7 @@
             }
 
             &:focus-visible {
-                outline: 2px solid var(--mat-sys-primary);
-                outline-offset: -2px;
+                @include focus-ring.focus-ring-declarations($offset: -2px);
             }
         }
     }

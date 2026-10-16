@@ -167,31 +167,31 @@ describe('SettingsPlaybackSectionComponent', () => {
         }
     );
 
-    it('binds the shared web controls checkbox to the settings form', () => {
+    it('binds the shared web controls switch to the settings form', () => {
         const form = createForm();
         form.controls['webPlayerSharedControls'].setValue(true);
         fixture.componentRef.setInput('form', form);
         fixture.detectChanges();
 
-        const checkbox = (
+        const toggle = (
             fixture.nativeElement as HTMLElement
-        ).querySelector<HTMLInputElement>(
-            '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
+        ).querySelector<HTMLButtonElement>(
+            '[data-test-id="web-player-shared-controls-toggle"] button[role="switch"]'
         );
 
-        expect(checkbox?.checked).toBe(true);
+        expect(toggle?.getAttribute('aria-checked')).toBe('true');
     });
 
-    it('labels the rendered native shared web controls checkbox', () => {
+    it('labels the rendered shared web controls switch', () => {
         fixture.detectChanges();
 
-        const checkbox = (
+        const toggle = (
             fixture.nativeElement as HTMLElement
-        ).querySelector<HTMLInputElement>(
-            '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
+        ).querySelector<HTMLButtonElement>(
+            '[data-test-id="web-player-shared-controls-toggle"] button[role="switch"]'
         );
 
-        expect(checkbox?.getAttribute('aria-label')).toBe(
+        expect(toggle?.getAttribute('aria-label')).toBe(
             WEB_PLAYER_SHARED_CONTROLS_LABEL
         );
     });
@@ -458,6 +458,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         webPlayerSharedControls: new FormControl(false),
         playerAmbientMode: new FormControl(false),
         detailTrailerBackdrop: new FormControl(false),
+        showCaptions: new FormControl(false),
         playerUpNextRail: new FormControl(true),
         playerUpNextCard: new FormControl(true),
         fullscreenChannelPanel: new FormControl(true),

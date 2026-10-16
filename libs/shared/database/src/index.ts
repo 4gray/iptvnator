@@ -8,3 +8,4 @@ export * from './lib/schema';
 export * from './lib/connection';
 export * from './lib/path-utils';
 export * from './lib/connection-observer';
+export * from './lib/app-playlist';

@@ -19,12 +19,16 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     GridListComponent,
     InfiniteScrollDirective,
     PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
 import {
     clearNavigationStateKeys,
     consumeStalkerReturnMarker,
@@ -39,6 +43,10 @@ import {
     PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
     PortalCatalogSortMode,
 } from '@iptvnator/portal/shared/util';
+import {
+    CATALOG_SORT_OPTIONS,
+    catalogSortLabels,
+} from './catalog-sort-options';
 
 interface CategoryContentItem {
     id?: number | string;
@@ -63,6 +71,8 @@ interface CategoryContentItem {
         MatIcon,
         MatMenuModule,
         MatTooltip,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         NgComponentOutlet,
         PlaylistErrorViewComponent,
         TranslatePipe,
@@ -73,7 +83,6 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly router = inject(Router);
-    private readonly translate = inject(TranslateService);
     private readonly providerOnlyStalkerItemId = signal<string | null>(null);
     private readonly catalog = inject(
         PORTAL_CATALOG_FACADE
@@ -100,15 +109,20 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.catalog.provider === 'xtream' &&
             this.isPaginatedContentLoading()
     );
+    /** Key and params; the template pipe re-renders once translations load. */
     readonly categoryItemSubtitle = computed(() => {
         if (this.isXtreamLoadingSubtitle()) {
-            return this.translate.instant(
-                'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING'
-            );
+            return { key: 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING', params: {} };
         }
 
-        const itemCount = this.categoryItemCount();
-        return `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
+        const count = this.categoryItemCount();
+        return {
+            key:
+                count === 1
+                    ? 'WORKSPACE.CONTEXT.ITEM_COUNT_ONE'
+                    : 'WORKSPACE.CONTEXT.ITEM_COUNT_OTHER',
+            params: { count },
+        };
     });
     readonly canSortContent = computed(() => this.contentSortMode() !== null);
     readonly supportsRatingSort = computed(
@@ -129,24 +143,14 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly activeRefinementCount = computed(() =>
         this.minRating() !== null ? 1 : 0
     );
-    readonly activeSortLabelKey = computed(() => {
-        switch (this.contentSortMode()) {
-            case 'date-desc':
-                return 'WORKSPACE.SORT_DATE_DESC';
-            case 'date-asc':
-                return 'WORKSPACE.SORT_DATE_ASC';
-            case 'name-asc':
-                return 'WORKSPACE.SORT_NAME_ASC';
-            case 'name-desc':
-                return 'WORKSPACE.SORT_NAME_DESC';
-            case 'rating-desc':
-                return 'WORKSPACE.SORT_TOP_RATED';
-            case 'rating-asc':
-                return 'WORKSPACE.SORT_LOWEST_RATED';
-            default:
-                return 'WORKSPACE.SORT_CUSTOM';
-        }
-    });
+    readonly sortOptions = computed(() =>
+        CATALOG_SORT_OPTIONS.filter(
+            (option) => !option.byRating || this.supportsRatingSort()
+        )
+    );
+    readonly activeSortLabels = computed(() =>
+        catalogSortLabels(this.contentSortMode())
+    );
     readonly searchTerm = toSignal(
         this.activatedRoute.queryParamMap.pipe(map((p) => p.get('q') ?? '')),
         { initialValue: '' }
@@ -194,6 +198,18 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     });
     private previousGridResetKey: string | null = null;
     private hasAttemptedScrollRestore = false;
+    /**
+     * The grid's last reported offset. On destroy the view is already
+     * detached from the document, where `scrollTop` reads 0, so the hook
+     * saves this instead. Scroll events do not bubble but can be captured.
+     */
+    private lastGridScrollTop = 0;
+    private readonly trackGridScroll = (event: Event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement && target.matches('app-grid-list')) {
+            this.lastGridScrollTop = target.scrollTop;
+        }
+    };
     private readonly routeCategory = signal<{ id: string | null } | null>(null);
     private initializedRoute: {
         category: { id: string | null };
@@ -201,6 +217,16 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     } | null = null;
 
     constructor() {
+        const host = this.hostElement.nativeElement;
+        host.addEventListener('scroll', this.trackGridScroll, {
+            capture: true,
+            passive: true,
+        });
+        this.destroyRef.onDestroy(() =>
+            host.removeEventListener('scroll', this.trackGridScroll, {
+                capture: true,
+            })
+        );
         effect(() => {
             const category = this.routeCategory();
             if (!category || this.catalog.routeReady?.() === false) {
@@ -301,11 +327,15 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     ngOnDestroy(): void {
         // Leaving the list without opening a detail (e.g. switching portal
         // tabs) still snapshots the spot; the facade validates the selection
-        // before ever restoring it.
+        // before ever restoring it. Angular detaches the view's DOM before
+        // this hook runs, and a detached grid reports a scrollTop of 0, so
+        // the tracked offset stands in for it.
         if (!this.selectedItem()) {
             const grid = this.gridElement();
             if (grid) {
-                this.catalog.saveScrollPosition?.(grid.scrollTop);
+                this.catalog.saveScrollPosition?.(
+                    grid.isConnected ? grid.scrollTop : this.lastGridScrollTop
+                );
             }
         }
     }
@@ -342,6 +372,8 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     }
 
     private scrollGridToTop(): void {
+        // A grid already at the top fires no scroll event for this call.
+        this.lastGridScrollTop = 0;
         this.gridElement()?.scrollTo?.({ top: 0 });
     }
 

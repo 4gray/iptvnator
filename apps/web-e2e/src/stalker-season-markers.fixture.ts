@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { setSwitch } from './e2e-helpers';
 import { expect } from './fixtures';
 
 /** Complete lazy VOD season workflow, using fictional provider/TMDB replies. */
@@ -115,7 +116,10 @@ export async function verifyStalkerSeasonMarkers(
         });
     });
     await page.goto('/workspace/settings/tmdb');
-    await page.locator('[data-test-id="tmdb-enabled"] input').check();
+    await setSwitch(
+        page.locator('[data-test-id="tmdb-enabled"] [role="switch"]'),
+        true
+    );
     await page.locator('[data-test-id="tmdb-api-key"]').fill('e2e-key');
     const save = page.getByRole('button', { name: 'Save changes' });
     await save.click();
@@ -133,30 +137,30 @@ export async function verifyStalkerSeasonMarkers(
         );
         await expect(
             page.getByRole('heading', {
-                name: `1. Season ${season} premiere`,
+                name: `Season ${season} premiere`,
                 exact: true,
             })
         ).toBeVisible();
         await expect(page.getByTestId('season-description')).toContainText(
             `Season ${season} overview`
         );
-        await expect(page.locator('.episode-card')).toContainText(
+        await expect(page.locator('.episode-item')).toContainText(
             `Season ${season} episode plot`
         );
-        await expect(page.locator('.episode-card img')).toHaveAttribute(
+        await expect(page.locator('.episode-item img')).toHaveAttribute(
             'src',
             new RegExp(`/season-${season}\\.jpg$`)
         );
         await page.locator('[data-testid="series-more-menu"]').click();
         await page.locator('[data-test-id="toggle-season-watched"]').click();
-        await expect(page.locator('.episode-card--watched')).toHaveCount(1);
+        await expect(page.locator('.episode-item--watched')).toHaveCount(1);
         await page.getByRole('button', { name: 'Back', exact: true }).click();
     }
     await page.getByText(titles[0], { exact: true }).first().click();
     await expect(
         page.getByRole('tab', { name: 'Season 2', exact: true })
     ).toBeVisible();
-    await expect(page.locator('.episode-card--watched')).toHaveCount(1);
+    await expect(page.locator('.episode-item--watched')).toHaveCount(1);
     expect(seasonRequests).toEqual(expect.arrayContaining([2, 3]));
     expect(seasonRequests).not.toContain(1);
     expect(searchLanguages).toEqual(expect.arrayContaining(['en-US', 'ru-RU']));

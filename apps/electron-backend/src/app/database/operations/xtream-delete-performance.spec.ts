@@ -52,14 +52,6 @@ function createDeleteHarness() {
         { hidden: true, id: 11, type: 'live', xtreamId: 101 },
         { hidden: false, id: 12, type: 'movies', xtreamId: 102 },
     ];
-    const favorites = [
-        {
-            addedAt: '2026-01-01T00:00:00.000Z',
-            contentType: 'live',
-            position: 3,
-            xtreamId: 201,
-        },
-    ];
     const recentlyViewed = [
         {
             contentType: 'movie',
@@ -78,9 +70,6 @@ function createDeleteHarness() {
         .fn()
         .mockReturnValueOnce(
             createSelectStep(categories, 'select:categories', timeline)
-        )
-        .mockReturnValueOnce(
-            createSelectStep(favorites, 'select:favorites', timeline)
         )
         .mockReturnValueOnce(
             createSelectStep(recentlyViewed, 'select:recently-viewed', timeline)
@@ -110,7 +99,15 @@ function createDeleteHarness() {
 
     return {
         countFilters,
-        db: { select, transaction } as unknown as AppDatabase,
+        db: {
+            select,
+            transaction,
+            update: jest.fn(() => ({
+                set: jest.fn(() => ({
+                    where: jest.fn().mockReturnValue({ run: jest.fn() }),
+                })),
+            })),
+        } as unknown as AppDatabase,
         deleteFilters,
         timeline,
         transaction,
@@ -145,14 +142,7 @@ describe('Xtream delete performance phases', () => {
                 recording.capture
             )
         ).resolves.toEqual({
-            favorites: [
-                {
-                    addedAt: '2026-01-01T00:00:00.000Z',
-                    contentType: 'live',
-                    position: 3,
-                    xtreamId: 201,
-                },
-            ],
+            favorites: [],
             hiddenCategories: [{ categoryType: 'live', xtreamId: 101 }],
             recentlyViewed: [
                 {
@@ -169,7 +159,7 @@ describe('Xtream delete performance phases', () => {
         expect(harness.transaction).toHaveBeenCalledTimes(2);
         // Progress reporting performs a second cooperative checkpoint after
         // each committed batch.
-        expect(checkpoint).toHaveBeenCalledTimes(4);
+        expect(checkpoint).toHaveBeenCalledTimes(5);
         expect(onProgress.mock.calls.map(([value]) => value)).toEqual([
             {
                 phase: 'deleting-content',
@@ -184,9 +174,8 @@ describe('Xtream delete performance phases', () => {
                 increment: 2,
             },
         ]);
-        expect(harness.timeline.slice(1, 5)).toEqual([
+        expect(harness.timeline.slice(2, 5)).toEqual([
             'select:categories',
-            'select:favorites',
             'select:recently-viewed',
             'select:content',
         ]);
@@ -264,7 +253,7 @@ describe('Xtream delete performance phases', () => {
                 {
                     checkpoint: () => {
                         checkpointCount += 1;
-                        if (checkpointCount === 2) {
+                        if (checkpointCount === 3) {
                             throw cancellation;
                         }
                     },
@@ -286,6 +275,11 @@ describe('Xtream delete performance phases', () => {
         const from = jest.fn(() => ({ where }));
         const db = {
             select: jest.fn(() => ({ from })),
+            update: jest.fn(() => ({
+                set: jest.fn(() => ({
+                    where: jest.fn().mockReturnValue({ run: jest.fn() }),
+                })),
+            })),
         } as unknown as AppDatabase;
         const recording = createRecordingOperationPhaseCapture();
 

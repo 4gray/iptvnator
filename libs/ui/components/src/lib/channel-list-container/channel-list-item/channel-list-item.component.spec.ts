@@ -179,6 +179,40 @@ describe('ChannelListItemComponent', () => {
         expect(programmeDialog.open).not.toHaveBeenCalled();
     });
 
+    it('keeps one name on the favorite toggle and reports its state', () => {
+        fixture.componentRef.setInput('name', 'Starred');
+        fixture.componentRef.setInput('showFavoriteButton', true);
+        fixture.detectChanges();
+        const toggle = fixture.nativeElement.querySelector('.favorite-button');
+        expect(toggle.getAttribute('aria-label')).toBe('CHANNELS.FAVORITE');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+
+        fixture.componentRef.setInput('isFavorite', true);
+        fixture.detectChanges();
+        expect(toggle.getAttribute('aria-label')).toBe('CHANNELS.FAVORITE');
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('names the icon-only row actions after their tooltips', () => {
+        fixture.componentRef.setInput('name', 'Recent');
+        fixture.componentRef.setInput('showAuxActionButton', true);
+        fixture.componentRef.setInput(
+            'auxActionTooltip',
+            'Remove from history'
+        );
+        fixture.detectChanges();
+
+        const buttons: HTMLButtonElement[] = Array.from(
+            fixture.nativeElement.querySelectorAll('.action-buttons button')
+        );
+        expect(
+            buttons.map((button) => button.getAttribute('aria-label'))
+        ).toEqual([
+            'Remove from history',
+            'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS',
+        ]);
+    });
+
     it('renders the catch-up badge only when catch-up is available', () => {
         fixture.componentRef.setInput('name', 'Archive Channel');
         fixture.detectChanges();

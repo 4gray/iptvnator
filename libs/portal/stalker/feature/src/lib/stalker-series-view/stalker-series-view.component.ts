@@ -15,6 +15,7 @@ import { Location } from '@angular/common';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { withEpisodeTitleFallback } from './stalker-series-episode-titles';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import {
     findStalkerResumeLazySeason,
@@ -26,6 +27,7 @@ import {
 import {
     CastCrewRowComponent,
     DetailActionButtonComponent,
+    DetailActionSkeletonComponent,
     DetailActionsTemplateDirective,
     DetailCreditsComponent,
     DetailMetaTemplateDirective,
@@ -94,6 +96,7 @@ import {
     CrossPortalSimilarService,
     PlaybackPositionRuntimeBridgeService,
     TmdbEnrichmentService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
 import { StalkerSeriesHeroPresenter } from './stalker-series-hero.presenter';
@@ -142,6 +145,7 @@ interface StalkerSeriesPlaybackRequestContext {
         FavoritesButtonComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
+        DetailActionSkeletonComponent,
         DetailActionsTemplateDirective,
         DetailCreditsComponent,
         DetailMetaTemplateDirective,
@@ -181,6 +185,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     );
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
+    private readonly languageTick = injectTranslationTick();
     readonly backClicked = output<void>();
     private readonly logger = createLogger('StalkerSeriesView');
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
@@ -276,6 +281,57 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * coherence gates instead (see the constructor).
      */
     private readonly selectedSeasonKey = signal<string | null>(null);
+
+    /**
+     * The season the detail container shows. `selectedSeasonKey` is also
+     * written by the fullscreen episode picker, whose choice loads another
+     * season without changing the detail list; the container's loading and
+     * metadata flags must follow the container's own selection.
+     */
+    private readonly detailSeasonKey = computed(
+        () => this.seasonContainerRef()?.selectedSeason() ?? null
+    );
+
+    /**
+     * True while the episode list itself is on its way: the season list
+     * (VOD or regular series) or the detail container's lazy VOD season.
+     * The season container shows skeleton rows, the hero a placeholder for
+     * Play.
+     */
+    readonly episodeListLoading = computed(
+        () =>
+            (this.isVodSeries()
+                ? this.isVodSeriesSeasonsLoading()
+                : this.isSerialSeasonsLoading()) ||
+            this.isCurrentSeasonLoading(this.detailSeasonKey() ?? undefined)
+    );
+
+    /**
+     * True while TMDB may still fill the selected season's episodes: the
+     * show-level match is in flight, or — once matched — that season's
+     * fetch has not finished. The season container then keeps rows it would
+     * render bare as skeletons. Before the container reports its selection,
+     * the lowest season stands in.
+     */
+    readonly seasonMetadataLoading = computed(() => {
+        if (!this.tmdbEnrichment.isEnabled()) {
+            return false;
+        }
+        if (this.stalkerStore.selectedItemTmdbPending()) {
+            return true;
+        }
+        const tmdbId = this.displayItem()?.info?.tmdb_id;
+        const seasonKey =
+            this.detailSeasonKey() ??
+            Object.keys(this.mappedSeasons()).sort(
+                (a, b) => Number(a) - Number(b)
+            )[0];
+        return (
+            !!tmdbId &&
+            !!seasonKey &&
+            !this.tmdbSeasons.isSeasonSettled(tmdbId, seasonKey)
+        );
+    });
 
     /** Season descriptions for the season tabs (TMDB overview per season). */
     readonly seasonDescriptions = computed<Record<string, string>>(() =>
@@ -666,7 +722,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
             // Overlay lazily fetched TMDB episode data (real names,
             // overviews, stills) — a no-op while nothing is fetched
-            return this.tmdbSeasons.overlay(base, displayItem?.info?.tmdb_id);
+            const overlaid = this.tmdbSeasons.overlay(
+                base,
+                displayItem?.info?.tmdb_id
+            );
+            this.languageTick();
+            return withEpisodeTitleFallback(overlaid, (episode) =>
+                this.episodeLabel(episode)
+            );
         }
     );
 
@@ -847,16 +910,23 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * offset for an episode whose position row the page could not attach
      * (matched by coordinates only), so it resumes where the card said.
      */
+    /** `fromStart` ignores the saved position (the episode menu's "Play from beginning"). */
     onEpisodeClicked(
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
-        forcePlayer?: ExternalPlayerName
+        forcePlayer?: ExternalPlayerName,
+        fromStart = false
     ) {
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
             // choice waits for it, like the Reset and watched rows do.
             this.watchToggle.holdChoice(() =>
-                this.onEpisodeClicked(episode, startTimeOverride, forcePlayer)
+                this.onEpisodeClicked(
+                    episode,
+                    startTimeOverride,
+                    forcePlayer,
+                    fromStart
+                )
             );
             return;
         }
@@ -865,17 +935,27 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             // The launch cannot be cancelled: the choice replaces its player
             // once it settled.
             this.launchQueue.hold(seriesKey, () =>
-                this.startEpisode(episode, startTimeOverride, forcePlayer)
+                this.startEpisode(
+                    episode,
+                    startTimeOverride,
+                    forcePlayer,
+                    fromStart
+                )
             );
             return;
         }
-        this.startEpisode(episode, startTimeOverride, forcePlayer);
+        this.startEpisode(episode, startTimeOverride, forcePlayer, fromStart);
+    }
+
+    onEpisodeRestartRequested(episode: XtreamSerieEpisode): void {
+        this.onEpisodeClicked(episode, undefined, undefined, true);
     }
 
     private startEpisode(
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
-        forcePlayer?: ExternalPlayerName
+        forcePlayer?: ExternalPlayerName,
+        fromStart = false
     ): void {
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
@@ -891,12 +971,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             ? `/media/file_${mappedEpisode.originalId ?? ''}.mpg`
             : mappedEpisode.originalCmd;
         const title = isLazyVod
-            ? `${item.info.name} - ${mappedEpisode.title || `Episode ${episodeState.episodeNumber}`}`
+            ? `${item.info.name} - ${mappedEpisode.title || this.episodeLabel(episodeState.episodeNumber)}`
             : item.info.name;
         const trackingId = Number(mappedEpisode.id);
-        const startTime =
-            this.episodePlaybackPositions().get(trackingId)?.positionSeconds ??
-            startTimeOverride;
+        const startTime = fromStart
+            ? 0
+            : (this.episodePlaybackPositions().get(trackingId)
+                  ?.positionSeconds ?? startTimeOverride);
 
         void this.startPlayback(
             command,
@@ -999,6 +1080,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     toSeriesId(id: string | number): number {
         return toStalkerSeriesId(id);
+    }
+
+    private episodeLabel(episode: number): string {
+        return this.translateService.instant('PORTALS.DETAIL.EPISODE_NUMBER', {
+            episode,
+        });
     }
 
     closeInlinePlayer(): void {
@@ -1364,6 +1451,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.isVodSeries()
             ? getVodSeasonLoadStates(this.vodSeriesSeasons())
             : {}
+    );
+
+    /** The seasons still to load, for the season tabs' auto-selection. */
+    readonly unloadedVodSeasonKeys = computed(() =>
+        Object.keys(this.vodSeasonLoadStates())
     );
 
     handleSeriesPlaybackToggleRequested(

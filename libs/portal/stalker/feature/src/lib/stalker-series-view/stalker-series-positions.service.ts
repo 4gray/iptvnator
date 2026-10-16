@@ -1,7 +1,8 @@
 import { Injectable, Signal, inject, signal, untracked } from '@angular/core';
 import {
-    PORTAL_PLAYBACK_POSITIONS,
     createLogger,
+    PORTAL_PLAYBACK_POSITIONS,
+    stampPlaybackPositionNow,
 } from '@iptvnator/portal/shared/util';
 import {
     StalkerStore,
@@ -275,6 +276,9 @@ export class StalkerSeriesPositionsService {
         legacyPosition: PlaybackPositionData | undefined,
         clearedLegacy: boolean
     ): void {
+        // Dated like the stored rows, so the episode just played ranks as
+        // the newest activity for the quick start and the season tabs.
+        const saved = stampPlaybackPositionNow(position);
         const removedTrackingIds = new Set([position.contentXtreamId]);
         if (clearedLegacy && legacyPosition) {
             removedTrackingIds.add(legacyPosition.contentXtreamId);
@@ -288,9 +292,9 @@ export class StalkerSeriesPositionsService {
                 (candidate) =>
                     !removedTrackingIds.has(candidate.contentXtreamId)
             ),
-            position,
+            saved,
         ]);
-        this.updateEpisodePlaybackPosition(position);
+        this.updateEpisodePlaybackPosition(saved);
     }
 
     private publishClearedSeriesPosition(

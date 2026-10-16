@@ -7,23 +7,25 @@ import {
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 @Component({
     selector: 'app-settings-remote-control-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         MatButtonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
+        MatSlideToggleModule,
         MatTooltipModule,
         QRCodeComponent,
         ReactiveFormsModule,
@@ -32,7 +34,7 @@ import { markSectionForCheckOnFormEvents } from './settings-section-form-render'
     templateUrl: './settings-remote-control-section.component.html',
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    styles: [':host { display: contents; }'],
+    styleUrls: ['./settings-remote-control-section.component.scss'],
 })
 export class SettingsRemoteControlSectionComponent {
     readonly form = input.required<FormGroup>();

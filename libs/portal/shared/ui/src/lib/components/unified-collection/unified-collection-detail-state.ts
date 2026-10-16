@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     computed,
     effect,
@@ -50,6 +51,8 @@ export interface CollectionDetailState {
  */
 export function createCollectionDetailState(options: {
     mode: Signal<CollectionMode>;
+    items: Signal<UnifiedCollectionItem[]>;
+    isLoading: Signal<boolean>;
     portalType: Signal<string | undefined>;
     /** Absent while the host projects no detail template. */
     detailTemplate: Signal<unknown>;
@@ -72,6 +75,7 @@ export function createCollectionDetailState(options: {
         );
 
     const canOpen = (candidate: UnifiedCollectionItem): boolean =>
+        !isCatalogUnavailable(candidate) &&
         Boolean(options.detailTemplate()) &&
         candidate.contentType !== 'live' &&
         (candidate.sourceType === 'xtream' ||
@@ -82,6 +86,7 @@ export function createCollectionDetailState(options: {
         next: UnifiedCollectionItem,
         nextSeriesResume?: SeriesResumeTarget | null
     ): void => {
+        if (isCatalogUnavailable(next)) return;
         options.onOpen(next.contentType);
         item.set(next);
         seriesResume.set(nextSeriesResume ?? null);
@@ -128,6 +133,38 @@ export function createCollectionDetailState(options: {
         });
     });
 
+    const syncFromHistory = (): void => {
+        if (options.isLoading()) return;
+        const detailState = getOpenCollectionDetailItemState(
+            window.history.state
+        );
+        const savedItem = detailState?.item;
+        const currentItem =
+            savedItem &&
+            options.items().find((row) => row.uid === savedItem.uid);
+        // The catalog may have changed since this history entry was written.
+        // Unrelated dashboard discoveries need not be a saved favorite.
+        const detailItem =
+            currentItem ??
+            (savedItem?.favoriteId != null && options.mode() === 'favorites'
+                ? null
+                : savedItem);
+
+        if (detailItem && canOpen(detailItem)) {
+            open(detailItem, detailState?.seriesResume);
+            return;
+        }
+
+        if (item()) {
+            clear();
+        }
+    };
+
+    effect(() => {
+        options.items();
+        if (!options.isLoading()) untracked(syncFromHistory);
+    });
+
     return {
         item,
         seriesResume,
@@ -147,20 +184,6 @@ export function createCollectionDetailState(options: {
         canOpen,
         open,
         clear,
-        syncFromHistory(): void {
-            const detailState = getOpenCollectionDetailItemState(
-                window.history.state
-            );
-            const detailItem = detailState?.item;
-
-            if (detailItem && canOpen(detailItem)) {
-                open(detailItem, detailState.seriesResume);
-                return;
-            }
-
-            if (item()) {
-                clear();
-            }
-        },
+        syncFromHistory,
     };
 }

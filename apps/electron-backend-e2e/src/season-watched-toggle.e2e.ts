@@ -45,7 +45,7 @@ const expectedEpisodeNumbers = [1, 2, 3, 4, 5, 6, 7, 8];
 const portalName = 'Season Watched Toggle';
 
 const watchedEpisodeToggleSelector =
-    '[data-testid="episode-watched-toggle"].episode-card__watched-toggle--watched';
+    '[data-testid="episode-watched-toggle"].episode-item__watched-toggle--watched';
 
 type EpisodePositionRow = {
     episodeNumber: number | null;
@@ -169,9 +169,9 @@ test.describe('Electron Season Watched Toggle', () => {
             );
             await closeSeriesMenu(app.mainWindow);
 
-            const episodeCards = app.mainWindow.locator('.episode-card');
+            const episodeCards = app.mainWindow.locator('.episode-item');
             const watchedCards = app.mainWindow.locator(
-                '.episode-card--watched'
+                '.episode-item--watched'
             );
             await expect(episodeCards).toHaveCount(seasonEpisodeCount, {
                 timeout: 10_000,
@@ -256,7 +256,7 @@ test.describe('Electron Season Watched Toggle', () => {
                 'toggle-season-watched'
             );
             const restartedWatchedCards = app.mainWindow.locator(
-                '.episode-card--watched'
+                '.episode-item--watched'
             );
             // With season 1 completed, the fresh mount auto-selects the
             // earliest season with unwatched episodes (issue #1441): season 2

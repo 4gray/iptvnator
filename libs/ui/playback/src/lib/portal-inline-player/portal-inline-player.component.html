@@ -1,5 +1,8 @@
 @if (hasPlayback()) {
-    <section class="player-shell" aria-label="Inline player">
+    <section
+        class="player-shell"
+        [attr.aria-label]="'PORTALS.INLINE_PLAYER' | translate"
+    >
         <header class="player-shell__header">
             <div class="player-shell__title-row">
                 <div class="player-shell__heading">

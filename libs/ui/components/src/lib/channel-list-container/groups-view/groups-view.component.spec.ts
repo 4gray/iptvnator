@@ -230,7 +230,9 @@ describe('GroupsViewComponent', () => {
 
     it('defaults to playlist order when no saved sort mode exists', () => {
         expect(component.groupChannelSortMode()).toBe('server');
-        expect(component.groupChannelSortLabel()).toBe('Playlist Order');
+        expect(component.groupChannelSortLabelKey()).toBe(
+            'CHANNELS.SORT_PLAYLIST_ORDER'
+        );
     });
 
     it('keeps the virtual-scroll item size aligned with row EPG density', () => {
@@ -259,7 +261,9 @@ describe('GroupsViewComponent', () => {
         createComponent();
 
         expect(component.groupChannelSortMode()).toBe('name-asc');
-        expect(component.groupChannelSortLabel()).toBe('Name A-Z');
+        expect(component.groupChannelSortLabelKey()).toBe(
+            'WORKSPACE.SORT_NAME_ASC'
+        );
 
         fixture.destroy();
         localStorage.setItem(GROUP_CHANNEL_SORT_STORAGE_KEY, 'invalid');
@@ -537,9 +541,9 @@ describe('GroupsViewComponent', () => {
                         { key: 'Sports', count: 2 },
                     ]),
                 }),
-                maxHeight: '90vh',
+                maxHeight: 'calc(100vh - 32px)',
                 maxWidth: 'calc(100vw - 32px)',
-                width: '500px',
+                width: '560px',
             })
         );
         expect(hiddenGroupTitlesChanged).toHaveBeenCalledWith([
@@ -736,7 +740,7 @@ describe('GroupsViewComponent', () => {
 
     it('positions the context menu at the viewport click and opens channel details from the selected group pane', async () => {
         const openMenuSpy = jest
-            .spyOn(component.contextMenuTrigger(), 'openMenu')
+            .spyOn(component.channelContextMenu(), 'open')
             .mockImplementation();
 
         component.onChannelContextMenu(movieClassic, {
@@ -746,11 +750,9 @@ describe('GroupsViewComponent', () => {
         await Promise.resolve();
 
         expect(component.contextMenuChannel()).toBe(movieClassic);
-        expect(component.contextMenuPosition()).toEqual({
-            x: '212px',
-            y: '264px',
-        });
-        expect(openMenuSpy).toHaveBeenCalled();
+        expect(openMenuSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ clientX: 212, clientY: 264 })
+        );
 
         component.openChannelDetails();
 
@@ -758,8 +760,8 @@ describe('GroupsViewComponent', () => {
             ChannelDetailsDialogComponent,
             expect.objectContaining({
                 data: movieClassic,
-                maxWidth: '720px',
-                width: 'calc(100vw - 32px)',
+                maxWidth: 'calc(100vw - 32px)',
+                width: '760px',
             })
         );
     });

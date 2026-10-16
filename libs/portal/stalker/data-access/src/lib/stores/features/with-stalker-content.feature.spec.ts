@@ -1,7 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { TranslateService } from '@ngx-translate/core';
 import { DataService, ParentalLockService } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
@@ -183,12 +182,6 @@ describe('withStalkerContent failure states', () => {
                         }),
                     },
                 },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        instant: jest.fn((key: string) => key),
-                    },
-                },
             ],
         });
 
@@ -295,8 +288,44 @@ describe('withStalkerContent failure states', () => {
         expect(
             store
                 .getCategoryResource()
-                .map((category) => category.category_name)
+                .map((category) => category.labelKey ?? category.category_name)
         ).toEqual(['PORTALS.ALL_CATEGORIES', 'Zulu', 'Alpha', 'Movies']);
+        // The added entry is named by its key alone: a name translated at
+        // load time would keep that language after a runtime switch.
+        expect(store.getCategoryResource()[0]).toEqual({
+            category_id: '*',
+            category_name: '',
+            labelKey: 'PORTALS.ALL_CATEGORIES',
+        });
+    });
+
+    it('names the selected genre by the portal name or the added entry key', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: [{ id: '7', title: 'Drama' }],
+        });
+
+        store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isCategoryResourceLoading();
+        await waitForCondition(() => store.getCategoryResource().length > 0);
+
+        store.setSelectedCategory('*');
+        expect(store.getSelectedCategoryLabel()).toEqual({
+            name: '',
+            labelKey: 'PORTALS.ALL_CATEGORIES',
+        });
+
+        store.setSelectedCategory('7');
+        expect(store.getSelectedCategoryLabel()).toEqual({
+            name: 'Drama',
+            labelKey: null,
+        });
+
+        store.setSelectedCategory(null);
+        expect(store.getSelectedCategoryLabel()).toEqual({
+            name: '',
+            labelKey: null,
+        });
     });
 
     it('normalizes content failures into empty collections instead of undefined state', async () => {
@@ -838,18 +867,13 @@ describe('withStalkerContent failure states', () => {
                 }),
             })
         );
-        expect(store.getCategoryResource()).toEqual([
-            {
-                category_id: '*',
-                category_name: 'PORTALS.ALL_RADIO',
-            },
-        ]);
-        expect(store.radioCategories()).toEqual([
-            {
-                category_id: '*',
-                category_name: 'PORTALS.ALL_RADIO',
-            },
-        ]);
+        const allRadio = {
+            category_id: '*',
+            category_name: '',
+            labelKey: 'PORTALS.ALL_RADIO',
+        };
+        expect(store.getCategoryResource()).toEqual([allRadio]);
+        expect(store.radioCategories()).toEqual([allRadio]);
         expect(store.isCategoryResourceFailed()).toBeNull();
     });
 
@@ -994,12 +1018,6 @@ describe('withStalkerContent full ITV channel list cache', () => {
                         ensureToken: jest.fn().mockResolvedValue({
                             token: null,
                         }),
-                    },
-                },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        instant: jest.fn((key: string) => key),
                     },
                 },
             ],

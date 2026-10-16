@@ -1,3 +1,4 @@
+import type { XtreamFavoriteCatalogStatus } from '@iptvnator/shared/interfaces';
 import {
     AfterViewInit,
     ChangeDetectionStrategy,
@@ -15,6 +16,7 @@ import {
     viewChildren,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
@@ -36,6 +38,7 @@ export interface DashboardRailCard {
     id: string;
     title: string;
     subtitle?: string;
+    catalogStatus?: XtreamFavoriteCatalogStatus;
     imageUrl?: string;
     icon: string;
     contentType?: 'live' | 'movie' | 'series';
@@ -123,6 +126,7 @@ export interface DashboardRailActionSelection {
     selector: 'lib-dashboard-rail',
     imports: [
         MatButtonModule,
+        MatDividerModule,
         MatIcon,
         MatMenuModule,
         RouterLink,
@@ -155,6 +159,13 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
      * the rail label. Falls back to `items().length` when not supplied.
      */
     readonly totalCount = input<number | null>(null);
+    /**
+     * Keeps the meta line under every cover card even when it is empty. A
+     * rail that replaces a loading skeleton sets it: the skeleton always
+     * draws that line, and a rail of cards without labels (movies with no
+     * known duration) would otherwise come in shorter.
+     */
+    readonly reserveMetaLine = input(false);
 
     private readonly viewport =
         viewChild.required<ElementRef<HTMLDivElement>>('viewport');

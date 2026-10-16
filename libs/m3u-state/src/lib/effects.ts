@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
@@ -74,7 +74,7 @@ export class PlaylistEffects {
     private dataService = inject(DataService);
     private epgService = inject(EpgService);
     private router = inject(Router);
-    private snackBar = inject(MatSnackBar);
+    private snackBar = inject(LazySnackBar);
     private storage = inject(StorageMap);
     private store = inject(Store);
     private translate = inject(TranslateService);
@@ -92,11 +92,23 @@ export class PlaylistEffects {
                     this.store.select(selectActivePlaylistId)
                 ),
                 filter(([, , playlistId]) => !!playlistId),
-                switchMap(([, favorites, playlistId]) =>
-                    this.playlistsService.updateFavorites(playlistId, favorites)
-                ),
+                // The toggle, applied to the favorites as stored at write
+                // time: another device's changes to other channels stay, also
+                // when a conflict makes the write run again on a fresh read.
+                mergeMap(([{ channel }, favorites, playlistId]) => {
+                    const added = favorites.includes(channel.url);
+                    return this.playlistsService.transformPlaylistFavorites(
+                        playlistId,
+                        (current) => {
+                            const others = current.filter(
+                                (favorite) => favorite !== channel.url
+                            );
+                            return added ? [...others, channel.url] : others;
+                        }
+                    );
+                }),
                 tap(() => {
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.translate.instant('CHANNELS.FAVORITES_UPDATED'),
                         undefined,
                         { duration: 2000 }
@@ -113,10 +125,13 @@ export class PlaylistEffects {
                 ofType(FavoritesActions.setFavorites),
                 withLatestFrom(this.store.select(selectActivePlaylistId)),
                 filter(([, playlistId]) => !!playlistId),
-                switchMap(([action, playlistId]) =>
-                    this.playlistsService.setFavorites(
+                // The new order, applied to the favorites as stored at write
+                // time: another device's additions stay, its removals hold.
+                mergeMap(([action, playlistId]) =>
+                    this.playlistsService.transformPlaylistFavorites(
                         playlistId,
-                        action.channelIds
+                        (current) =>
+                            reorderFavorites(current, action.channelIds)
                     )
                 )
             );
@@ -135,7 +150,7 @@ export class PlaylistEffects {
                     action.program,
                     activeChannel,
                     () =>
-                        this.snackBar.open(
+                        void this.snackBar.open(
                             this.translate.instant(
                                 'EPG.TIMELINE.CATCHUP_FAILED'
                             ),
@@ -577,4 +592,18 @@ export class PlaylistEffects {
     private getGlobalEpgUrls(): string[] {
         return normalizeEpgUrls(this.settingsStore.getSettings().epgUrl ?? []);
     }
+}
+
+/**
+ * `current` in the order of `order`: entries `order` no longer has stay out
+ * of its part, entries it never had (added elsewhere) follow it.
+ */
+export function reorderFavorites<T>(
+    current: readonly T[],
+    order: readonly T[]
+): T[] {
+    const present = new Set(current);
+    const ordered = order.filter((id) => present.has(id));
+    const placed = new Set(ordered);
+    return [...ordered, ...current.filter((id) => !placed.has(id))];
 }

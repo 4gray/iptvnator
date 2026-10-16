@@ -2,6 +2,7 @@ import { PLAYBACK_SETTINGS_SEARCH_ENTRIES } from './settings-search-entries-play
 import { SettingsSearchEntry } from './settings-search.types';
 
 const DASHBOARD_KEYWORDS = ['dashboard', 'home', 'rail', 'row'];
+const SERVER_KEYWORDS = ['server', 'self-hosted', 'nas', 'sync', 'docker'];
 
 function dashboardRail(
     id: string,
@@ -69,13 +70,6 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         requires: ['startup-window-mode'],
     },
     {
-        id: 'show-captions',
-        section: 'general',
-        labelKey: 'SETTINGS.SHOW_CAPTIONS',
-        descriptionKey: 'SETTINGS.SHOW_CAPTIONS_DESCRIPTION',
-        keywords: ['subtitles', 'captions', 'cc'],
-    },
-    {
         id: 'strip-country-prefix',
         section: 'general',
         labelKey: 'SETTINGS.STRIP_COUNTRY_PREFIX',
@@ -119,7 +113,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         section: 'epg',
         labelKey: 'SETTINGS.EPG_SOURCE_LIST_TITLE',
         descriptionKey: 'SETTINGS.EPG_SOURCE_FORMATS_HINT',
-        keywords: ['epg', 'xmltv', 'tv guide', 'url', 'refresh', 'clear'],
+        keywords: ['epg', 'xmltv', 'tv guide', 'url', 'refresh', 'add'],
         requires: ['epg'],
     },
     {
@@ -128,6 +122,14 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.PREFER_UPLOADED_EPG_TITLE',
         descriptionKey: 'SETTINGS.PREFER_UPLOADED_EPG_HINT',
         keywords: ['epg', 'xmltv', 'priority', 'provider'],
+        requires: ['epg'],
+    },
+    {
+        id: 'epg-clear-data',
+        section: 'epg',
+        labelKey: 'SETTINGS.CLEAR_EPG_DATA',
+        descriptionKey: 'SETTINGS.CLEAR_EPG_DATA_DESCRIPTION',
+        keywords: ['epg', 'clear', 'delete', 'programme', 'cache', 'reset'],
         requires: ['epg'],
     },
     {
@@ -251,6 +253,39 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         fallbackId: 'parental-lock-enable',
     },
     {
+        id: 'server-connection',
+        section: 'server',
+        labelKey: 'SETTINGS.SERVER_CONNECTION',
+        descriptionKey: 'SETTINGS.SERVER_CONNECTION_DESCRIPTION',
+        keywords: SERVER_KEYWORDS,
+        requires: ['server-storage'],
+    },
+    {
+        id: 'server-storage',
+        section: 'server',
+        labelKey: 'SETTINGS.SERVER_STORAGE',
+        descriptionKey: 'SETTINGS.SERVER_STORAGE_DESCRIPTION',
+        keywords: [...SERVER_KEYWORDS, 'database', 'backup', 'size'],
+        requires: ['server-storage'],
+    },
+    {
+        id: 'server-import-browser',
+        section: 'server',
+        labelKey: 'SETTINGS.SERVER_IMPORT_BROWSER',
+        descriptionKey: 'SETTINGS.SERVER_IMPORT_BROWSER_DESCRIPTION',
+        keywords: [...SERVER_KEYWORDS, 'import', 'migrate', 'browser'],
+        requires: ['server-storage'],
+        fallbackId: 'server-storage',
+    },
+    {
+        id: 'server-access',
+        section: 'server',
+        labelKey: 'SETTINGS.SERVER_ACCESS',
+        descriptionKey: 'SETTINGS.SERVER_ACCESS_DESCRIPTION',
+        keywords: [...SERVER_KEYWORDS, 'token', 'sign out', 'password'],
+        requires: ['server-storage'],
+    },
+    {
         id: 'import-export-data',
         section: 'backup',
         labelKey: 'SETTINGS.IMPORT_EXPORT_DATA',
@@ -259,7 +294,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     {
         id: 'remove-all-playlists',
-        section: 'reset',
+        section: 'backup',
         labelKey: 'SETTINGS.REMOVE_ALL',
         descriptionKey: 'SETTINGS.REMOVE_ALL_DESCRIPTION',
         keywords: ['reset', 'delete', 'remove', 'wipe', 'playlists'],
@@ -276,7 +311,16 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         section: 'about',
         labelKey: 'SETTINGS.APP_UPDATE_TITLE',
         descriptionKey: 'SETTINGS.APP_UPDATE_DESCRIPTION',
-        keywords: ['update', 'upgrade', 'nightly', 'channel', 'release'],
+        keywords: ['update', 'upgrade', 'release', 'download', 'install'],
+        requires: ['desktop'],
+        fallbackId: 'version',
+    },
+    {
+        id: 'app-update-channel',
+        section: 'about',
+        labelKey: 'SETTINGS.APP_UPDATE_CHANNEL',
+        descriptionKey: 'SETTINGS.APP_UPDATE_CHANNEL_DESCRIPTION',
+        keywords: ['update', 'nightly', 'stable', 'channel', 'prerelease'],
         requires: ['desktop'],
         fallbackId: 'version',
     },

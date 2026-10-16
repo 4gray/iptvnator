@@ -1,0 +1,74 @@
+// The provider tile of a source row and the switcher trigger. The dot's
+// 2px ring takes `--source-tile-ring`, which the row sets to its own
+// background, so the dot reads as cut out of the tile in every state.
+:host {
+    // Defaults a row or trigger overrides on the `app-source-tile` element.
+    --source-tile-bg: var(--app-widget-bg);
+    --source-tile-color: var(--app-body-color);
+    --source-tile-ring: var(--app-content-bg);
+    --source-tile-size: 36px;
+    --source-tile-radius: 9px;
+    --source-tile-icon: 17px;
+    --source-tile-dot: 11px;
+    --source-tile-dot-offset: -3px;
+
+    position: relative;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: var(--source-tile-size);
+    height: var(--source-tile-size);
+    border-radius: var(--source-tile-radius);
+    background: var(--source-tile-bg);
+    color: var(--source-tile-color);
+}
+
+:host(.source-tile--md) {
+    --source-tile-size: 32px;
+    --source-tile-radius: 8px;
+    --source-tile-icon: 15px;
+    --source-tile-dot: 9px;
+}
+
+:host(.source-tile--sm) {
+    --source-tile-size: 28px;
+    --source-tile-radius: 7px;
+    --source-tile-icon: 14px;
+    --source-tile-dot: 9px;
+    --source-tile-dot-offset: -2px;
+}
+
+.source-tile__icon {
+    width: var(--source-tile-icon);
+    height: var(--source-tile-icon);
+    font-size: var(--source-tile-icon);
+    line-height: var(--source-tile-icon);
+}
+
+.source-tile__dot {
+    position: absolute;
+    right: var(--source-tile-dot-offset);
+    bottom: var(--source-tile-dot-offset);
+    box-sizing: border-box;
+    width: var(--source-tile-dot);
+    height: var(--source-tile-dot);
+    border-radius: 50%;
+    border: 2px solid var(--source-tile-ring);
+    background: var(--app-muted-color);
+
+    &[data-state='ok'] {
+        background: var(--app-success-color);
+    }
+
+    &[data-state='bad'] {
+        background: var(--app-live-color);
+    }
+
+    &[data-state='expired'] {
+        background: var(--app-expiry-warn-text);
+    }
+}
+
+.source-tile__dot--pending {
+    opacity: 0.45;
+}

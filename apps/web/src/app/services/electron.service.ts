@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -13,14 +13,22 @@ import {
     AUTO_UPDATE_PLAYLISTS,
     AutoUpdatePlaylistsResult,
     CONNECTIVITY_GUARD_RESET,
+    createPortalRequestError,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
+    ElectronBridgePlayerError,
     ERROR,
+    EXTERNAL_PLAYER_ERROR_KEYS,
+    EXTERNAL_PLAYER_LAUNCH_FAILED_KEY,
+    EXTERNAL_PLAYER_UNKNOWN_ERROR_KEY,
+    isPortalRequestCancelledError,
+    isPortalRequestFailureEnvelope,
     normalizeHost,
     parseSecurityPolicyError,
     PlayerContentInfo,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
+    readExternalPlayerErrorCode,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
     XtreamCodeActions,
@@ -62,7 +70,7 @@ export class ElectronService extends DataService {
     private eventListeners: { [key: string]: () => void } = {};
     private messageListeners = new Map<string, EventListener>();
     private readonly sourceActivity = inject(SourceActivityService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly snackBar = inject(LazySnackBar);
     private readonly dialogService = inject(DialogService);
     private readonly store = inject(Store);
     private readonly settingsStore = inject(SettingsStore);
@@ -87,27 +95,37 @@ export class ElectronService extends DataService {
     private setupPlayerErrorListener() {
         // Listen for player errors from the backend
         if (window.electron?.onPlayerError) {
-            window.electron.onPlayerError(
-                (data: {
-                    player: string;
-                    error: string;
-                    originalError: string;
-                }) => {
-                    this.logger.error(
-                        `${data.player} Error:`,
-                        data.originalError
-                    );
-                    this.snackBar.open(
-                        `${data.player} Error: ${data.error}`,
-                        'Close',
-                        {
-                            duration: 7000,
-                            panelClass: ['error-snackbar'],
-                        }
-                    );
-                }
-            );
+            window.electron.onPlayerError((data: ElectronBridgePlayerError) => {
+                this.logger.error(`${data.player} Error:`, data.error);
+                void this.snackBar.open(
+                    this.translateService.instant(
+                        data.code
+                            ? EXTERNAL_PLAYER_ERROR_KEYS[data.code]
+                            : EXTERNAL_PLAYER_UNKNOWN_ERROR_KEY,
+                        { player: data.player, error: data.error }
+                    ),
+                    this.translateService.instant('CLOSE'),
+                    {
+                        duration: 7000,
+                        panelClass: ['error-snackbar'],
+                    }
+                );
+            });
         }
+    }
+
+    private showPlayerLaunchError(player: 'MPV' | 'VLC', error: unknown): void {
+        const code = readExternalPlayerErrorCode(error);
+        void this.snackBar.open(
+            this.translateService.instant(
+                code
+                    ? EXTERNAL_PLAYER_ERROR_KEYS[code]
+                    : EXTERNAL_PLAYER_LAUNCH_FAILED_KEY,
+                { player }
+            ),
+            this.translateService.instant('CLOSE'),
+            { duration: 5000 }
+        );
     }
 
     private setupPortalDebugListener() {
@@ -146,7 +164,8 @@ export class ElectronService extends DataService {
         }
 
         if (type === PLAYLIST_UPDATE) {
-            this.updateM3uPlaylistFromFile(
+            // Settles when the refresh does, so callers keep the source busy.
+            await this.updateM3uPlaylistFromFile(
                 payload as {
                     id: string;
                     filePath?: string;
@@ -197,15 +216,7 @@ export class ElectronService extends DataService {
                     data.headers ?? undefined
                 )) as T;
             } catch (error: unknown) {
-                const errorMessage =
-                    this.getErrorDetails(error)?.message ?? String(error);
-                this.snackBar.open(
-                    `Error launching MPV: ${errorMessage}`,
-                    'Close',
-                    {
-                        duration: 5000,
-                    }
-                );
+                this.showPlayerLaunchError('MPV', error);
                 this.logger.error('MPV launch error:', error);
                 throw error;
             }
@@ -226,15 +237,7 @@ export class ElectronService extends DataService {
                     data.headers ?? undefined
                 )) as T;
             } catch (error: unknown) {
-                const errorMessage =
-                    this.getErrorDetails(error)?.message ?? String(error);
-                this.snackBar.open(
-                    `Error launching VLC: ${errorMessage}`,
-                    'Close',
-                    {
-                        duration: 5000,
-                    }
-                );
+                this.showPlayerLaunchError('VLC', error);
                 this.logger.error('VLC launch error:', error);
                 throw error;
             }
@@ -280,7 +283,7 @@ export class ElectronService extends DataService {
         }
 
         const feedback = buildAutoUpdatePlaylistsFeedback(result);
-        this.snackBar.open(
+        void this.snackBar.open(
             this.translateService.instant(feedback.messageKey, feedback.params),
             feedback.isError
                 ? this.translateService.instant('CLOSE')
@@ -316,14 +319,40 @@ export class ElectronService extends DataService {
                 ...payload,
                 requestId: context.requestId,
             });
+            // A cancellation or an HTTP 401/403 arrives resolved — Electron
+            // would otherwise log each one as a failed handler — and becomes
+            // the error the Stalker layers classify from `status`/message.
+            if (isPortalRequestFailureEnvelope(response)) {
+                throw createPortalRequestError(
+                    response.portalRequestFailure,
+                    'stalker'
+                );
+            }
             return response;
         } catch (err: unknown) {
+            if (isPortalRequestCancelledError(err)) {
+                // The renderer asked for this; it is not an error to report.
+                this.logger.debug(
+                    `Stalker request cancelled (${payload.params?.action ?? 'unknown'})`
+                );
+                throw err;
+            }
             const errorInfo = this.getErrorDetails(err);
             this.logger.error('Stalker request error:', err);
             if (!payload.silent) {
-                this.snackBar.open(
-                    `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
-                    'Close',
+                void this.snackBar.open(
+                    this.translateService.instant(
+                        'PORTALS.REQUEST_ERRORS.STALKER',
+                        {
+                            message:
+                                errorInfo?.message ??
+                                this.translateService.instant(
+                                    'PORTALS.REQUEST_ERRORS.NOT_FOUND'
+                                ),
+                            status: errorInfo?.status ?? 404,
+                        }
+                    ),
+                    this.translateService.instant('CLOSE'),
                     {
                         duration: 5000,
                     }
@@ -375,7 +404,7 @@ export class ElectronService extends DataService {
                 } else if (statusCode === 401) {
                     messageKey = 'HOME.URL_UPLOAD.ERROR_401';
                 }
-                this.snackBar.open(
+                void this.snackBar.open(
                     this.translateService.instant(messageKey),
                     this.translateService.instant('CLOSE'),
                     { duration: 5000 }
@@ -442,7 +471,7 @@ export class ElectronService extends DataService {
                 })
             );
 
-            this.snackBar.open(
+            void this.snackBar.open(
                 this.translateService.instant(
                     'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
                 ),
@@ -459,7 +488,7 @@ export class ElectronService extends DataService {
             ) {
                 return;
             }
-            this.snackBar.open(
+            void this.snackBar.open(
                 this.getPlaylistRefreshErrorMessage(error, data),
                 this.translateService.instant('CLOSE'),
                 { duration: 5000 }
@@ -481,16 +510,14 @@ export class ElectronService extends DataService {
                     errorMessage
                 )
             ) {
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND',
-                    'Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.'
+                return this.translateService.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_NOT_FOUND'
                 );
             }
 
             if (/(EACCES|EPERM|permission denied)/i.test(errorMessage)) {
-                return this.translateWithFallback(
-                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR',
-                    'Playlist refresh failed. The app can no longer access the local file.'
+                return this.translateService.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FILE_ACCESS_ERROR'
                 );
             }
 
@@ -514,11 +541,6 @@ export class ElectronService extends DataService {
         );
     }
 
-    private translateWithFallback(key: string, fallback: string): string {
-        const translated = this.translateService.instant(key);
-        return translated === key ? fallback : translated;
-    }
-
     private handlePlaylistSecurityError(
         error: unknown,
         retry: () => void
@@ -531,21 +553,19 @@ export class ElectronService extends DataService {
             return false;
         }
 
-        const ref = this.snackBar.open(
-            this.translateWithFallback(
-                'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
-                'Certificate for this playlist host is invalid.'
-            ),
-            this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-                'Trust host'
-            ),
-            { duration: 10000 }
-        );
-
-        ref.onAction().subscribe(() => {
-            this.confirmTrustPlaylistHost(securityError.host, retry);
-        });
+        void this.snackBar
+            .open(
+                this.translateService.instant(
+                    'HOME.URL_UPLOAD.ERROR_INVALID_TLS'
+                ),
+                this.translateService.instant('HOME.URL_UPLOAD.TRUST_TLS_HOST'),
+                { duration: 10000 }
+            )
+            .then((ref) =>
+                ref?.onAction().subscribe(() => {
+                    this.confirmTrustPlaylistHost(securityError.host, retry);
+                })
+            );
         return true;
     }
 
@@ -554,10 +574,9 @@ export class ElectronService extends DataService {
         retry: () => void
     ): void {
         if (!host) {
-            this.snackBar.open(
-                this.translateWithFallback(
-                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN',
-                    'Could not determine the playlist host. Please retry manually.'
+            void this.snackBar.open(
+                this.translateService.instant(
+                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN'
                 ),
                 this.translateService.instant('CLOSE'),
                 { duration: 5000 }
@@ -566,17 +585,14 @@ export class ElectronService extends DataService {
         }
 
         this.dialogService.openConfirmDialog({
-            title: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE',
-                'Trust invalid certificate?'
+            title: this.translateService.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE'
             ),
-            message: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING',
-                'Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.'
+            message: this.translateService.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING'
             ),
-            confirmLabel: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-                'Trust host'
+            confirmLabel: this.translateService.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST'
             ),
             width: '420px',
             onConfirm: () => {
@@ -637,6 +653,15 @@ export class ElectronService extends DataService {
                 ...payload,
                 requestId: context.requestId,
             });
+            // A cancellation or an HTTP 401/403 arrives resolved — Electron
+            // would otherwise log each one as a failed handler — and becomes
+            // the error this method already reports below.
+            if (isPortalRequestFailureEnvelope(response)) {
+                throw createPortalRequestError(
+                    response.portalRequestFailure,
+                    'xtream'
+                );
+            }
 
             if (payload.connectionTest || payload.probe) return response;
 
@@ -650,7 +675,11 @@ export class ElectronService extends DataService {
         } catch (error: unknown) {
             if (payload.probe) throw error;
             const action = payload.params?.action;
+            // The renderer asked for a cancellation; report it like a
+            // background action, not a failure the user needs to see.
+            const cancelled = isPortalRequestCancelledError(error);
             const isSilentAction =
+                cancelled ||
                 payload.suppressErrorLog === true ||
                 (action ? this.silentXtreamActions.has(action) : false);
             const normalizedMessage = this.getReadableXtreamErrorMessage(error);
@@ -668,9 +697,12 @@ export class ElectronService extends DataService {
 
             // Only show snackbar for user-triggered Xtream requests
             if (!isSilentAction) {
-                this.snackBar.open(
-                    `Xtream request failed: ${normalizedMessage}`,
-                    'Close',
+                void this.snackBar.open(
+                    this.translateService.instant(
+                        'PORTALS.REQUEST_ERRORS.XTREAM',
+                        { message: normalizedMessage }
+                    ),
+                    this.translateService.instant('CLOSE'),
                     {
                         duration: 5000,
                     }
@@ -679,14 +711,18 @@ export class ElectronService extends DataService {
 
             return {
                 type: ERROR,
-                status: errorInfo?.status ?? 500,
+                // 499 ("client closed request") keeps a cancellation apart
+                // from a server failure in the result callers log.
+                status: cancelled ? 499 : (errorInfo?.status ?? 500),
                 message: normalizedMessage,
             };
         }
     }
 
     private getReadableXtreamErrorMessage(error: unknown): string {
-        const fallback = 'Failed to connect to Xtream server';
+        const fallback = this.translateService.instant(
+            'PORTALS.REQUEST_ERRORS.XTREAM_CONNECTION'
+        );
         if (!error) {
             return fallback;
         }

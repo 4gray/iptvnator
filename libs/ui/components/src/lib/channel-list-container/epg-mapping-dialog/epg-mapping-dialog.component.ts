@@ -19,9 +19,19 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
+import {
+    EpgRuntimeBridgeService,
+    EpgService,
+} from '@iptvnator/epg/data-access';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { debounceTime, from, Subject, switchMap } from 'rxjs';
+import { provideFormFieldDefaults } from '../../form-field-defaults/form-field-defaults';
+import { DialogShellComponent } from '../../dialog-shell/dialog-shell.component';
+import {
+    DialogFooterDirective,
+    DialogFooterStartDirective,
+} from '../../dialog-shell/dialog-shell.directives';
+import { dialogSize } from '../../dialog-shell/dialog-size';
 
 export interface EpgMappingDialogData {
     channelKey: string;
@@ -39,10 +49,14 @@ const SEARCH_MIN_CHARS = 2;
 
 @Component({
     selector: 'app-epg-mapping-dialog',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './epg-mapping-dialog.component.html',
     styleUrl: './epg-mapping-dialog.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        DialogFooterDirective,
+        DialogFooterStartDirective,
+        DialogShellComponent,
         FormsModule,
         MatButtonModule,
         MatDialogModule,
@@ -80,9 +94,8 @@ export class EpgMappingDialogComponent {
         data: EpgMappingDialogData
     ): MatDialogRef<EpgMappingDialogComponent, EpgMappingDialogResult> {
         return dialog.open(EpgMappingDialogComponent, {
+            ...dialogSize('md'),
             data,
-            width: '500px',
-            maxHeight: '90vh',
         });
     }
 

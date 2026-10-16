@@ -43,12 +43,10 @@ export class SettingsEmbeddedMpvFacade {
      * for while the page is open, so the option appears without reopening it.
      */
     async load(): Promise<void> {
+        // Settings only reads `supported`; an unsupported answer carries no
+        // reason because nothing on this page displays one.
         if (!this.runtime.isElectron) {
-            this.support.set({
-                supported: false,
-                platform: 'web',
-                reason: 'Embedded MPV requires the Electron desktop build.',
-            });
+            this.support.set({ supported: false, platform: 'web' });
             return;
         }
 
@@ -56,7 +54,6 @@ export class SettingsEmbeddedMpvFacade {
             this.support.set({
                 supported: false,
                 platform: window.electron.platform,
-                reason: 'Embedded MPV support is not available in this build.',
             });
             return;
         }

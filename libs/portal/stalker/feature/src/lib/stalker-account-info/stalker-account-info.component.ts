@@ -27,6 +27,10 @@ import {
     PlaylistMeta,
     type StalkerAccountInfoDialogData,
 } from '@iptvnator/shared/interfaces';
+import {
+    DialogHeaderEndDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 type AccountLoadState = 'loading' | 'ready' | 'error';
 
@@ -51,7 +55,14 @@ const DAY_IN_MS = 86_400_000;
 
 @Component({
     selector: 'app-stalker-account-info',
-    imports: [MatButtonModule, MatDialogModule, MatIconModule, TranslatePipe],
+    imports: [
+        DialogHeaderEndDirective,
+        DialogShellComponent,
+        MatButtonModule,
+        MatDialogModule,
+        MatIconModule,
+        TranslatePipe,
+    ],
     templateUrl: './stalker-account-info.component.html',
     styleUrl: './stalker-account-info.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

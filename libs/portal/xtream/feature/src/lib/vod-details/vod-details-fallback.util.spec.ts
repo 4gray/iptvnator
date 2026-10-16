@@ -174,4 +174,37 @@ describe('vod-details-fallback.util', () => {
             year: undefined,
         });
     });
+
+    describe('placeholder ratings', () => {
+        // Placeholder-only `info` is stripped upstream, which routes the
+        // movie here — the top-level catalog ratings must not resurface as
+        // "N/A" or a "0.0" score on this page instead.
+        const ratingOf = (
+            detail: Record<string, unknown>,
+            catalog: Record<string, unknown>
+        ) =>
+            buildXtreamVodFallbackViewModel({
+                vodDetails: { info: [], ...detail } as XtreamVodDetails,
+                catalogItem: catalog as Partial<XtreamVodStream>,
+                vodId: 31,
+            })?.rating;
+
+        it('skips stand-ins and unrated zeros to the next usable rating', () => {
+            expect(
+                ratingOf(
+                    { rating_imdb: 'N/A', rating: 0 },
+                    { rating_imdb: '-', rating: '7.25' }
+                )
+            ).toBe('7.25');
+        });
+
+        it('states no rating when every candidate is a stand-in', () => {
+            expect(
+                ratingOf(
+                    { rating_imdb: 'N/A', rating: '0' },
+                    { rating_imdb: '0.0', rating: 0 }
+                )
+            ).toBeUndefined();
+        });
+    });
 });

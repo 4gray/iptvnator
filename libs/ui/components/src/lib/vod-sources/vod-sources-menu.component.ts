@@ -8,11 +8,16 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIcon } from '@angular/material/icon';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import {
     MatSlideToggle,
     MatSlideToggleChange,
 } from '@angular/material/slide-toggle';
 import { TranslatePipe } from '@ngx-translate/core';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '../menu-item-radio/menu-item-radio.directive';
 import {
     foldSearchText,
     playlistDisplayLabel,
@@ -52,7 +57,12 @@ const FILTER_FROM = 8;
     imports: [
         FormsModule,
         MatIcon,
+        MatMenu,
+        MatMenuItem,
+        MatMenuTrigger,
         MatSlideToggle,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         TranslatePipe,
         VodSourceCopyRowComponent,
         VodSourceRowComponent,

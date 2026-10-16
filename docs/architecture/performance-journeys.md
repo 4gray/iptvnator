@@ -250,8 +250,9 @@ swaps `apps/web/src/environments/environment.ts` for
 and calls `installChangeDetectionTickCounter()` from
 `change-detection-tick-counter.ts` while `main.js` is evaluated, before
 Angular bootstraps. The counter wraps the internal `ApplicationRef._tick`,
-the method every tick runs through: the zone scheduler's `onMicrotaskEmpty`,
-the zoneless scheduler, `afterNextRender` idle buckets and the public
+the method every tick runs through: the zoneless scheduler (and, before the
+zoneless flip, the zone scheduler's `onMicrotaskEmpty`), `afterNextRender`
+idle buckets and the public
 `ApplicationRef.tick()` all call it, and it is where Angular emits the
 profiler's `ChangeDetectionStart`. The count therefore equals the profiler's
 tick count and stays comparable across the zoneless migration. The running
@@ -295,6 +296,16 @@ two startup callbacks that land in one task on one launch and in two tasks
 on another differ by one tick without any different work. Treat a one-tick
 difference in J1 as that race, and confirm on the CI runner that the counter
 is deterministic before it becomes a baseline.
+
+Since the zoneless flip (plan item C6) the renderer has no zone.js: a tick
+runs only when a signal, a `markForCheck`, an Angular event or an
+`afterNextRender` hook schedules one, so the race above is gone. The first
+local measurement after the flip (macOS, 2026-10-13, five iterations each)
+read `renderer.cdTicksToFirstCard` 5, `renderer.cdTicksIdle30s` 3 and
+`renderer.cdTicksToFirstPage` 9 in every iteration, `renderer.cdTicksToPlaying`
+7 or 8 and J4 `renderer.cdTicksToResults` 11 or 12; the DOM mutation counts
+were identical across iterations. The history of the migration and the
+before/after tables are in [zoneless migration](zoneless-migration.md).
 
 #### Main-process counters
 
@@ -704,6 +715,11 @@ source's default section, which is VOD (`getPlaylistLink` links to
 and the first page is the "All items" grid. The plan's "live category list"
 would need a second click and is not measured; the landed section is
 recorded under `evidence.firstPage.section`.
+The seeded portal is already imported, so the click only reads the saved
+catalog and finishes well inside the shell's show delay for the import
+overlay ([workspace shell](workspace-shell.md)): a J2 click must not mount
+`app-workspace-shell-import-overlay`, and before that delay it flashed for
+about two frames between the skeleton and the first page.
 
 **HTTP requests to the mock.** The J2 profile is seeded with the origin of a
 loopback proxy in the test process
@@ -821,9 +837,10 @@ ignored.
 | Counter                          | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `renderer.ipcCallsToPlaying`     | Bridge `start` trace events between the start and end sentinels, as `renderer.ipcCallsToFirstPage` in J2.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `renderer.ipcSerialDepthToPlaying` | `computeJourneyIpcSerialDepth` over the capture's timeline between the start and end sentinels, as `renderer.ipcSerialDepthToResults` in J4 (see [Serial IPC depth](#serial-ipc-depth)). `evidence.ipcSerialDepth.chain` and `evidence.ipcTimeline` show the calls; `evidence.ipcTimelineAmbiguousCompletions` counts completions the start marker left ambiguous. |
 | `renderer.httpRequestsToPlaying` | Requests the ledger proxy received from the click stamp until the `playing` stamp, from either process (the stream request comes from the renderer, Xtream API calls from the main process). Both stamps are `performance.timeOrigin + performance.now()` of processes on the same host clock, as in J2. Unlike J2's counter the window ends at the terminal, not at a quiet mock: a live stream has no quiet end. Later requests are kept as `evidence.httpRequestsAfterPlayingByRoute`, the ones in the window as `evidence.httpRequestsByRoute`. |
 | `renderer.domMutationsToPlaying` | `MutationRecord`s from the click until the `playing` event, including records still queued when it fires.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `renderer.cdTicksToPlaying`      | `ApplicationRef` ticks from the click until the `playing` event, read like `renderer.cdTicksToFirstPage` in J2 (see [Change-detection ticks](#change-detection-ticks)). Not yet measured on a run; the counter shipped after J3's first measurements. |
+| `renderer.cdTicksToPlaying`      | `ApplicationRef` ticks from the click until the `playing` event, read like `renderer.cdTicksToFirstPage` in J2 (see [Change-detection ticks](#change-detection-ticks)). Shipped after J3's first measurements; the runner reads 15 to 19, varying within a run. |
 | `renderer.layoutShiftScore`      | All `layout-shift` entries from the click until the `playing` event, including `hadRecentInput` ones (as J2), rounded to three decimals. Entries delivered up to the post-paint cutoff are read, but only those that started by the event count.                                                                                                                                                                                                                                                                                                    |
 | `renderer.longTasks`             | `longtask` entries over 50 ms whose time range overlaps the window from the click to the `playing` event, so the task that dispatched the event counts. Evidence until shown to be stable on the runner.                                                                                                                                                                                                                                                                                                                                            |
 
@@ -841,10 +858,7 @@ above a sub-millisecond origin difference. `evidence.httpRequestsAfterPlayingByR
 window of 1 s after `playing` (the test waits that long before reading the
 ledger), not a quiet mock as in J2: a live stream has no quiet end.
 
-One counter is listed under `unavailable`.
-`renderer.ipcSerialDepthToPlaying` is missing because the serial-depth
-helper (see [Startup work before the first card](#startup-work-before-the-first-card))
-was not on `master` when J3 landed; J3 adopts it once the J1 thread adds it.
+No counter is listed under `unavailable`.
 `main.sqlStatementsToPlaying` is not measured for the same reason as J2's
 SQL counter.
 
@@ -877,6 +891,24 @@ mutation and request counts. On the runner `renderer.httpRequestsToPlaying`
 and `renderer.layoutShiftScore` are enforced as guards; see
 [Enforced journey counters](#enforced-journey-counters).
 
+#1817 (6c8f5028c, 2026-10-07) made the EPG timeline render only the
+programmes near the visible range. On the runner
+`renderer.domMutationsToPlaying` fell from 6,182 to 731 and
+`renderer.longTasks` from 1 to 0 in every measured iteration. The ten
+`master` runs from #1817 to 5c7a8a572 read 0 long tasks and either 731 or
+734 mutations per run, except one iteration with a fifth bridge call and
+748 mutations.
+
+`renderer.ipcSerialDepthToPlaying` came later. One local macOS
+`perf:journeys` run on 2026-10-10 read 3 in all six iterations, warm-up
+included, with `depthLowerBound` 3, no ambiguous completion and no call in
+flight at `playing`. The chain was `getEpgMapping` → `xtreamRequest` →
+`updateRemoteControlStatus`; the last is the second of two
+`updateRemoteControlStatus` calls in the window (five calls in all). The
+runner reads 4: #1862's CI run (38027151670) measured it in all six
+iterations, with four calls in the window and the chain `getEpgMapping` →
+`xtreamRequest` → `updateRemoteControlStatus` → `setUserAgent`.
+
 ## J4 `search`: type a query until the results settle
 
 `search.journey.ts` follows J3: the profile is seeded once through the "Add
@@ -906,11 +938,13 @@ put behind the request ledger: global search reads only the local database.
 
 **What typing does.** The header search box
 (`app-workspace-shell-header .search-field input[type="search"]`) applies
-its term after `SEARCH_INPUT_DEBOUNCE_MS` (350 ms,
+its term after `SEARCH_INPUT_DEBOUNCE_MS` (300 ms,
 `WorkspaceShellSearchSyncService`) and writes it to the URL as `q`. On
 `/workspace/search` (`app.routes.ts`, Electron only) `SearchResultsComponent`
-adopts `q` and runs `executeSearch` after its own 300 ms debounce, which
-calls the `dbGlobalSearch` bridge method once with a limit of 101.
+runs `executeSearch` as soon as the applied term reaches the store, with no
+debounce of its own, which calls the `dbGlobalSearch` bridge method once
+with a limit of 101. A newer term supersedes a query still in flight: its
+result is dropped by request version.
 
 **Start.** After J1 has ended, the test clicks the rail's **Global search**
 link and focuses the header search box (not measured), installs the IPC
@@ -920,7 +954,7 @@ been quiet for 1 s: no DOM mutation, no new or pending bridge call, and an
 unchanged `main.sqlStatements` total (30 s timeout, which fails the
 iteration). J1's capture is detached. The test then types the query with one
 `keyboard.type` call per character on a fixed schedule, 100 ms apart from
-the first key (well below the 350 ms debounce, as steady typing would be),
+the first key (well below the 300 ms debounce, as steady typing would be),
 and samples the main process just before each key. The probe's
 capture-phase `keydown` listener on `window` stamps every key in the search
 box before the app sees it; the first one starts the journey and sends
@@ -929,7 +963,7 @@ rejects an iteration whose DOM mutations, bridge calls or SQL statements
 moved between the quiet snapshot and the first key.
 
 **End.** "No DOM mutation for 200 ms after the last keystroke" alone would
-end inside the 650 ms of debounce, before any query ran: nothing in the DOM
+end inside the 300 ms of debounce, before any query ran: nothing in the DOM
 changes while the term waits. So after the sixth key the probe waits for
 the results of the final term to be shown (the path ends with
 `/workspace/search`, the URL `q` is the query, no `.loading-state` is
@@ -954,7 +988,7 @@ window closed until its results replace the old ones.
 `evidence.finalQuery` keeps its term, result length and duration. The
 record also rejects an iteration in which two keydowns were more than
 250 ms apart (`typing-cadence`; the gaps are `evidence.keyIntervalsMs`).
-At that point a late key on a busy machine could let the 350 ms debounce
+At that point a late key on a busy machine could let the 300 ms debounce
 apply an intermediate term, which steady typing does not.
 
 A settle that times out fails the iteration with what the probe and the
@@ -996,9 +1030,10 @@ counter: global search does not touch the network.
 | `firstKeystrokeToFirstResultMs.p50/.p90` | First mutation batch with a visible result card (for any term) minus the first keydown.                                                  |
 | `lastKeystrokeToSettledMs.p50/.p90`      | Settled moment (the last mutation batch before the 200 ms quiet window) minus the last keydown. The quiet window itself is not included. |
 
-Both are taken in the renderer. With the current debounces both include
-the 650 ms the term waits (350 ms in the shell, then 300 ms in the results
-component); the first also includes the 500 ms of typing.
+Both are taken in the renderer. Both include the 300 ms the term waits in
+the shell; the first also includes the 500 ms of typing. Until the single
+debounce below, the wait was 650 ms (350 ms in the shell, then 300 ms in the
+results component).
 
 ### First measurement
 
@@ -1024,6 +1059,46 @@ debounces (350 ms in the shell, then 300 ms in the results component). The
 query itself, from the bridge call to the rendered first page, takes the
 remaining 30-40 ms.
 
+### One debounce
+
+The results component's own 300 ms timer is gone: the shell debounce is
+now the only one, and global search runs as soon as the shell applies the
+term. `SEARCH_INPUT_DEBOUNCE_MS` went from 350 to 300 ms. It has to stay
+above the gap between keys of steady typing, or a word typed in one go
+queries once per key; 300 ms covers an average typist (about 200-250 ms
+between keys) with some margin, while the query and first page take only
+30-40 ms of the remaining time. The route sync in the component reads the
+store term untracked, so a term the shell applied before it writes `q` is
+no longer pushed back to the previous `q` and queried again.
+
+Local, macOS, 2026-10-11, three J4 runs per build (five measured
+iterations each), the same machine, master `633fde3e0` against this
+change:
+
+| Measurement                          | Two debounces        | One debounce         |
+| ------------------------------------ | -------------------- | -------------------- |
+| `lastKeystrokeToSettledMs` P50 / P90 | 692-695 / 695-697 ms | 336-337 / 337-339 ms |
+| `firstKeystrokeToFirstResultMs` P50  | 1,190 ms             | 832-834 ms           |
+| `renderer.ipcCallsPerSearch`         | 1                    | 1                    |
+| `renderer.sqlStatementsPerSearch`    | 2                    | 2                    |
+| `renderer.domMutationsToResults`     | 402                  | 392                  |
+
+Per keystroke (query calls / SQL / DOM mutations / CD ticks) at 100 ms per
+key, keys 1-5 are unchanged at `0/0/0/1`; key 6 is `1/2/402/9` before and
+`1/2/392/7` after.
+
+Slower typing was measured with a scratch change to the journey (key
+interval and cadence guard raised, quiet window 1 s; not committed). At
+400 ms per key both builds run one query per key from the second
+character, five in all with 2 statements each: the shell debounce already
+expired between keys before this change, and the results timer only
+delayed each query. Before, the queries trail the keys by 650 ms (keys
+`y s t e m` read `0 1 1 1 2`); after, each follows its own key. At 325 ms
+per key the two builds differ: before, one query in 17 of 20 iterations
+(two or four when a gap stretched past 350 ms); after, five. Typing with
+gaps between 300 and 350 ms is the only range where this change adds
+queries; each is a 2-statement query whose stale result is dropped.
+
 About one launch in sixty showed the empty-results view: the single
 `dbGlobalSearch` call went out with the same arguments (`system`, all three
 types, hidden categories included, limit 101) and the main process answered
@@ -1032,9 +1107,24 @@ was unchanged from passing launches (the same 119 statements before the
 first key, the usual 2 for the query, none afterwards), and every failure
 traced was the first launch after seeding. The journey fails such an
 iteration instead of measuring it, so a full run occasionally fails J4.
-The cause is in the app, not the harness, and is not fixed here. No J4
-baseline exists yet; J4 counters join the ratchet once three runner runs
-agree.
+
+The cause was the seed, not the query. The portal's import starts only
+after its account check answers, and a freshly started mock generates the
+`large` catalog on that first request (up to about 10 s on a busy machine).
+`waitForXtreamImportToFinish` gave the loading overlay 5 s to appear and
+then accepted "no overlay" as finished, so the seed closed the app while
+the series import was still running. The template then held 4,000 live
+channels and 4,000 movies but no series, and `system` matches only series.
+A run stops at its first failed iteration, which is why the failure always
+showed at the first launch after seeding. The wait now also requires the
+catalog to be complete the way the app judges it on its next start
+(`apps/electron-backend-e2e/src/xtream-import-wait.ts`): every type's
+persisted status (`xtream-import-status:<id>:<type>`) reads `completed` and
+the type has rows, unless the portal has no categories of that type. Rows
+are required because a refresh deletes the catalog without resetting the
+status. `xtream-import-wait.e2e.ts` holds the account check past the overlay
+window and fails without it. Two J4 counters are enforced since #1899
+(see [Enforced journey counters](#enforced-journey-counters)).
 
 ## `renderer.initialBytes`
 
@@ -1044,7 +1134,22 @@ The bytes a browser fetches before Angular can bootstrap, read from the built
 - `index.html` itself,
 - every same-origin `<script src>`, including `assets/app-config.js`,
 - every `<link rel="stylesheet">`,
-- every `<link rel="modulepreload">` chunk.
+- every `<link rel="modulepreload">` chunk,
+- every chunk those scripts import statically, transitively.
+
+The last item matters because Angular's builder emits at most ten
+`modulepreload` hints (`MODULE_PRELOAD_MAX`). A startup graph with more
+chunks than that leaves the rest for the browser to discover from `main.js`'s
+own `import` statements; it still fetches and parses them before bootstrap.
+Until #1939 the script counted only what `index.html` names, so once the
+graph passed ten chunks the counter silently stopped growing: an eager
+`MatSnackBar` import added on `master` brought Material's snack-bar and
+button back (about 95 KB) without the ratchet noticing. The script parses
+each module (TypeScript's parser), so only real `import`/`export … from`
+declarations count, never text in a string or comment; dynamic `import()`
+targets are lazy and never count; imports count once per request URL, as the
+`index.html` references do; and a statically imported file the build did not
+emit is an error, like a missing `index.html` reference.
 
 Manifest, icons, external URLs, commented-out tags and lazy chunks are not
 counted, so the value is the same for every language: a non-English launch
@@ -1071,11 +1176,42 @@ runtime flag: `if (!AppConfig.production)` keeps the imported module in
 `main.js` because the optimizer does not fold the property read. The NgRx
 store devtools therefore come from
 `apps/web/src/environments/store-devtools.providers.ts`, an empty list in
-every build, which only the `development`, `electron-e2e` and
-`electron-e2e-zoneless` configurations replace with
+every build, which only the `development` and `electron-e2e` configurations
+replace with
 `store-devtools.providers.dev.ts`; a build-config test in
 `performance-build-config.spec.ts` keeps it that way. Removing the static
 import lowered the counter by 12,565 bytes.
+
+The bundler keeps each module in one chunk, so one eager import of any
+export carries the module's whole code: providing
+`MAT_FORM_FIELD_DEFAULT_OPTIONS` in `app.config.ts` alone put the 54 KB
+form-field chunk on the initial path, although every form field renders in a
+lazy route or dialog. Angular Material therefore stays off the startup path by
+construction, with the rules and guards in the
+[UI guidelines](iptvnator-ui-guidelines.md#material-off-the-startup-path):
+form-field defaults are provided per component (#1928), services created with
+the app resolve `MatDialog` through `LazyMatDialog` and open toasts through
+`LazySnackBar`, the panels the shell mounts on every launch defer their
+Material views, the theme emits tokens only for imported components, and the
+app does not provide the animations module, which nothing used (Material 22
+animates with CSS). Together these lowered the counter from 1,596,201 to
+1,344,067 bytes (-252,134, 15.8%) on a local production build at the branch
+point (#1931); the baseline follows the measurement of the branch merged with
+`master`, 1,345,807. The snack-bar followed in #1939: with the last seven
+eager `MatSnackBar` injections moved to `LazySnackBar` and the startup
+status deferring its Retry button, the snack-bar, Material's button, the icon
+button chunk, ripple and the CDK a11y module left the initial bundle,
+1,349,048 to 1,237,440 bytes (-111,608, 8.3%) on a local build, and no
+Material module remains in it; merged with #1938 (the radio play control
+no longer a fab, so its theme tokens left the stylesheet), #1936 (one
+global kit layer replacing per-component overrides), #1929 (zoneless
+renderer, no zone.js polyfill), #1903 (self-hosted server storage, which
+raised master's baseline by 7,245 bytes) and #1934, whose Xtream favorites
+toasts now also go through `LazySnackBar`, the branch measures 1,196,205
+with the static-import rule below, which the baseline follows; the counter
+without that rule read 1,098,535 for the same build. Of the CDK, the overlay, scrolling and
+portal chunks (about 78 KB) stay through the `FullscreenOverlayContainer`
+provider in `app.config.ts`, whose token lives in the overlay chunk.
 
 `--summary` writes the journey summary shape (`journeys.<journey>.counters`)
 that the ratchet checker consumes. `--dist <dir>` points the script at another
@@ -1257,15 +1393,57 @@ measured iterations of the 11 `master` runs from 2026-10-03 08:25 to
 | `launch/renderer.layoutShiftScoreSettled`    | 0     | 0.235 in some iterations of 8 runs up to 2026-10-02 (hero flicker, #1782) |
 | `open-source/main.mockHttpRequestsToSettled` | 1     | identical                                                                 |
 | `open-source/renderer.ipcCallsToFirstPage`   | 17    | identical                                                                 |
-| `open-source/renderer.layoutShiftScore`      | 0.233 | 0.221, then 0.222; 0.233 since #1814, never mixed within a run            |
+| `open-source/renderer.layoutShiftScore`      | 0     | 0.221, then 0.222; 0.233 since #1814; 0 since #1895 (see below)           |
 | `playback/renderer.httpRequestsToPlaying`    | 2     | identical                                                                 |
 | `playback/renderer.layoutShiftScore`         | 0.001 | identical                                                                 |
 
 `open-source/renderer.layoutShiftScore` read 0.222 in that window and 0.233
 in every iteration of every `master` run from 84aef83a6 (#1814, page Back
-buttons moved into the header) on, so its value is 0.233 with `evidenceRun`
-37372780064 (b78224376). The 0.011 that #1814 added is not explained yet;
-lowering it back is a separate change.
+buttons moved into the header) on, so its value was 0.233 with `evidenceRun`
+37372780064 (b78224376). Since #1895 it is 0 (`evidenceRun` 38147072417:
+all 5 measured iterations on the runner read 0 with no shift recorded).
+
+Where the 0.233 came from (`evidence.layoutShift.shifts`, a 1280×720 window;
+the score of a shift is the area of every node that moved times the largest
+distance any of them moved, as a fraction of the viewport):
+
+| Shift, ms after the click | Nodes that moved                                           | Score  |
+| ------------------------- | ---------------------------------------------------------- | ------ |
+| ~40 (page swap)           | `main.workspace-content` x 60 → 383, width −323            | 0.222  |
+|                           | switcher, `label.search-field`, `div.header-actions` x +44 | 0.011  |
+| ~50-70 (categories)       | `div.context-header__actions` x −60, width +60             | 0.0001 |
+
+The first two are one frame: the frame that replaces the dashboard with the
+portal page also inserts the 323 px context panel the dashboard has no room
+for, and the history Back that #1814 shows once an in-app previous entry
+exists. The header items move only 44 px, but a shift is scored with the
+largest distance in it, the content pane's 323 px, which is why Back added
+0.011 rather than about 0.0015. The third is the category search and sort
+buttons appearing when the categories arrive. The skeletons of the category
+list and the grid are replaced by content without any shift. Nothing was
+hidden behind the startup overlay: the "Syncing playlist" overlay of the
+cached catalog load flashed for about two frames after the shift and covered
+no further one. It no longer mounts on a J2 click (see the J2 section).
+
+The content frame and the header controls now slide into place instead of
+jumping ([Layout slides](./workspace-shell.md#layout-slides)): the new layout
+applies in the same frame and only a transform animates, which Chromium does
+not record as a layout shift. The category search and sort buttons render
+disabled while the categories load. Locally (macOS, 2026-10-11) and on the runner
+J2 then read 0 in every iteration with no shift recorded, J1 0 / 0, J3 0.001
+and J4 0;
+`renderer.domMutationsToFirstPage` rose by 22 (the slide's class and style
+changes) and the wall-clock entries did not move. Under
+`prefers-reduced-motion` there is no slide, so a user with that preference
+still sees the jump that the journey no longer measures.
+
+The two J4 entries, `search/renderer.ipcCallsPerSearch` 1 and
+`search/renderer.sqlStatementsPerSearch` 2 (#1899, `evidenceRun`
+38165392046), were identical in all 816 J4 iterations of the 136 CI journey
+jobs since #1816 and in all 18 iterations of three runs of #1899. They guard
+the debounce: a search that queried per keystroke, or ran a second query for
+the same term, raises them. Like the entries in the table they carry the
+guard-only note: #1899 halved the J4 wall clock without moving either.
 
 Being deterministic is not the same as being validated. Principle 3 of the
 plan promotes a counter to a guardrail once a PR has shown that lowering it
@@ -1290,16 +1468,31 @@ Not enforced, with the reason:
   race, because the download and recording recovery races `ready-to-show`
   (plan item A2).
 - Every `renderer.longTasks` (J1 2 or 1, J2 0 with one 1 earlier in the
-  week, J3 1 or 2): a long task is a task over 50 ms, so the count follows
-  runner speed, not work.
-- Every `cdTicks` counter: the zoneless migration (plan item C6) changes
-  them.
+  week, J3 1 or 2 until #1817 and 0 since): a long task is a task over
+  50 ms, so the count follows runner speed, not work.
+- J3 `renderer.cdTicksToPlaying` (7 or 8) and J4
+  `renderer.cdTicksToResults` (10 or 11): not identical even zoneless; the
+  player's and the search debounce's events land in one or two ticks. J1
+  `renderer.cdTicksIdle30s` (3) and J2 `renderer.cdTicksToFirstPage` (9) are
+  enforced exactly since the zoneless flip (#1929), identical in all 15
+  iterations of its three dispatched runs. J1 `renderer.cdTicksToFirstCard`
+  read 5 in those 15 too, but after #1931 moved Angular Material off the
+  startup path one iteration in six read 6: the lazy chunk resolves on either
+  side of a render. It is enforced at 5 with `slack: 1`.
 - J2 `renderer.domMutationsToFirstPage`: 1,602 or 1,603 between runs of
   recent commits.
 - J3 `renderer.ipcCallsToPlaying` (4 or 5) and
-  `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199): not identical,
-  and the EPG rendering work changes the mutation count.
-- J4: not measured yet.
+  `renderer.domMutationsToPlaying` (6,182, 6,183 or 6,199 before #1817;
+  731, 732 or 734 since, 748 with a fifth call): not identical.
+- J3 `renderer.ipcSerialDepthToPlaying` (4 on the runner, 3 on a Mac):
+  added after these runs and measured in one runner run so far; a
+  candidate once `master` runs agree.
+- J4 `renderer.domMutationsToResults` (402 on `master`, 392 since #1899),
+  `renderer.ipcSerialDepthToResults` (1) and `renderer.layoutShiftScore`
+  (0): identical in the three #1899 runs; candidates once `master` runs
+  agree.
+- J4 `renderer.cdTicksToResults` (11 to 13) and `renderer.longTasks`: see
+  the general reasons above.
 
 Runner counters differ from a Mac (the Linux-only `getWindowState` call, for
 one), so take every journey baseline value from the runner only.
@@ -1392,6 +1585,68 @@ threshold on Node 22 and inside Electron 43, so D2 regex prefilters were not
 applied. Rerun the benchmark after changing either parser or when a user
 reports slow imports of non-Latin playlists.
 
+## Compositing budget
+
+Chromium rasterizes every composited layer into tiles and gives a desktop
+renderer 512 MB of tile memory (1 GB on a display at least 3500 device pixels
+wide). Tiles needed for the visible frame that do not fit log
+`cc/tiles/tile_manager.cc: WARNING: tile memory limits exceeded, some content
+may not draw` and leave blank tiles while scrolling. On a 2x display a layer
+the size of the content area costs about 24 MB, so a dozen full-size layers
+spend the budget. The expensive layers are rarely the obvious ones: a
+`border-radius` on a scroller makes Blink clip every composited effect inside
+it (`backdrop-filter`, `filter` with a render surface, a running transform or
+opacity animation, `isolation: isolate`, `will-change`) through a mask layer
+synthesized per effect, each the size of the whole clipped area, because its
+shader path for rounded clips needs four equal radii on macOS and a
+translation-only transform between the clip and the effect
+(`PropertyTreeManager::ShaderBasedRRect`). The workspace shell therefore
+paints its content corner instead of clipping it
+([workspace shell](workspace-shell.md#content-surface-corner)).
+
+Two instruments share `src/performance/compositing-probe.ts`, which reads
+the layer tree over the Chrome DevTools Protocol (`LayerTree`: bounds in
+device pixels, compositing reasons and owner nodes, available only after
+Blink's first layerization with the domain enabled) and the renderer's
+`cc/tile_memory` from a memory-infra dump (`Tracing.requestMemoryDump`). A
+synthesized clip mask is a drawing layer with no owner node and no
+compositing reason; a content layer always carries a reason, and may lack an
+owner node when its first paint chunk belongs to an anonymous box.
+
+- `src/compositing.e2e.ts` is the deterministic guard, run with the Electron
+  E2E suite on every platform: on Live TV, a movie detail, a series detail
+  and the dashboard no synthesized mask may span half the content area, and
+  the backdrop-filtered controls must really be composited layers, so the
+  check cannot pass on a page with nothing to clip. Blink synthesizes the
+  masks before any GPU work; under `--disable-gpu` (the Linux CI launch) the
+  old scroller radius still produced seven.
+- `pnpm run perf:compositing` (`electron-backend-e2e:compositing-report`,
+  `playwright.compositing.config.ts`, Xtream mock on `127.0.0.1:3233`,
+  override with `IPTVNATOR_COMPOSITING_XTREAM_MOCK_PORT`) measures. One fresh
+  profile is seeded through the app's dialogs with a live, a movie and a
+  series favourite, artwork is served from memory, and the window is 1600x1000
+  CSS pixels. For Live TV, the movie and series details, the dashboard (idle,
+  during a crossfade, scrolled) and settings it records tile and image
+  memory, composited layer counts, the eight largest layers with their
+  owners and reasons, synthesized masks and the `tile memory limits
+  exceeded` lines on stderr, into
+  `dist/performance/compositing/<YYYYMMDDTHHMMSSZ>/summary.json` and a table on
+  the console. The pool keeps freed tiles for a few seconds, so each reading
+  waits `TILE_POOL_SETTLE_MS` after its route settles.
+
+Megabytes depend on the window size, the device scale factor and the GPU
+path, so they are evidence for a PR, not a ratchet: the Linux runner at 1x
+cannot reproduce a 2x laptop. Layer and mask counts on the fixed mock are
+comparable across machines; wiring them into the [ratchet](#ratchet) needs a
+baseline measured on the canonical runner first. A PR that adds or changes
+`backdrop-filter`, `filter`, `will-change`, `isolation`, a transform or
+opacity animation, a `mask` or `clip-path`, or a `border-radius` on an
+element with `overflow`, runs the report before and after and quotes the
+affected routes. Reference, 2026-10-09 on a 16" MacBook Pro at 2x before and
+after the painted corner: dashboard idle 537 to 242 MB, during a slide switch
+598 to 303 MB, scrolled 655 to 165 MB; movie detail 110 to 89 MB; series
+detail 187 to 143 MB.
+
 ## Adding a counter
 
 1. Produce the value from the built output or from a deterministic probe, not
@@ -1435,6 +1690,10 @@ reports slow imports of non-Latin playlists.
    change.
 5. Cover the probe with jsdom fixtures and the record and summary code with
    `node:test` (`pnpm nx run electron-backend-e2e:test-performance-harness`).
+   `tsx` runs those specs without type checking, so also run
+   `pnpm run typecheck:spec electron-backend-e2e`. Its
+   `apps/electron-backend-e2e/tsconfig.spec.json` includes every TypeScript
+   file in the project, so a new journey file needs no `include` change.
 6. Validate a counter before it becomes a guardrail: one PR must show that
    lowering it moved wall-clock in the same journey.
 

@@ -1,0 +1,295 @@
+@use '@angular/material' as mat;
+@use '../../../../styles/app-controls' as controls;
+
+:host {
+    // Status colours: the app's accent, success and danger text; the queue
+    // keeps a violet no token covers yet.
+    --epg-accent: var(--app-selection-color);
+    --epg-success: var(--app-success-color);
+    --epg-error: var(--app-danger-text);
+    --epg-queued: #a78bfa;
+}
+
+.epg-progress-panel {
+    @include controls.floating-panel;
+    position: fixed;
+    bottom: 20px;
+    left: 76px;
+    width: 300px;
+    max-width: calc(100vw - 96px);
+    z-index: 900;
+    animation: slideInFromLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideInFromLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-16px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+.panel-header {
+    @include controls.floating-panel-header;
+
+    .header-title {
+        @include controls.floating-panel-title;
+
+        .minimized-summary {
+            font-size: 12.5px;
+            font-weight: 500;
+            text-transform: none;
+            letter-spacing: normal;
+            color: var(--app-body-color);
+        }
+    }
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+    }
+
+    .minimize-btn,
+    .dismiss-all-btn {
+        @include controls.ghost-icon-button(28px, 18px);
+    }
+}
+
+.epg-progress-panel--minimized {
+    width: auto;
+    min-width: 180px;
+    max-width: 300px;
+
+    .panel-header {
+        border-bottom: none;
+    }
+}
+
+.imports-list {
+    max-height: 320px;
+    // Never scroll sideways: every row truncates or wraps instead.
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    padding: 4px 0;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
+        transparent;
+}
+
+.import-item {
+    padding: 6px 10px;
+    transition: background 0.15s ease;
+    position: relative;
+
+    &:not(:last-child) {
+        border-bottom: 1px solid var(--app-separator);
+    }
+
+    &:hover {
+        background: var(--app-hover-overlay);
+    }
+
+    .item-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+
+        mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .item-url {
+            flex: 1;
+            min-width: 0;
+            font-size: 12.5px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--app-body-color);
+        }
+
+        // Kit ghost icon buttons: the row stays as tall as its text, and the
+        // list never grows a horizontal scrollbar from a 48px touch target.
+        .dismiss-btn,
+        .retry-btn {
+            @include controls.ghost-icon-button(24px, 16px);
+        }
+
+        .dismiss-btn {
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        // Retry is a deliberate action: always visible, in the accent colour,
+        // on hover as well.
+        .retry-btn,
+        .retry-btn:not([disabled]):hover {
+            @include mat.icon-button-overrides(
+                (
+                    icon-color: var(--epg-accent),
+                )
+            );
+        }
+
+        .trust-btn {
+            @include controls.secondary-button(sm);
+            flex: 0 0 auto;
+            min-width: 0;
+            white-space: nowrap;
+        }
+    }
+
+    &:hover .dismiss-btn,
+    .dismiss-btn:focus-visible {
+        opacity: 1;
+    }
+
+    &.status-loading .item-header mat-icon {
+        color: var(--epg-accent);
+    }
+
+    &.status-complete .item-header mat-icon {
+        color: var(--epg-success);
+    }
+
+    &.status-error .item-header mat-icon {
+        color: var(--epg-error);
+    }
+}
+
+.spinning {
+    animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.item-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 24px;
+    min-height: 20px;
+
+    .stat-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--app-muted-color);
+
+        mat-icon {
+            font-size: 12px;
+            width: 12px;
+            height: 12px;
+        }
+    }
+
+    .error-text {
+        min-width: 0;
+        font-size: 11.5px;
+        line-height: 1.35;
+        color: var(--epg-error);
+        overflow-wrap: anywhere;
+    }
+}
+
+.queue-section {
+    margin: 2px 0 0;
+    padding: 6px 10px 8px;
+    border-top: 1px solid var(--app-separator);
+
+    // When queue is the only content (no active imports above),
+    // the panel-header border-bottom already provides separation —
+    // suppress this border to avoid a visible double rule.
+    &:first-child {
+        margin-top: 0;
+        border-top: none;
+    }
+}
+
+.queue-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--app-muted-color);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+
+    mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+        color: var(--epg-queued);
+    }
+}
+
+.queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.queue-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    color: var(--app-muted-color);
+
+    .queue-position {
+        width: 16px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--epg-queued);
+    }
+
+    .queue-url {
+        flex: 1;
+        min-width: 0;
+        font-size: 11.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .dismiss-btn {
+        @include controls.ghost-icon-button(22px, 14px);
+    }
+}
+
+@media (max-width: 700px) {
+    .epg-progress-panel {
+        left: 76px;
+        right: 12px;
+        bottom: 12px;
+        width: auto;
+        max-width: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .epg-progress-panel {
+        left: 12px;
+    }
+}

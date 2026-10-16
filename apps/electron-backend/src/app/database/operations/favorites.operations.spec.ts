@@ -39,6 +39,7 @@ function createGlobalFavoritesDbMock(rows: unknown[]) {
     const query = {
         from: jest.fn(),
         innerJoin: jest.fn(),
+        leftJoin: jest.fn(),
         limit: jest.fn(),
         orderBy: jest.fn(),
         then: jest.fn((resolve, reject) =>
@@ -48,6 +49,7 @@ function createGlobalFavoritesDbMock(rows: unknown[]) {
     };
     query.from.mockReturnValue(query);
     query.innerJoin.mockReturnValue(query);
+    query.leftJoin.mockReturnValue(query);
     query.where.mockReturnValue(query);
     query.orderBy.mockReturnValue(query);
     query.limit.mockResolvedValue(rows);
@@ -85,7 +87,9 @@ describe('favorites.operations', () => {
 
         const result = await getGlobalFavorites(db);
 
-        expect(whereMock).not.toHaveBeenCalled();
+        expect(whereMock).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'and' })
+        );
         expect(query.limit).not.toHaveBeenCalled();
         expect(result).toEqual([
             expect.objectContaining({
@@ -152,7 +156,7 @@ describe('favorites.operations', () => {
                 ])
             ).resolves.toEqual({ success: true });
 
-            expect(updatePrepare).toHaveBeenCalledTimes(1);
+            expect(updatePrepare).toHaveBeenCalledTimes(2);
             expect(placeholderMock).toHaveBeenCalledWith('position');
             expect(placeholderMock).toHaveBeenCalledWith('contentId');
             // Regression: favorites are playlist-scoped, so the UPDATE must

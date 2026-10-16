@@ -18,6 +18,7 @@ import {
 import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
 import { verifyStalkerOpenInPlaylist } from './stalker-open-in-playlist.fixture';
 import { playFirstItvChannel } from './stalker-itv-playback.fixture';
+import { verifyRadioPlayControl } from './stalker-radio-player.fixture';
 import {
     AUTH_REJECTED_MAC,
     BACKEND_PROXY,
@@ -182,12 +183,15 @@ test('@stalker account info dialog shows subscription facts from the portal', as
 }) => {
     await addStalkerPortal(page);
 
-    // Open the header playlist switcher and its "Account info" entry for
-    // the active stalker portal.
-    await page.locator('.playlist-switcher-trigger').click();
+    // Open the header playlist switcher and the "Account info" entry in the
+    // active stalker portal's row menu.
+    await page.locator('[data-test-id="playlist-switcher-trigger"]').click();
     await page
-        .locator('.context-action-item', { hasText: 'Account info' })
+        .locator(
+            'app-playlist-switcher-panel [role="option"][aria-current="true"] .source-row__more'
+        )
         .click();
+    await page.getByRole('menuitem', { name: 'Account info' }).click();
 
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
@@ -293,6 +297,7 @@ test('@stalker ITV playback survives a category switch', async ({ page }) => {
 
 test('@stalker radio — stations use the inline audio player without EPG', async ({
     page,
+    browserName,
 }) => {
     await addStalkerPortal(page);
 
@@ -330,6 +335,7 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
     await expect(page.locator('app-audio-player')).toBeVisible({
         timeout: 20_000,
     });
+    await verifyRadioPlayControl(page, browserName);
 
     // Level 2: only the categories rail folds; the channels header turns
     // its title into a category dropdown that opens the same rail as a
@@ -803,12 +809,12 @@ test('@stalker favorites — embedded-series favorite refreshes newly released e
 
     // Snapshot episodes are visible immediately…
     await expect(
-        page.getByRole('heading', { name: '1. Episode 1', exact: true })
+        page.getByRole('heading', { name: 'Episode 1', exact: true })
     ).toBeVisible({ timeout: 10_000 });
     // …and the newly released episode appears after the background refresh
     await expect(
         page.getByRole('heading', {
-            name: `${episodeCount + 1}. Episode ${episodeCount + 1}`,
+            name: `Episode ${episodeCount + 1}`,
             exact: true,
         })
     ).toBeVisible({ timeout: 10_000 });
@@ -847,7 +853,7 @@ test('@stalker season watched toggle — embedded series marks and clears every 
     await expect(seasonToggle).toContainText(
         `Mark season as watched (${episodeCount})`
     );
-    const watchedCards = page.locator('.episode-card--watched');
+    const watchedCards = page.locator('.episode-item--watched');
     await expect(watchedCards).toHaveCount(0);
 
     await seasonToggle.click();
@@ -857,7 +863,7 @@ test('@stalker season watched toggle — embedded series marks and clears every 
     await expect(watchedCards).toHaveCount(episodeCount, { timeout: 15_000 });
     await expect(
         page.locator(
-            '[data-testid="episode-watched-toggle"].episode-card__watched-toggle--watched'
+            '[data-testid="episode-watched-toggle"].episode-item__watched-toggle--watched'
         )
     ).toHaveCount(episodeCount);
     seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
@@ -904,7 +910,7 @@ test('@stalker series watched toggle — embedded series marks and clears from t
 
     // Every episode of the embedded season flips to watched and the action
     // becomes unwatch-all.
-    const watchedCards = page.locator('.episode-card--watched');
+    const watchedCards = page.locator('.episode-item--watched');
     await expect(watchedCards).toHaveCount(episodeCount, {
         timeout: 15_000,
     });

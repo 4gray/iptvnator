@@ -58,18 +58,23 @@
                     ('WORKSPACE.SORT_LABEL' | translate) +
                     (favSortLabelKey() | translate)
                 "
-                [attr.aria-label]="'WORKSPACE.SORT_LABEL' | translate"
+                [attr.aria-label]="
+                    ('WORKSPACE.SORT_LABEL' | translate) +
+                    (favSortLabelKey() | translate)
+                "
             >
                 <mat-icon>sort_by_alpha</mat-icon>
             </button>
             <mat-menu #favoritesSortMenu="matMenu">
                 @for (option of favSortOptions; track option.mode) {
-                    <button mat-menu-item (click)="setFavSortMode(option.mode)">
+                    <button
+                        mat-menu-item
+                        [appMenuItemRadio]="favSortMode() === option.mode"
+                        (click)="setFavSortMode(option.mode)"
+                    >
+                        <mat-icon appMenuItemRadioCheck>check</mat-icon>
                         <mat-icon>{{ option.icon }}</mat-icon>
                         <span>{{ option.translationKey | translate }}</span>
-                        @if (favSortMode() === option.mode) {
-                            <mat-icon class="sort-check">check</mat-icon>
-                        }
                     </button>
                 }
             </mat-menu>
@@ -131,15 +136,11 @@
                 >
                     <mat-button-toggle value="playlist">
                         <mat-icon>playlist_play</mat-icon>
-                        <span class="toggle-label">{{
-                            'PORTALS.THIS_PLAYLIST' | translate
-                        }}</span>
+                        <span>{{ 'PORTALS.THIS_PLAYLIST' | translate }}</span>
                     </mat-button-toggle>
                     <mat-button-toggle value="all">
                         <mat-icon>public</mat-icon>
-                        <span class="toggle-label">{{
-                            'PORTALS.ALL_PLAYLISTS' | translate
-                        }}</span>
+                        <span>{{ 'PORTALS.ALL_PLAYLISTS' | translate }}</span>
                     </mat-button-toggle>
                 </mat-button-toggle-group>
             }

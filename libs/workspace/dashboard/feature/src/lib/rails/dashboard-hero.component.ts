@@ -30,6 +30,8 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
  *
  * The active slide is tracked by id, so a slide that arrives late (the live
  * slide waits for its EPG answer) never yanks the user off the current one.
+ * Every slide is laid out and only the active one is shown, so the hero is
+ * as tall as its tallest slide and a rotation never resizes it.
  *
  * The hero is a focusable region: ←/→ switch slides, Enter follows the
  * primary action. Rotation also pauses while the document is hidden.
@@ -194,8 +196,11 @@ export class DashboardHeroComponent {
         }
         if (event.key === 'Enter') {
             event.preventDefault();
+            // Every slide is in the DOM; the inactive ones are inert.
             (event.currentTarget as HTMLElement)
-                .querySelector<HTMLElement>('.hero__button--primary')
+                .querySelector<HTMLElement>(
+                    '.hero__content:not([inert]) .hero__button--primary'
+                )
                 ?.click();
         }
     }

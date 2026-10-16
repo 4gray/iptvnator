@@ -152,11 +152,11 @@ export async function installXtreamRendererProbe(
                 );
             const sourceRowAbsent = (): boolean =>
                 !Array.from(
-                    document.querySelectorAll('app-playlist-item')
+                    document.querySelectorAll('app-source-row')
                 ).some(
                     (row) =>
                         row
-                            .querySelector('.playlist-title')
+                            .querySelector('.source-row__name')
                             ?.textContent?.trim() === state.sourceTitle
                 );
             const terminalDomGate = (): boolean => {

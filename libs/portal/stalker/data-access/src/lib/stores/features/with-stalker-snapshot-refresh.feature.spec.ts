@@ -290,5 +290,4 @@ describe('withStalkerSnapshotRefresh', () => {
 
         expect(store.selectedItem()?.series).toEqual([1]);
     });
-
 });

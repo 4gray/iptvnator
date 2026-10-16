@@ -8,27 +8,29 @@ import {
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
 import { TmdbApiService, TmdbCacheService } from '@iptvnator/services';
 import type { TmdbCacheStats } from '@iptvnator/shared/interfaces';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
 
 @Component({
     selector: 'app-settings-tmdb-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         MatButtonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         MatProgressSpinnerModule,
+        MatSlideToggleModule,
         ReactiveFormsModule,
         TranslateModule,
     ],

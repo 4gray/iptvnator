@@ -1,8 +1,10 @@
 import { PlaybackPositionData, XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import { isPortalPlaybackInProgress } from './portal-playback-positions';
 import {
-    isPortalPlaybackInProgress,
-    isPortalPlaybackWatched,
-} from './portal-playback-positions';
+    getSeriesNextUp,
+    type SeriesEpisodeEntry,
+    type SeriesProgressRequest,
+} from './series-next-up';
 
 export const SERIES_QUICK_START_ACTION_KIND = {
     PlayFirst: 'play-first',
@@ -26,101 +28,80 @@ export interface SeriesQuickStartAction {
     disabled: boolean;
 }
 
-interface SeriesQuickStartRequest {
-    seasons: Record<string, XtreamSerieEpisode[]>;
-    playbackPositions: Map<number, PlaybackPositionData>;
-}
-
-interface OrderedEpisode {
-    episode: XtreamSerieEpisode;
-    position: PlaybackPositionData | null;
-    order: number;
-}
-
-const naturalCollator = new Intl.Collator(undefined, {
-    numeric: true,
-    sensitivity: 'base',
-});
-
+/**
+ * The series page's play button, for the episode the series goes on with
+ * (`getSeriesNextUp`). A series caught up after its newest watched episode
+ * offers the first one skipped before it, and completes when none is left.
+ */
 export function getSeriesQuickStartAction(
-    request: SeriesQuickStartRequest
+    request: SeriesProgressRequest
 ): SeriesQuickStartAction | null {
-    const orderedEpisodes = getOrderedEpisodes(request);
-
-    if (orderedEpisodes.length === 0) {
+    const nextUp = getSeriesNextUp(request);
+    if (!nextUp) {
         return null;
     }
-
-    const startedEpisodes = orderedEpisodes
-        .filter(
-            ({ position }) =>
-                position !== null && !isPortalPlaybackWatched(position)
-        )
-        .sort(comparePlaybackPositionRecency);
-
-    const latestStartedEpisode = startedEpisodes[startedEpisodes.length - 1];
-    if (latestStartedEpisode?.position) {
-        const shouldResume = isPortalPlaybackInProgress(
-            latestStartedEpisode.position
-        );
+    if (nextUp.kind === 'caught-up') {
+        return nextUp.skipped
+            ? continueAction(nextUp.skipped)
+            : createQuickStartAction({
+                  kind: SERIES_QUICK_START_ACTION_KIND.Completed,
+                  labelKey: 'XTREAM.SERIES_WATCHED',
+                  icon: 'check_circle',
+                  episode: nextUp.last.episode,
+                  position: nextUp.last.position,
+                  disabled: true,
+              });
+    }
+    if (nextUp.kind === 'next') {
+        return continueAction(nextUp.entry);
+    }
+    const { episode, position } = nextUp.entry;
+    if (nextUp.kind === 'start') {
         return createQuickStartAction({
-            kind: shouldResume
-                ? SERIES_QUICK_START_ACTION_KIND.Resume
-                : SERIES_QUICK_START_ACTION_KIND.PlayRecent,
-            labelKey: shouldResume
-                ? 'XTREAM.RESUME_EPISODE'
-                : 'XTREAM.PLAY_EPISODE',
-            ...(!shouldResume
-                ? {
-                      labelParams: {
-                          episode: Number(
-                              latestStartedEpisode.episode.episode_num
-                          ),
-                      },
-                  }
-                : {}),
+            kind: SERIES_QUICK_START_ACTION_KIND.PlayFirst,
+            labelKey: 'XTREAM.PLAY_FIRST_EPISODE',
             icon: 'play_arrow',
-            episode: latestStartedEpisode.episode,
-            position: latestStartedEpisode.position,
+            episode,
+            position,
             disabled: false,
         });
     }
-
-    const firstUnwatchedEpisode = orderedEpisodes.find(
-        ({ position }) => !isPortalPlaybackWatched(position)
-    );
-
-    if (firstUnwatchedEpisode) {
-        const hasWatchedEpisode = orderedEpisodes.some(({ position }) =>
-            isPortalPlaybackWatched(position)
-        );
-
-        return createQuickStartAction({
-            kind: hasWatchedEpisode
-                ? SERIES_QUICK_START_ACTION_KIND.PlayNext
-                : SERIES_QUICK_START_ACTION_KIND.PlayFirst,
-            labelKey: hasWatchedEpisode
-                ? 'XTREAM.PLAY_NEXT_EPISODE'
-                : 'XTREAM.PLAY_FIRST_EPISODE',
-            icon: 'play_arrow',
-            episode: firstUnwatchedEpisode.episode,
-            position: firstUnwatchedEpisode.position,
-            disabled: false,
-        });
+    if (isPortalPlaybackInProgress(position)) {
+        return resumeAction(nextUp.entry);
     }
-
-    const finalEpisode = orderedEpisodes[orderedEpisodes.length - 1];
-    if (!finalEpisode) {
-        return null;
-    }
-
+    // Launched, with no progress saved yet.
     return createQuickStartAction({
-        kind: SERIES_QUICK_START_ACTION_KIND.Completed,
-        labelKey: 'XTREAM.SERIES_WATCHED',
-        icon: 'check_circle',
-        episode: finalEpisode.episode,
-        position: finalEpisode.position,
-        disabled: true,
+        kind: SERIES_QUICK_START_ACTION_KIND.PlayRecent,
+        labelKey: 'XTREAM.PLAY_EPISODE',
+        labelParams: { episode: Number(episode.episode_num) },
+        icon: 'play_arrow',
+        episode,
+        position,
+        disabled: false,
+    });
+}
+
+function continueAction(entry: SeriesEpisodeEntry): SeriesQuickStartAction {
+    return isPortalPlaybackInProgress(entry.position)
+        ? resumeAction(entry)
+        : createQuickStartAction({
+              kind: SERIES_QUICK_START_ACTION_KIND.PlayNext,
+              labelKey: 'XTREAM.PLAY_NEXT_EPISODE',
+              icon: 'play_arrow',
+              episode: entry.episode,
+              position: entry.position,
+              disabled: false,
+          });
+}
+
+function resumeAction(entry: SeriesEpisodeEntry): SeriesQuickStartAction {
+    return createQuickStartAction({
+        kind: SERIES_QUICK_START_ACTION_KIND.Resume,
+        labelKey: 'XTREAM.RESUME_EPISODE',
+        icon: 'play_arrow',
+        episode: entry.episode,
+        position: entry.position,
+        disabled: false,
     });
 }
 
@@ -131,67 +112,6 @@ function createQuickStartAction(
         ...action,
         episodeLabel: getEpisodeLabel(action.episode),
     };
-}
-
-function getOrderedEpisodes(
-    request: SeriesQuickStartRequest
-): OrderedEpisode[] {
-    const orderedEpisodes: OrderedEpisode[] = [];
-
-    Object.entries(request.seasons)
-        .sort(([seasonA], [seasonB]) =>
-            naturalCollator.compare(seasonA, seasonB)
-        )
-        .forEach(([, episodes]) => {
-            [...episodes].sort(compareEpisodes).forEach((episode) => {
-                orderedEpisodes.push({
-                    episode,
-                    position:
-                        request.playbackPositions.get(Number(episode.id)) ??
-                        null,
-                    order: orderedEpisodes.length,
-                });
-            });
-        });
-
-    return orderedEpisodes;
-}
-
-function compareEpisodes(
-    episodeA: XtreamSerieEpisode,
-    episodeB: XtreamSerieEpisode
-): number {
-    const episodeNumberDelta =
-        Number(episodeA.episode_num) - Number(episodeB.episode_num);
-
-    if (Number.isFinite(episodeNumberDelta) && episodeNumberDelta !== 0) {
-        return episodeNumberDelta;
-    }
-
-    return naturalCollator.compare(episodeA.title ?? '', episodeB.title ?? '');
-}
-
-function comparePlaybackPositionRecency(
-    episodeA: OrderedEpisode,
-    episodeB: OrderedEpisode
-): number {
-    const timeA = getTimestamp(episodeA.position?.updatedAt);
-    const timeB = getTimestamp(episodeB.position?.updatedAt);
-
-    if (timeA !== timeB) {
-        return timeA - timeB;
-    }
-
-    return episodeA.order - episodeB.order;
-}
-
-function getTimestamp(value: string | undefined): number {
-    if (!value) {
-        return 0;
-    }
-
-    const timestamp = Date.parse(value);
-    return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function getEpisodeLabel(episode: XtreamSerieEpisode): string {

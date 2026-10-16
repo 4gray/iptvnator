@@ -1,7 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
-import { Subject } from 'rxjs';
+import { EMPTY, Subject } from 'rxjs';
+import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import type {
     PlaybackPositionData,
     PortalActivityItem,
@@ -99,6 +100,7 @@ describe('DashboardHeroSlidesPresenter', () => {
     let favoritesLoading: ReturnType<typeof signal<boolean>>;
     let addedLoading: ReturnType<typeof signal<boolean>>;
     let liveAwaiting: ReturnType<typeof signal<boolean>>;
+    let positionsSettled: ReturnType<typeof signal<boolean>>;
     const positions = new Map<string | number, PlaybackPositionData>([
         [
             1,
@@ -136,6 +138,17 @@ describe('DashboardHeroSlidesPresenter', () => {
                         globalRecentItems: recentItems,
                         globalRecentVodItems: () =>
                             recentItems().filter((i) => i.type !== 'live'),
+                        continueWatchingSettled: () => positionsSettled(),
+                        continueWatchingItems: () =>
+                            positionsSettled()
+                                ? recentItems().filter(
+                                      (i) =>
+                                          i.type !== 'live' &&
+                                          !isPortalPlaybackWatched(
+                                              positions.get(i.id) ?? null
+                                          )
+                                  )
+                                : [],
                         globalFavoriteItems: favorites,
                         xtreamRecentlyAddedItems: addedItems,
                         getPlaybackPositionForItem: (
@@ -187,6 +200,8 @@ describe('DashboardHeroSlidesPresenter', () => {
                     provide: TranslateService,
                     useValue: {
                         onLangChange: new Subject(),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                         instant: (key: string, params?: object) =>
                             params ? `${key} ${JSON.stringify(params)}` : key,
                     },
@@ -209,10 +224,60 @@ describe('DashboardHeroSlidesPresenter', () => {
         favoritesLoading = signal(false);
         addedLoading = signal(false);
         liveAwaiting = signal(false);
+        positionsSettled = signal(true);
     });
 
     afterEach(() => {
         jest.useRealTimers();
+    });
+
+    it('leaves unavailable saved films in the collection rather than promoting them to a playable hero', () => {
+        favorites.set([{ ...favoriteFilm, catalogStatus: 'missing' }]);
+        expect(
+            create()
+                .slides()
+                .some((slide) => slide.kind === 'favorite')
+        ).toBe(false);
+    });
+
+    it.each([false, true])(
+        'excludes unavailable history from resume and fallback hero inputs (watched: %s)',
+        (watched) => {
+            recentItems.set([
+                {
+                    ...(watched ? watchedMovie : series),
+                    source: 'xtream',
+                    catalogStatus: 'missing',
+                },
+            ]);
+            favorites.set([]);
+            addedItems.set([]);
+            candidates.set([]);
+            tmdbEnabled.set(true);
+            const presenter = create();
+            TestBed.tick();
+            expect(presenter.slides()).toEqual([]);
+            expect(getExtras).not.toHaveBeenCalled();
+        }
+    );
+
+    it('does not look up or reserve a hero slot for an unavailable live candidate', () => {
+        candidates.set([
+            {
+                origin: 'favorite',
+                item: { ...channel, catalogStatus: 'missing' },
+            },
+        ]);
+        favorites.set([
+            favoriteFilm,
+            { ...favoriteFilm, id: 40, xtream_id: 400, title: 'Another film' },
+        ]);
+        const presenter = create();
+        expect(presenter.slides()).toHaveLength(4);
+        expect(presenter.slides().some((slide) => slide.kind === 'live')).toBe(
+            false
+        );
+        expect(liveDetails).not.toHaveBeenCalled();
     });
 
     it('builds the rotation from resume, live, favourite and import slides', () => {
@@ -477,6 +542,26 @@ describe('DashboardHeroSlidesPresenter', () => {
         addedLoading.set(true);
 
         expect(create().loading()).toBe(false);
+    });
+
+    it('keeps the skeleton until playback positions tell finished titles apart', () => {
+        // History only: until the positions arrive the newest row could be a
+        // finished title, so neither a resume slide nor the history fallback
+        // may stand in for the slide that follows.
+        recentItems.set([watchedMovie, series]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        positionsSettled.set(false);
+        const presenter = create();
+        expect(presenter.slides()).toEqual([]);
+        expect(presenter.loading()).toBe(true);
+
+        positionsSettled.set(true);
+        expect(
+            presenter.slides().map((slide) => [slide.kind, slide.title])
+        ).toEqual([['continue', 'Big Pharma']]);
+        expect(presenter.loading()).toBe(false);
     });
 
     describe('with a live channel as the only candidate', () => {

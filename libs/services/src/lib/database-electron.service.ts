@@ -1,3 +1,7 @@
+import type {
+    ElectronBridgeXtreamFavorite,
+    XtreamFavoriteRemovalRef,
+} from '@iptvnator/shared/interfaces';
 /**
  * Database service for Electron renderer process
  * Communicates with the main process database via IPC
@@ -100,7 +104,9 @@ export interface GlobalRecentItem extends XtreamContent {
     viewed_at: string;
 }
 
-export interface GlobalFavoriteItem extends XtreamContent {
+export type XtreamFavorite = ElectronBridgeXtreamFavorite;
+
+export interface GlobalFavoriteItem extends XtreamFavorite {
     playlist_id: string;
     playlist_name: string;
     added_at: string;
@@ -288,8 +294,26 @@ export class DatabaseService {
     }
 
     /**
-     * Restore favorites and recently viewed items after Xtream refresh
+     * Materialize saved favorites without requiring the provider catalog.
      */
+    async restoreXtreamFavoriteSnapshots(
+        playlistId: string,
+        favorites: XtreamBackupFavoriteItem[],
+        restoreId?: string
+    ): Promise<void> {
+        if (favorites.length === 0) return;
+        const { assertXtreamFavoriteRestoreSupported } =
+            await import('./xtream-pending-favorites');
+        assertXtreamFavoriteRestoreSupported(window.electron);
+        const result = await window.electron.dbRestoreXtreamFavorites(
+            playlistId,
+            favorites,
+            restoreId
+        );
+        if (!result.success)
+            throw new Error('Restoring saved favorites failed.');
+    }
+
     async restoreXtreamUserData(
         playlistId: string,
         favorites: XtreamBackupFavoriteItem[],
@@ -719,6 +743,11 @@ export class DatabaseService {
         }
 
         try {
+            await materializePendingXtreamFavorites(
+                window.electron,
+                undefined,
+                'continue'
+            );
             const items = await window.electron.dbGetGlobalFavorites();
             return items || [];
         } catch (error) {
@@ -736,6 +765,11 @@ export class DatabaseService {
         }
 
         try {
+            await materializePendingXtreamFavorites(
+                window.electron,
+                undefined,
+                'continue'
+            );
             const items = await window.electron.dbGetAllGlobalFavorites();
             return items || [];
         } catch (error) {
@@ -795,9 +829,8 @@ export class DatabaseService {
         if (typeof window.electron?.dbAddFavorite !== 'function') {
             return false;
         }
-
         try {
-            await window.electron.dbAddFavorite(
+            await this.addToFavoritesOrThrow(
                 contentId,
                 playlistId,
                 backdropUrl
@@ -809,11 +842,30 @@ export class DatabaseService {
         }
     }
 
+    /** User-triggered saves must expose a rejected write to the detail toggle. */
+    async addToFavoritesOrThrow(
+        contentId: number,
+        playlistId: string,
+        backdropUrl?: string
+    ): Promise<void> {
+        if (typeof window.electron?.dbAddFavorite !== 'function') {
+            throw new Error('Favorite storage is unavailable');
+        }
+        const result = await window.electron.dbAddFavorite(
+            contentId,
+            playlistId,
+            backdropUrl
+        );
+        if (!result.success) {
+            throw new Error(result.error ?? 'Favorite could not be saved');
+        }
+    }
+
     /**
      * Remove content from favorites
      */
     async removeFromFavorites(
-        contentId: number,
+        contentId: XtreamFavoriteRemovalRef,
         playlistId: string
     ): Promise<boolean> {
         if (typeof window.electron?.dbRemoveFavorite !== 'function') {
@@ -845,15 +897,23 @@ export class DatabaseService {
         }
     }
 
-    /**
-     * Get all favorites for a playlist
-     */
-    async getFavorites(playlistId: string): Promise<XtreamContent[]> {
+    /** Backup reads must fail rather than export an empty list after an IPC error. */
+    async getFavoritesOrThrow(playlistId: string): Promise<XtreamFavorite[]> {
+        await materializePendingXtreamFavorites(window.electron, playlistId);
+        return window.electron.dbGetFavoritesForBackup(playlistId);
+    }
+
+    async getFavorites(playlistId: string): Promise<XtreamFavorite[]> {
         if (typeof window.electron?.dbGetFavorites !== 'function') {
             return [];
         }
 
         try {
+            await materializePendingXtreamFavorites(
+                window.electron,
+                playlistId,
+                'continue'
+            );
             return await window.electron.dbGetFavorites(playlistId);
         } catch (error) {
             console.error('Error getting favorites:', error);
@@ -994,21 +1054,46 @@ export class DatabaseService {
     async getContentByXtreamId(
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch
     ): Promise<XtreamContent | null> {
         if (typeof window.electron?.dbGetContentByXtreamId !== 'function') {
             return null;
         }
 
+        const normalized = normalizeContentMetadataPatch(identity);
+        const selector =
+            normalized &&
+            (normalized.tmdbId != null || normalized.releaseYear != null)
+                ? {
+                      ...(normalized.tmdbId != null
+                          ? { tmdbId: normalized.tmdbId }
+                          : {}),
+                      ...(normalized.releaseYear != null
+                          ? { releaseYear: normalized.releaseYear }
+                          : {}),
+                  }
+                : undefined;
         try {
             return await window.electron.dbGetContentByXtreamId(
                 xtreamId,
                 playlistId,
-                contentType
+                contentType,
+                ...(selector ? [selector] : [])
             );
         } catch (error) {
             console.error('Error getting content by xtream ID:', error);
             return null;
         }
     }
+}
+
+/** Defer legacy conversion code until a favorites operation actually needs it. */
+async function materializePendingXtreamFavorites(
+    ...args: Parameters<
+        typeof import('./xtream-pending-favorites').materializePendingXtreamFavorites
+    >
+): Promise<void> {
+    const converter = await import('./xtream-pending-favorites');
+    return converter.materializePendingXtreamFavorites(...args);
 }

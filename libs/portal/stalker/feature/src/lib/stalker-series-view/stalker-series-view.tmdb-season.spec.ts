@@ -189,4 +189,55 @@ describe('StalkerSeriesViewComponent TMDB season fetch', () => {
 
         expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
     });
+    it('reports the regular series season request as loading, not as an empty series', async () => {
+        serialSeasonsResource.set([]);
+        isSerialSeasonsLoading.set(true);
+        await stabilize();
+
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        ).componentInstance as StubSeasonContainerComponent;
+        expect(seasonContainer.isLoading()).toBe(true);
+        expect(seasonContainer.seriesPosterUrl()).toBe('poster.jpg');
+
+        isSerialSeasonsLoading.set(false);
+        await stabilize();
+        expect(seasonContainer.isLoading()).toBe(false);
+    });
+
+    it('keeps the episode metadata loading until the matched season fetch settles', async () => {
+        let resolveSeason!: (value: unknown) => void;
+        tmdbGetSeason.mockReturnValue(
+            new Promise((resolve) => (resolveSeason = resolve))
+        );
+        await stabilize();
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        ).componentInstance as StubSeasonContainerComponent;
+
+        // Without a show-level TMDB match there is nothing to wait for.
+        expect(seasonContainer.metadataLoading()).toBe(false);
+
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Regular Series',
+                description: 'Series description',
+                movie_image: 'poster.jpg',
+                tmdb_id: 777,
+            },
+        } as never);
+        fixture.componentInstance.onSeasonSelected('1');
+        await stabilize();
+        expect(tmdbGetSeason).toHaveBeenCalledWith(777, 1);
+        expect(seasonContainer.metadataLoading()).toBe(true);
+
+        // Settled with nothing (TMDB has no such season): the rows may now
+        // be judged from the provider data alone.
+        resolveSeason(null);
+        await stabilize();
+        fixture.detectChanges();
+        expect(seasonContainer.metadataLoading()).toBe(false);
+    });
 });

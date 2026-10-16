@@ -14,6 +14,7 @@ import {
     openWorkspaceSection,
     resetMockServers,
     saveSettings,
+    setSwitch,
     test,
     waitForStalkerCatalog,
     waitForXtreamWorkspaceReady,
@@ -61,10 +62,12 @@ test('@epg @xtream @electron removes uploaded guide data and restores provider E
         await app.mainWindow
             .locator('.epg-source-row input')
             .fill(source.resourceUrl);
-        await app.mainWindow
-            .getByTestId('toggle-prefer-uploaded-epg')
-            .locator('input')
-            .check();
+        await setSwitch(
+            app.mainWindow
+                .getByTestId('toggle-prefer-uploaded-epg')
+                .getByRole('switch'),
+            true
+        );
         await saveSettings(app.mainWindow);
         await expect
             .poll(

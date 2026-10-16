@@ -36,9 +36,15 @@ not UI or util.
   instead of rebuilding those views.
 - Shared changes require checking every affected M3U, Xtream, Stalker,
   workspace, and collection consumer in light and dark themes.
+- `<mat-icon>` names must exist in the bundled Material Icons font;
+  `pnpm run styles:icon-ligatures:validate` checks them (UI guidelines, Icon
+  Names).
 
 ## Validation
 
 Run the focused component/unit target and the closest Playwright workflow for a
 visible change. Electron CDP is a fallback for Electron-only gaps, not a
 replacement for an available E2E flow. Record any uncovered visual state.
+A change that adds `backdrop-filter`, `filter`, animations or a rounded
+scroller also runs `pnpm run perf:compositing` (see the theme/style skill's
+Rendering Cost section) and quotes the numbers.

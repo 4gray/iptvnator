@@ -1,3 +1,5 @@
+@use '../../../../styles/focus-ring';
+
 :host {
     display: block;
 }
@@ -91,8 +93,7 @@
         }
 
         &:focus-visible {
-            outline: 2px solid var(--app-selection-color, #2f7bff);
-            outline-offset: 2px;
+            @include focus-ring.focus-ring-declarations;
         }
     }
 }

@@ -18,6 +18,10 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EMPTY, ReplaySubject, of } from 'rxjs';
 import { InfiniteScrollDirective } from '@iptvnator/portal/shared/ui';
 import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '@iptvnator/ui/components';
+import {
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
     PortalCatalogSortMode,
@@ -84,7 +88,7 @@ describe('CategoryContentViewComponent', () => {
         contentType: signal('vod'),
         selectedCategory: signal({ id: 1 }),
         paginatedContent: signal<unknown[]>([]),
-        selectedCategoryTitle: signal('Movies'),
+        selectedCategoryTitle: signal<string | null>('Movies'),
         categoryItemCount,
         selectedItem,
         hasMore,
@@ -109,9 +113,20 @@ describe('CategoryContentViewComponent', () => {
         getItemProgress: jest.fn().mockReturnValue({}),
     };
 
+    /** Opens the rating thresholds from the open refine menu. */
+    const openRatingSubmenu = () => {
+        (
+            document.querySelector(
+                '.refine-rating-trigger'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+    };
+
     beforeEach(async () => {
         routeReady.set(true);
         playlist.set(null);
+        catalog.selectedCategoryTitle.set('Movies');
         window.history.replaceState({}, '', window.location.href);
         catalog.provider = 'xtream';
         selectedItem.set(null);
@@ -205,6 +220,8 @@ describe('CategoryContentViewComponent', () => {
                         MatButtonModule,
                         MatMenuModule,
                         MatTooltip,
+                        MenuItemRadioCheckDirective,
+                        MenuItemRadioDirective,
                         TranslatePipe,
                     ],
                 },
@@ -229,6 +246,37 @@ describe('CategoryContentViewComponent', () => {
         expect(subtitle?.textContent?.trim()).toBe(
             'Fetching playlist data from source...'
         );
+    });
+
+    it('titles the every-item grid with the translated label', () => {
+        catalog.selectedCategoryTitle.set(null);
+        fixture.detectChanges();
+
+        const title = fixture.nativeElement.querySelector(
+            '.category-title'
+        ) as HTMLElement | null;
+
+        expect(title?.textContent?.trim()).toBe('PORTALS.ALL_ITEMS');
+    });
+
+    it('counts items with the translated singular and plural keys', () => {
+        isPaginatedContentLoading.set(false);
+        categoryItemCount.set(1);
+        fixture.detectChanges();
+
+        const subtitle = () =>
+            (
+                fixture.nativeElement.querySelector(
+                    '.category-subtitle'
+                ) as HTMLElement | null
+            )?.textContent?.trim();
+
+        expect(subtitle()).toBe('WORKSPACE.CONTEXT.ITEM_COUNT_ONE');
+
+        categoryItemCount.set(3);
+        fixture.detectChanges();
+
+        expect(subtitle()).toBe('WORKSPACE.CONTEXT.ITEM_COUNT_OTHER');
     });
 
     it('forwards query-param search updates to the catalog facade when supported', () => {
@@ -282,10 +330,15 @@ describe('CategoryContentViewComponent', () => {
         refineButton?.click();
         fixture.detectChanges();
 
-        const overlayText = document.body.textContent ?? '';
+        let overlayText = document.body.textContent ?? '';
         expect(overlayText).toContain('WORKSPACE.REFINE_SORT_SECTION');
         expect(overlayText).toContain('WORKSPACE.SORT_DATE_DESC');
         expect(overlayText).toContain('WORKSPACE.REFINE_RATING_SECTION');
+        // The thresholds wait in a submenu, so the menu fits a short window.
+        expect(overlayText).not.toContain('WORKSPACE.FILTER_RATING_ANY');
+
+        openRatingSubmenu();
+        overlayText = document.body.textContent ?? '';
         expect(overlayText).toContain('WORKSPACE.FILTER_RATING_ANY');
     });
 
@@ -303,7 +356,11 @@ describe('CategoryContentViewComponent', () => {
             '.rating-refinement-chip'
         ) as HTMLButtonElement | null;
 
-        expect(sortChip?.textContent).toContain('WORKSPACE.SORT_TOP_RATED');
+        expect(
+            sortChip
+                ?.querySelector('.refinement-chip-label')
+                ?.textContent?.trim()
+        ).toBe('WORKSPACE.SORT_CHIP.TOP_RATED');
         expect(ratingChip?.textContent).toContain('8');
 
         ratingChip?.click();
@@ -327,35 +384,156 @@ describe('CategoryContentViewComponent', () => {
         ).toBeNull();
     });
 
-    it('renders full and compact refinement chip labels for responsive layouts', () => {
+    it.each([
+        ['date-desc', 'WORKSPACE.SORT_CHIP.NEWEST', 'WORKSPACE.SORT_DATE_DESC'],
+        ['date-asc', 'WORKSPACE.SORT_CHIP.OLDEST', 'WORKSPACE.SORT_DATE_ASC'],
+        ['name-asc', 'WORKSPACE.SORT_NAME_ASC', 'WORKSPACE.SORT_NAME_ASC'],
+        ['name-desc', 'WORKSPACE.SORT_NAME_DESC', 'WORKSPACE.SORT_NAME_DESC'],
+        [
+            'rating-desc',
+            'WORKSPACE.SORT_CHIP.TOP_RATED',
+            'WORKSPACE.SORT_TOP_RATED',
+        ],
+        [
+            'rating-asc',
+            'WORKSPACE.SORT_CHIP.LOWEST_RATED',
+            'WORKSPACE.SORT_LOWEST_RATED',
+        ],
+    ] as const)(
+        'shows only the short %s label in the sort chip and reads the full label to screen readers',
+        (mode, chipKey, menuKey) => {
+            contentSortMode.set(mode);
+            categoryItemCount.set(12);
+
+            fixture.detectChanges();
+
+            const sortChip = fixture.nativeElement.querySelector(
+                '.sort-refinement-chip'
+            ) as HTMLElement;
+            const labels = sortChip.querySelectorAll('.refinement-chip-label');
+
+            expect(labels).toHaveLength(1);
+            expect(labels[0].textContent?.trim()).toBe(chipKey);
+            // A generic div cannot be named, so the full text must be content
+            // that screen readers read: everything outside aria-hidden.
+            expect(sortChip.hasAttribute('aria-label')).toBe(false);
+            expect(screenReaderText(sortChip)).toBe(
+                `WORKSPACE.SORT_LABEL${menuKey}`
+            );
+        }
+    );
+
+    it('shows the rating threshold alone in the rating chip and names the clear action', () => {
         contentSortMode.set('name-asc');
         minRating.set(9);
         categoryItemCount.set(12);
 
         fixture.detectChanges();
 
-        const sortChip = fixture.nativeElement.querySelector(
-            '.sort-refinement-chip'
-        ) as HTMLElement | null;
         const ratingChip = fixture.nativeElement.querySelector(
             '.rating-refinement-chip'
-        ) as HTMLElement | null;
+        ) as HTMLElement;
+        const labels = ratingChip.querySelectorAll('.refinement-chip-label');
+
+        expect(labels).toHaveLength(1);
+        expect(labels[0].textContent?.trim()).toBe('9.0+');
+        expect(ratingChip.getAttribute('aria-label')).toBe(
+            'WORKSPACE.REFINE_CLEAR_RATING'
+        );
+        // The button projects its icons around the label: star first, the
+        // clear cross after the value rather than between star and value.
+        const order = Array.from(
+            ratingChip.querySelectorAll('mat-icon, .refinement-chip-label'),
+            (element) => element.textContent?.trim()
+        );
+        expect(order).toEqual(['star', '9.0+', 'close']);
+    });
+
+    it('offers sort and rating choices as radio groups whose aria-checked follows the active refinement', () => {
+        contentSortMode.set('name-desc');
+        minRating.set(8);
+        categoryItemCount.set(12);
+        fixture.detectChanges();
+
+        (
+            fixture.nativeElement.querySelector(
+                '.refine-action'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+        // The row that opens the thresholds names the active one.
+        expect(
+            document
+                .querySelector('.refine-rating-trigger .refine-rating-value')
+                ?.textContent?.trim()
+        ).toBe('8.0+');
+        openRatingSubmenu();
+
+        const groups = Array.from(
+            document.querySelectorAll<HTMLElement>(
+                '.refine-menu [role="group"]'
+            )
+        );
+        const checkedLabels = (group: HTMLElement) =>
+            Array.from(
+                group.querySelectorAll('[role="menuitemradio"]'),
+                (row) =>
+                    `${row.getAttribute('aria-checked')} ${row
+                        .querySelector('.mat-mdc-menu-item-text')
+                        ?.textContent?.trim()}`
+            );
+
+        expect(groups.map((group) => group.getAttribute('aria-label'))).toEqual(
+            ['WORKSPACE.REFINE_SORT_SECTION', 'WORKSPACE.REFINE_RATING_SECTION']
+        );
+        expect(checkedLabels(groups[0])).toEqual([
+            'false WORKSPACE.SORT_DATE_DESC',
+            'false WORKSPACE.SORT_DATE_ASC',
+            'false WORKSPACE.SORT_NAME_ASC',
+            'true WORKSPACE.SORT_NAME_DESC',
+            'false WORKSPACE.SORT_TOP_RATED',
+            'false WORKSPACE.SORT_LOWEST_RATED',
+        ]);
+        expect(checkedLabels(groups[1])).toEqual([
+            'false WORKSPACE.FILTER_RATING_ANY',
+            'false WORKSPACE.FILTER_RATING_MIN',
+            'true WORKSPACE.FILTER_RATING_MIN',
+            'false WORKSPACE.FILTER_RATING_MIN',
+            'false WORKSPACE.FILTER_RATING_MIN',
+            'false WORKSPACE.FILTER_RATING_MIN',
+        ]);
+        expect(
+            document.querySelectorAll(
+                '.refine-menu [mat-menu-item]:not(.refine-rating-trigger)'
+            )
+        ).toHaveLength(
+            document.querySelectorAll('.refine-menu [role="menuitemradio"]')
+                .length
+        );
+    });
+
+    it('drops the rating sort rows when the provider cannot sort by rating', () => {
+        catalog.supportsRatingSort = false;
+        contentSortMode.set('date-desc');
+        categoryItemCount.set(12);
+        fixture.detectChanges();
+
+        (
+            fixture.nativeElement.querySelector(
+                '.refine-action'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
 
         expect(
-            sortChip?.querySelector('.refinement-chip-label-full')?.textContent
-        ).toContain('WORKSPACE.SORT_LABEL');
-        expect(
-            sortChip?.querySelector('.refinement-chip-label-compact')
-                ?.textContent
-        ).toContain('WORKSPACE.SORT_NAME_ASC');
-        expect(
-            ratingChip?.querySelector('.refinement-chip-label-full')
-                ?.textContent
-        ).toContain('WORKSPACE.FILTER_RATING');
-        expect(
-            ratingChip?.querySelector('.refinement-chip-label-compact')
-                ?.textContent
-        ).toContain('9.0+');
+            Array.from(
+                document.querySelectorAll('.refine-menu [mat-menu-item]'),
+                (row) => row.getAttribute('aria-checked')
+            )
+        ).toEqual(['true', 'false', 'false', 'false']);
+        expect(document.body.textContent).not.toContain(
+            'WORKSPACE.SORT_TOP_RATED'
+        );
     });
 
     it('preserves query params when navigating from an item to Xtream details', () => {
@@ -638,6 +816,26 @@ describe('CategoryContentViewComponent', () => {
             expect(catalog.saveScrollPosition).toHaveBeenCalledWith(333);
         });
 
+        it('saves the offset the grid last reported when it is destroyed detached', () => {
+            const infiniteFixture = createInfiniteFixture();
+            infiniteFixture.detectChanges();
+            const grid = infiniteFixture.nativeElement.querySelector(
+                'app-grid-list'
+            ) as HTMLElement;
+            // A detached element reports scrollTop 0, as in a browser.
+            Object.defineProperty(grid, 'scrollTop', {
+                configurable: true,
+                get: () => (grid.isConnected ? 420 : 0),
+            });
+            grid.dispatchEvent(new Event('scroll'));
+
+            // The view's DOM leaves the document before ngOnDestroy runs.
+            infiniteFixture.nativeElement.remove();
+            infiniteFixture.destroy();
+
+            expect(catalog.saveScrollPosition).toHaveBeenCalledWith(420);
+        });
+
         it('consumes a saved scroll position once the list is rendered', () => {
             catalog.consumeSavedScrollPosition.mockReturnValue(500);
             const infiniteFixture = createInfiniteFixture();
@@ -681,3 +879,18 @@ describe('CategoryContentViewComponent', () => {
         });
     });
 });
+
+/** Text a screen reader reads from `element`: content outside aria-hidden. */
+function screenReaderText(element: Element): string {
+    return Array.from(element.childNodes, (node): string => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent ?? '';
+        }
+        return node instanceof Element &&
+            node.getAttribute('aria-hidden') !== 'true'
+            ? screenReaderText(node)
+            : '';
+    })
+        .join('')
+        .trim();
+}

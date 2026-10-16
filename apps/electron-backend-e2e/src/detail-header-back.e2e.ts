@@ -236,7 +236,7 @@ async function openFirstSeries(page: Page): Promise<string> {
             timeout: 20_000,
         }
     );
-    await expect(page.locator('.episode-card').first()).toBeVisible({
+    await expect(page.locator('.episode-item').first()).toBeVisible({
         timeout: 20_000,
     });
     return page.url();
@@ -244,7 +244,7 @@ async function openFirstSeries(page: Page): Promise<string> {
 
 async function startFirstEpisode(page: Page): Promise<void> {
     const shell = page.locator('app-portal-detail-shell');
-    await page.locator('.episode-card').first().click();
+    await page.locator('.episode-item').first().click();
     await expect(shell).toHaveClass(/shell-host--watch/);
     await expect(
         shell.locator('app-portal-inline-player app-web-player-view')
@@ -337,7 +337,9 @@ test.describe('Portal detail header Back', () => {
             // On a phone the list's drawer toggle keeps the slot: it is the
             // only way into the categories.
             await page.setViewportSize({ width: 375, height: 800 });
-            await expect(page.getByTestId('context-drawer-toggle')).toBeVisible();
+            await expect(
+                page.getByTestId('context-drawer-toggle')
+            ).toBeVisible();
             await expect(headerBack(page)).toBeHidden();
 
             await page.setViewportSize({ width: widths[0], height: 800 });

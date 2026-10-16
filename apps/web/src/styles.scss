@@ -1,5 +1,7 @@
 @use '@angular/material' as mat;
 @use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
+@use '../../../libs/ui/styles/focus-ring';
+@use '../../../libs/ui/styles/app-controls' as controls;
 @use './settings-theme';
 @use './cover-size';
 
@@ -101,10 +103,6 @@
     letter-spacing: 0;
 }
 
-app-root.macos-platform .current-playlist {
-    padding-top: 30px;
-}
-
 // Windows/Linux frameless title bar: reserve room in top-aligned drag
 // regions for the renderer-drawn window controls (3 × 46px buttons).
 // Body-level class so it also reaches cdk-overlay content (dialogs, menus).
@@ -164,11 +162,41 @@ textarea {
     opacity: 1 !important;
 }
 
-input,
-button,
-textarea,
-:focus {
+// ─── Keyboard focus ───────────────────────────────────────────────────────────
+// Pointer focus draws no ring; keyboard focus always does. Both rules have
+// zero specificity (`:where`), so a component that styles its own focus — an
+// outline, a ring drawn on another element, or `outline: none` beside an
+// indicator of its own — wins whatever the stylesheet order.
+// `pnpm run styles:focus-visible:check` keeps a blanket `outline: none` out.
+:where(:focus:not(:focus-visible)) {
     outline: none;
+}
+
+:where(:focus-visible) {
+    @include focus-ring.focus-ring-declarations;
+}
+
+// Material sets `outline: none` on its controls and shows keyboard focus as a
+// 12% state layer, well under the 3:1 a focus indicator needs, so its Tab
+// stops take the ring too (over the state layer, which stays). Items inside
+// arrow-key composites (menu items, select options) keep Material's
+// highlight. A component that rings its own Material control (the player's
+// `--pc-text` outline) is more specific and wins.
+.mat-mdc-button-base:focus-visible,
+.mat-mdc-slide-toggle .mdc-switch:focus-visible {
+    @include focus-ring.focus-ring-declarations;
+}
+
+// The group clips its toggles (`overflow: hidden`): draw the ring inside.
+.mat-button-toggle-button:focus-visible {
+    @include focus-ring.focus-ring-declarations($offset: -3px);
+}
+
+// The native checkbox is transparent; ring the box drawn beside it.
+.mat-mdc-checkbox
+    .mdc-checkbox__native-control:focus-visible
+    ~ .mdc-checkbox__background {
+    @include focus-ring.focus-ring-declarations;
 }
 
 // ─── Dark Theme ───────────────────────────────────────────────────────────────
@@ -211,12 +239,58 @@ body.dark-theme {
     overflow-x: hidden !important;
 }
 
-.mat-drawer-inner-container {
-    overflow: hidden !important;
+// Modal overlays tint and blur the page behind their backdrop, on the same
+// token as the switcher popover. The CDK gives a dialog the dark backdrop
+// class by default; menus, selects and popovers open over
+// `cdk-overlay-transparent-backdrop`, which sits at opacity 0 and stays a
+// plain layer without a filter of its own.
+.cdk-overlay-dark-backdrop {
+    background: var(--app-popover-backdrop);
+    backdrop-filter: blur(6px);
 }
 
-.cdk-overlay-backdrop {
-    backdrop-filter: blur(4px);
+// Dialog surfaces may overlap the frameless title bar's drag region.
+.mat-mdc-dialog-surface {
+    app-region: no-drag;
+}
+
+// UI-kit menu panel for every `mat-menu`. The panel renders in the overlay
+// container, outside every component view, so the rule is global; the pane
+// prefix outranks Material's single-class panel rules, which load later.
+.cdk-overlay-pane .mat-mdc-menu-panel {
+    @include controls.menu-panel;
+}
+
+// UI-kit toast for every snack-bar: the floating panel's surface, hairline
+// and shadow on a 10px panel, 13px text, the action in the accent colour
+// without a ripple. Toasts sit at Material's bottom centre; a caller adds a
+// panel class for spacing (the settings save bar), never another look.
+.mat-mdc-snack-bar-container {
+    @include mat.snack-bar-overrides(
+        (
+            container-color: var(--app-widget-bg),
+            container-shape: 10px,
+            supporting-text-color: var(--app-heading-color),
+            supporting-text-size: 13px,
+            supporting-text-line-height: 20px,
+            supporting-text-weight: 500,
+            button-color: var(--app-selection-color),
+        )
+    );
+
+    .mat-mdc-snackbar-surface {
+        border: 1px solid var(--app-line-strong);
+        box-shadow: var(--app-popover-shadow);
+    }
+
+    .mat-mdc-snack-bar-action {
+        @include mat.button-overrides(
+            (
+                text-label-text-weight: 600,
+                text-ripple-color: transparent,
+            )
+        );
+    }
 }
 
 // Command palette dialog — the palette-shell renders its own background, border,
@@ -224,20 +298,7 @@ body.dark-theme {
 // halo peeking out behind the rounded corners.
 .workspace-command-palette-overlay .mat-mdc-dialog-surface {
     background: transparent;
-    box-shadow: none;
-    border-radius: 14px;
-    padding: 0;
-    overflow: visible;
-}
-
-.workspace-shortcuts-overlay,
-.workspace-shortcuts-overlay .mat-mdc-dialog-surface,
-.workspace-shortcuts-overlay .mat-mdc-dialog-container {
-    app-region: no-drag;
-}
-
-.workspace-shortcuts-overlay .mat-mdc-dialog-surface {
-    background: transparent;
+    border: 0;
     box-shadow: none;
     border-radius: 14px;
     padding: 0;
@@ -278,6 +339,5 @@ body.dark-theme {
 }
 
 .channel-scroll-focus:focus-visible {
-    outline: 2px solid var(--app-selection-color);
-    outline-offset: -2px;
+    @include focus-ring.focus-ring-declarations($offset: -2px);
 }

@@ -258,4 +258,22 @@ describe('ContentHeroComponent cinematic layout', () => {
             Node.DOCUMENT_POSITION_FOLLOWING
         );
     });
+    it('lays the loading skeleton out like the loaded hero: stage height, one row of chips and actions', () => {
+        fixture.componentRef.setInput('isLoading', true);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+
+        const skeleton = root.querySelector('[data-test-id="hero-skeleton"]');
+        expect(skeleton).not.toBeNull();
+        // Nothing is known about a backdrop yet: keep the stage height.
+        expect(root.querySelector('.hero--compact')).toBeNull();
+        // Chips and buttons sit in the same flex rows as the real ones.
+        expect(
+            skeleton?.querySelectorAll('.details__tags > .skeleton--chip')
+        ).toHaveLength(3);
+        expect(
+            skeleton?.querySelectorAll('.action-buttons > .skeleton')
+        ).toHaveLength(3);
+        expect(root.querySelector('ngx-skeleton-loader')).toBeNull();
+    });
 });

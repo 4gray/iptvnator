@@ -68,6 +68,8 @@ describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
                     provide: TranslateService,
                     useValue: {
                         onLangChange: of(),
+                        onDefaultLangChange: of(),
+                        onTranslationChange: of(),
                         instant: (key: string) => key,
                     },
                 },

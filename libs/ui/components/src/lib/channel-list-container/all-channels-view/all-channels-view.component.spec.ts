@@ -117,7 +117,9 @@ describe('AllChannelsViewComponent', () => {
 
     it('defaults to playlist order when no saved sort mode exists', () => {
         expect(component.allChannelsSortMode()).toBe('server');
-        expect(component.allChannelsSortLabel()).toBe('Playlist Order');
+        expect(component.allChannelsSortLabelKey()).toBe(
+            'CHANNELS.SORT_PLAYLIST_ORDER'
+        );
     });
 
     it('restores a saved valid sort mode and ignores invalid stored values', () => {
@@ -140,7 +142,9 @@ describe('AllChannelsViewComponent', () => {
         fixture.detectChanges();
 
         expect(component.allChannelsSortMode()).toBe('name-asc');
-        expect(component.allChannelsSortLabel()).toBe('Name A-Z');
+        expect(component.allChannelsSortLabelKey()).toBe(
+            'WORKSPACE.SORT_NAME_ASC'
+        );
 
         fixture.destroy();
         localStorage.setItem(ALL_CHANNELS_SORT_STORAGE_KEY, 'invalid');
@@ -266,7 +270,7 @@ describe('AllChannelsViewComponent', () => {
 
     it('stores viewport coordinates for the context menu and opens the dialog for that channel', async () => {
         const openMenuSpy = jest
-            .spyOn(component.contextMenuTrigger(), 'openMenu')
+            .spyOn(component.channelContextMenu(), 'open')
             .mockImplementation();
 
         component.onChannelContextMenu(primaryChannel, {
@@ -276,11 +280,9 @@ describe('AllChannelsViewComponent', () => {
         await Promise.resolve();
 
         expect(component.contextMenuChannel()).toBe(primaryChannel);
-        expect(component.contextMenuPosition()).toEqual({
-            x: '144px',
-            y: '188px',
-        });
-        expect(openMenuSpy).toHaveBeenCalled();
+        expect(openMenuSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ clientX: 144, clientY: 188 })
+        );
 
         component.openChannelDetails();
 
@@ -288,8 +290,8 @@ describe('AllChannelsViewComponent', () => {
             ChannelDetailsDialogComponent,
             expect.objectContaining({
                 data: primaryChannel,
-                maxWidth: '720px',
-                width: 'calc(100vw - 32px)',
+                maxWidth: 'calc(100vw - 32px)',
+                width: '760px',
             })
         );
     });

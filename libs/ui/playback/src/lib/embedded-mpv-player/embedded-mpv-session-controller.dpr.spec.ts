@@ -3,6 +3,7 @@ import {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { TranslateModule } from '@ngx-translate/core';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 
 /**
@@ -105,6 +106,7 @@ describe('EmbeddedMpvSessionController devicePixelRatio watch', () => {
         });
 
         TestBed.configureTestingModule({
+            imports: [TranslateModule.forRoot()],
             providers: [EmbeddedMpvSessionController],
         });
     });

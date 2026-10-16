@@ -1,4 +1,5 @@
 @use '../player-controls/player-palette' as palette;
+@use '../../../../styles/focus-ring';
 
 // Stamped into the fullscreen panel's body, which is its single flex child;
 // the list below is the body's only scroll owner. The panel wears the
@@ -7,6 +8,7 @@
 // declares the player's progress colour itself.
 :host {
     @include palette.progress-token;
+    @include palette.focus-ring-token;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -127,8 +129,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid #e7ecf3;
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     mat-icon {
@@ -162,8 +163,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid #e7ecf3;
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 }
 

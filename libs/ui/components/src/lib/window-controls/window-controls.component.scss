@@ -1,3 +1,5 @@
+@use '../../../../styles/focus-ring';
+
 // Floats above all app content so the window stays controllable while
 // dialogs or the multi-EPG overlay are open — same behavior as the macOS
 // traffic lights. The host is a manual popover (see component) because CDK
@@ -72,8 +74,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--mat-sys-primary);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     &.close:hover {

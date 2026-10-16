@@ -17,7 +17,7 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -29,10 +29,11 @@ import {
     EpgProgram,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
+import { ChannelContextMenuComponent } from '../channel-context-menu/channel-context-menu.component';
 import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import {
     PlaylistChannelSortMode,
-    getPlaylistChannelSortModeLabel,
+    getPlaylistChannelSortModeLabelKey,
     persistPlaylistChannelSortMode,
     restorePlaylistChannelSortMode,
     sortPlaylistChannelItems,
@@ -41,12 +42,17 @@ import { resolveChannelLogo } from '../channel-logo-fallback.util';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+} from '../../menu-item-radio/menu-item-radio.directive';
 import { CategoryLockMenuComponent } from '../../category-lock-menu/category-lock-menu.component';
 import { ResizableDirective } from '../../resizable/resizable.directive';
 import {
     GroupManagementDialogComponent,
     GroupManagementDialogGroup,
 } from './group-management-dialog/group-management-dialog.component';
+import { dialogSize } from '../../dialog-shell/dialog-size';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
 /** Rail width inside the fullscreen channel panel; see the `compact` input. */
@@ -71,6 +77,7 @@ interface FilteredGroupView {
     styleUrls: ['./groups-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ChannelContextMenuComponent,
         CategoryLockMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
@@ -78,6 +85,8 @@ interface FilteredGroupView {
         MatIconModule,
         MatMenuModule,
         MatTooltipModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         ResizableDirective,
         ScrollingModule,
         TitleCasePipe,
@@ -92,8 +101,9 @@ export class GroupsViewComponent {
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
     private readonly hostEl = inject(ElementRef<HTMLElement>);
 
-    readonly contextMenuTrigger =
-        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly channelContextMenu = viewChild.required(
+        ChannelContextMenuComponent
+    );
     readonly groupSearchInput =
         viewChild<ElementRef<HTMLInputElement>>('groupSearchInput');
 
@@ -210,8 +220,8 @@ export class GroupsViewComponent {
     readonly groupChannelSortMode = signal<PlaylistChannelSortMode>(
         restorePlaylistChannelSortMode(GROUP_CHANNEL_SORT_STORAGE_KEY)
     );
-    readonly groupChannelSortLabel = computed(() =>
-        getPlaylistChannelSortModeLabel(this.groupChannelSortMode())
+    readonly groupChannelSortLabelKey = computed(() =>
+        getPlaylistChannelSortModeLabelKey(this.groupChannelSortMode())
     );
     readonly hasSearchQuery = computed(
         () =>
@@ -220,10 +230,6 @@ export class GroupsViewComponent {
     );
     readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 52));
     readonly contextMenuChannel = signal<Channel | null>(null);
-    readonly contextMenuPosition = signal({
-        x: '0px',
-        y: '0px',
-    });
 
     private previousActiveChannelUrl: string | undefined;
     private preservedContentWidth = 0;
@@ -578,9 +584,7 @@ export class GroupsViewComponent {
                 hiddenGroupTitles: this.hiddenGroupTitles(),
                 ...(lockedGroupTitles ? { lockedGroupTitles } : {}),
             },
-            width: '500px',
-            maxWidth: 'calc(100vw - 32px)',
-            maxHeight: '90vh',
+            ...dialogSize('md'),
         });
 
         dialogRef.afterClosed().subscribe((result) => {
@@ -641,19 +645,7 @@ export class GroupsViewComponent {
 
     onChannelContextMenu(channel: Channel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
-        this.contextMenuPosition.set({
-            x: `${event.clientX}px`,
-            y: `${event.clientY}px`,
-        });
-
-        const trigger = this.contextMenuTrigger();
-        if (trigger.menuOpen) {
-            trigger.closeMenu();
-        }
-
-        queueMicrotask(() => {
-            this.contextMenuTrigger().openMenu();
-        });
+        this.channelContextMenu().open(event);
     }
 
     openEpgMapping(): void {
@@ -662,7 +654,7 @@ export class GroupsViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
+        this.channelContextMenu().close();
         const channelKey = resolveChannelEpgLookupKey(channel);
         if (!channelKey) {
             return;
@@ -680,12 +672,8 @@ export class GroupsViewComponent {
             return;
         }
 
-        this.contextMenuTrigger().closeMenu();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
-        });
+        this.channelContextMenu().close();
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     /**

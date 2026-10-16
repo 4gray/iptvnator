@@ -14,6 +14,7 @@ import App from '../app';
 import {
     EmbeddedMpvAudioTrack,
     EmbeddedMpvBounds,
+    EmbeddedMpvChapter,
     EmbeddedMpvCapabilities,
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvRecordingState,
@@ -56,6 +57,7 @@ import {
     resolveFrameCopyHelperPath,
 } from './embedded-mpv-frame-copy-platform.util';
 import type { EmbeddedMpvFrameCopyRuntimeMode } from './embedded-mpv-frame-copy-runtime';
+import { normalizeEmbeddedMpvChapters } from './embedded-mpv-chapters.util';
 import {
     EMBEDDED_MPV_EXPERIMENT_ENV,
     isEmbeddedMpvFeatureEnabled,
@@ -71,6 +73,7 @@ export interface NativeEmbeddedMpvSessionSnapshot {
     selectedAudioTrackId?: number | null;
     subtitleTracks?: EmbeddedMpvSubtitleTrack[];
     selectedSubtitleTrackId?: number | null;
+    chapters?: EmbeddedMpvChapter[];
     playbackSpeed?: number;
     aspectOverride?: string;
     videoWidth?: number;
@@ -738,6 +741,7 @@ export class EmbeddedMpvNativeService {
 
     seek(sessionId: string, seconds: number): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
+        this.onUserSeek(sessionId);
         this.getAddon().seek(sessionId, seconds);
         return this.refreshSession(sessionId);
     }
@@ -757,6 +761,7 @@ export class EmbeddedMpvNativeService {
         if (!Number.isFinite(deltaSeconds)) {
             return this.refreshSession(sessionId);
         }
+        this.onUserSeek(sessionId);
         if (typeof addon.seekBy === 'function') {
             addon.seekBy(sessionId, deltaSeconds);
         } else {
@@ -765,6 +770,14 @@ export class EmbeddedMpvNativeService {
             addon.seek(sessionId, Math.max(0, position + deltaSeconds));
         }
         return this.refreshSession(sessionId);
+    }
+
+    /** A seek invalidates the reconnect's resume point (embedded-mpv-reconnect.ts). */
+    private onUserSeek(sessionId: string): void {
+        const session = this.sessions.get(sessionId);
+        if (session) {
+            this.reconnect.onUserSeek(session.reconnect);
+        }
     }
 
     setVolume(sessionId: string, volume: number): EmbeddedMpvSession | null {
@@ -1282,6 +1295,7 @@ export class EmbeddedMpvNativeService {
                 typeof snapshot.selectedSubtitleTrackId === 'number'
                     ? snapshot.selectedSubtitleTrackId
                     : null,
+            chapters: normalizeEmbeddedMpvChapters(snapshot.chapters),
             playbackSpeed:
                 typeof snapshot.playbackSpeed === 'number'
                     ? snapshot.playbackSpeed
@@ -1329,7 +1343,8 @@ export class EmbeddedMpvNativeService {
             payload.status,
             previousStatus,
             payload.positionSeconds,
-            snapshot.errorOrigin
+            snapshot.errorOrigin,
+            payload.durationSeconds
         );
         if (reconnect) {
             payload.reconnect = reconnect;

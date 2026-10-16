@@ -486,7 +486,7 @@ test.describe('Electron Workspace Search', () => {
             await expectQueryParam(app.mainWindow, 'q', sample.targetTitle);
             await expectWorkspaceSearchScope(
                 app.mainWindow,
-                'Live TV / All Items'
+                'Live TV / All items'
             );
             await expect(
                 liveChannelSidebar(app.mainWindow)
@@ -580,9 +580,6 @@ test.describe('Electron Workspace Search', () => {
                 xtreamQueries
             );
             await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
-            await expect(
-                app.mainWindow.locator('app-search-layout app-search-form')
-            ).toHaveCount(0);
             await expect(
                 xtreamSearchResultCards(app.mainWindow).first()
             ).toBeVisible({ timeout: 20000 });
@@ -901,9 +898,6 @@ test.describe('Electron Workspace Search', () => {
                 /\/workspace\/stalker\/[^/]+\/search$/
             );
             await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
-            await expect(
-                app.mainWindow.locator('app-search-layout app-search-form')
-            ).toHaveCount(0);
 
             await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
 
@@ -1524,7 +1518,7 @@ async function expectXtreamRootCatalogSearch(
     await expectQueryParam(page, 'q', options.sample.targetTitle);
     await expectWorkspaceSearchScope(
         page,
-        `${options.sectionLabel} / All Items`
+        `${options.sectionLabel} / All items`
     );
     const contentLayout = page.locator('.category-content-layout');
     await expect(contentLayout).toContainText(

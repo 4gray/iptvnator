@@ -17,7 +17,6 @@ import { BehaviorSubject } from 'rxjs';
 import {
     extractPortalPlaylistId,
     extractPortalSection,
-    isWorkspaceLayoutRoute,
     queryParamSignal,
     routeParamSignal,
     resolveCurrentPortalPlaylistId,
@@ -26,48 +25,6 @@ import {
 } from './portal-route.utils';
 
 describe('portal-route.utils', () => {
-    it('detects workspace layout from route data', () => {
-        const route = {
-            snapshot: {
-                data: {
-                    layout: 'workspace',
-                },
-            },
-        } as unknown as ActivatedRoute;
-
-        expect(isWorkspaceLayoutRoute(route)).toBe(true);
-    });
-
-    it('detects workspace layout from ancestor route data', () => {
-        const parentRoute = {
-            snapshot: {
-                data: {
-                    layout: 'workspace',
-                },
-            },
-        } as unknown as ActivatedRoute;
-        const childRoute = {
-            snapshot: {
-                data: {},
-            },
-            pathFromRoot: [
-                {
-                    snapshot: {
-                        data: {},
-                    },
-                },
-                parentRoute,
-                {
-                    snapshot: {
-                        data: {},
-                    },
-                },
-            ],
-        } as unknown as ActivatedRoute;
-
-        expect(isWorkspaceLayoutRoute(childRoute)).toBe(true);
-    });
-
     it('extracts Xtream sections from workspace and local URLs', () => {
         expect(extractPortalSection('/xtreams/123/search', 'xtreams')).toBe(
             'search'

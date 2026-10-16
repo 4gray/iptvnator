@@ -335,9 +335,9 @@ test('fails closed when any terminal proof or the probe itself is missing', asyn
     const module = await captureModulePromise;
     assert.ok(module);
     const assertComplete = module.assertCompleteM3uImportRendererProbe;
-    assert.equal(typeof assertComplete, 'function');
+    assert.ok(typeof assertComplete === 'function');
 
-    assert.doesNotThrow(() => assertComplete?.(completeProbe()));
+    assert.doesNotThrow(() => assertComplete(completeProbe()));
     for (const field of [
         'playlistId',
         'routeReadyEpochMs',
@@ -347,13 +347,13 @@ test('fails closed when any terminal proof or the probe itself is missing', asyn
     ] as const) {
         const incomplete = { ...completeProbe(), [field]: null };
         assert.throws(
-            () => assertComplete?.(incomplete),
+            () => assertComplete(incomplete),
             /m3u-import-renderer-probe-incomplete/
         );
     }
     assert.throws(
         () =>
-            assertComplete?.({
+            assertComplete({
                 ...completeProbe(),
                 operationStartEpochMs: 0,
             }),

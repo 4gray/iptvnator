@@ -31,6 +31,7 @@ const translations: Record<string, string> = {
     'WORKSPACE.SORT_SERVER': 'Server sorting',
     'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING':
         'Fetching playlist data from source...',
+    'PORTALS.ALL_CATEGORIES': 'All Categories',
 };
 
 interface RouteSnapshotStub {
@@ -103,7 +104,11 @@ describe('WorkspaceContextPanelComponent', () => {
             { category_id: '1', category_name: 'News' },
         ]),
         getCategoryResource: signal<
-            Array<{ category_id: string; category_name: string }>
+            Array<{
+                category_id: string;
+                category_name: string;
+                labelKey?: string;
+            }>
         >([]),
         selectedCategoryId: signal<string | null>(null),
         isCategoryResourceLoading: signal(false),
@@ -233,6 +238,35 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
         expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalled();
         expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('renders the category search and sort actions disabled while the categories load', () => {
+        // Present from the skeleton on, so the header row keeps its width
+        // when the categories arrive instead of growing by two buttons.
+        const loaded = xtreamCategories();
+        fixture.componentRef.setInput('section', 'vod');
+        xtreamCategories.set([]);
+        xtreamIsLoadingCategories.set(true);
+        fixture.detectChanges();
+
+        const actions = () =>
+            Array.from(
+                fixture.nativeElement.querySelectorAll(
+                    '.context-header__action'
+                )
+            ) as HTMLButtonElement[];
+        expect(actions()).toHaveLength(3);
+        expect(actions().every((button) => button.disabled)).toBe(true);
+        expect(fixture.componentInstance.focusTarget()).toBeNull();
+
+        xtreamCategories.set(loaded);
+        xtreamIsLoadingCategories.set(false);
+        fixture.detectChanges();
+
+        expect(actions()).toHaveLength(3);
+        expect(actions()[0].disabled).toBe(false);
+        expect(actions()[1].disabled).toBe(false);
+        expect(fixture.componentInstance.focusTarget()).toBe(actions()[0]);
     });
 
     it('keeps local xtream loading states quiet when no import is running', () => {
@@ -442,8 +476,13 @@ describe('WorkspaceContextPanelComponent', () => {
             playlistId: 'stalker-1',
         });
         fixture.componentRef.setInput('section', 'series');
+        // The store names its every-item entry by a key, not a name.
         stalkerStore.getCategoryResource.set([
-            { category_id: '*', category_name: 'All Categories' },
+            {
+                category_id: '*',
+                category_name: '',
+                labelKey: 'PORTALS.ALL_CATEGORIES',
+            },
             { category_id: 'z', category_name: 'Zulu' },
             { category_id: 'a', category_name: 'Alpha' },
             { category_id: 'm', category_name: 'Movies' },
@@ -456,6 +495,13 @@ describe('WorkspaceContextPanelComponent', () => {
             'Alpha',
             'Movies',
         ]);
+
+        // The filter matches the label on screen, translated key included.
+        fixture.componentInstance.categorySearchTerm.set('all c');
+        fixture.detectChanges();
+        expect(getCategoryLabels(fixture)).toEqual(['All Categories']);
+        fixture.componentInstance.categorySearchTerm.set('');
+        fixture.detectChanges();
 
         fixture.componentInstance.setCategorySortMode('name-asc');
         fixture.detectChanges();
@@ -990,7 +1036,7 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(dialog.open).toHaveBeenCalledWith(
             expect.any(Function),
             expect.objectContaining({
-                width: '500px',
+                width: '560px',
                 maxWidth: 'calc(100vw - 32px)',
             })
         );

@@ -1,8 +1,7 @@
 import { computed, DestroyRef, inject, Injectable } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -14,6 +13,7 @@ import {
     ParentalLockService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     CommandBuilderActions,
@@ -27,8 +27,7 @@ import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.s
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
-
-export type { WorkspaceHeaderBulkAction } from './helpers/workspace-shell-constants';
+import { PlaylistSwitcherOpenService } from '@iptvnator/playlist/shared/ui';
 
 @Injectable()
 export class WorkspaceShellFacade {
@@ -50,10 +49,7 @@ export class WorkspaceShellFacade {
     readonly headerContext = inject(WorkspaceHeaderContextService);
     private readonly backNavigation = inject(WorkspaceBackNavigationService);
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
     // Root-provided; optional keeps standalone unit tests light. While the phone context drawer is modal, opening the command
     // palette over it would stack two competing focus-trapped surfaces.
     private readonly contextDrawer = inject(
@@ -62,6 +58,8 @@ export class WorkspaceShellFacade {
             optional: true,
         }
     );
+    private readonly playlistSwitcher = inject(PlaylistSwitcherOpenService);
+    private readonly dialog = inject(MatDialog);
     private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
         if (!(event.ctrlKey || event.metaKey)) {
             return;
@@ -71,9 +69,23 @@ export class WorkspaceShellFacade {
             return;
         }
 
-        if (event.key.toLowerCase() === 'k') {
+        const key = event.key.toLowerCase();
+        if (key === 'k') {
             event.preventDefault();
             this.openCommandPalette();
+        } else if (
+            key === 'p' &&
+            !event.shiftKey &&
+            !event.altKey &&
+            this.playlistSwitcher.available &&
+            // An open dialog keeps the focus: the switcher would take it out
+            // of the dialog, and give it back to the toolbar behind it.
+            this.dialog.openDialogs.length === 0
+        ) {
+            // ⌘K stays the command palette; ⌘P is the playlist switcher (and
+            // no longer prints the page in the browser build).
+            event.preventDefault();
+            this.playlistSwitcher.request();
         }
     };
 
@@ -133,8 +145,6 @@ export class WorkspaceShellFacade {
     readonly canOpenPlaylistInfo = this.header.canOpenPlaylistInfo;
     readonly canOpenAccountInfo = this.header.canOpenAccountInfo;
     readonly canRefreshPlaylist = this.header.canRefreshPlaylist;
-    readonly isRefreshingPlaylist = this.header.isRefreshingPlaylist;
-    readonly headerBulkAction = this.header.headerBulkAction;
     readonly headerSidebarToggle = this.header.headerSidebarToggle;
     readonly playlistSubtitle = this.header.playlistSubtitle;
     readonly activeDownloadsCount = computed(() =>
@@ -208,10 +218,6 @@ export class WorkspaceShellFacade {
             this.makeCommandBuilderContext(),
             this.searchQuery()
         );
-    }
-
-    runHeaderBulkAction(): Promise<void> {
-        return this.header.runHeaderBulkAction();
     }
 
     toggleLiveSidebar(): void {

@@ -45,7 +45,11 @@ export interface PortalCatalogFacade<
     readonly paginatedContent: Signal<readonly TItem[] | undefined>;
     readonly selectedItem: Signal<TSelectedItem | null | undefined>;
     readonly isPaginatedContentLoading: Signal<boolean>;
-    readonly selectedCategoryTitle: Signal<string>;
+    /**
+     * Null while no provider category is selected and the catalog lists every
+     * item; the view shows its own translated "All items" title then.
+     */
+    readonly selectedCategoryTitle: Signal<string | null>;
     readonly categoryItemCount: Signal<number>;
     readonly contentSortMode: Signal<PortalCatalogSortMode | null>;
     readonly playlist: Signal<PortalCatalogPlaylistMeta | null>;

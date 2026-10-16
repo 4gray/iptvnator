@@ -11,10 +11,17 @@ export interface TimelineSegmentView {
     startPercent: number;
     /** CSS width: the share, minus the gap every segment but the last keeps. */
     width: string;
+    /**
+     * CSS `left` of the separator drawn in the gap after this segment, so a
+     * boundary keeps its contrast whatever the frame behind it; null for
+     * the last segment, which has no gap. Never left of the track: a
+     * boundary in its first pixels would otherwise paint before the bar.
+     */
+    separatorLeft: string | null;
 }
 
-/** Visual gap (px) after every segment except the last. */
-export const TIMELINE_SEGMENT_GAP_PX = 3;
+/** Gap (px) after every segment except the last; its separator fills it. */
+export const TIMELINE_SEGMENT_GAP_PX = 2;
 
 const WHOLE_TIMELINE: TimelineSegmentView = {
     startSeconds: 0,
@@ -23,6 +30,7 @@ const WHOLE_TIMELINE: TimelineSegmentView = {
     share: 1,
     startPercent: 0,
     width: '100%',
+    separatorLeft: null,
 };
 
 /**
@@ -86,13 +94,17 @@ export function normalizeTimelineSegments(
         const share =
             (segment.endSeconds - segment.startSeconds) / durationSeconds;
         const last = index === cover.length - 1;
+        const gap = `${TIMELINE_SEGMENT_GAP_PX}px`;
         return {
             ...segment,
             share,
             startPercent: (segment.startSeconds / durationSeconds) * 100,
             width: last
                 ? `${share * 100}%`
-                : `max(0px, calc(${share * 100}% - ${TIMELINE_SEGMENT_GAP_PX}px))`,
+                : `max(0px, calc(${share * 100}% - ${gap}))`,
+            separatorLeft: last
+                ? null
+                : `max(0px, calc(${(segment.endSeconds / durationSeconds) * 100}% - ${gap}))`,
         };
     });
 }

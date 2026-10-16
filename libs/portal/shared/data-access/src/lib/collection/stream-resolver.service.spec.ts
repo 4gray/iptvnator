@@ -1,3 +1,4 @@
+import { registerUnavailableFavoriteEpgTests } from './stream-resolver-favorites.test-helpers';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import {
@@ -298,6 +299,12 @@ describe('StreamResolverService', () => {
             }
         );
     });
+
+    registerUnavailableFavoriteEpgTests(() => ({
+        service,
+        xtreamApi,
+        dataService,
+    }));
 
     it('skips portal EPG lookups in browser/PWA mode', async () => {
         window.electron = undefined as unknown as typeof window.electron;
@@ -830,9 +837,7 @@ describe('StreamResolverService', () => {
         } satisfies UnifiedCollectionItem);
 
         expect(stalkerSession.ensureToken).toHaveBeenCalled();
-        expect(playback.headers?.['Cookie']).toContain(
-            'mac=00:11:22:33:44:55'
-        );
+        expect(playback.headers?.['Cookie']).toContain('mac=00:11:22:33:44:55');
         expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN77');
         expect(playback.userAgent).toBe(playback.headers?.['User-Agent']);
         expect(playback.referer).toBe('https://stalker.example.com');

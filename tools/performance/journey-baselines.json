@@ -3,12 +3,13 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 1595777,
+                "value": 1196205,
                 "unit": "bytes",
                 "slack": 4096,
-                "updatedAt": "2026-10-07",
-                "evidencePr": 1810,
-                "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
+                "updatedAt": "2026-10-14",
+                "evidencePr": 1939,
+                "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes",
+                "note": "No Angular Material module is in the initial bundle since #1939: services created with the app open toasts through LazySnackBar and dialogs through LazyMatDialog, so a new eager MatSnackBar or MatDialog import brings back Material's button, ripple and the CDK a11y chunks (about 110 KB). The CDK overlay stays initial through the FullscreenOverlayContainer provider in app.config.ts. Self-hosted server storage (#1903) keeps only what must run before the first route on the startup path (the /v1/instance probe and remembered server, the connection status, the token bound to its instance, the playlist storage backend); the storage code itself loads by dynamic import in server mode only."
             },
             "renderer.ipcCallsToFirstCard": {
                 "value": 15,
@@ -20,13 +21,13 @@
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
             },
             "renderer.domMutationsToFirstCard": {
-                "value": 558,
+                "value": 570,
                 "unit": "mutations",
                 "slack": 0,
-                "updatedAt": "2026-10-04",
-                "evidencePr": 1828,
-                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37192092882",
-                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
+                "updatedAt": "2026-10-12",
+                "evidencePr": 1903,
+                "measuredWith": "J1 launch A/B on macOS (pnpm run perf:journeys builds, launch journey only): master 6fe684af5 555, PR 1903 556 in every iteration; CI measured 569 on master",
+                "note": "Raised by 1 for self-hosted server storage: its new lazy chunks (server sign-in, server-storage providers, Settings > Server) split one shared initial chunk in two, so index.html carries one more modulepreload link, a node the parser inserts. Initial bytes are raised separately (see renderer.initialBytes)."
             },
             "main.modulesRegisteredBeforeWindow": {
                 "value": 2,
@@ -57,6 +58,25 @@
                 "evidencePr": null,
                 "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
+            },
+            "renderer.cdTicksToFirstCard": {
+                "value": 5,
+                "unit": "ticks",
+                "slack": 1,
+                "note": "one-tick race since #1931 moved Angular Material off the startup path: 5 in all 15 iterations of the three dispatched runs before it, 5, 5, 5, 5, 6 in #1929's journeys job after merging it (https://github.com/4gray/iptvnator/actions/runs/38476954719/job/115583649036)",
+                "updatedAt": "2026-10-13",
+                "evidencePr": 1929,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38359088033",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 15 measured iterations of 3 runs of #1929 (zoneless, d88d00506)"
+            },
+            "renderer.cdTicksIdle30s": {
+                "value": 3,
+                "unit": "ticks",
+                "slack": 0,
+                "updatedAt": "2026-10-13",
+                "evidencePr": 1929,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38359088033",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 15 measured iterations of 3 runs of #1929 (zoneless, d88d00506)"
             }
         },
         "open-source": {
@@ -81,14 +101,23 @@
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
             },
             "renderer.layoutShiftScore": {
-                "value": 0.233,
+                "value": 0,
                 "unit": "score",
                 "slack": 0,
                 "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
-                "updatedAt": "2026-10-06",
+                "updatedAt": "2026-10-11",
                 "evidencePr": null,
-                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37372780064",
-                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in every measured iteration of the 7 master runs from 84aef83a6 (#1814, which moved it from 0.222) to b78224376"
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38147072417",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), 0 with no shift recorded in all 5 measured iterations of PR #1895 (d2cb9445d), which slides the content frame and header controls instead of jumping (was 0.233)"
+            },
+            "renderer.cdTicksToFirstPage": {
+                "value": 9,
+                "unit": "ticks",
+                "slack": 0,
+                "updatedAt": "2026-10-13",
+                "evidencePr": 1929,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38359088033",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 15 measured iterations of 3 runs of #1929 (zoneless, d88d00506)"
             }
         },
         "playback": {
@@ -111,6 +140,28 @@
                 "evidencePr": null,
                 "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37184230956",
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 55 measured iterations of 11 master runs, 2026-10-03 to 2026-10-04"
+            }
+        },
+        "search": {
+            "renderer.ipcCallsPerSearch": {
+                "value": 1,
+                "unit": "calls",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-12",
+                "evidencePr": 1899,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38165392046",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 18 measured iterations of 3 runs of #1899 (attempts 1-3), and in all 816 J4 iterations of the 136 CI journey jobs since #1816"
+            },
+            "renderer.sqlStatementsPerSearch": {
+                "value": 2,
+                "unit": "statements",
+                "slack": 0,
+                "note": "guard only, not validated: no PR has yet shown that lowering this counter lowers the journey wall-clock (Principle 3)",
+                "updatedAt": "2026-10-12",
+                "evidencePr": 1899,
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/38165392046",
+                "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in all 18 measured iterations of 3 runs of #1899 (attempts 1-3), and in all 816 J4 iterations of the 136 CI journey jobs since #1816"
             }
         }
     }

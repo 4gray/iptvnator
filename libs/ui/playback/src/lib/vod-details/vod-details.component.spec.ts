@@ -166,18 +166,20 @@ describe('VodDetailsComponent offline playback', () => {
     };
 
     const render = async ({
+        item = STALKER_VOD,
         playbackPosition = null,
         externalPlayback = null,
         providerOnly = false,
         isWatched = false,
     }: {
+        item?: VodDetailsItem;
         playbackPosition?: number | null;
         externalPlayback?: ExternalPlayerSession | null;
         providerOnly?: boolean;
         isWatched?: boolean;
     } = {}) => {
         fixture = TestBed.createComponent(VodDetailsComponent);
-        fixture.componentRef.setInput('item', STALKER_VOD);
+        fixture.componentRef.setInput('item', item);
         fixture.componentRef.setInput(
             'playbackSessionKey',
             'stalker-host-owned-key'
@@ -350,6 +352,10 @@ describe('VodDetailsComponent offline playback', () => {
                 MARK_UNWATCHED: 'Mark as Unwatched',
             },
             WORKSPACE: { DASHBOARD: { HERO_CONTINUE: 'Continue' } },
+            EXTERNAL_PLAYER: {
+                OPENING_IN: 'Opening in {{player}}…',
+                STOP: 'Stop {{player}}',
+            },
             PORTALS: {
                 ADD_TO_FAVORITES: 'Add to favorites',
                 REMOVE_FROM_FAVORITES: 'Remove from favorites',
@@ -372,6 +378,46 @@ describe('VodDetailsComponent offline playback', () => {
 
     afterEach(() => {
         fixture?.destroy();
+    });
+
+    it('renders no provider stand-ins in the hero or the About block', async () => {
+        await render({
+            item: createStalkerVodItem(
+                {
+                    id: '43',
+                    cmd: '/media/file_43.mpg',
+                    info: {
+                        name: 'Placeholder Movie',
+                        o_name: 'N/A',
+                        movie_image: 'N/A',
+                        description: 'N/A',
+                        actors: 'N/A',
+                        director: 'N/A',
+                        releasedate: 'N/A',
+                        genre: '-',
+                        rating_imdb: 'N/A',
+                        rating_kinopoisk: '0',
+                    },
+                },
+                'stalker-1'
+            ),
+        });
+        // Watch state stamps the same templates into the About block
+        fixture.componentRef.setInput('inlinePlayback', {
+            streamUrl: 'https://portal.example/movie.mp4',
+            title: 'Placeholder Movie',
+        });
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('Placeholder Movie');
+        expect(text).not.toMatch(/N\/A/i);
+        expect(text).not.toContain('⭐');
+        expect(
+            fixture.nativeElement.querySelectorAll(
+                '.details__tag:not(.details__tag--clickable), .details__meta-item'
+            ).length
+        ).toBe(0);
     });
 
     it('renders Offline and plays a completed download from the primary action', async () => {
@@ -476,7 +522,7 @@ describe('VodDetailsComponent offline playback', () => {
             externalPlayback: MATCHING_LAUNCHING_MPV_SESSION,
         });
 
-        expect(buttonText(primaryButton())).toContain('Opening in MPV...');
+        expect(buttonText(primaryButton())).toContain('Opening in MPV…');
         expect(primaryButton().disabled).toBe(true);
         expect(providerPlayButton()).toBeNull();
         expect(playDownload).not.toHaveBeenCalled();
@@ -490,7 +536,7 @@ describe('VodDetailsComponent offline playback', () => {
             externalPlayback: MATCHING_LAUNCHING_MPV_SESSION,
         });
 
-        expect(buttonText(primaryButton())).toContain('Opening in MPV...');
+        expect(buttonText(primaryButton())).toContain('Opening in MPV…');
         expect(primaryButton().disabled).toBe(true);
         expect(playClicked).not.toHaveBeenCalled();
         expect(resumeClicked).not.toHaveBeenCalled();

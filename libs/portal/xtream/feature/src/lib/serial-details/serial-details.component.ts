@@ -19,7 +19,9 @@ import {
     DetailCreditsComponent,
     DetailIconButtonComponent,
     DetailMetaTemplateDirective,
+    DetailSectionHeaderComponent,
     DetailTagsTemplateDirective,
+    EpisodeSkeletonComponent,
     MetaChipComponent,
     PortalDetailShellComponent,
     SeasonContainerComponent,
@@ -29,10 +31,12 @@ import {
     SimilarRailComponent,
     ViewInPortalActionComponent,
     VodMoreMenuComponent,
+    readSavedEpisodeViewMode,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import {
     registerContentMetadataBackfill,
+    xtreamDetailContentMetadata,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -95,7 +99,9 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         DetailCreditsComponent,
         DetailIconButtonComponent,
         DetailMetaTemplateDirective,
+        DetailSectionHeaderComponent,
         DetailTagsTemplateDirective,
+        EpisodeSkeletonComponent,
         MetaChipComponent,
         PortalDetailShellComponent,
         PortalInlinePlayerComponent,
@@ -174,6 +180,9 @@ export class SerialDetailsComponent implements OnDestroy {
     private readonly seasons = inject(SerialDetailsSeasonsService);
     readonly seasonDescriptions = this.seasons.descriptions;
     readonly seasonPosters = this.seasons.posters;
+    readonly seasonMetadataLoading = this.seasons.metadataLoading;
+    /** Layout of the loading shell's episode placeholders. */
+    readonly savedEpisodeViewMode = readSavedEpisodeViewMode();
 
     /** Clickable year/genre/country chips (Discover pages) */
     readonly discover = this.navigation.discover;
@@ -181,7 +190,12 @@ export class SerialDetailsComponent implements OnDestroy {
     constructor() {
         this.playback.bind({ selectedItem: this.selectedItem });
         this.similar.bind({ selectedItem: this.selectedItem });
-        this.seasons.bind({ selectedItem: this.selectedItem });
+        this.seasons.bind({
+            selectedItem: this.selectedItem,
+            detailSeasonKey: computed(
+                () => this.seasonContainer()?.selectedSeason() ?? null
+            ),
+        });
         this.downloadAdapter.bind(this.selectedItem);
         this.heroPresenter.bind({
             selectedItem: this.selectedItem,
@@ -276,6 +290,10 @@ export class SerialDetailsComponent implements OnDestroy {
         this.playback.playEpisode(episode);
     }
 
+    playEpisodeFromStart(episode: XtreamSerieEpisode): void {
+        this.playback.playEpisode(episode, undefined, true);
+    }
+
     playQuickStartEpisode(): void {
         this.playback.playQuickStartEpisode();
     }
@@ -339,7 +357,8 @@ export class SerialDetailsComponent implements OnDestroy {
             this.route.snapshot.params['serialId'],
             playlist.id,
             'series',
-            this.selectedItem()?.info?.backdrop_path?.[0]
+            this.selectedItem()?.info?.backdrop_path?.[0],
+            xtreamDetailContentMetadata(this.selectedItem()?.info) ?? undefined
         );
     }
 

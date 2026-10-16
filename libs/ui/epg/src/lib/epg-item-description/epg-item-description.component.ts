@@ -5,15 +5,13 @@ import {
     inject,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { differenceInMinutes } from 'date-fns';
-import { startWith } from 'rxjs';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
 import { getProgramTimeMs } from '../epg-program.utils';
 
 export type EpgItemDialogAction =
@@ -45,10 +43,7 @@ export class EpgItemDescriptionComponent {
     dialogData = inject<EpgItemDialogData>(MAT_DIALOG_DATA);
     private readonly translate = inject(TranslateService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     epgProgram: EpgProgram;
     channelName: string | null = null;

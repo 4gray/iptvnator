@@ -1,0 +1,565 @@
+import type { Locator, Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+    addXtreamPortal,
+    clickCategoryByNameExact,
+    closeElectronApp,
+    defaultXtreamPassword,
+    defaultXtreamUsername,
+    expect,
+    launchElectronApp,
+    openSettings,
+    openSources,
+    openWorkspaceSection,
+    resetMockServers,
+    saveSettings,
+    test,
+    waitForXtreamWorkspaceReady,
+} from './electron-test-fixtures';
+import { fetchXtreamLiveFixture } from './portal-mock-fixtures';
+import { applyTheme, expectTextContrast } from './theme-contrast';
+
+// ---------------------------------------------------------------------------
+// The catalog header's sort chip shows a short label for the active sort at
+// every width ("Newest", not "Sort: Date Added (Latest First)"), so it never
+// truncates, also in the long translations; the full text is its name.
+//
+// Single-choice menus (catalog refine, live channels, categories, sources)
+// are radio groups: every row reserves the same leading check slot, so the
+// labels share one left edge, and `aria-checked` marks the active choice.
+//
+// The refine menu keeps its rating thresholds in a submenu, so it opens
+// whole below its button in a short window.
+//
+// Refine and the rating chip are Material buttons: their look comes from
+// button tokens, so it holds whichever stylesheet the page added last.
+// ---------------------------------------------------------------------------
+
+const locales = ['en', 'de', 'ru', 'hu'] as const;
+type Locale = (typeof locales)[number];
+
+/**
+ * Per locale, in menu order: the visible chip text of the six content sorts
+ * and the full text screen readers get instead.
+ */
+function sortChipLabels(
+    locale: Locale
+): { visible: string; screenReader: string }[] {
+    const workspace = (
+        JSON.parse(
+            readFileSync(
+                join(__dirname, `../../web/src/assets/i18n/${locale}.json`),
+                'utf8'
+            )
+        ) as {
+            WORKSPACE: {
+                SORT_LABEL: string;
+                SORT_DATE_DESC: string;
+                SORT_DATE_ASC: string;
+                SORT_NAME_ASC: string;
+                SORT_NAME_DESC: string;
+                SORT_TOP_RATED: string;
+                SORT_LOWEST_RATED: string;
+                SORT_CHIP: {
+                    NEWEST: string;
+                    OLDEST: string;
+                    TOP_RATED: string;
+                    LOWEST_RATED: string;
+                };
+            };
+        }
+    ).WORKSPACE;
+    return (
+        [
+            [workspace.SORT_CHIP.NEWEST, workspace.SORT_DATE_DESC],
+            [workspace.SORT_CHIP.OLDEST, workspace.SORT_DATE_ASC],
+            [workspace.SORT_NAME_ASC, workspace.SORT_NAME_ASC],
+            [workspace.SORT_NAME_DESC, workspace.SORT_NAME_DESC],
+            [workspace.SORT_CHIP.TOP_RATED, workspace.SORT_TOP_RATED],
+            [workspace.SORT_CHIP.LOWEST_RATED, workspace.SORT_LOWEST_RATED],
+        ] as const
+    ).map(([visible, full]) => ({
+        visible,
+        screenReader: `${workspace.SORT_LABEL}${full}`,
+    }));
+}
+
+function openMenuPanel(page: Page): Locator {
+    return page.locator('.cdk-overlay-pane .mat-mdc-menu-panel').last();
+}
+
+/** The refine menu's own panel, also while its rating submenu is open. */
+function refineMenuPanel(page: Page): Locator {
+    return page.locator(
+        '.cdk-overlay-pane .mat-mdc-menu-panel.refine-menu:not(.refine-rating-menu)'
+    );
+}
+
+function ratingSubmenuPanel(page: Page): Locator {
+    return page.locator('.cdk-overlay-pane .refine-rating-menu');
+}
+
+async function openRefineMenu(page: Page): Promise<Locator> {
+    await page.locator('app-category-content-view .refine-action').click();
+    const menu = refineMenuPanel(page);
+    await expect(menu).toBeVisible();
+    await settleAnimations(menu);
+    return menu;
+}
+
+/** Opens the minimum-rating thresholds from the open refine menu. */
+async function openRatingSubmenu(page: Page): Promise<Locator> {
+    await page.locator('.refine-rating-trigger').click();
+    const submenu = ratingSubmenuPanel(page);
+    await expect(submenu).toBeVisible();
+    await settleAnimations(submenu);
+    return submenu;
+}
+
+/** The panel lies inside the window and shows every row without scrolling. */
+async function expectWholeOnScreen(
+    panel: Locator,
+    label: string
+): Promise<{ top: number; bottom: number }> {
+    const geometry = await panel.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+            top: rect.top,
+            bottom: rect.bottom,
+            windowHeight: window.innerHeight,
+            scrolls: element.scrollHeight > element.clientHeight + 1,
+        };
+    });
+    expect(
+        geometry.top,
+        `${label}: ${JSON.stringify(geometry)}`
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+        geometry.bottom,
+        `${label}: ${JSON.stringify(geometry)}`
+    ).toBeLessThanOrEqual(geometry.windowHeight);
+    expect(geometry.scrolls, `${label}: ${JSON.stringify(geometry)}`).toBe(
+        false
+    );
+    return geometry;
+}
+
+async function settleAnimations(menu: Locator): Promise<void> {
+    await menu.evaluate((element) =>
+        Promise.all(
+            element
+                .getAnimations()
+                .map((animation) => animation.finished.catch(() => undefined))
+        )
+    );
+}
+
+async function closeMenu(page: Page, menu: Locator): Promise<void> {
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+}
+
+interface RadioRow {
+    checked: string | null;
+    labelLeft: number;
+    checkVisible: boolean;
+}
+
+async function radioRows(group: Locator): Promise<RadioRow[]> {
+    return group.getByRole('menuitemradio').evaluateAll((rows) =>
+        rows.map((row) => {
+            const check = row.querySelector('.app-menu-item-radio-check');
+            return {
+                checked: row.getAttribute('aria-checked'),
+                labelLeft: Math.round(
+                    row
+                        .querySelector('.mat-mdc-menu-item-text')
+                        ?.getBoundingClientRect().left ?? Number.NaN
+                ),
+                checkVisible:
+                    check !== null &&
+                    getComputedStyle(check).visibility === 'visible',
+            };
+        })
+    );
+}
+
+/**
+ * One radio group: every label on one left edge, exactly the expected row
+ * checked, and the check glyph visible on that row only.
+ */
+async function expectRadioGroup(
+    group: Locator,
+    checkedIndex: number,
+    label: string
+): Promise<void> {
+    const rows = await radioRows(group);
+    expect(rows.length, label).toBeGreaterThan(1);
+    expect(
+        [...new Set(rows.map((row) => row.labelLeft))],
+        `${label}: label offsets ${JSON.stringify(rows)}`
+    ).toHaveLength(1);
+    expect(
+        rows.map((row) => row.checked),
+        label
+    ).toEqual(rows.map((_, index) => String(index === checkedIndex)));
+    expect(
+        rows.map((row) => row.checkVisible),
+        label
+    ).toEqual(rows.map((_, index) => index === checkedIndex));
+}
+
+/** Visible chip labels and whether each one shows its whole text. */
+async function chipLabelFits(page: Page) {
+    return page
+        .locator('app-category-content-view .refinement-chip')
+        .evaluateAll((chips) =>
+            chips.flatMap((chip) =>
+                [
+                    chip,
+                    ...chip.querySelectorAll<HTMLElement>(
+                        '.refinement-chip-label'
+                    ),
+                ]
+                    .filter((element) => element.getClientRects().length > 0)
+                    .map((element) => ({
+                        text: element.textContent?.trim() ?? '',
+                        fits: element.scrollWidth <= element.clientWidth,
+                    }))
+            )
+        );
+}
+
+async function switchLanguage(page: Page, locale: Locale): Promise<void> {
+    const catalogUrl = page.url();
+    await openSettings(page);
+    await page.getByTestId('select-language').click();
+    await page.getByTestId(locale).click();
+    await saveSettings(page);
+    await page.goBack();
+    await page.waitForURL(catalogUrl);
+    await expect(
+        page.locator('app-category-content-view mat-card').first()
+    ).toBeVisible({ timeout: 20_000 });
+}
+
+test.describe('Electron catalog sort menus', () => {
+    test('keeps the refine chips whole at 1280px in en, de, ru and hu, with the refine menu as aligned radio groups', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+
+        try {
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await page.setViewportSize({ width: 1280, height: 800 });
+            await openWorkspaceSection(page, 'Movies');
+            await expect(
+                page.locator('app-category-content-view mat-card').first()
+            ).toBeVisible({ timeout: 20_000 });
+
+            // A rating threshold shows the second chip next to the sort one.
+            let menu = await openRefineMenu(page);
+            const thresholds = await openRatingSubmenu(page);
+            await thresholds.getByRole('menuitemradio').nth(5).click();
+            await expect(menu).toBeHidden();
+
+            for (const locale of locales) {
+                if (locale !== 'en') await switchLanguage(page, locale);
+                const chipLabels = sortChipLabels(locale);
+
+                for (const [index, chipLabel] of chipLabels.entries()) {
+                    menu = await openRefineMenu(page);
+                    await menu
+                        .getByRole('group')
+                        .first()
+                        .getByRole('menuitemradio')
+                        .nth(index)
+                        .click();
+                    await expect(menu).toBeHidden();
+
+                    const sortChip = page.locator(
+                        'app-category-content-view .sort-refinement-chip'
+                    );
+                    await expect(
+                        sortChip.locator('.refinement-chip-label')
+                    ).toHaveText(chipLabel.visible);
+                    // The accessibility tree holds the full text only; the
+                    // short label is aria-hidden.
+                    await expect(sortChip).toMatchAriaSnapshot(
+                        `- text: ${JSON.stringify(chipLabel.screenReader)}`
+                    );
+                    const fits = await chipLabelFits(page);
+                    expect(
+                        fits.filter((chip) => !chip.fits),
+                        `${locale}: ${JSON.stringify(fits)}`
+                    ).toEqual([]);
+                }
+
+                menu = await openRefineMenu(page);
+                const groups = menu.getByRole('group');
+                await expect(groups).toHaveCount(1);
+                await expectRadioGroup(groups.nth(0), 5, `${locale} sort`);
+                // The thresholds row starts its label on the sort labels'
+                // edge and names the active threshold.
+                const ratingRow = menu.locator('.refine-rating-trigger');
+                await expect(ratingRow).toContainText('5.0+');
+                const lefts = [
+                    ...(await radioRows(menu)).map((row) => row.labelLeft),
+                    Math.round(
+                        await ratingRow
+                            .locator('.mat-mdc-menu-item-text')
+                            .evaluate(
+                                (text) => text.getBoundingClientRect().left
+                            )
+                    ),
+                ];
+                expect(
+                    [...new Set(lefts)],
+                    `${locale}: sort and rating rows`
+                ).toHaveLength(1);
+                const ratings = await openRatingSubmenu(page);
+                await expectRadioGroup(
+                    ratings.getByRole('group'),
+                    5,
+                    `${locale} rating`
+                );
+                await closeMenu(page, ratings);
+                await closeMenu(page, menu);
+            }
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('opens the refine menu whole below its button in a 600px-tall window, with the rating thresholds in a keyboard submenu', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+
+        try {
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await page.setViewportSize({ width: 1280, height: 600 });
+            await openWorkspaceSection(page, 'Movies');
+            await expect(
+                page.locator('app-category-content-view mat-card').first()
+            ).toBeVisible({ timeout: 20_000 });
+
+            const trigger = page.locator(
+                'app-category-content-view .refine-action'
+            );
+            // Keyboard only: park the pointer away from where the menu opens.
+            // Chromium hovers whatever lands under a resting pointer after a
+            // layout change, and Material opens a submenu on hover. With 36px
+            // rows the rating row sat under the CI runners' resting cursor, the
+            // thresholds opened on their own, and ArrowUp moved inside them.
+            await page.mouse.move(0, 0);
+            await trigger.focus();
+            await page.keyboard.press('Enter');
+            const menu = refineMenuPanel(page);
+            await expect(menu).toBeVisible();
+            await settleAnimations(menu);
+            const triggerBottom = await trigger.evaluate(
+                (element) => element.getBoundingClientRect().bottom
+            );
+            const menuBox = await expectWholeOnScreen(menu, 'refine menu');
+            // Below the button, not pushed up over it.
+            expect(menuBox.top).toBeGreaterThanOrEqual(triggerBottom);
+
+            // The last row opens the thresholds with the arrow key.
+            await page.keyboard.press('ArrowUp');
+            await expect(menu.locator('.refine-rating-trigger')).toBeFocused();
+            await page.keyboard.press('ArrowRight');
+            const thresholds = ratingSubmenuPanel(page);
+            await expect(thresholds).toBeVisible();
+            await settleAnimations(thresholds);
+            await expect(thresholds.getByRole('menuitemradio')).toHaveCount(6);
+            await expect(
+                thresholds.getByRole('menuitemradio').first()
+            ).toBeFocused();
+            await expectWholeOnScreen(thresholds, 'rating submenu');
+
+            // Escape steps back out: the submenu, then the menu.
+            await page.keyboard.press('Escape');
+            await expect(thresholds).toBeHidden();
+            await expect(menu.locator('.refine-rating-trigger')).toBeFocused();
+            await page.keyboard.press('Escape');
+            await expect(menu).toBeHidden();
+            await expect(trigger).toBeFocused();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test("keeps the Refine picker and the rating chip's look whichever stylesheet the page added last", async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+
+        try {
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await page.setViewportSize({ width: 1280, height: 800 });
+            await openWorkspaceSection(page, 'Movies');
+            await expect(
+                page.locator('app-category-content-view mat-card').first()
+            ).toBeVisible({ timeout: 20_000 });
+            const menu = await openRefineMenu(page);
+            const thresholds = await openRatingSubmenu(page);
+            await thresholds
+                .getByRole('menuitemradio', { name: /\b7\b/ })
+                .click();
+            await expect(menu).toBeHidden();
+
+            const chip = page.locator(
+                'app-category-content-view .rating-refinement-chip'
+            );
+            const refine = page.locator(
+                'app-category-content-view .refine-action'
+            );
+            const look = async () => ({
+                chip: await chip.evaluate((element) => {
+                    const probe = document.createElement('span');
+                    probe.style.color = 'var(--mat-sys-primary)';
+                    element.parentElement?.append(probe);
+                    const primary = getComputedStyle(probe).color;
+                    probe.remove();
+                    const style = getComputedStyle(element);
+                    return {
+                        isPrimary: style.color === primary,
+                        padding: `${style.paddingLeft} ${style.paddingRight}`,
+                    };
+                }),
+                refine: await refine.evaluate((element) => {
+                    const style = getComputedStyle(element);
+                    return {
+                        height: Math.round(
+                            element.getBoundingClientRect().height
+                        ),
+                        radius: style.borderRadius,
+                        background: style.backgroundColor,
+                    };
+                }),
+            });
+            const expected = {
+                chip: { isPrimary: true, padding: '10px 10px' },
+                refine: { height: 32, radius: '8px' },
+            };
+
+            // Angular removes a component's stylesheet with its last instance
+            // and appends it again with the next one, so either Material's
+            // button sheet or the catalog view's may come last.
+            const moveLast = (needle: string) =>
+                page.evaluate((text) => {
+                    const sheets = [
+                        ...document.head.querySelectorAll('style'),
+                    ].filter((sheet) => sheet.textContent?.includes(text));
+                    for (const sheet of sheets) document.head.append(sheet);
+                    return sheets.length;
+                }, needle);
+
+            const initial = await look();
+            expect(initial).toMatchObject(expected);
+            expect(await moveLast('.mat-mdc-button:not(:disabled)')).toBe(1);
+            expect(await look(), 'Material button sheet last').toEqual(initial);
+            expect(await moveLast('rating-refinement-chip')).toBe(1);
+            expect(await look(), 'catalog view sheet last').toEqual(initial);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('shows aligned radio rows with a legible check in the live, category and source sort menus, in light and dark themes', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const liveFixture = await fetchXtreamLiveFixture(request, {
+            username: defaultXtreamUsername,
+            password: defaultXtreamPassword,
+        });
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+
+        try {
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await openWorkspaceSection(page, 'Live TV');
+            await clickCategoryByNameExact(page, liveFixture.categoryName);
+
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(page, theme);
+
+                await page
+                    .getByRole('button', { name: 'Sort channels', exact: true })
+                    .click();
+                let menu = openMenuPanel(page);
+                await expect(menu).toBeVisible();
+                await settleAnimations(menu);
+                await expectRadioGroup(menu, 0, `${theme} live channels`);
+                await expectCheckedRowLegible(menu);
+                await menu
+                    .getByRole('menuitemradio', { name: 'Name Z-A' })
+                    .click();
+                await expect(menu).toBeHidden();
+                await page
+                    .getByRole('button', { name: 'Sort channels', exact: true })
+                    .click();
+                menu = openMenuPanel(page);
+                await settleAnimations(menu);
+                await expectRadioGroup(menu, 2, `${theme} live channels`);
+                await menu
+                    .getByRole('menuitemradio', { name: 'Server order' })
+                    .click();
+                await expect(menu).toBeHidden();
+
+                await page
+                    .getByRole('button', {
+                        name: 'Sort categories',
+                        exact: true,
+                    })
+                    .click();
+                menu = openMenuPanel(page);
+                await expect(menu).toBeVisible();
+                await settleAnimations(menu);
+                await expectRadioGroup(menu, 0, `${theme} categories`);
+                await expectCheckedRowLegible(menu);
+                await closeMenu(page, menu);
+            }
+
+            await openSources(page);
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(page, theme);
+                await page
+                    .locator('app-workspace-sources .sort-trigger')
+                    .click();
+                const menu = openMenuPanel(page);
+                await expect(menu).toBeVisible();
+                await settleAnimations(menu);
+                await expectRadioGroup(menu, 0, `${theme} sources`);
+                await expectCheckedRowLegible(menu);
+                await closeMenu(page, menu);
+            }
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+});
+
+/** The check glyph is a graphic (3:1); the label is text (4.5:1). */
+async function expectCheckedRowLegible(menu: Locator): Promise<void> {
+    const row = menu.locator('[role="menuitemradio"][aria-checked="true"]');
+    await expectTextContrast(row.locator('.app-menu-item-radio-check'), 3);
+    await expectTextContrast(row.locator('.mat-mdc-menu-item-text'), 4.5);
+}

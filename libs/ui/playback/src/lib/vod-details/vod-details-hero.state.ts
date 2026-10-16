@@ -3,6 +3,7 @@ import type { TranslateService } from '@ngx-translate/core';
 import {
     formatDurationLabel,
     playbackProgressPercent,
+    type ExternalPlaybackButtonLabel,
 } from '@iptvnator/portal/shared/util';
 import type { CrossPortalSimilarItem } from '@iptvnator/services';
 import {
@@ -36,12 +37,19 @@ export interface VodDetailsHeroStateDeps {
     /** Play/Resume clicked, stream still resolving (Stalker `create_link`). */
     readonly playbackStartPending: Signal<boolean>;
     readonly isOfflinePrimary: Signal<boolean>;
-    readonly externalLabel: Signal<string | null>;
+    readonly externalLabel: Signal<ExternalPlaybackButtonLabel | null>;
     readonly externalIcon: Signal<string>;
     readonly externalState: Signal<DetailActionButtonState>;
     readonly similarInPortals: Signal<readonly CrossPortalSimilarItem[]>;
     readonly configuredPlayer: Signal<VideoPlayer | null | undefined>;
     readonly translate: Pick<TranslateService, 'instant'>;
+    /**
+     * The host's `injectTranslationTick()`: ticks on a language switch and
+     * when a dictionary lands. Every label below is worded through a wrapper
+     * that reads it, so the computeds re-word instead of keeping the
+     * language (or the raw keys) they first ran with.
+     */
+    readonly language: Signal<unknown>;
 }
 
 /**
@@ -50,8 +58,10 @@ export interface VodDetailsHeroStateDeps {
  * Similar rail and the rows of the "…" menu.
  */
 export function createVodDetailsHeroState(deps: VodDetailsHeroStateDeps) {
-    const translate = (key: string, params?: Record<string, unknown>) =>
-        deps.translate.instant(key, params);
+    const translate = (key: string, params?: Record<string, unknown>) => {
+        deps.language();
+        return deps.translate.instant(key, params);
+    };
     const kindLabel = computed(() => {
         const kind = translate('WORKSPACE.DASHBOARD.TYPE_MOVIE');
         const source = deps.sourceLabel()?.trim();

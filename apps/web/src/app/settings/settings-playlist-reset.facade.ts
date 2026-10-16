@@ -4,12 +4,14 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, take } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import {
     ParentalLockService,
     DatabaseService,
     DbOperationEvent,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     SettingsDeleteAllPlaylistsDialogComponent,
@@ -32,6 +34,8 @@ export class SettingsPlaylistResetFacade {
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+    /** The language can be switched on this page while a removal runs. */
+    private readonly languageTick = injectTranslationTick();
 
     readonly isRemovingAllPlaylists = signal(false);
     readonly removeAllProgress = signal<DbOperationEvent | null>(null);
@@ -48,13 +52,14 @@ export class SettingsPlaylistResetFacade {
         () => !this.isRemovingAllPlaylists() && this.deleteSummary().total > 0
     );
 
-    readonly removeAllProgressLabel = computed(() =>
-        buildRemoveAllProgressLabel({
+    readonly removeAllProgressLabel = computed(() => {
+        this.languageTick();
+        return buildRemoveAllProgressLabel({
             isRemovingAllPlaylists: this.isRemovingAllPlaylists(),
             progress: this.removeAllProgress(),
             translate: (key, params) => this.translate.instant(key, params),
-        })
-    );
+        });
+    });
 
     /**
      * Asks for confirmation in a dedicated dialog before wiping every
@@ -71,13 +76,12 @@ export class SettingsPlaylistResetFacade {
                 SettingsDeleteAllPlaylistsDialogData,
                 boolean
             >(SettingsDeleteAllPlaylistsDialogComponent, {
+                ...dialogSize('md'),
                 autoFocus: false,
                 data: {
                     summary: this.deleteSummary(),
                 },
-                maxWidth: 'calc(100vw - 32px)',
                 restoreFocus: true,
-                width: '460px',
             })
             .afterClosed()
             .pipe(take(1))

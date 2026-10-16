@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Route, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Store } from '@ngrx/store';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from '@iptvnator/services';
 
@@ -55,7 +55,14 @@ describe('createM3uWorkspaceRoutes', () => {
         TestBed.configureTestingModule({
             providers: [
                 { provide: PlaylistsService, useValue: { getPlaylist } },
-                { provide: Store, useValue: { dispatch } },
+                {
+                    provide: Store,
+                    useValue: {
+                        dispatch,
+                        select: () => NEVER,
+                        selectSignal: () => () => ({}),
+                    },
+                },
                 {
                     provide: PlaylistContextFacade,
                     useValue: {
