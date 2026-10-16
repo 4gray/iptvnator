@@ -71,6 +71,7 @@ import {
 import { createPlaylistDetailsForm } from './playlist-info-form';
 import { PlaylistEpgSourceEditor } from './playlist-epg-source-editor';
 import { PlaylistInfoFileActions } from './playlist-info-file-actions';
+import { XtreamSelectionProgressComponent } from '../../xtream-selection-progress.component';
 
 @Component({
     selector: 'app-playlist-info',
@@ -85,6 +86,7 @@ import { PlaylistInfoFileActions } from './playlist-info-file-actions';
         DialogFooterStartDirective,
         DialogShellComponent,
         XtreamContentSelectionComponent,
+        XtreamSelectionProgressComponent,
         MatButton,
         MatCheckboxModule,
         MatDialogModule,
@@ -117,6 +119,7 @@ export class PlaylistInfoComponent {
     });
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
     readonly isSaving = signal(false);
+    readonly isRefreshingSelectedCatalogs = signal(false);
     readonly isHydratingStalkerPlaylist = signal(false);
     readonly stalkerPlaylistHydrationFailed = signal(false);
     private dialogClosing = false;
@@ -432,6 +435,7 @@ export class PlaylistInfoComponent {
             if (this.dialogRef) {
                 this.dialogRef.disableClose = false;
             }
+            this.isRefreshingSelectedCatalogs.set(false);
             this.isSaving.set(false);
         }
     }
@@ -500,6 +504,7 @@ export class PlaylistInfoComponent {
             });
 
         if (newlyEnabled.length) {
+            this.isRefreshingSelectedCatalogs.set(true);
             try {
                 await this.injector
                     .get(XtreamSelectedCatalogRefreshService)

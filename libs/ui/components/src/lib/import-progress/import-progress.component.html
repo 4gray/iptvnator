@@ -1,0 +1,59 @@
+<div
+    class="workspace-loading-overlay"
+    [class.workspace-loading-overlay--inline]="inline()"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+>
+    <div class="workspace-loading-overlay__card">
+        <div class="workspace-loading-overlay__header">
+            @if (view().source) {
+                <span
+                    class="workspace-loading-overlay__badge"
+                    [class.workspace-loading-overlay__badge--remote]="
+                        view().tone === 'remote'
+                    "
+                    >{{ view().source }}</span
+                >
+            }
+            @if (view().title) {
+                <h3>{{ view().title }}</h3>
+            }
+        </div>
+        @if (view().phase) {
+            <p class="workspace-loading-overlay__phase">{{ view().phase }}</p>
+        }
+        @if (view().detail) {
+            <p class="workspace-loading-overlay__detail">{{ view().detail }}</p>
+        }
+        @if (view().current !== 0 && view().total !== 0) {
+            <mat-progress-bar
+                mode="determinate"
+                [value]="(view().current / view().total) * 100"
+            />
+        } @else {
+            <mat-progress-bar mode="indeterminate" />
+        }
+        @if (view().progress) {
+            <p class="workspace-loading-overlay__progress-copy">
+                {{ view().progress }}
+            </p>
+        }
+        @if (view().canCancel) {
+            <button
+                mat-stroked-button
+                class="workspace-loading-overlay__action"
+                type="button"
+                [disabled]="view().cancelling"
+                (click)="cancelRequested.emit()"
+            >
+                {{
+                    (view().cancelling
+                        ? 'WORKSPACE.SHELL.XTREAM_IMPORT_CANCELLING'
+                        : 'WORKSPACE.SHELL.XTREAM_IMPORT_CANCEL'
+                    ) | translate
+                }}
+            </button>
+        }
+    </div>
+</div>

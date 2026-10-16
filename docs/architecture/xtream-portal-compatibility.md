@@ -372,7 +372,11 @@ in startup projections without parsing large M3U payloads, and backups preserve
 it, including an explicit empty array.
 
 `XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
-fetching their category/content arrays before deleting their old cache. Cache
+fetching their category/content arrays before deleting their old cache. Its
+read-only progress signal reports the current type, network/local phase and
+worker save counts. The editor stays modal and uses the same shared
+`ImportProgressComponent` as the workspace scanning overlay; disable-only edits
+do not show scanning. This path does not advertise cancellation it cannot perform. Cache
 delete carries an optional type scope through the worker bridge, snapshots all
 history/hidden-category state, and deletes only the requested catalogs. Ordinary
 Refresh supplies the source's enabled types. Disabled catalog rows remain intact;

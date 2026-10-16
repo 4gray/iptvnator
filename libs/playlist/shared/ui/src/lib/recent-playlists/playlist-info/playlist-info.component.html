@@ -1,3 +1,6 @@
+@if (isRefreshingSelectedCatalogs()) {
+    <app-xtream-selection-progress />
+} @else {
 <form
     [formGroup]="playlistDetails"
     (ngSubmit)="saveChanges(playlistDetails.value)"
@@ -700,3 +703,4 @@
         </app-dialog-shell>
     </fieldset>
 </form>
+}

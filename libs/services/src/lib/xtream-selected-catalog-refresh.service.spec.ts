@@ -121,6 +121,46 @@ describe('edit-time Xtream catalog refresh', () => {
         expect(release).toHaveBeenCalled();
     });
 
+    it('publishes remote scanning state while a newly enabled type is loading', async () => {
+        let respond!: (value: { payload: unknown[] }) => void;
+        data.sendIpcEvent.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    respond = resolve;
+                })
+        );
+        const refresh = service.refresh(playlist, ['series']);
+        expect(service.progress()).toEqual({
+            playlistId: 'p',
+            type: 'series',
+            phase: 'loading-categories',
+            current: 0,
+            total: 0,
+        });
+        respond({ payload: [] });
+        await refresh;
+        expect(service.progress()).toBeNull();
+    });
+
+    it('publishes actual SQLite save counts for only the refreshed type', async () => {
+        db.saveXtreamContent.mockImplementation(
+            async (_id, _content, type, _progress, options) => {
+                expect(type).toBe('movie');
+                options.onEvent({ status: 'progress', current: 5, total: 10 });
+                expect(service.progress()).toEqual({
+                    playlistId: 'p',
+                    type: 'movie',
+                    phase: 'saving-content',
+                    current: 5,
+                    total: 10,
+                });
+                return 0;
+            }
+        );
+        await service.refresh(playlist, ['movie']);
+        expect(service.progress()).toBeNull();
+    });
+
     it('does not delete data when history cannot be read', async () => {
         db.getRecentItemsOrThrow.mockRejectedValue(
             new Error('history unreadable')
@@ -161,5 +201,6 @@ describe('edit-time Xtream catalog refresh', () => {
         await expect(service.refresh(playlist, ['movie'])).rejects.toThrow();
         expect(db.deleteXtreamPlaylistContent).not.toHaveBeenCalled();
         expect(release).toHaveBeenCalled();
+        expect(service.progress()).toBeNull();
     });
 });
