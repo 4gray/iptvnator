@@ -68,6 +68,9 @@ app-dialog-shell {
 
 // Material names and pads the title from `.mat-mdc-dialog-container
 // .mat-mdc-dialog-title`; the header prefix matches that specificity.
+// A heading may be provider text (an episode's file name, a channel name)
+// with no break opportunity: it wraps anywhere rather than running under
+// the close button.
 .app-dialog__header .app-dialog__title {
     margin: 0;
     padding: 0;
@@ -76,6 +79,7 @@ app-dialog-shell {
     font-weight: 600;
     letter-spacing: -0.2px;
     line-height: 1.3;
+    overflow-wrap: anywhere;
 
     &::before {
         display: none;
@@ -87,6 +91,7 @@ app-dialog-shell {
     color: var(--app-body-color);
     font-size: 13px;
     line-height: 1.45;
+    overflow-wrap: anywhere;
 }
 
 .app-dialog__body {
