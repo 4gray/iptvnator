@@ -198,6 +198,8 @@
             "LABEL": "Voer een m3u(8)-afspeellijst in als tekst"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "Te laden inhoud",
+            "CONTENT_TO_LOAD_HINT": "Alleen geselecteerde typen worden geïmporteerd en vernieuwd. Zonder selectie worden geen catalogi geladen; opgeslagen items en downloads blijven bewaard.",
             "TITLE": "Afspeellijst titel",
             "SERVER_URL": "Server URL",
             "USERNAME": "Gebruikersnaam",

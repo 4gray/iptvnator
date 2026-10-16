@@ -15,6 +15,8 @@ import {
     isParentalLockPlaylistLocksEmpty,
     isM3uRecentlyViewedItem,
     normalizeXtreamPendingRestoreState,
+    normalizeXtreamContentTypes,
+    XTREAM_CONTENT_TYPES,
     M3uPlaylistBackupEntry,
     M3uRecentlyViewedItem,
     Playlist,
@@ -303,6 +305,13 @@ export class PlaylistBackupService {
     ): Promise<XtreamPlaylistBackupEntry> {
         const entry: XtreamPlaylistBackupEntry = {
             portalType: 'xtream',
+            ...(playlist.xtreamContentTypes === undefined
+                ? {}
+                : {
+                      xtreamContentTypes: normalizeXtreamContentTypes(
+                          playlist.xtreamContentTypes
+                      ),
+                  }),
             exportedId: playlist._id,
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
@@ -595,6 +604,18 @@ export class PlaylistBackupService {
                     );
                 }
 
+                if (
+                    entry.xtreamContentTypes !== undefined &&
+                    (!Array.isArray(entry.xtreamContentTypes) ||
+                        entry.xtreamContentTypes.some(
+                            (type) => !XTREAM_CONTENT_TYPES.includes(type)
+                        ))
+                ) {
+                    throw new PlaylistBackupError(
+                        'Xtream backup has invalid content selection.'
+                    );
+                }
+
                 // Restore treats the backup's user state as authoritative and
                 // replaces the existing state with it. Every v1 export writes
                 // all four collections, so a missing one signals a damaged or
@@ -868,6 +889,10 @@ export class PlaylistBackupService {
             autoRefresh: entry.autoRefresh,
             position: entry.position,
             serverUrl: entry.connection.serverUrl,
+            xtreamContentTypes:
+                entry.xtreamContentTypes === undefined
+                    ? undefined
+                    : normalizeXtreamContentTypes(entry.xtreamContentTypes),
             username: entry.connection.username,
             password: entry.connection.password,
             favorites: [],

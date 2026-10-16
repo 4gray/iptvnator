@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import {
     Component,
     DestroyRef,
+    Injector,
     inject,
     signal,
     ChangeDetectionStrategy,
@@ -37,12 +38,17 @@ import {
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    XtreamSelectedCatalogRefreshService,
+    SourceActivityService,
+    XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import {
     createStalkerMacAddressValidator,
     normalizeStalkerIdentityValue,
     normalizeStalkerMacAddress,
     normalizeXtreamServerUrl,
+    normalizeXtreamContentTypes,
+    newlyEnabledXtreamTypes,
     Playlist,
     PlaylistMeta,
     PlaylistMetaUpdate,
@@ -67,6 +73,7 @@ import {
     DialogFooterDirective,
     DialogFooterStartDirective,
     DialogShellComponent,
+    XtreamContentSelectionComponent,
 } from '@iptvnator/ui/components';
 
 type DesktopFileSaveBridge = Pick<
@@ -171,6 +178,7 @@ type DesktopFileSaveBridge = Pick<
         DialogFooterDirective,
         DialogFooterStartDirective,
         DialogShellComponent,
+        XtreamContentSelectionComponent,
         ClipboardModule,
         MatButton,
         MatCheckboxModule,
@@ -191,6 +199,7 @@ export class PlaylistInfoComponent {
     private playlistsService = inject(PlaylistsService);
     private store = inject(Store);
     private databaseService = inject(DatabaseService);
+    private readonly injector = inject(Injector);
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
     private runtime = inject(RuntimeCapabilitiesService);
@@ -209,6 +218,10 @@ export class PlaylistInfoComponent {
     readonly stalkerPlaylistHydrationFailed = signal(false);
     private dialogClosing = false;
     private readonly stalkerPlaylistHydration: Promise<void>;
+
+    get supportsXtreamSelection(): boolean {
+        return this.runtime.supportsXtreamSqliteDataSource;
+    }
 
     get isDesktop(): boolean {
         return this.runtime.supportsDesktopFileSave;
@@ -369,6 +382,9 @@ export class PlaylistInfoComponent {
             }),
             autoRefresh: new FormControl(this.playlist.autoRefresh),
             serverUrl: new FormControl(this.playlist.serverUrl),
+            xtreamContentTypes: new FormControl(
+                normalizeXtreamContentTypes(this.playlist.xtreamContentTypes)
+            ),
             username: new FormControl(this.playlist.username),
             password: new FormControl(this.playlist.password),
             macAddress: new FormControl(
@@ -622,17 +638,53 @@ export class PlaylistInfoComponent {
     }
 
     async updateXtreamPlaylist(playlist: PlaylistMeta) {
-        const success = await this.databaseService.updateXtreamPlaylistDetails({
-            id: this.playlist._id,
-            title: playlist.title,
-            username: playlist.username,
-            password: playlist.password,
-            serverUrl: playlist.serverUrl,
-        });
-
-        if (!success) {
-            throw new Error('Failed to update playlist in database');
+        if (
+            this.injector.get(SourceActivityService).isBusy(this.playlist._id)
+        ) {
+            throw new Error(
+                'Wait for the source import or refresh to finish before editing it.'
+            );
         }
+        const newlyEnabled = newlyEnabledXtreamTypes(
+            this.playlist.xtreamContentTypes,
+            playlist.xtreamContentTypes
+        );
+        const persist = () =>
+            this.databaseService.updateXtreamPlaylistDetails({
+                id: this.playlist._id,
+                title: playlist.title,
+                username: playlist.username,
+                password: playlist.password,
+                serverUrl: playlist.serverUrl,
+                xtreamContentTypes: playlist.xtreamContentTypes,
+            });
+
+        if (newlyEnabled.length) {
+            try {
+                await this.injector
+                    .get(XtreamSelectedCatalogRefreshService)
+                    .refresh(playlist, newlyEnabled);
+            } catch (error) {
+                // A parked snapshot may follow a partial replacement. Keep its types
+                // enabled so retry imports them before consuming their saved history.
+                if (
+                    this.injector
+                        .get(XtreamPendingRestoreService)
+                        .getOrThrow(this.playlist._id)
+                ) {
+                    if (!(await persist()))
+                        throw new Error(
+                            'Failed to persist catalog recovery selection.'
+                        );
+                    this.store.dispatch(
+                        PlaylistActions.updatePlaylistMeta({ playlist })
+                    );
+                }
+                throw error;
+            }
+        }
+        if (!(await persist()))
+            throw new Error('Failed to update playlist in database');
 
         // The metadata action below updates PlaylistContextFacade; the routed
         // Xtream session observes connection changes and bootstraps fresh state.

@@ -773,6 +773,7 @@ export async function dropM3uPlaylistOntoWorkspace(
 export async function addXtreamPortal(
     page: Page,
     options: {
+        contentTypes?: ('live' | 'movie' | 'series')[];
         name?: string;
         password?: string;
         serverUrl?: string;
@@ -798,6 +799,14 @@ export async function addXtreamPortal(
     await setInputValue(dialog.locator('#serverUrl'), serverUrl);
     await setInputValue(dialog.locator('#username'), username);
     await setInputValue(dialog.locator('#password'), password);
+    if (options.contentTypes) {
+        for (const type of ['live', 'movie', 'series'] as const) {
+            await dialog
+                .getByTestId(`xtream-load-${type}`)
+                .getByRole('checkbox')
+                .setChecked(options.contentTypes.includes(type));
+        }
+    }
     const addButton = dialog
         .getByRole('button', { name: /^(add|add playlist)$/i })
         .last();

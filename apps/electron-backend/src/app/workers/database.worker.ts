@@ -975,6 +975,7 @@ async function executeRequest(
             const payload = message.payload as {
                 playlistId: string;
                 operationId?: string;
+                contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -996,7 +997,8 @@ async function executeRequest(
                         db,
                         payload.playlistId,
                         controller.control,
-                        capturePhase
+                        capturePhase,
+                        payload.contentTypes
                     );
 
                     controller.emitCompleted({

@@ -91,6 +91,23 @@
                         <input matInput formControlName="stalkerSignature2" />
                     </mat-form-field>
                 }
+                @if (
+                    playlist.serverUrl &&
+                    !playlist.portalUrl &&
+                    supportsXtreamSelection
+                ) {
+                    <app-xtream-content-selection
+                        [selected]="
+                            playlistDetails.controls['xtreamContentTypes'].value
+                        "
+                        (selectedChange)="
+                            playlistDetails.controls[
+                                'xtreamContentTypes'
+                            ].setValue($event);
+                            playlistDetails.markAsDirty()
+                        "
+                    />
+                }
                 @if (playlist.serverUrl) {
                     <mat-form-field class="w-full">
                         <mat-label>{{

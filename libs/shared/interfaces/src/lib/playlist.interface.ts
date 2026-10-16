@@ -63,6 +63,8 @@ export interface Playlist {
      * times in the clock the panel's `strtotime()` expects (issue #1562).
      */
     serverTimezone?: string;
+    /** Desktop Xtream catalogs to load. Missing means all; [] means none. */
+    xtreamContentTypes?: import('./xtream-content-selection').XtreamContentType[];
     /** Session token for full stalker portal authentication - persisted for session */
     stalkerToken?: string;
     /**

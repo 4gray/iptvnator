@@ -288,6 +288,32 @@ surviving pending state or backup. Opening an Xtream section may initialize
 content when its cache is not ready; startup imports and explicit refresh use
 the same durable persistence invariant. This does not add a refresh scheduler.
 
+## Desktop catalog selection
+
+Desktop source metadata optionally carries `xtreamContentTypes` using `live`,
+`movie`, and `series`. Missing means all types (legacy behavior); `[]` means
+load no catalogs. Add/Edit expose independent checkboxes only with the complete
+Xtream SQLite capability. PWA imports keep their existing all-catalog behavior.
+
+Electron category/content cache reads and imports honor the selection. Ordinary
+catalog search and recently-added SQL exclude disabled types; collection and
+identity reads deliberately do not. Disabling a type retains its cached rows so
+Favorites/history remain playable, with a disabled-type indication. It does not
+delete playback positions or offline files. Saved metadata includes the selection
+in startup projections without parsing large M3U payloads, and backups preserve
+it, including an explicit empty array.
+
+`XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
+fetching their category/content arrays before deleting their old cache. Cache
+delete carries an optional type scope through the worker bridge, snapshots all
+history/hidden-category state, and deletes only the requested catalogs. Ordinary
+Refresh supplies the source's enabled types. Disabled catalog rows remain intact;
+restore still sees the complete source's user state. Import completion and progress
+exclude intentionally skipped types.
+
+See [isolated Linux testing](../development/xtream-content-selection-testing.md)
+for the development build and manual validation checklist.
+
 ## PWA Collection Persistence
 
 Collection operations carry `{ id, type }`: `id` remains the SQLite row ID

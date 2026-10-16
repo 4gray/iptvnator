@@ -22,12 +22,17 @@ import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { createXtreamConnectionTestState } from '@iptvnator/services';
+import {
+    createXtreamConnectionTestState,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
+import { XtreamContentSelectionComponent } from '@iptvnator/ui/components';
 import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 import {
     createRandomId,
     extractXtreamCredentialsFromUrl,
     normalizeXtreamServerUrl,
+    XtreamContentType,
     Playlist,
 } from '@iptvnator/shared/interfaces';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
@@ -50,6 +55,7 @@ function xtreamServerUrlValidator(
 
 @Component({
     imports: [
+        XtreamContentSelectionComponent,
         FormsModule,
         MatFormFieldModule,
         MatIcon,
@@ -92,9 +98,14 @@ export class XtreamCodeImportComponent {
             xtreamServerUrlValidator,
         ]),
         importDate: new FormControl(new Date().toISOString()),
+        xtreamContentTypes: new FormControl<XtreamContentType[]>(
+            ['live', 'movie', 'series'],
+            { nonNullable: true }
+        ),
     });
 
     readonly store = inject(Store);
+    readonly runtime = inject(RuntimeCapabilitiesService);
     readonly connectionTest = createXtreamConnectionTestState(this.form);
     private readonly passwordToggle = viewChild(
         PasswordVisibilityToggleDirective
@@ -118,6 +129,7 @@ export class XtreamCodeImportComponent {
             username: '',
             serverUrl: '',
             importDate: new Date().toISOString(),
+            xtreamContentTypes: ['live', 'movie', 'series'],
         });
     }
 

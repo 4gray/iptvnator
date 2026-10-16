@@ -824,8 +824,17 @@ const electronApi: ElectronBridgeApi = {
     ) => ipcRenderer.invoke('DB_UPDATE_PLAYLIST', playlistId, updates),
     dbDeletePlaylist: (playlistId: string, operationId?: string) =>
         ipcRenderer.invoke('DB_DELETE_PLAYLIST', playlistId, operationId),
-    dbDeleteXtreamContent: (playlistId: string, operationId?: string) =>
-        ipcRenderer.invoke('DB_DELETE_XTREAM_CONTENT', playlistId, operationId),
+    dbDeleteXtreamContent: (
+        playlistId: string,
+        operationId?: string,
+        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_DELETE_XTREAM_CONTENT',
+            playlistId,
+            operationId,
+            ...(contentTypes === undefined ? [] : [contentTypes])
+        ),
     dbRestoreXtreamFavorites: (
         playlistId: string,
         favorites: XtreamBackupFavoriteItem[],

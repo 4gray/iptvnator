@@ -17,7 +17,10 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { SourceActivityService } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    normalizeXtreamContentTypes,
+} from '@iptvnator/shared/interfaces';
 
 function normalizeOptionalConnectionValue(
     value: string | null | undefined
@@ -47,6 +50,7 @@ function toXtreamPlaylistData(
         name: playlist.title || playlist.filename || 'Untitled playlist',
         title: playlist.title,
         updateDate: playlist.updateDate,
+        xtreamContentTypes: playlist.xtreamContentTypes,
         serverUrl: playlist.serverUrl,
         username: playlist.username,
         password: playlist.password,
@@ -137,30 +141,21 @@ function hasPlaylistConnectionChanges(
         return false;
     }
 
-    const currentUserAgent = normalizeOptionalConnectionValue(
-        currentPlaylist.userAgent
-    );
-    const nextUserAgent = normalizeOptionalConnectionValue(
-        nextPlaylist.userAgent
-    );
-    const currentReferrer = normalizeOptionalConnectionValue(
-        currentPlaylist.referrer
-    );
-    const nextReferrer = normalizeOptionalConnectionValue(
-        nextPlaylist.referrer
-    );
-    const currentOrigin = normalizeOptionalConnectionValue(
-        currentPlaylist.origin
-    );
-    const nextOrigin = normalizeOptionalConnectionValue(nextPlaylist.origin);
-
     return (
-        currentPlaylist.serverUrl !== nextPlaylist.serverUrl ||
-        currentPlaylist.username !== nextPlaylist.username ||
-        currentPlaylist.password !== nextPlaylist.password ||
-        currentUserAgent !== nextUserAgent ||
-        currentReferrer !== nextReferrer ||
-        currentOrigin !== nextOrigin
+        (['serverUrl', 'username', 'password'] as const).some(
+            (key) => currentPlaylist[key] !== nextPlaylist[key]
+        ) ||
+        (['userAgent', 'referrer', 'origin'] as const).some(
+            (key) =>
+                normalizeOptionalConnectionValue(currentPlaylist[key]) !==
+                normalizeOptionalConnectionValue(nextPlaylist[key])
+        ) ||
+        JSON.stringify(
+            normalizeXtreamContentTypes(currentPlaylist.xtreamContentTypes)
+        ) !==
+            JSON.stringify(
+                normalizeXtreamContentTypes(nextPlaylist.xtreamContentTypes)
+            )
     );
 }
 

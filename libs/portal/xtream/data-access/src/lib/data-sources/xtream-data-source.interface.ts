@@ -58,6 +58,7 @@ export interface XtreamPlaylistData {
     referrer?: string;
     origin?: string;
     serverTimezone?: string;
+    xtreamContentTypes?: XtreamContentType[];
     allowedOutputFormats?: string[];
 }
 
