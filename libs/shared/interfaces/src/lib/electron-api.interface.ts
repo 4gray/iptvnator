@@ -1080,7 +1080,8 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgeResult>;
     dbDeleteXtreamContent: (
         playlistId: string,
-        operationId?: string
+        operationId?: string,
+        contentTypes?: import('./xtream-content-selection').XtreamContentType[]
     ) => Promise<{
         success: boolean;
         favorites: XtreamBackupFavoriteItem[];

@@ -198,6 +198,7 @@ export class XtreamRefreshFlowService {
             const [restoreState, playbackPositions] = await Promise.all([
                 this.databaseService.deleteXtreamPlaylistContent(item._id, {
                     operationId,
+                    contentTypes: item.xtreamContentTypes,
                     onEvent: (event) => reporter.report(run, event),
                 }),
                 this.playbackPositionService.getAllPlaybackPositions(item._id),

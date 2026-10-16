@@ -126,6 +126,7 @@ export interface XtreamBackupUserState {
 
 export interface XtreamPlaylistBackupEntry extends PlaylistBackupBaseEntry {
     portalType: 'xtream';
+    xtreamContentTypes?: import('./xtream-content-selection').XtreamContentType[];
     connection: {
         serverUrl: string;
         username: string;

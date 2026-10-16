@@ -1,5 +1,9 @@
 import { reconcileCompletedFavoriteCatalog } from './favorite-catalog';
 import { eq, sql } from 'drizzle-orm';
+import {
+    normalizeXtreamContentTypes,
+    type XtreamContentType,
+} from '@iptvnator/shared/interfaces';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { Channel, M3uFavoriteChannel } from '@iptvnator/shared/interfaces';
 import {
@@ -255,15 +259,22 @@ export async function getAppPlaylistMetas(db: AppDatabase) {
             favorites: schema.playlists.favorites,
             recentlyViewed: schema.playlists.recentlyViewed,
             lastUsage: schema.playlists.lastUsage,
+            xtreamContentTypes: sql<
+                string | null
+            >`CASE WHEN ${schema.playlists.type} = 'xtream' THEN CASE WHEN json_valid(${schema.playlists.payload}) THEN CASE WHEN json_type(${schema.playlists.payload}, '$.xtreamContentTypes') = 'array' THEN json_extract(${schema.playlists.payload}, '$.xtreamContentTypes') END END END`,
         })
         .from(schema.playlists);
 
-    return rows.map((row) =>
-        parseAppPlaylist({
-            ...row,
-            payload: null,
-        } as schema.Playlist)
-    );
+    return rows.map((row) => ({
+        ...parseAppPlaylist({ ...row, payload: null } as schema.Playlist),
+        ...(row.xtreamContentTypes == null
+            ? {}
+            : {
+                  xtreamContentTypes: normalizeXtreamContentTypes(
+                      JSON.parse(row.xtreamContentTypes)
+                  ),
+              }),
+    }));
 }
 
 export async function getAppPlaylist(
@@ -379,7 +390,20 @@ export async function getPlaylist(db: AppDatabase, playlistId: string) {
     }
 
     const serverTimezone = readPayloadServerTimezone(row.payload);
-    return serverTimezone ? { ...row, serverTimezone } : row;
+    const payload = parseJsonValue<Record<string, unknown>>(row.payload, {});
+    if (!serverTimezone && payload?.xtreamContentTypes === undefined)
+        return row;
+    return {
+        ...row,
+        ...(serverTimezone ? { serverTimezone } : {}),
+        ...(payload?.xtreamContentTypes === undefined
+            ? {}
+            : {
+                  xtreamContentTypes: normalizeXtreamContentTypes(
+                      payload.xtreamContentTypes
+                  ),
+              }),
+    };
 }
 
 export async function updatePlaylist(
@@ -391,15 +415,25 @@ export async function updatePlaylist(
         password?: string;
         serverUrl?: string;
         lastUpdated?: string;
+        xtreamContentTypes?: XtreamContentType[];
     }
 ): Promise<{ success: boolean }> {
+    const { xtreamContentTypes, ...columns } = updates;
+    const payload =
+        columns.serverUrl === undefined
+            ? sql`${schema.playlists.payload}`
+            : serverTimezoneInvalidation(columns.serverUrl);
     await db
         .update(schema.playlists)
         .set({
-            ...updates,
-            ...(updates.serverUrl === undefined
-                ? {}
-                : { payload: serverTimezoneInvalidation(updates.serverUrl) }),
+            ...columns,
+            ...(xtreamContentTypes !== undefined
+                ? {
+                      payload: sql`json_set(CASE WHEN json_valid(${payload}) THEN ${payload} ELSE '{}' END, '$.xtreamContentTypes', json(${JSON.stringify(normalizeXtreamContentTypes(xtreamContentTypes))}))`,
+                  }
+                : columns.serverUrl === undefined
+                  ? {}
+                  : { payload }),
         })
         .where(eq(schema.playlists.id, playlistId));
 

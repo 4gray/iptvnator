@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { firstValueFrom, map } from 'rxjs';
@@ -392,7 +393,13 @@ export class UnifiedRecentDataService {
 
         try {
             const rows = await this.dbService.getGlobalRecentlyViewed();
+            const metas = new Map(
+                (await this.getAllMeta()).map((meta) => [meta._id, meta])
+            );
             return (rows || []).map((row) => ({
+                catalogDisabled: !normalizeXtreamContentTypes(
+                    metas.get(row.playlist_id)?.xtreamContentTypes
+                ).includes(xtreamContentType(row.type)),
                 uid: buildXtreamCollectionUid(
                     row.playlist_id,
                     xtreamContentType(row.type),
@@ -434,6 +441,9 @@ export class UnifiedRecentDataService {
 
             const rows = await this.dbService.getRecentItems(playlistId);
             return (rows || []).map((row) => ({
+                catalogDisabled: !normalizeXtreamContentTypes(
+                    meta?.xtreamContentTypes
+                ).includes(xtreamContentType(row.type)),
                 uid: buildXtreamCollectionUid(
                     playlistId,
                     xtreamContentType(row.type),

@@ -1,4 +1,10 @@
 <form [formGroup]="form">
+    @if (runtime.supportsXtreamSqliteDataSource) {
+        <app-xtream-content-selection
+            [selected]="form.controls.xtreamContentTypes.value"
+            (selectedChange)="form.controls.xtreamContentTypes.setValue($event)"
+        />
+    }
     <mat-form-field class="w-full">
         <mat-label for="title">{{
             'HOME.XTREAM_PLAYLIST.TITLE' | translate

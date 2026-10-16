@@ -184,6 +184,39 @@ describe('PlaylistBackupService export → import round-trip', () => {
 
     // The browser build applies an import at once (see the PWA Xtream spec),
     // so only the desktop leaves one pending while its catalog downloads.
+    it.each<{ selection: NonNullable<Playlist['xtreamContentTypes']> }>([
+        { selection: [] },
+        { selection: ['live'] },
+        { selection: ['movie', 'series'] },
+    ])(
+        'round-trips desktop content selection %p, including no catalogs',
+        async ({ selection }) => {
+            const state = seedState();
+            state.playlists.find(
+                (playlist) => playlist._id === 'xtream-1'
+            )!.xtreamContentTypes = [...selection];
+            const service = createPlaylistBackupService(
+                createStatefulBackupCollaborators(state)
+            );
+            const backup = await service.exportBackup();
+            expect(
+                (
+                    backup.manifest.playlists.find(
+                        (entry) => entry.portalType === 'xtream'
+                    ) as XtreamPlaylistBackupEntry
+                ).xtreamContentTypes
+            ).toEqual(selection);
+            state.playlists.find(
+                (playlist) => playlist._id === 'xtream-1'
+            )!.xtreamContentTypes = undefined;
+            expect((await service.importBackup(backup.json)).failed).toBe(0);
+            expect(
+                state.playlists.find((playlist) => playlist._id === 'xtream-1')
+                    ?.xtreamContentTypes
+            ).toEqual(selection);
+        }
+    );
+
     it('preserves a fresh pending import on re-export', async () => {
         const state = seedState();
         state.xtreamFavorites.push({

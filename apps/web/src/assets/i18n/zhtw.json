@@ -234,6 +234,8 @@
             "LABEL": "將 m3u（8）播放清單以純文字的方式插入"
         },
         "XTREAM_PLAYLIST": {
+            "CONTENT_TO_LOAD": "要載入的內容",
+            "CONTENT_TO_LOAD_HINT": "僅匯入和重新整理選取的類型。取消全部選取可暫停目錄載入；已儲存的項目和下載檔案會保留。",
             "TITLE": "播放清單標題",
             "SERVER_URL": "伺服器網址",
             "USERNAME": "使用者名稱",

@@ -61,7 +61,11 @@ playlist object graph is not the backup format.
 
 ### Xtream
 
-Xtream backups export only connection metadata plus portable user state.
+Xtream backups export connection metadata, desktop catalog selection, and portable user state.
+The optional top-level `xtreamContentTypes` array contains `live`, `movie`, and/or
+`series`; an empty array loads no catalogs, while absence retains legacy all-types
+behavior. Restore validates this field and replaces the destination's selection.
+Browser import preserves the metadata but does not apply desktop catalog filtering.
 
 - Connection metadata:
     - `serverUrl`

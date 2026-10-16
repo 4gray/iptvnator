@@ -72,6 +72,7 @@ export interface UnifiedFavoriteChannel {
     contentId?: number;
     favoriteId?: number;
     catalogStatus?: XtreamFavoriteCatalogStatus;
+    catalogDisabled?: boolean;
 
     /** Stalker portal credentials needed to resolve the live stream */
     stalkerPortalUrl?: string;
