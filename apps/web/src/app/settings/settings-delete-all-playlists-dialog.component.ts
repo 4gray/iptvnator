@@ -11,6 +11,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { ServerStorageStatusService } from '@iptvnator/services';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
+import {
+    DialogFooterDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 export interface SettingsDeleteAllPlaylistsDialogData {
     summary: {
@@ -35,6 +39,8 @@ type SettingsDeleteSummaryItem = {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CommonModule,
+        DialogFooterDirective,
+        DialogShellComponent,
         MatButtonModule,
         MatDialogModule,
         MatIconModule,

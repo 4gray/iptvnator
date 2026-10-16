@@ -8,10 +8,10 @@ app-dialog-shell {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    // The pane's height limit does not reach the shell through the dialog
-    // component and its wrappers (an inherited `max-height` is `none`
-    // there), so the shell caps itself at the viewport minus the preset's
-    // margins and the surface borders; only the body scrolls.
+    // An opener without a `maxHeight` leaves the pane unbounded, so the
+    // shell caps itself at the viewport minus the preset's margins and the
+    // surface borders; only the body scrolls. A pane limit tighter than
+    // this reaches the shell through the chain below.
     max-height: calc(100vh - 34px);
 
     // The shell draws its own section paddings and headline. Material's
@@ -68,6 +68,9 @@ app-dialog-shell {
 
 // Material names and pads the title from `.mat-mdc-dialog-container
 // .mat-mdc-dialog-title`; the header prefix matches that specificity.
+// A heading may be provider text (an episode's file name, a channel name)
+// with no break opportunity: it wraps anywhere rather than running under
+// the close button.
 .app-dialog__header .app-dialog__title {
     margin: 0;
     padding: 0;
@@ -76,6 +79,7 @@ app-dialog-shell {
     font-weight: 600;
     letter-spacing: -0.2px;
     line-height: 1.3;
+    overflow-wrap: anywhere;
 
     &::before {
         display: none;
@@ -87,6 +91,20 @@ app-dialog-shell {
     color: var(--app-body-color);
     font-size: 13px;
     line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+// The opener's `maxHeight` reaches Material's surface (`max-height:
+// inherit`), a flex column, but the dialog component between the surface
+// and the shell, and a form around the shell, are blocks that never shrink
+// below their content: a limit tighter than the cap above (an opener's
+// `90vh`) would leave the surface scrolling the whole dialog, with the
+// header's top cut off. Those ancestors become shrinkable flex columns, so
+// the shell sizes from the surface and only the body scrolls.
+.mat-mdc-dialog-surface :has(app-dialog-shell) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .app-dialog__body {
@@ -95,6 +113,14 @@ app-dialog-shell {
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
+
+    // A child cannot size itself from the body's height (a flex item's
+    // height is indefinite for percentages), so a column body lets the
+    // child flex to the space left and own the scrolling instead.
+    &--column {
+        display: flex;
+        flex-direction: column;
+    }
 }
 
 .app-dialog__header-end {
@@ -166,14 +192,19 @@ app-dialog-shell {
 // Short windows: a stacked footer can take most of the cap and leave the
 // body a sliver, so the cap comes off and Material's surface scrolls the
 // whole dialog as the single scroll owner, as it did before the shell.
+// A dialog without a footer has no such footer to protect and keeps its
+// header in place with the body scrolling: the header close is its only
+// in-dialog dismissal, and a scrolling surface would carry it away.
 @media (max-height: 600px) {
-    app-dialog-shell {
+    app-dialog-shell:not(.app-dialog--footerless) {
         max-height: none;
-    }
+        // Not shrunk by the surface either: it scrolls the whole shell.
+        flex-shrink: 0;
 
-    .app-dialog__body {
-        flex: none;
-        overflow: visible;
+        .app-dialog__body {
+            flex: none;
+            overflow: visible;
+        }
     }
 }
 

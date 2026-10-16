@@ -1180,6 +1180,21 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   action or a notice at the footer's start, `appDialogHeaderEnd` a chip
   before the close button); a conditional action sits inside the wrapper,
   since a control-flow block at the top level is projected into the body.
+  Every dialog uses it, apart from three that draw their own surface by
+  design: the command palette, the programme dialog and the EPG import
+  panel (a floating panel, not a dialog). A dialog with a hero band (the
+  account info and channel details dialogs) keeps the band as the body's
+  first block, edge to edge through negative margins, with its title and
+  subtitle in the shell's header and its status pills in
+  `appDialogHeaderEnd`; a media dialog (trailer, episode info) does the
+  same with its frame or still. Widths come from `dialogSize()`; the two
+  account dialogs keep their wider explicit width for their stats grid, and
+  the trailer its 880px for a 16:9 frame. A picker whose list should scroll
+  under fixed search and bulk actions sets `bodyLayout="column"`: the body
+  becomes a flex column, its wrapper `flex: 1 1 auto; min-height: 0` and
+  the list `flex: 1; overflow-y: auto`. A child cannot size itself from the
+  body's height (`height: 100%` never resolves on a flex item), so without
+  it the whole body scrolls and the controls scroll away.
   Footer
   buttons take the kit look from the shell: `mat-button` ghost,
   `mat-flat-button` accent, `mat-flat-button.app-dialog__secondary`
@@ -1188,10 +1203,12 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   tinted blurred backdrop) is global in `m3-theme.scss` and reaches every
   dialog; a dialog that draws its own surface strips it through its panel
   class, as the command palette and the programme dialog do.
-  The shell caps itself at the viewport minus the preset's margins and
+  The shell sizes from the surface, so an opener's tighter `maxHeight`
+  holds, caps itself at the viewport minus the preset's margins otherwise, and
   lets only the body scroll; under 600px of height the cap comes off and the
   surface scrolls the whole dialog, so a stacked footer never squeezes the
-  body to a sliver.
+  body to a sliver. A dialog without a footer keeps its body scrolling
+  there: its header × is its only in-dialog dismissal and stays in place.
 - **Dismiss.** The shell's header × (named "Close dialog", so a footer
   "Close" stays the only button of that name) and the footer
   "Cancel"/"Close" both dismiss; a dialog never adds a second footer

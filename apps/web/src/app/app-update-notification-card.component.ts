@@ -158,14 +158,8 @@ export class AppUpdateNotificationCardComponent {
         }
         const { AppUpdateReleaseNotesDialogComponent } = dialogModule;
 
-        this.dialog.open(AppUpdateReleaseNotesDialogComponent, {
-            autoFocus: false,
-            data: {
-                initialVersion: status.latestVersion,
-            },
-            maxWidth: 'calc(100vw - 32px)',
-            restoreFocus: true,
-            width: '720px',
+        AppUpdateReleaseNotesDialogComponent.open(this.dialog, {
+            initialVersion: status.latestVersion,
         });
     }
 

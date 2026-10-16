@@ -306,11 +306,7 @@ export class GlobalFavoritesListComponent {
         }
 
         this.channelContextMenu().close();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
-        });
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     removeContextMenuChannel(): void {

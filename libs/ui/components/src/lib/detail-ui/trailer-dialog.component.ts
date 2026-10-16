@@ -3,6 +3,8 @@ import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
+import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
+import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
 
 export interface TrailerDialogData {
     /** A `youtube-nocookie.com/embed/...` URL, see `youtubeEmbedUrl`. */
@@ -11,14 +13,25 @@ export interface TrailerDialogData {
 }
 
 /**
- * The trailer, as a 16:9 YouTube embed in a modal over the details column.
- * Escape and the backdrop close it; the title row keeps the single Close.
+ * The trailer, as a 16:9 YouTube embed in a modal over the details column,
+ * in the dialog shell: the heading names it, the frame fills the body and
+ * the footer keeps a Close beside the header's.
  */
 @Component({
     selector: 'app-trailer-dialog',
-    imports: [MatDialogModule, MatButtonModule, TranslatePipe],
+    imports: [
+        DialogFooterDirective,
+        DialogShellComponent,
+        MatDialogModule,
+        MatButtonModule,
+        TranslatePipe,
+    ],
     template: `
-        <div class="trailer">
+        <app-dialog-shell
+            [heading]="
+                'PORTALS.DETAIL.TRAILER_OF' | translate: { title: data.title }
+            "
+        >
             <div class="trailer__frame">
                 <iframe
                     class="trailer__iframe"
@@ -29,35 +42,28 @@ export interface TrailerDialogData {
                     allowfullscreen
                 ></iframe>
             </div>
-            <div class="trailer__bar">
-                <h2 mat-dialog-title class="trailer__title">
-                    {{ 'PORTALS.DETAIL.TRAILER_OF' | translate: { title: data.title } }}
-                </h2>
+            <div appDialogFooter>
                 <button
-                    mat-flat-button
+                    mat-button
                     type="button"
-                    class="trailer__close"
                     mat-dialog-close
                     data-test-id="trailer-dialog-close"
                 >
                     {{ 'CLOSE' | translate }}
                 </button>
             </div>
-        </div>
+        </app-dialog-shell>
     `,
     styles: `
         :host {
             display: block;
         }
 
-        .trailer {
-            display: flex;
-            flex-direction: column;
-        }
-
+        // The 16:9 frame fills the body edge to edge: it cancels the
+        // body's 20px padding.
         .trailer__frame {
             position: relative;
-            width: 100%;
+            margin: -20px;
             aspect-ratio: 16 / 9;
             background: #000;
         }
@@ -68,36 +74,6 @@ export interface TrailerDialogData {
             width: 100%;
             height: 100%;
             border: 0;
-        }
-
-        .trailer__bar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-        }
-
-        // Keeps the directive (the dialog's accessible name) but drops
-        // Material's headline padding and the 40px strut before it.
-        .trailer__title {
-            flex: 1 1 auto;
-            min-width: 0;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            font-size: 14px;
-            font-weight: 600;
-            line-height: 1.3;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-
-            &::before {
-                display: none;
-            }
-        }
-
-        .trailer__close {
-            flex: 0 0 auto;
         }
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,

@@ -16,6 +16,13 @@ import {
 } from './dialog-shell.directives';
 
 export type DialogIconTone = 'default' | 'warn';
+/**
+ * How the body lays out its content. `block` is a normal flow; `column`
+ * makes the body a flex column, so a child can take the height left under
+ * the dialog's cap and own the scrolling (a picker whose search and bulk
+ * actions stay put while its list scrolls).
+ */
+export type DialogBodyLayout = 'block' | 'column';
 
 /**
  * The UI kit's dialog shell: a header with an optional icon tile, the
@@ -44,6 +51,10 @@ export type DialogIconTone = 'default' | 'warn';
     // `app-dialog__*` classes.
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.OnPush,
+    // A footer-less dialog keeps its body as the scroll owner in a short
+    // window (see the stylesheet): its header close is its only in-dialog
+    // dismissal and must stay in place.
+    host: { '[class.app-dialog--footerless]': '!hasFooter()' },
 })
 export class DialogShellComponent {
     /** The translated heading; it names the dialog for assistive tech. */
@@ -52,8 +63,15 @@ export class DialogShellComponent {
     /** A Material icon name for the 40px tile before the heading. */
     readonly icon = input<string>();
     readonly iconTone = input<DialogIconTone>('default');
-    /** The header close button; Escape and the backdrop still close. */
+    /**
+     * The header close button. It closes with no result, as Escape and the
+     * backdrop do, so a caller that reads the result sees a cancel. A dialog
+     * that must not be dismissed while it works (a save or a deletion in
+     * flight) hides it meanwhile, since `mat-dialog-close` ignores
+     * `disableClose`.
+     */
     readonly showClose = input(true);
+    readonly bodyLayout = input<DialogBodyLayout>('block');
 
     private readonly footer = contentChild(DialogFooterDirective);
     private readonly footerStart = contentChild(DialogFooterStartDirective);

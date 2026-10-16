@@ -20,6 +20,10 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { StalkerCategoryItem } from '@iptvnator/portal/stalker/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 import { ParentalLockStalkerCategoryType } from '@iptvnator/shared/interfaces';
+import {
+    DialogFooterDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 export interface StalkerCategoryLockDialogData {
     playlistId: string;
@@ -43,6 +47,8 @@ interface LockableCategory {
 @Component({
     selector: 'app-stalker-category-lock-dialog',
     imports: [
+        DialogFooterDirective,
+        DialogShellComponent,
         MatButtonModule,
         MatDialogModule,
         MatIconModule,

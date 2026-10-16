@@ -681,6 +681,51 @@ describe('ServerUserDataStorage taking over other page loads', () => {
 
             expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'Y']);
         });
+
+        it('keeps them oldest first when the adopting duplicate cannot save', async () => {
+            const { server, local } = journals();
+            const tabStore = memoryStorage();
+            keepPages(tabStore, 'default', 'newer', ['older']);
+            markUnconfirmed(local, 'default', 'newer', ['xtream-favorites|p1']);
+            const offline = {
+                ...server.api,
+                sendJson: jest.fn(() =>
+                    Promise.reject(new ServerApiError(0, 'network', 'offline'))
+                ),
+            } as never;
+            const duplicate = new ServerUserDataStorage(
+                offline,
+                local,
+                jest.fn(),
+                'default',
+                tabStore
+            );
+            markClosed(local, 'default', 'newer');
+            // Storage is full: the duplicate keeps both copies it adopts.
+            const setItem = local.setItem;
+            local.setItem = (key: string, value: string) => {
+                if (key.startsWith('iptvnator-server:unsent-writes:')) {
+                    throw new DOMException('full', 'QuotaExceededError');
+                }
+                setItem(key, value);
+            };
+            duplicate.touch();
+            duplicate.close();
+            local.setItem = setItem;
+
+            // Reloaded before it sent anything: the kept copies come back.
+            await send(
+                new ServerUserDataStorage(
+                    server.api as never,
+                    local,
+                    jest.fn(),
+                    'default',
+                    tabStore
+                )
+            );
+
+            expect(server.state['xtream-favorites']['p1']).toEqual(['S', 'Y']);
+        });
     });
 
     it('lands a page-hide batch before a flush scheduled in the same turn', async () => {
