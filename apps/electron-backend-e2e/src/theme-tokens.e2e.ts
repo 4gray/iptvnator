@@ -336,11 +336,15 @@ test.describe('Theme tokens', () => {
                 .locator('.epg-source-row input')
                 .first()
                 .fill(epgServer.resourceUrl);
-            await page.getByTestId('epg-source-refresh').click();
             const panel = page.locator('.epg-progress-panel');
-            await expect(
-                panel.locator('.import-item.status-complete')
-            ).toBeVisible();
+            // A completed import leaves the panel five seconds later, so
+            // each theme imports the source again right before measuring.
+            const importGuide = async () => {
+                await page.getByTestId('epg-source-refresh').click();
+                await expect(
+                    panel.locator('.import-item.status-complete')
+                ).toBeVisible();
+            };
 
             // The update notification appears when the main process
             // announces an update on the renderer's status channel.
@@ -357,6 +361,7 @@ test.describe('Theme tokens', () => {
 
             for (const theme of ['light', 'dark'] as const) {
                 await applyTheme(page, theme);
+                await importGuide();
                 const surface = await resolveColor(
                     page,
                     'var(--app-widget-bg)',
