@@ -130,10 +130,16 @@ export class EpgService {
                         this.clearCache();
                         this.epgAvailable.next(true);
                     } else {
-                        // Every failed source is a row of the import panel,
-                        // with its error and a Retry; a toast would repeat
-                        // the backend's text beside that row.
                         this.epgAvailable.next(false);
+                        // With progress reporting, every failed source is a
+                        // row of the import panel, with its error and a
+                        // Retry; a toast would repeat the backend's text
+                        // beside that row. A runtime that imports without
+                        // reporting progress has no row, so it keeps the
+                        // generic toast.
+                        if (!this.epgBridge.supportsProgress) {
+                            this.showErrorSnackbar();
+                        }
                     }
                 }),
                 catchError((err) => {

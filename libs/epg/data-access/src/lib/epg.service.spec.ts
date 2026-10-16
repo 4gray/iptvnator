@@ -32,6 +32,7 @@ describe('EpgService', () => {
             getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
             supportsCurrentProgramBatch: false,
             supportsImport: false,
+            supportsProgress: true,
             supportsProgramLookup: false,
         };
         snackBar = {
@@ -246,6 +247,25 @@ describe('EpgService', () => {
 
         expect(availability).toEqual([false]);
         expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('keeps the generic toast for a failed batch when the runtime reports no import progress', async () => {
+        epgBridge.supportsImport = true;
+        epgBridge.supportsProgress = false;
+        (epgBridge.fetchEpg as jest.Mock).mockResolvedValue({
+            success: false,
+            message: 'database is locked',
+        });
+
+        await service.fetchEpg(['https://example.com/epg.xml']);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // No panel row can carry the failure, and the backend's text is
+        // still not what the user sees.
+        expect(snackBar.open).toHaveBeenCalledTimes(1);
+        expect(snackBar.open).toHaveBeenCalledWith('EPG.ERROR', 'CLOSE', {
+            duration: 3000,
+        });
     });
 
     it('shows the generic toast at the default position when the bridge call itself fails', async () => {

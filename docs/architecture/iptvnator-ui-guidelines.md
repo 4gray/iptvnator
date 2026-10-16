@@ -1271,8 +1271,10 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   bar) or the error tint (`settings-snackbar--error`), never a position of
   its own. A failure the import panel already reports (a source's error row
   with Retry) gets no toast; `EpgService` toasts only when the bridge call
-  itself fails or a programme lookup errors, with the translated generic
-  message, never the backend's text.
+  itself fails, a programme lookup errors, or the runtime imports without
+  reporting progress (`supportsProgress` false: no row can carry the
+  failure), always with the translated generic message, never the
+  backend's text.
 
 ## Forms
 
