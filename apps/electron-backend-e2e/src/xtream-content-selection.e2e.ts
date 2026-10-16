@@ -5,6 +5,7 @@ import {
     expect,
     launchElectronApp,
     openSources,
+    sourceRowByTitle,
     openSourceEditor,
     saveSourceDialog,
     refreshSource,
@@ -107,6 +108,11 @@ test('desktop shows scanning for newly enabled Movies and Series and preserves a
             'get_live_streams',
         ]);
 
+        await expect(page).toHaveURL(/\/live(?:\?.*)?$/);
+        await openSources(page);
+        await sourceRowByTitle(page, 'Selective Xtream')
+            .locator('.source-row__name')
+            .click();
         await expect(page).toHaveURL(/\/live(?:\?.*)?$/);
         await openSources(page);
         let dialog = await openSourceEditor(page, 'Selective Xtream');

@@ -181,6 +181,44 @@ describe('RecentPlaylistsComponent', () => {
 
     const ids = () => component.visiblePlaylists().map((p) => p._id);
 
+    it.each<{
+        types: PlaylistMeta['xtreamContentTypes'];
+        section: string | null;
+    }>([
+        { types: ['movie'], section: 'vod' },
+        { types: ['live'], section: 'live' },
+        { types: ['series'], section: 'series' },
+        { types: ['live', 'movie'], section: 'vod' },
+        { types: ['series', 'movie'], section: 'vod' },
+        { types: ['series', 'live'], section: 'live' },
+        { types: ['series', 'live', 'movie'], section: 'vod' },
+        { types: [], section: null },
+        { types: undefined, section: 'vod' },
+    ])(
+        'opens an enabled section when reopening $types',
+        ({ types, section }) => {
+            component.open({ ...XTREAM, xtreamContentTypes: types });
+            expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith([
+                '/workspace',
+                'xtreams',
+                XTREAM._id,
+                ...(section ? [section] : []),
+            ]);
+        }
+    );
+
+    it('preserves browser navigation without applying desktop catalog selections', () => {
+        Object.assign(TestBed.inject(RuntimeCapabilitiesService), {
+            supportsXtreamSqliteDataSource: false,
+        });
+        component.open({ ...XTREAM, xtreamContentTypes: ['live'] });
+        expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith([
+            '/workspace',
+            'xtreams',
+            XTREAM._id,
+        ]);
+    });
+
     it('lists every source as a row in the chosen order', () => {
         expect(ids()).toEqual(['m3u', 'xtream', 'file']);
         expect(
