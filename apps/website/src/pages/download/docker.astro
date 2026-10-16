@@ -11,11 +11,18 @@ import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.a
 import PlatformSwitcher from '../../components/download/PlatformSwitcher.astro';
 import RelatedPosts from '../../components/download/RelatedPosts.astro';
 import SpecList from '../../components/download/SpecList.astro';
+import { getCollection } from 'astro:content';
 import type { FaqEntry } from '../../lib/download-schema';
 import { REPO_URL } from '../../lib/downloads';
 import { absoluteUrl } from '../../lib/site';
 
 const pageUrl = absoluteUrl('/download/docker/');
+// The self-hosting guide is linked only once its post is published (or drafts are included),
+// so the page never points at a blog URL the build left out.
+const includeDrafts = import.meta.env.DEV || import.meta.env.PUBLIC_INCLUDE_DRAFTS === 'true';
+const GUIDE_SLUG = 'self-hosted-server-storage-guide';
+const guidePost = (await getCollection('blog')).find((post) => post.id === GUIDE_SLUG);
+const guideHref = guidePost && (includeDrafts || !guidePost.data.draft) ? `/iptvnator/blog/${GUIDE_SLUG}/` : null;
 const DOCKER_HUB_URL = 'https://hub.docker.com/r/4gray/iptvnator';
 const DOCKER_README_URL = `${REPO_URL}/blob/master/docker/README.md`;
 const COMPOSE_URL = `${REPO_URL}/blob/master/docker/docker-compose.yml`;
@@ -290,9 +297,14 @@ const jsonLd = [
         <p>
           Sources, favorites, history and playback positions are stored in a database on the container volume, and
           every browser that opens the instance shares them. Settings, parental locks and UI preferences stay in
-          each browser. Keep the volume when you replace the container, and back it up like any database; the{' '}
-          <a href="/iptvnator/blog/self-hosted-server-storage-guide/" class="text-accent-300 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-200">self-hosting guide</a>{' '}
-          walks through the setup, the access token and backups.
+          each browser. Keep the volume when you replace the container, and back it up like any database.
+          {guideHref && (
+            <>
+              {' '}The{' '}
+              <a href={guideHref} class="text-accent-300 underline decoration-accent-500/30 underline-offset-4 transition-colors hover:text-accent-200">self-hosting guide</a>{' '}
+              walks through the setup, the access token and backups.
+            </>
+          )}
         </p>
       </Alert>
     </div>
@@ -332,7 +344,9 @@ const jsonLd = [
   <DownloadSection id="more" eyebrow="Go deeper" title="Details live" accent="in the repository" lead="This page covers the decisions. The docker README covers every variable, the IPv6 fallback, private certificate authorities and how the image is built.">
     <LinkCards
       links={[
-        { label: 'Self-hosting guide', href: '/iptvnator/blog/self-hosted-server-storage-guide/', hint: 'Compose file for a NAS, the access token, HTTPS behind a reverse proxy, backups and updates.', icon: 'docs' },
+        ...(guideHref
+          ? [{ label: 'Self-hosting guide', href: guideHref, hint: 'Compose file for a NAS, the access token, HTTPS behind a reverse proxy, backups and updates.', icon: 'docs' as const }]
+          : []),
         { label: 'docker/README.md', href: DOCKER_README_URL, hint: 'Runtime configuration, image tags, IPv6 and VPN notes, local validation.', icon: 'github' },
         { label: 'Desktop app vs browser version', href: '/iptvnator/compare/desktop-vs-browser/', hint: 'The full capability table for the two editions.', icon: 'docs' },
         { label: 'Download the desktop app', href: '/iptvnator/download/', hint: 'Windows, macOS and Linux builds with every desktop feature.', icon: 'download' },

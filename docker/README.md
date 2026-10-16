@@ -1,10 +1,8 @@
 # Self-hosted IPTVnator
 
 User-facing overview with quick start, variables and FAQ:
-<https://4gray.github.io/iptvnator/download/docker/>. Step-by-step setup on a
-NAS with server storage, the access token, HTTPS and backups:
-<https://4gray.github.io/iptvnator/blog/self-hosted-server-storage-guide/>.
-This file is the reference behind both.
+<https://4gray.github.io/iptvnator/download/docker/>. This file is the
+reference behind it.
 
 The self-hosted image contains both pieces required for the browser PWA:
 

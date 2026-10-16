@@ -100,6 +100,10 @@ const GUIDES = [
     slug: 'tmdb-metadata-guide',
     screenshots: ['blog/guides/screenshots/guide-tmdb-settings-dark.png'],
   },
+];
+
+/** Guides still marked `draft: true`: built, and therefore checked, only with PUBLIC_INCLUDE_DRAFTS. */
+const DRAFT_ONLY_GUIDES = [
   {
     slug: 'self-hosted-server-storage-guide',
     screenshots: [
@@ -108,6 +112,10 @@ const GUIDES = [
     ],
   },
 ];
+
+if (process.env.PUBLIC_INCLUDE_DRAFTS === 'true') {
+  GUIDES.push(...DRAFT_ONLY_GUIDES);
+}
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');
 
@@ -141,7 +149,7 @@ const HUB_GROUPS = ['getting-started', 'live-tv-epg', 'playback', 'library', 'up
 const DRAFT_GUIDES = [
   'm3u-programme-guide', 'stable-nightly-updates-guide', 'fullscreen-channel-episode-guide',
   'player-controls-guide', 'stream-info-diagnostics-guide', 'playlist-backup-restore-guide',
-  'library-organization-guide',
+  'library-organization-guide', 'self-hosted-server-storage-guide',
 ];
 
 test('guides hub groups working article links by task and keeps draft visibility consistent', async () => {
