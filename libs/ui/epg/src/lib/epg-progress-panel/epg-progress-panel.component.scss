@@ -1,0 +1,22 @@
+@use '../../../../styles/app-controls' as controls;
+
+// The notice shown when the panel's chunk failed to load: the same floating
+// frame and anchor as the panel it stands in for.
+.epg-progress-panel-unavailable {
+    @include controls.floating-panel;
+    position: fixed;
+    bottom: 20px;
+    left: 76px;
+    z-index: 900;
+    width: 300px;
+    max-width: calc(100vw - 96px);
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+    .epg-progress-panel-unavailable {
+        left: 12px;
+    }
+}

@@ -130,8 +130,10 @@ export class EpgService {
                         this.clearCache();
                         this.epgAvailable.next(true);
                     } else {
+                        // Every failed source is a row of the import panel,
+                        // with its error and a Retry; a toast would repeat
+                        // the backend's text beside that row.
                         this.epgAvailable.next(false);
-                        this.showErrorSnackbar(result.message);
                     }
                 }),
                 catchError((err) => {
@@ -171,14 +173,16 @@ export class EpgService {
     }
 
     /**
-     * Shows error snackbar
+     * The generic EPG failure toast, for failures no import panel row
+     * reports (the bridge call itself, a programme lookup). Material's
+     * default bottom-centre position, as every other toast.
      */
-    private showErrorSnackbar(message?: string): void {
-        const errorMessage = message || this.translate.instant('EPG.ERROR');
-        void this.snackBar.open(errorMessage, this.translate.instant('CLOSE'), {
-            duration: 3000,
-            horizontalPosition: 'start',
-        });
+    private showErrorSnackbar(): void {
+        void this.snackBar.open(
+            this.translate.instant('EPG.ERROR'),
+            this.translate.instant('CLOSE'),
+            { duration: 3000 }
+        );
     }
 
     /**

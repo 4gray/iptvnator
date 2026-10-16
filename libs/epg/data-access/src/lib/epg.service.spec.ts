@@ -230,6 +230,40 @@ describe('EpgService', () => {
         expect(snackBar.open).not.toHaveBeenCalled();
     });
 
+    it('leaves a failed batch to the import panel instead of repeating its message in a toast', async () => {
+        epgBridge.supportsImport = true;
+        (epgBridge.fetchEpg as jest.Mock).mockResolvedValue({
+            success: false,
+            message: 'database is locked',
+        });
+        const availability: boolean[] = [];
+        service.epgAvailable$.pipe(skip(1)).subscribe((available) => {
+            availability.push(available);
+        });
+
+        await service.fetchEpg(['https://example.com/epg.xml']);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(availability).toEqual([false]);
+        expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('shows the generic toast at the default position when the bridge call itself fails', async () => {
+        epgBridge.supportsImport = true;
+        (epgBridge.fetchEpg as jest.Mock).mockRejectedValue(
+            new Error('bridge unavailable')
+        );
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        await service.fetchEpg(['https://example.com/epg.xml']);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(snackBar.open).toHaveBeenCalledTimes(1);
+        expect(snackBar.open).toHaveBeenCalledWith('EPG.ERROR', 'CLOSE', {
+            duration: 3000,
+        });
+    });
+
     it('returns an empty batch result when the desktop bridge is unavailable', async () => {
         const result = await firstValueFrom(
             service.getCurrentProgramsForChannels(['channel-1'])
