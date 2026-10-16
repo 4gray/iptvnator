@@ -3,9 +3,9 @@ import { keepPages } from './server-page-pointer';
 import {
     markClosed,
     markUnconfirmed,
-    saveUnsentWrites,
     UNCONFIRMED_TTL_MS,
-} from './server-unsent-writes';
+} from './server-page-registry';
+import { saveUnsentWrites } from './server-unsent-writes';
 import { ServerUserDataStorage } from './server-user-data-storage';
 import { fakeServer, memoryStorage } from './server-user-data.test-helpers';
 

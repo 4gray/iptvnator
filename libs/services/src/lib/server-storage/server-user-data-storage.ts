@@ -1,46 +1,29 @@
 import {
     isServerUserStateNamespace,
-    SERVER_USER_STATE_NAMESPACES,
     type ServerUserStateNamespace,
     type ServerUserStateResponse,
 } from '@iptvnator/shared/interfaces';
 import type { UserDataStorage } from '../user-data-storage';
 import type { ServerApiClient } from './server-api-client';
-import {
-    addStep,
-    idMap,
-    parseMap,
-    splitEditKey,
-    UNKNOWN_TAG,
-} from './server-user-data-entries';
+import { addStep, parseMap, splitEditKey } from './server-user-data-entries';
 import {
     adoptPageEdits,
-    extendUnsent,
     restorePage,
     settleWrites,
 } from './server-user-data-adopt';
-import { keepPages, swapPage } from './server-page-pointer';
+import { swapPage } from './server-page-pointer';
 import { UserDataCache } from './server-user-data-cache';
 import {
     changedEntries,
     type DeferredEdit,
     mergeEdits,
-    refreshedNamespace,
     withoutDeleted,
 } from './server-user-data-edit';
-import { type ServerApi, UserDataWriteQueue } from './server-user-data-queue';
-import {
-    claimCache,
-    hasRecord,
-    markClosed,
-    markUnconfirmed,
-    orphanedPages,
-    pageIsLive,
-    othersUnconfirmed,
-    removePage,
-    saveDeferredEdits,
-    saveUnsentWrites,
-} from './server-unsent-writes';
+import { applyServerRead, queueEarlyEdits } from './server-user-data-hydrate';
+import { PageJournal } from './server-user-data-journal';
+import { UserDataWriteQueue } from './server-user-data-queue';
+import type { ServerApi } from './server-user-data-send';
+import { claimCache } from './server-unsent-writes';
 
 /**
  * Write-through `USER_DATA_STORAGE` for server mode. Synced namespaces are
@@ -52,7 +35,8 @@ import {
  */
 export class ServerUserDataStorage implements UserDataStorage {
     private readonly writes: UserDataWriteQueue;
-    private unsentSaved = false;
+    /** This page load's copy of what the server has not confirmed. */
+    private readonly journal: PageJournal;
     /**
      * Edits made before the first successful read: the cache they were
      * made against may be empty or old, so they are replayed on the
@@ -62,14 +46,10 @@ export class ServerUserDataStorage implements UserDataStorage {
     private hydrated = false;
     /** The previous page load in this tab, while it still looks live. */
     private awaited: string[] = [];
-    /** A record stands for this page: a stale one is adopted elsewhere. */
-    private recorded = false;
     /** Playlists deleted here, in order: a read sent earlier skips them. */
     private readonly deleted: (string | undefined)[] = [];
     /** Closed tabs' page loads this one took over (once each). */
     private readonly adopted = new Set<string>();
-    /** Page loads taken over whose copy stays until this one saves. */
-    private readonly retained = new Set<string>();
     /** This page load: names its saved writes and its registry record. */
     private readonly tabId = Math.random().toString(36).slice(2);
     private readonly cache: UserDataCache;
@@ -95,16 +75,24 @@ export class ServerUserDataStorage implements UserDataStorage {
          * The tab's own storage (`sessionStorage` in the app): remembers
          * its page load, so a reload takes over the writes it saved.
          */
-        private readonly tabStore: UserDataStorage = local
+        tabStore: UserDataStorage = local
     ) {
         this.cache = new UserDataCache(local, instanceId);
         this.writes = new UserDataWriteQueue(api, {
-            changed: () => this.saveUnsent(),
+            changed: () => this.journal.saveUnsent(),
             show: (namespace, playlistId, value) =>
                 this.cache.setEntry(namespace, playlistId, value),
             writeFailed: onWriteFailure,
-            maySend: () => !this.superseded(),
+            maySend: () => !this.journal.superseded(),
         });
+        this.journal = new PageJournal(
+            local,
+            instanceId,
+            this.tabId,
+            tabStore,
+            this.writes,
+            this.deferred
+        );
         claimCache(local, instanceId);
         const [previous, ...kept] = swapPage(tabStore, instanceId, this.tabId);
         // Older page loads whose copies a reload kept come first.
@@ -112,7 +100,7 @@ export class ServerUserDataStorage implements UserDataStorage {
         // A duplicated tab copies the page load of a tab that still runs,
         // and the ones it keeps; so does a reload whose close flag could not
         // be saved: `touch` adopts them once it no longer looks live.
-        if (previous && pageIsLive(local, instanceId, previous)) {
+        if (previous && this.journal.isLive(previous)) {
             this.awaited = pages;
         } else {
             pages.forEach((page) => this.takeOver(page));
@@ -121,7 +109,7 @@ export class ServerUserDataStorage implements UserDataStorage {
 
     /** The page unloads: a reload of this tab may take its writes over. */
     close(): void {
-        markClosed(this.local, this.instanceId, this.tabId);
+        this.journal.close();
     }
 
     /**
@@ -138,9 +126,12 @@ export class ServerUserDataStorage implements UserDataStorage {
         );
         // Saved under this page load before the old one is forgotten; if
         // storage refuses the copy, the old one stays.
-        const saved = [this.saveDeferred(), this.saveUnsent()].every(Boolean);
-        this.publishUnconfirmed();
-        this.release(page, saved);
+        const saved = [
+            this.journal.saveDeferred(),
+            this.journal.saveUnsent(),
+        ].every(Boolean);
+        this.journal.publishUnconfirmed();
+        this.journal.release(page, saved);
     }
 
     /**
@@ -148,11 +139,9 @@ export class ServerUserDataStorage implements UserDataStorage {
      * shows now and queued with its writes, then forgotten there.
      */
     private adoptClosedTabs(): void {
-        for (const page of orphanedPages(
-            this.local,
-            this.instanceId,
-            this.tabId
-        ).filter((page) => !this.adopted.has(page))) {
+        for (const page of this.journal
+            .orphans()
+            .filter((page) => !this.adopted.has(page))) {
             this.adoptPage(page);
         }
     }
@@ -167,7 +156,7 @@ export class ServerUserDataStorage implements UserDataStorage {
         });
         this.adopted.add(page);
         // The other page's copy goes only once this tab saved its own.
-        this.release(page, this.saveUnsent());
+        this.journal.release(page, this.journal.saveUnsent());
         this.writes.scheduleFlush();
     }
 
@@ -175,7 +164,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     touch(): void {
         const pages = this.awaited;
         const owner = pages[pages.length - 1];
-        if (owner && !pageIsLive(this.local, this.instanceId, owner)) {
+        if (owner && !this.journal.isLive(owner)) {
             // This page may have read and edited since: adopt, not restore.
             // Each adopted page goes ahead of what is queued: newest first.
             this.awaited = [];
@@ -187,7 +176,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             this.adoptClosedTabs();
         }
         if (this.hasUnsentWrites()) {
-            this.publishUnconfirmed();
+            this.journal.publishUnconfirmed();
         }
     }
 
@@ -198,18 +187,8 @@ export class ServerUserDataStorage implements UserDataStorage {
      * instead).
      */
     resumed(): boolean {
-        this.publishUnconfirmed();
-        return !this.superseded();
-    }
-
-    /**
-     * Its record is gone: another tab took this page's writes over, so
-     * nothing more of them goes out or is saved here.
-     */
-    private superseded(): boolean {
-        return (
-            this.recorded && !hasRecord(this.local, this.instanceId, this.tabId)
-        );
+        this.journal.publishUnconfirmed();
+        return !this.journal.superseded();
     }
 
     /** Not read yet, or holding writes the server has not taken. */
@@ -331,7 +310,7 @@ export class ServerUserDataStorage implements UserDataStorage {
             for (const key of [...this.deferred.keys()].filter(matches)) {
                 this.deferred.delete(key);
             }
-            this.saveDeferred();
+            this.journal.saveDeferred();
             this.writes.drop(matches, playlistId);
             this.cache.forget(playlistId);
         } finally {
@@ -345,10 +324,8 @@ export class ServerUserDataStorage implements UserDataStorage {
         const deletesBefore = this.deleted.length;
         await this.writes.flush();
         const sent = this.cache.snapshot();
-        const foreign = () =>
-            othersUnconfirmed(this.local, this.instanceId, this.tabId);
-        const foreignBefore = foreign();
-        const { entries, tags } = withoutDeleted(
+        const foreignBefore = this.journal.unconfirmedElsewhere();
+        const read = withoutDeleted(
             await this.api.getJson<ServerUserStateResponse>('/user-state'),
             this.deleted.slice(deletesBefore)
         );
@@ -358,78 +335,25 @@ export class ServerUserDataStorage implements UserDataStorage {
         // and what a tab saved while it travelled.
         for (const key of [
             ...foreignBefore,
-            ...foreign(),
+            ...this.journal.unconfirmedElsewhere(),
             ...this.cache.changedSince(sent),
         ]) {
             unsaved.add(key);
         }
-        const deferred = [...this.deferred.values()];
-        // This tab's own unsent writes (recovered after a reload): an early
-        // edit was made on them, not on the server's value.
-        const own = new Set(this.writes.unconfirmedKeys());
-        const base = new Map<string, unknown>();
-        const refreshed = new Map<string, Record<string, unknown>>();
-        for (const namespace of SERVER_USER_STATE_NAMESPACES) {
-            const keepCached = new Set<string>();
-            for (const key of unsaved) {
-                const [editedNamespace, playlistId] = splitEditKey(key);
-                if (editedNamespace === namespace) {
-                    keepCached.add(playlistId);
-                }
-            }
-            const cached = this.cache.map(namespace);
-            const early = deferred.filter(
-                (edit) => edit.namespace === namespace
-            );
-            for (const { playlistId } of early) {
-                const key = `${namespace}|${playlistId}`;
-                base.set(
-                    key,
-                    own.has(key)
-                        ? this.writes.unsent(key)?.value
-                        : entries[namespace]?.[playlistId]
-                );
-            }
-            const value = refreshedNamespace(
-                entries[namespace] ?? {},
-                cached,
-                keepCached,
-                early,
-                (playlistId) => base.get(`${namespace}|${playlistId}`)
-            );
-            refreshed.set(namespace, value);
-            // A value too big for browser storage stays readable in memory,
-            // so callers and the diff baseline see the same map.
-            this.cache.write(namespace, JSON.stringify(value));
-            if (tags) {
-                // A kept value is not what the server's tag describes: its
-                // next write must conflict and be replayed on the server's.
-                const fresh = idMap(tags[namespace]);
-                for (const playlistId of keepCached) {
-                    fresh[playlistId] = UNKNOWN_TAG;
-                }
-                this.writes.tags.set(namespace, fresh);
-            }
-        }
+        const applied = applyServerRead(
+            this.writes,
+            this.cache,
+            this.deferred,
+            read,
+            unsaved
+        );
         this.writes.settledUpTo(editsBefore);
         if (!this.hydrated) {
             // From here edits go straight to the queue.
             this.hydrated = true;
             this.deferred.clear();
-            for (const edit of deferred) {
-                const key = `${edit.namespace}|${edit.playlistId}`;
-                if (own.has(key)) {
-                    extendUnsent(this.writes, key, edit.steps);
-                } else {
-                    this.writes.queue(
-                        edit.namespace,
-                        edit.playlistId,
-                        refreshed.get(edit.namespace)?.[edit.playlistId],
-                        base.get(key)
-                    );
-                }
-            }
-            this.saveDeferred();
+            queueEarlyEdits(this.writes, applied);
+            this.journal.saveDeferred();
             this.writes.scheduleFlush();
         }
         this.adoptClosedTabs();
@@ -442,7 +366,7 @@ export class ServerUserDataStorage implements UserDataStorage {
     ): void {
         // The cache shows other tabs' unsent changes too.
         const foreign = this.hydrated
-            ? othersUnconfirmed(this.local, this.instanceId, this.tabId)
+            ? this.journal.unconfirmedElsewhere()
             : new Set<string>();
         const change = (playlistId: string, value: unknown) => {
             if (this.hydrated) {
@@ -465,70 +389,12 @@ export class ServerUserDataStorage implements UserDataStorage {
                     value
                 ),
             });
-            this.saveDeferred();
-            this.publishUnconfirmed();
+            this.journal.saveDeferred();
+            this.journal.publishUnconfirmed();
         };
         for (const [playlistId, value] of changedEntries(previous, next)) {
             change(playlistId, value);
         }
         this.writes.scheduleFlush();
-    }
-
-    /** Persists what the server has not confirmed; skips idle rewrites. */
-    /** False when browser storage refused the copy. */
-    private saveUnsent(): boolean {
-        if (this.superseded()) {
-            return false;
-        }
-        // A newer edit can be queued while an older one is still travelling.
-        const writes = this.writes.unsentWrites();
-        if (writes.length === 0 && !this.unsentSaved) {
-            return true;
-        }
-        const saved = saveUnsentWrites(
-            this.local,
-            this.instanceId,
-            this.tabId,
-            writes
-        );
-        this.unsentSaved = writes.length > 0 || !saved;
-        this.publishUnconfirmed();
-        if (saved && this.retained.size > 0 && this.saveDeferred()) {
-            // This page's copy now stands for the ones it kept.
-            for (const page of this.retained) {
-                removePage(this.local, this.instanceId, page);
-            }
-            this.retained.clear();
-            keepPages(this.tabStore, this.instanceId, this.tabId, []);
-        }
-        return saved;
-    }
-
-    /** Forgets another page load's copy, or keeps it until this one saves. */
-    private release(page: string, saved: boolean): void {
-        if (saved) {
-            removePage(this.local, this.instanceId, page);
-        } else {
-            this.retained.add(page);
-            keepPages(this.tabStore, this.instanceId, this.tabId, [
-                ...this.retained,
-            ]);
-        }
-    }
-
-    private saveDeferred(): boolean {
-        return saveDeferredEdits(this.local, this.instanceId, this.tabId, [
-            ...this.deferred.values(),
-        ]);
-    }
-
-    private publishUnconfirmed(): void {
-        // Superseded, it stays so: the record is not written again.
-        this.recorded =
-            this.superseded() ||
-            markUnconfirmed(this.local, this.instanceId, this.tabId, [
-                ...this.writes.unconfirmedKeys(),
-                ...this.deferred.keys(),
-            ]);
     }
 }
