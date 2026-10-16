@@ -96,4 +96,67 @@ describe('buildPortalRailLinks', () => {
         ]);
         expect(links.secondary).toEqual([]);
     });
+    it.each([
+        {
+            sections: { movies: true, series: true },
+            expected: ['all', 'groups', 'vod', 'series'],
+        },
+        {
+            sections: { movies: true, series: false },
+            expected: ['all', 'groups', 'vod'],
+        },
+        {
+            sections: { movies: false, series: true },
+            expected: ['all', 'groups', 'series'],
+        },
+        {
+            sections: { movies: false, series: false },
+            expected: ['all', 'groups'],
+        },
+    ])(
+        'offers only the M3U catalog sections the playlist has rows for ($sections.movies/$sections.series)',
+        ({ sections, expected }) => {
+            // A playlist with films but no series is ordinary. Offering both
+            // links would put a permanently empty section in the rail.
+            const links = buildPortalRailLinks({
+                provider: 'playlists',
+                playlistId: 'm3u-1',
+                supportsDownloads: true,
+                workspace: true,
+                m3uCatalogSections: sections,
+            });
+
+            expect(links.primary.map((link) => link.section)).toEqual(expected);
+        }
+    );
+
+    it('keeps the M3U catalog links on the portals own section tokens', () => {
+        // `vod` and `series` are the tokens the rail tooltips, the search
+        // mode and the section memory already understand; a new vocabulary
+        // would have to be taught to all three.
+        const links = buildPortalRailLinks({
+            provider: 'playlists',
+            playlistId: 'm3u-1',
+            supportsDownloads: true,
+            workspace: true,
+            m3uCatalogSections: { movies: true, series: true },
+        });
+
+        expect(links.primary.slice(2)).toEqual([
+            {
+                icon: 'movie',
+                tooltip: 'Movies (this playlist)',
+                path: ['/workspace', 'playlists', 'm3u-1', 'vod'],
+                exact: true,
+                section: 'vod',
+            },
+            {
+                icon: 'video_library',
+                tooltip: 'Series (this playlist)',
+                path: ['/workspace', 'playlists', 'm3u-1', 'series'],
+                exact: true,
+                section: 'series',
+            },
+        ]);
+    });
 });

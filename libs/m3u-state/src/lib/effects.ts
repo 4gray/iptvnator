@@ -55,7 +55,9 @@ import {
     selectChannels,
     selectFavorites,
 } from './selectors';
+import { resolveAdjacentChannel } from './adjacent-channel.util';
 import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
+import { M3uCatalogSectionsRegistry } from './m3u-catalog-sections-registry.service';
 import {
     buildExternalPlayerPayload,
     type ExternalPlayerHeaderFallback,
@@ -77,6 +79,7 @@ export class PlaylistEffects {
     private store = inject(Store);
     private translate = inject(TranslateService);
     private settingsStore = inject(SettingsStore);
+    private catalogSections = inject(M3uCatalogSectionsRegistry);
     private epgSources = inject(EpgSourceSettingsService);
     private readonly playlistScopedEpgFetchKeys = new Map<string, string>();
 
@@ -501,20 +504,13 @@ export class PlaylistEffects {
                 this.store.select(selectChannels),
                 this.store.select(selectActive)
             ),
-            map(([action, channels, activeChannel]) => {
-                let adjacentChannel;
-                const index = channels.findIndex(
-                    (channel) => channel.id === activeChannel?.id
+            map(([action, allChannels, activeChannel]) => {
+                const adjacentChannel = resolveAdjacentChannel(
+                    action.direction,
+                    activeChannel,
+                    allChannels,
+                    this.catalogSections.liveChannels() ?? allChannels
                 );
-                if (action.direction === 'next') {
-                    if (index === channels.length - 1)
-                        adjacentChannel = activeChannel;
-                    adjacentChannel = channels[index + 1];
-                } else if (action.direction === 'previous') {
-                    if (index === -1 || index === 0)
-                        adjacentChannel = activeChannel;
-                    adjacentChannel = channels[index - 1];
-                }
                 return ChannelActions.setActiveChannelSuccess({
                     channel: adjacentChannel!,
                 });

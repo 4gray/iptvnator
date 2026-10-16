@@ -77,7 +77,9 @@ for (const engine of [
                 ).href;
             writeFileSync(
                 playlist,
-                `#EXTM3U\n#EXTINF:-1,Theme fixture\n${url}\n`
+                // The guide id keeps the file-backed row in the channel
+                // list; without one it is a film.
+                `#EXTM3U\n#EXTINF:-1 tvg-id="theme-fixture",Theme fixture\n${url}\n`
             );
             if (embedded) await installEmbeddedMpvSessionCapture(app);
             await importM3uPlaylistFromNativeDialog(app, playlist);
