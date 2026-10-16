@@ -12,6 +12,7 @@ import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
+    MatDialog,
     MatDialogModule,
     MatDialogRef,
 } from '@angular/material/dialog';
@@ -32,6 +33,7 @@ import {
     DialogFooterDirective,
     DialogFooterStartDirective,
     DialogShellComponent,
+    dialogSize,
 } from '@iptvnator/ui/components';
 
 const RELEASE_NOTES_IMAGE_CLASS = 'release-notes-dialog__image';
@@ -313,6 +315,23 @@ function decorateReleaseNotesHtml(html: string): string {
     ],
 })
 export class AppUpdateReleaseNotesDialogComponent implements OnInit {
+    /**
+     * Opens the dialog with the settings every entry point shares: the large
+     * preset, no autofocus (the toolbar's arrows would take it) and focus
+     * back on the opener afterwards. A caller picks only which release.
+     */
+    static open(
+        dialog: MatDialog,
+        data: AppUpdateReleaseNotesDialogData
+    ): MatDialogRef<AppUpdateReleaseNotesDialogComponent> {
+        return dialog.open(AppUpdateReleaseNotesDialogComponent, {
+            ...dialogSize('lg'),
+            autoFocus: false,
+            data,
+            restoreFocus: true,
+        });
+    }
+
     private readonly data =
         inject<AppUpdateReleaseNotesDialogData>(MAT_DIALOG_DATA);
     private readonly dialogRef = inject(

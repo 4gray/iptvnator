@@ -14,7 +14,6 @@ import { take } from 'rxjs';
 import { AppUpdateInstallService } from '../services/app-update-install.service';
 import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
-import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 
 const APP_UPDATE_STATUS_LOAD_ATTEMPTS = 60;
 const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
@@ -132,14 +131,9 @@ export class SettingsAppUpdateFacade {
               status?.currentVersion)
             : status?.currentVersion;
 
-        this.matDialog.open(AppUpdateReleaseNotesDialogComponent, {
-            ...dialogSize('lg'),
-            autoFocus: false,
-            data: {
-                ...(!isUpdateRelease ? { fallbackToLatest: true } : {}),
-                initialVersion: initialReleaseNotesVersion,
-            },
-            restoreFocus: true,
+        AppUpdateReleaseNotesDialogComponent.open(this.matDialog, {
+            ...(!isUpdateRelease ? { fallbackToLatest: true } : {}),
+            initialVersion: initialReleaseNotesVersion,
         });
     }
 
