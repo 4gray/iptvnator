@@ -1,8 +1,12 @@
 <form (ngSubmit)="submit()" novalidate>
+    <!-- No header close while a verification is pending, as Cancel is
+         disabled then: a dismissal would hand the caller a cancel and the
+         accepted PIN could no longer be delivered. -->
     <app-dialog-shell
         [icon]="isSetMode() ? 'lock_reset' : 'lock'"
         [heading]="titleKey() | translate"
         [subtitle]="descriptionKey() | translate"
+        [showClose]="!busy()"
     >
         <div class="pin-dialog__content">
             <mat-form-field
