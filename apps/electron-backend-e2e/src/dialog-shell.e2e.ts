@@ -151,9 +151,13 @@ test.describe('Dialog shell', () => {
                 const heroStyle = getComputedStyle(hero);
                 return {
                     heroWidth: hero.getBoundingClientRect().width,
-                    // The client width leaves out the body's scrollbar, which
-                    // Linux draws inside the box (15px) and macOS overlays.
-                    bodyWidth: body.clientWidth,
+                    // The body's width without its scrollbar: the CI runners
+                    // draw a classic 15px one inside the box, a local Mac
+                    // overlays it. The bounding width keeps the fraction the
+                    // integer clientWidth would round away.
+                    bodyWidth:
+                        body.getBoundingClientRect().width -
+                        (body.offsetWidth - body.clientWidth),
                     statsWidth: stats.getBoundingClientRect().width,
                     heroInner:
                         hero.getBoundingClientRect().width -
