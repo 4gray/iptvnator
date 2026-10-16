@@ -1,11 +1,14 @@
 @use '@angular/material' as mat;
-.mat-mdc-dialog-content {
+
+// The list is the only part that scrolls: inside the shell's column body
+// the wrapper flexes to the height left under the cap, and the list flexes
+// inside it, so the search and bulk actions stay put.
+.group-management {
     display: flex;
-    gap: 10px;
     flex-direction: column;
-    overflow: hidden !important;
-    max-width: 600px;
-    max-height: 85vh !important;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .header-actions {
@@ -125,7 +128,11 @@
     }
 
     mat-checkbox {
-        @include mat.checkbox-overrides((state-layer-size: 28px));
+        @include mat.checkbox-overrides(
+            (
+                state-layer-size: 28px,
+            )
+        );
     }
 }
 

@@ -7,8 +7,10 @@
 // tweaks (e.g. the stats column count) stay in the consumer stylesheet.
 
 // ─── Hero header ────────────────────────────────────────────────────────────
+// The hero band runs edge to edge under the shell's header: it cancels the
+// body's 20px padding on three sides.
 .account-dialog__hero {
-    margin: 0;
+    margin: -20px -20px 20px;
     padding: 20px 20px 18px;
     display: grid;
     gap: 18px;
@@ -55,28 +57,6 @@
     border-radius: 999px;
     background: currentColor;
     opacity: 0.5;
-}
-
-.account-dialog__headline-row {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-}
-
-.account-dialog__title {
-    margin: 0;
-    font-size: 1.3rem;
-    line-height: 1.2;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: var(--app-heading-color, var(--mat-sys-on-surface));
-}
-
-.account-dialog__subtitle {
-    margin: 4px 0 0;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
-    font-size: 0.88rem;
 }
 
 // ─── Status pills ───────────────────────────────────────────────────────────
@@ -212,8 +192,6 @@
 // ─── Content area ───────────────────────────────────────────────────────────
 .account-dialog__content {
     margin: 0;
-    padding: 20px;
-    background: var(--app-widget-bg, var(--mat-sys-surface));
 }
 
 .account-dialog__grid {
@@ -477,21 +455,6 @@
 }
 
 // ─── Footer actions ─────────────────────────────────────────────────────────
-.account-dialog__actions {
-    padding: 0 20px 20px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    border-top: 1px solid
-        var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
-    background: var(--app-widget-bg, var(--mat-sys-surface));
-}
-
-.account-dialog__close {
-    min-width: 100px;
-    border-radius: 999px;
-}
-
 @keyframes account-dialog-shimmer {
     100% {
         transform: translateX(100%);
@@ -507,18 +470,8 @@
 }
 
 @media (max-width: 720px) {
-    .account-dialog__hero,
-    .account-dialog__content,
-    .account-dialog__actions {
-        padding-left: 16px;
-        padding-right: 16px;
-    }
-
-    .account-dialog__headline-row {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
+    // Only the pills re-align: the hero is a grid whose column must keep
+    // stretching to the band, or its stats size to their content.
     .account-dialog__status-cluster {
         justify-content: flex-start;
     }

@@ -18,7 +18,10 @@
         <ng-content select="[appDialogHeaderEnd]" />
     </div>
 </header>
-<mat-dialog-content class="app-dialog__body">
+<mat-dialog-content
+    class="app-dialog__body"
+    [class.app-dialog__body--column]="bodyLayout() === 'column'"
+>
     <ng-content />
 </mat-dialog-content>
 @if (hasFooter()) {
@@ -29,10 +32,13 @@
     </mat-dialog-actions>
 }
 @if (showClose()) {
+    <!-- Closes with no result, like Escape and the backdrop: a bare
+         mat-dialog-close attribute would close with an empty string, which
+         a caller may take for a value. -->
     <button
         type="button"
         mat-icon-button
-        mat-dialog-close
+        [mat-dialog-close]="undefined"
         class="app-dialog__close"
         [aria-label]="'CLOSE_DIALOG' | translate"
     >

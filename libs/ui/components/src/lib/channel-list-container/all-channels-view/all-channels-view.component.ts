@@ -218,11 +218,7 @@ export class AllChannelsViewComponent {
         }
 
         this.channelContextMenu().close();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
-        });
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     openEpgMapping(): void {

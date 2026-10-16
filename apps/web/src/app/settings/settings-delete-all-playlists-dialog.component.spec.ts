@@ -87,12 +87,22 @@ describe('SettingsDeleteAllPlaylistsDialogComponent', () => {
         expect(text).toContain('Use Export first if you need a backup.');
     });
 
-    it('renders cancel and confirm actions', () => {
+    it('renders cancel and the destructive confirm in the footer, dismiss first', () => {
         const buttons = Array.from(
-            (fixture.nativeElement as HTMLElement).querySelectorAll('button')
-        ).map((button) => button.textContent?.trim());
+            (fixture.nativeElement as HTMLElement).querySelectorAll(
+                '[appDialogFooter] button'
+            )
+        );
 
-        expect(buttons).toEqual(['Cancel', 'Delete everything']);
+        expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+            'Cancel',
+            'Delete everything',
+        ]);
+        expect(
+            buttons.map((button) =>
+                button.classList.contains('app-destructive-button')
+            )
+        ).toEqual([false, true]);
     });
 
     it('warns about every device only with server storage', () => {

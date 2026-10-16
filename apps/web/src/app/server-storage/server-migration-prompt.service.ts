@@ -3,6 +3,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, take } from 'rxjs';
 import { ServerStorageStatusService } from '@iptvnator/services';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import {
     ServerMigrationService,
     type ServerMigrationPlaylist,
@@ -41,9 +42,8 @@ export class ServerMigrationPrompt {
         const { ServerMigrationDialogComponent } =
             await import('./server-migration-dialog.component');
         this.dialog.open(ServerMigrationDialogComponent, {
+            ...dialogSize('md'),
             data: playlists,
-            width: '540px',
-            maxWidth: 'calc(100vw - 32px)',
             disableClose: true,
         });
     }
