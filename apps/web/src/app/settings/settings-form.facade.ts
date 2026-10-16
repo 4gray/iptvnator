@@ -74,7 +74,10 @@ export class SettingsFormFacade {
         this.supportsEpgDisplay
     );
 
-    /** Form array with epg sources — absent when EPG is unsupported */
+    /**
+     * Form array with epg sources — absent without XMLTV sources (the
+     * browser PWA)
+     */
     readonly epgUrl = this.form.get('epgUrl') as FormArray;
 
     /**

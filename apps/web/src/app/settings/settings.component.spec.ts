@@ -401,7 +401,25 @@ describe('SettingsComponent', () => {
             const pwaComponent = pwaFixture.componentInstance;
             stubSettingsSideEffects(pwaComponent);
             pwaFixture.detectChanges();
+            // The page itself must render without an `epgUrl` array.
+            setSettingsSection('epg');
+            pwaFixture.detectChanges();
 
+            const pwaPage = pwaFixture.nativeElement as HTMLElement;
+            for (const id of ['epg-view-mode', 'epg-offset']) {
+                expect(
+                    pwaPage.querySelector(`[data-setting-id="${id}"]`)
+                ).not.toBeNull();
+            }
+            for (const id of [
+                'epg-sources',
+                'prefer-uploaded-epg',
+                'epg-clear-data',
+            ]) {
+                expect(
+                    pwaPage.querySelector(`[data-setting-id="${id}"]`)
+                ).toBeNull();
+            }
             expect(pwaComponent.supportsEpg).toBe(false);
             expect(pwaComponent.form.supportsEpgDisplay).toBe(true);
             expect(
