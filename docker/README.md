@@ -153,8 +153,10 @@ Provider credentials are stored unencrypted in that database, as the
 desktop app does. Do not expose an instance with server storage to the
 internet without authentication. Set `IPTVNATOR_ACCESS_TOKEN` to require a
 token: each browser then asks for it once on a sign-in page. Back up the
-volume like any database: stop the container, or copy
-`databases/iptvnator.db` together with its `-wal` file.
+volume like any database: stop the container, then copy the `databases`
+folder. Files copied while the backend runs can be out of step with the
+`-wal` journal; Settings → Server → Export backup is the way to take a copy
+without stopping the container.
 
 ## IPv6, VPNs, And Connection Fallback
 
