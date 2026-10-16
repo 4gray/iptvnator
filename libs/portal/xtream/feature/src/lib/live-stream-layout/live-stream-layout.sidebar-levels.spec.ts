@@ -180,7 +180,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        supportsEpg: false,
+                        supportsProviderEpg: false,
                         isElectron: false,
                         supportsRemoteControl: false,
                     },
