@@ -810,8 +810,10 @@ describe('SettingsComponent form', () => {
                 undefined;
             // Without XMLTV import and data management the form has no
             // `epgUrl` array or Xtream preference, only the display controls.
-            epgBridge.supportsImport = false;
-            epgBridge.supportsDataManagement = false;
+            Object.assign(epgBridge, {
+                supportsImport: false,
+                supportsDataManagement: false,
+            });
 
             settingsStore._setSettings({
                 epgUrl: ['https://example.com/guide.xml'],
