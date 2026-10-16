@@ -55,9 +55,10 @@ protects it with an access token, puts it behind HTTPS and shows how to back it 
 | Parental lock PIN and locked groups | This browser |
 | Order of the global favorites list and other UI preferences | This browser |
 
-Changes travel on the next load, not live: a favorite added on the tablet appears on the TV
-when the TV opens that list again. The server is the authority, so there is no per-playlist
-choice between "local" and "server". If you prefer the old behavior, set
+Changes travel on the next load, not live: a favorite added on the tablet shows up on the TV
+after the TV's page is reloaded or its tab is brought back to the front, not while that page
+stays open. The server is the authority, so there is no per-playlist choice between "local"
+and "server". If you prefer the old behavior, set
 `IPTVNATOR_STORAGE=none` and every browser keeps its own data as before.
 
 ## What you need
