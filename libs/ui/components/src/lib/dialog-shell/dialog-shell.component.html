@@ -32,10 +32,13 @@
     </mat-dialog-actions>
 }
 @if (showClose()) {
+    <!-- Closes with no result, like Escape and the backdrop: a bare
+         mat-dialog-close attribute would close with an empty string, which
+         a caller may take for a value. -->
     <button
         type="button"
         mat-icon-button
-        mat-dialog-close
+        [mat-dialog-close]="undefined"
         class="app-dialog__close"
         [aria-label]="'CLOSE_DIALOG' | translate"
     >

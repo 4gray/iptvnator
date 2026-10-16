@@ -137,6 +137,7 @@ describe('DialogShellComponent', () => {
         expect(closeButton.getAttribute('aria-label')).toBe('CLOSE_DIALOG');
         closeButton.click();
         expect(close).toHaveBeenCalledTimes(1);
+        expect(close).toHaveBeenCalledWith(undefined);
     });
 
     it('lays the body out as a flex column on request, so a child can own the scrolling', async () => {

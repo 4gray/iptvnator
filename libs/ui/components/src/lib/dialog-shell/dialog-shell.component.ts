@@ -59,7 +59,13 @@ export class DialogShellComponent {
     /** A Material icon name for the 40px tile before the heading. */
     readonly icon = input<string>();
     readonly iconTone = input<DialogIconTone>('default');
-    /** The header close button; Escape and the backdrop still close. */
+    /**
+     * The header close button. It closes with no result, as Escape and the
+     * backdrop do, so a caller that reads the result sees a cancel. A dialog
+     * that must not be dismissed while it works (a save or a deletion in
+     * flight) hides it meanwhile, since `mat-dialog-close` ignores
+     * `disableClose`.
+     */
     readonly showClose = input(true);
     readonly bodyLayout = input<DialogBodyLayout>('block');
 

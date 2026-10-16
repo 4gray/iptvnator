@@ -2,6 +2,7 @@
     icon="category"
     [heading]="'XTREAM.CATEGORY_MANAGEMENT.TITLE' | translate"
     bodyLayout="column"
+    [showClose]="!isSaving()"
 >
     <div class="category-management">
         @if (isLoading()) {

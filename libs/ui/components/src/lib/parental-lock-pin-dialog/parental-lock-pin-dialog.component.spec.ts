@@ -103,6 +103,22 @@ describe('ParentalLockPinDialogComponent', () => {
     });
 
     describe('set mode', () => {
+        it('cancels through the header close with no result, never an empty PIN', async () => {
+            const dialog = await openDialog({ mode: 'unlock' });
+            dialog.fixture.detectChanges();
+
+            const headerClose = (
+                dialog.fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLButtonElement>('.app-dialog__close');
+            expect(headerClose).not.toBeNull();
+            headerClose?.click();
+
+            // A bare dismissal must read as a cancel: the lock services take
+            // any string, an empty one included, for an entered PIN.
+            expect(dialog.close).toHaveBeenCalledTimes(1);
+            expect(dialog.close).toHaveBeenCalledWith(undefined);
+        });
+
         it('asks password managers for a new password in both fields', async () => {
             const dialog = await openDialog({ mode: 'set' });
 

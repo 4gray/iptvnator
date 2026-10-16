@@ -48,6 +48,19 @@ describe('StalkerCategoryLockDialogComponent', () => {
         fixture.detectChanges();
     });
 
+    it('hides the header close while a save is in flight, so the caller always gets a result', () => {
+        const headerClose = () =>
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '.app-dialog__close'
+            );
+        expect(headerClose()).not.toBeNull();
+
+        component.isSaving.set(true);
+        fixture.detectChanges();
+
+        expect(headerClose()).toBeNull();
+    });
+
     it('seeds the draft from the stored locks', () => {
         expect(component.categories().map((c) => c.locked)).toEqual([
             false,

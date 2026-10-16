@@ -3,6 +3,7 @@
     [heading]="'PARENTAL_LOCK.MANAGE_LOCKS' | translate"
     [subtitle]="'PARENTAL_LOCK.MANAGE_LOCKS_DESCRIPTION' | translate"
     bodyLayout="column"
+    [showClose]="!isSaving()"
 >
     <div class="lock-dialog">
         <div class="header-actions">
