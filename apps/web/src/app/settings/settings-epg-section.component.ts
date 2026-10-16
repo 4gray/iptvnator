@@ -59,6 +59,13 @@ export class SettingsEpgSectionComponent {
     readonly canBrowseFiles = input(false);
     readonly epgViewModeOptions = input.required<EpgViewModeOption[]>();
 
+    /**
+     * The XMLTV part: source list, its refresh and clear actions, and the
+     * Xtream XMLTV preference. Off where only a portal guide exists (the
+     * browser PWA); the guide display settings above it always render.
+     */
+    readonly showsXmltvSources = input(true);
+
     readonly refreshEpg = output<string>();
     readonly browseEpgSource = output<number>();
     readonly removeEpgSource = output<number>();

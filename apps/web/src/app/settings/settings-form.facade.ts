@@ -53,11 +53,26 @@ export class SettingsFormFacade {
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly settingsStore = inject(SettingsStore);
 
+    /** XMLTV sources: the source list, its actions and the Xtream preference. */
     readonly supportsEpg =
         this.epgBridge.supportsImport && this.epgBridge.supportsDataManagement;
 
+    /**
+     * The EPG page's display settings (view mode, offset). They shape every
+     * guide on screen, so they show wherever one exists: XMLTV, or a
+     * portal's own guide (the browser PWA).
+     */
+    readonly supportsEpgDisplay =
+        this.supportsEpg ||
+        this.runtime.supportsEpg ||
+        this.runtime.supportsProviderEpg;
+
     /** Settings form object */
-    readonly form = createSettingsForm(this.formBuilder, this.supportsEpg);
+    readonly form = createSettingsForm(
+        this.formBuilder,
+        this.supportsEpg,
+        this.supportsEpgDisplay
+    );
 
     /** Form array with epg sources — absent when EPG is unsupported */
     readonly epgUrl = this.form.get('epgUrl') as FormArray;

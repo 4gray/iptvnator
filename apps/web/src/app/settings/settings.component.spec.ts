@@ -391,6 +391,32 @@ describe('SettingsComponent', () => {
             ).toBe(false);
         });
 
+        it('shows the EPG page with only its display settings in the browser PWA', () => {
+            fixture.destroy();
+            epgBridge.supportsImport = false;
+            epgBridge.supportsDataManagement = false;
+            window.electron = undefined as unknown as typeof window.electron;
+
+            const pwaFixture = TestBed.createComponent(SettingsComponent);
+            const pwaComponent = pwaFixture.componentInstance;
+            stubSettingsSideEffects(pwaComponent);
+            pwaFixture.detectChanges();
+
+            expect(pwaComponent.supportsEpg).toBe(false);
+            expect(pwaComponent.form.supportsEpgDisplay).toBe(true);
+            expect(
+                pwaComponent.sectionNav.map((section) => section.id)
+            ).toContain('epg');
+            expect(
+                pwaComponent.settingsForm.get('epgOffsetMinutes')
+            ).not.toBeNull();
+            expect(pwaComponent.settingsForm.get('epgViewMode')).not.toBeNull();
+            expect(pwaComponent.settingsForm.get('epgUrl')).toBeNull();
+            expect(
+                pwaComponent.settingsForm.get('preferUploadedEpgOverXtream')
+            ).toBeNull();
+        });
+
         it('keeps external player choices when launch support exists without path settings', () => {
             fixture.destroy();
             window.electron = {
