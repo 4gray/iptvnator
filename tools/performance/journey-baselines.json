@@ -3,13 +3,13 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 1285523,
+                "value": 1196205,
                 "unit": "bytes",
                 "slack": 4096,
                 "updatedAt": "2026-10-14",
-                "evidencePr": 1903,
+                "evidencePr": 1939,
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes",
-                "note": "Raised by 7,245 bytes (0.6%) over #1929's 1,278,278 for self-hosted server storage: what must run before the first route stays on the startup path (the /v1/instance probe and remembered server, the connection status, the access token bound to its instance, the playlist storage backend with its per-playlist write serialization). The storage code itself (user-data sync, migration, sign-in, Settings > Server) loads by dynamic import in server mode only."
+                "note": "No Angular Material module is in the initial bundle since #1939: services created with the app open toasts through LazySnackBar and dialogs through LazyMatDialog, so a new eager MatSnackBar or MatDialog import brings back Material's button, ripple and the CDK a11y chunks (about 110 KB). The CDK overlay stays initial through the FullscreenOverlayContainer provider in app.config.ts. Self-hosted server storage (#1903) keeps only what must run before the first route on the startup path (the /v1/instance probe and remembered server, the connection status, the token bound to its instance, the playlist storage backend); the storage code itself loads by dynamic import in server mode only."
             },
             "renderer.ipcCallsToFirstCard": {
                 "value": 15,

@@ -1,5 +1,5 @@
 import { Injector, runInInjectionContext } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
@@ -48,7 +48,10 @@ describe('PlaylistEffects updateFavorites$', () => {
                 },
                 { provide: EpgService, useValue: { fetchEpg: jest.fn() } },
                 { provide: Router, useValue: {} },
-                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+                {
+                    provide: LazySnackBar,
+                    useValue: { open: jest.fn().mockResolvedValue(null) },
+                },
                 {
                     provide: TranslateService,
                     useValue: { instant: (key: string) => key },

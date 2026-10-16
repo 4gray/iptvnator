@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
@@ -72,7 +72,7 @@ export class PlaylistEffects {
     private dataService = inject(DataService);
     private epgService = inject(EpgService);
     private router = inject(Router);
-    private snackBar = inject(MatSnackBar);
+    private snackBar = inject(LazySnackBar);
     private storage = inject(StorageMap);
     private store = inject(Store);
     private translate = inject(TranslateService);
@@ -105,7 +105,7 @@ export class PlaylistEffects {
                     );
                 }),
                 tap(() => {
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.translate.instant('CHANNELS.FAVORITES_UPDATED'),
                         undefined,
                         { duration: 2000 }
@@ -147,7 +147,7 @@ export class PlaylistEffects {
                     action.program,
                     activeChannel,
                     () =>
-                        this.snackBar.open(
+                        void this.snackBar.open(
                             this.translate.instant(
                                 'EPG.TIMELINE.CATCHUP_FAILED'
                             ),
