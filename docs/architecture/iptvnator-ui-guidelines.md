@@ -1061,13 +1061,12 @@ and drive the season container's presenters.
 
 Every section below the hero (Episodes, Cast & crew, Similar) uses
 `app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular
-counter, a lead slot (the 30px season pills, or past four seasons the
-season dropdown, a small secondary button with a chevron) and an end slot
-(the list/grid toggle, rail arrows). Sections sit 56px apart, with 16px
+counter, a lead slot (up to four seasons the season tabs, a segmented
+control; past four the season dropdown, a small secondary button with a
+chevron) and an end slot (the list/grid toggle, rail arrows). Sections sit 56px apart, with 16px
 between a header and its content and 56px after the last one. The Episodes
-counter reads "N episodes · M watched". The list/grid switch is a segmented
-track whose checked segment is a neutral raised fill with heading ink; the
-list is the default view.
+counter reads "N episodes · M watched". The list/grid switch is the same
+segmented control with 30×26 icon segments; the list is the default view.
 
 Episodes render through `app-episode-item` as a flat list row or grid card,
 never a bordered box. A row is a number column, a 168px 16:9 thumbnail (with
@@ -1265,7 +1264,21 @@ current value where there is one; when the visible label is only the value,
 the accessible name adds what it picks ("Channels shown: Favorites"). An
 active picker (refinements applied) takes the selected-row tint. A panel
 header's icon actions use `ghost-icon-button`, as the category panel's
-search and sort do.
+search and sort do. In a row of filter chips (the VOD sources popover) the
+picker is a chip with the same chevron, so the row keeps one height; the
+language filter there opens a radio menu instead of a native `<select>`.
+
+A single choice among a few options shown side by side is the kit's
+segmented control: a 1px-bordered track with 2px padding and a 10px radius,
+8px segments, no dividers, the chosen segment filled and in the heading
+colour. `segmented-control($height, $icon-size, $segment-width)` dresses a
+`mat-button-toggle-group` (the favorites and recent content and scope
+toggles, the list/grid switch, the playlist switcher's type filter);
+`segmented-track` and `segment` build it from plain buttons that are tabs
+(the season tabs). In a header row use 26px segments, so the control is
+32px tall like a small button. Unchosen labels use the body colour; the
+muted colour reads about 2.9:1 on the track. The settings theme switcher is
+still a pill switcher of its own.
 
 The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
 vocabulary, so a field reads the same wherever it appears:

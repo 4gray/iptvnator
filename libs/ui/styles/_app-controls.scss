@@ -281,38 +281,106 @@ $_sizes: (
     }
 }
 
-/// `mat-button-toggle-group` as a segmented control: a recessed track, no
-/// dividers, the chosen segment filled.
-@mixin segmented-control($height: 30px) {
+// The segmented control: a recessed track, no dividers, the chosen segment
+// filled. `segmented-control` dresses a `mat-button-toggle-group`;
+// `segmented-track` and `segment` build the same look from plain buttons
+// (the season tabs, which are a tab list). An unchosen segment is text in the
+// body colour: the muted colour reads about 2.9:1 on the track, under the
+// 4.5:1 its 12.5px label needs.
+$_segment-text: var(--app-body-color);
+$_segment-selected-text: var(--app-heading-color);
+$_segment-selected-fill: color-mix(
+    in srgb,
+    var(--app-on-surface) 10%,
+    transparent
+);
+$_segment-hover-fill: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
+$_segment-text-size: 12.5px;
+
+/// The track: 2px padding inside a 1px border, so it adds 6px to the
+/// segments' height (26px segments give a 32px control, a small button's
+/// height).
+@mixin segmented-track {
+    display: inline-flex;
+    // Never wider than its container: when the segments do not fit (four
+    // translated season names in the fullscreen episode panel, a narrow
+    // window), they wrap inside the track instead of being clipped.
+    flex-wrap: wrap;
+    box-sizing: border-box;
+    max-width: 100%;
+    gap: 1px;
+    padding: 2px;
+    border: 1px solid var(--app-line-strong);
+    border-radius: $radius;
+    background: var(--app-content-bg);
+}
+
+/// A plain-button segment of `segmented-track`. Mark the chosen one with
+/// `segment-selected`.
+@mixin segment($height: 26px) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: $height;
+    padding: 0 10px;
+    border: 0;
+    border-radius: $radius-sm;
+    background: transparent;
+    color: $_segment-text;
+    font: inherit;
+    font-size: $_segment-text-size;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:hover {
+        background: $_segment-hover-fill;
+    }
+}
+
+/// Hovering the chosen segment keeps its fill.
+@mixin segment-selected {
+    &,
+    &:hover {
+        background: $_segment-selected-fill;
+        color: $_segment-selected-text;
+    }
+}
+
+/// `mat-button-toggle-group` as the segmented control. `$height` is the
+/// segment's height (see `segmented-track`). `$icon-size` sizes a segment's
+/// `mat-icon`; `$segment-width` gives icon-only segments one width (the
+/// list/grid switch is 30×26).
+///
+/// Include it from a component stylesheet. Material renders a segment's
+/// label and check without the including component's encapsulation
+/// attribute, so those rules go through `::ng-deep`, scoped by the selector
+/// that includes the mixin.
+@mixin segmented-control(
+    $height: 30px,
+    $icon-size: 14px,
+    $segment-width: null
+) {
     @include mat.button-toggle-overrides(
         (
             height: $height,
-            shape: 10px,
+            shape: $radius,
             divider-color: transparent,
             background-color: transparent,
-            text-color: var(--app-muted-color),
-            selected-state-background-color: color-mix(
-                    in srgb,
-                    var(--app-on-surface) 10%,
-                    transparent
-                ),
-            selected-state-text-color: var(--app-heading-color),
+            text-color: $_segment-text,
+            selected-state-background-color: $_segment-selected-fill,
+            selected-state-text-color: $_segment-selected-text,
             state-layer-color: var(--app-on-surface),
             hover-state-layer-opacity: 0.06,
             focus-state-layer-opacity: 0.06,
-            label-text-size: 12.5px,
+            label-text-size: $_segment-text-size,
             label-text-weight: 500,
             label-text-tracking: 0,
         )
     );
-    display: inline-flex;
-    gap: 1px;
-    padding: 2px;
-    border: 1px solid var(--app-line-strong);
-    background: var(--app-content-bg);
+    @include segmented-track;
 
     .mat-button-toggle {
-        border-radius: 8px;
+        border-radius: $radius-sm;
         border: 0;
     }
 
@@ -322,11 +390,34 @@ $_sizes: (
         border-inline-start: 0;
     }
 
-    .mat-button-toggle-label-content {
-        padding: 0 10px;
-    }
+    @include _icon-size($icon-size);
 
-    .mat-pseudo-checkbox {
-        display: none;
+    ::ng-deep {
+        // A flex row centres an icon beside the label. Its height is set
+        // here because an icon-only segment has no text line to give it one,
+        // and top alignment keeps an icon's baseline from adding a pixel.
+        .mat-button-toggle-label-content {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: $height;
+            padding: 0 10px;
+            vertical-align: top;
+        }
+
+        .mat-pseudo-checkbox {
+            display: none;
+        }
+
+        @if $segment-width {
+            .mat-button-toggle-button {
+                width: $segment-width;
+            }
+
+            .mat-button-toggle-label-content {
+                justify-content: center;
+                padding: 0;
+            }
+        }
     }
 }

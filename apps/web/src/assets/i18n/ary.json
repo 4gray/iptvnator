@@ -1480,6 +1480,7 @@
             "FILTER_AVAILABLE": "متوفر",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "كل اللغات",
+            "LANGUAGE": "اللغة",
             "SAME_AS_ABOVE": "بحال اللي الفوق",
             "SHOWING_OF_TOTAL": "{{visible}} من {{total}}"
         },

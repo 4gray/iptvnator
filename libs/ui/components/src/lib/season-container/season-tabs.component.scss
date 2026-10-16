@@ -11,40 +11,22 @@
     flex-wrap: wrap;
     gap: 4px;
 
-    // Season pills share the section header's 30px row; past four seasons
-    // the kit's toolbar picker (a small secondary button with a chevron)
-    // opens the season menu instead.
+    // Up to four seasons are tabs in the kit's segmented control: 26px
+    // segments in a 32px track. Past four the toolbar picker, a small
+    // secondary button with a chevron, opens the season menu instead. Both
+    // are as tall as the list/grid switch at the header's far edge.
+    &__track {
+        @include controls.segmented-track;
+    }
+
     &__pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 30px;
-        padding: 0 12px;
-        border: 1px solid transparent;
-        border-radius: 999px;
-        box-sizing: border-box;
-        background: transparent;
-        color: var(--text-secondary, rgba(255, 255, 255, 0.7));
-        font-size: 13px;
-        font-family: inherit;
-        cursor: pointer;
         transition:
             background 150ms ease,
             color 150ms ease;
-
-        &:hover {
-            background: var(--tag-bg, rgba(255, 255, 255, 0.08));
-        }
+        @include controls.segment;
 
         &--active {
-            border-color: color-mix(
-                in srgb,
-                var(--app-on-surface) 14%,
-                transparent
-            );
-            background: var(--app-widget-bg);
-            color: var(--text-primary, #fff);
-            font-weight: 500;
+            @include controls.segment-selected;
         }
     }
 

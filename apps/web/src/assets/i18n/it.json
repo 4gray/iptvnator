@@ -1480,6 +1480,7 @@
             "FILTER_AVAILABLE": "Disponibili",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Tutte le lingue",
+            "LANGUAGE": "Lingua",
             "SAME_AS_ABOVE": "uguale alla riga sopra",
             "SHOWING_OF_TOTAL": "{{visible}} di {{total}}"
         },

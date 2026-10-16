@@ -1,3 +1,4 @@
+@use '../../../../styles/app-controls' as controls;
 @use '../../../../styles/focus-ring';
 
 $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -264,22 +265,27 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     white-space: nowrap;
 }
 
+// The language filter: a `filter-chip` at the row's end that opens the
+// language menu, on while a language is picked.
 .sources-menu__lang {
-    margin-left: auto;
+    min-width: 0;
     max-width: 40%;
-    padding: 5px 9px;
-    border: 1px solid var(--app-widget-border);
-    border-radius: 999px;
-    background: var(--app-card-hover-bg);
-    color: var(--app-eyebrow-color);
-    font: inherit;
-    font-size: 11px;
-    font-weight: 600;
-    outline: 0;
-    cursor: pointer;
+    margin-left: auto;
+    padding-inline-end: 8px;
+}
 
-    &:focus-visible {
-        @include focus-ring.focus-ring-declarations;
+.sources-menu__lang-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sources-menu__lang-chevron {
+    @include controls.trigger-chevron;
+
+    .filter-chip--on & {
+        color: inherit;
     }
 }
 

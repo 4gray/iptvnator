@@ -1480,6 +1480,7 @@
             "FILTER_AVAILABLE": "Доступные",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Все языки",
+            "LANGUAGE": "Язык",
             "SAME_AS_ABOVE": "как строкой выше",
             "SHOWING_OF_TOTAL": "{{visible}} из {{total}}"
         },

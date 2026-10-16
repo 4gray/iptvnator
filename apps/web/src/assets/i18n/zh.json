@@ -1480,6 +1480,7 @@
             "FILTER_AVAILABLE": "可用",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "所有语言",
+            "LANGUAGE": "语言",
             "SAME_AS_ABOVE": "与上行相同",
             "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
         },
