@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TV Shell pour IPTVnator</string>
+    <string name="loading">Démarrage du lecteur…</string>
+    <string name="load_error_title">Le lecteur n\'a pas pu être chargé</string>
+    <string name="load_error">Erreur : %1$s (code %2$s)</string>
+    <string name="server_error">Le serveur embarqué n\'a pas pu démarrer (aucun port libre).</string>
+    <string name="load_timeout">L\'application web n\'a pas démarré en 30 secondes. Le WebView de cet appareil est peut-être trop ancien pour IPTVnator (moteur Chrome 94 ou plus récent requis). Appui long sur Menu pour le diagnostic.</string>
+    <string name="renderer_restarted">Le lecteur a été relancé après avoir manqué de mémoire.</string>
+    <string name="renderer_gone_loop">La vue web s\'arrête en boucle (mémoire insuffisante ?). Essayez une playlist plus petite, ou effacez les données de l\'application dans les réglages.</string>
+    <string name="retry">Réessayer</string>
+    <string name="settings_title">Réglages de la coquille</string>
+    <string name="done">Terminé</string>
+    <string name="cannot_open_link">Aucune application ne peut ouvrir ce lien.</string>
+    <string name="press_back_again">Appuyez encore sur Retour pour quitter</string>
+    <string name="no_external_player">Aucun lecteur vidéo trouvé. Installez VLC pour Android.</string>
+    <string name="external_prompt_title">Ouvrir dans un autre lecteur ?</string>
+    <string name="external_prompt_title_error">Ce flux ne peut pas être lu ici</string>
+    <string name="external_prompt_message">%1$s\n\nLe lecteur intégré (navigateur) ne gère pas ce format de flux. L\'ouvrir dans un lecteur vidéo installé (VLC, …) ?</string>
+    <string name="external_prompt_open">Ouvrir dans un lecteur</string>
+    <string name="external_prompt_cancel">Annuler</string>
+    <string name="setting_width">Taille de l\'interface</string>
+    <string name="setting_width_hint">Largeur de la mise en page web. Plus le texte est grand, moins il y a de contenu par écran.</string>
+    <string name="width_960">Grande (960)</string>
+    <string name="width_1280">Normale (1280)</string>
+    <string name="width_1600">Dense (1600)</string>
+    <string name="setting_external">Lecteur externe</string>
+    <string name="setting_prompt_external">Proposer un lecteur externe quand un flux ne peut pas être lu</string>
+    <string name="setting_player_hint">Lecteur qui ouvre les flux :</string>
+    <string name="player_system_chooser">Demander à chaque fois (sélecteur système)</string>
+    <string name="setting_advanced">Avancé</string>
+    <string name="setting_web_debug">Autoriser le débogage à distance de la vue web (chrome://inspect via ADB)</string>
+    <string name="reset_title">Effacer les données IPTVnator</string>
+    <string name="reset_message">Les playlists, portails, favoris et réglages de l\'application web seront supprimés de cet appareil.</string>
+    <string name="reset_confirm">Effacer</string>
+    <string name="reset_done">Données effacées</string>
+    <string name="setting_diagnostics">Diagnostic</string>
+    <string name="diagnostics">WebView (moteur Chrome) : %1$s %2$s\nAppareil : %3$s — Android %4$s\nPort du serveur embarqué : %5$s\nÉcran : %6$s</string>
+</resources>

@@ -1,0 +1,40 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "CRLF",
+    "tvg": {
+     "id": "crlf",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": "UA"
+    },
+    "url": "http://x/1.ts",
+    "raw": "#EXTINF:-1 tvg-id=\"crlf\" radio=\"true\",CRLF\r\nhttp://x/1.ts|User-Agent=UA",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": "true"
+   }
+  ]
+ }
+}

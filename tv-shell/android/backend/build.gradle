@@ -1,0 +1,25 @@
+// Pure-Java library: the embedded IPTVnator web-backend port and the site
+// server logic. No Android dependencies, so it is unit-tested on the JVM.
+plugins {
+    id 'java-library'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Dependency-free test runner (see src/test/java/.../TestMain.java).
+tasks.register('backendTests', JavaExec) {
+    group = 'verification'
+    description = 'Runs the backend test suite (parser fixtures, routes, URL helpers).'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.tvshell.iptvnator.backend.TestMain'
+}
+tasks.named('check') {
+    dependsOn 'backendTests'
+}

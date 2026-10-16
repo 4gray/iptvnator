@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1 user-agent="FromAttr",A
+#EXTVLCOPT:http-user-agent="VLC UA"
+#EXTVLCOPT:http-referrer=http://ref/
+http://x/1.ts

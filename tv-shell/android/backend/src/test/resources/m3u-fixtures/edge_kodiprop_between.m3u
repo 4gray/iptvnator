@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1,Mixed
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#EXTVLCOPT:http-referrer=http://ref
+http://x/1.mpd

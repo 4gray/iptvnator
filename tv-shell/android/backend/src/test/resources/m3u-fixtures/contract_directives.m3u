@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="one",Channel One
+# stray comment
+#EXT-X-SESSION-DATA:DATA-ID="com.example",VALUE="x"
+http://example.com/one.m3u8
+#EXTINF:-1 tvg-id="two",Channel Two
+http://example.com/two.m3u8

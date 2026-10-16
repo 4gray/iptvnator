@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1,Das Erste HD
+http://satip:7522/upnp/channelstream/2359890582721931325%7CDas%20Erste%20HD.ts
+#EXTINF:-1,ZDF HD
+http://satip:7522/upnp/channelstream/2359890548428909414%7CZDF%20HD.ts
+#EXTINF:-1,3sat HD
+http://nas.local:8080/stream/3sat.ts
