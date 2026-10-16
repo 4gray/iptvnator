@@ -405,6 +405,9 @@ jobs:
             - name: Validate electron-builder keychain password patch
               run: pnpm run deps:electron-builder:test
 
+            - name: Validate mpegts.js loader abort patch
+              run: pnpm run deps:mpegts:test
+
             - name: Validate the font weight scale
               run: pnpm run styles:font-weights:validate
 
