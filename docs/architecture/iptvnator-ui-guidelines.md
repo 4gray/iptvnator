@@ -90,7 +90,7 @@ the subsystem's document.
   `libs/ui/components/src/lib/dialog-shell/`
 - Source row (Sources page and playlist switcher):
   `libs/playlist/shared/ui/src/lib/source-row/source-row.component.html`
-- UI-kit buttons, menus and segmented control:
+- UI-kit buttons, menus, segmented control and floating panels:
   `libs/ui/styles/_app-controls.scss`
 - Side lists (title, group labels, single-choice rows):
   `libs/ui/styles/_side-list.scss`
@@ -154,14 +154,23 @@ tokens, so the retired `--mdc-*` names compile but do nothing;
 a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
 token directly and says why.
 
+Change what a Material button draws (label colour, padding) through its
+tokens, not plain properties on its host. Material's own rules, such as
+`.mat-mdc-button:not(:disabled)` for the colour, match a component's
+`.class[_ngcontent-…]` selector in specificity, so the stylesheet added last
+wins. Angular removes a component's stylesheet with its last instance and
+appends it again with the next one, so that order changes with navigation.
+`catalog-sort-menus.e2e.ts` moves each sheet last and checks that the Refine
+picker and the rating chip keep their look.
+
 ### Material off the startup path
 
 `renderer.initialBytes` ([performance journeys](performance-journeys.md#rendererinitialbytes))
 counts every module an eager file imports, and the bundler keeps a module in
-one chunk, so one import of one export carries the whole module. Material
-therefore reaches the initial bundle only through the snack-bar, which root
-services inject (and with it `button`, the icon button and the CDK overlay).
-Everything else is lazy by these rules:
+one chunk, so one import of one export carries the whole module. No Material
+module is in the initial bundle; of the CDK only the overlay stays, because
+`app.config.ts` provides `FullscreenOverlayContainer` and that token lives
+in the overlay chunk. Everything else is lazy by these rules:
 
 - **Form-field defaults.** A component that renders `<mat-form-field>`
   adds `providers: [provideFormFieldDefaults()]`
@@ -177,11 +186,23 @@ Everything else is lazy by these rules:
   and the workspace shell actions do; `openConfirmDialog` returns a promise
   that settles once the dialog is open. A component in a lazy chunk injects
   `MatDialog` directly.
+- **Toasts from services created with the app.** A root service or the app
+  shell opens its snack-bars through `LazySnackBar`
+  (`@iptvnator/services/lazy-snack-bar`), whose `open` takes
+  `MatSnackBar.open`'s arguments and returns a promise of the ref, or of
+  `null` after a failed chunk load, which it logs without the message (a
+  toast can carry a playlist URL). `snack-bar.mjs` statically imports
+  Material's button, the icon button chunk, ripple and the CDK a11y module,
+  so one eager `MatSnackBar` injection put about 110 KB on the initial
+  path. A component in a lazy chunk injects `MatSnackBar` directly; the
+  initial-bytes ratchet fails on a new eager importer.
 - **Panels the shell mounts on every launch.** The EPG progress panel and the
   update notification are an eager host with `@defer (when visible)` around
   the view that imports Material; the startup status draws its spinner as
-  static markup copied from `mat-spinner`. A new always-mounted component
-  follows the same split.
+  static markup copied from `mat-spinner` and renders its Retry button in
+  `@defer (on immediate)` inside the failure branch, with a native button
+  as the placeholder and the error view so a retry never waits for the
+  chunk. A new always-mounted component follows the same split.
 - **Theme scope.** `m3-theme.scss` themes only the components in its
   `$material-components` list, through `meta.apply` for both the light theme
   and the dark colours. Add an entry with a new `@angular/material/<entry>`
@@ -514,6 +535,14 @@ dialogs, player controls and hidden/inert panes keep their own behavior.
 ## Channel List Item
 
 The shared row should be reused instead of rebuilding channel markup per view.
+
+Its right-click menu is `app-channel-context-menu` (`@iptvnator/ui/components`),
+shared by the M3U views, the Xtream and Stalker live lists and the unified
+favorites and recents. A host sets which rows apply (`showMapEpg`,
+`showDetails`, `openInPlaylistName`, `showRemoveFromHistory`), handles their
+outputs, and calls `open(event)` from the row's `contextMenuRequested`; the
+rows keep one order and Remove from history is the danger row after a
+divider.
 
 ### Current Reference Values
 
@@ -1032,12 +1061,12 @@ and drive the season container's presenters.
 
 Every section below the hero (Episodes, Cast & crew, Similar) uses
 `app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular
-counter, a lead slot (the season pills or dropdown, a 30px pill) and an end
-slot (the list/grid toggle, rail arrows). Sections sit 56px apart, with 16px
+counter, a lead slot (up to four seasons the season tabs, a segmented
+control; past four the season dropdown, a small secondary button with a
+chevron) and an end slot (the list/grid toggle, rail arrows). Sections sit 56px apart, with 16px
 between a header and its content and 56px after the last one. The Episodes
-counter reads "N episodes · M watched". The list/grid switch is a segmented
-track whose checked segment is a neutral raised fill with heading ink; the
-list is the default view.
+counter reads "N episodes · M watched". The list/grid switch is the same
+segmented control with 30×26 icon segments; the list is the default view.
 
 Episodes render through `app-episode-item` as a flat list row or grid card,
 never a bordered box. A row is a number column, a 168px 16:9 thumbnail (with
@@ -1215,6 +1244,37 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   header does not repeat it. `recent.e2e.ts` checks the single control and
   the single confirmation on M3U, Xtream and Stalker recently viewed pages.
 
+## Floating Panels And Toasts
+
+- **Frame.** A floating, non-modal card anchored to a viewport corner (the
+  EPG import panel at the bottom left, the update notification at the bottom
+  right) takes `controls.floating-panel` from `_app-controls.scss`: the
+  dialog's widget surface and popover shadow, the menu's `--app-line-strong`
+  hairline, a 12px radius between the dialog's 16 and the menu's 10. The
+  panel keeps its own anchor, width, z-index and entrance; the notice that
+  replaces a panel whose deferred chunk failed to load shares the frame.
+- **Header.** `floating-panel-header` is the row (hairline under it) and
+  `floating-panel-title` the title: the kit's 12.5px uppercase label with an
+  18px accent icon. Header actions are `ghost-icon-button(28px, 18px)`, row
+  actions 24px; neither keeps Material's 48px touch target, which used to
+  push a horizontal scrollbar into the list.
+- **Actions.** Buttons inside a panel follow the dialog footer: one accent
+  action (`accent-button(sm)`), a secondary beside it (`secondary-button(sm)`
+  on a `mat-flat-button`), never an outlined button. The update card's
+  release notes and download/install buttons are the reference.
+- **Toasts.** Every `mat-snack-bar` takes the same look from one global rule
+  in `styles.scss`: the widget surface with the hairline and shadow on a
+  10px panel, 13px text in the heading colour, the action as accent text
+  without a ripple. Toasts sit at Material's default bottom centre; a caller
+  may add a panel class for spacing (`settings-snackbar` clears the save
+  bar) or the error tint (`settings-snackbar--error`), never a position of
+  its own. A failure the import panel already reports (a source's error row
+  with Retry) gets no toast; `EpgService` toasts only when the bridge call
+  itself fails, a programme lookup errors, or the runtime imports without
+  reporting progress (`supportsProgress` false: no row can carry the
+  failure), always with the translated generic message, never the
+  backend's text.
+
 ## Forms
 
 Every `<mat-form-field>` is outlined with a dynamic subscript. A component
@@ -1227,8 +1287,29 @@ ui:form-field-defaults:validate` (in CI) reports a missing provider.
 A `mat-select` belongs inside a form. Its option panel is styled once in
 `m3-theme.scss` to match the kit menu (a bordered 10px panel, 36px rows at
 13px, the chosen row on the list-selection tokens). A picker in a toolbar is
-not a select: it is a secondary button with a chevron that opens an
-`app-menu`.
+not a select: it is a `mat-flat-button` with the `secondary-button` mixin and
+a trailing `expand_more` chevron (`iconPositionEnd`, `trigger-chevron`) that
+opens a `mat-menu`, as the Sources sort, the catalog Refine button, the
+programme guide's scope and the season dropdown do. Its label shows the
+current value where there is one; when the visible label is only the value,
+the accessible name adds what it picks ("Channels shown: Favorites"). An
+active picker (refinements applied) takes the selected-row tint. A panel
+header's icon actions use `ghost-icon-button`, as the category panel's
+search and sort do. In a row of filter chips (the VOD sources popover) the
+picker is a chip with the same chevron, so the row keeps one height; the
+language filter there opens a radio menu instead of a native `<select>`.
+
+A single choice among a few options shown side by side is the kit's
+segmented control: a 1px-bordered track with 2px padding and a 10px radius,
+8px segments, no dividers, the chosen segment filled and in the heading
+colour. `segmented-control($height, $icon-size, $segment-width)` dresses a
+`mat-button-toggle-group` (the favorites and recent content and scope
+toggles, the list/grid switch, the playlist switcher's type filter);
+`segmented-track` and `segment` build it from plain buttons that are tabs
+(the season tabs). In a header row use 26px segments, so the control is
+32px tall like a small button. Unchosen labels use the body colour; the
+muted colour reads about 2.9:1 on the track. The settings theme switcher is
+still a pill switcher of its own.
 
 The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
 vocabulary, so a field reads the same wherever it appears:
@@ -1351,8 +1432,9 @@ but the component has not.
   `defaultPrevented`, so one keypress cannot close both the drawer and the
   obscured player) and suppresses workspace-level shortcuts (Ctrl/Cmd+F
   global search, Ctrl/Cmd+K command palette, Ctrl/Cmd+R global recent, the
-  `?` shortcuts dialog — dialogs must not stack a second focus trap on the
-  modal drawer, and navigation must not act behind it), and document-level
+  `?` shortcuts dialog, the Back chord and the other Back gestures — dialogs
+  must not stack a second focus trap on the modal drawer, and navigation must
+  not act behind it), and document-level
   shortcuts owned by routed content (shared controls, Embedded MPV legacy
   dock, radio audio player, the live layouts' Ctrl/Cmd+B sidebar toggle,
   the M3U player's digit-key channel switching and sidebar toggle) opt out

@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Eltávolítva a kedvencek közül",
         "ADDED_TO_FAVORITES": "Hozzáadva a kedvencekhez",
         "FAVORITES": "Kedvencek",
+        "FAVORITE_IDENTITY_CONFLICT": "Ez a forrás lecserélt egy mentett elemet. Az új hozzáadása előtt távolítsd el a régit a kedvencekből.",
+        "FAVORITE_SAVE_FAILED": "Nem sikerült menteni a kedvencet. Próbáld újra.",
         "RECENTLY_VIEWED": "Legutóbb megtekintett",
         "THIS_PLAYLIST": "Ez a lejátszási lista",
         "ALL_PLAYLISTS": "Összes lejátszási lista",
@@ -1478,6 +1480,7 @@
             "FILTER_AVAILABLE": "Elérhető",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Minden nyelv",
+            "LANGUAGE": "Nyelv",
             "SAME_AS_ABOVE": "ugyanaz, mint fent",
             "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
         },
@@ -2034,6 +2037,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "Az alkalmazásablak teljes képernyős módjának be- vagy kikapcsolása",
                 "ZOOM_IN_OUT": "Az alkalmazás nagyítása vagy kicsinyítése",
                 "RESET_ZOOM": "Az alkalmazás nagyításának visszaállítása",
+                "GO_BACK": "Vissza az előző oldalra",
                 "TOGGLE_SIDEBAR": "Oldalsáv megjelenítése vagy elrejtése",
                 "M3U_CHANNEL_NUMBER": "M3U-csatorna kiválasztása a számának beírásával",
                 "PLAY_PAUSE": "A beágyazott MPV lejátszásának indítása vagy szüneteltetése",
@@ -2050,6 +2054,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Nincs a jelenlegi katalógusban",
+            "CATALOG_UNKNOWN": "A katalógus állapota ismeretlen",
             "TITLE": "Összesített kedvencek",
             "SUBTITLE": "Élő csatornák az összes lejátszási listából",
             "SEARCH_PLACEHOLDER": "Keresés a kedvencek között…",

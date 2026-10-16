@@ -231,6 +231,55 @@ describe('DashboardHeroSlidesPresenter', () => {
         jest.useRealTimers();
     });
 
+    it('leaves unavailable saved films in the collection rather than promoting them to a playable hero', () => {
+        favorites.set([{ ...favoriteFilm, catalogStatus: 'missing' }]);
+        expect(
+            create()
+                .slides()
+                .some((slide) => slide.kind === 'favorite')
+        ).toBe(false);
+    });
+
+    it.each([false, true])(
+        'excludes unavailable history from resume and fallback hero inputs (watched: %s)',
+        (watched) => {
+            recentItems.set([
+                {
+                    ...(watched ? watchedMovie : series),
+                    source: 'xtream',
+                    catalogStatus: 'missing',
+                },
+            ]);
+            favorites.set([]);
+            addedItems.set([]);
+            candidates.set([]);
+            tmdbEnabled.set(true);
+            const presenter = create();
+            TestBed.tick();
+            expect(presenter.slides()).toEqual([]);
+            expect(getExtras).not.toHaveBeenCalled();
+        }
+    );
+
+    it('does not look up or reserve a hero slot for an unavailable live candidate', () => {
+        candidates.set([
+            {
+                origin: 'favorite',
+                item: { ...channel, catalogStatus: 'missing' },
+            },
+        ]);
+        favorites.set([
+            favoriteFilm,
+            { ...favoriteFilm, id: 40, xtream_id: 400, title: 'Another film' },
+        ]);
+        const presenter = create();
+        expect(presenter.slides()).toHaveLength(4);
+        expect(presenter.slides().some((slide) => slide.kind === 'live')).toBe(
+            false
+        );
+        expect(liveDetails).not.toHaveBeenCalled();
+    });
+
     it('builds the rotation from resume, live, favourite and import slides', () => {
         const slides = create().slides();
 

@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Favorilerden kaldırıldı",
         "ADDED_TO_FAVORITES": "Favorilere eklendi",
         "FAVORITES": "Favoriler",
+        "FAVORITE_IDENTITY_CONFLICT": "Bu kaynak kaydettiğiniz bir öğeyi değiştirdi. Bunu eklemeden önce eski kaydı Favorilerden kaldırın.",
+        "FAVORITE_SAVE_FAILED": "Bu favori kaydedilemedi. Lütfen tekrar deneyin.",
         "RECENTLY_VIEWED": "Son izlenenler",
         "THIS_PLAYLIST": "Bu oynatma listesi",
         "ALL_PLAYLISTS": "Tüm oynatma listeleri",
@@ -1478,6 +1480,7 @@
             "FILTER_AVAILABLE": "Kullanılabilir",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Tüm diller",
+            "LANGUAGE": "Dil",
             "SAME_AS_ABOVE": "üsttekiyle aynı",
             "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
         },
@@ -2034,6 +2037,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "Uygulama penceresi tam ekranını aç/kapat",
                 "ZOOM_IN_OUT": "Uygulamayı yakınlaştır veya uzaklaştır",
                 "RESET_ZOOM": "Uygulama yakınlaştırmasını sıfırla",
+                "GO_BACK": "Önceki sayfaya dön",
                 "TOGGLE_SIDEBAR": "Kenar çubuğunu aç/kapat",
                 "M3U_CHANNEL_NUMBER": "M3U kanalını numarayla seç",
                 "PLAY_PAUSE": "Gömülü MPV oynatmasını oynat veya duraklat",
@@ -2050,6 +2054,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Mevcut katalogda bulunmuyor",
+            "CATALOG_UNKNOWN": "Katalog durumu bilinmiyor",
             "TITLE": "Tüm Favoriler",
             "SUBTITLE": "Tüm oynatma listelerinden canlı TV",
             "SEARCH_PLACEHOLDER": "Favorilerde ara...",

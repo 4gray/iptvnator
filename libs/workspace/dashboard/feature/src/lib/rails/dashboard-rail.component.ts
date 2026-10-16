@@ -1,3 +1,4 @@
+import type { XtreamFavoriteCatalogStatus } from '@iptvnator/shared/interfaces';
 import {
     AfterViewInit,
     ChangeDetectionStrategy,
@@ -37,6 +38,7 @@ export interface DashboardRailCard {
     id: string;
     title: string;
     subtitle?: string;
+    catalogStatus?: XtreamFavoriteCatalogStatus;
     imageUrl?: string;
     icon: string;
     contentType?: 'live' | 'movie' | 'series';

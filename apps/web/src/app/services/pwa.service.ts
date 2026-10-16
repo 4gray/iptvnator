@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -85,7 +85,7 @@ interface ProviderTargetRegistration {
 export class PwaService extends DataService {
     private messageListeners = new Map<string, EventListener>();
     private readonly http = inject(HttpClient);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly snackBar = inject(LazySnackBar);
     private readonly store = inject(Store);
     private readonly swUpdate = inject(SwUpdate);
     private readonly translateService = inject(TranslateService);
@@ -116,18 +116,20 @@ export class PwaService extends DataService {
         super();
     }
 
+    /** The page reload; a field so specs can substitute it. */
+    reloadWindow: () => void = () => window.location.reload();
+
     /** Uses service worker mechanism to check for available application updates */
     checkUpdates() {
         this.swUpdate.versionUpdates.subscribe(() => {
-            this.snackBar
+            void this.snackBar
                 .open(
                     this.translateService.instant('UPDATE_AVAILABLE'),
                     this.translateService.instant('REFRESH')
                 )
-                .onAction()
-                .subscribe(() => {
-                    window.location.reload();
-                });
+                .then((ref) =>
+                    ref?.onAction().subscribe(() => this.reloadWindow())
+                );
         });
     }
 
@@ -253,7 +255,7 @@ export class PwaService extends DataService {
                         })
                     );
 
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.translateService.instant(
                             'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
                         ),
@@ -264,7 +266,7 @@ export class PwaService extends DataService {
                 error: (error: unknown) => {
                     // Redacted: the error can carry the playlist URL.
                     this.logger.error('Playlist refresh error:', error);
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.appendProviderErrorCode(
                             this.getPlaylistRefreshErrorMessage(error),
                             error
@@ -314,7 +316,7 @@ export class PwaService extends DataService {
         this.getPlaylistFromUrl(payload.url, payload.userAgent)
             .pipe(
                 catchError((error) => {
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.appendProviderErrorCode(
                             this.getErrorMessageByStatusCode(
                                 this.extractHttpStatusCode(error)
@@ -527,7 +529,7 @@ export class PwaService extends DataService {
             }
 
             this.logger.error('Xtream request error:', normalizedMessage);
-            this.snackBar.open(
+            void this.snackBar.open(
                 this.translateService.instant('PORTALS.REQUEST_ERRORS.XTREAM', {
                     message: normalizedMessage,
                 }),
@@ -721,7 +723,7 @@ export class PwaService extends DataService {
             this.logger.error('Stalker request error:', err);
 
             if (!payload.silent) {
-                this.snackBar.open(
+                void this.snackBar.open(
                     this.translateService.instant(
                         'PORTALS.REQUEST_ERRORS.STALKER',
                         {

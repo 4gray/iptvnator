@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Eliminado de favoritos",
         "ADDED_TO_FAVORITES": "Añadido a favoritos",
         "FAVORITES": "Favoritos",
+        "FAVORITE_IDENTITY_CONFLICT": "Esta fuente ha sustituido un elemento guardado. Elimina la entrada anterior de Favoritos antes de añadir esta.",
+        "FAVORITE_SAVE_FAILED": "No se pudo guardar este favorito. Inténtalo de nuevo.",
         "RECENTLY_VIEWED": "Vistos recientemente",
         "THIS_PLAYLIST": "Esta lista de reproducción",
         "ALL_PLAYLISTS": "Todas las listas",
@@ -1478,6 +1480,7 @@
             "FILTER_AVAILABLE": "Disponibles",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Todos los idiomas",
+            "LANGUAGE": "Idioma",
             "SAME_AS_ABOVE": "igual que la anterior",
             "SHOWING_OF_TOTAL": "{{visible}} de {{total}}"
         },
@@ -2034,6 +2037,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "Alternar pantalla completa de la ventana de la aplicación",
                 "ZOOM_IN_OUT": "Acercar o alejar la aplicación",
                 "RESET_ZOOM": "Restablecer el zoom de la aplicación",
+                "GO_BACK": "Volver a la página anterior",
                 "TOGGLE_SIDEBAR": "Mostrar u ocultar barra lateral",
                 "M3U_CHANNEL_NUMBER": "Seleccionar canal M3U por número",
                 "PLAY_PAUSE": "Reproducir o pausar MPV integrado",
@@ -2050,6 +2054,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "No está en el catálogo actual",
+            "CATALOG_UNKNOWN": "Estado del catálogo desconocido",
             "TITLE": "Favoritos globales",
             "SUBTITLE": "TV en vivo de todas las listas",
             "SEARCH_PLACEHOLDER": "Buscar favoritos…",

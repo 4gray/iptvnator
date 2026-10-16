@@ -1,5 +1,6 @@
 @use '../epg-theme' as *;
 @use '../../../../styles/focus-ring';
+@use '../../../../styles/app-controls' as controls;
 
 :host {
     display: block;
@@ -70,8 +71,7 @@
     }
 }
 
-.guide-toolbar__now,
-.guide-toolbar__scope {
+.guide-toolbar__now {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -109,11 +109,14 @@
     }
 }
 
-.guide-toolbar__scope mat-icon {
-    width: 18px;
-    height: 18px;
-    font-size: 18px;
-    margin-right: -6px;
+// The kit's toolbar picker: a small secondary button with a chevron.
+.guide-toolbar__scope {
+    flex-shrink: 0;
+    @include controls.secondary-button(sm);
+}
+
+.guide-toolbar__scope-chevron {
+    @include controls.trigger-chevron;
 }
 
 .guide-toolbar__toggle {

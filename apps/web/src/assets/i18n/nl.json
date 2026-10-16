@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Uit favorieten verwijderd",
         "ADDED_TO_FAVORITES": "Toegevoegd aan favorieten",
         "FAVORITES": "Favorieten",
+        "FAVORITE_IDENTITY_CONFLICT": "Deze bron heeft een opgeslagen item vervangen. Verwijder het oude item uit Favorieten voordat je dit toevoegt.",
+        "FAVORITE_SAVE_FAILED": "Deze favoriet kon niet worden opgeslagen. Probeer het opnieuw.",
         "RECENTLY_VIEWED": "Recent bekeken",
         "THIS_PLAYLIST": "Deze afspeellijst",
         "ALL_PLAYLISTS": "Alle afspeellijsten",
@@ -1478,6 +1480,7 @@
             "FILTER_AVAILABLE": "Beschikbaar",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Alle talen",
+            "LANGUAGE": "Taal",
             "SAME_AS_ABOVE": "zelfde als hierboven",
             "SHOWING_OF_TOTAL": "{{visible}} van {{total}}"
         },
@@ -2034,6 +2037,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "Volledig scherm voor het app-venster in- of uitschakelen",
                 "ZOOM_IN_OUT": "App in- of uitzoomen",
                 "RESET_ZOOM": "App-zoom herstellen",
+                "GO_BACK": "Terug naar de vorige pagina",
                 "TOGGLE_SIDEBAR": "Zijbalk in- of uitschakelen",
                 "M3U_CHANNEL_NUMBER": "M3U-kanaal selecteren op nummer",
                 "PLAY_PAUSE": "Ingebedde MPV-weergave afspelen of pauzeren",
@@ -2050,6 +2054,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Niet in de huidige catalogus",
+            "CATALOG_UNKNOWN": "Catalogusstatus onbekend",
             "TITLE": "Algemene favorieten",
             "SUBTITLE": "Live tv uit alle afspeellijsten",
             "SEARCH_PLACEHOLDER": "Zoek favorieten...",

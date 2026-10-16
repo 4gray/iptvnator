@@ -446,6 +446,25 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             host.querySelector('app-portal-detail-shell')?.classList
         ).toContain('shell-host--watch');
     });
+    it('binds the detail heart to the displayed metadata identity', async () => {
+        const item = richItem();
+        if (item.info && !Array.isArray(item.info)) item.info.tmdb_id = 200;
+        selectedItem.set(item);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.nativeElement
+            .querySelector('[data-testid="vod-favorite-toggle"]')
+            .click();
+        await fixture.whenStable();
+        expect(toggleFavorite).toHaveBeenCalledWith(
+            '650020',
+            'playlist-1',
+            'movie',
+            undefined,
+            expect.objectContaining({ tmdbId: 200, releaseYear: 2025 })
+        );
+    });
+
     it('reuses the sparse item for resume, favorite, and download', async () => {
         const item = sparseItem();
         selectedItem.set(item);
@@ -484,6 +503,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             '650020',
             'playlist-1',
             'movie',
+            undefined,
             undefined
         );
         expect(startDownload).toHaveBeenCalledWith(

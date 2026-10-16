@@ -79,6 +79,18 @@ describe('EpgGuideToolbarComponent scope menu', () => {
         expect(checks).toEqual(['hidden', 'hidden', '']);
     });
 
+    it('names the trigger with the scope it shows', () => {
+        const { fixture } = render('favorites');
+
+        const trigger = fixture.nativeElement.querySelector(
+            '.guide-toolbar__scope'
+        ) as HTMLButtonElement;
+        expect(trigger.getAttribute('aria-label')).toBe(
+            'EPG.GUIDE.SCOPE: Favorites'
+        );
+        expect(trigger.textContent).toContain('Favorites');
+    });
+
     it('reports the picked scope', () => {
         const { fixture, rows } = render('all');
         const picked: string[] = [];

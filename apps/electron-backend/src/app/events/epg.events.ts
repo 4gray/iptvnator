@@ -131,8 +131,7 @@ export default class EpgEvents {
                 const url = typeof args === 'string' ? args : args.url;
                 const options =
                     typeof args === 'string' ? undefined : args.options;
-                epgWorkerService.deleteFetchedUrl(url);
-                return await this.handleFetchEpg([url], options);
+                return await handleFetchEpg([url], options, true);
             }
         );
 

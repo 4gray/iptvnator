@@ -4,7 +4,7 @@ import {
 } from './database-electron.service';
 import { SourceHealthEvidenceService } from './source-health-evidence.service';
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from './lazy-snack-bar/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import {
     aggregateFavoriteChannels,
@@ -90,7 +90,7 @@ export class PlaylistsService {
     });
     private readonly dbService = inject(NgxIndexedDBService);
     private readonly databaseService = inject(DatabaseService);
-    private readonly snackBar = inject(MatSnackBar);
+    private readonly snackBar = inject(LazySnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly storageBackend = inject(PlaylistStorageBackend);
     private readonly playlistDeleteCleanups =
@@ -1259,7 +1259,7 @@ export class PlaylistsService {
                 uploadType
             );
         } catch (error) {
-            this.snackBar.open(
+            void this.snackBar.open(
                 this.translateService.instant('HOME.PARSING_ERROR'),
                 undefined,
                 { duration: 2000 }

@@ -11,11 +11,8 @@ import { replaySteps } from './server-user-data-edit';
 import type { UserDataWriteQueue } from './server-user-data-queue';
 import type { UserDataStorage } from '../user-data-storage';
 import type { DeferredEdit } from './server-user-data-edit';
-import {
-    othersUnconfirmed,
-    readDeferredEdits,
-    readUnsentWrites,
-} from './server-unsent-writes';
+import { othersUnconfirmed } from './server-page-registry';
+import { readDeferredEdits, readUnsentWrites } from './server-unsent-writes';
 import type { UserDataCache } from './server-user-data-cache';
 
 /**

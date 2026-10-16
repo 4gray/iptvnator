@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Aus Favoriten entfernt",
         "ADDED_TO_FAVORITES": "Zu den Favoriten hinzugefügt",
         "FAVORITES": "Favoriten",
+        "FAVORITE_IDENTITY_CONFLICT": "Diese Quelle hat einen gespeicherten Eintrag ersetzt. Entferne den alten Eintrag aus den Favoriten, bevor du diesen hinzufügst.",
+        "FAVORITE_SAVE_FAILED": "Der Favorit konnte nicht gespeichert werden. Bitte versuche es erneut.",
         "RECENTLY_VIEWED": "Zuletzt angesehen",
         "THIS_PLAYLIST": "Diese Playlist",
         "ALL_PLAYLISTS": "Alle Playlists",
@@ -1478,6 +1480,7 @@
             "FILTER_AVAILABLE": "Verfügbar",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Alle Sprachen",
+            "LANGUAGE": "Sprache",
             "SAME_AS_ABOVE": "wie oben",
             "SHOWING_OF_TOTAL": "{{visible}} von {{total}}"
         },
@@ -2034,6 +2037,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "Vollbild für das App-Fenster umschalten",
                 "ZOOM_IN_OUT": "App vergrößern oder verkleinern",
                 "RESET_ZOOM": "App-Zoom zurücksetzen",
+                "GO_BACK": "Zur vorherigen Seite zurückkehren",
                 "TOGGLE_SIDEBAR": "Seitenleiste umschalten",
                 "M3U_CHANNEL_NUMBER": "M3U-Kanal per Nummer auswählen",
                 "PLAY_PAUSE": "Eingebettete MPV-Wiedergabe starten oder pausieren",
@@ -2050,6 +2054,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Nicht im aktuellen Katalog",
+            "CATALOG_UNKNOWN": "Katalogstatus unbekannt",
             "TITLE": "Globale Favoriten",
             "SUBTITLE": "Live-TV aus allen Playlists",
             "SEARCH_PLACEHOLDER": "Favoriten durchsuchen...",

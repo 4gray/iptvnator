@@ -81,6 +81,7 @@ Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
 | Global            | `Ctrl/Cmd+R`                | Open recently viewed in the desktop app                    |
 | Global            | `Enter` in workspace search | Submit the search; on Settings, open the best match        |
 | Global            | `F11`                       | Toggle app window fullscreen in the desktop app            |
+| Navigation        | `Alt+←` / `Cmd+[` (macOS)   | Go back, like the top bar's Back and the mouse Back button |
 | Navigation        | `Ctrl/Cmd+B`                | Toggle the live sidebar                                    |
 | Navigation        | `0-9`                       | Select an M3U channel by number                            |
 | Playback          | `Space` / `K`               | Play or pause playback                                     |

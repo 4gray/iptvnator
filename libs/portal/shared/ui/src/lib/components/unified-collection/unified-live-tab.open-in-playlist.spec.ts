@@ -22,6 +22,7 @@ import { OpenInPlaylistChipComponent } from '../open-in-playlist-chip/open-in-pl
 import {
     buildCurrentEpgItem,
     buildLiveItem,
+    createDeferred,
 } from './unified-live-tab.spec-data';
 import {
     StubAudioPlayerComponent,
@@ -211,6 +212,92 @@ describe('UnifiedLiveTabComponent open in playlist', () => {
             }
         );
     });
+
+    it.each(['missing', 'unknown'] as const)(
+        'closes an active favorite when its catalog status becomes %s',
+        async (catalogStatus) => {
+            const item = await activate('xtream');
+            fixture.componentRef.setInput('items', [
+                { ...item, catalogStatus },
+            ]);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(component.activeItem()).toBeNull();
+            expect(component.activeDetail()).toBeNull();
+            expect(component.activeUid()).toBeNull();
+            expect(chip()).toBeNull();
+            component.onOpenInPlaylistRequested(component.channelsForList()[0]);
+            expect(navigate).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each(['missing', 'unknown'] as const)(
+        'discards a pending favorite selection when its catalog status becomes %s',
+        async (catalogStatus) => {
+            const item = buildLiveItem('xtream');
+            const detail = {
+                epgMode: 'portal',
+                playback: {
+                    streamUrl: 'https://example.com/xtream.m3u8',
+                    title: item.name,
+                },
+                epgItems: [],
+            };
+            const pending = createDeferred<typeof detail>();
+            streamResolver.resolveLiveDetail.mockReturnValue(pending.promise);
+            fixture.componentRef.setInput('items', [item]);
+            fixture.detectChanges();
+            const activation = component.onChannelPlaybackRequested(
+                component.channelsForList()[0]
+            );
+            expect(component.isSelecting()).toBe(true);
+
+            fixture.componentRef.setInput('items', [
+                { ...item, catalogStatus },
+            ]);
+            fixture.detectChanges();
+            pending.resolve(detail);
+            await activation;
+            fixture.detectChanges();
+
+            expect(component.activeItem()).toBeNull();
+            expect(component.activeDetail()).toBeNull();
+            expect(component.isSelecting()).toBe(false);
+            expect(
+                TestBed.inject(PORTAL_PLAYER).openResolvedPlayback
+            ).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each(['missing', 'removed'] as const)(
+        'revokes a retained %s favorite while another selection is pending',
+        async (status) => {
+            const first = await activate('xtream');
+            const second = { ...first, uid: 'xtream::pl-2::21', xtreamId: 21 };
+            const pending = createDeferred<null>();
+            streamResolver.resolveLiveDetail.mockReturnValue(pending.promise);
+            fixture.componentRef.setInput('items', [first, second]);
+            fixture.detectChanges();
+            const activation = component.onChannelSelected(
+                component.channelsForList()[1]
+            );
+            expect(component.isSelecting()).toBe(true);
+
+            fixture.componentRef.setInput(
+                'items',
+                status === 'removed'
+                    ? [second]
+                    : [{ ...first, catalogStatus: 'missing' }, second]
+            );
+            fixture.detectChanges();
+            expect(component.activeDetail()).toBeNull();
+            expect(component.activeItem()).toBeNull();
+            pending.resolve(null);
+            await activation;
+            expect(component.activeDetail()).toBeNull();
+        }
+    );
 
     it('keeps the chip out of the panel for a Stalker radio station', async () => {
         const item = { ...buildLiveItem('stalker'), radio: 'true' };

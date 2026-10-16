@@ -135,6 +135,16 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         electronOnly: true,
     },
     {
+        // The header's Back, like the browser chord on each platform. The
+        // mouse Back button and the macOS trackpad swipe run it too.
+        id: 'navigate-back',
+        group: 'navigation',
+        labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.GO_BACK',
+        icon: 'arrow_back',
+        keys: [{ mac: ['Cmd', '['], other: ['Alt', 'ArrowLeft'] }],
+        order: 0,
+    },
+    {
         id: 'toggle-sidebar',
         group: 'navigation',
         labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.TOGGLE_SIDEBAR',

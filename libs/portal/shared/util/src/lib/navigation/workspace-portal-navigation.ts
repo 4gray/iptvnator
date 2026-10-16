@@ -268,6 +268,9 @@ export function buildGlobalCollectionDetailNavigationTarget(
             mode === 'favorites' ? 'global-favorites' : 'global-recent',
         ],
         state: {
+            // The active playlist can differ from the dashboard/cross-portal item.
+            // Validate its current availability against all saved rows.
+            [COLLECTION_VIEW_STATE_KEY]: { scope: 'all' },
             [OPEN_COLLECTION_DETAIL_STATE_KEY]:
                 buildOpenCollectionDetailItemState(item, seriesResume),
         },
@@ -671,6 +674,8 @@ function buildDashboardCollectionDetailItem(
             posterUrl: item.poster_url ?? null,
             xtreamId: toOptionalNumber(item.xtream_id),
             contentId: toOptionalNumber(item.id),
+            favoriteId: item.favorite_id,
+            catalogStatus: item.catalogStatus,
             categoryId: item.category_id,
             addedAt: 'added_at' in item ? item.added_at : undefined,
             viewedAt: 'viewed_at' in item ? item.viewed_at : undefined,
@@ -840,6 +845,13 @@ function normalizeCollectionDetailItem(
         logo: toOptionalPathSegment(record['logo']) ?? null,
         xtreamId: toOptionalNumber(record['xtreamId']),
         contentId: toOptionalNumber(record['contentId']),
+        favoriteId: toOptionalNumber(record['favoriteId']),
+        catalogStatus:
+            record['catalogStatus'] === 'missing' ||
+            record['catalogStatus'] === 'unknown' ||
+            record['catalogStatus'] === 'present'
+                ? record['catalogStatus']
+                : undefined,
         stalkerId: toOptionalPathSegment(record['stalkerId']),
         stalkerCmd: toOptionalPathSegment(record['stalkerCmd']),
         stalkerPortalUrl: toOptionalPathSegment(record['stalkerPortalUrl']),

@@ -27,6 +27,8 @@ export interface XtreamLiveChannelItem {
     readonly poster_url?: string;
     readonly stream_icon?: string;
     readonly title?: string;
+    readonly tmdb_id?: number | null;
+    readonly release_year?: number | null;
     readonly tv_archive?: number | null;
     readonly tv_archive_duration?: number | string | null;
     readonly xtream_id: number;

@@ -1,5 +1,5 @@
 import { ServerApiError } from './server-api-client';
-import { UNCONFIRMED_TTL_MS } from './server-unsent-writes';
+import { UNCONFIRMED_TTL_MS } from './server-page-registry';
 import { ServerUserDataStorage } from './server-user-data-storage';
 import { fakeServer, memoryStorage } from './server-user-data.test-helpers';
 

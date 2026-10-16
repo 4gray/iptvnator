@@ -1321,6 +1321,8 @@
         "REMOVED_FROM_FAVORITES": "Выдалена з выбранага",
         "ADDED_TO_FAVORITES": "Дададзена ў выбранае",
         "FAVORITES": "Выбранае",
+        "FAVORITE_IDENTITY_CONFLICT": "Крыніца замяніла захаваны вамі элемент. Выдаліце стары запіс з абранага, перш чым дадаць новы.",
+        "FAVORITE_SAVE_FAILED": "Не ўдалося захаваць абранае. Паспрабуйце яшчэ раз.",
         "RECENTLY_VIEWED": "Нядаўна праглянутае",
         "THIS_PLAYLIST": "Гэты плэйліст",
         "ALL_PLAYLISTS": "Усе плэйлісты",
@@ -1478,6 +1480,7 @@
             "FILTER_AVAILABLE": "Даступныя",
             "FILTER_HD": "HD+",
             "ALL_LANGUAGES": "Усе мовы",
+            "LANGUAGE": "Мова",
             "SAME_AS_ABOVE": "як радком вышэй",
             "SHOWING_OF_TOTAL": "{{visible}} з {{total}}"
         },
@@ -2034,6 +2037,7 @@
                 "TOGGLE_WINDOW_FULLSCREEN": "Пераключыць поўнаэкранны рэжым акна праграмы",
                 "ZOOM_IN_OUT": "Павялічыць або паменшыць маштаб праграмы",
                 "RESET_ZOOM": "Скінуць маштаб праграмы",
+                "GO_BACK": "Вярнуцца на папярэднюю старонку",
                 "TOGGLE_SIDEBAR": "Пераключыць бакавую панэль",
                 "M3U_CHANNEL_NUMBER": "Выбраць M3U-канал па нумары",
                 "PLAY_PAUSE": "Прайграць або прыпыніць Embedded MPV",
@@ -2050,6 +2054,8 @@
             }
         },
         "GLOBAL_FAVORITES": {
+            "CATALOG_MISSING": "Няма ў бягучым каталогу",
+            "CATALOG_UNKNOWN": "Стан каталога невядомы",
             "TITLE": "Усе фаварыты",
             "SUBTITLE": "Прамы эфір з усіх плэйлістоў",
             "SEARCH_PLACEHOLDER": "Пошук у выбраным...",
