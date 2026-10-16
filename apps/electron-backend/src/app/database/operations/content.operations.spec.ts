@@ -870,7 +870,10 @@ describe('content.operations', () => {
             .mockResolvedValueOnce([makeRow(1, 'A&E')])
             // FTS arm: compound substring matches, overlapping with the
             // prefix arm to prove candidates are deduplicated.
-            .mockResolvedValueOnce([makeRow(2, 'US: A&E'), makeRow(1, 'A&E')]);
+            .mockResolvedValueOnce([
+                makeRow(2, 'US: A&E'),
+                makeRow(1, 'A&E'),
+            ]);
         const select = jest.fn();
         const db = {
             all,
@@ -988,9 +991,7 @@ describe('content.operations', () => {
         const all = jest
             .fn()
             .mockResolvedValueOnce([globRow])
-            .mockRejectedValueOnce(
-                new Error('no such table: content_title_fts')
-            );
+            .mockRejectedValueOnce(new Error('no such table: content_title_fts'));
         const limit = jest.fn().mockResolvedValue([globRow, scanRow]);
         const orderBy = jest.fn().mockReturnValue({ limit });
         const where = jest.fn().mockReturnValue({ orderBy });

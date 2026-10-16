@@ -70,9 +70,20 @@ verify download preservation using a development-profile download instead.
 The Electron E2E test uses a loopback recording proxy to assert which category
 and catalog actions the real desktop process sends. It never records credentials.
 The SQLite regression uses Electron's native SQLite and foreign keys enabled.
+The preservation E2E seeds 105 history entries and a resume point, downloads a
+valid local media clip, disables all catalogs, refreshes, and restarts the app.
+Favorites and history must still display the disabled badge and play decoded
+fixture media from the saved resume point, without catalog requests. Re-enabling
+Movies must retain all 105 entries, the position, and the byte-identical download.
+A second case plays disabled Live TV and Series entries from both Favorites and
+history, including episode metadata requests but no catalog requests.
+The offline Play action uses the real managed-file IPC validation; only the final
+OS file opener is stubbed, so no external application launches during the test.
+This does not validate a real provider's codecs/network or desktop file associations.
 
 ```bash
 pnpm nx run electron-backend-e2e:e2e-ci--src/xtream-content-selection.e2e.ts
+pnpm nx run electron-backend-e2e:e2e-ci--src/xtream-selection-preservation.e2e.ts
 pnpm nx test portal-xtream-data-access --runInBand
 pnpm nx test electron-backend --runInBand --testPathPatterns=xtream-content-selection
 pnpm nx test services --runInBand --testPathPatterns='xtream-selected-catalog-refresh|playlist-backup.service'

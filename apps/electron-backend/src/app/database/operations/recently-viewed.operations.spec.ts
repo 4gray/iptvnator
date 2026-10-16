@@ -82,6 +82,19 @@ describe('recently-viewed.operations', () => {
         });
     });
 
+    it('reads complete playlist history for recovery without the browsing limit', async () => {
+        const rows = Array.from({ length: 105 }, (_, id) => ({ id }));
+        const { db, queries } = createDbMock([rows]);
+        await expect(getRecentItems(db, 'playlist-1', true)).resolves.toEqual(
+            rows
+        );
+        expect(queries[0].limit).not.toHaveBeenCalled();
+        expect(mockDrizzle.eq).toHaveBeenCalledWith(
+            schema.recentlyViewed.playlistId,
+            'playlist-1'
+        );
+    });
+
     describe('addRecentItem', () => {
         it('inserts a new history entry on first view and persists the backdrop', async () => {
             const { db, insert, insertValues, update } = createDbMock([[]]);

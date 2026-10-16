@@ -1186,8 +1186,10 @@ export interface ElectronBridgeApi {
     dbReorderGlobalFavorites: (
         updates: ElectronBridgeFavoriteReorderUpdate[]
     ) => Promise<ElectronBridgeResult>;
+    /** Ordinary reads cap at 100; recovery explicitly requests all entries. */
     dbGetRecentItems: (
-        playlistId: string
+        playlistId: string,
+        options?: { all?: boolean }
     ) => Promise<ElectronBridgeXtreamContent[]>;
     dbAddRecentItem: (
         contentId: number,

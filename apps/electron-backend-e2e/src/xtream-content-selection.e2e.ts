@@ -1,4 +1,7 @@
-import { createServer } from 'node:http';
+import {
+    recordCatalogRequests,
+    catalogActions,
+} from './xtream-selection.e2e-support';
 import {
     addXtreamPortal,
     closeElectronApp,
@@ -10,65 +13,8 @@ import {
     saveSourceDialog,
     refreshSource,
     test,
-    xtreamMockServer,
     restartElectronApp,
 } from './electron-test-fixtures';
-
-/** Observe real main-process API requests without recording credentials. */
-async function recordCatalogRequests() {
-    const actions: string[] = [];
-    let heldAction: string | null = null;
-    let heldResponse: Promise<void> = Promise.resolve();
-    let releaseResponse: (() => void) | undefined;
-    const server = createServer(async (request, response) => {
-        try {
-            const url = new URL(request.url ?? '/', xtreamMockServer);
-            const action = url.searchParams.get('action');
-            if (action) actions.push(action);
-            if (action === heldAction) await heldResponse;
-            const upstream = await fetch(url);
-            response.writeHead(upstream.status, {
-                'Content-Type': 'application/json',
-            });
-            response.end(await upstream.text());
-        } catch {
-            response.writeHead(502).end();
-        }
-    });
-    await new Promise<void>((resolve) =>
-        server.listen(0, '127.0.0.1', resolve)
-    );
-    const address = server.address();
-    if (!address || typeof address === 'string')
-        throw new Error('No local mock port');
-    return {
-        actions,
-        hold(action: string) {
-            heldAction = action;
-            heldResponse = new Promise<void>((resolve) => {
-                releaseResponse = resolve;
-            });
-            return () => {
-                heldAction = null;
-                releaseResponse?.();
-            };
-        },
-        url: `http://127.0.0.1:${address.port}`,
-        close: () => {
-            releaseResponse?.();
-            return new Promise<void>((resolve, reject) =>
-                server.close((error) => (error ? reject(error) : resolve()))
-            );
-        },
-    };
-}
-
-const catalogActions = (actions: string[]) =>
-    actions.filter((action) =>
-        /^(get_(live|vod|series)_categories|get_live_streams|get_vod_streams|get_series)$/.test(
-            action
-        )
-    );
 
 test('desktop shows scanning for newly enabled Movies and Series and preserves an all-disabled source', async ({
     dataDir,

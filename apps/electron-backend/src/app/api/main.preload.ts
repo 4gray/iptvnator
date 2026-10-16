@@ -1026,8 +1026,12 @@ const electronApi: ElectronBridgeApi = {
         updates: ElectronBridgeFavoriteReorderUpdate[]
     ) => ipcRenderer.invoke('DB_REORDER_GLOBAL_FAVORITES', updates),
     // Recently viewed (playlist-specific)
-    dbGetRecentItems: (playlistId: string) =>
-        ipcRenderer.invoke('DB_GET_RECENT_ITEMS', playlistId),
+    dbGetRecentItems: (playlistId: string, options?: { all?: boolean }) =>
+        ipcRenderer.invoke(
+            'DB_GET_RECENT_ITEMS',
+            playlistId,
+            ...(options ? [options] : [])
+        ),
     dbAddRecentItem: (
         contentId: number,
         playlistId: string,
