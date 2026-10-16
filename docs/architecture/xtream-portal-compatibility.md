@@ -380,7 +380,8 @@ do not show scanning. This path does not advertise cancellation it cannot perfor
 Checkboxes and section selection share the sidebar's Movies → Live TV → Series
 order. After a successful edit-time scan, navigate to the first newly enabled
 type in that order; a single newly enabled type always opens itself. Initial
-imports and manual refreshes choose the first enabled type in the same order.
+imports, manual refreshes and reopening a source from Sources choose the first
+enabled type in the same order. Browser source navigation remains unchanged.
 Failed scans and disable-only edits do not trigger the edit-time navigation. Cache
 delete carries an optional type scope through the worker bridge, snapshots all
 history/hidden-category state, and deletes only the requested catalogs. Ordinary

@@ -44,6 +44,8 @@ verify download preservation using a development-profile download instead.
 
 - Add a source with only Live TV selected; verify Movies and Series are not
   imported. Compare import time against all three types on the same provider.
+  After scanning, click Sources in the left sidebar, then the provider's name:
+  Live TV should reopen, not an empty Movies page. Repeat with a Series-only source.
 - Edit that source to enable Movies. Saving shows the scanning popup and loads
   Movies without refreshing Live TV. The popup identifies Movies, shows remote
   loading and local save progress, then closes when done. Repeat with Series;
