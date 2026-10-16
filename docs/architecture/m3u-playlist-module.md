@@ -1816,6 +1816,43 @@ Same-URL clears are serialized and replacement imports await the outstanding
 clear, so an older cleanup cannot erase a newly re-added source. Source cleanup
 also awaits the in-flight fetch promise when an error/timeout has already removed
 the worker from the lookup but its termination is still pending.
+Clear All retires every import generation, including queued batches, pending
+freshness reads and local-file permission prompts. It gates new imports, stops
+writers and awaits their actual exit (including imports already settling after
+an error) before starting the database clear worker. Failed shutdown rejects the
+clear and remains retryable. A `CLEAR_COMPLETE` message confirms the database
+operation only: both global and source-clear IPC wait for confirmed worker
+shutdown before acknowledging success. If that shutdown fails, the clear rejects
+and the retained worker must stop successfully before a retry or import can start.
+Existing source clears finish before the global
+clear; later source clears and fetches wait behind it. Overlapping global clears
+share the same operation while retiring requests queued since the earlier call.
+A late local-file approval cannot restart a retired import or delay cache clearing.
+All imports share one admission queue across IPC requests and ordinary batches,
+including Refresh All's separate per-source requests. A worker keeps the slot until
+its import and termination settle; failures release the slot, while the strict
+shutdown barrier still prevents a new writer after an unconfirmed exit. Same-URL
+requests share their queued or active import. Local-file authorization happens
+before admission, so an open prompt holds no import slot. Each queued request
+retains its original generation: source cleanup and Clear All retire it before
+admission, without waiting for queued work or pending prompts to finish.
+Explicit Refresh bypasses both persisted 12-hour freshness and the session cache;
+normal background fetches retain those shortcuts. Refresh still shares an active
+same-source fetch and preserves trust options, local-file authorization and source
+retirement checks. Once that fetch has emitted completion or failure, a new
+Refresh waits for its worker shutdown and starts a replacement instead of reusing
+its terminal result. Concurrent retries share the replacement; a clear during
+shutdown retires it. Failed worker shutdown must succeed before another import
+can write, and a failed retry reports an error rather than leaving progress queued.
+Fetch admission checks shutdown after local-file authorization, immediately before
+creating the worker. Source clears apply the same strict shutdown barrier even
+when the previous import or clear has already settled. Both paths recheck after
+every wait, so a newly pending shutdown cannot be bypassed while another worker
+is stopping; generation retirement still cancels imports waiting at this barrier.
+Stopping an active import for source cleanup also enters the shared runtime
+shutdown registry. Imports of other sources therefore wait for that stop or fail
+if it cannot complete, while overlapping source/global clears share its promise.
+
 Every removed source emits generation-scoped cancellation before cleanup starts,
 including retained actionable errors whose workers have already finished. Retired
 queued/running imports also cancel their own generation. Retry waits for source

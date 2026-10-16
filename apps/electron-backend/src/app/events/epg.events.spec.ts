@@ -174,6 +174,7 @@ describe('EpgEvents', () => {
     it('rejects when the EPG clear worker exits before completion', async () => {
         const workerService = new EpgWorkerService('[Test EPG]', 1000);
         const clearPromise = workerService.clearEpgData();
+        await flushPromises();
         const worker = mockWorkerInstances[0];
 
         worker.emit('exit', 0);
@@ -188,6 +189,7 @@ describe('EpgEvents', () => {
 
         const workerService = new EpgWorkerService('[Test EPG]', 25);
         const clearPromise = workerService.clearEpgData();
+        await jest.advanceTimersByTimeAsync(0);
         const worker = mockWorkerInstances[0];
 
         worker.emit('message', { type: 'READY' });
@@ -285,42 +287,218 @@ describe('EpgEvents', () => {
         expect(secondResolved).toBe(true);
     });
 
-    it('does not resolve clearEpgData until interrupted fetch workers have terminated', async () => {
-        const workerService = new EpgWorkerService('[Test EPG]', 1000);
-
-        void workerService
-            .fetchEpgFromUrl('https://example.com/guide.xml')
-            .catch(() => undefined);
-        const fetchWorker = mockWorkerInstances[0];
-
-        let releaseFetchTerminate!: () => void;
-        fetchWorker.terminate.mockReturnValue(
+    it('stops import writers before clearing and retires the remaining batch', async () => {
+        getDatabase.mockRejectedValue(new Error('missing metadata'));
+        const { handleFetchEpg } = await import('./epg-fetch.service');
+        const { epgWorkerService: service } =
+            await import('./epg-worker.service');
+        const fetch = handleFetchEpg([
+            'https://first/epg',
+            'https://queued/epg',
+        ]);
+        await flushPromises();
+        const writer = mockWorkerInstances[0];
+        let finishTermination!: () => void;
+        writer.terminate.mockReturnValue(
             new Promise<void>((resolve) => {
-                releaseFetchTerminate = resolve;
+                finishTermination = () => {
+                    writer.emit('exit', 1);
+                    resolve();
+                };
             })
         );
-
-        const clearPromise = workerService.clearEpgData();
+        const clear = service.clearEpgData();
+        await flushPromises();
+        const workersBeforeExit = mockWorkerInstances.length;
+        const stopRequested = writer.terminate.mock.calls.length;
+        finishTermination();
+        await flushPromises();
         const clearWorker = mockWorkerInstances[1];
         clearWorker.emit('message', { type: 'READY' });
         clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
-
-        let cleared = false;
-        void clearPromise.then(() => {
-            cleared = true;
+        await clear;
+        await flushPromises();
+        for (const extra of mockWorkerInstances.slice(2))
+            extra.emit('message', { type: 'EPG_COMPLETE' });
+        await fetch;
+        expect(stopRequested).toBe(1);
+        expect(workersBeforeExit).toBe(1);
+        expect(mockWorkerInstances).toHaveLength(2);
+        expect(clearWorker.postMessage).toHaveBeenCalledWith({
+            type: 'CLEAR_EPG',
         });
-        await flushPromises();
-        expect(fetchWorker.terminate).toHaveBeenCalled();
-        expect(cleared).toBe(false);
+    });
 
-        releaseFetchTerminate();
-        await flushPromises();
-        expect(cleared).toBe(true);
+    it.each(['EPG_CLEAR_ALL', 'EPG_CLEAR_SOURCE'])(
+        '%s rejects a completed worker shutdown failure and recovers after retry',
+        async (channel) => {
+            const { ipcMain } = await import('electron');
+            EpgEvents.bootstrapEpgEvents();
+            const registrations = [
+                ...(ipcMain.handle as jest.Mock).mock.calls,
+            ].reverse();
+            const clearHandler = registrations.find(
+                ([name]) => name === channel
+            )?.[1];
+            const fetchHandler = registrations.find(
+                ([name]) => name === 'EPG_FORCE_FETCH'
+            )?.[1];
+            if (!clearHandler || !fetchHandler)
+                throw new Error('Missing EPG IPC handlers');
+            const sourceUrl = 'https://clear-shutdown.example/epg';
+            const clear = () => clearHandler({}, { sourceUrl });
+            const fetch = () => fetchHandler({}, { url: sourceUrl });
+            let settled = false;
+            const first = clear().then(
+                (result: unknown) => {
+                    settled = true;
+                    return result;
+                },
+                (error: Error) => {
+                    settled = true;
+                    return error;
+                }
+            );
+            await flushPromises();
+            const worker = mockWorkerInstances[0];
+            const failure = new Error('clear worker still running');
+            let rejectStop!: (error: Error) => void;
+            worker.terminate.mockRejectedValue(failure).mockImplementationOnce(
+                () =>
+                    new Promise<void>((_resolve, reject) => {
+                        rejectStop = reject;
+                    })
+            );
+            worker.emit('message', { type: 'READY' });
+            worker.emit('message', { type: 'CLEAR_COMPLETE' });
+            await flushPromises();
+            expect(settled).toBe(false);
+            rejectStop(failure);
+            const firstResult = await first;
+            // Failure remains tracked: neither import nor another clear may
+            // create a writer while the original clear worker cannot stop.
+            const blockedFetch = await fetch();
+            const blockedClear = await clear().catch((error: Error) => error);
+            const beforeRecovery = mockWorkerInstances.length;
+            worker.terminate.mockResolvedValue(0);
+            let recovered = false;
+            const retry = clear().then((result: unknown) => {
+                recovered = true;
+                return result;
+            });
+            await flushPromises();
+            const replacement = mockWorkerInstances[1];
+            let finishStop!: () => void;
+            replacement.terminate.mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finishStop = resolve;
+                    })
+            );
+            replacement.emit('message', { type: 'READY' });
+            replacement.emit('message', { type: 'CLEAR_COMPLETE' });
+            await flushPromises();
+            expect(recovered).toBe(false);
+            finishStop();
+            expect(await retry).toEqual({ success: true });
+            const afterRecovery = fetch();
+            await flushPromises();
+            mockWorkerInstances[2].emit('message', { type: 'EPG_COMPLETE' });
+            expect(await afterRecovery).toMatchObject({ success: true });
+            expect(firstResult).toBe(failure);
+            expect(blockedFetch).toMatchObject({
+                success: false,
+                message: failure.message,
+            });
+            expect(blockedClear).toBe(failure);
+            expect(beforeRecovery).toBe(1);
+            expect(worker.terminate).toHaveBeenCalledTimes(4);
+            expect(mockWorkerInstances).toHaveLength(3);
+        }
+    );
 
-        // Settle the interrupted fetch so its 1s timeout cannot fire (and
-        // log) after the suite has finished.
-        fetchWorker.emit('exit', 1);
+    it('force refresh bypasses persisted freshness and session cache with trust options', async () => {
+        const { ipcMain } = await import('electron');
+        const { epgWorkerService: service } =
+            await import('./epg-worker.service');
+        const url = 'https://fresh.example/epg';
+        getDatabase.mockResolvedValue({
+            select: () => ({
+                from: () => ({
+                    where: () => ({
+                        limit: async () => [
+                            { updatedAt: new Date().toISOString() },
+                        ],
+                    }),
+                }),
+            }),
+        });
+        service.markFetchedUrl(url);
+        EpgEvents.bootstrapEpgEvents();
+        const registration = [...(ipcMain.handle as jest.Mock).mock.calls]
+            .reverse()
+            .find(([name]) => name === 'EPG_FORCE_FETCH');
+        if (!registration) throw new Error('Missing force refresh IPC handler');
+        const handler = registration[1];
+        const options = { trustedInsecureTlsHosts: ['fresh.example'] };
+        const request = handler({}, { url: ` ${url} `, options });
         await flushPromises();
+        const worker = mockWorkerInstances[0];
+        if (worker) {
+            worker.emit('message', { type: 'READY' });
+            worker.emit('message', { type: 'EPG_COMPLETE' });
+        }
+        await request;
+        expect(mockWorkerInstances).toHaveLength(1);
+        expect(worker.postMessage).toHaveBeenCalledWith({
+            type: 'FETCH_EPG',
+            url,
+            options,
+        });
+    });
+
+    it('serializes separate forced IPC requests with a normal batch', async () => {
+        const { ipcMain } = await import('electron');
+        const { handleFetchEpg } = await import('./epg-fetch.service');
+        getDatabase.mockResolvedValue({
+            select: () => ({
+                from: () => ({ where: () => ({ limit: async () => [] }) }),
+            }),
+        });
+        EpgEvents.bootstrapEpgEvents();
+        const handler = [...(ipcMain.handle as jest.Mock).mock.calls]
+            .reverse()
+            .find(([name]) => name === 'EPG_FORCE_FETCH')?.[1];
+        if (!handler) throw new Error('Missing force refresh IPC handler');
+        const first = handler({}, { url: 'https://first/epg' });
+        const second = handler({}, { url: 'https://second/epg' });
+        const normal = handleFetchEpg([
+            'https://normal/one',
+            'https://normal/two',
+        ]);
+        await flushPromises();
+        const beforeCompletion = mockWorkerInstances.length;
+        // Complete one writer at a time; newly admitted workers are observable
+        // only after the prior writer's promise/termination have settled.
+        for (let index = 0; index < 4; index++) {
+            const worker = mockWorkerInstances[index];
+            if (!worker) throw new Error('Expected queued import to start');
+            worker.emit('message', { type: 'READY' });
+            worker.emit('message', { type: 'EPG_COMPLETE' });
+            await flushPromises();
+        }
+        await Promise.all([first, second, normal]);
+        expect(beforeCompletion).toBe(1);
+        expect(
+            mockWorkerInstances.map(
+                (worker) => worker.postMessage.mock.calls[0][0].url
+            )
+        ).toEqual([
+            'https://first/epg',
+            'https://second/epg',
+            'https://normal/one',
+            'https://normal/two',
+        ]);
     });
 
     it.each([
@@ -734,4 +912,259 @@ describe('EpgEvents', () => {
         expect(programs).toHaveLength(1);
         expect(programs[0].title).toBe('valid');
     });
+    it('clears without waiting for a local permission prompt and ignores its late approval', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        let approve!: (allowed: boolean) => void;
+        const ensureAllowed = jest
+            .fn()
+            .mockImplementationOnce(
+                () =>
+                    new Promise<boolean>((resolve) => {
+                        approve = resolve;
+                    })
+            )
+            .mockResolvedValue(true);
+        service.localSourceAuthorizer = { ensureAllowed, authorize: jest.fn() };
+        const url = '/tmp/guide.xml';
+        const oldFetch = service.fetchEpgFromUrl(url);
+        const clear = service.clearEpgData();
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(1);
+        mockWorkerInstances[0].emit('message', { type: 'CLEAR_COMPLETE' });
+        await clear;
+        const replacement = service.fetchEpgFromUrl(url);
+        await flushPromises();
+        approve(true);
+        await oldFetch;
+        const duplicate = service.fetchEpgFromUrl(url);
+        expect(mockWorkerInstances).toHaveLength(2);
+        mockWorkerInstances[1].emit('message', { type: 'EPG_COMPLETE' });
+        await Promise.all([replacement, duplicate]);
+        expect(ensureAllowed).toHaveBeenCalledTimes(2);
+    });
+
+    it('retires requests waiting on an overlapping clear and allows a newer request afterwards', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const first = service.clearEpgData();
+        const cancelled = service.fetchEpgFromUrl('https://cancelled/epg');
+        const second = service.clearEpgData();
+        const replacement = service.fetchEpgFromUrl('https://replacement/epg');
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(1);
+        mockWorkerInstances[0].emit('message', { type: 'CLEAR_COMPLETE' });
+        await Promise.all([first, second, cancelled]);
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(2);
+        mockWorkerInstances[1].emit('message', { type: 'READY' });
+        expect(mockWorkerInstances[1].postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({ url: 'https://replacement/epg' })
+        );
+        mockWorkerInstances[1].emit('message', { type: 'EPG_COMPLETE' });
+        await replacement;
+    });
+
+    it('orders global clear between earlier and later source clears', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const earlier = service.clearEpgDataForSource('https://earlier/epg');
+        const global = service.clearEpgData();
+        const later = service.clearEpgDataForSource('https://later/epg');
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(1);
+        mockWorkerInstances[0].emit('message', { type: 'CLEAR_COMPLETE' });
+        await earlier;
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(2);
+        mockWorkerInstances[1].emit('message', { type: 'READY' });
+        expect(mockWorkerInstances[1].postMessage).toHaveBeenCalledWith({
+            type: 'CLEAR_EPG',
+        });
+        mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
+        await global;
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(3);
+        mockWorkerInstances[2].emit('message', { type: 'READY' });
+        expect(mockWorkerInstances[2].postMessage).toHaveBeenCalledWith({
+            type: 'CLEAR_EPG_SOURCE',
+            sourceUrl: 'https://later/epg',
+        });
+        mockWorkerInstances[2].emit('message', { type: 'CLEAR_COMPLETE' });
+        await later;
+    });
+
+    it('does not delete data when a writer cannot stop and retries the shutdown on the next clear', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const fetch = service.fetchEpgFromUrl('https://unstoppable/epg');
+        const writer = mockWorkerInstances[0];
+        writer.terminate.mockRejectedValueOnce(new Error('shutdown failed'));
+        await expect(service.clearEpgData()).rejects.toThrow('shutdown failed');
+        expect(mockWorkerInstances).toHaveLength(1);
+        writer.terminate.mockImplementationOnce(async () => {
+            writer.emit('exit', 1);
+            return 0;
+        });
+        const retry = service.clearEpgData();
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(2);
+        mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
+        await Promise.all([retry, fetch]);
+    });
+
+    it('awaits a previously failed fetch shutdown before starting global clear', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const fetch = service
+            .fetchEpgFromUrl('https://failing/epg')
+            .catch(() => undefined);
+        const writer = mockWorkerInstances[0];
+        let finish!: () => void;
+        writer.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                finish = resolve;
+            })
+        );
+        writer.emit('error', new Error('network failed'));
+        const clear = service.clearEpgData();
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(1);
+        finish();
+        await fetch;
+        await flushPromises();
+        mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
+        await clear;
+    });
+
+    it('preserves normal freshness skipping but deduplicates concurrent forced refreshes', async () => {
+        const { handleFetchEpg } = await import('./epg-fetch.service');
+        const url = 'https://fresh/epg';
+        getDatabase.mockResolvedValue({
+            select: () => ({
+                from: () => ({
+                    where: () => ({
+                        limit: async () => [
+                            { updatedAt: new Date().toISOString() },
+                        ],
+                    }),
+                }),
+            }),
+        });
+        expect(await handleFetchEpg([url])).toMatchObject({ skipped: [url] });
+        expect(mockWorkerInstances).toHaveLength(0);
+        const first = handleFetchEpg([url], {}, true);
+        const duplicate = handleFetchEpg([url], {}, true);
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(1);
+        mockWorkerInstances[0].emit('message', { type: 'EPG_COMPLETE' });
+        await Promise.all([first, duplicate]);
+    });
+
+    it('does not revive an IPC batch retired while waiting for global clear', async () => {
+        const { handleFetchEpg } = await import('./epg-fetch.service');
+        const { epgWorkerService: service } =
+            await import('./epg-worker.service');
+        const clear = service.clearEpgData();
+        const batch = handleFetchEpg(
+            ['https://queued-during-clear/epg'],
+            {},
+            true
+        );
+        const repeated = service.clearEpgData();
+        await flushPromises();
+        mockWorkerInstances[0].emit('message', { type: 'CLEAR_COMPLETE' });
+        await Promise.all([clear, repeated]);
+        await flushPromises();
+        for (const worker of mockWorkerInstances.slice(1))
+            worker.emit('message', { type: 'EPG_COMPLETE' });
+        await batch;
+        expect(mockWorkerInstances).toHaveLength(1);
+    });
+
+    it('does not clear past a failed worker shutdown already removed from the active lookup', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const fetch = service
+            .fetchEpgFromUrl('https://failed-stop/epg')
+            .catch(() => undefined);
+        const writer = mockWorkerInstances[0];
+        writer.terminate.mockRejectedValue(new Error('still running'));
+        writer.emit('error', new Error('import failed'));
+        await fetch;
+        const outcome = service.clearEpgData().then(
+            () => 'cleared',
+            (error: Error) => error.message
+        );
+        await flushPromises();
+        for (const worker of mockWorkerInstances.slice(1))
+            worker.emit('message', { type: 'CLEAR_COMPLETE' });
+        expect(await outcome).toBe('still running');
+        expect(mockWorkerInstances).toHaveLength(1);
+    });
+    it('serializes repeated source clears that arrive behind a global clear', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const global = service.clearEpgData();
+        const first = service.clearEpgDataForSource('https://same/epg');
+        const second = service.clearEpgDataForSource('https://same/epg');
+        await flushPromises();
+        mockWorkerInstances[0].emit('message', { type: 'CLEAR_COMPLETE' });
+        await global;
+        await flushPromises();
+        const afterGlobal = mockWorkerInstances.length;
+        mockWorkerInstances[1].emit('message', { type: 'CLEAR_COMPLETE' });
+        await first;
+        await flushPromises();
+        mockWorkerInstances[2].emit('message', { type: 'CLEAR_COMPLETE' });
+        await second;
+        expect(afterGlobal).toBe(2);
+    });
+    it('invalidates the session success marker when a forced refresh fails', async () => {
+        const service = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://force-fails/epg';
+        service.markFetchedUrl(url);
+        const fetch = service
+            .fetchEpgFromUrl(url, {}, true)
+            .catch(() => undefined);
+        mockWorkerInstances[0].emit('message', {
+            type: 'EPG_ERROR',
+            error: 'failed refresh',
+        });
+        await fetch;
+        expect(service.hasFetchedUrl(url)).toBe(false);
+    });
+    it.each(['EPG_COMPLETE', 'EPG_ERROR'])(
+        'refresh after %s waits for termination and starts one replacement with terminal progress',
+        async (type) => {
+            const { handleFetchEpg } = await import('./epg-fetch.service');
+            const { epgWorkerService: service } =
+                await import('./epg-worker.service');
+            const url = 'https://settling.example/epg';
+            const progress = jest.spyOn(service, 'sendProgressToRenderer');
+            const first = handleFetchEpg([url], {}, true);
+            const worker = mockWorkerInstances[0];
+            let finish!: () => void;
+            worker.terminate.mockReturnValue(
+                new Promise<void>((resolve) => {
+                    finish = resolve;
+                })
+            );
+            worker.emit('message', { type, error: 'old import failed' });
+            const options = { trustedInsecureTlsHosts: ['settling.example'] };
+            const refresh = handleFetchEpg([url], options, true);
+            const duplicate = handleFetchEpg([url], options, true);
+            expect(mockWorkerInstances).toHaveLength(1);
+            finish();
+            await first;
+            await flushPromises();
+            const replacement = mockWorkerInstances[1];
+            if (replacement) {
+                replacement.emit('message', { type: 'READY' });
+                replacement.emit('message', { type: 'EPG_COMPLETE' });
+            }
+            expect(await refresh).toMatchObject({ success: true });
+            expect(await duplicate).toMatchObject({ success: true });
+            expect(mockWorkerInstances).toHaveLength(2);
+            expect(replacement.postMessage).toHaveBeenCalledWith({
+                type: 'FETCH_EPG',
+                url,
+                options,
+            });
+            expect(progress.mock.calls.at(-1)?.[1]).toBe('complete');
+        }
+    );
 });
