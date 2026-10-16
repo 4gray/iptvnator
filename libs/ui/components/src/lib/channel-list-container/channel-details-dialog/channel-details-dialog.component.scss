@@ -319,7 +319,8 @@
 
 // ─── Responsive breakpoints ─────────────────────────────────────────────────
 @media (max-width: 720px) {
-    .channel-dialog__hero,
+    // Only the pills re-align: the hero is a grid whose column must keep
+    // stretching to the band, or its stats size to their content.
     .channel-dialog__status-cluster {
         justify-content: flex-start;
     }

@@ -470,7 +470,8 @@
 }
 
 @media (max-width: 720px) {
-    .account-dialog__hero,
+    // Only the pills re-align: the hero is a grid whose column must keep
+    // stretching to the band, or its stats size to their content.
     .account-dialog__status-cluster {
         justify-content: flex-start;
     }
