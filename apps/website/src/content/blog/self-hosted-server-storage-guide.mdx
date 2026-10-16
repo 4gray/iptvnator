@@ -270,9 +270,12 @@ Two ways to back it up:
 
 <CopyCommand title="A consistent file-level backup" command="docker compose stop && cp -a data data-backup-$(date +%F) && docker compose start" />
 
-Restoring is the reverse: stop the container, replace the `data` folder, start it. Browsers
-that signed in with a token notice that the database changed and ask for the token again,
-because the token is bound to the database it was given for.
+Restoring is the reverse: stop the container, replace the `data` folder, start it. A restored
+copy of your own database keeps its identity, so browsers that signed in with a token stay
+signed in and simply see the library as it was at backup time. Only a database with a
+different identity, such as an empty folder or another instance's data, counts as a new
+server: then each browser asks for the token again and offers to move its local playlists
+once more.
 
 ## Updating
 
@@ -332,9 +335,10 @@ really lives on your network, set `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: "1"` 
 instance limited to trusted users.
 
 **The app behaves as if the server were new.** The browser remembers which server and database
-it talked to. A replaced data folder, or a different container behind the same address, counts
-as a new server: the browser asks for the token again and offers to move its local playlists
-once more. Nothing is lost on either side.
+it talked to. A database with a different identity behind the same address, such as a freshly
+created data folder or another instance's data, counts as a new server: the browser asks for
+the token again and offers to move its local playlists once more. A restored backup of the same
+database keeps its identity and does not trigger this. Nothing is lost on either side.
 
 ## What the browser version still leaves to the desktop
 
