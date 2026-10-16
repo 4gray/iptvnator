@@ -167,6 +167,22 @@ test('one run at or above the value keeps the baseline untouched', () => {
     }
 });
 
+test('an entry with autoTighten false is kept even when every run is lower', () => {
+    // Its slack covers a band of normal values; lowering value to the largest
+    // of three runs could put the limit below the top of that band.
+    const baselines = baselinesFile();
+    baselines.journeys.launch['renderer.initialBytes'].autoTighten = false;
+    const result = tighten(baselines, [
+        bytesRun(990),
+        bytesRun(995),
+        bytesRun(980),
+    ]);
+    assert.deepEqual(result.baselines, baselines);
+    assert.deepEqual(result.tightened, []);
+    assert.match(result.rows[0].reason, /autoTighten is false/);
+    assert.deepEqual(result.rows[0].measured, [990, 995, 980]);
+});
+
 test('an entry missing or non-numeric in any run is kept', () => {
     const missing = tighten(baselinesFile(), [
         bytesRun(990),
