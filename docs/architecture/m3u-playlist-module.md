@@ -1784,8 +1784,10 @@ watched marks (the same limit Stalker positions have there).
   hidden channel leaves the sidebar, numbering and zapping while a film left
   live only keeps the old behaviour. Path evidence first: `/live/` is live,
   `/series/` an episode, the Xtream `/movie/` segment a film whatever the
-  container. The folder names `/movies/` and `/vod/` count only for a file,
-  not for a streaming container (`.m3u8`, `.m3u`, `.ts`). A container
+  container. DASH (`.mpd`) is never a film: it is live unless `/series/`
+  makes it an episode, which the series page plays inline. The folder
+  names `/movies/` and `/vod/` count only for a file, not for a streaming
+  container (`.m3u8`, `.m3u`, `.ts`). A container
   extension with no path evidence makes a film only when the row states no
   broadcast — no `tvg-id`, no catch-up window — and is not `.flv`, which is
   HTTP-FLV live delivery. Broadcast evidence is a non-blank VALUE

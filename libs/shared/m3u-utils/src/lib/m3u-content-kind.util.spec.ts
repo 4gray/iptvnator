@@ -44,6 +44,29 @@ describe('classifyM3uEntry', () => {
             ).toBe('live');
         });
 
+        it('files a DASH episode under the series path for the series page', () => {
+            expect(
+                classifyM3uEntry(
+                    entry('http://h.example/series/show/S01E01.mpd')
+                )
+            ).toBe('episode');
+        });
+
+        it('keeps DASH under a movie path out of VOD', () => {
+            expect(
+                classifyM3uEntry(entry('http://h.example/movie/u/p/1.mpd'))
+            ).toBe('live');
+        });
+
+        it('keeps a broadcasting DASH stream in a series folder live', () => {
+            expect(
+                classifyM3uEntry({
+                    ...entry('http://h.example/series/news/manifest.mpd'),
+                    tvg: { id: 'news.example' },
+                })
+            ).toBe('live');
+        });
+
         it('lets the series path overrule the name', () => {
             expect(
                 classifyM3uEntry(

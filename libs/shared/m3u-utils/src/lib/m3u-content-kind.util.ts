@@ -150,11 +150,6 @@ export function classifyM3uEntry(
         return 'radio';
     }
 
-    // DASH has its own routing path and is never treated as VOD.
-    if (isDashStreamUrl(url)) {
-        return 'live';
-    }
-
     const path = pathOf(url);
 
     // The guard that protects working channels comes FIRST, because the
@@ -174,9 +169,17 @@ export function classifyM3uEntry(
         // check comes first: it is false for nearly every row here, which
         // spares them the extension parse.
         return hasBroadcastEvidence(channel) &&
-            STREAMING_EXTENSIONS.has(getPlaybackMediaExtensionFromUrl(url))
+            (STREAMING_EXTENSIONS.has(getPlaybackMediaExtensionFromUrl(url)) ||
+                isDashStreamUrl(url))
             ? 'live'
             : 'episode';
+    }
+
+    // DASH has its own routing path and is never treated as VOD. It is
+    // checked after `/series/`, because the series page plays a DASH
+    // episode inline as the `:view` route does.
+    if (isDashStreamUrl(url)) {
+        return 'live';
     }
 
     const name = channel.name;

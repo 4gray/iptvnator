@@ -14,6 +14,7 @@ import { splitM3uNameTag } from './m3u-name-tag.util';
  *   "UK - BBC One"       → "BBC One"
  *   "FR|TF1"             → "TF1"
  *   "|DE| ARD"           → "ARD"
+ *   "| CNN"              → "CNN"
  *   "US: CNN"            → "CNN"
  *   "TR:TRT 1 HD"        → "TRT 1 HD"       (no space after the colon)
  *   "ES - A3 - Sports"   → "A3 - Sports"
@@ -22,8 +23,9 @@ import { splitM3uNameTag } from './m3u-name-tag.util';
  *   "US | "              → "US |"             (stripping would leave nothing)
  */
 export function stripCountryPrefix(name: string): string {
-    const { tag, title } = splitM3uNameTag(name);
-    return tag === null ? name.trim() : title;
+    // Not "tag === null ? name": a bare leading separator ("| CNN") carries
+    // no tag, yet its title is already the cleaned name.
+    return splitM3uNameTag(name).title;
 }
 
 /**

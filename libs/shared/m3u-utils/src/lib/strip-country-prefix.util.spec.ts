@@ -17,6 +17,11 @@ describe('stripCountryPrefix', () => {
             expect(stripCountryPrefix('|DE| ARD')).toBe('ARD');
         });
 
+        it('drops a bare leading pipe', () => {
+            expect(stripCountryPrefix('| CNN')).toBe('CNN');
+            expect(stripCountryPrefix('|CNN')).toBe('CNN');
+        });
+
         it('strips long prefixes before a pipe', () => {
             expect(stripCountryPrefix('US East | CNN')).toBe('CNN');
         });
