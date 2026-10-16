@@ -92,7 +92,9 @@ When changing initialization:
   each distinct affected historical schema.
 
 Two startup costs found on a 4 GB profile (3.9M catalog titles, 182
-playlists) are guarded in `runMigrations()`:
+playlists) are guarded in `runMigrations()`, and measured weekly by the
+`launch-large` journey on a generated profile of that shape
+([performance journeys](../../../docs/architecture/performance-journeys.md#j1-launch-large-launch-to-usable-on-a-large-library)):
 
 - `deduplicateXtreamCache()` returns at once when both unique indexes
   (`src/lib/xtream-cache-unique-indexes.ts`:

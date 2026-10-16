@@ -5,6 +5,16 @@ description: >-
     it wrote. Callers check out, set up pnpm and Node, install dependencies
     and upload what they need. Contract: docs/architecture/performance-journeys.md.
 
+inputs:
+    large-library:
+        description: >-
+            Also run the large-library launch journey (`launch-large`): restores
+            or generates its profile under node_modules/.cache (keyed by the
+            generator's content hash) and sets IPTVNATOR_JOURNEY_LARGE_LIBRARY=1.
+            Off on pull requests for its cost; see the journeys document.
+        required: false
+        default: 'false'
+
 outputs:
     summary:
         description: Path of the journey summary.json this run wrote.
@@ -31,13 +41,40 @@ runs:
                   exit 1
               fi
 
+        # The profile is a pure function of the generator inputs, the
+        # database library's sources and the native versions, so the key
+        # is computed from the checkout and a hit is the same profile a
+        # fresh generation would write. A miss regenerates it in the run
+        # (a few minutes); the cache step saves it afterwards.
+        - name: Resolve the large-library profile cache key
+          if: inputs.large-library == 'true'
+          id: large-library-key
+          shell: bash
+          run: |
+              set -euo pipefail
+              key="$(pnpm --silent nx run electron-backend-e2e:large-library-profile --print-cache-key | grep -E '^[0-9a-f]{32}$' | tail -n 1)"
+              if [ -z "$key" ]; then
+                  echo "::error::Could not resolve the large-library profile cache key"
+                  exit 1
+              fi
+              echo "key=$key" >> "$GITHUB_OUTPUT"
+
+        - name: Restore the large-library profile
+          if: inputs.large-library == 'true'
+          uses: actions/cache@v4
+          with:
+              path: node_modules/.cache/iptvnator/large-library-profile
+              key: large-library-profile-${{ runner.os }}-${{ steps.large-library-key.outputs.key }}
+
         # The Nx target builds electron-backend:build-performance first
         # and playwright.journeys.config.ts starts the Xtream mock server.
+        # launch-large.journey.ts skips itself unless the flag is '1'.
         - name: Run the performance journeys
           shell: bash
           run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm run perf:journeys
           env:
               CI: 'true'
+              IPTVNATOR_JOURNEY_LARGE_LIBRARY: ${{ inputs.large-library == 'true' && '1' || '0' }}
               NX_TASKS_RUNNER_DYNAMIC_OUTPUT: 'false'
 
         # Every run writes a fresh timestamped directory, so a clean
