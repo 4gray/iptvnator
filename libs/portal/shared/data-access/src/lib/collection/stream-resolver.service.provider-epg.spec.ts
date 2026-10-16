@@ -35,6 +35,11 @@ describe('StreamResolverService provider EPG', () => {
         tvgId: 'xtream.tv',
         logo: 'xtream.png',
     } satisfies UnifiedCollectionItem;
+    // Rows carry the provider's XMLTV id at runtime, outside the interface.
+    const xtreamXmltvItem = {
+        ...xtreamItem,
+        epgChannelId: 'xtream.xmltv',
+    } as UnifiedCollectionItem;
     const stalkerItem = {
         uid: 'stalker::stalker-1::77',
         name: 'Stalker Channel',
@@ -184,7 +189,7 @@ describe('StreamResolverService provider EPG', () => {
 
     it('loads Xtream and Stalker rows from the portal without the XMLTV bridge', async () => {
         const epgMap = await service.loadEpgForItems([
-            xtreamItem,
+            xtreamXmltvItem,
             stalkerItem,
             m3uItem,
         ]);
@@ -202,13 +207,14 @@ describe('StreamResolverService provider EPG', () => {
             xtreamListing('Full Guide Now'),
         ]);
 
-        const detail = await service.resolveLiveDetail(xtreamItem);
+        const detail = await service.resolveLiveDetail(xtreamXmltvItem);
 
         expect(detail.epgMode).toBe('portal');
         expect(detail.epgItems?.map((item) => item.title)).toEqual([
             'Full Guide Now',
         ]);
         expect(epgBridge.getChannelPrograms).not.toHaveBeenCalled();
+        expect(epgBridge.getEpgMapping).not.toHaveBeenCalled();
     });
 
     it('resolves the Stalker detail guide from the portal without the XMLTV bridge', async () => {
@@ -219,6 +225,35 @@ describe('StreamResolverService provider EPG', () => {
             'Stalker Now',
         ]);
         expect(epgBridge.getEpgMapping).not.toHaveBeenCalled();
+    });
+
+    it('loads M3U rows from XMLTV and asks no portal without a portal transport', async () => {
+        runtime.supportsProviderEpg = false;
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.getChannelPrograms.mockResolvedValue([
+            {
+                start: new Date((nowSeconds - 60) * 1000).toISOString(),
+                stop: new Date((nowSeconds + 60) * 1000).toISOString(),
+                channel: 'news.tv',
+                title: 'M3U Now',
+                desc: null,
+                category: null,
+            },
+        ]);
+
+        const epgMap = await service.loadEpgForItems([
+            m3uItem,
+            xtreamXmltvItem,
+            stalkerItem,
+        ]);
+
+        expect(epgMap.get('news.tv')?.title).toBe('M3U Now');
+        expect(epgMap.size).toBe(1);
+        expect(epgBridge.getChannelPrograms).toHaveBeenCalledTimes(1);
+        expect(epgBridge.getEpgMappingsBatch).not.toHaveBeenCalled();
+        expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
+        expect(xtreamApi.getFullEpg).not.toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 
     it('asks no portal for EPG without a portal transport', async () => {

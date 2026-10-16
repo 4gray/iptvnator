@@ -210,7 +210,9 @@ export class StreamResolverService {
         items: UnifiedCollectionItem[]
     ): Promise<Map<string, EpgProgram | null>> {
         const epgMap = new Map<string, EpgProgram | null>();
-        // M3U rows read XMLTV; Xtream and Stalker rows ask their portal.
+        // M3U rows need XMLTV; Xtream and Stalker rows need the portal
+        // transport (and try XMLTV matches and mappings first where XMLTV
+        // exists).
         const loadsM3u = this.supportsProgramLookup;
         const loadsPortals = this.supportsProviderEpg;
         if (!loadsM3u && !loadsPortals) {
