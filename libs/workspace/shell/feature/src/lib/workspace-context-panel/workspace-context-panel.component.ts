@@ -516,7 +516,9 @@ export class WorkspaceContextPanelComponent {
         const opening = !this.isSearchOpen();
         this.isSearchOpen.set(opening);
         if (!opening) {
-            this.clearCategorySearch();
+            this.categorySearchTerm.set('');
+            this.categoryExcludedTerm.set('');
+            this.categorySearchMode.set('all');
         }
     }
 

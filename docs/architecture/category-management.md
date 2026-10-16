@@ -241,7 +241,10 @@ Exclude keywords field accepts either form (`ES` or `-ES`, and quoted phrases
 with or without `-`). Partial matching is retained.
 Empty filters show all categories; removing a chip removes that individual term.
 Clear filters resets both fields and the mode to AND. Closing sidebar search also resets
-all filters. Filtering never changes the selected category or starts playback.
+all filters while retaining focus on the header toggle. Search controls scroll
+within a bounded area (at most half the workspace category panel), leaving
+matching categories reachable even with many wrapped chips in a short window.
+Filtering never changes the selected category or starts playback.
 
 The result counter counts displayed categories; the management dialog's separate
 Total selected counter still covers the full catalog. Bulk selection operates on
