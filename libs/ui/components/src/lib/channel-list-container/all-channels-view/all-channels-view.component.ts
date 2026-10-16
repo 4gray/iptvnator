@@ -43,7 +43,6 @@ import {
     MenuItemRadioCheckDirective,
     MenuItemRadioDirective,
 } from '../../menu-item-radio/menu-item-radio.directive';
-import { dialogSize } from '../../dialog-shell/dialog-size';
 
 const ALL_CHANNELS_SORT_STORAGE_KEY = 'm3u-all-channels-sort-mode';
 
@@ -219,10 +218,7 @@ export class AllChannelsViewComponent {
         }
 
         this.channelContextMenu().close();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            ...dialogSize('lg'),
-            data: channel,
-        });
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     openEpgMapping(): void {

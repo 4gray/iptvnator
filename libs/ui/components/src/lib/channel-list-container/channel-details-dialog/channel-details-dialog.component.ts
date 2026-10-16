@@ -5,6 +5,7 @@ import {
     MAT_DIALOG_DATA,
     MatDialog,
     MatDialogModule,
+    MatDialogRef,
 } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -17,6 +18,7 @@ import { Channel } from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { DialogShellComponent } from '../../dialog-shell/dialog-shell.component';
+import { dialogSize } from '../../dialog-shell/dialog-size';
 import {
     DialogFooterDirective,
     DialogHeaderEndDirective,
@@ -59,6 +61,17 @@ interface HeroStat {
 })
 export class ChannelDetailsDialogComponent {
     readonly channel = inject<Channel>(MAT_DIALOG_DATA);
+
+    /** Opens the dialog with the size every entry point shares. */
+    static open(
+        dialog: MatDialog,
+        channel: Channel
+    ): MatDialogRef<ChannelDetailsDialogComponent> {
+        return dialog.open(ChannelDetailsDialogComponent, {
+            ...dialogSize('lg'),
+            data: channel,
+        });
+    }
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;

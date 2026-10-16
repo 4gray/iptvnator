@@ -673,10 +673,7 @@ export class GroupsViewComponent {
         }
 
         this.channelContextMenu().close();
-        this.dialog.open(ChannelDetailsDialogComponent, {
-            ...dialogSize('lg'),
-            data: channel,
-        });
+        ChannelDetailsDialogComponent.open(this.dialog, channel);
     }
 
     /**
