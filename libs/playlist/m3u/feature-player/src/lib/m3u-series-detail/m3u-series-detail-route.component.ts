@@ -30,7 +30,11 @@ import {
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
-import { createLogger, PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
+import {
+    createLogger,
+    isBeforeResumePoint,
+    PORTAL_PLAYER,
+} from '@iptvnator/portal/shared/util';
 import { isDashChannel } from '@iptvnator/shared/m3u-utils';
 import { M3uSeries } from '@iptvnator/shared/m3u-utils/series';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
@@ -148,6 +152,8 @@ export class M3uSeriesDetailRouteComponent {
      * playback and re-seeks it on every tick.
      */
     private readonly playing = signal<PlayingEpisode | null>(null);
+    /** Latches once the mounted episode reaches its resume point. */
+    private resumeSettled = false;
 
     protected readonly playingEpisodeId = computed(() => {
         const id = Number(this.playing()?.episode.id ?? '');
@@ -277,9 +283,18 @@ export class M3uSeriesDetailRouteComponent {
         currentTime: number;
         duration: number;
     }): void {
-        const episode = this.playing()?.episode;
+        const playing = this.playing();
+        const episode = playing?.episode;
         if (!episode || !Number.isFinite(update.currentTime)) {
             return;
+        }
+        // A tick at ~0 before the seek to `startTime` would overwrite the
+        // saved point; once reached, a seek back is saved as usual.
+        if (!this.resumeSettled) {
+            if (isBeforeResumePoint(playing.startTime, update)) {
+                return;
+            }
+            this.resumeSettled = true;
         }
 
         void this.positions.recordProgress(this.playlistId(), {
@@ -382,6 +397,7 @@ export class M3uSeriesDetailRouteComponent {
             return;
         }
 
+        this.resumeSettled = false;
         this.playing.set({
             episode,
             startTime: resumeOffsetOf(saved),

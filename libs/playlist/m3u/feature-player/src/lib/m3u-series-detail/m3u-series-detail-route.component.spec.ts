@@ -607,6 +607,40 @@ describe('M3uSeriesDetailRouteComponent', () => {
         expect(component.playback()?.startTime).toBe(640);
     });
 
+    it('saves no tick from before the resume point, then saves as usual', async () => {
+        // An engine can report ~0 before its seek to `startTime` lands; the
+        // first save is not throttled, so that tick replaced the resume point.
+        const first = SHOW.seasons.get(1)?.[0];
+        positionBridge.getSeriesPlaybackPositions.mockResolvedValue([
+            savedPosition(Number(first?.id), 640, 2400),
+        ]);
+
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            onTimeUpdate(update: {
+                currentTime: number;
+                duration: number;
+            }): void;
+        };
+        positionBridge.savePlaybackPosition.mockClear();
+
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+        component.onTimeUpdate({ currentTime: 0.2, duration: 2400 });
+        await fixture.whenStable();
+
+        expect(positionBridge.savePlaybackPosition).not.toHaveBeenCalled();
+
+        component.onTimeUpdate({ currentTime: 641, duration: 2400 });
+        await fixture.whenStable();
+
+        expect(positionBridge.savePlaybackPosition).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ positionSeconds: 641 })
+        );
+    });
+
     it('starts an unwatched episode from the beginning', async () => {
         const fixture = await render();
         const component = fixture.componentInstance as unknown as {
