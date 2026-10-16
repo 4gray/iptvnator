@@ -1,5 +1,5 @@
-// Buttons, menus and the segmented control of the IPTVnator UI kit, over
-// Angular Material: Material keeps the behaviour (focus, keyboard, overlay,
+// Buttons, menus, the segmented control and floating panels of the
+// IPTVnator UI kit, over Angular Material: Material keeps the behaviour (focus, keyboard, overlay,
 // ARIA), these mixins set the look through `mat.*-overrides()`.
 //
 // Button variants are roles, not looks:
@@ -419,5 +419,51 @@ $_segment-text-size: 12.5px;
                 padding: 0;
             }
         }
+    }
+}
+
+/// A floating, non-modal card anchored to a viewport corner (the EPG import
+/// panel, the update notification): the dialog's surface and shadow, the
+/// menu's hairline, a 12px radius between the two. The panel keeps its own
+/// anchor, width, z-index and entrance.
+@mixin floating-panel {
+    overflow: hidden;
+    border: 1px solid var(--app-line-strong);
+    border-radius: 12px;
+    background: var(--app-widget-bg);
+    box-shadow: var(--app-popover-shadow);
+    color: var(--app-body-color);
+}
+
+/// The panel's header row: the title at the start, ghost icon actions
+/// (`ghost-icon-button(28px, 18px)`) at the end, a hairline under it.
+@mixin floating-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 8px 8px 12px;
+    border-bottom: 1px solid var(--app-widget-header-border);
+}
+
+/// The header's title: the kit's uppercase label with an 18px accent icon.
+@mixin floating-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--app-heading-color);
+
+    .mat-icon {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
+        color: var(--app-selection-color);
     }
 }

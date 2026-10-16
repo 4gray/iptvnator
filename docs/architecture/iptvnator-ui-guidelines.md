@@ -90,7 +90,7 @@ the subsystem's document.
   `libs/ui/components/src/lib/dialog-shell/`
 - Source row (Sources page and playlist switcher):
   `libs/playlist/shared/ui/src/lib/source-row/source-row.component.html`
-- UI-kit buttons, menus and segmented control:
+- UI-kit buttons, menus, segmented control and floating panels:
   `libs/ui/styles/_app-controls.scss`
 - Side lists (title, group labels, single-choice rows):
   `libs/ui/styles/_side-list.scss`
@@ -1243,6 +1243,37 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   palette alike; the shell
   header does not repeat it. `recent.e2e.ts` checks the single control and
   the single confirmation on M3U, Xtream and Stalker recently viewed pages.
+
+## Floating Panels And Toasts
+
+- **Frame.** A floating, non-modal card anchored to a viewport corner (the
+  EPG import panel at the bottom left, the update notification at the bottom
+  right) takes `controls.floating-panel` from `_app-controls.scss`: the
+  dialog's widget surface and popover shadow, the menu's `--app-line-strong`
+  hairline, a 12px radius between the dialog's 16 and the menu's 10. The
+  panel keeps its own anchor, width, z-index and entrance; the notice that
+  replaces a panel whose deferred chunk failed to load shares the frame.
+- **Header.** `floating-panel-header` is the row (hairline under it) and
+  `floating-panel-title` the title: the kit's 12.5px uppercase label with an
+  18px accent icon. Header actions are `ghost-icon-button(28px, 18px)`, row
+  actions 24px; neither keeps Material's 48px touch target, which used to
+  push a horizontal scrollbar into the list.
+- **Actions.** Buttons inside a panel follow the dialog footer: one accent
+  action (`accent-button(sm)`), a secondary beside it (`secondary-button(sm)`
+  on a `mat-flat-button`), never an outlined button. The update card's
+  release notes and download/install buttons are the reference.
+- **Toasts.** Every `mat-snack-bar` takes the same look from one global rule
+  in `styles.scss`: the widget surface with the hairline and shadow on a
+  10px panel, 13px text in the heading colour, the action as accent text
+  without a ripple. Toasts sit at Material's default bottom centre; a caller
+  may add a panel class for spacing (`settings-snackbar` clears the save
+  bar) or the error tint (`settings-snackbar--error`), never a position of
+  its own. A failure the import panel already reports (a source's error row
+  with Retry) gets no toast; `EpgService` toasts only when the bridge call
+  itself fails, a programme lookup errors, or the runtime imports without
+  reporting progress (`supportsProgress` false: no row can carry the
+  failure), always with the translated generic message, never the
+  backend's text.
 
 ## Forms
 

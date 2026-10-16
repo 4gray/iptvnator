@@ -41,32 +41,7 @@ import { AppUpdateNotificationCardComponent } from './app-update-notification-ca
             }
         }
     `,
-    styles: `
-        .app-update-notification-unavailable {
-            position: fixed;
-            right: 20px;
-            bottom: 20px;
-            z-index: 901;
-            width: 320px;
-            max-width: calc(100vw - 40px);
-            padding: 10px 12px;
-            border: 1px solid var(--app-separator);
-            border-radius: 12px;
-            background: var(--app-widget-bg);
-            color: var(--app-body-color);
-            font-size: 0.88rem;
-            line-height: 1.4;
-        }
-        @media (max-width: 560px) {
-            .app-update-notification-unavailable {
-                right: 12px;
-                bottom: 12px;
-                left: 12px;
-                width: auto;
-                max-width: none;
-            }
-        }
-    `,
+    styleUrl: './app-update-notification-panel.component.scss',
 })
 export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
     private unsubscribeStatus: (() => void) | null = null;

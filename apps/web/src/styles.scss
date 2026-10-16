@@ -261,6 +261,38 @@ body.dark-theme {
     @include controls.menu-panel;
 }
 
+// UI-kit toast for every snack-bar: the floating panel's surface, hairline
+// and shadow on a 10px panel, 13px text, the action in the accent colour
+// without a ripple. Toasts sit at Material's bottom centre; a caller adds a
+// panel class for spacing (the settings save bar), never another look.
+.mat-mdc-snack-bar-container {
+    @include mat.snack-bar-overrides(
+        (
+            container-color: var(--app-widget-bg),
+            container-shape: 10px,
+            supporting-text-color: var(--app-heading-color),
+            supporting-text-size: 13px,
+            supporting-text-line-height: 20px,
+            supporting-text-weight: 500,
+            button-color: var(--app-selection-color),
+        )
+    );
+
+    .mat-mdc-snackbar-surface {
+        border: 1px solid var(--app-line-strong);
+        box-shadow: var(--app-popover-shadow);
+    }
+
+    .mat-mdc-snack-bar-action {
+        @include mat.button-overrides(
+            (
+                text-label-text-weight: 600,
+                text-ripple-color: transparent,
+            )
+        );
+    }
+}
+
 // Command palette dialog — the palette-shell renders its own background, border,
 // radius and shadow, so strip MDC's dialog surface chrome to avoid a darker
 // halo peeking out behind the rounded corners.

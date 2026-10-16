@@ -26,28 +26,7 @@ import { EpgProgressPanelViewComponent } from './epg-progress-panel-view.compone
             }
         }
     `,
-    styles: `
-        .epg-progress-panel-unavailable {
-            position: fixed;
-            bottom: 20px;
-            left: 76px;
-            z-index: 900;
-            width: 300px;
-            max-width: calc(100vw - 96px);
-            padding: 10px 12px;
-            border: 1px solid var(--app-separator);
-            border-radius: 12px;
-            background: var(--app-widget-bg);
-            color: var(--app-body-color);
-            font-size: 0.78rem;
-            line-height: 1.4;
-        }
-        @media (max-width: 640px) {
-            .epg-progress-panel-unavailable {
-                left: 12px;
-            }
-        }
-    `,
+    styleUrl: './epg-progress-panel.component.scss',
 })
 export class EpgProgressPanelComponent {
     readonly isVisible = inject(EpgProgressService).isVisible;

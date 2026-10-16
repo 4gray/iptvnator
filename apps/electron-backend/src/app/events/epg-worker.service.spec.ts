@@ -288,6 +288,29 @@ describe('EpgWorkerService worker lifecycle', () => {
             expect(service.hasFetchedUrl(url)).toBe(false);
         });
 
+        it('reports a worker that could not start as the source row error', async () => {
+            const { Worker } = jest.requireMock('worker_threads');
+            Worker.mockImplementationOnce(() => {
+                throw new Error('spawn EAGAIN');
+            });
+            const progressSpy = jest.spyOn(service, 'sendProgressToRenderer');
+
+            await expect(service.fetchEpgFromUrl(url)).rejects.toThrow(
+                'spawn EAGAIN'
+            );
+
+            // The renderer listed the source as queued; the row gets the
+            // error and its Retry instead of waiting forever.
+            expect(progressSpy).toHaveBeenCalledWith(
+                url,
+                'error',
+                undefined,
+                'spawn EAGAIN'
+            );
+            expect(mockWorkerInstances).toHaveLength(0);
+            expect(service.hasFetchedUrl(url)).toBe(false);
+        });
+
         it('rejects when the worker exits before settling', async () => {
             const fetchPromise = service.fetchEpgFromUrl(url);
             const worker = mockWorkerInstances[0];
