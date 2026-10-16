@@ -541,9 +541,9 @@ describe('GroupsViewComponent', () => {
                         { key: 'Sports', count: 2 },
                     ]),
                 }),
-                maxHeight: '90vh',
+                maxHeight: 'calc(100vh - 32px)',
                 maxWidth: 'calc(100vw - 32px)',
-                width: '500px',
+                width: '560px',
             })
         );
         expect(hiddenGroupTitlesChanged).toHaveBeenCalledWith([
@@ -760,8 +760,8 @@ describe('GroupsViewComponent', () => {
             ChannelDetailsDialogComponent,
             expect.objectContaining({
                 data: movieClassic,
-                maxWidth: '720px',
-                width: 'calc(100vw - 32px)',
+                maxWidth: 'calc(100vw - 32px)',
+                width: '760px',
             })
         );
     });

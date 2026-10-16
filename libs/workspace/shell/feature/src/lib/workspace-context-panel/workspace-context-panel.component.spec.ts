@@ -1036,7 +1036,7 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(dialog.open).toHaveBeenCalledWith(
             expect.any(Function),
             expect.objectContaining({
-                width: '500px',
+                width: '560px',
                 maxWidth: 'calc(100vw - 32px)',
             })
         );

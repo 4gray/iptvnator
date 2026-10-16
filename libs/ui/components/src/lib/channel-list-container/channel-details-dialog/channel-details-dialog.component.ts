@@ -9,10 +9,18 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { getM3uArchiveDays, isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
+import {
+    getM3uArchiveDays,
+    isM3uCatchupPlaybackSupported,
+} from '@iptvnator/shared/m3u-utils';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
+import { DialogShellComponent } from '../../dialog-shell/dialog-shell.component';
+import {
+    DialogFooterDirective,
+    DialogHeaderEndDirective,
+} from '../../dialog-shell/dialog-shell.directives';
 
 interface ChannelDetailField {
     readonly empty?: boolean;
@@ -38,7 +46,16 @@ interface HeroStat {
     templateUrl: './channel-details-dialog.component.html',
     styleUrls: ['./channel-details-dialog.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [ClipboardModule, MatButtonModule, MatDialogModule, MatIconModule, TranslatePipe],
+    imports: [
+        DialogFooterDirective,
+        DialogHeaderEndDirective,
+        DialogShellComponent,
+        ClipboardModule,
+        MatButtonModule,
+        MatDialogModule,
+        MatIconModule,
+        TranslatePipe,
+    ],
 })
 export class ChannelDetailsDialogComponent {
     readonly channel = inject<Channel>(MAT_DIALOG_DATA);
@@ -113,7 +130,11 @@ export class ChannelDetailsDialogComponent {
     ];
 
     readonly tvgFields: ChannelDetailField[] = [
-        this.field('CHANNELS.DETAILS_DIALOG.TVG_ID', this.channel.tvg?.id, true),
+        this.field(
+            'CHANNELS.DETAILS_DIALOG.TVG_ID',
+            this.channel.tvg?.id,
+            true
+        ),
         this.field('CHANNELS.DETAILS_DIALOG.TVG_NAME', this.channel.tvg?.name),
         this.field(
             'CHANNELS.DETAILS_DIALOG.TVG_URL',

@@ -10,16 +10,14 @@
     --lock-dialog-error-color: #ffb4ab;
 }
 
-.mat-mdc-dialog-content {
+// The list is the only part that scrolls; the shell's body gives it the
+// height left under the dialog's cap.
+.lock-dialog {
     display: flex;
     flex-direction: column;
     gap: 10px;
-}
-
-.lock-dialog__description {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--app-body-color);
+    min-height: 0;
+    height: 100%;
 }
 
 .header-actions {
@@ -103,7 +101,6 @@
 .categories-list {
     flex: 1;
     min-height: 200px;
-    max-height: 50vh;
     overflow-y: auto;
     border: 1px solid var(--app-separator);
     border-radius: 8px;
@@ -176,9 +173,4 @@
     text-align: center;
     color: var(--app-body-color);
     font-size: 0.8125rem;
-}
-
-// No min-width: the opener caps the panel at the viewport on a phone.
-:host ::ng-deep .mat-mdc-dialog-content {
-    max-width: 600px;
 }

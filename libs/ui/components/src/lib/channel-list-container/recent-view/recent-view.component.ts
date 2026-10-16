@@ -30,6 +30,7 @@ import {
     resolveChannelEpgProgram,
 } from '../epg-enrichment.util';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import { dialogSize } from '../../dialog-shell/dialog-size';
 
 export interface RecentViewItem {
     channel: Channel;
@@ -167,9 +168,8 @@ export class RecentViewComponent {
 
         this.channelContextMenu().close();
         this.dialog.open(ChannelDetailsDialogComponent, {
+            ...dialogSize('lg'),
             data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
         });
     }
 

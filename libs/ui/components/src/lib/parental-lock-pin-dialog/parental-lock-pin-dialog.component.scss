@@ -29,22 +29,10 @@
     --pin-dialog-error-color: #ffb4ab;
 }
 
-.pin-dialog__title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 .pin-dialog__content {
     display: flex;
     flex-direction: column;
     gap: 12px;
-}
-
-.pin-dialog__description {
-    margin: 0;
-    color: var(--app-body-color);
-    font-size: 0.875rem;
 }
 
 .pin-dialog__field {

@@ -45,6 +45,7 @@ import {
     UnifiedFavoriteChannel,
 } from '@iptvnator/portal/shared/util';
 import { TranslateModule } from '@ngx-translate/core';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 
 export interface EnrichedUnifiedFavorite extends UnifiedFavoriteChannel {
     currentEpgProgram: EpgProgram | null;
@@ -297,9 +298,8 @@ export class GlobalFavoritesListComponent {
 
         this.channelContextMenu().close();
         this.dialog.open(ChannelDetailsDialogComponent, {
+            ...dialogSize('lg'),
             data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
         });
     }
 

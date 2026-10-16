@@ -101,8 +101,8 @@ describe('RecentViewComponent', () => {
             ChannelDetailsDialogComponent,
             expect.objectContaining({
                 data: primaryChannel,
-                maxWidth: '720px',
-                width: 'calc(100vw - 32px)',
+                maxWidth: 'calc(100vw - 32px)',
+                width: '760px',
             })
         );
     });

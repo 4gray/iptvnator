@@ -15,6 +15,7 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { AppUpdateInstallService } from './services/app-update-install.service';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 
 /**
  * The update notification itself: the card with its download, install and
@@ -225,13 +226,12 @@ export class AppUpdateNotificationCardComponent {
         const { AppUpdateReleaseNotesDialogComponent } = dialogModule;
 
         this.dialog.open(AppUpdateReleaseNotesDialogComponent, {
+            ...dialogSize('lg'),
             autoFocus: false,
             data: {
                 initialVersion: status.latestVersion,
             },
-            maxWidth: 'calc(100vw - 32px)',
             restoreFocus: true,
-            width: '720px',
         });
     }
 

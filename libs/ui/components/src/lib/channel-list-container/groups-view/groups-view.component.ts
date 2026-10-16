@@ -52,6 +52,7 @@ import {
     GroupManagementDialogComponent,
     GroupManagementDialogGroup,
 } from './group-management-dialog/group-management-dialog.component';
+import { dialogSize } from '../../dialog-shell/dialog-size';
 
 const GROUP_CHANNEL_SORT_STORAGE_KEY = 'm3u-groups-channel-sort-mode';
 /** Rail width inside the fullscreen channel panel; see the `compact` input. */
@@ -583,9 +584,7 @@ export class GroupsViewComponent {
                 hiddenGroupTitles: this.hiddenGroupTitles(),
                 ...(lockedGroupTitles ? { lockedGroupTitles } : {}),
             },
-            width: '500px',
-            maxWidth: 'calc(100vw - 32px)',
-            maxHeight: '90vh',
+            ...dialogSize('md'),
         });
 
         dialogRef.afterClosed().subscribe((result) => {
@@ -675,9 +674,8 @@ export class GroupsViewComponent {
 
         this.channelContextMenu().close();
         this.dialog.open(ChannelDetailsDialogComponent, {
+            ...dialogSize('lg'),
             data: channel,
-            maxWidth: '720px',
-            width: 'calc(100vw - 32px)',
         });
     }
 

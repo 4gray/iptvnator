@@ -9,6 +9,7 @@ import { DownloadedSeriesDialogComponent } from './downloaded-series-dialog.comp
 
 const TRANSLATIONS = {
     CLOSE: 'Close',
+    CLOSE_DIALOG: 'Close dialog',
     DOWNLOADS: {
         COPY_URL: 'Copy download URL',
         DOWNLOADED_EPISODES: 'Downloaded episodes',
@@ -124,12 +125,12 @@ describe('DownloadedSeriesDialogComponent', () => {
         expect(rows()[2].textContent).toContain('S02E01');
     });
 
-    it('gives the dialog close button an accessible name', () => {
+    it('closes through the shell header button, named for assistive tech', () => {
         const closeButton = fixture.nativeElement.querySelector(
-            '[data-test-id="downloaded-series-close"]'
+            '.app-dialog__close'
         ) as HTMLButtonElement | null;
 
-        expect(closeButton?.getAttribute('aria-label')).toBe('Close');
+        expect(closeButton?.getAttribute('aria-label')).toBe('Close dialog');
     });
 
     it('includes the concrete episode identity in every action name', () => {

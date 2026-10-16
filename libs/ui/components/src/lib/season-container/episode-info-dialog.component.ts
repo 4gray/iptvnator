@@ -8,6 +8,8 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
+import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
 
 export interface EpisodeInfoDialogData {
     /** e.g. "S01E05" */
@@ -51,78 +53,85 @@ export const EPISODE_INFO_PLAY = 'play' as const;
 @Component({
     selector: 'app-episode-info-dialog',
     standalone: true,
-    imports: [MatButtonModule, MatDialogModule, MatIconModule, TranslateModule],
+    imports: [
+        DialogFooterDirective,
+        DialogShellComponent,
+        MatButtonModule,
+        MatDialogModule,
+        MatIconModule,
+        TranslateModule,
+    ],
     template: `
-        <div class="episode-info">
-            @if (data.thumbnailUrl) {
-                <img
-                    class="episode-info__thumb"
-                    [src]="data.thumbnailUrl"
-                    [alt]="data.title"
-                    (error)="thumbError = true"
-                    [style.display]="thumbError ? 'none' : ''"
-                />
-            }
-            <div class="episode-info__body">
-                <div class="episode-info__eyebrow">
-                    {{ data.episodeLabel }}
-                    @if (data.duration) {
-                        <span class="episode-info__chip">{{
-                            data.duration
-                        }}</span>
-                    }
-                    @if (data.airDate) {
-                        <span class="episode-info__chip">{{
-                            data.airDate
-                        }}</span>
-                    }
-                    @if (data.rating) {
-                        <span class="episode-info__chip"
-                            >⭐ {{ data.rating }}</span
-                        >
+        <app-dialog-shell [heading]="data.title">
+            <div class="episode-info">
+                @if (data.thumbnailUrl) {
+                    <img
+                        class="episode-info__thumb"
+                        [src]="data.thumbnailUrl"
+                        [alt]="data.title"
+                        (error)="thumbError = true"
+                        [style.display]="thumbError ? 'none' : ''"
+                    />
+                }
+                <div class="episode-info__body">
+                    <div class="episode-info__eyebrow">
+                        {{ data.episodeLabel }}
+                        @if (data.duration) {
+                            <span class="episode-info__chip">{{
+                                data.duration
+                            }}</span>
+                        }
+                        @if (data.airDate) {
+                            <span class="episode-info__chip">{{
+                                data.airDate
+                            }}</span>
+                        }
+                        @if (data.rating) {
+                            <span class="episode-info__chip"
+                                >⭐ {{ data.rating }}</span
+                            >
+                        }
+                    </div>
+                    @if (data.plot) {
+                        <p class="episode-info__plot">{{ data.plot }}</p>
                     }
                 </div>
-                <h2 mat-dialog-title class="episode-info__title">
-                    {{ data.title }}
-                </h2>
-                @if (data.plot) {
-                    <p class="episode-info__plot">{{ data.plot }}</p>
-                }
             </div>
-        </div>
-        <div mat-dialog-actions align="end">
-            <button mat-button mat-dialog-close type="button">
-                {{ 'CLOSE' | translate }}
-            </button>
-            <button
-                mat-flat-button
-                type="button"
-                data-testid="episode-info-play"
-                (click)="play()"
-            >
-                <mat-icon>play_arrow</mat-icon>
-                {{ 'XTREAM.PLAY' | translate }}
-            </button>
-        </div>
+            <div appDialogFooter>
+                <button mat-button mat-dialog-close type="button">
+                    {{ 'CLOSE' | translate }}
+                </button>
+                <button
+                    mat-flat-button
+                    type="button"
+                    data-testid="episode-info-play"
+                    (click)="play()"
+                >
+                    <mat-icon>play_arrow</mat-icon>
+                    {{ 'XTREAM.PLAY' | translate }}
+                </button>
+            </div>
+        </app-dialog-shell>
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {
                 display: block;
-                max-width: 560px;
             }
 
+            // The still runs edge to edge under the header: it cancels the
+            // body's 20px padding on three sides.
             .episode-info__thumb {
-                width: 100%;
+                display: block;
+                width: calc(100% + 40px);
+                margin: -20px -20px 0;
                 aspect-ratio: 16 / 9;
                 object-fit: cover;
-                border-radius: 12px 12px 0 0;
-                display: block;
             }
 
-            .episode-info__body {
-                padding: 16px 24px 0;
+            .episode-info__thumb + .episode-info__body {
+                padding-top: 16px;
             }
 
             .episode-info__eyebrow {
@@ -143,25 +152,11 @@ export const EPISODE_INFO_PLAY = 'play' as const;
                 text-transform: none;
             }
 
-            .episode-info__title {
-                margin: 6px 0 0;
-                padding: 0;
-                font-size: 1.25rem;
-                line-height: 1.3;
-                overflow-wrap: anywhere;
-
-                &::before {
-                    display: none;
-                }
-            }
-
             .episode-info__plot {
                 margin: 10px 0 0;
                 font-size: 0.9375rem;
                 line-height: 1.6;
                 opacity: 0.85;
-                max-height: 50vh;
-                overflow-y: auto;
             }
         `,
     ],

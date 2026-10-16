@@ -17,6 +17,10 @@ import type {
     DownloadItemActionType,
 } from './download-actions';
 import type { DownloadSeriesCardViewModel } from './download-library.viewmodel';
+import {
+    DialogHeaderEndDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 const EMPTY_PENDING_IDS: ReadonlySet<number> = new Set();
 
@@ -24,6 +28,8 @@ const EMPTY_PENDING_IDS: ReadonlySet<number> = new Set();
     selector: 'app-downloaded-series-dialog',
     standalone: true,
     imports: [
+        DialogHeaderEndDirective,
+        DialogShellComponent,
         MatButtonModule,
         MatDialogModule,
         MatIconModule,

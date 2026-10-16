@@ -1,67 +1,70 @@
-<h2 mat-dialog-title>
-    {{ 'SETTINGS.REMOVE_DIALOG.TITLE' | translate }}
-</h2>
-
-<mat-dialog-content class="mat-typography settings-delete-dialog">
-    <p class="settings-delete-dialog__lead">
-        {{
-            'SETTINGS.REMOVE_DIALOG.MESSAGE'
-                | translate: { count: dialogData.summary.total }
-        }}
-    </p>
-    @if (clearsServer()) {
-        <p
-            class="settings-delete-dialog__lead"
-            data-test-id="delete-all-server-warning"
-        >
-            {{ 'SERVER_STORAGE.DELETE_ALL_WARNING' | translate }}
+<app-dialog-shell
+    icon="delete_forever"
+    iconTone="warn"
+    [heading]="'SETTINGS.REMOVE_DIALOG.TITLE' | translate"
+>
+    <div class="settings-delete-dialog">
+        <p class="settings-delete-dialog__lead">
+            {{
+                'SETTINGS.REMOVE_DIALOG.MESSAGE'
+                    | translate: { count: dialogData.summary.total }
+            }}
         </p>
-    }
+        @if (clearsServer()) {
+            <p
+                class="settings-delete-dialog__lead"
+                data-test-id="delete-all-server-warning"
+            >
+                {{ 'SERVER_STORAGE.DELETE_ALL_WARNING' | translate }}
+            </p>
+        }
 
-    <section class="settings-delete-dialog__section">
-        <h3 class="settings-delete-dialog__section-title">
-            {{ 'SETTINGS.REMOVE_DIALOG.SUMMARY_TITLE' | translate }}
-        </h3>
+        <section class="settings-delete-dialog__section">
+            <h3 class="settings-delete-dialog__section-title">
+                {{ 'SETTINGS.REMOVE_DIALOG.SUMMARY_TITLE' | translate }}
+            </h3>
 
-        <div class="settings-delete-dialog__summary">
-            @for (item of summaryItems(); track item.id) {
-                <div class="settings-delete-dialog__summary-item">
-                    <div class="settings-delete-dialog__summary-label">
-                        <mat-icon aria-hidden="true">{{ item.icon }}</mat-icon>
-                        <span>{{ item.labelKey | translate }}</span>
+            <div class="settings-delete-dialog__summary">
+                @for (item of summaryItems(); track item.id) {
+                    <div class="settings-delete-dialog__summary-item">
+                        <div class="settings-delete-dialog__summary-label">
+                            <mat-icon aria-hidden="true">{{
+                                item.icon
+                            }}</mat-icon>
+                            <span>{{ item.labelKey | translate }}</span>
+                        </div>
+                        <strong>{{ item.count }}</strong>
                     </div>
-                    <strong>{{ item.count }}</strong>
-                </div>
-            }
-        </div>
-    </section>
+                }
+            </div>
+        </section>
 
-    <section class="settings-delete-dialog__section">
-        <h3 class="settings-delete-dialog__section-title">
-            {{ 'SETTINGS.REMOVE_DIALOG.CONSEQUENCES_TITLE' | translate }}
-        </h3>
+        <section class="settings-delete-dialog__section">
+            <h3 class="settings-delete-dialog__section-title">
+                {{ 'SETTINGS.REMOVE_DIALOG.CONSEQUENCES_TITLE' | translate }}
+            </h3>
 
-        <ul class="settings-delete-dialog__list">
-            @for (key of consequenceKeys; track key) {
-                <li>{{ key | translate }}</li>
-            }
-        </ul>
-    </section>
+            <ul class="settings-delete-dialog__list">
+                @for (key of consequenceKeys; track key) {
+                    <li>{{ key | translate }}</li>
+                }
+            </ul>
+        </section>
 
-    <p class="settings-delete-dialog__hint">
-        {{ 'SETTINGS.REMOVE_DIALOG.BACKUP_HINT' | translate }}
-    </p>
-</mat-dialog-content>
-
-<mat-dialog-actions align="end" class="settings-delete-dialog__actions">
-    <button mat-button mat-dialog-close cdkFocusInitial>
-        {{ 'CANCEL' | translate }}
-    </button>
-    <button
-        mat-flat-button
-        class="app-destructive-button"
-        [mat-dialog-close]="true"
-    >
-        {{ 'SETTINGS.REMOVE_DIALOG.CONFIRM' | translate }}
-    </button>
-</mat-dialog-actions>
+        <p class="settings-delete-dialog__hint">
+            {{ 'SETTINGS.REMOVE_DIALOG.BACKUP_HINT' | translate }}
+        </p>
+    </div>
+    <div appDialogFooter>
+        <button mat-button mat-dialog-close cdkFocusInitial>
+            {{ 'CANCEL' | translate }}
+        </button>
+        <button
+            mat-flat-button
+            class="app-destructive-button"
+            [mat-dialog-close]="true"
+        >
+            {{ 'SETTINGS.REMOVE_DIALOG.CONFIRM' | translate }}
+        </button>
+    </div>
+</app-dialog-shell>

@@ -7,43 +7,12 @@
     color: var(--app-body-color);
 }
 
-.downloaded-series-dialog__header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 20px;
-    padding: 22px 24px 14px;
-    border-bottom: 1px solid var(--app-separator);
-    background: var(--app-widget-header-bg);
-
-    h2[mat-dialog-title] {
-        margin: 3px 0 0;
-        padding: 0;
-        color: var(--app-heading-color);
-        font-size: 1.35rem;
-        font-weight: 700;
-        line-height: 1.25;
-    }
-
-    p {
-        margin: 6px 0 0;
-        color: var(--app-muted-color);
-        font-size: 0.78rem;
-    }
-}
-
 .downloaded-series-dialog__eyebrow {
     color: var(--app-eyebrow-color);
     font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-}
-
-mat-dialog-content {
-    max-height: min(66vh, 620px);
-    padding: 10px 12px 18px;
-    background: var(--app-widget-bg);
 }
 
 .downloaded-series-dialog__list {
@@ -136,10 +105,6 @@ button:disabled {
 }
 
 @media (max-width: 620px) {
-    .downloaded-series-dialog__header {
-        padding: 18px 16px 12px;
-    }
-
     .downloaded-series-dialog__episode {
         grid-template-columns: minmax(0, 1fr);
         gap: 6px;

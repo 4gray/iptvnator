@@ -1180,6 +1180,16 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   action or a notice at the footer's start, `appDialogHeaderEnd` a chip
   before the close button); a conditional action sits inside the wrapper,
   since a control-flow block at the top level is projected into the body.
+  Every dialog uses it, apart from three that draw their own surface by
+  design: the command palette, the programme dialog and the EPG import
+  panel (a floating panel, not a dialog). A dialog with a hero band (the
+  account info and channel details dialogs) keeps the band as the body's
+  first block, edge to edge through negative margins, with its title and
+  subtitle in the shell's header and its status pills in
+  `appDialogHeaderEnd`; a media dialog (trailer, episode info) does the
+  same with its frame or still. Widths come from `dialogSize()`; the two
+  account dialogs keep their wider explicit width for their stats grid, and
+  the trailer its 880px for a 16:9 frame.
   Footer
   buttons take the kit look from the shell: `mat-button` ghost,
   `mat-flat-button` accent, `mat-flat-button.app-dialog__secondary`

@@ -3,6 +3,10 @@
         margin: 0 0 12px;
         color: var(--app-body-color);
     }
+
+    > :last-child {
+        margin-bottom: 0;
+    }
 }
 
 .server-migration__list {

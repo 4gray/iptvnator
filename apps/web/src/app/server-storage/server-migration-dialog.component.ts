@@ -19,10 +19,16 @@ import {
     type ServerMigrationResult,
 } from '@iptvnator/services/server-storage';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
+import {
+    DialogFooterDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 @Component({
     selector: 'app-server-migration-dialog',
     imports: [
+        DialogFooterDirective,
+        DialogShellComponent,
         MatButtonModule,
         MatDialogModule,
         MatIconModule,
