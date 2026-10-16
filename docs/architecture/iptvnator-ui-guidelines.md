@@ -1189,7 +1189,12 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   `appDialogHeaderEnd`; a media dialog (trailer, episode info) does the
   same with its frame or still. Widths come from `dialogSize()`; the two
   account dialogs keep their wider explicit width for their stats grid, and
-  the trailer its 880px for a 16:9 frame.
+  the trailer its 880px for a 16:9 frame. A picker whose list should scroll
+  under fixed search and bulk actions sets `bodyLayout="column"`: the body
+  becomes a flex column, its wrapper `flex: 1 1 auto; min-height: 0` and
+  the list `flex: 1; overflow-y: auto`. A child cannot size itself from the
+  body's height (`height: 100%` never resolves on a flex item), so without
+  it the whole body scrolls and the controls scroll away.
   Footer
   buttons take the kit look from the shell: `mat-button` ghost,
   `mat-flat-button` accent, `mat-flat-button.app-dialog__secondary`

@@ -53,6 +53,16 @@ class FullHostComponent {
 })
 class BareHostComponent {}
 
+@Component({
+    imports: [DialogShellComponent],
+    template: `
+        <app-dialog-shell heading="Manage groups" bodyLayout="column">
+            <div>A list that scrolls</div>
+        </app-dialog-shell>
+    `,
+})
+class ColumnHostComponent {}
+
 describe('DialogShellComponent', () => {
     const close = jest.fn();
 
@@ -127,6 +137,22 @@ describe('DialogShellComponent', () => {
         expect(closeButton.getAttribute('aria-label')).toBe('CLOSE_DIALOG');
         closeButton.click();
         expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it('lays the body out as a flex column on request, so a child can own the scrolling', async () => {
+        const root = await render(BareHostComponent);
+        const body = root.querySelector('.app-dialog__body');
+        expect(body?.classList.contains('app-dialog__body--column')).toBe(
+            false
+        );
+
+        TestBed.resetTestingModule();
+        const column = await render(ColumnHostComponent);
+        expect(
+            column
+                .querySelector('.app-dialog__body')
+                ?.classList.contains('app-dialog__body--column')
+        ).toBe(true);
     });
 
     it('hides the close button on request', async () => {

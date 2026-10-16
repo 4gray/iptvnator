@@ -16,6 +16,13 @@ import {
 } from './dialog-shell.directives';
 
 export type DialogIconTone = 'default' | 'warn';
+/**
+ * How the body lays out its content. `block` is a normal flow; `column`
+ * makes the body a flex column, so a child can take the height left under
+ * the dialog's cap and own the scrolling (a picker whose search and bulk
+ * actions stay put while its list scrolls).
+ */
+export type DialogBodyLayout = 'block' | 'column';
 
 /**
  * The UI kit's dialog shell: a header with an optional icon tile, the
@@ -54,6 +61,7 @@ export class DialogShellComponent {
     readonly iconTone = input<DialogIconTone>('default');
     /** The header close button; Escape and the backdrop still close. */
     readonly showClose = input(true);
+    readonly bodyLayout = input<DialogBodyLayout>('block');
 
     private readonly footer = contentChild(DialogFooterDirective);
     private readonly footerStart = contentChild(DialogFooterStartDirective);

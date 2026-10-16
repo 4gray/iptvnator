@@ -43,10 +43,13 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
     ],
     providers: [SourceCleanupService],
     template: `
+        <!-- While sources are being deleted, Stop is the one way out: the
+             header close would end the dialog and the batch with it. -->
         <app-dialog-shell
             icon="cleaning_services"
             iconTone="warn"
             [heading]="'SOURCE_CLEANUP.TITLE' | translate"
+            [showClose]="!locked()"
         >
             <p>{{ 'SOURCE_CLEANUP.SCOPE' | translate }}</p>
             <p>{{ 'SOURCE_CLEANUP.CONSEQUENCES' | translate }}</p>

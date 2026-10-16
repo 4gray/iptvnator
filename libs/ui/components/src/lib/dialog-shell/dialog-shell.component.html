@@ -18,7 +18,10 @@
         <ng-content select="[appDialogHeaderEnd]" />
     </div>
 </header>
-<mat-dialog-content class="app-dialog__body">
+<mat-dialog-content
+    class="app-dialog__body"
+    [class.app-dialog__body--column]="bodyLayout() === 'column'"
+>
     <ng-content />
 </mat-dialog-content>
 @if (hasFooter()) {

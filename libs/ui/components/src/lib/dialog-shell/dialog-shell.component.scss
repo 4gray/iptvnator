@@ -95,6 +95,14 @@ app-dialog-shell {
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
+
+    // A child cannot size itself from the body's height (a flex item's
+    // height is indefinite for percentages), so a column body lets the
+    // child flex to the space left and own the scrolling instead.
+    &--column {
+        display: flex;
+        flex-direction: column;
+    }
 }
 
 .app-dialog__header-end {

@@ -10,14 +10,15 @@
     --lock-dialog-error-color: #ffb4ab;
 }
 
-// The list is the only part that scrolls; the shell's body gives it the
-// height left under the dialog's cap.
+// The list is the only part that scrolls: inside the shell's column body
+// the wrapper flexes to the height left under the cap, and the list flexes
+// inside it, so the search and bulk actions stay put.
 .lock-dialog {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex: 1 1 auto;
     min-height: 0;
-    height: 100%;
 }
 
 .header-actions {
