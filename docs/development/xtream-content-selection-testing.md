@@ -44,8 +44,10 @@ verify download preservation using a development-profile download instead.
 
 - Add a source with only Live TV selected; verify Movies and Series are not
   imported. Compare import time against all three types on the same provider.
-- Edit that source to enable Movies. Saving immediately loads Movies without
-  refreshing Live TV. Close and reopen Edit to confirm the saved selection.
+- Edit that source to enable Movies. Saving shows the scanning popup and loads
+  Movies without refreshing Live TV. The popup identifies Movies, shows remote
+  loading and local save progress, then closes when done. Repeat with Series;
+  already enabled types should not refresh. Reopen Edit to confirm the selection.
 - Favorite a movie, play it to create history/progress, and optionally download
   it. Disable Movies. It disappears from browsing/search, but its Favorites and
   history entries remain visible with a disabled-type status and remain usable.

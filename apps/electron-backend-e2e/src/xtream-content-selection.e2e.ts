@@ -16,11 +16,15 @@ import {
 /** Observe real main-process API requests without recording credentials. */
 async function recordCatalogRequests() {
     const actions: string[] = [];
+    let heldAction: string | null = null;
+    let heldResponse: Promise<void> = Promise.resolve();
+    let releaseResponse: (() => void) | undefined;
     const server = createServer(async (request, response) => {
         try {
             const url = new URL(request.url ?? '/', xtreamMockServer);
             const action = url.searchParams.get('action');
             if (action) actions.push(action);
+            if (action === heldAction) await heldResponse;
             const upstream = await fetch(url);
             response.writeHead(upstream.status, {
                 'Content-Type': 'application/json',
@@ -38,11 +42,23 @@ async function recordCatalogRequests() {
         throw new Error('No local mock port');
     return {
         actions,
+        hold(action: string) {
+            heldAction = action;
+            heldResponse = new Promise<void>((resolve) => {
+                releaseResponse = resolve;
+            });
+            return () => {
+                heldAction = null;
+                releaseResponse?.();
+            };
+        },
         url: `http://127.0.0.1:${address.port}`,
-        close: () =>
-            new Promise<void>((resolve, reject) =>
+        close: () => {
+            releaseResponse?.();
+            return new Promise<void>((resolve, reject) =>
                 server.close((error) => (error ? reject(error) : resolve()))
-            ),
+            );
+        },
     };
 }
 
@@ -53,7 +69,7 @@ const catalogActions = (actions: string[]) =>
         )
     );
 
-test('desktop imports Live only, immediately enables Movies, and preserves an all-disabled source', async ({
+test('desktop shows scanning for newly enabled Movies and Series and preserves an all-disabled source', async ({
     dataDir,
 }) => {
     test.setTimeout(120000);
@@ -99,16 +115,66 @@ test('desktop imports Live only, immediately enables Movies, and preserves an al
         await expect(
             dialog.getByTestId('xtream-load-movie').getByRole('checkbox')
         ).not.toBeChecked();
-        recorder.actions.length = 0;
-        await dialog
-            .getByTestId('xtream-load-movie')
-            .getByRole('checkbox')
-            .check();
-        await saveSourceDialog(page, dialog);
-        expect(catalogActions(recorder.actions)).toEqual([
-            'get_vod_categories',
-            'get_vod_streams',
-        ]);
+        for (const next of [
+            {
+                type: 'movie',
+                label: 'Movies',
+                categories: 'get_vod_categories',
+                streams: 'get_vod_streams',
+            },
+            {
+                type: 'series',
+                label: 'Series',
+                categories: 'get_series_categories',
+                streams: 'get_series',
+            },
+        ]) {
+            recorder.actions.length = 0;
+            const release = recorder.hold(next.streams);
+            await dialog
+                .getByTestId(`xtream-load-${next.type}`)
+                .getByRole('checkbox')
+                .check();
+            const saving = saveSourceDialog(page, dialog);
+            try {
+                const scanning = dialog.locator('.workspace-loading-overlay');
+                await expect
+                    .poll(() => recorder.actions.includes(next.streams))
+                    .toBeTruthy();
+                await expect(scanning).toBeVisible();
+                await expect(
+                    dialog.getByRole('heading', {
+                        name: 'Syncing playlist',
+                        exact: true,
+                    })
+                ).toBeVisible();
+                await expect(
+                    scanning.locator(
+                        '.workspace-loading-overlay__badge--remote'
+                    )
+                ).toBeVisible();
+                await expect(
+                    scanning.locator(
+                        '.workspace-loading-overlay__progress-copy'
+                    )
+                ).toContainText(next.label);
+                await expect(
+                    scanning.locator('mat-progress-bar')
+                ).toHaveAttribute('mode', 'indeterminate');
+            } finally {
+                release();
+                await saving;
+            }
+            await expect(
+                page.locator('.workspace-loading-overlay')
+            ).not.toBeVisible();
+            expect(catalogActions(recorder.actions)).toEqual([
+                next.categories,
+                next.streams,
+            ]);
+            if (next.type === 'movie')
+                dialog = await openSourceEditor(page, 'Selective Xtream');
+        }
 
         const savedMovie = await page.evaluate(async () => {
             const playlist = (await window.electron.dbGetAppPlaylists()).find(
@@ -130,6 +196,10 @@ test('desktop imports Live only, immediately enables Movies, and preserves an al
             .uncheck();
         await dialog
             .getByTestId('xtream-load-movie')
+            .getByRole('checkbox')
+            .uncheck();
+        await dialog
+            .getByTestId('xtream-load-series')
             .getByRole('checkbox')
             .uncheck();
         recorder.actions.length = 0;

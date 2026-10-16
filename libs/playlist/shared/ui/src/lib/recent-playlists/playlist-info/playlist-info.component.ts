@@ -76,6 +76,8 @@ import {
     XtreamContentSelectionComponent,
 } from '@iptvnator/ui/components';
 
+import { XtreamSelectionProgressComponent } from '../../xtream-selection-progress.component';
+
 type DesktopFileSaveBridge = Pick<
     typeof window.electron,
     'saveFileDialog' | 'writeFile'
@@ -179,6 +181,7 @@ type DesktopFileSaveBridge = Pick<
         DialogFooterStartDirective,
         DialogShellComponent,
         XtreamContentSelectionComponent,
+        XtreamSelectionProgressComponent,
         ClipboardModule,
         MatButton,
         MatCheckboxModule,
@@ -214,6 +217,7 @@ export class PlaylistInfoComponent {
     });
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
     readonly isSaving = signal(false);
+    readonly isRefreshingSelectedCatalogs = signal(false);
     readonly isHydratingStalkerPlaylist = signal(false);
     readonly stalkerPlaylistHydrationFailed = signal(false);
     private dialogClosing = false;
@@ -547,6 +551,7 @@ export class PlaylistInfoComponent {
             if (this.dialogRef) {
                 this.dialogRef.disableClose = false;
             }
+            this.isRefreshingSelectedCatalogs.set(false);
             this.isSaving.set(false);
         }
     }
@@ -660,6 +665,7 @@ export class PlaylistInfoComponent {
             });
 
         if (newlyEnabled.length) {
+            this.isRefreshingSelectedCatalogs.set(true);
             try {
                 await this.injector
                     .get(XtreamSelectedCatalogRefreshService)

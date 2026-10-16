@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import {
     normalizeXtreamServerUrl,
     PlaylistMeta,
@@ -21,6 +21,20 @@ const actions = {
     series: ['get_series_categories', 'get_series'],
 } as const;
 
+export interface XtreamSelectedCatalogProgress {
+    playlistId: string;
+    type: XtreamContentType | null;
+    phase:
+        | 'loading-categories'
+        | 'loading-content'
+        | 'preparing'
+        | 'saving-categories'
+        | 'saving-content'
+        | 'restoring';
+    current: number;
+    total: number;
+}
+
 /** Desktop edit-time refresh. Unchanged/disabled catalogs are never requested or deleted. */
 @Injectable({ providedIn: 'root' })
 export class XtreamSelectedCatalogRefreshService {
@@ -30,6 +44,9 @@ export class XtreamSelectedCatalogRefreshService {
     private readonly positions = inject(PlaybackPositionService);
     private readonly pending = inject(XtreamPendingRestoreService);
     private readonly activity = inject(SourceActivityService);
+    private readonly progressState =
+        signal<XtreamSelectedCatalogProgress | null>(null);
+    readonly progress = this.progressState.asReadonly();
 
     async refresh(
         playlist: PlaylistMeta,
@@ -37,6 +54,7 @@ export class XtreamSelectedCatalogRefreshService {
     ): Promise<void> {
         if (!types.length) return;
         if (
+            this.progressState() ||
             this.activity.isBusy(playlist._id) ||
             this.pending.getOrThrow(playlist._id)
         ) {
@@ -45,20 +63,36 @@ export class XtreamSelectedCatalogRefreshService {
             );
         }
         const release = this.activity.begin([playlist._id]);
+        const publish = (
+            type: XtreamContentType | null,
+            phase: XtreamSelectedCatalogProgress['phase'],
+            current = 0,
+            total = 0
+        ) =>
+            this.progressState.set({
+                playlistId: playlist._id,
+                type,
+                phase,
+                current,
+                total,
+            });
         try {
             // Fetch before deleting any cache. A provider failure leaves the saved catalog intact.
             const catalogs = [];
             for (const type of types) {
+                publish(type, 'loading-categories');
                 const categories = await this.request<XtreamCategory>(
                     playlist,
                     actions[type][0]
                 );
+                publish(type, 'loading-content');
                 const content = await this.request<Record<string, unknown>>(
                     playlist,
                     actions[type][1]
                 );
                 catalogs.push({ type, categories, content });
             }
+            publish(null, 'preparing');
             // Park user state BEFORE deletion so storage failure cannot erase history.
             const [playbackPositions, recent, categoriesByType] =
                 await Promise.all([
@@ -101,6 +135,7 @@ export class XtreamSelectedCatalogRefreshService {
             });
             for (const { type, categories, content } of catalogs) {
                 const categoryType = type === 'movie' ? 'movies' : type;
+                publish(type, 'saving-categories');
                 await this.db.saveXtreamCategories(
                     playlist._id,
                     categories,
@@ -112,10 +147,23 @@ export class XtreamSelectedCatalogRefreshService {
                         .map((category) => category.xtreamId),
                     this.locks.lockedXtreamIds(playlist._id, categoryType)
                 );
+                publish(type, 'saving-content', 0, content.length);
                 const count = await this.db.saveXtreamContent(
                     playlist._id,
                     content,
-                    type
+                    type,
+                    undefined,
+                    {
+                        onEvent: (event) => {
+                            if (event.current !== undefined)
+                                publish(
+                                    type,
+                                    'saving-content',
+                                    event.current,
+                                    event.total ?? content.length
+                                );
+                        },
+                    }
                 );
                 if (content.length > 0 && count === 0)
                     throw new Error('Saving the refreshed catalog failed.');
@@ -125,6 +173,7 @@ export class XtreamSelectedCatalogRefreshService {
                     'completed'
                 );
             }
+            publish(null, 'restoring');
             const result = await this.pending.applyAndConsume(
                 playlist._id,
                 snapshot,
@@ -139,6 +188,7 @@ export class XtreamSelectedCatalogRefreshService {
             if (result === 'consume-failed')
                 throw new Error('Could not finish source restore.');
         } finally {
+            this.progressState.set(null);
             release();
         }
     }
