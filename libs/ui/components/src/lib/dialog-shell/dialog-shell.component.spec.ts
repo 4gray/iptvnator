@@ -106,6 +106,11 @@ describe('DialogShellComponent', () => {
             root.querySelectorAll('.app-dialog__footer button')
         ).map((button) => button.textContent?.trim());
         expect(footerTexts).toEqual(['Clear', 'Cancel', 'Remove']);
+        expect(
+            root
+                .querySelector('app-dialog-shell')
+                ?.classList.contains('app-dialog--footerless')
+        ).toBe(false);
     });
 
     it('drops a conditional action from the footer without losing the others', async () => {
@@ -117,10 +122,17 @@ describe('DialogShellComponent', () => {
         expect(footerTexts).toEqual(['Clear', 'Cancel']);
     });
 
-    it('renders no footer, icon tile or subtitle when nothing is projected or set', async () => {
+    it('renders no footer, icon tile or subtitle when nothing is projected or set, and marks itself footer-less', async () => {
         const root = await render(BareHostComponent);
 
         expect(root.querySelector('.app-dialog__footer')).toBeNull();
+        // The short-window stylesheet keys on the class: such a dialog keeps
+        // its body scrolling so the header close stays in place.
+        expect(
+            root
+                .querySelector('app-dialog-shell')
+                ?.classList.contains('app-dialog--footerless')
+        ).toBe(true);
         expect(root.querySelector('.app-dialog__icon')).toBeNull();
         expect(root.querySelector('.app-dialog__subtitle')).toBeNull();
         expect(root.querySelector('.app-dialog__body')?.textContent).toContain(

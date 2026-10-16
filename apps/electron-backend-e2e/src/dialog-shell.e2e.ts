@@ -47,6 +47,31 @@ async function openChannelDetailsNarrow(
     return dialog;
 }
 
+/**
+ * Opens the Xtream account dialog through the command palette and waits for
+ * its stats band; the dialog has no footer, so its header close is its only
+ * in-dialog dismissal.
+ */
+async function openAccountInfoDialog(
+    page: Awaited<ReturnType<typeof launchElectronApp>>['mainWindow']
+): Promise<Locator> {
+    const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await page.locator('body').focus();
+    await page.keyboard.press(`${modifier}+K`);
+    const palette = page.locator(
+        'mat-dialog-container app-workspace-command-palette'
+    );
+    await expect(palette).toBeVisible();
+    await palette.locator('input[type="search"]').fill('account');
+    await palette.getByRole('button', { name: /Account info/i }).click();
+
+    const dialog = page.locator('mat-dialog-container').last();
+    await expect(dialog.locator('.account-stat').first()).toBeVisible({
+        timeout: 20_000,
+    });
+    return dialog;
+}
+
 async function serveUnbreakableChannel() {
     return createMutableTextServer(
         buildM3uContent([
@@ -122,22 +147,7 @@ test.describe('Dialog shell', () => {
             await addXtreamPortal(page);
             await waitForXtreamWorkspaceReady(page);
             await page.setViewportSize({ width: 560, height: 760 });
-            const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
-            await page.locator('body').focus();
-            await page.keyboard.press(`${modifier}+K`);
-            const palette = page.locator(
-                'mat-dialog-container app-workspace-command-palette'
-            );
-            await expect(palette).toBeVisible();
-            await palette.locator('input[type="search"]').fill('account');
-            await palette
-                .getByRole('button', { name: /Account info/i })
-                .click();
-
-            const dialog = page.locator('mat-dialog-container').last();
-            await expect(dialog.locator('.account-stat').first()).toBeVisible({
-                timeout: 20_000,
-            });
+            const dialog = await openAccountInfoDialog(page);
             const geometry = await dialog.evaluate((container) => {
                 const hero = container.querySelector(
                     '.account-dialog__hero'
@@ -172,6 +182,63 @@ test.describe('Dialog shell', () => {
             expect(geometry.statsWidth).toBeGreaterThanOrEqual(
                 geometry.heroInner - 1
             );
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('keeps the header close in place in a short window when the dialog has no footer', async ({
+        dataDir,
+        request,
+    }) => {
+        // Under 600px of height the shell lets Material's surface scroll a
+        // dialog whole, so a stacked footer never squeezes the body. A
+        // dialog without a footer has only the header close to dismiss it
+        // with the mouse, and a scrolling surface would carry it away: such
+        // a dialog keeps the body as the scroll owner instead.
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        try {
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await page.setViewportSize({ width: 1024, height: 520 });
+            const dialog = await openAccountInfoDialog(page);
+            await expect(dialog.locator('.account-panel').first()).toBeVisible({
+                timeout: 20_000,
+            });
+            // Scroll both candidate owners to their end: a box with nothing
+            // to scroll stays at 0, so the two scrollTop values name the
+            // owner (a wheel event does not reach the surface under
+            // Playwright's Electron driver, so this is set directly).
+            const state = await dialog.evaluate((container) => {
+                const body = container.querySelector(
+                    'mat-dialog-content'
+                ) as HTMLElement;
+                const surface = container.querySelector(
+                    '.mat-mdc-dialog-surface'
+                ) as HTMLElement;
+                for (const owner of [body, surface]) {
+                    owner.scrollTop = owner.scrollHeight;
+                }
+                const close = container
+                    .querySelector('.app-dialog__close')
+                    ?.getBoundingClientRect();
+                const frame = surface.getBoundingClientRect();
+                return {
+                    bodyScrolled: body.scrollTop,
+                    surfaceScrolled: surface.scrollTop,
+                    closeInsideFrame:
+                        !!close &&
+                        close.top >= frame.top - 1 &&
+                        close.bottom <= frame.bottom + 1,
+                };
+            });
+            // The content is taller than the 520px window, and the body
+            // took the scroll: the header, and its close, stayed in place.
+            expect(state.bodyScrolled).toBeGreaterThan(0);
+            expect(state.surfaceScrolled).toBe(0);
+            expect(state.closeInsideFrame).toBe(true);
         } finally {
             await closeElectronApp(app);
         }

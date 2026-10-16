@@ -51,6 +51,10 @@ export type DialogBodyLayout = 'block' | 'column';
     // `app-dialog__*` classes.
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.OnPush,
+    // A footer-less dialog keeps its body as the scroll owner in a short
+    // window (see the stylesheet): its header close is its only in-dialog
+    // dismissal and must stay in place.
+    host: { '[class.app-dialog--footerless]': '!hasFooter()' },
 })
 export class DialogShellComponent {
     /** The translated heading; it names the dialog for assistive tech. */

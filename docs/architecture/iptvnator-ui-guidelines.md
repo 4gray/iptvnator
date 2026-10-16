@@ -1203,10 +1203,12 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   tinted blurred backdrop) is global in `m3-theme.scss` and reaches every
   dialog; a dialog that draws its own surface strips it through its panel
   class, as the command palette and the programme dialog do.
-  The shell caps itself at the viewport minus the preset's margins and
+  The shell sizes from the surface, so an opener's tighter `maxHeight`
+  holds, caps itself at the viewport minus the preset's margins otherwise, and
   lets only the body scroll; under 600px of height the cap comes off and the
   surface scrolls the whole dialog, so a stacked footer never squeezes the
-  body to a sliver.
+  body to a sliver. A dialog without a footer keeps its body scrolling
+  there: its header × is its only in-dialog dismissal and stays in place.
 - **Dismiss.** The shell's header × (named "Close dialog", so a footer
   "Close" stays the only button of that name) and the footer
   "Cancel"/"Close" both dismiss; a dialog never adds a second footer
