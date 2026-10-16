@@ -464,6 +464,29 @@ targets. Those targets are validated when registered and revalidated before the
 `/xtream` proxy request, including protocol, URL credentials, DNS resolution,
 and private-network checks.
 
+## Provider EPG
+
+Xtream EPG comes from the portal itself. `get_short_epg` feeds the
+channel-row previews (`EpgQueueService`: three items, two requests in flight)
+and the collection previews (`StreamResolverService`). `get_simple_data_table`,
+falling back to the legacy `get_simple_date_table`, feeds the live EPG panel
+(`withEpg().loadEpg()`) and the collection detail panel. All of them use the
+ordinary `XTREAM_REQUEST` transport, so they are gated on
+`RuntimeCapabilitiesService.supportsProviderEpg`. It is true in the browser
+PWA, where `PwaService` forwards to the backend `/xtream` proxy, and in
+Electron when the `xtreamRequest` and `stalkerRequest` preload methods exist.
+Both runtimes send the EPG actions as silent background requests (no error
+snackbar) through the same per-host connectivity guard as the catalog. Only
+connection-level failures count, so a panel that answers EPG requests slowly
+or with an error status cannot fast-fail playback.
+
+The local XMLTV parts keep the XMLTV capabilities and stay off in the PWA:
+the `epg_channel_id` fallback and `preferUploadedEpgOverXtream`
+(`XtreamXmltvFallbackService`), and manual EPG mapping (`supportsEpgMapping`).
+Whether catch-up from the provider guide plays in the browser players is being
+verified; the URL shape the PWA falls back to is described under Catch-Up
+Playback URLs.
+
 ## User-Agent
 
 Electron's `XTREAM_REQUEST` and stream-probe handlers plus fresh Xtream movie
