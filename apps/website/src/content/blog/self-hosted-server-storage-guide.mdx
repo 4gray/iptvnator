@@ -172,7 +172,7 @@ exposure beyond your network, set a token.
 <StepRail
   title="Turn the token on"
   steps={[
-    'Pick a long random string. Any password manager generates one; so does `openssl rand -hex 24` in a terminal.',
+    'Pick a long random string. Any password manager generates one, and so does the terminal command openssl rand -hex 24.',
     'Uncomment IPTVNATOR_ACCESS_TOKEN in compose.yaml and paste the string as its value.',
     'Run docker compose up -d again. Compose recreates the container with the new environment; the database is untouched.',
     'Open the address in each browser. A sign-in page asks for the token once and keeps it in that browser.',
@@ -196,27 +196,52 @@ the server sends every browser back to the sign-in page the next time it talks t
 A reverse proxy gives the app a name and a certificate, and makes the PWA installable on
 phones. Any proxy that forwards HTTP works; the one rule is to serve IPTVnator at the root of
 its own hostname, because the app expects its backend under `/api` on the same origin. A
-sub-path such as `https://nas.example.home/iptvnator/` is not supported.
+sub-path such as `https://nas.example.com/iptvnator/` is not supported.
 
-With Caddy, the complete site definition is:
+The certificate is the part that needs a decision. Browsers trust a certificate only when a
+public authority issued it for a name you own, or when you installed the issuing authority on
+the device yourself. That gives two workable setups:
+
+- **A name you own, with a public certificate.** Register a domain (or use a subdomain of one
+  you have) and point `tv.example.com` at the NAS: in public DNS when the host is reachable
+  from the internet, or in your router's or Pi-hole's local DNS when it is not. Caddy then
+  obtains a Let's Encrypt certificate on its own, provided it can answer the challenge: port 80
+  or 443 of the name must reach Caddy from the internet, or you use the DNS challenge with a
+  Caddy build that includes your DNS provider's plugin. This is the setup that works on every
+  phone and TV without touching the device.
+- **A LAN-only name with Caddy's own authority.** With `tls internal`, Caddy issues the
+  certificate itself. Every device then needs Caddy's root certificate installed once (Caddy
+  prints its location; `caddy trust` installs it on the machine running Caddy). Phones and
+  laptops accept a user-installed root; many TV browsers do not, so test the devices you care
+  about before settling on this.
+
+With Caddy, the two site definitions are:
 
 ```text
-tv.example.home {
+# A name you own: Caddy fetches and renews a Let's Encrypt certificate.
+tv.example.com {
+    reverse_proxy 192.168.1.20:4333
+}
+
+# LAN only: Caddy's own authority, trusted on each device by hand.
+tv.home.arpa {
+    tls internal
     reverse_proxy 192.168.1.20:4333
 }
 ```
 
-Then add the public origin to `CLIENT_URL` in `compose.yaml` and recreate the container:
+Then add the HTTPS origin to `CLIENT_URL` in `compose.yaml` and recreate the container:
 
 ```yaml
     environment:
-      CLIENT_URL: https://tv.example.home,http://192.168.1.20:4333
+      CLIENT_URL: https://tv.example.com,http://192.168.1.20:4333
 ```
 
 Keep `BACKEND_URL` at its default `/api`; the proxy inside the image forwards it to the
 backend. Nginx Proxy Manager, Traefik and the reverse proxy built into Synology DSM work the
-same way: point them at the container port and allow request bodies of at least 64 MB if the
-proxy limits them, because a playlist upload carries the whole M3U file.
+same way: point them at the container port, give them a certificate the same way, and allow
+request bodies of at least 64 MB if the proxy limits them, because a playlist upload carries
+the whole M3U file.
 
 If the name resolves on the internet, treat the instance as public: set the access token, keep
 the private-network proxy switch off (the default), and consider your own authentication layer
@@ -237,9 +262,11 @@ Two ways to back it up:
    through **Settings → Backup** restores them to the server. The
    [backup guide](/iptvnator/blog/playlist-backup-restore-guide/) explains what the format
    covers for each source type.
-2. **From the host.** Stop the container, copy the `data` folder, start it again. Copying the
-   `.db` file while the container runs can catch a half-written state; if you cannot stop it,
-   copy the `-wal` file together with the database.
+2. **From the host.** Stop the container, copy the `data` folder, start it again. Copy only
+   while the container is stopped: SQLite keeps recent changes in a `-wal` journal next to the
+   database and moves them into the file at its own pace, so files copied from a running
+   container can be out of step with each other and may not open or may miss saved changes.
+   The app export above is the safe way to take a backup without stopping anything.
 
 <CopyCommand title="A consistent file-level backup" command="docker compose stop && cp -a data data-backup-$(date +%F) && docker compose start" />
 
