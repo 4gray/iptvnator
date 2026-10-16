@@ -142,21 +142,31 @@ export class ServerUserDataStorage implements UserDataStorage {
         for (const page of this.journal
             .orphans()
             .filter((page) => !this.adopted.has(page))) {
-            this.adoptPage(page);
+            this.adoptPages([page]);
         }
     }
 
-    /** Its edits go ahead of this tab's own, which may be newer. */
-    private adoptPage(page: string): void {
-        adoptPageEdits(this.writes, this.cache, {
-            local: this.local,
-            instanceId: this.instanceId,
-            tabId: this.tabId,
-            page,
-        });
-        this.adopted.add(page);
-        // The other page's copy goes only once this tab saved its own.
-        this.journal.release(page, this.journal.saveUnsent());
+    /**
+     * Page loads, oldest first: their edits go ahead of this tab's own,
+     * which may be newer. Each adopted page goes ahead of what is queued,
+     * so they are adopted newest first.
+     */
+    private adoptPages(pages: readonly string[]): void {
+        for (const page of [...pages].reverse()) {
+            adoptPageEdits(this.writes, this.cache, {
+                local: this.local,
+                instanceId: this.instanceId,
+                tabId: this.tabId,
+                page,
+            });
+            this.adopted.add(page);
+        }
+        // Their copies go only once this tab saved its own; until then they
+        // are kept oldest first, the order a reload restores them in.
+        const saved = this.journal.saveUnsent();
+        for (const page of pages) {
+            this.journal.release(page, saved);
+        }
         this.writes.scheduleFlush();
     }
 
@@ -166,9 +176,8 @@ export class ServerUserDataStorage implements UserDataStorage {
         const owner = pages[pages.length - 1];
         if (owner && !this.journal.isLive(owner)) {
             // This page may have read and edited since: adopt, not restore.
-            // Each adopted page goes ahead of what is queued: newest first.
             this.awaited = [];
-            [...pages].reverse().forEach((page) => this.adoptPage(page));
+            this.adoptPages(pages);
         }
         // A tab with nothing to sync never re-reads, which is where closed
         // tabs' saved writes are otherwise picked up.

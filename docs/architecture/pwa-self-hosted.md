@@ -237,8 +237,9 @@ settings and guards read them in every build.
   tab remembers its page load in `sessionStorage`, so a reload takes its
   writes over and sends them first (the old copy goes only once the new one
   is saved, at the latest with this page's next saved copy; until then the
-  tab's pointer names the kept page loads too, so another reload finds
-  them even without their registry records; a duplicate of a tab that
+  tab's pointer names the kept page loads too, oldest first also when a
+  duplicate adopted them, so another reload finds them even without their
+  registry records and replays them in order; a duplicate of a tab that
   still runs leaves them, like that tab's page load, to it). A page marks
   its record closed on `pagehide`, and it stays closed when a page-hide
   write failing afterwards rewrites it (not into the back-forward cache, where
