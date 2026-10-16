@@ -15,7 +15,7 @@ faq:
     - q: What happens to playlists that were already in my browser?
       a: The first browser that opens an instance with an empty server is offered to move them, and later browsers find the same action in Settings → Server. Nothing is deleted from the browser. A playlist the server already has is merged with the browser's favorites and history instead of being added twice.
     - q: Can two people have separate libraries on one server?
-      a: There are no user accounts, so one container means one shared library. For separate libraries, run two containers from two compose files with different ports and data folders, and give each its own access token.
+      a: There are no user accounts, so one container means one shared library. For separate libraries, run two containers from two compose files in different folders, each with its own host port, data folder and container_name (Docker requires the name to be unique), and give each its own access token.
     - q: Does it run on a Raspberry Pi?
       a: Yes. The image is published for amd64 and arm64, so a Raspberry Pi 4 or 5 with a 64-bit OS works. 32-bit systems are not covered.
     - q: Are my provider passwords stored on the server?
