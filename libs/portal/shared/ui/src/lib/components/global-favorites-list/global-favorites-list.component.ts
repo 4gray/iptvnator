@@ -83,7 +83,17 @@ export class GlobalFavoritesListComponent {
 
     readonly channels = input.required<UnifiedFavoriteChannel[]>();
     readonly mode = input<GlobalFavoritesListMode>('favorites');
-    readonly showEpg = input(this.runtime.supportsEpg);
+    /** Host switch for programme lines; each row also needs its guide. */
+    readonly showEpg = input(true);
+    /**
+     * Which rows can carry a programme line: M3U rows need XMLTV, Xtream
+     * and Stalker rows read their provider's guide (also in the PWA).
+     */
+    protected readonly guideBySource = {
+        m3u: this.runtime.supportsEpg,
+        xtream: this.runtime.supportsProviderEpg,
+        stalker: this.runtime.supportsProviderEpg,
+    };
     readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
     readonly epgMap = input<Map<string, EpgProgram | null>>(new Map());
     readonly progressTick = input<number>(0);

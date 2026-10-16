@@ -44,7 +44,12 @@
                     : ''
             "
             [selected]="activeUid() === ch.uid"
-            [showEpg]="!isUnavailable(ch) && showEpg() && ch.radio !== 'true'"
+            [showEpg]="
+                !isUnavailable(ch) &&
+                showEpg() &&
+                ch.radio !== 'true' &&
+                guideBySource[ch.sourceType]
+            "
             [isRadio]="ch.radio === 'true'"
             [epgProgram]="ch.currentEpgProgram"
             [progressPercentage]="ch.progressPercentage"
