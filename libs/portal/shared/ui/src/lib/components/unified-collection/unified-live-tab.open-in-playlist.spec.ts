@@ -72,7 +72,7 @@ describe('UnifiedLiveTabComponent open in playlist', () => {
                 { provide: UnifiedRecentDataService, useValue: recentData },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { supportsEpg: true },
+                    useValue: { supportsEpg: true, supportsProviderEpg: true },
                 },
                 {
                     provide: SettingsStore,

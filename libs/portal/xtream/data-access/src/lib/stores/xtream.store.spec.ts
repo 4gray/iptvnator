@@ -94,7 +94,7 @@ function configureStore(
             },
             {
                 provide: RuntimeCapabilitiesService,
-                useValue: { supportsEpg: false },
+                useValue: { supportsProviderEpg: false },
             },
             {
                 provide: SettingsStore,

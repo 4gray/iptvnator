@@ -109,7 +109,7 @@ describe('StalkerLiveStreamLayoutComponent playback session ownership', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        supportsEpg: false,
+                        supportsProviderEpg: false,
                         isElectron: false,
                         supportsEpgMapping: false,
                     },

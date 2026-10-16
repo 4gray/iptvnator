@@ -9,6 +9,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
@@ -64,6 +65,10 @@ describe('StreamResolverService EPG display offset', () => {
                         getEpgMappingsBatch: jest.fn().mockResolvedValue(null),
                         supportsProgramLookup: true,
                     },
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsProviderEpg: true },
                 },
                 {
                     provide: StalkerSessionService,

@@ -26,6 +26,8 @@ interface RuntimeStub {
     isElectron: boolean;
     supportsEpgImport: boolean;
     supportsEpgDataManagement: boolean;
+    supportsEpg: boolean;
+    supportsProviderEpg: boolean;
     supportsRemoteControl: boolean;
     supportsStartupWindowMode: boolean;
     supportsPortalConnectivityGuard: boolean;
@@ -48,6 +50,8 @@ function setup(runtime: Partial<RuntimeStub> = {}, serverStorage = false) {
                     isElectron: false,
                     supportsEpgImport: false,
                     supportsEpgDataManagement: false,
+                    supportsEpg: false,
+                    supportsProviderEpg: false,
                     supportsRemoteControl: false,
                     supportsStartupWindowMode: false,
                     supportsPortalConnectivityGuard: false,
@@ -124,6 +128,21 @@ describe('SettingsSearchService', () => {
         expect(entries).not.toContain('mpv-player-path');
         expect(entries).toContain('theme');
         expect(service.search('guide')).toEqual([]);
+    });
+
+    it('offers only the EPG display rows where a portal guide exists without XMLTV', () => {
+        const { service } = setup({ supportsProviderEpg: true });
+
+        const sections = service.visibleSections().map(({ id }) => id);
+        const entries = service.visibleEntries().map(({ id }) => id);
+
+        expect(sections).toContain('epg');
+        expect(entries).toEqual(
+            expect.arrayContaining(['epg-view-mode', 'epg-offset'])
+        );
+        expect(entries).not.toContain('epg-sources');
+        expect(entries).not.toContain('prefer-uploaded-epg');
+        expect(entries).not.toContain('epg-clear-data');
     });
 
     it('offers the desktop rows that need no probe on a capable runtime', () => {
