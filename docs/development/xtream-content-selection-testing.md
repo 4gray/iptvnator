@@ -20,9 +20,15 @@ normal repository build; this feature does not require embedded MPV playback.
 ## Run without touching the regular profile
 
 ```bash
+ELECTRON_IS_DEV=0 \
 IPTVNATOR_E2E_DATA_DIR="$HOME/.local/share/iptvnator-dev/xtream-selection" \
-  corepack pnpm exec electron dist/apps/electron-backend/main.js
+  corepack pnpm exec electron dist/apps/electron-backend/main.js --ozone-platform=x11
 ```
+
+Close a previous development instance before launching again. `ELECTRON_IS_DEV=0`
+loads the built frontend instead of requesting a development server on port 4200.
+The X11 flag uses Xwayland on a Wayland desktop and avoids the Wayland/Vulkan
+conflict reported by some Linux graphics configurations.
 
 The existing test-profile override redirects SQLite, Electron user data, and
 settings into this separate directory. Reuse it across launches to test
