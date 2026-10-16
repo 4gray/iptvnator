@@ -280,7 +280,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        get supportsEpg() {
+                        get supportsProviderEpg() {
                             return Boolean(window.electron);
                         },
                         get isElectron() {
@@ -405,8 +405,11 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         settingsStore.resolvedEpgViewMode.set('timeline'); // restore for sibling tests
     });
 
-    it('does not request or render EPG in browser/PWA playback', async () => {
+    it('does not request or render EPG without a portal transport', async () => {
         fixture.destroy();
+        // This spec's runtime stub derives every flag from window.electron,
+        // so clearing it removes the portal transport. The browser PWA has
+        // one: see the provider-only test in the epg-races spec.
         window.electron = undefined as unknown as typeof window.electron;
 
         fixture = TestBed.createComponent(StalkerLiveStreamLayoutComponent);
