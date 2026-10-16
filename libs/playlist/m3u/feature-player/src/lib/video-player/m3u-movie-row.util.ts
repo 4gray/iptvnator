@@ -1,8 +1,6 @@
 import { Channel } from '@iptvnator/shared/interfaces';
-import {
-    classifyM3uEntry,
-    isLikelyM3uMovie,
-} from '@iptvnator/shared/m3u-utils';
+import { isLikelyM3uMovie } from '@iptvnator/shared/m3u-utils';
+import { classifyM3uEntry } from '@iptvnator/shared/m3u-utils/catalog';
 
 /**
  * Whether a row opens as a film.

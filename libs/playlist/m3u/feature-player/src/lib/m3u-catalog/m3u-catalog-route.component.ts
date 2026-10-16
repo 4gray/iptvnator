@@ -14,7 +14,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state/catalog-index';
 import { M3uSeriesCatalogService } from '@iptvnator/m3u-state/series-catalog';
 import {
     OPEN_M3U_CHANNEL_ID_STATE_KEY,
@@ -28,7 +28,7 @@ import {
 } from '@iptvnator/portal/shared/ui';
 import { SettingsStore } from '@iptvnator/services';
 import { Channel, foldSearchText } from '@iptvnator/shared/interfaces';
-import { M3uContentKind } from '@iptvnator/shared/m3u-utils';
+import { M3uContentKind } from '@iptvnator/shared/m3u-utils/catalog';
 import {
     M3uCatalogCard,
     duplicateM3uSeriesTitles,

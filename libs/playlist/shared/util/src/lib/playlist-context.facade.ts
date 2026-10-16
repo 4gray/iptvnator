@@ -10,7 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
-    M3uCatalogIndexService,
+    M3uCatalogSectionsRegistry,
     PlaylistActions,
     selectActivePlaylistId,
     selectAllPlaylistsMeta,
@@ -89,7 +89,7 @@ export class PlaylistContextFacade {
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly catalogIndex = inject(M3uCatalogIndexService);
+    private readonly catalogSections = inject(M3uCatalogSectionsRegistry);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
     private readonly recentHistory = inject(PlaylistRecentHistoryService);
@@ -402,7 +402,7 @@ export class PlaylistContextFacade {
 
         // Unknown until the playlist has been opened this session; then the
         // memory is trusted and the page's empty state covers a miss.
-        const known = this.catalogIndex.sectionsOf(playlistId);
+        const known = this.catalogSections.sectionsOf(playlistId);
         return !known || (section === 'vod' ? known.movies : known.series);
     }
 

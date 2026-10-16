@@ -21,7 +21,7 @@ import {
     selectChannelsLoading,
     selectCurrentEpgProgram,
 } from '@iptvnator/m3u-state';
-import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state/catalog-index';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {

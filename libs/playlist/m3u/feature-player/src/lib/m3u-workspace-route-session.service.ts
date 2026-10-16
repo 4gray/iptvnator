@@ -19,6 +19,7 @@ import {
     RENDERER_PERFORMANCE_PHASE,
 } from '@iptvnator/shared/logging';
 import { filter, firstValueFrom, map, Subscription, take } from 'rxjs';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state/catalog-index';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -32,6 +33,12 @@ export class M3uWorkspaceRouteSession {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
+    /**
+     * Created here so it exists on every M3U section, including Favorites
+     * and Recent: the shell rail and section memory read it through
+     * `M3uCatalogSectionsRegistry` once it has attached.
+     */
+    private readonly catalogIndex = inject(M3uCatalogIndexService);
     private readonly playlistEntities = this.store.selectSignal(
         selectPlaylistEntities
     );

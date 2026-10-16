@@ -57,7 +57,7 @@ import {
 } from './selectors';
 import { resolveAdjacentChannel } from './adjacent-channel.util';
 import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
-import { M3uCatalogIndexService } from './m3u-catalog-index.service';
+import { M3uCatalogSectionsRegistry } from './m3u-catalog-sections-registry.service';
 import {
     buildExternalPlayerPayload,
     type ExternalPlayerHeaderFallback,
@@ -79,7 +79,7 @@ export class PlaylistEffects {
     private store = inject(Store);
     private translate = inject(TranslateService);
     private settingsStore = inject(SettingsStore);
-    private catalogIndex = inject(M3uCatalogIndexService);
+    private catalogSections = inject(M3uCatalogSectionsRegistry);
     private epgSources = inject(EpgSourceSettingsService);
     private readonly playlistScopedEpgFetchKeys = new Map<string, string>();
 
@@ -509,7 +509,7 @@ export class PlaylistEffects {
                     action.direction,
                     activeChannel,
                     allChannels,
-                    this.catalogIndex.liveChannels()
+                    this.catalogSections.liveChannels() ?? allChannels
                 );
                 return ChannelActions.setActiveChannelSuccess({
                     channel: adjacentChannel!,

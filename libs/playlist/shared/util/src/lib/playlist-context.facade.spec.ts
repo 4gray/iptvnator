@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
-    M3uCatalogIndexService,
+    M3uCatalogSectionsRegistry,
     PlaylistActions,
     selectActivePlaylistId,
     selectAllPlaylistsMeta,
@@ -157,7 +157,7 @@ describe('PlaylistContextFacade', () => {
                     useValue: { m3uCatalogTabs: catalogTabs },
                 },
                 {
-                    provide: M3uCatalogIndexService,
+                    provide: M3uCatalogSectionsRegistry,
                     useValue: {
                         sectionsOf: (playlistId: string) =>
                             knownSections.get(playlistId) ?? null,

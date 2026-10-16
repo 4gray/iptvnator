@@ -129,7 +129,7 @@ test('@web @m3u episode rows collapse into a series with its episodes', async ({
 
     await card(page, 'Example Show').click();
     await expect(page).toHaveURL(/\/workspace\/playlists\/.+\/series\/\d+$/);
-    const episodes = page.locator('app-season-container .episode-card');
+    const episodes = page.locator('app-season-container app-episode-item');
     await expect(episodes).toHaveCount(2);
 
     await episodes.first().click();

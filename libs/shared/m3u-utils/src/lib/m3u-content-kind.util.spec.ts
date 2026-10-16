@@ -3,7 +3,7 @@ import {
     m3uCollectionContentType,
 } from './m3u-content-kind.util';
 import { M3U_ENTRY_CORPUS } from './m3u-entry-corpus.spec-data';
-import { hasStrongEpisodeCode } from './m3u-vod-detection.util';
+import { hasStrongEpisodeCode } from './m3u-episode-code.util';
 
 const entry = (
     url: string,

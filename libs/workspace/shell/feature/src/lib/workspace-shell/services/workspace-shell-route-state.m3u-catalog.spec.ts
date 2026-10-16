@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uCatalogSectionsRegistry } from '@iptvnator/m3u-state';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
@@ -82,7 +82,7 @@ describe('WorkspaceShellRouteStateService — M3U catalog sections', () => {
                     useValue: { m3uCatalogTabs: catalogTabs },
                 },
                 {
-                    provide: M3uCatalogIndexService,
+                    provide: M3uCatalogSectionsRegistry,
                     useValue: {
                         // The service's own rule, restated over the
                         // spec's signals; m3u-catalog-index.service.spec

@@ -34,7 +34,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '@iptvnator/portal/xtream/data-access';
-import { m3uCollectionContentType } from '@iptvnator/shared/m3u-utils';
+import { m3uCollectionContentType } from '@iptvnator/shared/m3u-utils/catalog';
 
 type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };

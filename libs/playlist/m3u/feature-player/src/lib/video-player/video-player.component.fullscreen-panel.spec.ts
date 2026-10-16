@@ -2,7 +2,7 @@ import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state/catalog-index';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { BehaviorSubject, of } from 'rxjs';
 import {

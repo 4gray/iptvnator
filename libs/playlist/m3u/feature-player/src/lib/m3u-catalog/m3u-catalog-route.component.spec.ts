@@ -5,11 +5,11 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject } from 'rxjs';
-import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state/catalog-index';
 import { M3uSeriesCatalogService } from '@iptvnator/m3u-state/series-catalog';
 import { SettingsStore } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
-import { buildM3uCatalogIndex } from '@iptvnator/shared/m3u-utils';
+import { buildM3uCatalogIndex } from '@iptvnator/shared/m3u-utils/catalog';
 import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils/series';
 import type { M3uCatalogRouteComponent as M3uCatalogRouteComponentType } from './m3u-catalog-route.component';
 

@@ -6,19 +6,24 @@ import {
     M3uCatalogIndex,
     M3uContentKind,
     buildM3uCatalogIndex,
-} from '@iptvnator/shared/m3u-utils';
+} from '@iptvnator/shared/m3u-utils/catalog';
 import {
     selectChannels,
     selectChannelsLoading,
     selectChannelsPlaylistId,
 } from './selectors';
+import {
+    M3uCatalogSectionFlags,
+    M3uCatalogSectionsRegistry,
+    M3uCatalogSectionsSource,
+} from './m3u-catalog-sections-registry.service';
 
-const EMPTY_INDEX: M3uCatalogIndex<Channel> = buildM3uCatalogIndex<Channel>([]);
-
-export interface M3uCatalogSectionFlags {
-    readonly movies: boolean;
-    readonly series: boolean;
-}
+// Built on first use rather than at module load: the barrel is on the
+// startup path, and a top-level call keeps the classifier in the initial
+// bundle.
+let emptyIndex: M3uCatalogIndex<Channel> | undefined;
+const emptyIndexOf = (): M3uCatalogIndex<Channel> =>
+    (emptyIndex ??= buildM3uCatalogIndex<Channel>([]));
 
 /**
  * Owns the derived catalog index for the loaded M3U playlist.
@@ -42,9 +47,15 @@ export interface M3uCatalogSectionFlags {
  * does not rebuild it.
  */
 @Injectable({ providedIn: 'root' })
-export class M3uCatalogIndexService {
+export class M3uCatalogIndexService implements M3uCatalogSectionsSource {
     private readonly store = inject(Store);
     private readonly settingsStore = inject(SettingsStore);
+
+    constructor() {
+        // The startup path reads it through `M3uCatalogSectionsRegistry`, so
+        // it stays out of the initial bundle.
+        inject(M3uCatalogSectionsRegistry).attach(this);
+    }
 
     private readonly channels: Signal<Channel[]> =
         this.store.selectSignal(selectChannels);
@@ -115,7 +126,7 @@ export class M3uCatalogIndexService {
      * wrong playlist.
      */
     readonly index: Signal<M3uCatalogIndex<Channel>> = computed(() =>
-        this.loading() ? EMPTY_INDEX : this.storedIndex()
+        this.loading() ? emptyIndexOf() : this.storedIndex()
     );
 
     /** True once the playlist holds something other than live channels. */

@@ -14,13 +14,11 @@ import { selectActivePlaylistId } from './selectors';
  *
  * ## Why it is not on `M3uCatalogIndexService`
  *
- * The workspace shell injects the index service to decide which rail links
- * to offer, so everything that service imports ships in the initial
- * payload. Only the Series section and the series detail read this layer,
- * and both are lazy routes; kept here, behind its own entry point
+ * Only the Series section and the series detail read this layer, and both
+ * are lazy routes. Kept behind its own entry point
  * (`@iptvnator/m3u-state/series-catalog`) rather than the library barrel,
- * the aggregation and remake-split code loads with them instead of at
- * launch.
+ * which the startup path reaches, the aggregation and remake-split code
+ * loads with them instead of at launch.
  *
  * It reads `index`, not the stored rows, so it is empty while the next
  * playlist loads — an episode id is minted with the active playlist's id,

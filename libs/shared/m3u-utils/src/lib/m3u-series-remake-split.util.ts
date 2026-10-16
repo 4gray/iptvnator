@@ -1,9 +1,5 @@
 import { createM3uIdHasher } from '@iptvnator/shared/interfaces';
-import {
-    M3uArtworkBearing,
-    M3uSeriesAccumulator,
-    M3uSeriesEpisode,
-} from './m3u-series-model';
+import { M3uArtworkBearing, M3uSeriesAccumulator } from './m3u-series-model';
 import {
     placeNumberedEpisode,
     placeUnnumberedEpisode,

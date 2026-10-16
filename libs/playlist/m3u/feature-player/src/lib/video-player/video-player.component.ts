@@ -146,7 +146,7 @@ import { M3uEpgGuideSourceService } from '../epg-guide/m3u-epg-guide-source.serv
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
-import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state/catalog-index';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 import { isM3uCollectionView } from './m3u-collection-view.util';
 import { isM3uMovieRow } from './m3u-movie-row.util';

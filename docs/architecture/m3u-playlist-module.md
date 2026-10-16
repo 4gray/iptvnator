@@ -1769,11 +1769,18 @@ splits the array by derived content kind and `buildM3uSeriesCatalog`
 collapses the episode rows into 1,953 series. Both are memoised
 `computed()`s in `libs/m3u-state`, keyed implicitly on the channel array
 reference: the index on `M3uCatalogIndexService`, the series layer on
-`M3uSeriesCatalogService`. The split is for the initial payload — the
-workspace shell injects the index service for the rail links, so the series
-code sits behind its own entry points (`@iptvnator/m3u-state/series-catalog`,
-`@iptvnator/shared/m3u-utils/series`) and loads with the lazy Series routes.
-Import it from those, never through the two barrels. There is no schema
+`M3uSeriesCatalogService`. The split is for the initial payload: esbuild
+puts every module a barrel re-exports in the chunk the launch loads once the
+startup path reaches that barrel, even when only lazy routes use it. So the
+index service, the classifier and the series code sit behind their own entry
+points (`@iptvnator/m3u-state/catalog-index`,
+`@iptvnator/shared/m3u-utils/catalog`, `@iptvnator/m3u-state/series-catalog`,
+`@iptvnator/shared/m3u-utils/series`) and load with the M3U routes. Import
+them from those, never through the two barrels. The startup path (the shell
+rail, section memory, channel zapping in the root effects) reads the index
+through `M3uCatalogSectionsRegistry`, which the index attaches to when the
+M3U route session creates it; until then every answer is "not known".
+`pnpm run perf:initial-bytes:check` catches a regression. There is no schema
 change, and
 the catalog itself behaves identically in the PWA. Episode progress is the
 exception: it goes through `PlaybackPositionService`, whose storage is the

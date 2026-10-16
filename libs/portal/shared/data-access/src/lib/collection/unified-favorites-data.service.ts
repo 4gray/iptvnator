@@ -34,7 +34,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamFavoriteItem,
 } from '@iptvnator/portal/xtream/data-access';
-import { m3uCollectionContentType } from '@iptvnator/shared/m3u-utils';
+import { m3uCollectionContentType } from '@iptvnator/shared/m3u-utils/catalog';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
 

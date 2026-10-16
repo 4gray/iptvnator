@@ -245,7 +245,13 @@ test('@electron @m3u @playback diagnostic cards keep every locale label and stat
         writeFileSync(
             playlist,
             buildM3uContent([
-                { name: 'Unsupported MKV', url: server.resourceUrl },
+                // A guide id keeps this .mkv row a channel: without a
+                // broadcast signal the catalog files it under Movies.
+                {
+                    name: 'Unsupported MKV',
+                    url: server.resourceUrl,
+                    tvgId: 'unsupported-mkv',
+                },
             ])
         );
         await importM3uPlaylistFromNativeDialog(app, playlist);

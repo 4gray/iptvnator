@@ -122,8 +122,8 @@ async function enableTmdb(page: Page): Promise<void> {
 async function keepFilmsInChannelList(page: Page): Promise<void> {
     await page.goto('/workspace/settings/general');
     const toggle = page.locator('[data-test-id="m3u-catalog-tabs"]');
-    await expect(toggle.locator('input')).toBeChecked();
-    await toggle.locator('input').uncheck();
+    await expect(toggle.getByRole('switch')).toBeChecked();
+    await toggle.click();
     await saveSettings(page);
 }
 
@@ -240,7 +240,9 @@ async function configureMetadata(
     await enableTmdb(page);
     if (mode === 'details-disabled') {
         await setSwitch(
-            page.locator('[data-test-id="tmdb-m3u-vod-details"] [role="switch"]'),
+            page.locator(
+                '[data-test-id="tmdb-m3u-vod-details"] [role="switch"]'
+            ),
             false
         );
         await saveSettings(page);

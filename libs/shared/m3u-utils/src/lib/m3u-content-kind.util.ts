@@ -1,9 +1,7 @@
 import { isDashStreamUrl } from './dash.utils';
 import { getPlaybackMediaExtensionFromUrl } from './playback-media-extension.util';
-import {
-    hasStrongEpisodeCode,
-    isVodContainerExtension,
-} from './m3u-vod-detection.util';
+import { hasStrongEpisodeCode } from './m3u-episode-code.util';
+import { isVodContainerExtension } from './m3u-vod-detection.util';
 
 /**
  * What an M3U entry actually is, so the catalog can stop presenting films and

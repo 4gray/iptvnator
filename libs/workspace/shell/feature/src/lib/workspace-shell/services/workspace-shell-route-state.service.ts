@@ -17,7 +17,7 @@ import {
     PortalRailLink,
 } from '@iptvnator/portal/shared/util';
 import {
-    M3uCatalogIndexService,
+    M3uCatalogSectionsRegistry,
     selectAllPlaylistsMeta,
 } from '@iptvnator/m3u-state';
 import {
@@ -50,7 +50,7 @@ export class WorkspaceShellRouteStateService {
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly catalogIndex = inject(M3uCatalogIndexService);
+    private readonly catalogSections = inject(M3uCatalogSectionsRegistry);
 
     /**
      * Which catalog sections the M3U rail should offer.
@@ -73,7 +73,8 @@ export class WorkspaceShellRouteStateService {
         // playlist's (while it loads, on Favorites and Recent, and off an
         // M3U route, where the rail follows the active playlist).
         return (
-            this.catalogIndex.sectionsOf(playlistId) ?? NO_M3U_CATALOG_SECTIONS
+            this.catalogSections.sectionsOf(playlistId) ??
+            NO_M3U_CATALOG_SECTIONS
         );
     }
 
