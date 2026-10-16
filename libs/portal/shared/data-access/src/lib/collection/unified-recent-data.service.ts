@@ -597,11 +597,18 @@ export class UnifiedRecentDataService {
 
         return recentItems
             .map((recentItem) => {
+                const url = recentItem.url.trim();
+                const byId = recentItem.channel_id
+                    ? channelsById.get(String(recentItem.channel_id).trim())
+                    : undefined;
+                // The saved row first while it still has this URL: rows can
+                // share one, and the row decides the tab the item is
+                // listed on. A refresh re-mints ids, so the URL decides
+                // when the id no longer agrees.
                 const channel =
-                    channelsByUrl.get(recentItem.url.trim()) ||
-                    (recentItem.channel_id
-                        ? channelsById.get(String(recentItem.channel_id).trim())
-                        : undefined);
+                    (byId?.url?.trim() === url ? byId : undefined) ||
+                    channelsByUrl.get(url) ||
+                    byId;
                 const fallbackSourceId =
                     recentItem.url?.trim() ||
                     String(recentItem.channel_id ?? '').trim();

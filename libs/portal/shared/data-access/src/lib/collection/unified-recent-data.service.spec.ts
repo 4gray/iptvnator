@@ -263,6 +263,61 @@ describe('UnifiedRecentDataService', () => {
         expect(items[0].logo).toBe('film.png');
     });
 
+    it('resolves a recent M3U row by its saved id when rows share the URL', async () => {
+        // Two rows, one URL: the film the viewer opened and a channel that
+        // states a guide id. A URL lookup returns the last row, which is the
+        // channel, and the film would be listed on the Live tab.
+        const url = 'https://example.com/shared.mkv';
+        const film: Channel = {
+            ...channels[0],
+            id: 'film-row',
+            name: 'Some Film',
+            url,
+            tvg: { ...channels[0].tvg, id: '' },
+        };
+        const live: Channel = {
+            ...channels[0],
+            id: 'live-row',
+            name: 'Some Channel',
+            url,
+            tvg: { ...channels[0].tvg, id: 'some.channel' },
+        };
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'm3u-1',
+                    title: 'M3U List',
+                    count: 0,
+                    importDate: '2026-01-01T00:00:00.000Z',
+                    autoRefresh: false,
+                    recentlyViewed: [
+                        {
+                            source: 'm3u',
+                            id: url,
+                            url,
+                            title: 'Some Film',
+                            channel_id: 'film-row',
+                            category_id: 'live',
+                            added_at: '2026-03-26T11:00:00.000Z',
+                        },
+                    ],
+                },
+            ] satisfies PlaylistMeta[])
+        );
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'm3u-1',
+                playlist: { items: [film, live] },
+            } satisfies Partial<Playlist>)
+        );
+
+        const items = await service.getRecentItems('playlist', 'm3u-1', 'm3u');
+
+        expect(items).toHaveLength(1);
+        expect(items[0].channelId).toBe('film-row');
+        expect(items[0].contentType).toBe('movie');
+    });
+
     it('leaves a live row with artwork only in the field the live tab reads', async () => {
         const items = await service.getRecentItems('playlist', 'm3u-1', 'm3u');
 
