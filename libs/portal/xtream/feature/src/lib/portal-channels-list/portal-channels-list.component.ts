@@ -30,7 +30,6 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import {
-    foldSearchText,
     buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
@@ -44,9 +43,11 @@ import {
     EpgMappingDialogComponent,
 } from '@iptvnator/ui/components';
 import {
+    categorySearchPredicate,
     createLogger,
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
+    normalizeCategorySearch,
     PortalChannelSortMode,
     sortPortalChannelItems,
 } from '@iptvnator/portal/shared/util';
@@ -163,16 +164,19 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         );
     });
     readonly filteredChannels = computed(() => {
-        const term = foldSearchText(this.searchTermInput().trim());
+        const searchTerm = this.searchTermInput();
         const channels = this.sortedChannels();
 
-        if (!term) {
+        if (!searchTerm.trim()) {
             return channels;
         }
 
+        const matches = categorySearchPredicate(searchTerm, '', 'all');
         return channels.filter((item) =>
-            foldSearchText(`${item.title ?? ''} ${item.name ?? ''}`).includes(
-                term
+            matches(
+                normalizeCategorySearch(
+                    `${item.title ?? ''} ${item.name ?? ''}`
+                )
             )
         );
     });

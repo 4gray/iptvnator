@@ -23,6 +23,68 @@ import {
 import { applyTheme } from './theme-contrast';
 
 test.describe('Electron Xtream Category Management', () => {
+    test('keeps results reachable with many search chips and retains keyboard focus when closing', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        try {
+            await addXtreamPortal(app.mainWindow);
+            await openWorkspaceSection(app.mainWindow, 'Live TV');
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await app.mainWindow.setViewportSize({ width: 1100, height: 520 });
+            const panel = app.mainWindow.locator('app-workspace-context-panel');
+            const toggle = panel
+                .locator('.context-header__actions button')
+                .first();
+            await toggle.click();
+            const search = panel.locator('app-category-search');
+            const query = search.getByRole('searchbox', {
+                name: 'Keywords',
+                exact: true,
+            });
+            await expect(query).toBeFocused();
+            await search.getByRole('combobox').selectOption('any');
+            await query.fill(
+                'news ' +
+                    Array.from({ length: 40 }, (_, i) => `unused${i}`).join(' ')
+            );
+            const results = panel.locator(
+                'app-workspace-context-category-view'
+            );
+            await expect(
+                results.locator('.category-item').first()
+            ).toBeVisible();
+            await expect
+                .poll(async () => (await results.boundingBox())?.height ?? 0)
+                .toBeGreaterThan(80);
+            expect(
+                await search.evaluate(
+                    (element) => element.scrollHeight > element.clientHeight
+                )
+            ).toBe(true);
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(app.mainWindow, theme);
+                await app.mainWindow.screenshot({
+                    path: test
+                        .info()
+                        .outputPath(`category-search-${theme}.png`),
+                });
+            }
+            await toggle.focus();
+            await toggle.press('Enter');
+            await expect(search).toHaveCount(0);
+            await expect(toggle).toBeFocused();
+            await toggle.press('Enter');
+            await expect(query).toBeFocused();
+            await expect(query).toHaveValue('');
+            await expect(search.getByRole('combobox')).toHaveValue('all');
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('keeps the selected category in view with 800 categories, 600 hidden and A-Z sorting', async ({
         dataDir,
         request,
@@ -44,7 +106,9 @@ test.describe('Electron Xtream Category Management', () => {
             await dialog
                 .getByRole('button', { name: 'Deselect All', exact: true })
                 .click();
-            await dialog.locator('input[type="search"]').fill('Visible');
+            await dialog
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
+                .fill('Visible');
             await dialog
                 .getByRole('button', { name: 'Select Filtered', exact: true })
                 .click();
@@ -141,7 +205,11 @@ test.describe('Electron Xtream Category Management', () => {
                     dialog.getByRole('checkbox', { name, exact: true });
                 await checkbox(outside[0]).uncheck();
                 await checkbox(matched[0]).uncheck();
-                const search = () => dialog.locator('input[type="search"]');
+                const search = () =>
+                    dialog.getByRole('searchbox', {
+                        name: 'Keywords',
+                        exact: true,
+                    });
                 await search().fill('a');
                 const select = () =>
                     dialog.getByRole('button', {
@@ -263,7 +331,7 @@ test.describe('Electron Xtream Category Management', () => {
             ).toBeVisible();
 
             await dialog
-                .locator('input[type="search"]')
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
                 .fill(targetCategory.name);
             await toggleManagedCategory(dialog, targetCategory, false);
             await dialog
@@ -299,7 +367,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog
-                .locator('input[type="search"]')
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
                 .fill(targetCategory.name);
             await toggleManagedCategory(dialog, targetCategory, true);
             await dialog
@@ -311,7 +379,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog
-                .locator('input[type="search"]')
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
                 .fill(targetCategory.name);
             const restoredRows = dialog.locator('.category-item');
             await expect(restoredRows).toHaveCount(1, { timeout: 15000 });
@@ -361,7 +429,7 @@ test.describe('Electron Xtream Category Management', () => {
             ).toHaveCount(0);
 
             await dialog
-                .locator('input[type="search"]')
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
                 .fill(targetCategory.name);
             await toggleManagedCategory(dialog, targetCategory, true);
             await dialog

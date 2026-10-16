@@ -290,7 +290,7 @@ test.describe('Electron playlist backup round-trip', () => {
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog
-                .locator('input[type="search"]')
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
                 .fill(targetCategory.name);
             const restoredRow = dialog.locator('.category-item').first();
             await expect(restoredRow).toBeVisible({ timeout: 15000 });
@@ -319,7 +319,7 @@ async function setManagedCategoryChecked(
     categoryName: string,
     shouldBeChecked: boolean
 ): Promise<void> {
-    await dialog.locator('input[type="search"]').fill(categoryName);
+    await dialog.getByRole('searchbox', { name: 'Keywords', exact: true }).fill(categoryName);
     const row = dialog.locator('.category-item').first();
     await expect(row).toBeVisible({ timeout: 15000 });
     const checkbox = row.locator('mat-checkbox input');

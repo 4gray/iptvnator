@@ -84,6 +84,11 @@
     color: var(--mat-sys-on-surface-variant);
 }
 
+// Keep results reachable even when chips wrap in a short rail or popover.
+app-category-search {
+    max-height: 50%;
+}
+
 // ─── Search Bar ──────────────────────────────────────────────────────────────
 .context-search {
     display: flex;

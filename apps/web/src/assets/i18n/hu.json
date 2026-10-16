@@ -2221,5 +2221,17 @@
             "INSTALL_INSTRUCTIONS": "Telepítési útmutató",
             "DONT_SHOW_AGAIN": "Ne jelenjen meg újra"
         }
+    },
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "Kulcsszavak",
+        "MODE": "Egyezés",
+        "ANY": "Legalább egy szó (VAGY)",
+        "ALL": "Minden szó (ÉS)",
+        "EXCLUDE": "Kulcsszavak kizárása",
+        "HELP": "A szavakat szóközzel válaszd el. A kifejezéseket tedd idézőjelbe, a kizárásokat kezdd - jellel, pl. \"French Canada\" -ES.",
+        "COUNT": "{{matched}} / {{total}} kategória",
+        "CLEAR": "Szűrők törlése",
+        "REMOVE": "{{term}} eltávolítása",
+        "REMOVE_EXCLUSION": "{{term}} kizárásának eltávolítása"
     }
 }

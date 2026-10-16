@@ -2221,5 +2221,17 @@
             "INSTALL_INSTRUCTIONS": "安裝說明",
             "DONT_SHOW_AGAIN": "不再顯示"
         }
+    },
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "關鍵字",
+        "MODE": "比對方式",
+        "ANY": "至少一個詞（或）",
+        "ALL": "所有詞（且）",
+        "EXCLUDE": "排除關鍵字",
+        "HELP": "以空格分隔詞語，以引號括住片語，並在排除項目前加 -，例如 \"French Canada\" -ES。",
+        "COUNT": "共 {{total}} 個分類，符合 {{matched}} 個",
+        "CLEAR": "清除篩選",
+        "REMOVE": "移除 {{term}}",
+        "REMOVE_EXCLUSION": "移除排除項目 {{term}}"
     }
 }

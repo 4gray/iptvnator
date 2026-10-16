@@ -26,6 +26,9 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import {
     LiveLayoutSidebarStateService,
+    CategorySearchMode,
+    categorySearchPredicate,
+    normalizeCategorySearch,
     PortalCategorySortMode,
     PortalCategorySortStateService,
     sortPortalCategoryItems,
@@ -55,7 +58,7 @@ import {
 import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
 import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
-import { foldSearchText } from '@iptvnator/shared/interfaces';
+import { CategorySearchComponent } from '@iptvnator/portal/shared/ui';
 import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
@@ -90,6 +93,7 @@ interface WorkspaceCategoryLike {
         MenuItemRadioDirective,
         TranslatePipe,
         WorkspaceContextCategoryViewComponent,
+        CategorySearchComponent,
         WorkspaceContextErrorViewComponent,
     ],
     templateUrl: './workspace-context-panel.component.html',
@@ -342,10 +346,32 @@ export class WorkspaceContextPanelComponent {
         78, 66, 74, 59, 83, 69, 76, 62, 81, 64, 72, 67, 79, 61,
     ];
 
-    readonly searchInput =
-        viewChild<ElementRef<HTMLInputElement>>('searchInput');
+    readonly searchInput = viewChild(CategorySearchComponent);
     readonly isSearchOpen = signal(false);
     readonly categorySearchTerm = signal('');
+    readonly categoryExcludedTerm = signal('');
+    readonly categorySearchMode = signal<CategorySearchMode>('all');
+    private readonly categoryMatcher = computed(() =>
+        categorySearchPredicate(
+            this.categorySearchTerm(),
+            this.categoryExcludedTerm(),
+            this.categorySearchMode()
+        )
+    );
+    private readonly normalizedXtream = computed(() => {
+        this.languageTick();
+        return this.xtreamCategories().map((category) => ({
+            category,
+            name: normalizeCategorySearch(this.getCategoryLabel(category)),
+        }));
+    });
+    private readonly normalizedStalker = computed(() => {
+        this.languageTick();
+        return this.stalkerCategories().map((category) => ({
+            category,
+            name: normalizeCategorySearch(this.getCategoryLabel(category)),
+        }));
+    });
     // Shared with the popover copy of this panel; see the service's note.
     private readonly categorySort = inject(PortalCategorySortStateService);
     readonly categorySortMode = this.categorySort.mode;
@@ -394,14 +420,10 @@ export class WorkspaceContextPanelComponent {
     );
 
     readonly filteredXtreamCategories = computed(() => {
-        this.languageTick();
-        const cats = this.xtreamCategories();
-        const term = foldSearchText(this.categorySearchTerm().trim());
-        const filtered = term
-            ? cats.filter((category) =>
-                  foldSearchText(this.getCategoryLabel(category)).includes(term)
-              )
-            : cats;
+        const matches = this.categoryMatcher();
+        const filtered = this.normalizedXtream()
+            .filter((item) => matches(item.name))
+            .map((item) => item.category);
 
         return sortPortalCategoryItems(
             filtered,
@@ -412,14 +434,10 @@ export class WorkspaceContextPanelComponent {
     });
 
     readonly filteredStalkerCategories = computed(() => {
-        this.languageTick();
-        const cats = this.stalkerCategories();
-        const term = foldSearchText(this.categorySearchTerm().trim());
-        const filtered = term
-            ? cats.filter((category) =>
-                  foldSearchText(this.getCategoryLabel(category)).includes(term)
-              )
-            : cats;
+        const matches = this.categoryMatcher();
+        const filtered = this.normalizedStalker()
+            .filter((item) => matches(item.name))
+            .map((item) => item.category);
 
         return sortPortalCategoryItems(
             filtered,
@@ -470,7 +488,7 @@ export class WorkspaceContextPanelComponent {
         effect(() => {
             if (this.isSearchOpen()) {
                 queueMicrotask(() => {
-                    this.searchInput()?.nativeElement.focus();
+                    this.searchInput()?.focus();
                 });
             }
         });
@@ -499,6 +517,8 @@ export class WorkspaceContextPanelComponent {
         this.isSearchOpen.set(opening);
         if (!opening) {
             this.categorySearchTerm.set('');
+            this.categoryExcludedTerm.set('');
+            this.categorySearchMode.set('all');
         }
     }
 
@@ -509,7 +529,9 @@ export class WorkspaceContextPanelComponent {
 
     clearCategorySearch(): void {
         this.categorySearchTerm.set('');
-        this.searchInput()?.nativeElement.focus();
+        this.categoryExcludedTerm.set('');
+        this.categorySearchMode.set('all');
+        this.searchInput()?.focus();
     }
 
     setCategorySortMode(mode: PortalCategorySortMode): void {

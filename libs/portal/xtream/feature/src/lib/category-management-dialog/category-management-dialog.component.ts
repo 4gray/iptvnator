@@ -17,6 +17,14 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import {
+    createLogger,
+    CategorySearchMode,
+    categorySearchPredicate,
+    categorySearchTerms,
+    normalizeCategorySearch,
+} from '@iptvnator/portal/shared/util';
+import { CategorySearchComponent } from '@iptvnator/portal/shared/ui';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
@@ -26,8 +34,6 @@ import {
     RuntimeCapabilitiesService,
     XCategoryFromDb,
 } from '@iptvnator/services';
-import { createLogger } from '@iptvnator/portal/shared/util';
-import { foldSearchText } from '@iptvnator/shared/interfaces';
 import {
     DialogFooterDirective,
     DialogShellComponent,
@@ -57,6 +63,7 @@ interface CategoryWithSelection extends XCategoryFromDb {
         MatProgressSpinnerModule,
         MatTooltipModule,
         TranslatePipe,
+        CategorySearchComponent,
     ],
     templateUrl: './category-management-dialog.component.html',
     styleUrl: './category-management-dialog.component.scss',
@@ -96,11 +103,32 @@ export class CategoryManagementDialogComponent implements OnInit {
     readonly categories = signal<CategoryWithSelection[]>([]);
     readonly searchTerm = signal('');
 
+    readonly excludedSearchTerm = signal('');
+    readonly searchMode = signal<CategorySearchMode>('all');
+    readonly hasSearch = computed(() =>
+        Boolean(
+            categorySearchTerms(this.searchTerm()).length ||
+            categorySearchTerms(this.excludedSearchTerm()).length
+        )
+    );
+    private readonly normalizedNames = computed(
+        () =>
+            new Map(
+                this.categories().map((category) => [
+                    category.id,
+                    normalizeCategorySearch(category.name),
+                ])
+            )
+    );
     readonly filteredCategories = computed(() => {
-        const term = foldSearchText(this.searchTerm());
-        if (!term) return this.categories();
-        return this.categories().filter((c) =>
-            foldSearchText(c.name).includes(term)
+        const matches = categorySearchPredicate(
+            this.searchTerm(),
+            this.excludedSearchTerm(),
+            this.searchMode()
+        );
+        const names = this.normalizedNames();
+        return this.categories().filter((category) =>
+            matches(names.get(category.id) ?? '')
         );
     });
 
@@ -188,6 +216,8 @@ export class CategoryManagementDialogComponent implements OnInit {
 
     clearSearch(): void {
         this.searchTerm.set('');
+        this.excludedSearchTerm.set('');
+        this.searchMode.set('all');
     }
 
     getItemCount(category: CategoryWithSelection): number {

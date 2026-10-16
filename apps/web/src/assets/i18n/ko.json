@@ -2221,5 +2221,17 @@
             "INSTALL_INSTRUCTIONS": "설치 안내",
             "DONT_SHOW_AGAIN": "다시 표시 안 함"
         }
+    },
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "검색어",
+        "MODE": "일치 조건",
+        "ANY": "하나 이상의 단어 (OR)",
+        "ALL": "모든 단어 (AND)",
+        "EXCLUDE": "제외 검색어",
+        "HELP": "단어는 공백으로 구분하세요. 구문은 따옴표로 묶고 제외할 단어 앞에 -를 붙이세요. 예: \"French Canada\" -ES.",
+        "COUNT": "전체 {{total}}개 카테고리 중 {{matched}}개",
+        "CLEAR": "필터 초기화",
+        "REMOVE": "{{term}} 삭제",
+        "REMOVE_EXCLUSION": "제외 조건 {{term}} 삭제"
     }
 }

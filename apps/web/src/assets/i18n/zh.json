@@ -2221,5 +2221,17 @@
             "INSTALL_INSTRUCTIONS": "安装说明",
             "DONT_SHOW_AGAIN": "不再显示"
         }
+    },
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "关键词",
+        "MODE": "匹配方式",
+        "ANY": "至少一个词（或）",
+        "ALL": "所有词（且）",
+        "EXCLUDE": "排除关键词",
+        "HELP": "用空格分隔词语，用引号包围短语，并在排除项前加 -，例如 \"French Canada\" -ES。",
+        "COUNT": "共 {{total}} 个分类，匹配 {{matched}} 个",
+        "CLEAR": "清除筛选",
+        "REMOVE": "移除 {{term}}",
+        "REMOVE_EXCLUSION": "移除排除项 {{term}}"
     }
 }
