@@ -44,6 +44,7 @@ describe('withStalkerEpg', () => {
         sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
     };
     let runtimeSupportsEpg: boolean;
+    let runtimeSupportsProviderEpg: boolean;
     let stalkerSessionService: {
         makeAuthenticatedRequest: jest.Mock<Promise<unknown>, unknown[]>;
         ensureToken: jest.Mock<Promise<unknown>, unknown[]>;
@@ -56,6 +57,7 @@ describe('withStalkerEpg', () => {
 
     beforeEach(() => {
         runtimeSupportsEpg = true;
+        runtimeSupportsProviderEpg = true;
         dataService = {
             sendIpcEvent: jest.fn(),
         };
@@ -78,6 +80,9 @@ describe('withStalkerEpg', () => {
                     useValue: {
                         get supportsEpg() {
                             return runtimeSupportsEpg;
+                        },
+                        get supportsProviderEpg() {
+                            return runtimeSupportsProviderEpg;
                         },
                     },
                 },
@@ -124,12 +129,60 @@ describe('withStalkerEpg', () => {
         ]);
     });
 
-    it('does not request short EPG in browser/PWA mode', async () => {
+    it('requests short and bulk EPG in browser/PWA mode without XMLTV', async () => {
         runtimeSupportsEpg = false;
+        dataService.sendIpcEvent.mockResolvedValueOnce({
+            js: {
+                data: [
+                    buildEntry('10001', 'Current Show', 1744365600, 1744367400),
+                ],
+            },
+        });
+        dataService.sendIpcEvent.mockResolvedValueOnce({
+            js: {
+                data: {
+                    '10001': [
+                        buildEntry(
+                            '10001',
+                            'Current Show',
+                            1744362000,
+                            1744365600
+                        ),
+                    ],
+                },
+            },
+        });
+
+        const shortEpg = await store.fetchChannelEpg('10001');
+        await store.ensureBulkItvEpg(168);
+
+        expect(shortEpg).toEqual([
+            buildEpgItem('10001', 'Current Show', 1744365600, 1744367400),
+        ]);
+        expect(dataService.sendIpcEvent).toHaveBeenNthCalledWith(
+            2,
+            expect.anything(),
+            expect.objectContaining({
+                params: expect.objectContaining({
+                    action: 'get_epg_info',
+                    period: '168',
+                }),
+            })
+        );
+        expect(store.selectedItvEpgPrograms()).toEqual([
+            buildProgram('10001', 'Current Show', 1744362000, 1744365600),
+        ]);
+    });
+
+    it('does not request portal EPG without a portal transport', async () => {
+        runtimeSupportsProviderEpg = false;
 
         const result = await store.fetchChannelEpg('10001');
+        await store.ensureBulkItvEpg(168);
 
         expect(result).toEqual([]);
+        expect(store.bulkItvEpgLoaded()).toBe(true);
+        expect(store.bulkItvEpgByChannel()).toEqual({});
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
         expect(
             stalkerSessionService.makeAuthenticatedRequest
@@ -234,6 +287,14 @@ describe('withStalkerEpg', () => {
             await store.applyMappedItvEpg(['10001']);
 
             expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledTimes(1);
+        });
+
+        it('skips manual mappings without XMLTV even when provider EPG is on', async () => {
+            runtimeSupportsEpg = false;
+
+            await store.applyMappedItvEpg(['10001']);
+
+            expect(epgBridge.getEpgMappingsBatch).not.toHaveBeenCalled();
         });
 
         it('drops removed-source overrides and reloads the selected mapping without a portal reset', async () => {
