@@ -196,6 +196,13 @@ describe('UnifiedCollectionPageComponent', () => {
         routeQueryParamMap$.next(nextQueryParamMap);
     }
 
+    /** The loading rows' `compact` flags; a compact row has no programme line. */
+    function loadingRowsCompact(): boolean[] {
+        return fixture.debugElement
+            .queryAll(By.css('.channel-list-item-skeleton'))
+            .map((row) => row.classes['compact'] === true);
+    }
+
     beforeEach(async () => {
         playlistsLoaded.set(false);
         playlists.set([]);
@@ -393,16 +400,21 @@ describe('UnifiedCollectionPageComponent', () => {
     it('uses compact loading rows when the runtime has no EPG support', () => {
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector(
-                '.channel-list-item-skeleton.compact'
-            )
-        ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector(
-                '.channel-list-item-skeleton:not(.compact)'
-            )
-        ).toBeNull();
+        expect(new Set(loadingRowsCompact())).toEqual(new Set([true]));
+    });
+
+    it('reserves the programme line while an Xtream playlist loads in the browser PWA', () => {
+        // The stub has no XMLTV; the portal transport gives Xtream rows
+        // their programme line, so the skeleton must not be compact.
+        Object.assign(TestBed.inject(RuntimeCapabilitiesService), {
+            supportsProviderEpg: true,
+        });
+        setRouteParams({ id: 'playlist-1' });
+        fixture.componentRef.setInput('portalType', 'xtream');
+        fixture.componentRef.setInput('defaultScope', 'playlist');
+        fixture.detectChanges();
+
+        expect(new Set(loadingRowsCompact())).toEqual(new Set([false]));
     });
 
     it('reloads favorites after playlist hydration completes', async () => {
