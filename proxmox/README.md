@@ -85,7 +85,9 @@ has; Settings → Server merges the others and exports a backup.
 
 Provider credentials are stored unencrypted in that database. Set
 `IPTVNATOR_ACCESS_TOKEN` before the instance is reachable from outside your LAN,
-and use a reverse proxy with HTTPS for that. Back the database up with Settings → Server → Export backup (no need to stop
+and use a reverse proxy with HTTPS for that.
+
+Back the database up with Settings → Server → Export backup (no need to stop
 anything), with a Proxmox backup of the container, or by copying the
 `/var/lib/iptvnator/databases` folder while the backend is stopped
 (`systemctl stop iptvnator-backend`): files copied while it runs can be out of
