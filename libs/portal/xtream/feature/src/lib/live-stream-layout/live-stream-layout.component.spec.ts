@@ -224,6 +224,7 @@ describe('LiveStreamLayoutComponent', () => {
                         supportsDownloads: true,
                         // The portal transport exists in both runtimes.
                         supportsProviderEpg: true,
+                        supportsProviderCatchUp: true,
                         get isElectron() {
                             return Boolean(window.electron);
                         },

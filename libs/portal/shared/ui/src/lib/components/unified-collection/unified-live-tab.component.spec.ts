@@ -108,6 +108,7 @@ describe('UnifiedLiveTabComponent', () => {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
                         supportsProviderEpg: true,
+                        supportsProviderCatchUp: true,
                         get supportsEpg() {
                             return Boolean(window.electron);
                         },
@@ -1248,6 +1249,20 @@ describe('UnifiedLiveTabComponent', () => {
             await selectXtreamArchiveChannel({
                 tvArchive: 0,
                 tvArchiveDuration: 0,
+            });
+
+            const timeline = queryTimeline();
+            expect(timeline.archivePlaybackAvailable()).toBe(false);
+            expect(timeline.archiveDays()).toBe(0);
+        });
+
+        it('keeps the archive gate closed where provider catch-up cannot play', async () => {
+            Object.assign(TestBed.inject(RuntimeCapabilitiesService), {
+                supportsProviderCatchUp: false,
+            });
+            await selectXtreamArchiveChannel({
+                tvArchive: 1,
+                tvArchiveDuration: 5,
             });
 
             const timeline = queryTimeline();

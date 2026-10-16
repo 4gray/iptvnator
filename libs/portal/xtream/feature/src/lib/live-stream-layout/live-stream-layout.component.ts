@@ -321,6 +321,7 @@ export class LiveStreamLayoutComponent
     readonly archivePlaybackAvailable = computed(() => {
         const selectedItem = this.selectedLiveItem();
         return (
+            this.runtime.supportsProviderCatchUp &&
             Number(selectedItem?.tv_archive ?? 0) === 1 &&
             this.controlledArchiveDays() > 0
         );

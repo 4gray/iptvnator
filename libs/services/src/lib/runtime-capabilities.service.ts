@@ -192,6 +192,15 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    /**
+     * Xtream catch-up (timeshift) from the EPG panel: watch, copy, download.
+     * Hidden in the browser PWA until a manual check against a real provider
+     * shows its players play the REST MPEG-TS archive URL.
+     */
+    get supportsProviderCatchUp(): boolean {
+        return this.isElectron;
+    }
+
     get supportsSqlite(): boolean {
         return [
             'dbDeleteAllPlaylists',

@@ -483,9 +483,12 @@ or with an error status cannot fast-fail playback.
 The local XMLTV parts keep the XMLTV capabilities and stay off in the PWA:
 the `epg_channel_id` fallback and `preferUploadedEpgOverXtream`
 (`XtreamXmltvFallbackService`), and manual EPG mapping (`supportsEpgMapping`).
-Whether catch-up from the provider guide plays in the browser players is being
-verified; the URL shape the PWA falls back to is described under Catch-Up
-Playback URLs.
+The PWA hides the catch-up actions of the EPG panel (watch, copy, download):
+`RuntimeCapabilitiesService.supportsProviderCatchUp` is false there until a
+manual check against a real provider shows that the browser players play the
+REST MPEG-TS timeshift URL the PWA falls back to (see Catch-Up Playback URLs).
+It gates `archivePlaybackAvailable` (Live TV) and `timelineArchiveAvailable`
+(Favorites/Recent); the desktop app keeps all three actions.
 
 ## User-Agent
 

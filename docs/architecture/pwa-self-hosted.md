@@ -428,7 +428,10 @@ these limitations explicit in UI, troubleshooting, and release notes:
   proxy routes and is gated on `supportsProviderEpg`. The display settings of
   Settings → EPG (view mode, time offset) render wherever a guide exists
   (`SettingsFormFacade.supportsEpgDisplay`), so the PWA shows them; they are
-  stored per browser like other settings.
+  stored per browser like other settings. Xtream catch-up from the EPG panel
+  is desktop-only for now (`supportsProviderCatchUp`); the PWA timeline shows
+  past programmes without archive actions until a manual check shows that the
+  browser players play the provider's archive URL.
 - The PWA does not use the Electron SQLite database or DB worker. Playlist
   metadata uses `PlaylistsService` with IndexedDB, which
   `PlaylistStorageBackend` selects when no SQLite bridge exists; Xtream

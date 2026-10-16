@@ -469,6 +469,16 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsProviderEpg).toBe(false);
     });
 
+    it('offers provider catch-up playback only in the desktop app', () => {
+        const service = new RuntimeCapabilitiesService();
+
+        testWindow.electron = undefined;
+        expect(service.supportsProviderCatchUp).toBe(false);
+
+        testWindow.electron = {};
+        expect(service.supportsProviderCatchUp).toBe(true);
+    });
+
     it('requires the complete downloads preload surface', () => {
         testWindow.electron = {
             downloadsGetList: jest.fn(),
