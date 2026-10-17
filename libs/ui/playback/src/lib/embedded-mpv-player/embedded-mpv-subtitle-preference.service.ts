@@ -6,6 +6,7 @@ import { EmbeddedMpvSubtitleTrack } from '@iptvnator/shared/interfaces';
 export class EmbeddedMpvSubtitlePreferenceService {
     /** Undefined means no viewer choice; null means subtitles were turned off. */
     current: { language?: string; title?: string } | null | undefined;
+    revision = 0;
 
     record(trackId: number, tracks: readonly EmbeddedMpvSubtitleTrack[]): void {
         const chosen = tracks.find((track) => track.id === trackId);
@@ -13,5 +14,6 @@ export class EmbeddedMpvSubtitlePreferenceService {
             trackId < 0 || !chosen
                 ? null
                 : { language: chosen.language, title: chosen.title };
+        this.revision += 1;
     }
 }

@@ -377,6 +377,106 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         expect(setSubtitleTrack).toHaveBeenCalledWith(32);
     });
 
+    it('waits for a preferred track that arrives after the first track list', async () => {
+        const setSubtitleTrack = jest
+            .spyOn(controller, 'setSubtitleTrack')
+            .mockResolvedValue(undefined);
+        await player.selectSubtitleTrack(22);
+        setSubtitleTrack.mockClear();
+
+        const currentSession = controller.session();
+        if (!currentSession) {
+            throw new Error('Expected a ready embedded MPV session');
+        }
+        controller.session.set({
+            ...currentSession,
+            streamUrl: 'https://example.test/movie/43.mp4',
+            subtitleTracks: [{ id: 31, language: 'eng', selected: true }],
+            selectedSubtitleTrackId: 31,
+        });
+        fixture.detectChanges();
+        setSubtitleTrack.mockClear();
+
+        controller.session.set({
+            ...currentSession,
+            streamUrl: 'https://example.test/movie/43.mp4',
+            subtitleTracks: [
+                { id: 31, language: 'eng', selected: true },
+                { id: 32, language: 'deu', selected: false },
+            ],
+            selectedSubtitleTrackId: 31,
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setSubtitleTrack).toHaveBeenCalledWith(32);
+    });
+
+    it('restores subtitles after reloading the same URL', async () => {
+        const setSubtitleTrack = jest
+            .spyOn(controller, 'setSubtitleTrack')
+            .mockResolvedValue(undefined);
+        await player.selectSubtitleTrack(22);
+        setSubtitleTrack.mockClear();
+
+        const currentSession = controller.session();
+        if (!currentSession) {
+            throw new Error('Expected a ready embedded MPV session');
+        }
+        controller.session.set({
+            ...currentSession,
+            status: 'loading',
+            subtitleTracks: [],
+            selectedSubtitleTrackId: null,
+        });
+        fixture.detectChanges();
+        controller.session.set({
+            ...currentSession,
+            subtitleTracks: [
+                { id: 31, language: 'eng', selected: true },
+                { id: 32, language: 'deu', selected: false },
+            ],
+            selectedSubtitleTrackId: 31,
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setSubtitleTrack).toHaveBeenCalledWith(32);
+    });
+
+    it('keeps a matching regional subtitle variant', async () => {
+        const setSubtitleTrack = jest
+            .spyOn(controller, 'setSubtitleTrack')
+            .mockResolvedValue(undefined);
+        const currentSession = controller.session();
+        if (!currentSession) {
+            throw new Error('Expected a ready embedded MPV session');
+        }
+        controller.session.set({
+            ...currentSession,
+            subtitleTracks: [
+                { id: 22, language: 'pt-BR', selected: false },
+            ],
+        });
+        fixture.detectChanges();
+        await player.selectSubtitleTrack(22);
+        setSubtitleTrack.mockClear();
+
+        controller.session.set({
+            ...currentSession,
+            streamUrl: 'https://example.test/movie/43.mp4',
+            subtitleTracks: [
+                { id: 31, language: 'pt-PT', selected: true },
+                { id: 32, language: 'pt-BR', selected: false },
+            ],
+            selectedSubtitleTrackId: 31,
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(setSubtitleTrack).toHaveBeenCalledWith(32);
+    });
+
     it('does not restore over a choice made on the current file', async () => {
         const setSubtitleTrack = jest
             .spyOn(controller, 'setSubtitleTrack')

@@ -66,7 +66,7 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 function subtitleLanguage(language?: string): string | undefined {
     if (!language) return undefined;
     try {
-        return Intl.getCanonicalLocales(language)[0]?.split('-')[0];
+        return Intl.getCanonicalLocales(language)[0]?.toLowerCase();
     } catch {
         return language.toLowerCase();
     }
@@ -283,6 +283,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         EmbeddedMpvSubtitlePreferenceService
     );
     private restoredSubtitleSource: string | null = null;
+    private subtitlePreferenceApplied = false;
+    private subtitleFileLoading = false;
+    private subtitlePreferenceRevision = this.subtitlePreference.revision;
     readonly playbackSpeed = computed(() => this.session()?.playbackSpeed ?? 1);
     readonly aspectOverride = computed(
         () => this.session()?.aspectOverride ?? 'no'
@@ -564,16 +567,42 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         effect(() => {
             const session = this.session();
-            if (!session || session.subtitleTracks.length === 0) {
+            if (!session) {
                 return;
             }
             const source = JSON.stringify([session.id, session.streamUrl]);
-            if (source === this.restoredSubtitleSource) {
+            if (source !== this.restoredSubtitleSource) {
+                this.restoredSubtitleSource = source;
+                this.subtitlePreferenceApplied = false;
+                this.subtitleFileLoading = false;
+                this.subtitlePreferenceRevision = this.subtitlePreference.revision;
+            }
+            if (session.status === 'loading') {
+                if (!this.subtitleFileLoading) {
+                    this.subtitlePreferenceApplied = false;
+                    this.subtitleFileLoading = true;
+                    this.subtitlePreferenceRevision =
+                        this.subtitlePreference.revision;
+                }
                 return;
             }
-            this.restoredSubtitleSource = source;
+            this.subtitleFileLoading = false;
+            if (
+                this.subtitlePreferenceRevision !==
+                this.subtitlePreference.revision
+            ) {
+                this.subtitlePreferenceRevision = this.subtitlePreference.revision;
+                this.subtitlePreferenceApplied = true;
+            }
+            if (
+                this.subtitlePreferenceApplied ||
+                session.subtitleTracks.length === 0
+            ) {
+                return;
+            }
             const preference = this.subtitlePreference.current;
             if (preference === undefined) {
+                this.subtitlePreferenceApplied = true;
                 return;
             }
             if (preference === null) {
@@ -583,11 +612,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 ) {
                     untracked(() => void this.controller.setSubtitleTrack(-1));
                 }
+                this.subtitlePreferenceApplied = true;
                 return;
             }
             const tracks = session.subtitleTracks;
             const preferredLanguage = subtitleLanguage(preference.language);
-            const match =
+            const preferredBaseLanguage = preferredLanguage?.split('-')[0];
+            const languageMatch =
                 tracks.find(
                     (track) =>
                         preferredLanguage &&
@@ -602,8 +633,25 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 ) ??
                 tracks.find(
                     (track) =>
-                        preference.title && track.title === preference.title
+                        preferredBaseLanguage &&
+                        preference.title &&
+                        subtitleLanguage(track.language)?.split('-')[0] ===
+                            preferredBaseLanguage &&
+                        track.title === preference.title
                 ) ??
+                tracks.find(
+                    (track) =>
+                        preferredBaseLanguage &&
+                        subtitleLanguage(track.language)?.split('-')[0] ===
+                            preferredBaseLanguage
+                );
+            const titleMatch = tracks.find(
+                (track) =>
+                    preference.title && track.title === preference.title
+            );
+            const match =
+                languageMatch ??
+                titleMatch ??
                 tracks.find(
                     (track) => track.defaultTrack && track.language !== 'zxx'
                 ) ??
@@ -613,6 +661,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                     () => void this.controller.setSubtitleTrack(match.id)
                 );
             }
+            this.subtitlePreferenceApplied =
+                languageMatch !== undefined ||
+                (!preferredLanguage &&
+                    (titleMatch !== undefined || !preference.title));
         });
 
         effect(() => {
