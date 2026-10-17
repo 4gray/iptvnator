@@ -1308,7 +1308,9 @@ class EpgService {
   that the selected M3U channel has a playable replay scheme. Archive days
   alone are not enough.
 - M3U catch-up support is resolved in `@iptvnator/shared/m3u-utils` from channel metadata and
-  the archived program start time.
+  the programme start time. Past and current URLs end at the current time;
+  future URL-backed programmes use the programme stop time, since ending a
+  future interval at the current time would put `lutc` before `utc`.
 - Supported replay precedence:
     1. `catchup.source` if it is an HTTP(S) URL. IPTVNator rewrites or appends
        standard `utc` and `lutc` query params on that URL.

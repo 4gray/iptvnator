@@ -24,7 +24,8 @@ export function isM3uCatchupPlaybackSupported(
 
 export function resolveM3uCatchupUrl(
     channel: Channel | null | undefined,
-    program: Pick<EpgProgram, 'start' | 'startTimestamp'>,
+    program: Pick<EpgProgram, 'start' | 'startTimestamp'> &
+        Partial<Pick<EpgProgram, 'stop' | 'stopTimestamp'>>,
     nowTimestampSeconds = Math.floor(Date.now() / 1000)
 ): string | null {
     const supportMode = getM3uCatchupSupportMode(channel);
@@ -53,16 +54,34 @@ export function resolveM3uCatchupUrl(
             ? Math.floor(nowTimestampSeconds)
             : Math.floor(Date.now() / 1000);
 
+    // Future schedules can refer to URL-backed content that is already
+    // available. A future start paired with the current clock would invert
+    // the requested interval, so use the selected programme's stop time.
+    const futureStopTimestamp =
+        startTimestamp > normalizedNow
+            ? getEpgProgramTimestampSeconds(
+                  program.stop ?? '',
+                  program.stopTimestamp
+              )
+            : null;
+    if (
+        startTimestamp > normalizedNow &&
+        (futureStopTimestamp === null || futureStopTimestamp <= startTimestamp)
+    ) {
+        return null;
+    }
+
     return setCatchupQueryParams(playbackBaseUrl, {
         utc: startTimestamp,
-        lutc: normalizedNow,
+        lutc: futureStopTimestamp ?? normalizedNow,
     });
 }
 
 /**
  * End of an M3U catch-up URL's archive window in epoch seconds: its `lutc`
- * parameter, the moment `resolveM3uCatchupUrl` built it. The stream runs
- * from the programme's start (`utc`) up to then. Null without the param.
+ * parameter. Past and current programmes end at the time the URL was built;
+ * a future programme uses its scheduled stop so the interval is valid. Null
+ * without the param.
  */
 export function getM3uCatchupWindowEndSeconds(
     playbackUrl: string | null | undefined
